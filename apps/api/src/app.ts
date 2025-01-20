@@ -25,6 +25,7 @@ import { userRouter } from "./routers/userRouter";
 import { web3IndexRouter } from "./routers/web3indexRouter";
 import { env } from "./utils/env";
 import { bytesToHumanReadableSize } from "./utils/files";
+import { sendVerificationEmailRouter } from "./auth";
 import { checkoutRouter, getWalletListRouter, signAndBroadcastTxRouter, startTrialRouter, stripePricesRouter, stripeWebhook } from "./billing";
 import { Scheduler } from "./scheduler";
 import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
@@ -80,6 +81,7 @@ appHono.route("/", stripePricesRouter);
 
 appHono.route("/", createAnonymousUserRouter);
 appHono.route("/", getAnonymousUserRouter);
+appHono.route("/", sendVerificationEmailRouter);
 
 appHono.get("/status", c => {
   const version = packageJson.version;

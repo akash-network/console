@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import { singleton } from "tsyringe";
 import { z } from "zod";
 
-import { AuthConfig, InjectAuthConfig } from "@src/auth/providers/config.provider";
+import { AuthConfigService } from "@src/auth/services/auth-config/auth-config.service";
 
 @singleton()
 export class AuthTokenService {
@@ -11,10 +11,10 @@ export class AuthTokenService {
     type: z.literal("ANONYMOUS")
   });
 
-  constructor(@InjectAuthConfig() private readonly config: AuthConfig) {}
+  constructor(private readonly config: AuthConfigService) {}
 
   signTokenFor(input: { id: string }): string {
-    return jwt.sign({ sub: input.id, type: "ANONYMOUS" }, this.config.ANONYMOUS_USER_TOKEN_SECRET);
+    return jwt.sign({ sub: input.id, type: "ANONYMOUS" }, this.config.get("ANONYMOUS_USER_TOKEN_SECRET"));
   }
 
   async getValidUserId(bearer: string): Promise<string | undefined> {
@@ -22,7 +22,7 @@ export class AuthTokenService {
     const payload = await this.decodeToken(token);
 
     if (payload) {
-      jwt.verify(token, this.config.ANONYMOUS_USER_TOKEN_SECRET);
+      jwt.verify(token, this.config.get("ANONYMOUS_USER_TOKEN_SECRET"));
 
       return payload.sub;
     }

@@ -4,12 +4,12 @@ import { usePopup } from "@akashnetwork/ui/context";
 import { useUser } from "@src/hooks/useUser";
 import { UrlService } from "@src/utils/urlUtils";
 
-export const useLoginRequiredEventHandler = (): ((callback: MouseEventHandler, messageOtherwise: string) => MouseEventHandler) => {
+export const useLoginRequiredEventHandler = (): ((messageOtherwise: string) => (callback: MouseEventHandler) => MouseEventHandler) => {
   const { requireAction } = usePopup();
   const user = useUser();
 
   return useCallback(
-    (handler: MouseEventHandler, messageOtherwise: string) => {
+    (messageOtherwise: string) => (handler: MouseEventHandler) => {
       const preventer: MouseEventHandler = event => {
         event.preventDefault();
         requireAction({

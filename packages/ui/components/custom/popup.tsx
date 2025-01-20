@@ -46,7 +46,7 @@ type PromptProps = {
 
 export type CustomPrompt = {
   variant: "custom";
-  actions: ActionButton[];
+  actions: ActionButton[] | ((actions: { close: () => void }) => ActionButton[]);
 };
 
 export type SelectOption = {
@@ -254,20 +254,24 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
       );
       break;
     case "custom": {
-      const leftButtons = props.actions
-        ?.filter(x => x.side === "left")
-        .map(({ isLoading, side, label, ...rest }, idx) => (
-          <Button key={`dialog-action-button-${idx}`} {...rest}>
-            {isLoading ? <Spinner size="small" /> : label}
-          </Button>
-        ));
-      const rightButtons = props.actions
-        ?.filter(x => x.side === "right")
-        .map(({ isLoading, side, label, ...rest }, idx) => (
-          <Button key={`dialog-action-button-${idx}`} {...rest}>
-            {isLoading ? <Spinner size="small" /> : label}
-          </Button>
-        ));
+      const leftButtons =
+        Array.isArray(props.actions) &&
+        props.actions
+          .filter(x => x.side === "left")
+          .map(({ isLoading, side, label, ...rest }, idx) => (
+            <Button key={`dialog-action-button-${idx}`} {...rest}>
+              {isLoading ? <Spinner size="small" /> : label}
+            </Button>
+          ));
+      const rightButtons =
+        Array.isArray(props.actions) &&
+        props.actions
+          .filter(x => x.side === "right")
+          .map(({ isLoading, side, label, ...rest }, idx) => (
+            <Button key={`dialog-action-button-${idx}`} {...rest}>
+              {isLoading ? <Spinner size="small" /> : label}
+            </Button>
+          ));
       component.push(
         <DialogFooter className="flex flex-row justify-between space-x-2 sm:justify-between" key="DialogCustomActions">
           <div className="space-x-2">{leftButtons}</div>

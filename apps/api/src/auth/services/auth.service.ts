@@ -1,4 +1,4 @@
-import { Ability } from "@casl/ability";
+import { Ability, subject } from "@casl/ability";
 import assert from "http-assert";
 import { container, Lifecycle, scoped } from "tsyringe";
 
@@ -29,8 +29,9 @@ export class AuthService {
     return !!this.currentUser;
   }
 
-  throwUnlessCan(action: string, subject: string) {
-    assert(this.ability.can(action, subject), 403);
+  throwUnlessCan(action: string, subjectName: string, payload?: Record<string, any>) {
+    const identifiedPayload = payload ? subject(subjectName, payload) : subjectName;
+    assert(this.ability.can(action, identifiedPayload), 403);
   }
 }
 
