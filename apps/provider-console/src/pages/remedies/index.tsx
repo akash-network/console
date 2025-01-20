@@ -34,4 +34,4 @@ const Remedies: React.FC = () => {
   );
 };
 
-export default withAuth(Remedies);
+export default withAuth({ WrappedComponent: Remedies, authLevel: "provider" });

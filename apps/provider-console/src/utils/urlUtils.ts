@@ -16,10 +16,12 @@ export const domainName = "https://provider.akash.network";
 
 export class UrlService {
   static home = () => "/";
+  static becomeProvider = () => "/become-provider";
+  static getStarted = () => "/get-started";
+  static getStartedWallet = (section?: string) => `/get-started/wallet${appendSearchParams({ section })}`;
   static deployments = () => "/deployments";
   static attributes = () => "/attributes";
   static settings = () => "/settings";
-  static getStarted = () => "/get-started";
   static privacyPolicy = () => "/privacy-policy";
   static termsOfService = () => "/terms-of-service";
   static activityLogs = () => "/activity-logs";

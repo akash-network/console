@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback,useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAtom } from "jotai";
 
 import { ProviderAttributes } from "@src/components/become-provider/ProviderAttributes";
@@ -54,4 +54,4 @@ const BecomeProvider: React.FC = () => {
   );
 };
 
-export default withAuth(BecomeProvider);
+export default withAuth({ WrappedComponent: BecomeProvider, authLevel: "wallet" });

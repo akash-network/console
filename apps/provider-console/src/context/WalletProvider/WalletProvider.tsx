@@ -210,6 +210,7 @@ export const WalletProvider = ({ children }) => {
 
   useEffect(() => {
     if (walletAddress) {
+      resetWalletStats();
       loadWallet();
       handleArbitrarySigning();
     }

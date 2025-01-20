@@ -19,4 +19,4 @@ const DeploymentsPage: React.FC = () => {
   );
 };
 
-export default withAuth(DeploymentsPage);
+export default withAuth({ WrappedComponent: DeploymentsPage, authLevel: "provider" });

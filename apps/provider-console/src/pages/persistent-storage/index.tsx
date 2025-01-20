@@ -175,4 +175,4 @@ const PersistentStoragePage: React.FC = () => {
   );
 };
 
-export default withAuth(PersistentStoragePage);
+export default withAuth({ WrappedComponent: PersistentStoragePage, authLevel: "provider" });

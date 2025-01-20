@@ -24,7 +24,7 @@ const DeploymentDetailPage: React.FC<Props> = ({ dseq, owner }) => {
   );
 };
 
-export default withAuth(DeploymentDetailPage);
+export default withAuth({ WrappedComponent: DeploymentDetailPage, authLevel: "provider" });
 
 export async function getServerSideProps({ params }) {
   return {
