@@ -39,10 +39,7 @@ export const useDeploymentDetails = (owner: string, dseq: string) => {
   return useQuery({
     queryKey: ["deployment", owner, dseq],
     queryFn: async () => {
-      const [response, latestBlocks]: any = await Promise.all([
-        consoleClient.get<any>(`v1/deployment/${owner}/${dseq}`),
-        consoleClient.get<any>(`/v1/blocks`)
-      ]);
+      const [response, latestBlocks]: any = await Promise.all([consoleClient.get<any>(`v1/deployment/${owner}/${dseq}`), consoleClient.get<any>(`/v1/blocks`)]);
 
       const latestBlock = latestBlocks[0].height;
       const totalAmtSpent = findTotalAmountSpentOnLeases(response.leases, latestBlock, true);
@@ -97,9 +94,25 @@ export const useProviderActionStatus = (actionId: string | null) => {
     queryKey: ["providerActionStatus", actionId],
     queryFn: () => restClient.get(`/action/status/${actionId}`),
     enabled: !!actionId,
-    refetchInterval: (data: any) =>
-      data?.status === "completed" || data?.status === "failed" ? false : 5000,
-    retry: 3
+    refetchInterval: (data: any) => {
+      if (data?.tasks?.some((task: any) => task.status === "in_progress")) {
+        return 1000;
+      }
+      return false;
+    },
+    keepPreviousData: true,
+    refetchOnWindowFocus: query => {
+      const data = query.state.data as any;
+      return data?.tasks?.some((task: any) => task.status === "in_progress") ?? false;
+    },
+    retry: 3,
+    select: (data: any) => ({
+      ...data,
+      tasks: data.tasks.map((task: any) => ({
+        ...task,
+        status: task.status.toLowerCase()
+      }))
+    })
   });
 };
 
