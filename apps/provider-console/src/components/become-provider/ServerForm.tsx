@@ -64,14 +64,7 @@ interface ServerFormProps {
   nodeNumber?: number;
 }
 
-export const ServerForm: React.FC<ServerFormProps> = ({ 
-  currentServerNumber, 
-  onComplete, 
-  editMode = false, 
-  controlMachine,
-  isControlPlane,
-  nodeNumber 
-}) => {
+export const ServerForm: React.FC<ServerFormProps> = ({ currentServerNumber, onComplete, editMode = false, controlMachine, isControlPlane, nodeNumber }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [storedFileContent, setStoredFileContent] = useState<string | null>(null);
@@ -305,7 +298,7 @@ export const ServerForm: React.FC<ServerFormProps> = ({
                       <FormControl>
                         <Input placeholder="Input your SSH username" {...field} />
                       </FormControl>
-                      <FormDescription>The username must be "root" for proper setup.</FormDescription>
+                      <FormDescription>The username must be &quot;root&quot; for proper setup.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
