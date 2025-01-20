@@ -1,17 +1,40 @@
 "use client";
 import React, { useCallback, useState } from "react";
-import { Button, Input, Separator } from "@akashnetwork/ui/components";
+import { Button, Input, Popup, Separator } from "@akashnetwork/ui/components";
 
+import { useWallet } from "@src/context/WalletProvider";
 import { ServerForm } from "./ServerForm";
 
 interface ServerAccessProps {
   onComplete: () => void;
 }
 
+interface NodeCounts {
+  controlPlane: number;
+  workerNodes: number;
+}
+
+interface ServerTypeInfo {
+  isControlPlane: boolean;
+  nodeNumber: number;
+}
+
 export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
   const [numberOfServers, setNumberOfServers] = useState(1);
   const [activateServerForm, setActivateServerForm] = useState(false);
   const [currentServer, setCurrentServer] = useState(0);
+  const [showBalancePopup, setShowBalancePopup] = useState(false);
+  const [showNodeDistribution, setShowNodeDistribution] = useState(false);
+
+  const { walletBalances } = useWallet();
+  const MIN_BALANCE = 5_000_000;
+  const hasEnoughBalance = (walletBalances?.uakt || 0) >= MIN_BALANCE;
+
+  React.useEffect(() => {
+    if (!hasEnoughBalance) {
+      setShowBalancePopup(true);
+    }
+  }, [hasEnoughBalance]);
 
   const handleServerFormSubmit = useCallback(() => {
     if (currentServer + 1 >= numberOfServers) {
@@ -25,9 +48,59 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
     setNumberOfServers(value);
   }, []);
 
+  const calculateNodeDistribution = useCallback((totalNodes: number): NodeCounts => {
+    if (totalNodes <= 3) {
+      return { controlPlane: 1, workerNodes: totalNodes - 1 };
+    }
+    if (totalNodes <= 5) {
+      return { controlPlane: 3, workerNodes: totalNodes - 3 };
+    }
+
+    const baseControlPlane = 3;
+    const additionalPairs = Math.floor((totalNodes - 1) / 50);
+    const controlPlane = Math.min(baseControlPlane + additionalPairs * 2, 11); // Cap at 11 control plane nodes
+    return { controlPlane, workerNodes: totalNodes - controlPlane };
+  }, []);
+
+  const handleNextClick = useCallback(() => {
+    if (!hasEnoughBalance) {
+      setShowBalancePopup(true);
+      return;
+    }
+    setShowNodeDistribution(true);
+  }, [hasEnoughBalance]);
+
+  const handleDistributionNext = useCallback(() => {
+    setShowNodeDistribution(false);
+    setActivateServerForm(true);
+  }, []);
+
+  const handleClosePopup = useCallback(() => {
+    setShowBalancePopup(false);
+  }, []);
+
+  const getCurrentServerType = useCallback(
+    (serverIndex: number): ServerTypeInfo => {
+      const { controlPlane } = calculateNodeDistribution(numberOfServers);
+
+      if (serverIndex < controlPlane) {
+        return {
+          isControlPlane: true,
+          nodeNumber: serverIndex + 1
+        };
+      }
+
+      return {
+        isControlPlane: false,
+        nodeNumber: serverIndex - controlPlane + 1
+      };
+    },
+    [calculateNodeDistribution, numberOfServers]
+  );
+
   return (
     <div className="flex flex-col items-center pt-10">
-      {!activateServerForm ? (
+      {!activateServerForm && !showNodeDistribution ? (
         <div className="space-y-6">
           <div className="flex items-center space-x-4">
             <h3 className="text-xl font-bold">Server Count</h3>
@@ -50,13 +123,71 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
           <div className="flex w-full justify-between">
             <div className="flex justify-start"></div>
             <div className="flex justify-end">
-              <Button onClick={() => setActivateServerForm(true)}>Next</Button>
+              <Button onClick={handleNextClick}>Next</Button>
             </div>
           </div>
         </div>
+      ) : showNodeDistribution ? (
+        <div className="space-y-6">
+          <div className="flex gap-6">
+            <div className="rounded-lg border p-6 text-center">
+              <p className="mb-4 text-3xl font-bold">{calculateNodeDistribution(numberOfServers).controlPlane}</p>
+              <h3 className="mb-2 text-xl font-bold">Control Plane Nodes</h3>
+              <p className="text-sm">Manages the cluster operations & run your workloads</p>
+            </div>
+            <div className="rounded-lg border p-6 text-center">
+              <p className="mb-4 text-3xl font-bold">{calculateNodeDistribution(numberOfServers).workerNodes}</p>
+              <h3 className="mb-2 text-xl font-bold">Worker Nodes</h3>
+              <p className="text-sm">Runs your workloads</p>
+            </div>
+          </div>
+          <div className="flex w-full justify-between">
+            <Button variant="ghost" onClick={() => setShowNodeDistribution(false)}>
+              Back
+            </Button>
+            <Button onClick={handleDistributionNext}>Next</Button>
+          </div>
+        </div>
       ) : (
-        <ServerForm key={currentServer} currentServerNumber={currentServer} onComplete={handleServerFormSubmit} />
+        <ServerForm key={currentServer} currentServerNumber={currentServer} onComplete={handleServerFormSubmit} {...getCurrentServerType(currentServer)} />
       )}
+
+      <Popup
+        fullWidth
+        open={showBalancePopup}
+        variant="custom"
+        actions={[
+          {
+            label: "Close",
+            color: "primary",
+            variant: "ghost",
+            side: "left",
+            onClick: handleClosePopup
+          }
+        ]}
+        onClose={handleClosePopup}
+        maxWidth="xs"
+        enableCloseOnBackdropClick
+        title="Insufficient Balance"
+      >
+        <div>
+          <div className="pb-2">
+            <p>
+              You need at least <strong>5 AKT</strong> to become a provider.
+              <br />
+              Every lease created on the Akash network requires <strong>0.5 AKT</strong> to be locked in escrow.
+              <br />
+              Please ensure you have enough funds to cover your resources.
+            </p>
+          </div>
+          <Separator />
+          <div>
+            <p className="pt-2">
+              You currently have <strong>{(walletBalances?.uakt || 0) / 1000000} AKT</strong>.
+            </p>
+          </div>
+        </div>
+      </Popup>
     </div>
   );
 };

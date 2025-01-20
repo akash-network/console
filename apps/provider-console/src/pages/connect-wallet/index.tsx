@@ -7,7 +7,7 @@ import { ConnectWallet } from "@src/components/shared/ConnectWallet";
 const YourAccount: React.FC = () => {
   return (
     <Layout>
-      <ConnectWallet text="Connect your wallet to become provider" />
+      <ConnectWallet text="Connect your wallet to create provider" />
     </Layout>
   );
 };
