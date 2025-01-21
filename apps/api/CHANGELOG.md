@@ -1,5 +1,12 @@
 
 
+## [2.52.1](https://github.com/akash-network/console/compare/console-api/v2.52.0...console-api/v2.52.1) (2025-01-21)
+
+
+### Bug Fixes
+
+* **stats:** fixes syntax for api prod version ([#683](https://github.com/akash-network/console/issues/683)) ([e2bc02d](https://github.com/akash-network/console/commit/e2bc02defb21829e49d49dc54fbb3684f71fd60c)), closes [#645](https://github.com/akash-network/console/issues/645)
+
 ## [2.52.0](https://github.com/akash-network/console/compare/console-api/v2.51.0...console-api/v2.52.0) (2025-01-21)
 
 
