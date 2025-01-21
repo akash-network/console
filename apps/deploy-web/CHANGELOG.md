@@ -1,5 +1,12 @@
 
 
+## [2.33.0](https://github.com/akash-network/console/compare/console-web/v2.32.0...console-web/v2.33.0) (2025-01-21)
+
+
+### Features
+
+* **auth:** implement verification email re-send and rework relevant UI ([#676](https://github.com/akash-network/console/issues/676)) ([c2de6a6](https://github.com/akash-network/console/commit/c2de6a6f92dbb44b1758836f2a42de8eb81f4c94)), closes [#663](https://github.com/akash-network/console/issues/663)
+
 ## [2.32.0](https://github.com/akash-network/console/compare/console-web/v2.31.0...console-web/v2.32.0) (2025-01-20)
 
 
