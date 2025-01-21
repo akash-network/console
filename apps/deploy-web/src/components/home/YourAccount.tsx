@@ -10,13 +10,12 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 
 import { TopUpAmountPicker } from "@src/components/top-up-amount-picker/TopUpAmountPicker";
-import { LoginRequiredLink } from "@src/components/user/LoginRequiredLink";
+import { VerifiedLoginRequiredLink } from "@src/components/user/VerifiedLoginRequiredLink";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { usePricing } from "@src/context/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
-import { useIsEmailVerified } from "@src/hooks/useRequiredEmailVerified";
 import useTailwind from "@src/hooks/useTailwind";
 import { WalletBalance } from "@src/hooks/useWalletBalance";
 import sdlStore from "@src/store/sdlStore";
@@ -31,7 +30,6 @@ import { ConnectWallet } from "../shared/ConnectWallet";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
 import { StatusPill } from "../shared/StatusPill";
-import { VerifyEmail } from "../shared/VerifyEmail";
 
 type Props = {
   isLoadingBalances: boolean;
@@ -58,7 +56,6 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
   const _storage = bytesToShrink(totalStorage);
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const { price, isLoaded } = usePricing();
-  const isEmailVerified = useIsEmailVerified();
 
   const colors = {
     balance_akt: customColors.akashRed,
@@ -234,17 +231,11 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
               )}
               {isManagedWallet && (
                 <>
-                  <VerifyEmail className="mt-4" />
                   <TopUpAmountPicker className="mt-4 inline-flex flex-col" mdMode="hover">
-                    <LoginRequiredLink
-                      className={cn(buttonVariants({ variant: "default" }))}
-                      href="/api/proxy/v1/checkout"
-                      message="Sign In or Sign Up to add funds to your balance"
-                      disabled={!isEmailVerified}
-                    >
+                    <VerifiedLoginRequiredLink className={cn(buttonVariants({ variant: "default" }))} href="/api/proxy/v1/checkout">
                       Add Funds
                       <HandCard className="ml-4 rotate-45 text-sm" />
-                    </LoginRequiredLink>
+                    </VerifiedLoginRequiredLink>
                   </TopUpAmountPicker>
                 </>
               )}

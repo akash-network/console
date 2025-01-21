@@ -6,21 +6,18 @@ import { CoinsSwap, HandCard } from "iconoir-react";
 import { TopUpAmountPicker } from "@src/components/top-up-amount-picker/TopUpAmountPicker";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
+import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
-import { useIsEmailVerified } from "@src/hooks/useRequiredEmailVerified";
 import { WalletBalance } from "@src/hooks/useWalletBalance";
 import { LinkTo } from "../shared/LinkTo";
-import { VerifyEmail } from "../shared/VerifyEmail";
 
 interface ManagedWalletPopupProps extends React.PropsWithChildren {
   walletBalance: WalletBalance;
 }
 
 export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance }) => {
-  const isEmailVerified = useIsEmailVerified();
   const { isManaged, isTrialing, switchWalletType } = useWallet();
-  const whenLoggedIn = useLoginRequiredEventHandler();
+  const whenLoggedInAndVerified = useAddFundsVerifiedLoginRequiredEventHandler();
   const { showManagedEscrowFaqModal } = useManagedEscrowFaqModal();
   const { connect, isWalletConnected } = useSelectedChain();
 
@@ -76,15 +73,8 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
       )}
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
-        <VerifyEmail />
-
         <TopUpAmountPicker mdMode="click" className="w-full">
-          <Button
-            onClick={whenLoggedIn(goToCheckout, "Sign In or Sign Up to add funds")}
-            variant="outline"
-            className="w-full space-x-2"
-            disabled={!isEmailVerified}
-          >
+          <Button onClick={whenLoggedInAndVerified(goToCheckout)} variant="outline" className="w-full space-x-2">
             <HandCard />
             <span>Add Funds</span>
           </Button>

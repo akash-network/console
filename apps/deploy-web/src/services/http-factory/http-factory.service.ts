@@ -1,4 +1,4 @@
-import { TxHttpService, UserHttpService } from "@akashnetwork/http-sdk";
+import { AuthHttpService, TxHttpService, UserHttpService } from "@akashnetwork/http-sdk";
 import { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
 import { TemplateHttpService } from "@akashnetwork/http-sdk/src/template/template-http.service";
 import { event } from "nextjs-google-analytics";
@@ -15,10 +15,12 @@ export const createServices = (config: Pick<ServerEnvConfig, "BASE_API_MAINNET_U
   const stripe = new StripeService(apiConfig);
   const tx = new TxHttpService(customRegistry, apiConfig);
   const template = new TemplateHttpService(apiConfig);
+  const auth = new AuthHttpService(apiConfig);
 
   user.interceptors.request.use(authService.withAnonymousUserHeader);
   stripe.interceptors.request.use(authService.withAnonymousUserHeader);
   tx.interceptors.request.use(authService.withAnonymousUserHeader);
+  auth.interceptors.request.use(authService.withAnonymousUserHeader);
 
   user.interceptors.response.use(response => {
     if (response.config.url?.startsWith("/v1/anonymous-users") && response.config.method === "post" && response.status === 200) {
@@ -27,5 +29,5 @@ export const createServices = (config: Pick<ServerEnvConfig, "BASE_API_MAINNET_U
     return response;
   });
 
-  return { user, stripe, tx, template };
+  return { user, stripe, tx, template, auth };
 };

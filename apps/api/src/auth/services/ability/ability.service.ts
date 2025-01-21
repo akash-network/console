@@ -13,7 +13,8 @@ export class AbilityService {
     REGULAR_USER: [
       { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
       { action: "read", subject: "User", conditions: { id: "${user.id}" } },
-      { action: "read", subject: "StripePrice" }
+      { action: "read", subject: "StripePrice" },
+      { action: "create", subject: "VerificationEmail", conditions: { id: "${user.id}" } }
     ],
     REGULAR_ANONYMOUS_USER: [
       { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },

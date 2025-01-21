@@ -1,7 +1,8 @@
 import { z } from "zod";
 
-const envSchema = z.object({
-  ANONYMOUS_USER_TOKEN_SECRET: z.string()
+export const envSchema = z.object({
+  ANONYMOUS_USER_TOKEN_SECRET: z.string(),
+  AUTH0_ISSUER: z.string(),
+  AUTH0_CLIENT_ID: z.string(),
+  AUTH0_SECRET: z.string()
 });
-
-export const envConfig = envSchema.parse(process.env);

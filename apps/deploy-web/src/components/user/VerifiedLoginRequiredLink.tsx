@@ -2,23 +2,23 @@ import React from "react";
 import { Button } from "@akashnetwork/ui/components";
 import Link, { LinkProps } from "next/link";
 
-import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
+import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
 import { FCWithChildren } from "@src/types/component";
 
-export const LoginRequiredLink: FCWithChildren<
+export const VerifiedLoginRequiredLink: FCWithChildren<
   Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof LinkProps> &
     LinkProps & {
       children?: React.ReactNode;
-      message: string;
       disabled?: boolean;
     } & React.RefAttributes<HTMLAnchorElement>
-> = ({ message, ...props }) => {
-  const whenLoggedIn = useLoginRequiredEventHandler();
+> = props => {
+  const whenLoggedInAndVerified = useAddFundsVerifiedLoginRequiredEventHandler();
+
   return props.disabled ? (
     <Button className={props.className} disabled>
       {props.children}
     </Button>
   ) : (
-    <Link {...props} onClick={whenLoggedIn(props.onClick || (() => {}), message)} />
+    <Link {...props} onClick={whenLoggedInAndVerified(props.onClick || (() => {}))} />
   );
 };
