@@ -1,5 +1,12 @@
 
 
+## [2.52.2](https://github.com/akash-network/console/compare/console-api/v2.52.1...console-api/v2.52.2) (2025-01-21)
+
+
+### Bug Fixes
+
+* **stats:** adds back calculation of aggregated storage stats ([#686](https://github.com/akash-network/console/issues/686)) ([8c4b529](https://github.com/akash-network/console/commit/8c4b529357233c8f135ce85cc83e8ba7ba11e9ba))
+
 ## [2.52.1](https://github.com/akash-network/console/compare/console-api/v2.52.0...console-api/v2.52.1) (2025-01-21)
 
 
