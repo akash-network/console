@@ -115,7 +115,7 @@ export class TopUpCustodialDeploymentsService implements DeploymentsRefiller {
         summary.inc("deploymentTopUpCount");
         summary.ensurePredictedClosedHeight(predictedClosedHeight);
 
-        this.logger.info({ event: "TOP_UP_DEPLOYMENT_SUCCESS", ...logParams });
+        this.logger.info({ event: "TOP_UP_SUCCESS", ...logParams });
       } catch (error) {
         this.logger.error({ event: "TOP_UP_DEPLOYMENT_ERROR", message: error.message, stack: error.stack, ...logParams });
         summary.inc("deploymentTopUpErrorCount");

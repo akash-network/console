@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'apps/api/package.json'
+      - "apps/api/package.json"
 
 jobs:
   release:
