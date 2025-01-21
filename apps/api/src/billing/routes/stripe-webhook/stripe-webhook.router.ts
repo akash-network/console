@@ -8,7 +8,7 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 const route = createRoute({
   method: "post",
   path: "/v1/stripe-webhook",
-  summary: "",
+  summary: "Stripe Webhook Handler",
   request: {
     body: {
       content: {
@@ -20,7 +20,7 @@ const route = createRoute({
   },
   responses: {
     200: {
-      description: "",
+      description: "Webhook processed successfully",
       content: {
         "application/json": {
           schema: z.void()
@@ -33,7 +33,9 @@ const route = createRoute({
 export const stripeWebhook = new OpenApiHonoHandler();
 
 stripeWebhook.openapi(route, async function routeStripeWebhook(c) {
+  const rawBody = await c.req.text();
   const sig = c.req.header("stripe-signature");
-  await container.resolve(CheckoutController).webhook(sig, await c.req.text());
+
+  await container.resolve(CheckoutController).webhook(sig, rawBody);
   return c.json({}, 200);
 });
