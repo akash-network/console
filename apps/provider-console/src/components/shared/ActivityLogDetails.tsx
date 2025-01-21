@@ -50,6 +50,11 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
             return newState;
           });
           setupLogStream(task.id);
+        } else {
+          if (logStreams.current[task.id]) {
+            logStreams.current[task.id]?.close();
+            logStreams.current[task.id] = null;
+          }
         }
       });
     }
