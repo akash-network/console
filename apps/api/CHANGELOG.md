@@ -1,5 +1,12 @@
 
 
+## [2.52.3](https://github.com/akash-network/console/compare/console-api/v2.52.2...console-api/v2.52.3) (2025-01-21)
+
+
+### Bug Fixes
+
+* **stats:** moves total storage aggregation outside of reduce ([#689](https://github.com/akash-network/console/issues/689)) ([c410f81](https://github.com/akash-network/console/commit/c410f81edb5ca01c701449284515236c68f821b9))
+
 ## [2.52.2](https://github.com/akash-network/console/compare/console-api/v2.52.1...console-api/v2.52.2) (2025-01-21)
 
 
