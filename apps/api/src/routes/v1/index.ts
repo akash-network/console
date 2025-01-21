@@ -25,6 +25,7 @@ import versionTestnet from "./version/testnet";
 import auditors from "./auditors";
 import dashboardData from "./dashboardData";
 import gpu from "./gpu";
+import gpuBreakdown from "./gpuBreakdown";
 import gpuModels from "./gpuModels";
 import gpuPrices from "./gpuPrices";
 import graphData from "./graphData";
@@ -85,5 +86,6 @@ export default [
   providerVersions,
   gpu,
   gpuModels,
-  gpuPrices
+  gpuPrices,
+  gpuBreakdown
 ];
