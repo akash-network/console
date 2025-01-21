@@ -28,25 +28,25 @@ export async function getNetworkCapacity() {
   const filteredProviders = uniqBy(providers, provider => provider.hostUri);
   const stats = filteredProviders.reduce(
     (all, provider) => {
-      stats.activeCPU += provider.lastSuccessfulSnapshot.activeCPU;
-      stats.pendingCPU += provider.lastSuccessfulSnapshot.pendingCPU;
-      stats.availableCPU += provider.lastSuccessfulSnapshot.availableCPU;
+      all.activeCPU += provider.lastSuccessfulSnapshot.activeCPU;
+      all.pendingCPU += provider.lastSuccessfulSnapshot.pendingCPU;
+      all.availableCPU += provider.lastSuccessfulSnapshot.availableCPU;
 
-      stats.activeGPU += provider.lastSuccessfulSnapshot.activeGPU;
-      stats.pendingGPU += provider.lastSuccessfulSnapshot.pendingGPU;
-      stats.availableGPU += provider.lastSuccessfulSnapshot.availableGPU;
+      all.activeGPU += provider.lastSuccessfulSnapshot.activeGPU;
+      all.pendingGPU += provider.lastSuccessfulSnapshot.pendingGPU;
+      all.availableGPU += provider.lastSuccessfulSnapshot.availableGPU;
 
-      stats.activeMemory += provider.lastSuccessfulSnapshot.activeMemory;
-      stats.pendingMemory += provider.lastSuccessfulSnapshot.pendingMemory;
-      stats.availableMemory += provider.lastSuccessfulSnapshot.availableMemory;
+      all.activeMemory += provider.lastSuccessfulSnapshot.activeMemory;
+      all.pendingMemory += provider.lastSuccessfulSnapshot.pendingMemory;
+      all.availableMemory += provider.lastSuccessfulSnapshot.availableMemory;
 
-      stats.activeEphemeralStorage += provider.lastSuccessfulSnapshot.activeEphemeralStorage;
-      stats.pendingEphemeralStorage += provider.lastSuccessfulSnapshot.pendingEphemeralStorage;
-      stats.availableEphemeralStorage += provider.lastSuccessfulSnapshot.availableEphemeralStorage;
+      all.activeEphemeralStorage += provider.lastSuccessfulSnapshot.activeEphemeralStorage;
+      all.pendingEphemeralStorage += provider.lastSuccessfulSnapshot.pendingEphemeralStorage;
+      all.availableEphemeralStorage += provider.lastSuccessfulSnapshot.availableEphemeralStorage;
 
-      stats.activePersistentStorage += provider.lastSuccessfulSnapshot.activePersistentStorage;
-      stats.pendingPersistentStorage += provider.lastSuccessfulSnapshot.pendingPersistentStorage;
-      stats.availablePersistentStorage += provider.lastSuccessfulSnapshot.availablePersistentStorage;
+      all.activePersistentStorage += provider.lastSuccessfulSnapshot.activePersistentStorage;
+      all.pendingPersistentStorage += provider.lastSuccessfulSnapshot.pendingPersistentStorage;
+      all.availablePersistentStorage += provider.lastSuccessfulSnapshot.availablePersistentStorage;
 
       return all;
     },
