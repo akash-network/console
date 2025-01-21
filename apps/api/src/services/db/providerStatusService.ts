@@ -48,10 +48,6 @@ export async function getNetworkCapacity() {
       all.pendingPersistentStorage += provider.lastSuccessfulSnapshot.pendingPersistentStorage;
       all.availablePersistentStorage += provider.lastSuccessfulSnapshot.availablePersistentStorage;
 
-      all.activeStorage += all.activePersistentStorage + all.activeEphemeralStorage;
-      all.pendingStorage += all.pendingPersistentStorage + all.pendingEphemeralStorage;
-      all.availableStorage += all.availablePersistentStorage + all.availableEphemeralStorage;
-
       return all;
     },
     {
@@ -76,11 +72,12 @@ export async function getNetworkCapacity() {
     }
   );
 
+  stats.activeStorage = stats.activeEphemeralStorage + stats.activePersistentStorage;
+  stats.pendingStorage = stats.pendingEphemeralStorage + stats.pendingPersistentStorage;
+  stats.availableStorage = stats.availableEphemeralStorage + stats.availablePersistentStorage;
+
   return {
     activeProviderCount: filteredProviders.length,
-    activeStorage: stats.activeEphemeralStorage + stats.activePersistentStorage,
-    pendingStorage: stats.pendingEphemeralStorage + stats.pendingPersistentStorage,
-    availableStorage: stats.availableEphemeralStorage + stats.availablePersistentStorage,
     ...stats,
     totalCPU: stats.activeCPU + stats.pendingCPU + stats.availableCPU,
     totalGPU: stats.activeGPU + stats.pendingGPU + stats.availableGPU,
