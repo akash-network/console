@@ -48,6 +48,10 @@ export async function getNetworkCapacity() {
       all.pendingPersistentStorage += provider.lastSuccessfulSnapshot.pendingPersistentStorage;
       all.availablePersistentStorage += provider.lastSuccessfulSnapshot.availablePersistentStorage;
 
+      all.activeStorage += all.activePersistentStorage + all.activeEphemeralStorage;
+      all.pendingStorage += all.pendingPersistentStorage + all.pendingEphemeralStorage;
+      all.availableStorage += all.availablePersistentStorage + all.availableEphemeralStorage;
+
       return all;
     },
     {
