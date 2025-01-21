@@ -4,9 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to deploy'
+        description: "Tag to deploy"
         required: true
         type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: "Tag to deploy"
+        required: true
+        type: string
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}
@@ -15,33 +24,34 @@ jobs:
   deploy:
     name: Deploy to GCP
     runs-on: ubuntu-latest
+    environment: ${{ contains(github.event.inputs.tag, '-beta') && 'beta' || 'production' }}
 
     steps:
       - name: Define variables
         id: vars
         run: |
           tag="${{ github.event.inputs.tag }}"
-          
-          if [[ ! "$tag" =~ ^console-web/v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$ ]]; then
-              echo "Invalid tag. Expected console-web/v* or console-web/v*-beta.*"
+
+          if [[ ! "$tag" =~ ^console-web/v[0-9]+\.[0-9]+\.[0-9]+(-beta)?$ ]]; then
+              echo "::error::Invalid tag format. Expected console-web/v* or console-web/v*-beta (e.g., console-web/v1.2.3 or console-web/v1.2.3-beta)"
               exit 1
           fi
 
           version="${tag#*/v}"
-          
+
           instance_name=""
-          
-          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]]; then
+
+          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta$ ]]; then
             instance_name="${{ vars.BETA_WEB_INSTANCE_NAME }}"
           elif [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             instance_name="${{ vars.PROD_WEB_INSTANCE_NAME }}"
           fi
-          
+
           image="${{ vars.WEB_REGISTRY }}:$version"
-          
+
           echo "instance-name=${instance_name}"
           echo "image=${image}"
-          
+
           echo "instance-name=${instance_name}" >> "$GITHUB_OUTPUT"
           echo "image=${image}" >> "$GITHUB_OUTPUT"
 
@@ -57,3 +67,11 @@ jobs:
           image: ${{ steps.vars.outputs.image }}
           credentials_json: ${{ secrets.GCP_SA_KEY }}
           zone: ${{ vars.GCP_ZONE }}
+
+      - name: Post Deploy Summary
+        if: success()
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Successfully deployed version ${{ github.event.inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Instance: ${{ steps.vars.outputs.instance-name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: ${{ steps.vars.outputs.image }}" >> $GITHUB_STEP_SUMMARY

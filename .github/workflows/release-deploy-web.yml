@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'apps/deploy-web/package.json'
+      - "apps/deploy-web/package.json"
 
 jobs:
   release:
