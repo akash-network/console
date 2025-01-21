@@ -13,14 +13,14 @@ export const mapProviderToList = (
   const isValidSdkVersion = provider.cosmosSdkVersion ? semver.gte(provider.cosmosSdkVersion, "v0.45.9") : false;
   const name = provider.isOnline ? new URL(provider.hostUri).hostname : null;
   const gpuModels = getDistinctGpuModelsFromNodes(lastSuccessfulSnapshot?.nodes || []);
-  const stats: ProviderList['stats'] = {
-    cpu: buildStatsItem('CPU', lastSuccessfulSnapshot, isValidSdkVersion),
-    gpu: buildStatsItem('GPU', lastSuccessfulSnapshot, isValidSdkVersion),
-    memory: buildStatsItem('Memory', lastSuccessfulSnapshot, isValidSdkVersion),
+  const stats: ProviderList["stats"] = {
+    cpu: buildStatsItem("CPU", lastSuccessfulSnapshot, isValidSdkVersion),
+    gpu: buildStatsItem("GPU", lastSuccessfulSnapshot, isValidSdkVersion),
+    memory: buildStatsItem("Memory", lastSuccessfulSnapshot, isValidSdkVersion),
     storage: {
-      ephemeral: buildStatsItem('EphemeralStorage', lastSuccessfulSnapshot, isValidSdkVersion),
-      persistent: buildStatsItem('PersistentStorage', lastSuccessfulSnapshot, isValidSdkVersion),
-    },
+      ephemeral: buildStatsItem("EphemeralStorage", lastSuccessfulSnapshot, isValidSdkVersion),
+      persistent: buildStatsItem("PersistentStorage", lastSuccessfulSnapshot, isValidSdkVersion)
+    }
   };
 
   return {
@@ -42,9 +42,9 @@ export const mapProviderToList = (
     ipLat: provider.ipLat,
     ipLon: provider.ipLon,
     stats,
-    activeStats: buildLegacyStatsItem(stats, 'active'),
-    pendingStats: buildLegacyStatsItem(stats, 'pending'),
-    availableStats: buildLegacyStatsItem(stats, 'pending'),
+    activeStats: buildLegacyStatsItem(stats, "active"),
+    pendingStats: buildLegacyStatsItem(stats, "pending"),
+    availableStats: buildLegacyStatsItem(stats, "available"),
     gpuModels: gpuModels,
     uptime1d: provider.uptime1d,
     uptime7d: provider.uptime7d,
@@ -88,29 +88,29 @@ export const mapProviderToList = (
   } as ProviderList;
 };
 
-type StatsEntry = 'CPU' | 'GPU' | 'Memory' | 'PersistentStorage' | 'EphemeralStorage';
+type StatsEntry = "CPU" | "GPU" | "Memory" | "PersistentStorage" | "EphemeralStorage";
 function buildStatsItem<T extends StatsEntry>(suffix: T, snapshot: ProviderSnapshot | undefined | null, isValidSdkVersion: boolean): StatsItem {
   if (!isValidSdkVersion) {
     return {
       active: snapshot?.[`active${suffix}`] || 0,
       available: 0,
-      pending: 0,
+      pending: 0
     };
   }
 
   return {
     active: snapshot?.[`active${suffix}`] || 0,
     available: snapshot?.[`available${suffix}`] || 0,
-    pending: snapshot?.[`pending${suffix}`] || 0,
+    pending: snapshot?.[`pending${suffix}`] || 0
   };
 }
 
-function buildLegacyStatsItem(stats: ProviderList['stats'], type: keyof StatsItem) {
+function buildLegacyStatsItem(stats: ProviderList["stats"], type: keyof StatsItem) {
   return {
     cpu: stats.cpu[type],
     gpu: stats.gpu[type],
     memory: stats.memory[type],
-    storage: stats.storage.ephemeral[type] + stats.storage.persistent[type],
+    storage: stats.storage.ephemeral[type] + stats.storage.persistent[type]
   };
 }
 
