@@ -87,7 +87,7 @@ export const PopupProvider = ({ children }: React.PropsWithChildren) => {
     (props: CustomPopupProps) => {
       let subject: Subject<SelectOption["value"] | undefined> | undefined = new Subject<SelectOption["value"] | undefined>();
 
-      const reject = () => {
+      const close = () => {
         if (subject) {
           subject.next(undefined);
           subject.complete();
@@ -99,9 +99,10 @@ export const PopupProvider = ({ children }: React.PropsWithChildren) => {
       setPopupProps({
         title: "Action Required",
         ...props,
+        actions: typeof props.actions === "function" ? props.actions({ close }) : props.actions,
         open: true,
         variant: "custom",
-        onClose: reject
+        onClose: close
       });
 
       return firstValueFrom(subject).then(() => undefined);
@@ -111,13 +112,15 @@ export const PopupProvider = ({ children }: React.PropsWithChildren) => {
 
   const createCustom: PopupProviderContext["createCustom"] = useCallback(
     (props: CustomPopupProps) => {
+      const close = () => {
+        setPopupProps(undefined);
+      };
       setPopupProps({
         ...props,
+        actions: typeof props.actions === "function" ? props.actions({ close }) : props.actions,
         variant: "custom",
         open: true,
-        onClose: () => {
-          setPopupProps(undefined);
-        }
+        onClose: close
       });
     },
     [setPopupProps]
