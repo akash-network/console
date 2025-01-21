@@ -4,7 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to deploy'
+        description: "Tag to deploy"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: "Tag to deploy"
         required: true
         type: string
 
@@ -57,10 +63,10 @@ jobs:
           app="api-${prerelease_type:-prod}"
           version="${tag#console-api/v}"
           image="${{ vars.API_REGISTRY }}:$version"
-          
+
           echo "app=${app}"
           echo "image=${image}"
-  
+
           echo "app=${app}" >> $GITHUB_OUTPUT
           echo "image=${image}" >> $GITHUB_OUTPUT
 
@@ -88,6 +94,14 @@ jobs:
           seed: ${{ secrets.WALLET_MNEMONIC }}
           password: ${{ secrets.WALLET_PASSWORD }}
 
+      - name: Post Deploy Summary
+        if: success()
+        run: |
+          echo "## Sandbox Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Successfully deployed version ${{ github.event.inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: Sandbox" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: ${{ needs.define-vars.outputs.image }}" >> $GITHUB_STEP_SUMMARY
+
   deploy-mainnet:
     name: Deploy Mainnet
     needs: [define-vars, deploy-sandbox]
@@ -109,3 +123,11 @@ jobs:
           image: ${{ needs.define-vars.outputs.image }}
           password: ${{ secrets.WALLET_PASSWORD }}
           seed: ${{ secrets.WALLET_MNEMONIC }}
+
+      - name: Post Deploy Summary
+        if: success()
+        run: |
+          echo "## Mainnet Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Successfully deployed version ${{ github.event.inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: Mainnet" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: ${{ needs.define-vars.outputs.image }}" >> $GITHUB_STEP_SUMMARY
