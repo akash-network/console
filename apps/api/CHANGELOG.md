@@ -1,5 +1,19 @@
 
 
+## [2.53.0](https://github.com/akash-network/console/compare/console-api/v2.52.3...console-api/v2.53.0) (2025-01-22)
+
+
+### Features
+
+* **analytics:** GPU Usage ([10060d8](https://github.com/akash-network/console/commit/10060d8f8e5d780658cbb325040c8787763d6ddd)), closes [#580](https://github.com/akash-network/console/issues/580)
+
+
+### Bug Fixes
+
+* **billing:** added a stripe middleware ([#695](https://github.com/akash-network/console/issues/695)) ([703308f](https://github.com/akash-network/console/commit/703308f8f948e69d0373a79c942a3d05c7840b13))
+* **billing:** changes body content type and schema to avoid parsing a stripe webhook ([19cb7e6](https://github.com/akash-network/console/commit/19cb7e641d5305c5c6321b13347b50c3fd86cd47))
+* **stats:** fixes mistake in provider stats ([#691](https://github.com/akash-network/console/issues/691)) ([933cebf](https://github.com/akash-network/console/commit/933cebf625cb901bd25bf36b370469aaec48064f)), closes [#645](https://github.com/akash-network/console/issues/645)
+
 ## [2.52.3](https://github.com/akash-network/console/compare/console-api/v2.52.2...console-api/v2.52.3) (2025-01-21)
 
 
