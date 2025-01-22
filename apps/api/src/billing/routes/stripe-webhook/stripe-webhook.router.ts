@@ -12,8 +12,8 @@ const route = createRoute({
   request: {
     body: {
       content: {
-        "application/json": {
-          schema: z.any()
+        "text/plain": {
+          schema: z.string()
         }
       }
     }
@@ -33,9 +33,7 @@ const route = createRoute({
 export const stripeWebhook = new OpenApiHonoHandler();
 
 stripeWebhook.openapi(route, async function routeStripeWebhook(c) {
-  const rawBody = await c.req.text();
   const sig = c.req.header("stripe-signature");
-
-  await container.resolve(CheckoutController).webhook(sig, rawBody);
+  await container.resolve(CheckoutController).webhook(sig, await c.req.text());
   return c.json({}, 200);
 });
