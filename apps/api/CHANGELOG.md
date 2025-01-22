@@ -1,5 +1,12 @@
 
 
+## [2.53.1](https://github.com/akash-network/console/compare/console-api/v2.53.0...console-api/v2.53.1) (2025-01-22)
+
+
+### Bug Fixes
+
+* **auth:** uses dedicated auth0 env vars for m2m  ([e308570](https://github.com/akash-network/console/commit/e3085709a5e377dc882320075a3ba61763c2a9a2))
+
 ## [2.53.0](https://github.com/akash-network/console/compare/console-api/v2.52.3...console-api/v2.53.0) (2025-01-22)
 
 
