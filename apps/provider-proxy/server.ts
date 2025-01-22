@@ -1,127 +1,12 @@
-import cors from "cors";
-import express, { Express, Request, Response } from "express";
 import http from "http";
-import { Agent } from "https";
-import fetch, { Headers } from "node-fetch";
 import { v4 as uuidv4 } from "uuid";
 import WebSocket from "ws";
 
-import { ClientWebSocketStats, WebSocketUsage } from "./clientSocketStats";
-import packageJson from "./package.json";
-import { humanFileSize } from "./sizeUtils";
-
-const app: Express = express();
+import { app } from "./src/app";
+import { ClientWebSocketStats, WebSocketUsage } from "./src/ClientSocketStats";
+import { container } from "./src/container";
 
 const { PORT = 3040 } = process.env;
-
-const webSocketStats: ClientWebSocketStats[] = [];
-
-const whitelist = [
-  "http://localhost:3001",
-  "http://localhost:3000",
-  "https://cloudmos.grafana.net",
-  "https://console.akash.network",
-  "https://staging-console.akash.network",
-  "https://akashconsole.vercel.app",
-  "https://console-beta.akash.network"
-];
-
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || whitelist.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        console.log("Cors refused: " + origin);
-        callback(new Error("Not allowed by CORS"));
-      }
-    }
-  })
-);
-app.use(express.json());
-
-app.get("/status", async (req: Request, res: Response) => {
-  const openClientWebSocketCount = webSocketStats.filter(x => !x.isClosed()).length;
-  const totalRequestCount = webSocketStats.reduce((a, b) => a + b.getStats().totalStats.count, 0);
-  const totalTransferred = webSocketStats.reduce((a, b) => a + b.getStats().totalStats.data, 0);
-
-  const logStreaming = webSocketStats
-    .map(s => s.getStats().usageStats["StreamLogs"])
-    .reduce((a, b) => ({ count: a.count + b.count, data: a.data + b.data }), {
-      count: 0,
-      data: 0
-    });
-  const logDownload = webSocketStats
-    .map(s => s.getStats().usageStats["DownloadLogs"])
-    .reduce((a, b) => ({ count: a.count + b.count, data: a.data + b.data }), {
-      count: 0,
-      data: 0
-    });
-  const eventStreaming = webSocketStats
-    .map(s => s.getStats().usageStats["StreamEvents"])
-    .reduce((a, b) => ({ count: a.count + b.count, data: a.data + b.data }), {
-      count: 0,
-      data: 0
-    });
-  const shell = webSocketStats
-    .map(s => s.getStats().usageStats["Shell"])
-    .reduce((a, b) => ({ count: a.count + b.count, data: a.data + b.data }), {
-      count: 0,
-      data: 0
-    });
-
-  res.send({
-    openClientWebSocketCount,
-    totalRequestCount,
-    totalTransferred: humanFileSize(totalTransferred),
-    logStreaming: `${logStreaming.count} (${humanFileSize(logStreaming.data)})`,
-    logDownload: `${logDownload.count} (${humanFileSize(logDownload.data)})`,
-    eventStreaming: `${eventStreaming.count} (${humanFileSize(eventStreaming.data)})`,
-    shell: `${shell.count} (${humanFileSize(shell.data)})`,
-    version: packageJson.version
-  });
-});
-
-app.post("/", async (req: Request, res: Response, next) => {
-  const { certPem, keyPem, method, body, url } = req.body;
-
-  const myHeaders = new Headers();
-  myHeaders.append("Content-Type", "application/json");
-
-  try {
-    const httpsAgent = new Agent({
-      cert: certPem,
-      key: keyPem,
-      rejectUnauthorized: false
-    });
-
-    const response = await fetch(url, {
-      method: method,
-      body: body,
-      headers: myHeaders,
-      agent: httpsAgent
-    });
-
-    if (response.status === 200) {
-      const responseText = await response.text();
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.indexOf("application/json") !== -1) {
-        res.contentType("application/json");
-      } else {
-        res.contentType("application/text");
-      }
-      res.send(responseText);
-    } else {
-      const _res = await response.text();
-      console.log("Status code was not success (" + response.status + ") : " + _res);
-
-      res.status(500);
-      res.send(_res);
-    }
-  } catch (error) {
-    next(error);
-  }
-});
 
 const httpServer = app.listen(PORT, () => {
   console.log(`Http server listening on port ${PORT}`);
@@ -145,7 +30,7 @@ wss.on("connection", (ws: WebSocket, req: http.IncomingMessage) => {
   const id = uuidv4();
 
   const stats = new ClientWebSocketStats(id);
-  webSocketStats.push(stats);
+  container.wsStats.add(stats);
 
   console.log("Connection", req.url);
   ws.on("message", async (messageStr: string) => {
