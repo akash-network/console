@@ -52,6 +52,8 @@ jobs:
             git_tag="console-api/v$git_tag"
           elif [ "${{ inputs.app }}" = "provider-proxy" ]; then
             git_tag="provider-proxy/v$git_tag"
+          elif [ "${{ inputs.app }}" = "provider-console" ]; then
+            git_tag="provider-console/v$git_tag"
           else
             echo "Error: Unsupported app type '${{ inputs.app }}'."
             exit 1

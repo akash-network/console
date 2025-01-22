@@ -1,0 +1,40 @@
+name: Release Deploy Web
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/provider-console/package.json"
+
+jobs:
+  release:
+    name: Create Release
+    uses: ./.github/workflows/create-github-release.yml
+    secrets: inherit
+    with:
+      app: provider-console
+
+  build-beta:
+    needs: release
+    name: Build Beta Docker image
+    uses: ./.github/workflows/build-image.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+    with:
+      tag: ${{ needs.release.outputs.version }}-beta
+      deployment-env: staging
+
+  build-prod:
+    needs: release
+    name: Build Prod Docker image
+    uses: ./.github/workflows/build-image.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+    with:
+      tag: ${{ needs.release.outputs.version }}
+      deployment-env: production
