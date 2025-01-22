@@ -9,9 +9,9 @@ export class Auth0Service {
 
   constructor(private readonly authConfig: AuthConfigService) {
     this.managementClient = new ManagementClient({
-      domain: this.authConfig.get("AUTH0_ISSUER").replace("https://", "").replace("/", ""),
-      clientId: this.authConfig.get("AUTH0_CLIENT_ID"),
-      clientSecret: this.authConfig.get("AUTH0_SECRET")
+      domain: this.authConfig.get("AUTH0_M2M_DOMAIN"),
+      clientId: this.authConfig.get("AUTH0_M2M_CLIENT_ID"),
+      clientSecret: this.authConfig.get("AUTH0_M2M_SECRET")
     });
   }
 
