@@ -50,20 +50,6 @@ const scheduler = new Scheduler({
   }
 });
 
-/**
- * This is a workaround to get the raw body of the request.
- * For some reason, hono parses the body, removing the escape characters.
- * Reading the body from the raw request solves the issue.
- * TODO: Investigate: https://github.com/akash-network/console/issues/694
- */
-const stripeWebhookInterceptor = async (c: Context, next: Next) => {
-  if (c.req.path === "/v1/stripe-webhook" && c.req.method === "POST") {
-    await c.req.text();
-  }
-  await next();
-};
-
-appHono.use("*", stripeWebhookInterceptor);
 appHono.use(container.resolve(HttpLoggerService).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
 appHono.use(container.resolve<HonoInterceptor>(AuthInterceptor).intercept());
