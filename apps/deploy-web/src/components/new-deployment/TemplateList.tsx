@@ -96,8 +96,8 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
           <DeployOptionBox
             title="Build & Deploy"
             description="Build & Deploy directly from a code repository (VCS)"
-            topIcons={["/images/github.png", "/images/gitlab.png", "/images/bitbucket.png"]}
-            bottomIcons={["/images/nextjs.png", "/images/vuejs.png", "/images/astrojs.png", "/images/python.png"]}
+            topIcons={["/images/github.png", "/images/gitlab.svg", "/images/bitbucket.png"]}
+            bottomIcons={["/images/nextjs.svg", "/images/vuejs.png", "/images/astrojs.svg", "/images/python.png"]}
             onClick={handleGithubTemplate}
             testId="build-and-deploy-card"
           />
