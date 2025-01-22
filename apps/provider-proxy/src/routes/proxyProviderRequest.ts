@@ -1,37 +1,39 @@
 import { NextFunction, Request as ExpressRequest, Response as ExpressResponse } from "express";
 
 import { container } from "../container";
+import { httpRetry } from "../utils/retry";
 
-export async function proxyProviderRequest(req: ExpressRequest, res: ExpressResponse, next: NextFunction): Promise<void> {
-  const { certPem, keyPem, method, body, url } = req.body;
+const DEFAULT_TIMEOUT = 5_000;
+export async function proxyProviderRequest(req: ExpressRequest, incommingResponse: ExpressResponse, next: NextFunction): Promise<void> {
+  const { certPem, keyPem, method, body, url, network, providerAddress, timeout } = req.body;
 
   try {
-    const response = await container.providerProxy.fetch(url, {
-      headers: {
-        "Content-Type": "application/json"
-      },
-      method,
-      body,
-      cert: certPem,
-      key: keyPem
-    });
-
-    if (response.status >= 200 && response.status < 300) {
-      const responseText = await response.text();
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.indexOf("application/json") !== -1) {
-        res.contentType("application/json");
-      } else {
-        res.contentType("application/text");
+    const proxyResult = await httpRetry(
+      () =>
+        container.providerProxy.connect(url, {
+          method,
+          body,
+          cert: certPem,
+          key: keyPem,
+          network,
+          providerAddress,
+          timeout: Number(timeout || DEFAULT_TIMEOUT) || DEFAULT_TIMEOUT
+        }),
+      {
+        retryIf: result => result.ok && (!result.response.statusCode || result.response.statusCode > 500)
       }
-      res.send(responseText);
-    } else {
-      const _res = await response.text();
-      console.log("Status code was not success (" + response.status + ") : " + _res);
+    );
 
-      res.status(500);
-      res.send(_res);
+    if (proxyResult.ok === false) {
+      incommingResponse.status(495); // https://http.dev/495
+      incommingResponse.send(`Invalid certificate error: ${proxyResult.reason}`);
+      return;
     }
+
+    Object.keys(proxyResult.response.headers).forEach(header => {
+      incommingResponse.setHeader(header, proxyResult.response.headers[header] || "");
+    });
+    proxyResult.response.pipe(incommingResponse).on("error", next);
   } catch (error) {
     next(error);
   }

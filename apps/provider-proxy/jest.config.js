@@ -11,7 +11,8 @@ module.exports = {
     {
       displayName: "unit",
       ...common,
-      testMatch: ["<rootDir>/src/**/*.spec.ts"]
+      testMatch: ["<rootDir>/test/**/*.spec.ts"],
+      testPathIgnorePatterns: ["/node_modules", "test/functional"]
     },
     {
       displayName: "functional",

@@ -1,0 +1,14 @@
+{
+  "name": "@akashnetwork/net",
+  "version": "0.0.1",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "main": "src/index.ts",
+  "scripts": {
+    "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
+    "generate": "ts-node scripts/generate.ts",
+    "lint": "eslint .",
+    "update-apps-local-deps": "mvm-update"
+  }
+}

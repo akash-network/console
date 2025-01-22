@@ -1,10 +1,12 @@
-name: Provider Proxy CI
+name: Validate and Build Provider Proxy CI
 
 on:
-  push:
-    branches: ["main"]
   pull_request:
     branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -21,6 +23,40 @@ jobs:
           filters: |
             provider-proxy:
               - 'apps/provider-proxy/**'
+              - 'packages/net/**'
+
+      - name: Setup Node.js
+        if: steps.filter.outputs.provider-proxy == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.14.0
+
+      - name: Restore root node_modules cache
+        if: steps.filter.outputs.provider-proxy == 'true'
+        uses: actions/cache@v4
+        id: cache
+        with:
+          path: |
+            node_modules
+            apps/provider-proxy/node_modules
+            packages/*/node_modules
+          key: provider-proxy-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.filter.outputs.provider-proxy == 'true' && steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Run static code analysis
+        if: steps.filter.outputs.provider-proxy == 'true'
+        run: npm run lint -w apps/provider-proxy
+
+      - name: Run unit tests
+        if: steps.filter.outputs.provider-proxy == 'true'
+        run: npm run test:unit --workspace=apps/provider-proxy
+
+      - name: Run functional tests
+        if: steps.filter.outputs.provider-proxy == 'true'
+        run: npm run test:functional --workspace=apps/provider-proxy
 
       - name: Build the Docker image
         if: steps.filter.outputs.provider-proxy == 'true'
