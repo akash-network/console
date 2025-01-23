@@ -1,11 +1,12 @@
 {
-  "name": "stats-web",
+  "name": "@akashnetwork/stats-web",
   "version": "0.20.0",
   "private": true,
   "scripts": {
     "build": "npm run build-env-schemas && next build",
     "build-env-schemas": "tsc src/config/env-config.schema.ts --outDir . --skipLibCheck",
     "dev": "next dev",
+    "dev:inspect": "cross-env NODE_OPTIONS=\"--inspect\" ../../node_modules/.bin/next start",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
     "start": "next start"
@@ -30,7 +31,7 @@
     "jotai": "^2.5.1",
     "lightweight-charts": "^4.2.0",
     "lucide-react": "^0.292.0",
-    "next": "^14.2.3",
+    "next": "^14.2.23",
     "next-nprogress-bar": "^2.1.2",
     "next-qrcode": "^2.5.1",
     "next-themes": "^0.2.1",
