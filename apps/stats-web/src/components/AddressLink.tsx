@@ -1,3 +1,4 @@
+"use client";
 import React, { ReactNode } from "react";
 import { Address } from "@akashnetwork/ui/components";
 import Link from "next/link";
