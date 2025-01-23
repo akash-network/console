@@ -110,7 +110,7 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
               value={numberOfServers}
               onChange={handleNumberOfServersChange}
               min={1}
-              className="w-20 rounded-md border-2 text-center"
+              className="w-20 rounded-md text-center"
             />
           </div>
           <p className="text-sm">
