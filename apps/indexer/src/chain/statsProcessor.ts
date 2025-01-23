@@ -263,6 +263,10 @@ class StatsProcessor {
         });
       } catch (err) {
         await blockGroupTransaction.rollback();
+
+        // Force cache reinitialization on next run to prevent stale cache after rollback
+        this.cacheInitialized = false;
+
         throw err;
       }
 

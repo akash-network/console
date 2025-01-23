@@ -14,6 +14,7 @@ export abstract class Indexer {
   hasHandlerForType(type: string): boolean {
     return Object.keys(this.msgHandlers).includes(type);
   }
+
   async processMessage(decodedMessage: any, height: number, blockGroupTransaction: DbTransaction, msg: Message): Promise<void> {
     if (!(msg.type in this.msgHandlers)) {
       throw new Error(`No handler for message type ${msg.type} in ${this.name}`);
