@@ -87,7 +87,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     }
   });
 
-  const isDeploymentNotFound = (deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found")) || !address;
+  const isDeploymentNotFound = deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
   const hasLeases = leases && leases.length > 0;
   const { isLocalCertMatching, localCert, isCreatingCert, createCertificate } = useCertificate();
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
