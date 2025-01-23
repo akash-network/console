@@ -1,3 +1,4 @@
+"use client";
 import { LabelValue } from "../../../LabelValue";
 
 import { AddressLink } from "@/components/AddressLink";

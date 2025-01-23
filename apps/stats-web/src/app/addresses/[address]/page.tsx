@@ -16,8 +16,7 @@ import { AddressDetail } from "@/types";
 
 const AddressDetailPageSchema = z.object({
   params: z.object({
-    address: z.string(),
-    dseq: z.string()
+    address: z.string()
   }),
   searchParams: z.object({
     network: networkId
