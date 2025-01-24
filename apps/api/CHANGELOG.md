@@ -1,5 +1,12 @@
 
 
+## [2.54.0](https://github.com/akash-network/console/compare/console-api/v2.53.1...console-api/v2.54.0) (2025-01-24)
+
+
+### Features
+
+* **deployment:** move gpu-bot into the api ([15217bf](https://github.com/akash-network/console/commit/15217bf53360de2bf3d8f00a3435e9f38ec82ebb)), closes [#674](https://github.com/akash-network/console/issues/674)
+
 ## [2.53.1](https://github.com/akash-network/console/compare/console-api/v2.53.0...console-api/v2.53.1) (2025-01-22)
 
 
