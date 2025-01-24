@@ -1,5 +1,12 @@
 
 
+## [2.33.1](https://github.com/akash-network/console/compare/console-web/v2.33.0...console-web/v2.33.1) (2025-01-24)
+
+
+### Bug Fixes
+
+* **deployment:** fix deployment not found ([#709](https://github.com/akash-network/console/issues/709)) ([548e538](https://github.com/akash-network/console/commit/548e5387f2265290af872e35393b1f430737c9a3))
+
 ## [2.33.0](https://github.com/akash-network/console/compare/console-web/v2.32.0...console-web/v2.33.0) (2025-01-21)
 
 
