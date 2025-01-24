@@ -12,6 +12,7 @@ import { z } from "zod";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { chainDb } from "@src/db/dbConnection";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/deployment.controller";
+import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { UserConfigService } from "@src/user/services/user-config/user-config.service";
 import { ProviderController } from "./deployment/controllers/provider/provider.controller";
@@ -60,6 +61,15 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       await container.resolve(ProviderController).cleanupProviderDeployments(options);
+    });
+  });
+
+program
+  .command("gpu-pricing-bot")
+  .description("Create deployments for every gpu models to get up to date pricing information")
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      await container.resolve(GpuBotController).createGpuBids();
     });
   });
 
