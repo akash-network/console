@@ -242,7 +242,6 @@ GROUP BY
 ORDER BY active_lease_count DESC;
 ```
 
-
 ## Cross database queries from chain-db (indexer) and user db
 
 User db stores the addresses of the managed wallet users and if we want to query the indexer db to compute amount spent, we need to do a cross database query.
