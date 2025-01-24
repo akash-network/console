@@ -73,6 +73,10 @@ src/
       myComponent.spec.ts
 ```
 
+#### Functional Tests Wallet
+
+Functional tests rely on a sandbox akash wallet: *akash1fq8fhssjs0w8x9ysggrm4r8x26522elefm737l*. If your workflow starts failing, make sure the wallet is funded and has enough tokens to cover the costs. It can be refilled via https://faucet.sandbox-01.aksh.pw 
+
 ## Changes from **beta** to **v1** (February 2024)
 
 ### Api Versioning
