@@ -6,9 +6,8 @@ import { Required } from "../decorators/requiredDecorator";
 /**
  * Bid model for Akash
  *
- * Bids are created when a provider makes a bid for a deployment.
+ * Bids are created when a provider makes a bid for a deployment. (MsgCreateBid)
  * When a bid is accepted by the deployment owner, a lease is created with the same dseq, gseq, oseq, and provider.
- * This is a 1:1 with the blockchain MsgCreateBid message.
  */
 @Table({
   modelName: "bid",
