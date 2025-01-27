@@ -59,6 +59,9 @@ jobs:
             echo "registry=${{ vars.WEB_REGISTRY }}" >> $GITHUB_ENV
             echo "app=deploy-web" >> $GITHUB_ENV
             echo "force_build=-f" >> $GITHUB_ENV
+          elif [[ "$tag" == provider-proxy/* ]]; then
+            echo "registry=${{ vars.PROVIDER_PROXY_REGISTRY }}" >> $GITHUB_ENV
+            echo "app=provider-proxy" >> $GITHUB_ENV
           else
             echo "Error: Unknown tag format"
             exit 1
