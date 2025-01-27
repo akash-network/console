@@ -1,7 +1,7 @@
 import { useQuery } from "react-query";
 
 import { ControlMachineWithAddress } from "@src/types/controlMachine";
-import { PersistentStorageResponse, ProviderDashoard, ProviderDetails } from "@src/types/provider";
+import { ActionStatus, PersistentStorageResponse, ProviderDashoard, ProviderDetails, Task } from "@src/types/provider";
 import consoleClient from "@src/utils/consoleClient";
 import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
 import restClient from "@src/utils/restClient";
@@ -90,27 +90,27 @@ export const useProviderActions = () => {
 };
 
 export const useProviderActionStatus = (actionId: string | null) => {
-  return useQuery({
+  return useQuery<ActionStatus>({
     queryKey: ["providerActionStatus", actionId],
     queryFn: () => restClient.get(`/action/status/${actionId}`),
     enabled: !!actionId,
-    refetchInterval: (data: any) => {
-      if (data?.tasks?.some((task: any) => task.status === "in_progress")) {
+    refetchInterval: data => {
+      if (data?.tasks?.some(task => task.status === "in_progress")) {
         return 1000;
       }
       return false;
     },
     keepPreviousData: true,
     refetchOnWindowFocus: query => {
-      const data = query.state.data as any;
-      return data?.tasks?.some((task: any) => task.status === "in_progress") ?? false;
+      const data = query.state.data;
+      return data?.tasks?.some(task => task.status === "in_progress") ?? false;
     },
     retry: 3,
-    select: (data: any) => ({
+    select: (data: ActionStatus) => ({
       ...data,
-      tasks: data.tasks.map((task: any) => ({
+      tasks: data.tasks.map(task => ({
         ...task,
-        status: task.status.toLowerCase()
+        status: task.status.toLowerCase() as Task["status"]
       }))
     })
   });

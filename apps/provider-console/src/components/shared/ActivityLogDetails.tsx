@@ -7,26 +7,15 @@ import { ArrowDown, ArrowRight, Check, Xmark } from "iconoir-react";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useProviderActionStatus } from "@src/queries/useProviderQuery";
+import { StaticLog, StaticLogsResponse, Task, TaskLogs } from "@src/types/provider";
 import { formatLocalTime, formatTimeLapse } from "@src/utils/dateUtils";
 import restClient from "@src/utils/restClient";
 import { checkAndRefreshToken } from "@src/utils/tokenUtils";
 
-interface TaskLogs {
-  [taskId: string]: string;
-}
-
-interface StaticLog {
-  type: string;
-  message: string;
-}
-
-interface StaticLogsResponse {
-  logs: StaticLog[];
-}
-
 export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ actionId }) => {
   const [openAccordions, setOpenAccordions] = useState<boolean[]>([]);
   const [taskLogs, setTaskLogs] = useState<TaskLogs>({});
+  const [loadingLogs, setLoadingLogs] = useState<{ [taskId: string]: boolean }>({});
   const logStreams = useRef<{ [taskId: string]: EventSourcePolyfill | null }>({});
   const { data: actionDetails, isLoading } = useProviderActionStatus(actionId);
 
@@ -66,11 +55,16 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
   }, [actionDetails?.tasks]);
 
   const fetchTaskLogs = async (taskId: string) => {
-    const response = await restClient.get<StaticLogsResponse, StaticLogsResponse>(`/tasks/logs/archive/${taskId}`);
-    setTaskLogs(prev => ({
-      ...prev,
-      [taskId]: response.logs.map((log: StaticLog) => `${log.type === "stderr" ? "[ERROR] " : ""}${log.message}`).join("\n")
-    }));
+    setLoadingLogs(prev => ({ ...prev, [taskId]: true }));
+    try {
+      const response = await restClient.get<StaticLogsResponse, StaticLogsResponse>(`/tasks/logs/archive/${taskId}`);
+      setTaskLogs(prev => ({
+        ...prev,
+        [taskId]: response.logs.map((log: StaticLog) => `${log.type === "stderr" ? "[ERROR] " : ""}${log.message}`).join("\n")
+      }));
+    } finally {
+      setLoadingLogs(prev => ({ ...prev, [taskId]: false }));
+    }
   };
 
   const setupLogStream = async (taskId: string) => {
@@ -102,7 +96,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
     };
   };
 
-  const handleAccordionToggle = (index: number, task: (typeof actionDetails.tasks)[0]) => {
+  const handleAccordionToggle = (index: number, task: Task) => {
     setOpenAccordions(prev => {
       const newState = [...prev];
       newState[index] = !newState[index];
@@ -122,17 +116,25 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
     });
   };
 
-  const renderLogs = (logs: string) => {
-    if (!logs) {
+  const renderLogs = (logs: string, taskId: string) => {
+    if (loadingLogs[taskId]) {
       return (
-        <div className="mt-4 flex items-center justify-center" style={{ height: 300 }}>
+        <div className="mt-4 flex items-center justify-center" style={{ height: 200 }}>
           <Spinner className="text-blue-500" />
         </div>
       );
     }
 
+    if (!logs) {
+      return (
+        <div className="mt-4 flex items-center justify-center text-gray-500" style={{ height: 200 }}>
+          No logs recorded for this task or this task is more than 7 days old.
+        </div>
+      );
+    }
+
     return (
-      <div className="mt-4" style={{ height: 300 }}>
+      <div className="mt-4" style={{ height: 200 }}>
         <ScrollFollow
           startFollowing={true}
           render={({ follow, onScroll }) => (
@@ -147,7 +149,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
               selectableLines
               enableLineNumbers={false}
               containerStyle={{
-                maxHeight: "300px",
+                maxHeight: "200px",
                 borderRadius: "0.375rem"
               }}
             />
@@ -185,8 +187,8 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
           <Separator />
           <p className="text-sm text-gray-500">{actionDetails?.id}</p>
           <p className="text-sm text-gray-500">
-            Started: {formatLocalTime(actionDetails?.start_time)}
-            {actionDetails?.end_time && ` | Ended: ${formatLocalTime(actionDetails?.end_time)}`}
+            Started: {formatLocalTime(actionDetails?.start_time ?? null)}
+            {actionDetails?.end_time && ` | Ended: ${formatLocalTime(actionDetails?.end_time ?? null)}`}
           </p>
         </div>
 
@@ -224,7 +226,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
                     {task.start_time && <p className="text-xs text-gray-500">Started: {formatLocalTime(task.start_time)}</p>}
                     {task.end_time && <p className="text-xs text-gray-500">Ended: {formatLocalTime(task.end_time)}</p>}
 
-                    {renderLogs(taskLogs[task.id])}
+                    {renderLogs(taskLogs[task.id], task.id)}
                   </div>
                 )}
                 {index < actionDetails?.tasks.length - 1 && <div className="border-t"></div>}
