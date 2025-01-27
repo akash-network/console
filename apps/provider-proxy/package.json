@@ -12,6 +12,7 @@
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
     "prod": "node ./dist/server.js",
+    "release": "release-it",
     "start": "npm run build && node ./dist/server.js",
     "test:functional": "jest --selectProjects functional",
     "test:functional:cov": "jest --selectProjects functional --coverage",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
+    "@akashnetwork/releaser": "*",
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.16",
     "@types/node-forge": "^1.3.11",
