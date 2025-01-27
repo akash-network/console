@@ -6,7 +6,7 @@ import { Message } from "./message";
 import { Transaction } from "./transaction";
 
 /**
- * AddressReference model for Base
+ * AddressReference model for Akash
  *
  * This is used to store the reference of an address to a transaction or message
  */
