@@ -1,5 +1,12 @@
 
 
+## [2.34.0](https://github.com/akash-network/console/compare/console-web/v2.33.1...console-web/v2.34.0) (2025-01-27)
+
+
+### Features
+
+* **deployment:** add deepseek showcase ([#724](https://github.com/akash-network/console/issues/724)) ([926cae8](https://github.com/akash-network/console/commit/926cae830314c35cff8b03dfa76bc6719ab9da00))
+
 ## [2.33.1](https://github.com/akash-network/console/compare/console-web/v2.33.0...console-web/v2.33.1) (2025-01-24)
 
 
