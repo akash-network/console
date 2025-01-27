@@ -75,6 +75,7 @@ jobs:
         run: |
           npm run release -w apps/api -- --verbose --ci
           npm run release -w apps/deploy-web -- --verbose --ci
+          npm run release -w apps/provider-proxy -- --verbose --ci
 
       - name: Get Base Branch SHA
         id: get-base-sha
