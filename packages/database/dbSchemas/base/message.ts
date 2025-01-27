@@ -68,7 +68,7 @@ export class Message extends Model {
    */
   @Column(DataTypes.DECIMAL(30, 0)) amount?: string;
   /**
-   * The data of the message
+   * The protobuf encoded data of the message
    */
   @Required @Column(DataTypes.BLOB) data: Uint8Array;
 
