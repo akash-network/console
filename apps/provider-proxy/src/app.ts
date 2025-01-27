@@ -16,6 +16,7 @@ const whitelist = [
   "https://console-beta.akash.network"
 ];
 
+app.disable("x-powered-by");
 app.use(
   cors({
     origin: function (origin, callback) {
