@@ -1,5 +1,17 @@
 
 
+## [2.35.0](https://github.com/akash-network/console/compare/console-web/v2.34.0...console-web/v2.35.0) (2025-01-28)
+
+
+### Features
+
+* only shows turnstile widget when cf rejects ([#722](https://github.com/akash-network/console/issues/722)) ([0537f2c](https://github.com/akash-network/console/commit/0537f2cece2c9e1a95547f41ac5c802471342b94))
+
+
+### Code Refactoring
+
+* changes provider-proxy URL for console-web staging env ([#731](https://github.com/akash-network/console/issues/731)) ([e89994e](https://github.com/akash-network/console/commit/e89994e2f1c00780ba1f5d333eb87c600669ca80))
+
 ## [2.34.0](https://github.com/akash-network/console/compare/console-web/v2.33.1...console-web/v2.34.0) (2025-01-27)
 
 
