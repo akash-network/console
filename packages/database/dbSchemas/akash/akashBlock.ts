@@ -36,11 +36,13 @@ export class AkashBlock extends Block {
    */
   @Column totalLeaseCount?: number;
   /**
-   * Total amount of active CPU at current block height
+   * Total amount of active CPU in thousandths of a CPU at current block height
+   * 1 CPU = 1000 thousandths of a CPU
    */
   @Column activeCPU?: number;
   /**
    * Total amount of active GPU at current block height
+   * 1 GPU = 1 unit of a GPU
    */
   @Column activeGPU?: number;
   /**
