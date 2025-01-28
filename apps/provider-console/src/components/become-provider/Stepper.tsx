@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Check, InfoCircleSolid } from "iconoir-react";
+import { Check } from "iconoir-react";
 
 interface Step {
   id: number;
@@ -50,10 +50,10 @@ const CompletedStep: React.FC<{ step: Step }> = ({ step }) => (
 
 const CurrentStep: React.FC<{ step: Step }> = ({ step }) => (
   <div className="flex items-center px-6 py-4 text-sm font-medium" aria-current="step">
-    <span className="border-primary flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2">
-      <InfoCircleSolid className="h-5 w-5" aria-hidden="true" />
+    <span className="bg-primary group-hover:bg-primary/80 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full">
+      <Check className="h-4 w-4 text-white" aria-hidden="true" />
     </span>
-    <span className="text-primary ml-4 text-sm font-bold">{step.name}</span>
+    <span className="ml-4 text-sm font-medium text-neutral-900 dark:text-neutral-500">{step.name}</span>
   </div>
 );
 
