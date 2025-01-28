@@ -127,7 +127,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
 
     if (!logs) {
       return (
-        <div className="mt-4 flex items-center justify-center text-gray-500" style={{ height: 200 }}>
+        <div className="text-muted-foreground mt-4 flex items-center justify-center" style={{ height: 200 }}>
           No logs recorded for this task or this task is more than 7 days old.
         </div>
       );
@@ -185,8 +185,8 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
             <span className="text-xl font-semibold">{actionDetails?.name}</span>
           </div>
           <Separator />
-          <p className="text-sm text-gray-500">{actionDetails?.id}</p>
-          <p className="text-sm text-gray-500">
+          <p className="text-muted-foreground text-sm">{actionDetails?.id}</p>
+          <p className="text-muted-foreground text-sm">
             Started: {formatLocalTime(actionDetails?.start_time ?? null)}
             {actionDetails?.end_time && ` | Ended: ${formatLocalTime(actionDetails?.end_time ?? null)}`}
           </p>
@@ -206,7 +206,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
                   </div>
                   <div className="flex items-center">
                     {task.start_time && (
-                      <p className="mr-2 text-xs text-gray-500">
+                      <p className="text-muted-foreground mr-2 text-xs">
                         {task.status === "in_progress"
                           ? formatTimeLapse(task.start_time, null)
                           : task.end_time
@@ -223,8 +223,8 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
                 {openAccordions[index] && (
                   <div className="border-t p-4">
                     <p className="text-sm">{task.description}</p>
-                    {task.start_time && <p className="text-xs text-gray-500">Started: {formatLocalTime(task.start_time)}</p>}
-                    {task.end_time && <p className="text-xs text-gray-500">Ended: {formatLocalTime(task.end_time)}</p>}
+                    {task.start_time && <p className="text-muted-foreground text-xs">Started: {formatLocalTime(task.start_time)}</p>}
+                    {task.end_time && <p className="text-muted-foreground text-xs">Ended: {formatLocalTime(task.end_time)}</p>}
 
                     {renderLogs(taskLogs[task.id], task.id)}
                   </div>

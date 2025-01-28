@@ -29,8 +29,8 @@ export const ControlMachineError: React.FC<ControlMachineErrorProps> = ({ onRetr
   if (!activeControlMachine) {
     return (
       <Alert variant="destructive" className={className}>
-        <AlertTitle>Control Machine Required</AlertTitle>
-        <AlertDescription>Please connect your control machine first to start updating pricing settings.</AlertDescription>
+        <AlertTitle className="text-red-100">Control Machine Required</AlertTitle>
+        <AlertDescription className="text-red-200">Please connect your control machine first to start updating pricing settings.</AlertDescription>
       </Alert>
     );
   }
@@ -38,10 +38,10 @@ export const ControlMachineError: React.FC<ControlMachineErrorProps> = ({ onRetr
   if (customMessage && onRetry) {
     return (
       <Alert variant="destructive" className={className}>
-        <AlertTitle>Unable to proceed</AlertTitle>
-        <AlertDescription className="flex items-center justify-between">
+        <AlertTitle className="text-red-100">Unable to proceed</AlertTitle>
+        <AlertDescription className="flex items-center justify-between text-red-200">
           {customMessage}
-          <button onClick={onRetry} className="rounded bg-red-100 px-3 py-1 text-sm text-red-900 hover:bg-red-200">
+          <button onClick={onRetry} className="rounded bg-red-900 px-3 py-1 text-sm text-red-100 hover:bg-red-800">
             Try Again
           </button>
         </AlertDescription>

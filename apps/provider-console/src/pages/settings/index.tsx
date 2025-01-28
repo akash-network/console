@@ -84,7 +84,7 @@ const SettingsPage: React.FC = () => {
       <div className="mt-8 space-y-8">
         <div className="rounded-lg border p-6">
           <h2 className="text-xl font-semibold">Restart Provider</h2>
-          <p className="mt-2 text-gray-600">Restart your provider instance. This may cause temporary service interruption.</p>
+          <p className="text-muted-foreground mt-2">Restart your provider instance. This may cause temporary service interruption.</p>
           <Button onClick={() => restartProvider()} className="mt-4" disabled={isDisabled || isRestartLoading}>
             {isRestartLoading ? "Restarting..." : "Restart Provider"}
           </Button>
@@ -93,7 +93,7 @@ const SettingsPage: React.FC = () => {
 
         <div className="rounded-lg border p-6">
           <h2 className="text-xl font-semibold">Upgrade Provider</h2>
-          <p className="mt-2 text-gray-600">Upgrade your provider to the latest version.</p>
+          <p className="text-muted-foreground mt-2">Upgrade your provider to the latest version.</p>
           <Button onClick={() => upgradeProvider()} className="mt-4" variant="outline" disabled={isDisabled}>
             Upgrade Provider
           </Button>
@@ -101,7 +101,7 @@ const SettingsPage: React.FC = () => {
 
         <div className="rounded-lg border p-6">
           <h2 className="text-xl font-semibold">Provider URL</h2>
-          <p className="mt-2 text-gray-600">Update the URL for your provider service.</p>
+          <p className="text-muted-foreground mt-2">Update the URL for your provider service.</p>
           <div className="mt-4 flex gap-4">
             <Input
               value={url}

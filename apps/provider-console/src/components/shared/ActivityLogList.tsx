@@ -69,7 +69,7 @@ export const ActivityLogList: React.FC<ActivityLogsListProps> = ({ actions }) =>
         <div className="col-span-2 text-right">Status</div>
       </div>
       <Separator />
-      <ul className="divide-y divide-gray-200">
+      <ul className="divide-y divide-gray-200 dark:divide-gray-700">
         {actions.length > 0 ? (
           actions.map(action => (
             <li key={action.id} className="cursor-pointer py-4 hover:bg-gray-50 dark:hover:bg-gray-600/50" onClick={() => handleRowClick(action.id)}>
@@ -78,10 +78,10 @@ export const ActivityLogList: React.FC<ActivityLogsListProps> = ({ actions }) =>
                   <p className="text-sm font-medium">{action.name}</p>
                 </div>
                 <div className="col-span-2">
-                  <p className="text-sm text-gray-500">{calculateTimeLapse(action.start_time, action.end_time)}</p>
+                  <p className="text-muted-foreground text-sm">{calculateTimeLapse(action.start_time, action.end_time)}</p>
                 </div>
                 <div className="col-span-4">
-                  <p className="text-sm text-gray-500">{formatDate(action.start_time)}</p>
+                  <p className="text-muted-foreground text-sm">{formatDate(action.start_time)}</p>
                 </div>
                 <div className="col-span-2 flex justify-end">
                   <StatusIcon status={action.status} />
