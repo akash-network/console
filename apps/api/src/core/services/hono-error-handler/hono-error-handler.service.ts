@@ -7,8 +7,10 @@ import omit from "lodash/omit";
 import { singleton } from "tsyringe";
 import { ZodError } from "zod";
 
+import { AuthService } from "@src/auth/services/auth.service";
 import { InjectSentry, Sentry } from "@src/core/providers/sentry.provider";
 import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
+import { ClientInfoContextVariables } from "@src/middlewares/clientInfoMiddleware";
 
 @singleton()
 export class HonoErrorHandlerService {
@@ -16,7 +18,8 @@ export class HonoErrorHandlerService {
 
   constructor(
     @InjectSentry() private readonly sentry: Sentry,
-    private readonly sentryEventService: SentryEventService
+    private readonly sentryEventService: SentryEventService,
+    private readonly authService: AuthService
   ) {
     this.handle = this.handle.bind(this);
   }
@@ -47,13 +50,34 @@ export class HonoErrorHandlerService {
     }
   }
 
-  private async getSentryEvent<E extends Env = any>(error: Error, c: Context<E>): Promise<Event> {
+  private async getSentryEvent<
+    E extends {
+      Variables: ClientInfoContextVariables;
+    } = any
+  >(error: Error, c: Context<E>): Promise<Event> {
     const event = this.sentry.addRequestDataToEvent(this.sentryEventService.toEvent(error), {
       method: c.req.method,
       url: c.req.url,
       headers: omit(Object.fromEntries(c.req.raw.headers), ["x-anonymous-user-id"]),
       body: await this.getSentryEventRequestBody(c)
     });
+
+    const { currentUser } = this.authService;
+
+    if (currentUser) {
+      event.user = {
+        id: currentUser.id
+      };
+    }
+
+    const clientInfo = c.get("clientInfo");
+
+    if (clientInfo) {
+      event.fingerprint = [clientInfo.fingerprint];
+      event.user = event.user || {};
+      event.user.ip_address = clientInfo.ip;
+    }
+
     const currentSpan = trace.getSpan(context.active());
 
     if (currentSpan) {

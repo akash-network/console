@@ -28,6 +28,7 @@ export class AuthInterceptor implements HonoInterceptor {
       if (anonymousUserId) {
         const currentUser = await this.userRepository.findAnonymousById(anonymousUserId);
         await this.auth(currentUser);
+        c.set("user", currentUser);
         return await next();
       }
 
@@ -35,7 +36,8 @@ export class AuthInterceptor implements HonoInterceptor {
 
       if (userId) {
         const currentUser = await this.userRepository.findByUserId(userId);
-        this.auth(currentUser);
+        await this.auth(currentUser);
+        c.set("user", currentUser);
         return await next();
       }
 
