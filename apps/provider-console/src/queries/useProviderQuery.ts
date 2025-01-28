@@ -1,7 +1,7 @@
 import { useQuery } from "react-query";
 
 import { ControlMachineWithAddress } from "@src/types/controlMachine";
-import { PersistentStorageResponse, ProviderDashoard, ProviderDetails } from "@src/types/provider";
+import { ActionStatus, PersistentStorageResponse, ProviderDashoard, ProviderDetails, Task } from "@src/types/provider";
 import consoleClient from "@src/utils/consoleClient";
 import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
 import restClient from "@src/utils/restClient";
@@ -39,10 +39,7 @@ export const useDeploymentDetails = (owner: string, dseq: string) => {
   return useQuery({
     queryKey: ["deployment", owner, dseq],
     queryFn: async () => {
-      const [response, latestBlocks]: any = await Promise.all([
-        consoleClient.get<any>(`v1/deployment/${owner}/${dseq}`),
-        consoleClient.get<any>(`/v1/blocks`)
-      ]);
+      const [response, latestBlocks]: any = await Promise.all([consoleClient.get<any>(`v1/deployment/${owner}/${dseq}`), consoleClient.get<any>(`/v1/blocks`)]);
 
       const latestBlock = latestBlocks[0].height;
       const totalAmtSpent = findTotalAmountSpentOnLeases(response.leases, latestBlock, true);
@@ -93,13 +90,29 @@ export const useProviderActions = () => {
 };
 
 export const useProviderActionStatus = (actionId: string | null) => {
-  return useQuery({
+  return useQuery<ActionStatus>({
     queryKey: ["providerActionStatus", actionId],
     queryFn: () => restClient.get(`/action/status/${actionId}`),
     enabled: !!actionId,
-    refetchInterval: (data: any) =>
-      data?.status === "completed" || data?.status === "failed" ? false : 5000,
-    retry: 3
+    refetchInterval: data => {
+      if (data?.tasks?.some(task => task.status === "in_progress")) {
+        return 1000;
+      }
+      return false;
+    },
+    keepPreviousData: true,
+    refetchOnWindowFocus: query => {
+      const data = query.state.data;
+      return data?.tasks?.some(task => task.status === "in_progress") ?? false;
+    },
+    retry: 3,
+    select: (data: ActionStatus) => ({
+      ...data,
+      tasks: data.tasks.map(task => ({
+        ...task,
+        status: task.status.toLowerCase() as Task["status"]
+      }))
+    })
   });
 };
 
