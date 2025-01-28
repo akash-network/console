@@ -36,7 +36,8 @@ appHono.use(
   cors({
     allowMethods: ["GET", "HEAD", "PUT", "POST", "DELETE", "PATCH", "OPTIONS"],
     origin: env.CORS_WEBSITE_URLS?.split(",") || ["http://localhost:3000", "http://localhost:3001"],
-    credentials: true
+    credentials: true,
+    exposeHeaders: ["cf-mitigated"]
   })
 );
 
