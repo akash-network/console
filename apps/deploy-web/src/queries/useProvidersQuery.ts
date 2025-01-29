@@ -1,40 +1,45 @@
-import { useQuery } from "react-query";
+import { useQuery, UseQueryResult } from "react-query";
 import axios from "axios";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
-import { ApiProviderDetail, ApiProviderList, ApiProviderRegion, Auditor } from "@src/types/provider";
+import { useServices } from "@src/context/ServicesProvider";
+import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
+import { ApiProviderDetail, ApiProviderList, ApiProviderRegion, Auditor, ProviderStatus, ProviderVersion } from "@src/types/provider";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { getNetworkCapacityDto, providerStatusToDto } from "@src/utils/providerUtils";
 import { QueryKeys } from "./queryKeys";
 
-async function getProviderDetail(owner: string): Promise<ApiProviderDetail | null> {
-  if (!owner) return null;
-
-  const response = await axios.get(ApiUrlService.providerDetail(owner));
-
-  return response.data;
+export function useProviderDetail(owner: string, options): UseQueryResult<ApiProviderDetail | null> {
+  const services = useServices();
+  return useQuery(
+    QueryKeys.getProviderDetailKey(owner),
+    async () => {
+      if (!owner) return null;
+      const response = await services.axios.get(ApiUrlService.providerDetail(owner));
+      return response.data;
+    },
+    options
+  );
 }
 
-export function useProviderDetail(owner: string, options) {
-  return useQuery(QueryKeys.getProviderDetailKey(owner), () => getProviderDetail(owner), options);
-}
-
-async function getProviderStatus(providerUri: string) {
-  if (!providerUri) return null;
-
-  try {
-    const statusResponse = await axios.post(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL, { url: `${providerUri}/status`, method: "GET" });
-    const versionResponse = await axios.post(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL, { url: `${providerUri}/version`, method: "GET" });
-    return providerStatusToDto(statusResponse.data, versionResponse?.data || {});
-  } catch (error) {
-    console.log(error);
-    throw error;
-  }
-}
-
-export function useProviderStatus(providerUri: string, options = {}) {
-  return useQuery(QueryKeys.getProviderStatusKey(providerUri), () => getProviderStatus(providerUri), options);
+export function useProviderStatus(provider: ApiProviderList | undefined | null, options = {}) {
+  const fetchProviderUrl = useScopedFetchProviderUrl(provider);
+  return useQuery(
+    QueryKeys.getProviderStatusKey(provider?.hostUri || ""),
+    async () => {
+      try {
+        const [statusResponse, versionResponse] = await Promise.all([
+          fetchProviderUrl<ProviderStatus>("/status"),
+          fetchProviderUrl<ProviderVersion>("/version")
+        ]);
+        return providerStatusToDto(statusResponse.data, versionResponse.data || {});
+      } catch (error) {
+        console.log(error);
+        throw error;
+      }
+    },
+    options
+  );
 }
 
 async function getNetworkCapacity() {

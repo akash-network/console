@@ -54,7 +54,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     data: leaseStatus,
     refetch: getLeaseStatus,
     isFetching: isLoadingStatus
-  } = useLeaseStatus(providerInfo?.hostUri || "", selectedLease as LeaseDto, {
+  } = useLeaseStatus(providerInfo, selectedLease as LeaseDto, {
     enabled: false
   });
   const { sendJsonMessage } = useWebSocket(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL_WS, {

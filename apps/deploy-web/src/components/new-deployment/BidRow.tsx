@@ -38,7 +38,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ testIndex, bid, selecte
     isLoading: isLoadingStatus,
     refetch: fetchProviderStatus,
     error
-  } = useProviderStatus(provider?.hostUri, {
+  } = useProviderStatus(provider, {
     enabled: false,
     retry: false
   });

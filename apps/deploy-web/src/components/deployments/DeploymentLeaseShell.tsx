@@ -42,7 +42,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
     data: leaseStatus,
     refetch: getLeaseStatus,
     isFetching: isLoadingStatus
-  } = useLeaseStatus(providerInfo?.hostUri || "", selectedLease as LeaseDto, {
+  } = useLeaseStatus(providerInfo, selectedLease as LeaseDto, {
     enabled: false
   });
   const currentUrl = useRef<string | null>(null);

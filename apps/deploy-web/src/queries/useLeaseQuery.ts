@@ -1,9 +1,8 @@
 import { useQuery } from "react-query";
-import axios from "axios";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
-import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
+import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
 import { LeaseDto, RpcLease } from "@src/types/deployment";
+import { ApiProviderList } from "@src/types/provider";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { useCertificate } from "../context/CertificateProvider";
@@ -46,21 +45,20 @@ export function useAllLeases(address: string, options = {}) {
   return useQuery(QueryKeys.getAllLeasesKey(address), () => getAllLeases(settings.apiEndpoint, address), options);
 }
 
-async function getLeaseStatus(providerUri: string, lease: LeaseDto, localCert: LocalCert | null) {
-  if (!providerUri) return null;
-
-  const leaseStatusPath = `${providerUri}/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`;
-  const response = await axios.post(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL, {
-    method: "GET",
-    url: leaseStatusPath,
-    certPem: localCert?.certPem,
-    keyPem: localCert?.keyPem
-  });
-
-  return response.data;
-}
-
-export function useLeaseStatus(providerUri: string, lease: LeaseDto, options) {
+export function useLeaseStatus(provider: ApiProviderList | undefined, lease: LeaseDto, options) {
   const { localCert } = useCertificate();
-  return useQuery(QueryKeys.getLeaseStatusKey(lease?.dseq, lease?.gseq, lease?.oseq), () => getLeaseStatus(providerUri, lease, localCert), options);
+  const fetchProviderUrl = useScopedFetchProviderUrl(provider);
+
+  return useQuery(
+    QueryKeys.getLeaseStatusKey(lease?.dseq, lease?.gseq, lease?.oseq),
+    async () => {
+      const response = await fetchProviderUrl<any>(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, {
+        method: "GET",
+        certPem: localCert?.certPem,
+        keyPem: localCert?.keyPem
+      });
+      return response.data;
+    },
+    options
+  );
 }

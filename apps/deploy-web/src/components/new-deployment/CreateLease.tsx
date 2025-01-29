@@ -23,13 +23,13 @@ import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
-import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBidList } from "@src/queries/useBidQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import networkStore from "@src/store/networkStore";
 import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { BidDto } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -108,6 +108,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
   useWhen(hasActiveBid, () => selectBid(activeBid));
 
+  const chainNetwork = networkStore.useSelectedNetworkId();
   const sendManifest = useCallback(async () => {
     setIsSendingManifest(true);
     const bidKeys = Object.keys(selectedBids);
@@ -141,7 +142,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         if (!provider) {
           throw new Error("Provider not found");
         }
-        await sendManifestToProvider(provider, mani, dseq, localCert as LocalCert);
+        await sendManifestToProvider(provider, mani, { dseq, localCert, chainNetwork });
       }
       router.replace(UrlService.deploymentDetails(dseq, "EVENTS", "events"));
     } catch (err) {
@@ -154,7 +155,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
       setIsSendingManifest(false);
     }
-  }, [selectedBids, dseq, providers, localCert, isManaged, enqueueSnackbar, closeSnackbar, router]);
+  }, [selectedBids, dseq, providers, localCert, isManaged, enqueueSnackbar, closeSnackbar, router, chainNetwork]);
 
   // Filter bids
   useEffect(() => {

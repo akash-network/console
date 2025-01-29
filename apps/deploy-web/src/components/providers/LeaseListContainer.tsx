@@ -5,7 +5,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
 import { LeaseDto } from "@src/types/deployment";
-import { ClientProviderDetailWithStatus } from "@src/types/provider";
+import { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
@@ -32,7 +32,7 @@ export const LeaseListContainer: React.FunctionComponent<Props> = ({ owner }) =>
     data: providerStatus,
     isLoading: isLoadingStatus,
     refetch: getProviderStatus
-  } = useProviderStatus(provider?.hostUri || "", {
+  } = useProviderStatus(provider as ApiProviderList, {
     enabled: false,
     retry: false,
     onSuccess: () => {
