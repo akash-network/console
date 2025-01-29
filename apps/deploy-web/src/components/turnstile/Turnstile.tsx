@@ -4,7 +4,7 @@ import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MdInfo } from "react-icons/md";
 import { Button } from "@akashnetwork/ui/components";
 import { Turnstile as ReactTurnstile, TurnstileInstance } from "@marsidev/react-turnstile";
-import axios, { AxiosError, AxiosHeaders } from "axios";
+import axios, { AxiosError } from "axios";
 import { motion } from "framer-motion";
 import { firstValueFrom, Subject } from "rxjs";
 
@@ -25,9 +25,9 @@ export const Turnstile: FC = () => {
     const interceptorId = managedWalletHttpService.interceptors.response.use(
       response => response,
       async (error: AxiosError) => {
-        const headers = error.response?.headers;
+        const request = error?.request;
 
-        if (headers instanceof AxiosHeaders && headers.get("cf-mitigated") === "challenge" && turnstileRef.current) {
+        if (request?.status === 0 && turnstileRef.current) {
           turnstileRef.current?.render();
           turnstileRef.current.execute();
           const response = await Promise.race([turnstileRef.current.getResponsePromise(), firstValueFrom(dismissedSubject.current.asObservable())]);
