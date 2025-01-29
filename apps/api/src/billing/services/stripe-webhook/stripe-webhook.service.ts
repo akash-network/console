@@ -36,13 +36,13 @@ export class StripeWebhookService {
       return;
     }
 
-    const checkoutSession = await this.stripe.checkout.sessions.retrieve(event.data.object.id, {
+    const checkoutSession = await this.stripe.checkout.sessions.retrieve(sessionId, {
       expand: ["line_items"]
     });
 
     if (checkoutSession.payment_status !== "unpaid") {
       await this.refillService.topUpWallet(checkoutSession.amount_subtotal, checkoutSessionCache.userId);
-      await this.checkoutSessionRepository.deleteBy({ sessionId: event.data.object.id });
+      await this.checkoutSessionRepository.deleteBy({ sessionId });
     } else {
       this.logger.error({ event: "PAYMENT_NOT_COMPLETED", sessionId });
     }
