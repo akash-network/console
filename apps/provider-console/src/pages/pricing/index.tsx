@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Spinner } from "@akashnetwork/ui/components";
 
 import { ProviderPricing } from "@src/components/become-provider/ProviderPricing";
@@ -8,6 +8,7 @@ import { withAuth } from "@src/components/shared/withAuth";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useProvider } from "@src/context/ProviderContext";
 import { ProviderPricingType } from "@src/types/provider";
+import { ProviderPricingResponse } from "@src/types/providerPricing";
 import restClient from "@src/utils/restClient";
 import { convertFromPricingAPI, sanitizeMachineAccess } from "@src/utils/sanityUtils";
 
@@ -17,13 +18,13 @@ const Pricing: React.FunctionComponent = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { providerDetails } = useProvider();
 
-  const fetchPricing = async () => {
+  const fetchPricing = useCallback(async () => {
     try {
       setIsLoading(true);
       const request = {
         control_machine: sanitizeMachineAccess(activeControlMachine)
       };
-      const response: any = await restClient.post("/get-provider-pricing", request);
+      const response: ProviderPricingResponse = await restClient.post("/get-provider-pricing", request);
       if (response) {
         setExistingPricing(convertFromPricingAPI(response.pricing));
       }
@@ -32,13 +33,13 @@ const Pricing: React.FunctionComponent = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeControlMachine]);
 
   useEffect(() => {
     if (activeControlMachine) {
       fetchPricing();
     }
-  }, [activeControlMachine]);
+  }, [activeControlMachine, fetchPricing]);
 
   return (
     <Layout>
@@ -54,7 +55,7 @@ const Pricing: React.FunctionComponent = () => {
 
         <div className={isLoading ? "pointer-events-none" : ""}>
           <ControlMachineError customMessage={!existingPricing ? "Please try again later." : undefined} onRetry={!existingPricing ? fetchPricing : undefined} />
-          <ProviderPricing existingPricing={existingPricing} editMode={true} disabled={!existingPricing} providerDetails={providerDetails} />
+          <ProviderPricing existingPricing={existingPricing} editMode={true} disabled={activeControlMachine && existingPricing ? false : true} providerDetails={providerDetails ?? undefined} />
         </div>
       </div>
     </Layout>

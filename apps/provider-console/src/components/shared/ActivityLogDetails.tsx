@@ -21,8 +21,8 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
 
   useEffect(() => {
     if (actionDetails) {
-      const initialAccordions = actionDetails.tasks.map(task => task.status === "in_progress");
-      setOpenAccordions(initialAccordions);
+      const initialAccordions = actionDetails.tasks?.map(task => task.status === "in_progress");
+      setOpenAccordions(initialAccordions ?? []);
     }
   }, [actionDetails]);
 
@@ -194,7 +194,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
 
         <div className="space-y-4">
           <div className="rounded-md border">
-            {actionDetails?.tasks.map((task, index) => (
+            {actionDetails?.tasks?.map((task, index) => (
               <div key={index}>
                 <div
                   className="flex cursor-pointer items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-600/50"
@@ -229,7 +229,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
                     {renderLogs(taskLogs[task.id], task.id)}
                   </div>
                 )}
-                {index < actionDetails?.tasks.length - 1 && <div className="border-t"></div>}
+                {index < (actionDetails?.tasks?.length ?? 0) - 1 && <div className="border-t"></div>}
               </div>
             ))}
           </div>
