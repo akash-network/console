@@ -27,7 +27,7 @@ export const Turnstile: FC = () => {
       async (error: AxiosError) => {
         const request = error?.request;
 
-        if (request?.status === 0 && turnstileRef.current) {
+        if ((!request?.status || request?.status > 400) && turnstileRef.current) {
           turnstileRef.current?.render();
           turnstileRef.current.execute();
           const response = await Promise.race([turnstileRef.current.getResponsePromise(), firstValueFrom(dismissedSubject.current.asObservable())]);
@@ -72,17 +72,7 @@ export const Turnstile: FC = () => {
               ref={turnstileRef}
               siteKey={browserEnvConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
               options={{ execution: "execute" }}
-              onError={() =>
-                setStatus(prevStatus => {
-                  if (prevStatus === "retrying") {
-                    return "error";
-                  }
-
-                  turnstileRef.current?.reset();
-
-                  return "retrying";
-                })
-              }
+              onError={() => setStatus("error")}
               onExpire={() => setStatus("expired")}
               onSuccess={() => setStatus("solved")}
               onBeforeInteractive={() => setStatus("interactive")}
