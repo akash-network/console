@@ -1,5 +1,13 @@
 
 
+## [2.55.0](https://github.com/akash-network/console/compare/console-api/v2.54.0...console-api/v2.55.0) (2025-01-29)
+
+
+### Features
+
+* adds more reporting data ([8c2cf03](https://github.com/akash-network/console/commit/8c2cf03713546477a8d3b85f721d668b8d7a1eec))
+* **auth:** exposes cf headers ([08811f5](https://github.com/akash-network/console/commit/08811f583c673c5d5e06be48dccfc2e31cf915cf))
+
 ## [2.54.0](https://github.com/akash-network/console/compare/console-api/v2.53.1...console-api/v2.54.0) (2025-01-24)
 
 
