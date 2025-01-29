@@ -1,5 +1,5 @@
 {
-  "name": "console-provider-proxy",
+  "name": "@akashnetwork/provider-proxy",
   "version": "1.3.0",
   "description": "Proxy that allows communication between the Web UI and providers",
   "license": "Apache-2.0",
