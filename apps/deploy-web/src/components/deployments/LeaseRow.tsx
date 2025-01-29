@@ -18,12 +18,12 @@ import { PricePerMonth } from "@src/components/shared/PricePerMonth";
 import { SpecDetail } from "@src/components/shared/SpecDetail";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { useCertificate } from "@src/context/CertificateProvider";
-import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { getSplitText } from "@src/hooks/useShortText";
 import { useBidInfo } from "@src/queries/useBidQuery";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
+import networkStore from "@src/store/networkStore";
 import { LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
@@ -63,7 +63,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
       error,
       refetch: getLeaseStatus,
       isLoading: isLoadingLeaseStatus
-    } = useLeaseStatus(provider?.hostUri || "", lease, {
+    } = useLeaseStatus(provider, lease, {
       enabled: isLeaseActive && !isServicesAvailable && !!provider?.hostUri && !!localCert,
       refetchInterval: 10_000,
       onSuccess: leaseStatus => {
@@ -72,7 +72,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
         }
       }
     });
-    const { isLoading: isLoadingProviderStatus, refetch: getProviderStatus } = useProviderStatus(provider?.hostUri || "", {
+    const { isLoading: isLoadingProviderStatus, refetch: getProviderStatus } = useProviderStatus(provider, {
       enabled: false,
       retry: false
     });
@@ -117,12 +117,13 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
       setActiveTab("EDIT");
     }
 
+    const chainNetwork = networkStore.useSelectedNetworkId();
     async function sendManifest() {
       setIsSendingManifest(true);
       try {
         const manifest = deploymentData.getManifest(parsedManifest, true);
 
-        await sendManifestToProvider(provider as ApiProviderList, manifest, dseq, localCert as LocalCert);
+        await sendManifestToProvider(provider, manifest, { dseq, localCert, chainNetwork });
 
         enqueueSnackbar(<Snackbar title="Manifest sent!" iconVariant="success" />, { variant: "success", autoHideDuration: 10_000 });
 

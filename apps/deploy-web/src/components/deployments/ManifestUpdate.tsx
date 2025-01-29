@@ -11,10 +11,10 @@ import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkele
 import { LinkTo } from "@src/components/shared/LinkTo";
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { useCertificate } from "@src/context/CertificateProvider";
-import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import networkStore from "@src/store/networkStore";
 import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
@@ -122,9 +122,14 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     window.open("https://akash.network/docs/deployments/akash-cli/installation/#update-the-deployment", "_blank");
   }
 
+  const chainNetwork = networkStore.useSelectedNetworkId();
   async function sendManifest(providerInfo: ApiProviderList, manifest: any) {
     try {
-      return await sendManifestToProvider(providerInfo, manifest, deployment.dseq, localCert as LocalCert);
+      return await sendManifestToProvider(providerInfo, manifest, {
+        dseq: deployment.dseq,
+        localCert,
+        chainNetwork
+      });
     } catch (err) {
       enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
       throw err;

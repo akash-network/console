@@ -44,7 +44,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
   });
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
   const { data: providerAttributesSchema, isFetching: isLoadingSchema } = useProviderAttributesSchema();
-  const { isLoading: isLoadingStatus, refetch: getProviderStatus } = useProviderStatus(provider?.hostUri || "", {
+  const { isLoading: isLoadingStatus, refetch: getProviderStatus } = useProviderStatus(provider, {
     enabled: true,
     retry: false,
     onSuccess: _providerStatus => {
