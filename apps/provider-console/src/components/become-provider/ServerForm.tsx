@@ -292,11 +292,11 @@ export const ServerForm: React.FC<ServerFormProps> = ({ currentServerNumber, onC
                 <FormField
                   control={form.control}
                   name="username"
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem className="flex flex-col space-y-2">
                       <FormLabel>SSH Username</FormLabel>
                       <FormControl>
-                        <Input placeholder="Input your SSH username" {...field} />
+                        <Input value="root" disabled readOnly />
                       </FormControl>
                       <FormDescription>The username must be &quot;root&quot; for proper setup.</FormDescription>
                       <FormMessage />
