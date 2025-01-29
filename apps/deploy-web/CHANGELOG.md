@@ -1,5 +1,12 @@
 
 
+## [2.36.1](https://github.com/akash-network/console/compare/console-web/v2.36.0...console-web/v2.36.1) (2025-01-29)
+
+
+### Bug Fixes
+
+* **auth:** checks for cf error more generally ([1582ff8](https://github.com/akash-network/console/commit/1582ff81eff9fa0546c7c372d24a061756261840))
+
 ## [2.36.0](https://github.com/akash-network/console/compare/console-web/v2.35.0...console-web/v2.36.0) (2025-01-29)
 
 
