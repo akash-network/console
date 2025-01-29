@@ -1,5 +1,12 @@
 
 
+## [2.36.2](https://github.com/akash-network/console/compare/console-web/v2.36.1...console-web/v2.36.2) (2025-01-29)
+
+
+### Bug Fixes
+
+* **auth:** simplifies turnstile widget error display ([198fe5d](https://github.com/akash-network/console/commit/198fe5d893e6e0d501707a61711f0f8215b1849f))
+
 ## [2.36.1](https://github.com/akash-network/console/compare/console-web/v2.36.0...console-web/v2.36.1) (2025-01-29)
 
 
