@@ -46,7 +46,8 @@ export const serverEnvSchema = browserEnvSchema.extend({
   GITHUB_CLIENT_SECRET: z.string(),
   BITBUCKET_CLIENT_SECRET: z.string(),
   GITLAB_CLIENT_SECRET: z.string(),
-  NEXT_PUBLIC_CI_CD_IMAGE_NAME: z.string()
+  NEXT_PUBLIC_CI_CD_IMAGE_NAME: z.string(),
+  NEXT_PUBLIC_PROVIDER_PROXY_URL: z.string()
 });
 
 export type BrowserEnvConfig = z.infer<typeof browserEnvSchema>;

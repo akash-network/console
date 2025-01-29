@@ -1,47 +1,53 @@
-import axios from "axios";
+import { AxiosResponse } from "axios";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
+import { services } from "@src/services/http/http-browser.service";
 import { ApiProviderList } from "@src/types/provider";
 import { wait } from "./timer";
 
-export const sendManifestToProvider = async (providerInfo: ApiProviderList, manifest: any, dseq: string, localCert: LocalCert) => {
+export interface SendManifestToProviderOptions {
+  dseq: string;
+  localCert?: LocalCert | null;
+  chainNetwork: string;
+}
+
+export const sendManifestToProvider = async (providerInfo: ApiProviderList | undefined | null, manifest: unknown, options: SendManifestToProviderOptions) => {
+  if (!providerInfo) return;
   console.log("Sending manifest to " + providerInfo?.owner);
 
   let jsonStr = JSON.stringify(manifest);
   jsonStr = jsonStr.replaceAll('"quantity":{"val', '"size":{"val');
 
-  // Waiting for 5 sec for provider to have lease
+  // Waiting for provider to have lease
   await wait(5000);
 
-  let response;
+  let response: AxiosResponse | undefined;
 
-  for (let i = 1; i <= 3; i++) {
+  for (let i = 1; i <= 3 && !response; i++) {
     console.log("Try #" + i);
     try {
       if (!response) {
-        response = await axios.post(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL, {
+        response = await services.providerProxy.fetchProviderUrl(`/deployment/${options.dseq}/manifest`, {
           method: "PUT",
-          url: providerInfo.hostUri + "/deployment/" + dseq + "/manifest",
-          certPem: localCert?.certPem,
-          keyPem: localCert?.keyPem,
+          certPem: options.localCert?.certPem,
+          keyPem: options.localCert?.keyPem,
           body: jsonStr,
-          timeout: 60_000
+          timeout: 60_000,
+          providerIdentity: providerInfo,
+          chainNetwork: options.chainNetwork
         });
-
-        i = 3;
       }
     } catch (err) {
       if (err.includes && err.includes("no lease for deployment") && i < 3) {
         console.log("Lease not found, retrying...");
-        await wait(6000); // Waiting for 6 sec
+        await wait(6000);
       } else {
         throw new Error(err?.response?.data || err);
       }
     }
   }
 
-  // Waiting for 5 sec for provider to boot up workload
+  // Waiting for provider to boot up workload
   await wait(5000);
 
   return response;

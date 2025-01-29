@@ -27,6 +27,7 @@ import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
+import { ServicesProvider } from "@src/context/ServicesProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { TemplatesProvider } from "@src/context/TemplatesProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
@@ -73,7 +74,9 @@ const App: React.FunctionComponent<Props> = props => {
                                         <BackgroundTaskProvider>
                                           <TemplatesProvider>
                                             <LocalNoteProvider>
-                                              <Component {...pageProps} />
+                                              <ServicesProvider>
+                                                <Component {...pageProps} />
+                                              </ServicesProvider>
                                             </LocalNoteProvider>
                                           </TemplatesProvider>
                                         </BackgroundTaskProvider>
