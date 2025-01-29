@@ -1,5 +1,12 @@
 
 
+## [2.36.0](https://github.com/akash-network/console/compare/console-web/v2.35.0...console-web/v2.36.0) (2025-01-29)
+
+
+### Features
+
+* adjusts logic to send provider and chain details to provider proxy ([#742](https://github.com/akash-network/console/issues/742)) ([a5ca831](https://github.com/akash-network/console/commit/a5ca8313c9ef545336889d8a536e4cf92c537c61))
+
 ## [2.35.0](https://github.com/akash-network/console/compare/console-web/v2.34.0...console-web/v2.35.0) (2025-01-28)
 
 
