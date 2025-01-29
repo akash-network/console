@@ -54,6 +54,18 @@ export interface ProviderDetails {
   workloadSupportChiaCapabilities: string[];
   featEndpointIp: boolean;
   uptime: Uptime[];
+  stats: {
+    storage: {
+      ephemeral: StatStatus;
+      persistent: StatStatus;
+    };
+  };
+}
+
+interface StatStatus {
+  available: number;
+  active: number;
+  pending: number;
 }
 
 interface Stats {
