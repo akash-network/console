@@ -63,7 +63,7 @@ jobs:
             echo "registry=${{ vars.PROVIDER_PROXY_REGISTRY }}" >> $GITHUB_ENV
             echo "app=provider-proxy" >> $GITHUB_ENV
           else
-            echo "Error: Unknown tag format"
+            echo "Error: Unknown tag format = $tag"
             exit 1
           fi
 
