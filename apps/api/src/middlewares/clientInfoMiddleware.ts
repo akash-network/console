@@ -6,13 +6,11 @@ import { createMiddleware } from "hono/factory";
 import { getSentry } from "@src/core/providers/sentry.provider";
 
 export type ClientInfoContextVariables = {
-  clientInfo:
-    | {
-        ip: string;
-        userAgent: string | undefined;
-        fingerprint: string | undefined;
-      }
-    | undefined;
+  clientInfo?: {
+    ip: string;
+    userAgent: string | undefined;
+    fingerprint: string | undefined;
+  };
 };
 
 export const clientInfoMiddleware = createMiddleware<{
