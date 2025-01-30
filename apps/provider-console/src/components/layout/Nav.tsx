@@ -14,7 +14,7 @@ export const Nav = () => {
       <div className="flex h-14 items-center justify-between pl-4 pr-4">
         {!!theme && (
           <Link className="flex items-center" href="/">
-            {theme === "light" ? <AkashConsoleLogoLight className="h-[19px] max-w-[200px]" /> : <AkashConsoleLogoDark className="h-[19px] max-w-[200px]" />}
+            {theme === "light" ? <AkashConsoleLogoLight className="h-[19px]" /> : <AkashConsoleLogoDark className="h-[19px]" />}
           </Link>
         )}
 

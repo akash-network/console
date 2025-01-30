@@ -4,21 +4,7 @@ import { Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import {
-  ClipboardCheck,
-  Cloud,
-  DatabaseCheck,
-  Discord,
-  Dollar,
-  Github,
-  ListSelect,
-  Menu,
-  MenuScale,
-  Rocket,
-  Settings,
-  X as TwitterX,
-  Youtube
-} from "iconoir-react";
+import { ClipboardCheck, Cloud, DatabaseCheck, Discord, Dollar, Github, ListSelect, Menu, MenuScale, Settings, X as TwitterX, Youtube } from "iconoir-react";
 import { Home, OpenInWindow } from "iconoir-react";
 import getConfig from "next/config";
 import Image from "next/image";
@@ -172,7 +158,6 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
             href="/become-provider"
           >
             {_isNavOpen && "Create Provider "}
-            <Rocket className={cn("rotate-45", { ["ml-4"]: _isNavOpen })} fontSize="small" />
           </Link>
         )}
 

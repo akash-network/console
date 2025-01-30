@@ -33,11 +33,12 @@ import providerProcessStore, { ProviderAttribute } from "@src/store/providerProc
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 import { providerAttributesFormValuesSchema } from "../../types/providerAttributes";
+import { Title } from "../shared/Title";
 import { ResetProviderForm } from "./ResetProviderProcess";
 
 const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
 
-const DEFAULT_ATTRIBUTES = ['host', 'tier'];
+const DEFAULT_ATTRIBUTES = ["host", "tier"];
 
 interface ProviderAttributesProps {
   existingAttributes?: ProviderAttribute[];
@@ -66,15 +67,15 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
     defaultValues: {
       attributes: existingAttributes
         ? existingAttributes.map(attr => ({
-          key: attributeKeys.includes(attr.key) ? attr.key : "unknown-attributes",
-          value: attr.value,
-          customKey: attributeKeys.includes(attr.key) ? "" : attr.key
-        }))
+            key: attributeKeys.includes(attr.key) ? attr.key : "unknown-attributes",
+            value: attr.value,
+            customKey: attributeKeys.includes(attr.key) ? "" : attr.key
+          }))
         : [
-          { key: "host", value: "akash", customKey: "" },
-          { key: "tier", value: "community", customKey: "" },
-          { key: "organization", value: organizationName || "", customKey: "" }
-        ]
+            { key: "host", value: "akash", customKey: "" },
+            { key: "tier", value: "community", customKey: "" },
+            { key: "organization", value: organizationName || "", customKey: "" }
+          ]
     }
   });
 
@@ -85,6 +86,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
   });
 
   const { activeControlMachine } = useControlMachine();
+  const isControlMachineConnected = !!activeControlMachine;
 
   const [showSuccess, setShowSuccess] = React.useState(false);
 
@@ -118,10 +120,10 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
   };
 
   return (
-    <div className="flex w-full flex-col items-center pt-10">
-      <div className="w-full max-w-2xl space-y-6">
+    <div className={`flex w-full flex-col items-center ${!editMode ? "pt-10" : "pt-5"}`}>
+      <div className={`w-full ${!editMode ? "max-w-2xl" : ""} space-y-6`}>
         <div>
-          <h3 className="text-xl font-bold">{existingAttributes ? "Edit Provider Attributes" : "Provider Attributes"}</h3>
+          {existingAttributes ? <Title>Edit Provider Attributes</Title> : <h3 className="text-xl font-bold">Provider Attributes</h3>}
           <p className="text-muted-foreground text-sm">Attributes choosen here will be displayed publicly to the Console.</p>
           <p className="text-muted-foreground text-sm">It will be used for filtering and querying providers during bid process.</p>
         </div>
@@ -150,11 +152,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <div>
-                                      <Select 
-                                        value={field.value} 
-                                        onValueChange={value => field.onChange(value)}
-                                        disabled={isDefaultAttribute}
-                                      >
+                                      <Select value={field.value} onValueChange={value => field.onChange(value)} disabled={isDefaultAttribute}>
                                         <SelectTrigger>{field.value || "Select Key"}</SelectTrigger>
                                         <SelectContent>
                                           {availableKeys.map(key => (
@@ -201,11 +199,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <div>
-                                    <Input 
-                                      placeholder="Value" 
-                                      {...field} 
-                                      disabled={isDefaultAttribute}
-                                    />
+                                    <Input placeholder="Value" {...field} disabled={isDefaultAttribute} />
                                   </div>
                                 </TooltipTrigger>
                                 {isDefaultAttribute && (
@@ -219,13 +213,7 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
                           </FormItem>
                         )}
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => remove(index)}
-                        disabled={isDefaultAttribute}
-                      >
+                      <Button type="button" variant="outline" size="icon" onClick={() => remove(index)} disabled={isDefaultAttribute}>
                         <Trash className="h-4 w-4" />
                       </Button>
                     </div>
@@ -242,7 +230,9 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
               <div className="flex w-full justify-between">
                 <div className="flex justify-start">{!editMode && <ResetProviderForm />}</div>
                 <div className="flex justify-end">
-                  <Button type="submit">{editMode ? "Update Attributes" : "Next"}</Button>
+                  <Button type="submit" disabled={editMode && !isControlMachineConnected}>
+                    {editMode ? "Update Attributes" : "Next"}
+                  </Button>
                 </div>
               </div>
             </form>

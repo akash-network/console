@@ -1,6 +1,7 @@
 "use client";
 import React, { useCallback, useState } from "react";
-import { Button, Input, Popup, Separator } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, AlertTitle, Button, Input, Popup, Separator } from "@akashnetwork/ui/components";
+import { InfoCircle } from "iconoir-react";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { ServerForm } from "./ServerForm";
@@ -110,7 +111,7 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
               value={numberOfServers}
               onChange={handleNumberOfServersChange}
               min={1}
-              className="w-20 rounded-md border-2 text-center"
+              className="w-20 rounded-md text-center"
             />
           </div>
           <p className="text-sm">
@@ -129,17 +130,21 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
         </div>
       ) : showNodeDistribution ? (
         <div className="space-y-6">
-          <div className="flex gap-6">
-            <div className="rounded-lg border p-6 text-center">
-              <p className="mb-4 text-3xl font-bold">{calculateNodeDistribution(numberOfServers).controlPlane}</p>
-              <h3 className="mb-2 text-xl font-bold">Control Plane Nodes</h3>
-              <p className="text-sm">Manages the cluster operations & run your workloads</p>
-            </div>
-            <div className="rounded-lg border p-6 text-center">
-              <p className="mb-4 text-3xl font-bold">{calculateNodeDistribution(numberOfServers).workerNodes}</p>
-              <h3 className="mb-2 text-xl font-bold">Worker Nodes</h3>
-              <p className="text-sm">Runs your workloads</p>
-            </div>
+          <div className="flex flex-col gap-4">
+            <Alert>
+              <div className="flex items-start gap-6">
+                <div className="pt-2">
+                  <InfoCircle className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <AlertTitle>Control Plane Nodes: {calculateNodeDistribution(numberOfServers).controlPlane}</AlertTitle>
+                  <AlertDescription>Manages the cluster operations & runs your workloads</AlertDescription>
+                  <Separator className="my-4" />
+                  <AlertTitle>Worker Nodes: {calculateNodeDistribution(numberOfServers).workerNodes}</AlertTitle>
+                  <AlertDescription>Runs your workloads</AlertDescription>
+                </div>
+              </div>
+            </Alert>
           </div>
           <div className="flex w-full justify-between">
             <Button variant="ghost" onClick={() => setShowNodeDistribution(false)}>

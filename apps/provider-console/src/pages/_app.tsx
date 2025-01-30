@@ -8,6 +8,7 @@ import { Provider } from "jotai";
 import type { AppProps } from "next/app";
 import { ThemeProvider } from "next-themes";
 
+import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { ControlMachineProvider } from "@src/context/ControlMachineProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
@@ -24,6 +25,7 @@ export default function App({ Component, pageProps }: AppProps) {
         <Provider>
           <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
             <ColorModeProvider>
+              <GoogleAnalytics />
               <PricingProvider>
                 <TooltipProvider>
                   <CustomChainProvider>

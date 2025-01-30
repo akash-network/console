@@ -3,6 +3,7 @@ import { useQuery } from "react-query";
 
 import { ProviderAttributes } from "@src/components/become-provider/ProviderAttributes";
 import { Layout } from "@src/components/layout/Layout";
+import { ControlMachineError } from "@src/components/shared/ControlMachineError";
 import { withAuth } from "@src/components/shared/withAuth";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import consoleClient from "@src/utils/consoleClient";
@@ -20,6 +21,7 @@ const Attributes: React.FunctionComponent = () => {
 
   return (
     <Layout>
+      <ControlMachineError />
       {isLoadingProviderDetails ? (
         <div>Loading...</div>
       ) : (
