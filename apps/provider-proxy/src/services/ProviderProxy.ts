@@ -13,6 +13,9 @@ export class ProviderProxy {
     max: 100_000,
     ttl: 30 * 60 * 1000
   });
+  private readonly agentsCache = new LRUCache<string, https.Agent>({
+    max: 100_000
+  });
 
   constructor(
     private readonly now: () => number,
@@ -20,6 +23,12 @@ export class ProviderProxy {
   ) {}
 
   connect(url: string, options: ProxyConnectOptions): Promise<ProxyConnectionResult> {
+    const agent = this.getHttpsAgent(options.network, options.providerAddress, {
+      timeout: options.timeout,
+      cert: options.cert,
+      key: options.key,
+      rejectUnauthorized: false
+    });
     return new Promise<ProxyConnectionResult>((resolve, reject) => {
       const req = https.request(
         url,
@@ -29,15 +38,16 @@ export class ProviderProxy {
             "Content-Type": "application/json",
             ...options.headers
           },
-          timeout: options.timeout,
-          cert: options.cert,
-          key: options.key,
-          rejectUnauthorized: false
+          agent
         },
         async res => {
           try {
             res.setEncoding("utf8");
-            const socket = res.socket as TLSSocket;
+            const socket = res.socket;
+            if (!socket || !(socket instanceof TLSSocket)) {
+              return resolve({ ok: false, code: "insecureConnection" });
+            }
+
             const serverCert = socket.getPeerX509Certificate();
             // @see https://nodejs.org/api/tls.html#session-resumption
             // for servers which support TLS session resumption, handshake phase is skipped for subsequent requests
@@ -52,12 +62,14 @@ export class ProviderProxy {
               const validationResult = validateCertificate(serverCert, this.now());
               if (validationResult.ok === false) {
                 req.destroy();
+                this.agentsCache.delete(`${options.network}.${options.providerAddress}`);
                 return resolve({ ok: false, code: "invalidCertificate", reason: validationResult.code });
               }
 
               const isKnown = await this.isKnownCertificate(serverCert, options.network, options.providerAddress);
               if (!isKnown) {
                 req.destroy();
+                this.agentsCache.delete(`${options.network}.${options.providerAddress}`);
                 return resolve({ ok: false, code: "invalidCertificate", reason: "unknownCertificate" });
               }
             }
@@ -97,6 +109,18 @@ export class ProviderProxy {
 
     return this.knownCertificatesCache.get(key);
   }
+
+  private getHttpsAgent(network: SupportedChainNetworks, providerAddress: string, options: https.AgentOptions): https.Agent {
+    const key = `${network}.${providerAddress}`;
+
+    if (!this.agentsCache.has(key)) {
+      const agent = new https.Agent(options);
+      this.agentsCache.set(key, agent);
+      return agent;
+    }
+
+    return this.agentsCache.get(key);
+  }
 }
 
 export interface ProxyConnectOptions extends Pick<RequestOptions, "cert" | "key" | "method"> {
@@ -115,4 +139,6 @@ interface ProxyConnectionResultSuccess {
   response: IncomingMessage;
 }
 
-type ProxyConnectionResultError = { ok: false; code: "invalidCertificate"; reason: CertValidationResultError["code"] | "unknownCertificate" };
+type ProxyConnectionResultError =
+  | { ok: false; code: "invalidCertificate"; reason: CertValidationResultError["code"] | "unknownCertificate" }
+  | { ok: false; code: "insecureConnection" };

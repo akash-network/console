@@ -12,7 +12,7 @@ export class ProviderService {
     const queryParams = new URLSearchParams({
       "filter.state": "valid",
       "filter.owner": providerAddress,
-      "filter.serial": serialNumber,
+      "filter.serial": BigInt(`0x${serialNumber}`).toString(10),
       "pagination.limit": "1"
     });
 
