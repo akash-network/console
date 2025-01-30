@@ -1,5 +1,12 @@
 
 
+## [2.37.0](https://github.com/akash-network/console/compare/console-web/v2.36.2...console-web/v2.37.0) (2025-01-30)
+
+
+### Features
+
+* **auth:** forwards cf cookies in proxy ([3711a9d](https://github.com/akash-network/console/commit/3711a9d3b780c2fb3215168cc017dd4794233faa))
+
 ## [2.36.2](https://github.com/akash-network/console/compare/console-web/v2.36.1...console-web/v2.36.2) (2025-01-29)
 
 
