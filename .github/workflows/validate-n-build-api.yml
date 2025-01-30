@@ -49,19 +49,22 @@ jobs:
         if: steps.filter.outputs.api == 'true'
         run: npm run lint:api
 
-      - name: Run unit tests
-        if: steps.filter.outputs.api == 'true'
-        run: npm run test:unit --workspace=apps/api
-
-      - name: Run functional tests
+      - name: Run tests
         if: steps.filter.outputs.api == 'true'
         env:
           POSTGRES_SKIP_IMPORT: true
         run: |
           npm run dc:up:db
-          npm run test:functional --workspace=apps/api
+          npm run test:cov --workspace=apps/api
           npm run dc:down
 
       - name: Build the Docker image for API
         if: steps.filter.outputs.api == 'true'
         run: packages/docker/script/dc.sh build api
+
+      - name: Upload Test Coverage
+        uses: codecov/codecov-action@v5
+        with:
+          directory: ./apps/api/coverage
+          flags: api
+          token: ${{ secrets.CODECOV_TOKEN }}
