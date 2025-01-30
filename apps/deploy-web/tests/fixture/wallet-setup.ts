@@ -39,7 +39,6 @@ export const setupLeap = async (context: BrowserContext, page: Page) => {
 
   await page.goto("http://localhost:3000");
 
-  await page.getByTestId("welcome-modal-accept-button").click();
   await page.getByTestId("connect-wallet-btn").click();
 
   await page.getByRole("button", { name: "Leap Leap" }).click();

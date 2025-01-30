@@ -1,5 +1,5 @@
 {
-  "name": "console-indexer",
+  "name": "@akashnetwork/indexer",
   "version": "1.10.2",
   "description": "Indexer for any Cosmos based blockchain",
   "homepage": "https://github.com/akash-network/console",
