@@ -8,7 +8,7 @@
   "scripts": {
     "build": "rm -rf dist/* && npx tsc && esbuild server.ts --bundle --sourcemap --platform=node --target=node20.14.0 --outdir=dist",
     "dev": "nodemon server.ts",
-    "dev-nodc": "npm run start",
+    "dev-nodc": "npm run dev",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
     "prod": "node ./dist/server.js",
