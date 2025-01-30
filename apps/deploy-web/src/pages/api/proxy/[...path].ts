@@ -10,8 +10,10 @@ export default async (req, res) => {
   console.log("proxy:", req.url);
   const session = await getSession(req, res);
 
-  // don't forward the cookies to the target server
-  req.headers.cookie = "";
+  // Extract and forward only cf_clearance cookie if present
+  const cookies = req.headers.cookie?.split(";").map(c => c.trim());
+  const cfClearance = cookies?.find(c => c.startsWith("cf_clearance="));
+  req.headers.cookie = cfClearance || "";
 
   if (session?.accessToken) {
     req.headers.authorization = `Bearer ${session.accessToken}`;
