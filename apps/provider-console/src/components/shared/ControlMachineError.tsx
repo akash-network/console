@@ -29,8 +29,10 @@ export const ControlMachineError: React.FC<ControlMachineErrorProps> = ({ onRetr
   if (!activeControlMachine) {
     return (
       <Alert variant="destructive" className={className}>
-        <AlertTitle className="text-red-100">Control Machine Required</AlertTitle>
-        <AlertDescription className="text-red-200">Please connect your control machine first to start updating pricing settings.</AlertDescription>
+        <AlertTitle className="text-red-600 dark:text-red-100">Control Machine Required</AlertTitle>
+        <AlertDescription className="text-red-500 dark:text-red-200">
+          Please connect your control machine first to start updating pricing settings.
+        </AlertDescription>
       </Alert>
     );
   }
