@@ -7,11 +7,13 @@ describe(ProviderService.name, () => {
       const service = setup({ getCertificates });
 
       getCertificates.mockReturnValueOnce(new Response(JSON.stringify({ certificates: [] }), { status: 200 }));
-      expect(await service.hasCertificate("sandbox", "provider", "serial123")).toBe(false);
-      expect(getCertificates).toHaveBeenCalledWith(expect.stringMatching(/(pagination.limit=10|filter.owner=provider|filter.serial=serial123)/));
+      expect(await service.hasCertificate("sandbox", "provider", "177831BE7F249E66")).toBe(false);
+      expect(getCertificates).toHaveBeenCalledWith(expect.stringContaining("pagination.limit=1"));
+      expect(getCertificates).toHaveBeenCalledWith(expect.stringContaining("filter.owner=provider"));
+      expect(getCertificates).toHaveBeenCalledWith(expect.stringContaining("filter.serial=1691156354324274790"));
 
       getCertificates.mockReturnValueOnce(new Response(JSON.stringify({ certificates: [{}] }), { status: 200 }));
-      expect(await service.hasCertificate("sandbox", "provider", "serial321")).toBe(true);
+      expect(await service.hasCertificate("sandbox", "provider", "17B85C634EF9EB05")).toBe(true);
     });
 
     it("retries certificates request if it fails with response.status > 500", async () => {
@@ -21,7 +23,7 @@ describe(ProviderService.name, () => {
       getCertificates.mockReturnValueOnce(new Response(JSON.stringify("Server error"), { status: 502 }));
       getCertificates.mockReturnValueOnce(new Response(JSON.stringify("Server error"), { status: 502 }));
       getCertificates.mockReturnValueOnce(new Response(JSON.stringify({ certificates: [{}] }), { status: 200 }));
-      expect(await service.hasCertificate("sandbox", "provider", "serial321")).toBe(true);
+      expect(await service.hasCertificate("sandbox", "provider", "17B85C634EF9EB05")).toBe(true);
       expect(getCertificates).toHaveBeenCalledTimes(3);
     });
 
@@ -30,7 +32,7 @@ describe(ProviderService.name, () => {
       const service = setup({ getCertificates });
 
       getCertificates.mockReturnValue(new Response(JSON.stringify("Server error"), { status: 502 }));
-      expect(await service.hasCertificate("sandbox", "provider", "serial321")).toBe(false);
+      expect(await service.hasCertificate("sandbox", "provider", "17B85C634EF9EB05")).toBe(false);
       expect(getCertificates).toHaveBeenCalledTimes(1 + 5);
     }, 7_000);
 
@@ -39,7 +41,7 @@ describe(ProviderService.name, () => {
       const service = setup({ getCertificates });
 
       getCertificates.mockReturnValueOnce(new Response(JSON.stringify("Server error"), { status: 500 }));
-      expect(await service.hasCertificate("sandbox", "provider", "serial321")).toBe(false);
+      expect(await service.hasCertificate("sandbox", "provider", "17B85C634EF9EB05")).toBe(false);
       expect(getCertificates).toHaveBeenCalledTimes(1);
     });
   });

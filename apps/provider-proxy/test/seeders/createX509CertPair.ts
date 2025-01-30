@@ -6,7 +6,7 @@ export function createX509CertPair(options: CertificateOptions = {}): CertPair {
   const cert = pki.createCertificate();
 
   cert.publicKey = keys.publicKey;
-  cert.serialNumber = options.serialNumber ?? "01";
+  cert.serialNumber = options.serialNumber ?? "177831BE7F249E66";
   cert.validity.notBefore = options.validFrom || new Date();
   cert.validity.notAfter = options.validTo || nextDay(cert.validity.notBefore);
 

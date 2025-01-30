@@ -18,7 +18,7 @@ describe("Provider proxy", () => {
 
   it("proxies request if provider uses self-signed certificate which is available on chain", async () => {
     const providerAddress = generateBech32();
-    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR), serialNumber: Date.now().toString() });
+    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     await mockOnChainCertificates([validCertPair.cert]);
     const providerUrl = await startProviderServer(validCertPair);
@@ -111,20 +111,27 @@ describe("Provider proxy", () => {
       }).cert
     ]);
     const providerUrl = await startProviderServer(validCertPair);
+    const requestProvider = () =>
+      request("/", {
+        method: "POST",
+        body: JSON.stringify({
+          method: "GET",
+          url: `${providerUrl}/200.txt`,
+          providerAddress,
+          network
+        })
+      });
 
-    const response = await request("/", {
-      method: "POST",
-      body: JSON.stringify({
-        method: "GET",
-        url: `${providerUrl}/200.txt`,
-        providerAddress,
-        network
-      })
-    });
-
+    let response = await requestProvider();
     expect(response.status).toBe(495);
 
-    const body = await response.text();
+    let body = await response.text();
+    expect(body).toContain("unknownCertificate");
+
+    response = await requestProvider();
+    expect(response.status).toBe(495);
+
+    body = await response.text();
     expect(body).toContain("unknownCertificate");
   });
 
@@ -139,19 +146,28 @@ describe("Provider proxy", () => {
     await mockOnChainCertificates([createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() + ONE_HOUR) }).cert, validCertPair.cert]);
     const providerUrl = await startProviderServer(validCertPair);
 
-    const response = await request("/", {
-      method: "POST",
-      body: JSON.stringify({
-        method: "GET",
-        url: `${providerUrl}/200.txt`,
-        providerAddress,
-        network
-      })
-    });
+    const requestProvider = () =>
+      request("/", {
+        method: "POST",
+        body: JSON.stringify({
+          method: "GET",
+          url: `${providerUrl}/200.txt`,
+          providerAddress,
+          network
+        })
+      });
+
+    let response = await requestProvider();
 
     expect(response.status).toBe(495);
 
-    const body = await response.text();
+    let body = await response.text();
+    expect(body).toContain("expired");
+
+    response = await requestProvider();
+    expect(response.status).toBe(495);
+
+    body = await response.text();
     expect(body).toContain("expired");
   });
 
