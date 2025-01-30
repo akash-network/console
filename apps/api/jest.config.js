@@ -5,7 +5,7 @@ const MAP_ALIASES = {
 
 const common = {
   transform: {
-    "^.+\\.(t|j)s$": ["ts-jest", { tsconfig: "./tsconfig.json" }]
+    "^.+\\.(t|j)s$": ["ts-jest", { tsconfig: "./test/tsconfig.json" }]
   },
   rootDir: ".",
   moduleNameMapper: {
