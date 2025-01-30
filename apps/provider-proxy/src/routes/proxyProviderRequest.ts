@@ -24,7 +24,13 @@ export async function proxyProviderRequest(req: ExpressRequest, incommingRespons
       }
     );
 
-    if (proxyResult.ok === false) {
+    if (proxyResult.ok === false && proxyResult.code === "insecureConnection") {
+      incommingResponse.status(400);
+      incommingResponse.send("Could not establish tls connection since server responded with non-tls response");
+      return;
+    }
+
+    if (proxyResult.ok === false && proxyResult.code === "invalidCertificate") {
       incommingResponse.status(495); // https://http.dev/495
       incommingResponse.send(`Invalid certificate error: ${proxyResult.reason}`);
       return;

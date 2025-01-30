@@ -25,14 +25,15 @@ export function mockOnChainCertificates(certificates: X509Certificate[], options
       }
 
       const url = new URL(`http://localhost${req.url || "/"}`);
+      const serialNumber = BigInt(url.searchParams.get("filter.serial")!).toString(16).toUpperCase();
 
       res.writeHead(200, "OK");
       res.end(
         JSON.stringify({
           certificates: certificates
-            .filter(cert => cert.serialNumber === url.searchParams.get("filter.serial"))
+            .filter(cert => cert.serialNumber === serialNumber)
             .map(cert => ({
-              serial: cert.serialNumber,
+              serial: BigInt(`0x${cert.serialNumber}`).toString(10),
               certificate: {
                 cert: btoa(cert.toJSON()),
                 pubkey: cert.publicKey.export({ type: "pkcs1", format: "pem" })
