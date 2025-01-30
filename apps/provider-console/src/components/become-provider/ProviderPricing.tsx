@@ -24,6 +24,7 @@ import { useControlMachine } from "@src/context/ControlMachineProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
+import { Title } from "../shared/Title";
 import { ResetProviderForm } from "./ResetProviderProcess";
 
 interface ProviderPricingProps {
@@ -234,10 +235,10 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
   };
 
   return (
-    <div className="flex w-full flex-col items-center pt-10">
-      <div className="w-full max-w-5xl space-y-6">
+    <div className={`flex w-full flex-col items-center ${!editMode ? "pt-10" : "pt-5"}`}>
+      <div className={`w-full ${!editMode ? "max-w-5xl" : ""} space-y-6`}>
         <div>
-          <h3 className="text-2xl font-bold">Provider Pricing</h3>
+          {editMode ? <Title>Edit Provider Pricing</Title> : <h3 className="text-xl font-bold">Provider Pricing</h3>}
           <p className="text-muted-foreground text-sm">
             The prices you set here determine the price your provider bids with and total revenue it earns for you.
           </p>
