@@ -1,5 +1,12 @@
 
 
+## [1.3.1](https://github.com/akash-network/console/compare/provider-proxy/v1.3.0...provider-proxy/v1.3.1) (2025-01-30)
+
+
+### Bug Fixes
+
+* ensure that provider proxy does reuse Tls session in case of invalid certificate ([#755](https://github.com/akash-network/console/issues/755)) ([d85a28c](https://github.com/akash-network/console/commit/d85a28c90b9166823a0b031c13e4d41bcd8de120))
+
 ## 1.3.0 (2025-01-29)
 
 
