@@ -1,15 +1,16 @@
 interface TopUpSummary {
   deploymentCount: number;
   deploymentTopUpCount: number;
+  deploymentTopUpErrorCount: number;
   insufficientBalanceCount: number;
   walletsCount: number;
   walletsTopUpCount: number;
-  minPredictedClosedHeight: number;
-  maxPredictedClosedHeight: number;
   walletsTopUpErrorCount: number;
-  deploymentTopUpErrorCount: number;
   startBlockHeight: number;
   endBlockHeight: number;
+  minPredictedClosedHeight: number;
+  maxPredictedClosedHeight: number;
+  totalTopUpAmount: number;
 }
 
 export class TopUpSummarizer {
@@ -18,12 +19,6 @@ export class TopUpSummarizer {
   private deploymentTopUpCount = 0;
 
   private insufficientBalanceCount = 0;
-
-  private walletsCount = 0;
-
-  private walletsTopUpCount = 0;
-
-  private walletsTopUpErrorCount = 0;
 
   private deploymentTopUpErrorCount = 0;
 
@@ -35,8 +30,20 @@ export class TopUpSummarizer {
 
   private endBlockHeight: number;
 
-  inc(param: keyof TopUpSummary, value = 1) {
+  private totalTopUpAmount = 0;
+
+  private walletAddresses = new Set<string>();
+
+  private successfulWalletAddresses = new Set<string>();
+
+  private failedWalletAddresses = new Set<string>();
+
+  inc(param: keyof Pick<TopUpSummary, "deploymentCount" | "deploymentTopUpCount" | "deploymentTopUpErrorCount" | "insufficientBalanceCount">, value = 1) {
     this[param] += value;
+  }
+
+  addTopUpAmount(amount: number) {
+    this.totalTopUpAmount += amount;
   }
 
   set(param: keyof Pick<TopUpSummary, "startBlockHeight" | "endBlockHeight">, value: number) {
@@ -44,7 +51,28 @@ export class TopUpSummarizer {
   }
 
   get(param: keyof TopUpSummary) {
+    if (param === "walletsCount") {
+      return this.walletAddresses.size;
+    }
+    if (param === "walletsTopUpCount") {
+      return this.successfulWalletAddresses.size;
+    }
+    if (param === "walletsTopUpErrorCount") {
+      return this.failedWalletAddresses.size;
+    }
     return this[param];
+  }
+
+  trackWallet(address: string) {
+    this.walletAddresses.add(address);
+  }
+
+  trackSuccessfulWallet(address: string) {
+    this.successfulWalletAddresses.add(address);
+  }
+
+  trackFailedWallet(address: string) {
+    this.failedWalletAddresses.add(address);
   }
 
   ensurePredictedClosedHeight(height: number) {
@@ -61,15 +89,16 @@ export class TopUpSummarizer {
     return {
       startBlockHeight: this.startBlockHeight,
       endBlockHeight: this.endBlockHeight,
-      walletsCount: this.walletsCount,
-      walletsTopUpCount: this.walletsTopUpCount,
-      insufficientBalanceCount: this.insufficientBalanceCount,
-      walletsTopUpErrorCount: this.walletsTopUpErrorCount,
-      deploymentTopUpErrorCount: this.deploymentTopUpErrorCount,
       deploymentCount: this.deploymentCount,
       deploymentTopUpCount: this.deploymentTopUpCount,
+      deploymentTopUpErrorCount: this.deploymentTopUpErrorCount,
+      insufficientBalanceCount: this.insufficientBalanceCount,
+      walletsCount: this.walletAddresses.size,
+      walletsTopUpCount: this.successfulWalletAddresses.size,
+      walletsTopUpErrorCount: this.failedWalletAddresses.size,
       minPredictedClosedHeight: this.minPredictedClosedHeight,
-      maxPredictedClosedHeight: this.maxPredictedClosedHeight
+      maxPredictedClosedHeight: this.maxPredictedClosedHeight,
+      totalTopUpAmount: this.totalTopUpAmount
     };
   }
 }

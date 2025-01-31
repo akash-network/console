@@ -44,12 +44,12 @@ export class BalancesService {
     return update;
   }
 
-  async getFreshLimits(userWallet: UserWalletOutput): Promise<{ fee: number; deployment: number }> {
+  async getFreshLimits(userWallet: Pick<UserWalletOutput, "address">): Promise<{ fee: number; deployment: number }> {
     const [fee, deployment] = await Promise.all([this.retrieveAndCalcFeeLimit(userWallet), this.retrieveDeploymentLimit(userWallet)]);
     return { fee, deployment };
   }
 
-  private async retrieveAndCalcFeeLimit(userWallet: UserWalletOutput): Promise<number> {
+  private async retrieveAndCalcFeeLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
     const masterWalletAddress = await this.masterWallet.getFirstAddress();
     const feeAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(masterWalletAddress, userWallet.address);
 

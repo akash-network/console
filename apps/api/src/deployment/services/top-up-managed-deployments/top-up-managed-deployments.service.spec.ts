@@ -2,132 +2,187 @@ import "@test/mocks/logger-service.mock";
 
 import { faker } from "@faker-js/faker";
 
-import { BillingConfig } from "@src/billing/providers";
-import { UserWalletRepository } from "@src/billing/repositories";
-import { ManagedSignerService, RpcMessageService, Wallet } from "@src/billing/services";
-import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { RpcMessageService, Wallet } from "@src/billing/services";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import { Sentry } from "@src/core/providers/sentry.provider";
-import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
-import { config } from "@src/deployment/config";
-import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import { CachedBalanceService } from "../cached-balance/cached-balance.service";
 import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.service";
 
+import { MockConfigService } from "@test/mocks/config-service.mock";
 import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
+import { AutoTopUpDeploymentSeeder } from "@test/seeders/auto-top-up-deployment.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
-import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
-import { stub } from "@test/services/stub";
+
+jest.mock("@akashnetwork/logging");
 
 describe(TopUpManagedDeploymentsService.name, () => {
-  const CURRENT_BLOCK_HEIGHT = 7481457;
+  let managedSignerService: jest.Mocked<ManagedSignerService>;
+  let billingConfig: MockConfigService<{ DEPLOYMENT_GRANT_DENOM: string }>;
+  let drainingDeploymentService: jest.Mocked<DrainingDeploymentService>;
+  let managedMasterWallet: jest.Mocked<Wallet>;
+  let rpcMessageService: RpcMessageService;
+  let cachedBalanceService: jest.Mocked<CachedBalanceService>;
+  let blockHttpService: jest.Mocked<BlockHttpService>;
+  let service: TopUpManagedDeploymentsService;
+
   const MANAGED_MASTER_WALLET_ADDRESS = AkashAddressSeeder.create();
-  const balancesService = stub<BalancesService>({ retrieveDeploymentLimit: jest.fn() });
-  const userWalletRepository = stub<UserWalletRepository>({ paginate: jest.fn() });
-  const blockHttpService = stub<BlockHttpService>({ getCurrentHeight: () => CURRENT_BLOCK_HEIGHT });
-  const managedSignerService = stub<ManagedSignerService>({ executeManagedTx: jest.fn() });
-  const billingConfig = stub<BillingConfig>({ DEPLOYMENT_GRANT_DENOM: "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1" });
-  const managedMasterWalletService = stub<Wallet>({
-    getFirstAddress: async () => MANAGED_MASTER_WALLET_ADDRESS
+  const DEPLOYMENT_GRANT_DENOM = "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1";
+  const CURRENT_BLOCK_HEIGHT = 7481457;
+
+  beforeEach(() => {
+    managedSignerService = {
+      executeManagedTx: jest.fn()
+    } as Partial<jest.Mocked<ManagedSignerService>> as jest.Mocked<ManagedSignerService>;
+
+    billingConfig = new MockConfigService<{ DEPLOYMENT_GRANT_DENOM: string }>({
+      DEPLOYMENT_GRANT_DENOM
+    });
+
+    drainingDeploymentService = {
+      paginate: jest.fn(),
+      calculateTopUpAmount: jest.fn()
+    } as Partial<jest.Mocked<DrainingDeploymentService>> as jest.Mocked<DrainingDeploymentService>;
+
+    managedMasterWallet = {
+      getFirstAddress: jest.fn().mockResolvedValue(MANAGED_MASTER_WALLET_ADDRESS)
+    } as Partial<jest.Mocked<Wallet>> as jest.Mocked<Wallet>;
+
+    rpcMessageService = new RpcMessageService();
+
+    cachedBalanceService = {
+      get: jest.fn()
+    } as Partial<jest.Mocked<CachedBalanceService>> as jest.Mocked<CachedBalanceService>;
+
+    blockHttpService = {
+      getCurrentHeight: jest.fn().mockResolvedValue(CURRENT_BLOCK_HEIGHT)
+    } as Partial<jest.Mocked<BlockHttpService>> as jest.Mocked<BlockHttpService>;
+
+    service = new TopUpManagedDeploymentsService(
+      managedSignerService,
+      billingConfig,
+      drainingDeploymentService,
+      managedMasterWallet,
+      rpcMessageService,
+      cachedBalanceService,
+      blockHttpService
+    );
   });
 
-  const drainingDeploymentService = new DrainingDeploymentService(blockHttpService, stub<LeaseRepository>(), config);
-  const sentry = stub<Sentry>({ captureEvent: jest.fn() });
-  const sentryEventService = stub<SentryEventService>({ toEvent: jest.fn() });
-  const topUpDeploymentsService = new TopUpManagedDeploymentsService(
-    userWalletRepository,
-    managedSignerService,
-    billingConfig,
-    drainingDeploymentService,
-    managedMasterWalletService,
-    balancesService,
-    new RpcMessageService(),
-    blockHttpService,
-    sentry,
-    sentryEventService
-  );
+  describe("topUpDeployments", () => {
+    it("should top up draining deployments", async () => {
+      const deployments = AutoTopUpDeploymentSeeder.createMany(2);
+      const desiredAmount = faker.number.int({ min: 3500000, max: 4000000 });
+      const sufficientAmount = faker.number.int({ min: 1000000, max: 2000000 });
+      const predictedClosedHeight1 = CURRENT_BLOCK_HEIGHT + 1500;
+      const predictedClosedHeight2 = CURRENT_BLOCK_HEIGHT + 1700;
 
-  type SeedParams = {
-    balance?: string;
-    expectedDeploymentsTopUpCount?: 0 | 1 | 2;
-    hasDeployments?: boolean;
-  };
+      (drainingDeploymentService.paginate as jest.Mock).mockImplementation(async (_, callback) => {
+        await callback(
+          deployments.map((deployment, index) => ({
+            ...deployment,
+            ...DrainingDeploymentSeeder.create({
+              dseq: Number(deployment.dseq),
+              owner: deployment.address,
+              predictedClosedHeight: index === 0 ? predictedClosedHeight1 : predictedClosedHeight2
+            })
+          }))
+        );
+      });
 
-  const seedFor = ({ balance = "100000000", expectedDeploymentsTopUpCount = 2, hasDeployments = true }: SeedParams) => {
-    const wallet = UserWalletSeeder.create();
+      (drainingDeploymentService.calculateTopUpAmount as jest.Mock).mockResolvedValue(desiredAmount);
+      (cachedBalanceService.get as jest.Mock).mockImplementation(async () => ({
+        reserveSufficientAmount: () => sufficientAmount
+      }));
 
-    return {
-      wallet,
-      balance,
-      drainingDeployments: hasDeployments
-        ? [
-            {
-              deployment: DrainingDeploymentSeeder.create({
-                denom: "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1",
-                blockRate: 50,
-                predictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1500
-              }),
-              isExpectedToTopUp: !!expectedDeploymentsTopUpCount
-            },
-            {
-              deployment: DrainingDeploymentSeeder.create({
-                denom: "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1",
-                blockRate: 45,
-                predictedClosedHeight: CURRENT_BLOCK_HEIGHT + 1700
-              }),
-              isExpectedToTopUp: expectedDeploymentsTopUpCount > 1
+      await service.topUpDeployments({ concurrency: 10, dryRun: false });
+
+      expect(managedSignerService.executeManagedTx).toHaveBeenCalledTimes(deployments.length);
+      deployments.forEach(deployment => {
+        expect(managedSignerService.executeManagedTx).toHaveBeenCalledWith(deployment.walletId, [
+          {
+            typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
+            value: {
+              id: {
+                owner: deployment.address,
+                dseq: { high: 0, low: Number(deployment.dseq), unsigned: true }
+              },
+              amount: {
+                denom: DEPLOYMENT_GRANT_DENOM,
+                amount: sufficientAmount.toString()
+              },
+              depositor: MANAGED_MASTER_WALLET_ADDRESS
             }
-          ]
-        : []
-    };
-  };
-
-  const data = [
-    seedFor({}),
-    seedFor({ balance: "50000000", expectedDeploymentsTopUpCount: 2 }),
-    seedFor({ balance: "1408022", expectedDeploymentsTopUpCount: 1 }),
-    seedFor({ hasDeployments: false }),
-    seedFor({ balance: "0", expectedDeploymentsTopUpCount: 0 })
-  ];
-
-  userWalletRepository.paginate.mockImplementation((params, cb) => cb(data.map(({ wallet }) => wallet)));
-
-  jest.spyOn(drainingDeploymentService, "findDeployments").mockImplementation(async owner => {
-    return data.find(({ wallet }) => wallet.address == owner)?.drainingDeployments?.map(({ deployment }) => deployment) || [];
-  });
-  jest.spyOn(drainingDeploymentService, "calculateTopUpAmount").mockImplementation(async () => faker.number.int({ min: 3500000, max: 4000000 }));
-  balancesService.retrieveDeploymentLimit.mockImplementation(async wallet => {
-    return parseInt(data.find(({ wallet: w }) => w.address == wallet.address)?.balance);
-  });
-
-  it("should top up draining deployment given owners have sufficient balances", async () => {
-    await topUpDeploymentsService.topUpDeployments({ dryRun: false });
-
-    let count = 0;
-
-    data.forEach(({ wallet, drainingDeployments }) => {
-      drainingDeployments.forEach(({ isExpectedToTopUp, deployment }) => {
-        if (isExpectedToTopUp) {
-          expect(managedSignerService.executeManagedTx).toHaveBeenCalledWith(wallet.id, [
-            {
-              typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
-              value: {
-                id: {
-                  owner: wallet.address,
-                  dseq: { high: 0, low: deployment.dseq, unsigned: true }
-                },
-                amount: {
-                  denom: deployment.denom,
-                  amount: expect.any(String)
-                },
-                depositor: MANAGED_MASTER_WALLET_ADDRESS
-              }
-            }
-          ]);
-          count++;
-        }
+          }
+        ]);
       });
     });
-    expect(managedSignerService.executeManagedTx).toHaveBeenCalledTimes(count);
+
+    it("should handle errors and continue processing", async () => {
+      const deployments = AutoTopUpDeploymentSeeder.createMany(2);
+      const predictedClosedHeight = CURRENT_BLOCK_HEIGHT + 1500;
+
+      (drainingDeploymentService.paginate as jest.Mock).mockImplementation(async (_, callback) => {
+        await callback(
+          deployments.map(deployment => ({
+            ...deployment,
+            ...DrainingDeploymentSeeder.create({
+              dseq: Number(deployment.dseq),
+              owner: deployment.address,
+              predictedClosedHeight
+            })
+          }))
+        );
+      });
+
+      (drainingDeploymentService.calculateTopUpAmount as jest.Mock)
+        .mockResolvedValueOnce(1000000)
+        .mockRejectedValueOnce(new Error("Failed to calculate amount"));
+
+      (cachedBalanceService.get as jest.Mock).mockImplementation(async () => ({
+        reserveSufficientAmount: () => 500000
+      }));
+
+      await service.topUpDeployments({ concurrency: 10, dryRun: false });
+
+      expect(managedSignerService.executeManagedTx).toHaveBeenCalledTimes(1);
+    });
+
+    it("should not execute transactions in dry run mode", async () => {
+      const deployments = AutoTopUpDeploymentSeeder.createMany(2);
+      const predictedClosedHeight = CURRENT_BLOCK_HEIGHT + 1500;
+
+      (drainingDeploymentService.paginate as jest.Mock).mockImplementation(async (_, callback) => {
+        await callback(
+          deployments.map(deployment => ({
+            ...deployment,
+            ...DrainingDeploymentSeeder.create({
+              dseq: Number(deployment.dseq),
+              owner: deployment.address,
+              predictedClosedHeight
+            })
+          }))
+        );
+      });
+
+      (drainingDeploymentService.calculateTopUpAmount as jest.Mock).mockResolvedValue(1000000);
+      (cachedBalanceService.get as jest.Mock).mockImplementation(async () => ({
+        reserveSufficientAmount: () => 500000
+      }));
+
+      await service.topUpDeployments({ concurrency: 10, dryRun: true });
+
+      expect(managedSignerService.executeManagedTx).not.toHaveBeenCalled();
+    });
+
+    it("should not execute transactions if no draining deployments", async () => {
+      (drainingDeploymentService.paginate as jest.Mock).mockImplementation(async (_, callback) => {
+        await callback([]);
+      });
+
+      await service.topUpDeployments({ concurrency: 10, dryRun: false });
+
+      expect(managedSignerService.executeManagedTx).not.toHaveBeenCalled();
+    });
   });
 });

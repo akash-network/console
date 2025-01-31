@@ -2,14 +2,9 @@ import { Lease } from "@akashnetwork/database/dbSchemas/akash";
 import { col, fn, Op } from "sequelize";
 import { singleton } from "tsyringe";
 
-export interface DrainingLeasesOptions {
-  closureHeight: number;
-  owner: string;
-  denom: string;
-}
-
 export interface DrainingDeploymentOutput {
   dseq: number;
+  owner: string;
   denom: string;
   blockRate: number;
   predictedClosedHeight: number;
@@ -17,18 +12,18 @@ export interface DrainingDeploymentOutput {
 
 @singleton()
 export class LeaseRepository {
-  async findDrainingLeases(options: DrainingLeasesOptions): Promise<DrainingDeploymentOutput[]> {
+  async findManyByDseqAndOwner(closureHeight: number, pairs: { dseq: string; owner: string }[]): Promise<DrainingDeploymentOutput[]> {
+    if (!pairs.length) return [];
+
     const leaseOrLeases = await Lease.findAll({
       where: {
-        closedHeight: null,
-        owner: options.owner,
-        denom: options.denom,
-        predictedClosedHeight: {
-          [Op.lte]: options.closureHeight
-        }
+        predictedClosedHeight: { [Op.lte]: closureHeight },
+        [Op.or]: pairs.map(({ dseq, owner }) => ({
+          [Op.and]: [{ dseq, owner }]
+        }))
       },
-      attributes: ["dseq", "denom", [fn("min", col("predictedClosedHeight")), "predictedClosedHeight"], [fn("sum", col("price")), "blockRate"]],
-      group: ["dseq", "denom"],
+      attributes: ["dseq", "owner", "denom", [fn("min", col("predictedClosedHeight")), "predictedClosedHeight"], [fn("sum", col("price")), "blockRate"]],
+      group: ["dseq", "owner", "denom"],
       raw: true
     });
 
