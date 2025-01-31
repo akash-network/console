@@ -1,37 +1,23 @@
-import { chainDefinitions } from "@akashnetwork/database/chainDefinitions";
-import { chainModels, getChainModels, userModels } from "@akashnetwork/database/dbSchemas";
+import { chainModels, userModels } from "@akashnetwork/database/dbSchemas";
 import { Template, TemplateFavorite, UserSetting } from "@akashnetwork/database/dbSchemas/user";
 import pg from "pg";
 import { Transaction as DbTransaction } from "sequelize";
 import { Sequelize } from "sequelize-typescript";
+import { container } from "tsyringe";
 
-import { config } from "@src/core/config";
+import { ChainConfigService } from "@src/chain/services/chain-config/chain-config.service";
+import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { PostgresLoggerService } from "@src/core/services/postgres-logger/postgres-logger.service";
-import { env } from "@src/utils/env";
 
-function isValidNetwork(network: string): network is keyof typeof csMap {
-  return network in csMap;
-}
+const indexerDbUri = container.resolve(ChainConfigService).get("CHAIN_INDEXER_POSTGRES_DB_URI");
+const coreConfig = container.resolve(CoreConfigService);
+const dbUri = coreConfig.get("POSTGRES_DB_URI");
 
-const csMap = {
-  mainnet: env.AKASH_DATABASE_CS,
-  testnet: env.AKASH_TESTNET_DATABASE_CS,
-  sandbox: env.AKASH_SANDBOX_DATABASE_CS
-};
-
-if (!isValidNetwork(env.NETWORK)) {
-  throw new Error(`Invalid network: ${env.NETWORK}`);
-}
-
-if (!csMap[env.NETWORK]) {
-  throw new Error(`Missing connection string for network: ${env.NETWORK}`);
-}
-
-const logger = new PostgresLoggerService({ orm: "sequelize", useFormat: config.SQL_LOG_FORMAT === "pretty" });
+const logger = new PostgresLoggerService({ orm: "sequelize", useFormat: coreConfig.get("SQL_LOG_FORMAT") === "pretty" });
 const logging = (msg: string) => logger.write(msg);
 
 pg.defaults.parseInt8 = true;
-export const chainDb = new Sequelize(csMap[env.NETWORK], {
+export const chainDb = new Sequelize(indexerDbUri, {
   dialectModule: pg,
   logging,
   logQueryParameters: true,
@@ -43,28 +29,7 @@ export const chainDb = new Sequelize(csMap[env.NETWORK], {
   models: chainModels
 });
 
-export const chainDbs: { [key: string]: Sequelize } = Object.keys(chainDefinitions)
-  .filter(x => chainDefinitions[x].connectionString)
-  .reduce(
-    (obj, chain) => ({
-      ...obj,
-      [chain]: new Sequelize(chainDefinitions[chain].connectionString, {
-        dialectModule: pg,
-        logging,
-        logQueryParameters: true,
-        repositoryMode: true,
-        transactionType: DbTransaction.TYPES.IMMEDIATE,
-        define: {
-          timestamps: false,
-          freezeTableName: true
-        },
-        models: getChainModels(chain)
-      })
-    }),
-    {}
-  );
-
-export const userDb = new Sequelize(env.USER_DATABASE_CS, {
+export const userDb = new Sequelize(dbUri, {
   dialectModule: pg,
   logging,
   logQueryParameters: true,
@@ -82,4 +47,4 @@ export async function syncUserSchema() {
   await TemplateFavorite.sync();
 }
 
-export const closeConnections = async () => await Promise.all([chainDb.close(), userDb.close(), ...Object.values(chainDbs).map(db => db.close())]);
+export const closeConnections = async () => await Promise.all([chainDb.close(), userDb.close()]);

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const envSchema = z.object({
+export const envSchema = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).optional().default("info"),
   STD_OUT_LOG_FORMAT: z.enum(["json", "pretty"]).optional().default("json"),
   SQL_LOG_FORMAT: z.enum(["raw", "pretty"]).optional().default("raw"),
