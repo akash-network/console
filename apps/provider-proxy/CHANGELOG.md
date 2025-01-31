@@ -1,5 +1,12 @@
 
 
+## [1.3.3](https://github.com/akash-network/console/compare/provider-proxy/v1.3.2...provider-proxy/v1.3.3) (2025-01-31)
+
+
+### Code Refactoring
+
+* extracts certificate validation into a separate class ([#764](https://github.com/akash-network/console/issues/764)) ([5bb2b51](https://github.com/akash-network/console/commit/5bb2b5122598af44decbb4846e8cb2554fd12c22))
+
 ## [1.3.2](https://github.com/akash-network/console/compare/provider-proxy/v1.3.1...provider-proxy/v1.3.2) (2025-01-31)
 
 
