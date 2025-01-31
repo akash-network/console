@@ -152,6 +152,23 @@ describe(CertificateValidator.name, () => {
     expect(result.ok).toBe(true);
   });
 
+  it("fetches provider certificate only once for concurrent validation of the same certificate", async () => {
+    const { cert } = createX509CertPair({
+      validFrom: new Date(),
+      validTo: new Date(Date.now() + ONE_MINUTE),
+      commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
+      serialNumber: "177831BE7F249E66"
+    });
+    const getCertificate = jest.fn(async () => cert);
+    const validator = setup({ getCertificate });
+
+    const results = await Promise.all([validator.validate(cert, "mainnet", "provider"), validator.validate(cert, "mainnet", "provider")]);
+
+    expect(getCertificate).toHaveBeenCalledTimes(1);
+    expect(results[0].ok).toBe(true);
+    expect(results[1].ok).toBe(true);
+  });
+
   function setup(params?: Params) {
     return new CertificateValidator(
       () => params?.now ?? Date.now(),
