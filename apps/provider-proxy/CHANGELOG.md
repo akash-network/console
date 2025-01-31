@@ -1,5 +1,12 @@
 
 
+## [1.3.2](https://github.com/akash-network/console/compare/provider-proxy/v1.3.1...provider-proxy/v1.3.2) (2025-01-31)
+
+
+### Bug Fixes
+
+* **dx:** fix e2e tests ([9ab53ef](https://github.com/akash-network/console/commit/9ab53eff42a43c4f02757b4b19aa5877f25c366e)), closes [#741](https://github.com/akash-network/console/issues/741)
+
 ## [1.3.1](https://github.com/akash-network/console/compare/provider-proxy/v1.3.0...provider-proxy/v1.3.1) (2025-01-30)
 
 

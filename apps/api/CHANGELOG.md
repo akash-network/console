@@ -1,5 +1,12 @@
 
 
+## [2.55.1](https://github.com/akash-network/console/compare/console-api/v2.55.0...console-api/v2.55.1) (2025-01-31)
+
+
+### Code Refactoring
+
+* simplifies api dbs config and removes redundant connections ([#759](https://github.com/akash-network/console/issues/759)) ([7cdbf6e](https://github.com/akash-network/console/commit/7cdbf6eca0ae13dfcb18d4cdeb10351ef9f7760b))
+
 ## [2.55.0](https://github.com/akash-network/console/compare/console-api/v2.54.0...console-api/v2.55.0) (2025-01-29)
 
 
