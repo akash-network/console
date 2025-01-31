@@ -1,5 +1,12 @@
 
 
+## [2.37.1](https://github.com/akash-network/console/compare/console-web/v2.37.0...console-web/v2.37.1) (2025-01-31)
+
+
+### Bug Fixes
+
+* **dx:** fix e2e tests ([9ab53ef](https://github.com/akash-network/console/commit/9ab53eff42a43c4f02757b4b19aa5877f25c366e)), closes [#741](https://github.com/akash-network/console/issues/741)
+
 ## [2.37.0](https://github.com/akash-network/console/compare/console-web/v2.36.2...console-web/v2.37.0) (2025-01-30)
 
 
