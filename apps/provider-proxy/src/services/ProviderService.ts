@@ -1,4 +1,5 @@
 import { SupportedChainNetworks } from "@akashnetwork/net";
+import { X509Certificate } from "crypto";
 
 import { httpRetry } from "../utils/retry";
 
@@ -8,7 +9,7 @@ export class ProviderService {
     private readonly fetch: typeof global.fetch
   ) {}
 
-  async hasCertificate(network: SupportedChainNetworks, providerAddress: string, serialNumber: string): Promise<boolean> {
+  async getCertificate(network: SupportedChainNetworks, providerAddress: string, serialNumber: string): Promise<X509Certificate | null> {
     const queryParams = new URLSearchParams({
       "filter.state": "valid",
       "filter.owner": providerAddress,
@@ -22,13 +23,17 @@ export class ProviderService {
 
     if (response.status >= 200 && response.status < 300) {
       const body = (await response.json()) as KnownCertificatesResponseBody;
-      return body.certificates.length === 1;
+      return body.certificates.length === 1 ? new X509Certificate(atob(body.certificates[0].certificate.cert)) : null;
     }
 
-    return false;
+    return null;
   }
 }
 
 interface KnownCertificatesResponseBody {
-  certificates: unknown[];
+  certificates: Array<{
+    certificate: {
+      cert: string;
+    };
+  }>;
 }

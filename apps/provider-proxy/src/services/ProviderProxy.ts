@@ -1,34 +1,31 @@
 import { SupportedChainNetworks } from "@akashnetwork/net";
-import { X509Certificate } from "crypto";
 import { IncomingMessage } from "http";
 import https, { RequestOptions } from "https";
 import { LRUCache } from "lru-cache";
 import { TLSSocket } from "tls";
 
-import { CertValidationResultError, validateCertificate } from "../utils/validateCertificate";
-import { ProviderService } from "./ProviderService";
+import { CertificateValidator, CertValidationResultError } from "./CertificateValidator";
 
 export class ProviderProxy {
-  private readonly knownCertificatesCache = new LRUCache<string, boolean>({
-    max: 100_000,
-    ttl: 30 * 60 * 1000
-  });
+  /**
+   * Cache agents in order to control TLS session resumption
+   */
   private readonly agentsCache = new LRUCache<string, https.Agent>({
-    max: 100_000
+    max: 1_000_000
   });
 
-  constructor(
-    private readonly now: () => number,
-    private readonly providerService: ProviderService
-  ) {}
+  constructor(private readonly certificateValidator: CertificateValidator) {}
 
   connect(url: string, options: ProxyConnectOptions): Promise<ProxyConnectionResult> {
-    const agent = this.getHttpsAgent(options.network, options.providerAddress, {
+    const agentOptions: TLSChainAgentOptions = {
       timeout: options.timeout,
+      rejectUnauthorized: false,
       cert: options.cert,
       key: options.key,
-      rejectUnauthorized: false
-    });
+      chainNetwork: options.network,
+      providerAddress: options.providerAddress
+    };
+    const agent = this.getHttpsAgent(agentOptions);
     return new Promise<ProxyConnectionResult>((resolve, reject) => {
       const req = https.request(
         url,
@@ -59,18 +56,15 @@ export class ProviderProxy {
             const didHandshake = !!serverCert;
 
             if (didHandshake && options.network && options.providerAddress) {
-              const validationResult = validateCertificate(serverCert, this.now());
+              const validationResult = await this.certificateValidator.validate(serverCert, options.network, options.providerAddress);
               if (validationResult.ok === false) {
+                // remove agent from cache to destroy TLS session to force TLS handshake on the next call
+                this.agentsCache.delete(genAgentsCacheKey(agentOptions));
+                resolve({ ok: false, code: "invalidCertificate", reason: validationResult.code });
+                req.off("error", reject);
                 req.destroy();
-                this.agentsCache.delete(`${options.network}.${options.providerAddress}`);
-                return resolve({ ok: false, code: "invalidCertificate", reason: validationResult.code });
-              }
-
-              const isKnown = await this.isKnownCertificate(serverCert, options.network, options.providerAddress);
-              if (!isKnown) {
-                req.destroy();
-                this.agentsCache.delete(`${options.network}.${options.providerAddress}`);
-                return resolve({ ok: false, code: "invalidCertificate", reason: "unknownCertificate" });
+                agent.destroy();
+                return;
               }
             }
 
@@ -82,9 +76,7 @@ export class ProviderProxy {
       );
 
       if (!req.reusedSocket) {
-        req.on("error", (error: (Error & { code: string }) | undefined) => {
-          reject(error);
-        });
+        req.on("error", reject);
         req.on("timeout", () => {
           // here we are just notified that response take more than specified in request options timeout
           // then we manually destroy request and it drops connection and
@@ -98,29 +90,22 @@ export class ProviderProxy {
     });
   }
 
-  private async isKnownCertificate(cert: X509Certificate, network: SupportedChainNetworks, providerAddress: string): Promise<boolean> {
-    const key = `${network}.${providerAddress}.${cert.serialNumber}`;
-
-    if (!this.knownCertificatesCache.has(key)) {
-      const hasCertificate = await this.providerService.hasCertificate(network, providerAddress, cert.serialNumber);
-      this.knownCertificatesCache.set(key, hasCertificate);
-      return hasCertificate;
-    }
-
-    return this.knownCertificatesCache.get(key);
-  }
-
-  private getHttpsAgent(network: SupportedChainNetworks, providerAddress: string, options: https.AgentOptions): https.Agent {
-    const key = `${network}.${providerAddress}`;
+  private getHttpsAgent(options: TLSChainAgentOptions): https.Agent {
+    const key = genAgentsCacheKey(options);
 
     if (!this.agentsCache.has(key)) {
-      const agent = new https.Agent(options);
+      const { chainNetwork, providerAddress, ...agentOptions } = options;
+      const agent = new https.Agent(agentOptions);
       this.agentsCache.set(key, agent);
       return agent;
     }
 
     return this.agentsCache.get(key);
   }
+}
+
+function genAgentsCacheKey(options: TLSChainAgentOptions): string {
+  return `${options.chainNetwork}:${options.providerAddress}:${options.cert}:${options.key}`;
 }
 
 export interface ProxyConnectOptions extends Pick<RequestOptions, "cert" | "key" | "method"> {
@@ -140,5 +125,10 @@ interface ProxyConnectionResultSuccess {
 }
 
 type ProxyConnectionResultError =
-  | { ok: false; code: "invalidCertificate"; reason: CertValidationResultError["code"] | "unknownCertificate" }
+  | { ok: false; code: "invalidCertificate"; reason: CertValidationResultError["code"] }
   | { ok: false; code: "insecureConnection" };
+
+interface TLSChainAgentOptions extends https.AgentOptions {
+  chainNetwork: SupportedChainNetworks;
+  providerAddress: string;
+}

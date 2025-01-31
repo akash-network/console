@@ -1,7 +1,7 @@
 import { setTimeout } from "timers/promises";
 
 export const httpRetry = <T>(callback: () => Promise<T>, options: HttpRetryOptions<T>): Promise<T> => {
-  return retryWithBackoff(callback, options.retryIf, options.maxRetries || 5, 0);
+  return retryWithBackoff(callback, options.retryIf, options.maxRetries || 3, 0);
 };
 
 export interface HttpRetryOptions<T> {

@@ -1,5 +1,6 @@
 import { netConfig, SupportedChainNetworks } from "@akashnetwork/net";
 
+import { CertificateValidator, createCertificateValidatorInstrumentation } from "./services/CertificateValidator";
 import { ProviderProxy } from "./services/ProviderProxy";
 import { ProviderService } from "./services/ProviderService";
 import { WebsocketStats } from "./services/WebsocketStats";
@@ -13,9 +14,15 @@ const providerService = new ProviderService((network: SupportedChainNetworks) =>
   // @see https://github.com/mswjs/msw/discussions/2416
   return process.env.TEST_CHAIN_NETWORK_URL || netConfig.getBaseAPIUrl(network);
 }, fetch);
-const providerProxy = new ProviderProxy(Date.now, providerService);
+const certificateValidator = new CertificateValidator(
+  Date.now,
+  providerService,
+  process.env.NODE_ENV === "test" ? undefined : createCertificateValidatorInstrumentation(console)
+);
+const providerProxy = new ProviderProxy(certificateValidator);
 
 export const container = {
   wsStats,
-  providerProxy
+  providerProxy,
+  certificateValidator
 };
