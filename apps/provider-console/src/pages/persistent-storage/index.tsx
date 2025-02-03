@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Button, Checkbox, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
-import { WarningCircle } from "iconoir-react";
 import { useRouter } from "next/router";
 
 import { Layout } from "@src/components/layout/Layout";
@@ -16,9 +15,11 @@ import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 const PersistentStoragePage: React.FC = () => {
   const router = useRouter();
   const { activeControlMachine } = useControlMachine();
-  const { data: persistentDrives } = usePersistentStorage(activeControlMachine);
   const { address } = useSelectedChain();
   const { data: providerDetails } = useProviderDetails(address);
+
+  const isPersistentStorageEnabled = providerDetails?.stats?.storage?.persistent?.available !== 0;
+  const { data: persistentDrives, refetch } = usePersistentStorage(isPersistentStorageEnabled ? null : activeControlMachine);
 
   const [selectedDrives, setSelectedDrives] = useState<{ [key: string]: string[] }>({});
   const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -104,17 +105,106 @@ const PersistentStoragePage: React.FC = () => {
       <div className="flex items-center">
         <div className="w-10 flex-1">
           <Title>Persistent Storage</Title>
-          {providerDetails && !providerDetails.featPersistentStorage && (
-            <div className="mt-2 rounded-md bg-yellow-50 p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <WarningCircle color="black" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm text-yellow-700">Persistent Storage is not enabled</p>
+          <p className="text-muted-foreground text-sm">Enable persistent storage to start accepting deployments with persistent storage.</p>
+          {providerDetails && providerDetails?.stats?.storage?.persistent?.available !== 0 && (
+            <>
+              <div className="mt-2">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <div className="bg-card text-card-foreground rounded-lg border shadow-sm">
+                    <div className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-muted-foreground text-sm font-medium">Available Storage</p>
+                          <div className="text-2xl font-bold">{formatBytes(providerDetails?.stats?.storage?.persistent?.available ?? 0)}</div>
+                        </div>
+                        <div className="h-16 w-16">
+                          <svg className="h-full w-full" viewBox="0 0 100 100">
+                            <circle className="text-muted-foreground/20 stroke-current" strokeWidth="12" cx="50" cy="50" r="40" fill="transparent" />
+                            <circle
+                              className="stroke-current text-emerald-500"
+                              strokeWidth="12"
+                              strokeLinecap="round"
+                              cx="50"
+                              cy="50"
+                              r="40"
+                              fill="transparent"
+                              strokeDasharray={`${(providerDetails?.stats?.storage?.persistent?.available / (providerDetails?.stats?.storage?.persistent?.available + providerDetails?.stats?.storage?.persistent?.active)) * 251.2} 251.2`}
+                              transform="rotate(-90 50 50)"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-card text-card-foreground rounded-lg border shadow-sm">
+                    <div className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-muted-foreground text-sm font-medium">Active Storage</p>
+                          <div className="text-2xl font-bold">{formatBytes(providerDetails.stats.storage.persistent.active)}</div>
+                        </div>
+                        <div className="h-16 w-16">
+                          <svg className="h-full w-full" viewBox="0 0 100 100">
+                            <circle className="text-muted-foreground/20 stroke-current" strokeWidth="12" cx="50" cy="50" r="40" fill="transparent" />
+                            <circle
+                              className="stroke-current text-blue-500"
+                              strokeWidth="12"
+                              strokeLinecap="round"
+                              cx="50"
+                              cy="50"
+                              r="40"
+                              fill="transparent"
+                              strokeDasharray={`${(providerDetails.stats.storage.persistent.active / (providerDetails.stats.storage.persistent.available + providerDetails.stats.storage.persistent.active)) * 251.2} 251.2`}
+                              transform="rotate(-90 50 50)"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {providerDetails.stats.storage.persistent.pending > 0 && (
+                    <div className="bg-card text-card-foreground rounded-lg border shadow-sm">
+                      <div className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <p className="text-muted-foreground text-sm font-medium">Pending Storage</p>
+                            <div className="text-2xl font-bold">{formatBytes(providerDetails.stats.storage.persistent.pending)}</div>
+                          </div>
+                          <div className="h-16 w-16">
+                            <svg className="h-full w-full" viewBox="0 0 100 100">
+                              <circle className="text-muted-foreground/20 stroke-current" strokeWidth="12" cx="50" cy="50" r="40" fill="transparent" />
+                              <circle
+                                className="stroke-current text-yellow-500"
+                                strokeWidth="12"
+                                strokeLinecap="round"
+                                cx="50"
+                                cy="50"
+                                r="40"
+                                fill="transparent"
+                                strokeDasharray={`${(providerDetails.stats.storage.persistent.pending / (providerDetails.stats.storage.persistent.available + providerDetails.stats.storage.persistent.active + providerDetails.stats.storage.persistent.pending)) * 251.2} 251.2`}
+                                transform="rotate(-90 50 50)"
+                              />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+
+              <Button
+                onClick={() => {
+                  refetch();
+                }}
+                variant="secondary"
+                className="mt-4"
+              >
+                Refresh Unformatted Drives
+              </Button>
+            </>
           )}
         </div>
       </div>
