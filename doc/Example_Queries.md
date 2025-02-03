@@ -180,3 +180,140 @@ WHERE "owner" = '<AKASH_ADDRESS>' AND "dseq"='<DSEQ>'
 ORDER BY "height" DESC
 ```
 ![Get all messages related to a deployment](./get-all-messages-related-to-a-deployment.png)
+
+## Get the total amount of total leases, akt spent, usdc spent and usd spent per address sorted by total leases
+
+You can also filter for only gpu leases by adding `WHERE l."gpuUnits" > 0` to the `active_lease` query
+
+```
+WITH current_block AS (
+    SELECT MAX(height) as height 
+    FROM block
+),
+active_leases AS (
+    SELECT 
+        l.id,
+        l.owner,
+        l.denom,
+        l.price,
+        l."createdHeight",
+        LEAST((SELECT height FROM current_block), COALESCE(l."closedHeight" ,l."predictedClosedHeight")) as end_height,
+        d."aktPrice"
+    FROM lease l
+    INNER JOIN block b ON b.height = l."createdHeight"
+    INNER JOIN day d ON d.id = b."dayId"
+),
+lease_costs AS (
+    SELECT 
+        owner,
+        ROUND(CAST(SUM(CASE 
+            WHEN denom = 'uakt' 
+            THEN (end_height - "createdHeight") * price / 1000000.0
+            ELSE 0 
+        END) as numeric), 2) as total_akt_spent,
+        ROUND(CAST(SUM(CASE 
+            WHEN denom = 'uusdc' 
+            THEN (end_height - "createdHeight") * price / 1000000.0
+            ELSE 0 
+        END) as numeric), 2) as total_usdc_spent,
+        ROUND(CAST(SUM(CASE 
+            WHEN denom = 'uakt' 
+            THEN (end_height - "createdHeight") * price * "aktPrice" / 1000000.0
+            WHEN denom = 'uusdc' 
+            THEN (end_height - "createdHeight") * price / 1000000.0
+            ELSE 0 
+        END) as numeric), 2) as total_usd_spent
+    FROM active_leases
+    GROUP BY owner
+)
+SELECT 
+    al.owner,
+    COUNT(DISTINCT al.id) as active_lease_count,
+    COALESCE(lc.total_akt_spent, 0.00) as total_akt_spent,
+    COALESCE(lc.total_usdc_spent, 0.00) as total_usdc_spent,
+    COALESCE(lc.total_usd_spent, 0.00) as total_usd_spent
+FROM active_leases al
+LEFT JOIN lease_costs lc ON lc.owner = al.owner
+GROUP BY 
+    al.owner,
+    lc.total_akt_spent,
+    lc.total_usdc_spent,
+    lc.total_usd_spent
+ORDER BY active_lease_count DESC;
+```
+
+## Cross database queries from chain-db (indexer) and user db
+
+User db stores the addresses of the managed wallet users and if we want to query the indexer db to compute amount spent, we need to do a cross database query.
+
+This query will fetch the sum of all spent for all the users per day.
+
+```
+-- First, enable postgres_fdw extension in both databases
+CREATE EXTENSION postgres_fdw;
+
+-- In the user db database, create the foreign server connection to the chain database
+CREATE SERVER chain_db
+  FOREIGN DATA WRAPPER postgres_fdw
+  OPTIONS (host 'localhost', port '5432', dbname 'console-akash');
+
+-- Create user mapping
+CREATE USER MAPPING FOR CURRENT_USER
+  SERVER chain_db
+  OPTIONS (user 'postgres', password 'your_password');
+
+IMPORT FOREIGN SCHEMA public 
+  LIMIT TO (lease, block, day)
+  FROM SERVER chain_db 
+  INTO public;
+  
+-- Create foreign tables for the tables we need
+CREATE FOREIGN TABLE chain_lease (
+    id uuid,
+    owner character varying(255),
+    denom character varying(255),
+    price double precision,
+    "createdHeight" integer,
+    "closedHeight" integer,
+    "predictedClosedHeight" numeric(30,0)
+) SERVER chain_db
+OPTIONS (schema_name 'public', table_name 'lease');
+
+CREATE FOREIGN TABLE chain_block (
+    height integer,
+    datetime timestamp with time zone,
+    "dayId" uuid
+) SERVER chain_db
+OPTIONS (schema_name 'public', table_name 'block');
+
+CREATE FOREIGN TABLE chain_day (
+    id uuid,
+    date timestamp with time zone,
+    "aktPrice" double precision,
+	"firstBlockHeight" integer,
+	"lastBlockHeight" integer,
+	"lastBlockHeightYet" integer
+) SERVER chain_db
+OPTIONS (schema_name 'public', table_name 'day');
+
+-- Query the amount spent per day for all the trial or non-trial users, just change w.trial = true or false
+WITH daily_leases AS (
+    SELECT 
+        d.date, 
+        l.id,
+        ((LEAST(d."lastBlockHeightYet", COALESCE(l."closedHeight", l."predictedClosedHeight")) - GREATEST(d."firstBlockHeight", l."createdHeight")) * l.price) AS "uusdc_spent"
+    FROM chain_day d
+    INNER JOIN chain_lease l ON l."createdHeight" < d."lastBlockHeightYet" AND COALESCE(l."closedHeight", l."predictedClosedHeight") > d."firstBlockHeight"
+	INNER JOIN user_wallets w ON w.address = l.owner AND w.trial = true
+    WHERE l.denom='uusdc' 
+)
+SELECT 
+    date AS "Date",
+    COUNT(l.id) AS "Lease Count",
+    ROUND(SUM(l.uusdc_spent)::decimal / 1000000, 2) AS "USDC Spent",
+    ROUND(SUM(SUM(l.uusdc_spent)::decimal) OVER (ORDER BY date) / 1000000, 2) AS "Cummulative USDC Spent"
+FROM daily_leases l
+GROUP BY date
+ORDER BY date DESC
+
+```
