@@ -1,5 +1,12 @@
 
 
+## [2.38.0](https://github.com/akash-network/console/compare/console-web/v2.37.1...console-web/v2.38.0) (2025-02-03)
+
+
+### Features
+
+* **deployment:** reworks top up deployments to rely on db setting ([2762b97](https://github.com/akash-network/console/commit/2762b97bbbb8d63566a258a683a5a0989f6885b4)), closes [#714](https://github.com/akash-network/console/issues/714)
+
 ## [2.37.1](https://github.com/akash-network/console/compare/console-web/v2.37.0...console-web/v2.37.1) (2025-01-31)
 
 

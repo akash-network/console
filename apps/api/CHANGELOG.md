@@ -1,5 +1,12 @@
 
 
+## [2.56.0](https://github.com/akash-network/console/compare/console-api/v2.55.1...console-api/v2.56.0) (2025-02-03)
+
+
+### Features
+
+* **deployment:** reworks top up deployments to rely on db setting ([2762b97](https://github.com/akash-network/console/commit/2762b97bbbb8d63566a258a683a5a0989f6885b4)), closes [#714](https://github.com/akash-network/console/issues/714)
+
 ## [2.55.1](https://github.com/akash-network/console/compare/console-api/v2.55.0...console-api/v2.55.1) (2025-01-31)
 
 
