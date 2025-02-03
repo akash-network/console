@@ -69,7 +69,6 @@ const LayoutApp: React.FC<Props> = ({ children, isLoading, disableContainer, con
     setIsMobileOpen(!isMobileOpen);
   };
 
-  console.log(isLoading);
   return (
     <>
       <div className="bg-card min-h-full">
