@@ -57,6 +57,13 @@
       "when": 1732626493525,
       "tag": "0007_lethal_masked_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1738322520567,
+      "tag": "0008_pale_dakota_north",
+      "breakpoints": true
     }
   ]
 }

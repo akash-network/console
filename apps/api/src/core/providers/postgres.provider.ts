@@ -8,13 +8,14 @@ import { container, inject } from "tsyringe";
 import * as billingSchemas from "@src/billing/model-schemas";
 import { config } from "@src/core/config";
 import { PostgresLoggerService } from "@src/core/services/postgres-logger/postgres-logger.service";
+import * as deploymentSchemas from "@src/deployment/model-schemas";
 import * as userSchemas from "@src/user/model-schemas";
 
 const logger = LoggerService.forContext("POSTGRES");
 const migrationClient = postgres(config.POSTGRES_DB_URI, { max: 1, onnotice: logger.info.bind(logger) });
 const appClient = postgres(config.POSTGRES_DB_URI, { max: config.POSTGRES_MAX_CONNECTIONS, onnotice: logger.info.bind(logger) });
 
-const schema = { ...userSchemas, ...billingSchemas };
+const schema = { ...userSchemas, ...billingSchemas, ...deploymentSchemas };
 const drizzleOptions = { logger: new DefaultLogger({ writer: new PostgresLoggerService({ useFormat: config.SQL_LOG_FORMAT === "pretty" }) }), schema };
 
 const pgMigrationDatabase = drizzle(migrationClient, drizzleOptions);

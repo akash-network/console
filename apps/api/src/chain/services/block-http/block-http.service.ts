@@ -6,9 +6,7 @@ import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
 export class BlockHttpService {
-  constructor(
-    private readonly blockHttpService: BlockHttpServiceCommon
-  ) {}
+  constructor(private readonly blockHttpService: BlockHttpServiceCommon) {}
 
   @Memoize({ ttlInSeconds: averageBlockTime })
   async getCurrentHeight() {

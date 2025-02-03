@@ -9,13 +9,15 @@ export class DrainingDeploymentSeeder {
     dseq = faker.number.int({ min: 1, max: 99999999 }),
     denom = DenomSeeder.create(),
     blockRate = faker.number.int({ min: 1, max: 100 }),
-    predictedClosedHeight = faker.number.int({ min: 1, max: 99999999 })
+    predictedClosedHeight = faker.number.int({ min: 1, max: 99999999 }),
+    owner = faker.string.alpha()
   }: Partial<DrainingDeploymentOutput> = {}): DrainingDeploymentOutput {
     return {
       dseq,
       denom,
       blockRate,
-      predictedClosedHeight
+      predictedClosedHeight,
+      owner
     };
   }
 }
