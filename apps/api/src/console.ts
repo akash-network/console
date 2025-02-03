@@ -92,14 +92,20 @@ async function executeCliHandler(name: string, handler: () => Promise<void>) {
     logger.info({ event: "COMMAND_START", name });
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { migratePG, closeConnections } = await require("./core/providers/postgres.provider");
-    await migratePG();
-    await chainDb.authenticate();
 
-    await handler();
+    try {
+      await migratePG();
+      await chainDb.authenticate();
 
-    await closeConnections();
-    await chainDb.close();
-    logger.info({ event: "COMMAND_END", name });
+      await handler();
+
+      logger.info({ event: "COMMAND_END", name });
+    } catch (error) {
+      logger.error({ event: "COMMAND_ERROR", name, message: error.message, stack: error.stack });
+    } finally {
+      await closeConnections();
+      await chainDb.close();
+    }
   });
 }
 

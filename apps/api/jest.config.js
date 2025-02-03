@@ -15,7 +15,7 @@ const common = {
 };
 
 module.exports = {
-  collectCoverageFrom: ["./src/**/*.{js,ts}"],
+  collectCoverageFrom: ["src/**/*.ts", "!src/**/*.spec.ts", "!src/**/*.d.ts", "!src/main.ts", "!src/console.ts", "!src/test/**/*", "!src/**/index.ts"],
   projects: [
     {
       displayName: "unit",
