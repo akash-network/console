@@ -33,6 +33,7 @@ export function ControlMachineProvider({ children }: Props) {
 
   useEffect(() => {
     if (isWalletArbitrarySigned || isProvider) {
+      setActiveControlMachine(null);
       const controlMachine = controlMachines.find(machine => machine.address === address);
 
       if (!controlMachine) {
@@ -59,6 +60,8 @@ export function ControlMachineProvider({ children }: Props) {
           setControlMachineLoading(false);
         }
       })();
+    } else if (!address) {
+      setActiveControlMachine(null);
     }
   }, [isWalletArbitrarySigned, address, controlMachines, isProvider]);
 
