@@ -66,7 +66,7 @@ export abstract class BaseRepository<
   }
 
   async findOneBy(query?: Partial<Output>) {
-    return this.toOutput(
+    return await this.toOutput(
       await this.queryCursor.findFirst({
         where: this.queryToWhere(query)
       })

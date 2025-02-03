@@ -1,4 +1,5 @@
 import { LoggerService } from "@akashnetwork/logging";
+import { ForbiddenError } from "@casl/ability";
 import { context, trace } from "@opentelemetry/api";
 import type { Event } from "@sentry/types";
 import type { Context, Env } from "hono";
@@ -34,6 +35,10 @@ export class HonoErrorHandlerService {
 
     if (error instanceof ZodError) {
       return c.json({ error: "BadRequestError", data: error.errors }, { status: 400 });
+    }
+
+    if (error instanceof ForbiddenError) {
+      return c.json({ error: "ForbiddenError", message: "Forbidden" }, { status: 403 });
     }
 
     await this.reportError(error, c);
