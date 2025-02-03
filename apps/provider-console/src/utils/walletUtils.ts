@@ -75,5 +75,7 @@ export function updateLocalStorageWalletName(address: string, name: string) {
 }
 
 export function getNonceMessage(nonce: string, walletAddress: string) {
-  return `provider-console-beta.akash.network wants you to sign in with your Keplr account - ${walletAddress} using Nonce - ${nonce}`;
+  const domain = window.location.origin;
+  const baseDomain = domain === "http://localhost:3000" ? "https://provider-console-beta.akash.network" : domain;
+  return `${baseDomain} wants you to sign in with your Keplr account - ${walletAddress} using Nonce - ${nonce}`;
 }
