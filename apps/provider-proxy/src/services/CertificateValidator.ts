@@ -47,20 +47,29 @@ export class CertificateValidator {
   private async getProviderCertificate(cert: X509Certificate, network: SupportedChainNetworks, providerAddress: string): Promise<X509Certificate | null> {
     const key = `${network}.${providerAddress}.${cert.serialNumber}`;
 
+    if (this.knownCertificatesCache.has(key)) {
+      // no need to create lock as we have value in cache
+      return this.knownCertificatesCache.get(key);
+    }
+
     this.locks[key] ??= new Sema(1);
 
     try {
       await this.locks[key].acquire();
-      if (!this.knownCertificatesCache.has(key)) {
-        const certificate = await this.providerService.getCertificate(network, providerAddress, cert.serialNumber);
-        this.knownCertificatesCache.set(key, certificate);
-        return certificate;
+      if (this.knownCertificatesCache.has(key)) {
+        // no need to send request, another request put the value in cache
+        return this.knownCertificatesCache.get(key);
       }
 
-      return this.knownCertificatesCache.get(key);
+      const certificate = await this.providerService.getCertificate(network, providerAddress, cert.serialNumber);
+      this.knownCertificatesCache.set(key, certificate);
+
+      return certificate;
     } finally {
-      this.locks[key].release();
-      delete this.locks[key];
+      if (this.locks[key]) {
+        this.locks[key].release();
+        delete this.locks[key];
+      }
     }
   }
 }
