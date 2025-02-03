@@ -10,7 +10,11 @@ import { Users } from "@src/user/model-schemas";
 
 type Table = ApiPgTables["DeploymentSettings"];
 export type DeploymentSettingsInput = Partial<Table["$inferInsert"]>;
-export type DeploymentSettingsOutput = Table["$inferSelect"];
+export type DeploymentSettingsDbOutput = Table["$inferSelect"];
+export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "createdAt" | "updatedAt"> & {
+  createdAt: string;
+  updatedAt: string;
+};
 
 export type AutoTopUpDeployment = {
   id: number;
@@ -63,5 +67,15 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         await cb(items);
       }
     } while (lastId);
+  }
+
+  protected toOutput(payload: DeploymentSettingsDbOutput): DeploymentSettingsOutput {
+    return payload
+      ? {
+          ...payload,
+          createdAt: payload.createdAt.toISOString(),
+          updatedAt: payload.updatedAt.toISOString()
+        }
+      : undefined;
   }
 }

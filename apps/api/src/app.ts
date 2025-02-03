@@ -16,6 +16,7 @@ import { RequestContextInterceptor } from "@src/core/services/request-context-in
 import { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import packageJson from "../package.json";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
+import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
 import { apiRouter } from "./routers/apiRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
@@ -83,6 +84,7 @@ appHono.route("/", stripePricesRouter);
 appHono.route("/", createAnonymousUserRouter);
 appHono.route("/", getAnonymousUserRouter);
 appHono.route("/", sendVerificationEmailRouter);
+appHono.route("/", deploymentSettingRouter);
 
 appHono.get("/status", c => {
   const version = packageJson.version;
