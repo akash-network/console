@@ -3,13 +3,22 @@ import { bech32 } from "bech32";
 import { setTimeout } from "timers/promises";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";
-import { request } from "../setup/apiClient";
 import { mockOnChainCertificates, stopChainAPIServer } from "../setup/chainApiServer";
 import { startProviderServer, stopProviderServer } from "../setup/providerServer";
+import { request } from "../setup/proxyServer";
+import { startServer, stopServer } from "../setup/proxyServer";
 
-describe("Provider proxy", () => {
+describe("Provider HTTP proxy", () => {
   const network: SupportedChainNetworks = "sandbox";
   const ONE_HOUR = 60 * 60 * 1000;
+
+  beforeAll(async () => {
+    await startServer();
+  });
+
+  afterAll(() => {
+    stopServer();
+  });
 
   afterEach(() => {
     stopProviderServer();
@@ -21,7 +30,7 @@ describe("Provider proxy", () => {
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     await mockOnChainCertificates([validCertPair.cert]);
-    const providerUrl = await startProviderServer(validCertPair);
+    const providerUrl = await startProviderServer({ certPair: validCertPair });
 
     const response = await request("/", {
       method: "POST",
@@ -45,7 +54,7 @@ describe("Provider proxy", () => {
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     await mockOnChainCertificates([validCertPair.cert]);
-    const providerUrl = await startProviderServer(validCertPair);
+    const providerUrl = await startProviderServer({ certPair: validCertPair });
 
     const response = await request("/", {
       method: "POST",
@@ -70,7 +79,7 @@ describe("Provider proxy", () => {
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     const chainServer = await mockOnChainCertificates([validCertPair.cert]);
-    const providerUrl = await startProviderServer(validCertPair);
+    const providerUrl = await startProviderServer({ certPair: validCertPair });
 
     let response = await request("/", {
       method: "POST",
@@ -110,7 +119,7 @@ describe("Provider proxy", () => {
         serialNumber: Date.now().toString()
       }).cert
     ]);
-    const providerUrl = await startProviderServer(validCertPair);
+    const providerUrl = await startProviderServer({ certPair: validCertPair });
     const requestProvider = () =>
       request("/", {
         method: "POST",
@@ -144,7 +153,7 @@ describe("Provider proxy", () => {
     });
 
     await mockOnChainCertificates([createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() + ONE_HOUR) }).cert, validCertPair.cert]);
-    const providerUrl = await startProviderServer(validCertPair);
+    const providerUrl = await startProviderServer({ certPair: validCertPair });
 
     const requestProvider = () =>
       request("/", {
@@ -177,7 +186,7 @@ describe("Provider proxy", () => {
       commonName: providerAddress
     });
 
-    const providerUrl = await startProviderServer(validCertPair);
+    const providerUrl = await startProviderServer({ certPair: validCertPair });
 
     process.env.TEST_CHAIN_NETWORK_URL = "http://localhost:31234";
     const responsePromise = request("/", {
@@ -204,7 +213,7 @@ describe("Provider proxy", () => {
       commonName: providerAddress
     });
 
-    const providerUrl = await startProviderServer(validCertPair);
+    const providerUrl = await startProviderServer({ certPair: validCertPair });
     await mockOnChainCertificates([validCertPair.cert], {
       respondWithOnceWith: 502
     });
@@ -230,7 +239,7 @@ describe("Provider proxy", () => {
       commonName: providerAddress
     });
 
-    const providerUrl = await startProviderServer(validCertPair);
+    const providerUrl = await startProviderServer({ certPair: validCertPair });
     await mockOnChainCertificates([validCertPair.cert]);
 
     const response = await request("/", {
@@ -254,7 +263,7 @@ describe("Provider proxy", () => {
       commonName: providerAddress
     });
 
-    const providerUrl = await startProviderServer(validCertPair);
+    const providerUrl = await startProviderServer({ certPair: validCertPair });
     await mockOnChainCertificates([validCertPair.cert]);
 
     const response = await request("/", {

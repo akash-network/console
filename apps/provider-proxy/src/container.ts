@@ -1,3 +1,4 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { netConfig, SupportedChainNetworks } from "@akashnetwork/net";
 
 import { CertificateValidator, createCertificateValidatorInstrumentation } from "./services/CertificateValidator";
@@ -17,12 +18,16 @@ const providerService = new ProviderService((network: SupportedChainNetworks) =>
 const certificateValidator = new CertificateValidator(
   Date.now,
   providerService,
-  process.env.NODE_ENV === "test" ? undefined : createCertificateValidatorInstrumentation(console)
+  process.env.NODE_ENV === "test" ? undefined : createCertificateValidatorInstrumentation(new LoggerService({ name: "cert-validator" }))
 );
 const providerProxy = new ProviderProxy(certificateValidator);
+const httpLogger = new LoggerService({ name: "http-proxy" });
+const wsLogger = process.env.NODE_ENV === "test" ? undefined : new LoggerService({ name: "ws-proxy" });
 
 export const container = {
   wsStats,
   providerProxy,
-  certificateValidator
+  certificateValidator,
+  httpLogger,
+  wsLogger
 };
