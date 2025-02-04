@@ -56,65 +56,64 @@ export function getPrettyTime(timeMs: number): string {
 
 export function getPrettyTimeFromSeconds(seconds: number) {
   if (seconds < 0) {
-    return 'Please provide a non-negative number of seconds.'
+    return "-";
   }
-  const secondsInMinute = 60
-  const secondsInHour = 60 * 60
-  const secondsInDay = 24 * secondsInHour
-  const secondsInMonth = 30 * secondsInDay
-  const secondsInYear = 365 * secondsInDay
+  const secondsInMinute = 60;
+  const secondsInHour = 60 * 60;
+  const secondsInDay = 24 * secondsInHour;
+  const secondsInMonth = 30 * secondsInDay;
+  const secondsInYear = 365 * secondsInDay;
 
-  const years = Math.floor(seconds / secondsInYear)
-  const remainingSecondsAfterYears = seconds % secondsInYear
+  const years = Math.floor(seconds / secondsInYear);
+  const remainingSecondsAfterYears = seconds % secondsInYear;
 
-  const months = Math.floor(remainingSecondsAfterYears / secondsInMonth)
-  const remainingSecondsAfterMonths = remainingSecondsAfterYears % secondsInMonth
+  const months = Math.floor(remainingSecondsAfterYears / secondsInMonth);
+  const remainingSecondsAfterMonths = remainingSecondsAfterYears % secondsInMonth;
 
-  const days = Math.floor(remainingSecondsAfterMonths / secondsInDay)
-  const remainingSecondsAfterDays = remainingSecondsAfterMonths % secondsInDay
+  const days = Math.floor(remainingSecondsAfterMonths / secondsInDay);
+  const remainingSecondsAfterDays = remainingSecondsAfterMonths % secondsInDay;
 
-  const hours = Math.floor(remainingSecondsAfterDays / secondsInHour)
-  const remainingSecondsAfterHours = remainingSecondsAfterDays % secondsInHour
+  const hours = Math.floor(remainingSecondsAfterDays / secondsInHour);
+  const remainingSecondsAfterHours = remainingSecondsAfterDays % secondsInHour;
 
-  const minutes = Math.floor(remainingSecondsAfterHours / secondsInMinute)
-  const remainingSeconds = Math.round(remainingSecondsAfterHours % secondsInMinute)
+  const minutes = Math.floor(remainingSecondsAfterHours / secondsInMinute);
+  const remainingSeconds = Math.round(remainingSecondsAfterHours % secondsInMinute);
 
-  let result = ''
+  let result = "";
 
   if (years > 0) {
-    result += `${years} ${years === 1 ? 'year' : 'years'}`
+    result += `${years} ${years === 1 ? "year" : "years"}`;
     if (months > 0) {
-      result += ` and ${months} ${months === 1 ? 'month' : 'months'}`
+      result += ` and ${months} ${months === 1 ? "month" : "months"}`;
     }
   } else if (months > 0) {
-    result += `${months} ${months === 1 ? 'month' : 'months'}`
+    result += `${months} ${months === 1 ? "month" : "months"}`;
     if (days > 0) {
-      result += ` and ${days} ${days === 1 ? 'day' : 'days'}`
+      result += ` and ${days} ${days === 1 ? "day" : "days"}`;
     }
   } else if (days > 0) {
-    result += `${days} ${days === 1 ? 'day' : 'days'}`
+    result += `${days} ${days === 1 ? "day" : "days"}`;
     if (hours > 0) {
-      result += ` and ${hours} ${hours === 1 ? 'hour' : 'hours'}`
+      result += ` and ${hours} ${hours === 1 ? "hour" : "hours"}`;
     }
   } else if (hours > 0) {
-    result += `${hours} ${hours === 1 ? 'hour' : 'hours'}`
+    result += `${hours} ${hours === 1 ? "hour" : "hours"}`;
     if (minutes > 0) {
-      result += ` and ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+      result += ` and ${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
     }
   } else if (minutes > 0) {
-    result += `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+    result += `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
     if (remainingSeconds > 0) {
-      result += ` and ${remainingSeconds} ${remainingSeconds === 1 ? 'second' : 'seconds'}`
+      result += ` and ${remainingSeconds} ${remainingSeconds === 1 ? "second" : "seconds"}`;
     }
   } else if (remainingSeconds > 0) {
-    result += `${remainingSeconds} ${remainingSeconds === 1 ? 'second' : 'seconds'}`
+    result += `${remainingSeconds} ${remainingSeconds === 1 ? "second" : "seconds"}`;
   } else {
-    result += `0 seconds`
+    result += `0 seconds`;
   }
 
-  return result
+  return result;
 }
-
 
 export function formatLocalTime(utcTime: string | null) {
   if (!utcTime) return null;
