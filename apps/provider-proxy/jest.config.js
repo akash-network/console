@@ -17,8 +17,7 @@ module.exports = {
     {
       displayName: "functional",
       ...common,
-      testMatch: ["<rootDir>/test/functional/**/*.spec.ts"],
-      setupFilesAfterEnv: ["./test/setup-functional-tests.ts"]
+      testMatch: ["<rootDir>/test/functional/**/*.spec.ts"]
     }
   ]
 };

@@ -1,14 +1,10 @@
-import http from "http";
-import { AddressInfo } from "net";
+import { AppServer, startAppServer } from "../../src/app";
 
-import { app } from "../../src/app";
+let server: AppServer | undefined;
 
-let server: http.Server | undefined;
-
-export function startServer(): Promise<void> {
-  return new Promise<void>(resolve => {
-    server = app.listen(0, () => resolve());
-  });
+export async function startServer(): Promise<string> {
+  server = await startAppServer(0);
+  return server.host;
 }
 
 export function stopServer(): void {
@@ -20,7 +16,7 @@ export async function request(url: string, init?: RequestInit): Promise<Response
     throw new Error("API has not been started. Ensure it is started before using client");
   }
 
-  return fetch(`http://localhost:${(server.address() as AddressInfo).port}${url}`, {
+  return fetch(server.host + url, {
     ...init,
     headers: {
       "Content-type": "application/json",

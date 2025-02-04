@@ -2,19 +2,21 @@ import { RequestListener } from "http";
 import https, { ServerOptions } from "https";
 import { AddressInfo } from "net";
 import { setTimeout } from "timers/promises";
+import WebSocket from "ws";
 
-import { CertPair } from "../seeders/createX509CertPair";
+import { CertPair, createX509CertPair } from "../seeders/createX509CertPair";
 
 let runningServer: https.Server | undefined;
 
-export function startProviderServer(pair: CertPair): Promise<string> {
+export function startProviderServer(options: ProviderServerOptions): Promise<string> {
   return new Promise<string>(resolve => {
-    const options: ServerOptions = {
-      key: pair.key,
-      cert: pair.cert.toJSON()
+    const certPair = options.certPair || createX509CertPair();
+    const httpServerOptions: ServerOptions = {
+      key: certPair.key,
+      cert: certPair.cert.toJSON()
     };
 
-    const state: Record<string, any> = {};
+    const state: Record<string, boolean> = {};
     const handlers: Record<string, RequestListener> = {
       "/200.txt"(_, res) {
         res.writeHead(200, "OK", { "Content-Type": "text/plain" });
@@ -30,7 +32,7 @@ export function startProviderServer(pair: CertPair): Promise<string> {
       async "/slow-once"(_, res) {
         if (!state.wasSlow) {
           state.wasSlow = true;
-          await setTimeout(1000);
+          await setTimeout(1000, null, { ref: false });
           res.writeHead(200);
           res.end("Slow");
           return;
@@ -52,7 +54,7 @@ export function startProviderServer(pair: CertPair): Promise<string> {
       }
     };
 
-    const server = https.createServer(options, (req, res) => {
+    const server = https.createServer(httpServerOptions, (req, res) => {
       if (req.url && Object.hasOwn(handlers, req.url)) {
         handlers[req.url](req, res);
       } else {
@@ -65,9 +67,30 @@ export function startProviderServer(pair: CertPair): Promise<string> {
       runningServer = server;
       resolve(`https://localhost:${(server.address() as AddressInfo).port}`);
     });
+
+    if (options.websocketServer?.enable) {
+      const wss = new WebSocket.Server({ noServer: true });
+      server.on("upgrade", (request, socket, head) => {
+        wss.handleUpgrade(request, socket, head, socket => {
+          wss.emit("connection", socket, request);
+        });
+      });
+      server.on("close", () => wss.close());
+      if (options.websocketServer.onConnection) {
+        wss.on("connection", options.websocketServer.onConnection);
+      }
+    }
   });
 }
 
 export function stopProviderServer() {
   runningServer?.close();
+}
+
+export interface ProviderServerOptions {
+  certPair?: CertPair;
+  websocketServer?: {
+    enable: boolean;
+    onConnection?(ws: WebSocket): void;
+  };
 }

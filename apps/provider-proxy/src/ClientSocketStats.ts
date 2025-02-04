@@ -1,5 +1,5 @@
 export class ClientWebSocketStats {
-  private id: string;
+  readonly id: string;
   private openedOn: Date;
   private closedOn?: Date;
   private usage: WebSocketUsage = "Unknown";
