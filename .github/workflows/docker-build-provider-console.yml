@@ -1,0 +1,25 @@
+name: Deploy Provider Console CI
+
+on:
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Check for changes in provider-console folder
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            provider-console:
+              - 'apps/provider-console/**'
+
+      - name: Build the Docker image
+        if: steps.filter.outputs.provider-console == 'true'
+        run: packages/docker/script/dc.sh build provider-console --build-arg DEPLOYMENT_ENV=production

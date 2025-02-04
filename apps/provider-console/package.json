@@ -8,10 +8,12 @@
     "dev": "next -p 3000",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
+    "release": "release-it",
     "start": "next start",
     "type-check": "tsc"
   },
   "dependencies": {
+    "@akashnetwork/releaser": "*",
     "@akashnetwork/ui": "*",
     "@chain-registry/types": "^0.50.1",
     "@cosmos-kit/cosmostation-extension": "^2.12.2",
