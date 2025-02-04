@@ -1,0 +1,47 @@
+import { randomUUID } from "crypto";
+import { singleton } from "tsyringe";
+
+import { AuthService } from "@src/auth/services/auth.service";
+import { CreateUserApiKeyRequest, UpdateUserApiKeyRequest } from "@src/user/http-schemas/user-api-key.schema";
+import { UserApiKeyOutput, UserApiKeyRepository } from "@src/user/repositories/user-api-key/user-api-key.repository";
+
+@singleton()
+export class UserApiKeyService {
+  constructor(
+    private readonly userApiKeyRepository: UserApiKeyRepository,
+    private readonly authService: AuthService
+  ) {}
+
+  async findAll(): Promise<UserApiKeyOutput[]> {
+    return await this.userApiKeyRepository.accessibleBy(this.authService.ability, "read").find();
+  }
+
+  async findById(id: string): Promise<UserApiKeyOutput | undefined> {
+    return await this.userApiKeyRepository.accessibleBy(this.authService.ability, "read").findOneBy({ id });
+  }
+
+  async create(userId: string, input: CreateUserApiKeyRequest["data"]): Promise<UserApiKeyOutput> {
+    const apiKey = `ak_${randomUUID()}`;
+
+    return await this.userApiKeyRepository.accessibleBy(this.authService.ability, "create").create({
+      userId,
+      apiKey,
+      description: input.description,
+      expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined
+    });
+  }
+
+  async update(id: string, input: UpdateUserApiKeyRequest["data"]): Promise<UserApiKeyOutput | undefined> {
+    const updateData = {
+      ...input,
+      expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
+      ...(input.isActive !== undefined && { lastUsedAt: new Date() })
+    };
+
+    return await this.userApiKeyRepository.accessibleBy(this.authService.ability, "update").updateBy({ id }, updateData, { returning: true });
+  }
+
+  async delete(id: string): Promise<UserApiKeyOutput | undefined> {
+    return await this.userApiKeyRepository.accessibleBy(this.authService.ability, "delete").deleteBy({ id }, { returning: true });
+  }
+}
