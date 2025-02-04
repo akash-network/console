@@ -24,6 +24,7 @@ import { internalRouter } from "./routers/internalRouter";
 import { legacyRouter } from "./routers/legacyRouter";
 import { userRouter } from "./routers/userRouter";
 import { web3IndexRouter } from "./routers/web3indexRouter";
+import { userApiKeysRouter } from "./user/routes/user-api-keys/user-api-keys.router";
 import { env } from "./utils/env";
 import { bytesToHumanReadableSize } from "./utils/files";
 import { sendVerificationEmailRouter } from "./auth";
@@ -85,6 +86,7 @@ appHono.route("/", createAnonymousUserRouter);
 appHono.route("/", getAnonymousUserRouter);
 appHono.route("/", sendVerificationEmailRouter);
 appHono.route("/", deploymentSettingRouter);
+appHono.route("/", userApiKeysRouter);
 
 appHono.get("/status", c => {
   const version = packageJson.version;

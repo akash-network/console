@@ -10,14 +10,14 @@ export class UserApiKeyController {
   constructor(private readonly userApiKeyService: UserApiKeyService) {}
 
   @Protected([{ action: "read", subject: "UserApiKey" }])
-  async findAll(): Promise<UserApiKeyResponse[]> {
-    const apiKeys = await this.userApiKeyService.findAll();
+  async findAll(userId: string): Promise<UserApiKeyResponse[]> {
+    const apiKeys = await this.userApiKeyService.findAll(userId);
     return apiKeys.map(key => ({ data: key }));
   }
 
   @Protected([{ action: "read", subject: "UserApiKey" }])
-  async findById(id: string): Promise<UserApiKeyResponse> {
-    const apiKey = await this.userApiKeyService.findById(id);
+  async findById(id: string, userId: string): Promise<UserApiKeyResponse> {
+    const apiKey = await this.userApiKeyService.findById(id, userId);
     assert(apiKey, 404, "API key not found");
     return { data: apiKey };
   }
@@ -29,15 +29,15 @@ export class UserApiKeyController {
   }
 
   @Protected([{ action: "update", subject: "UserApiKey" }])
-  async update(id: string, input: UpdateUserApiKeyRequest["data"]): Promise<UserApiKeyResponse> {
-    const apiKey = await this.userApiKeyService.update(id, input);
+  async update(id: string, userId: string, input: UpdateUserApiKeyRequest["data"]): Promise<UserApiKeyResponse> {
+    const apiKey = await this.userApiKeyService.update(id, userId, input);
     assert(apiKey, 404, "API key not found");
     return { data: apiKey };
   }
 
   @Protected([{ action: "delete", subject: "UserApiKey" }])
-  async delete(id: string): Promise<UserApiKeyResponse> {
-    const apiKey = await this.userApiKeyService.delete(id);
+  async delete(id: string, userId: string): Promise<UserApiKeyResponse> {
+    const apiKey = await this.userApiKeyService.delete(id, userId);
     assert(apiKey, 404, "API key not found");
     return { data: apiKey };
   }

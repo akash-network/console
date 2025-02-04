@@ -1,4 +1,4 @@
-import { createRoute as createOpenApiRoute } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
@@ -11,11 +11,16 @@ import {
   UserApiKeyResponseSchema
 } from "@src/user/http-schemas/user-api-key.schema";
 
-const listRoute = createOpenApiRoute({
+const listRoute = createRoute({
   method: "get",
-  path: "/v1/users/api-keys",
+  path: "/v1/users/{userId}/api-keys",
   summary: "List all API keys",
   tags: ["User API Keys"],
+  request: {
+    params: z.object({
+      userId: z.string().uuid()
+    })
+  },
   responses: {
     200: {
       description: "Returns list of API keys",
@@ -28,9 +33,9 @@ const listRoute = createOpenApiRoute({
   }
 });
 
-const getRoute = createOpenApiRoute({
+const getRoute = createRoute({
   method: "get",
-  path: "/v1/users/api-keys/{id}",
+  path: "/v1/users/{userId}/api-keys/{id}",
   summary: "Get API key by ID",
   tags: ["User API Keys"],
   request: {
@@ -58,12 +63,15 @@ const getRoute = createOpenApiRoute({
   }
 });
 
-const postRoute = createOpenApiRoute({
+const postRoute = createRoute({
   method: "post",
-  path: "/v1/users/api-keys",
+  path: "/v1/users/{userId}/api-keys",
   summary: "Create new API key",
   tags: ["User API Keys"],
   request: {
+    params: z.object({
+      userId: z.string().uuid()
+    }),
     body: {
       content: {
         "application/json": {
@@ -84,9 +92,9 @@ const postRoute = createOpenApiRoute({
   }
 });
 
-const patchRoute = createOpenApiRoute({
+const patchRoute = createRoute({
   method: "patch",
-  path: "/v1/users/api-keys/{id}",
+  path: "/v1/users/{userId}/api-keys/{id}",
   summary: "Update API key",
   tags: ["User API Keys"],
   request: {
@@ -121,9 +129,9 @@ const patchRoute = createOpenApiRoute({
   }
 });
 
-const deleteRoute = createOpenApiRoute({
+const deleteRoute = createRoute({
   method: "delete",
-  path: "/v1/users/api-keys/{id}",
+  path: "/v1/users/{userId}/api-keys/{id}",
   summary: "Delete API key",
   tags: ["User API Keys"],
   request: {
@@ -154,7 +162,8 @@ const deleteRoute = createOpenApiRoute({
 export const userApiKeysRouter = new OpenApiHonoHandler();
 
 userApiKeysRouter.openapi(listRoute, async function routeListApiKeys(c) {
-  const result = await container.resolve(UserApiKeyController).findAll();
+  const { userId } = c.req.valid("param");
+  const result = await container.resolve(UserApiKeyController).findAll(userId);
   return c.json(
     result.map(r => r.data),
     200
@@ -162,27 +171,27 @@ userApiKeysRouter.openapi(listRoute, async function routeListApiKeys(c) {
 });
 
 userApiKeysRouter.openapi(getRoute, async function routeGetApiKey(c) {
-  const { id } = c.req.valid("param");
-  const result = await container.resolve(UserApiKeyController).findById(id);
+  const { id, userId } = c.req.valid("param");
+  const result = await container.resolve(UserApiKeyController).findById(id, userId);
   return c.json(result.data, 200);
 });
 
 userApiKeysRouter.openapi(postRoute, async function routeCreateApiKey(c) {
+  const { userId } = c.req.valid("param");
   const { data } = c.req.valid("json");
-  const userId = "user-id-from-auth-context";
   const result = await container.resolve(UserApiKeyController).create(userId, data);
   return c.json(result.data, 201);
 });
 
 userApiKeysRouter.openapi(patchRoute, async function routeUpdateApiKey(c) {
-  const { id } = c.req.valid("param");
+  const { id, userId } = c.req.valid("param");
   const { data } = c.req.valid("json");
-  const result = await container.resolve(UserApiKeyController).update(id, data);
+  const result = await container.resolve(UserApiKeyController).update(id, userId, data);
   return c.json(result.data, 200);
 });
 
 userApiKeysRouter.openapi(deleteRoute, async function routeDeleteApiKey(c) {
-  const { id } = c.req.valid("param");
-  const result = await container.resolve(UserApiKeyController).delete(id);
+  const { id, userId } = c.req.valid("param");
+  const result = await container.resolve(UserApiKeyController).delete(id, userId);
   return c.json(result.data, 200);
 });

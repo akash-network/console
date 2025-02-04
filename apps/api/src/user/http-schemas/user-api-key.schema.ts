@@ -27,6 +27,7 @@ export const UpdateUserApiKeyRequestSchema = z.object({
 });
 
 export const FindUserApiKeyParamsSchema = z.object({
+  userId: z.string().uuid(),
   id: z.string().uuid()
 });
 

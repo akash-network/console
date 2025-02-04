@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { boolean, index, pgTable, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Users } from "@src/user/model-schemas";
@@ -5,14 +6,17 @@ import { Users } from "@src/user/model-schemas";
 export const UserApiKeys = pgTable(
   "user_api_keys",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: uuid("id")
+      .primaryKey()
+      .notNull()
+      .default(sql`uuid_generate_v4()`),
     userId: uuid("user_id")
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
     apiKey: varchar("api_key").notNull(),
     description: varchar("description"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
     expiresAt: timestamp("expires_at"),
     isActive: boolean("is_active").default(true).notNull()
   },

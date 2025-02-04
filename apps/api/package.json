@@ -18,7 +18,6 @@
     "dev-nodc": "npm run start",
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
-    "migrate": "node-pg-migrate",
     "migration:gen": "drizzle-kit generate",
     "prod": "doppler run -- node dist/server.js",
     "release": "release-it",

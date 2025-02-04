@@ -12,16 +12,16 @@ export class UserApiKeyService {
     private readonly authService: AuthService
   ) {}
 
-  async findAll(): Promise<UserApiKeyOutput[]> {
-    return await this.userApiKeyRepository.accessibleBy(this.authService.ability, "read").find();
+  async findAll(userId: string): Promise<UserApiKeyOutput[]> {
+    return await this.userApiKeyRepository.accessibleBy(this.authService.ability, "read").find({ userId });
   }
 
-  async findById(id: string): Promise<UserApiKeyOutput | undefined> {
-    return await this.userApiKeyRepository.accessibleBy(this.authService.ability, "read").findOneBy({ id });
+  async findById(id: string, userId: string): Promise<UserApiKeyOutput | undefined> {
+    return await this.userApiKeyRepository.accessibleBy(this.authService.ability, "read").findOneBy({ id, userId });
   }
 
   async create(userId: string, input: CreateUserApiKeyRequest["data"]): Promise<UserApiKeyOutput> {
-    const apiKey = `ak_${randomUUID()}`;
+    const apiKey = `AKT_${randomUUID()}`;
 
     return await this.userApiKeyRepository.accessibleBy(this.authService.ability, "create").create({
       userId,
@@ -31,17 +31,17 @@ export class UserApiKeyService {
     });
   }
 
-  async update(id: string, input: UpdateUserApiKeyRequest["data"]): Promise<UserApiKeyOutput | undefined> {
+  async update(id: string, userId: string, input: UpdateUserApiKeyRequest["data"]): Promise<UserApiKeyOutput | undefined> {
     const updateData = {
       ...input,
       expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
       ...(input.isActive !== undefined && { lastUsedAt: new Date() })
     };
 
-    return await this.userApiKeyRepository.accessibleBy(this.authService.ability, "update").updateBy({ id }, updateData, { returning: true });
+    return await this.userApiKeyRepository.accessibleBy(this.authService.ability, "update").updateBy({ id, userId }, updateData, { returning: true });
   }
 
-  async delete(id: string): Promise<UserApiKeyOutput | undefined> {
-    return await this.userApiKeyRepository.accessibleBy(this.authService.ability, "delete").deleteBy({ id }, { returning: true });
+  async delete(id: string, userId: string): Promise<UserApiKeyOutput | undefined> {
+    return await this.userApiKeyRepository.accessibleBy(this.authService.ability, "delete").deleteBy({ id, userId }, { returning: true });
   }
 }
