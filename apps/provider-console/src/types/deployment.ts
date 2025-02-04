@@ -5,6 +5,16 @@ export interface DeploymentDetail {
   status: string;
   denom: string;
   totalMonthlyCostUDenom: number;
+  createdDate: string;
+  createdHeight: number;
+  closedHeight: number | null;
+  other: {
+    escrow_account: {
+      transferred: {
+        amount: number;
+      };
+    };
+  };
   leases: {
     oseq: number;
     gseq: number;
@@ -331,4 +341,47 @@ export interface RpcDepositParams {
 export interface DepositParams {
   denom: string;
   amount: string;
+}
+
+export interface ProviderDeploymentResources {
+  cpu: number;
+  memory: number;
+  gpu: number;
+  ephemeralStorage: number;
+  persistentStorage: number;
+}
+
+export interface ProviderDeploymentLease {
+  provider: string;
+  gseq: number;
+  oseq: number;
+  price: number;
+  createdHeight: number;
+  createdDate: string;
+  closedHeight: number | null;
+  closedDate: string | null;
+  status: string;
+  resources: ProviderDeploymentResources;
+}
+
+export interface ProviderDeployment {
+  owner: string;
+  dseq: string;
+  denom: string;
+  createdHeight: number;
+  createdDate: string;
+  closedHeight: number | null;
+  closedDate: string | null;
+  status: string;
+  balance: number;
+  transferred: number;
+  settledAt: number;
+  resources: ProviderDeploymentResources;
+  leases: ProviderDeploymentLease[];
+  totalMonthlyCostUDenom: number;
+}
+
+export interface ProviderDeployments {
+  total: number;
+  deployments: ProviderDeployment[];
 }

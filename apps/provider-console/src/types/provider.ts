@@ -157,7 +157,11 @@ export interface ActionStatus {
   status: "completed" | "in_progress" | "failed" | "not_started";
   start_time: string;
   end_time: string;
-  tasks: Task[];
+  tasks?: Task[];
+}
+
+export interface ActionList {
+  actions: ActionStatus[];
 }
 
 export interface TaskLogs {
@@ -171,4 +175,20 @@ export interface StaticLog {
 
 export interface StaticLogsResponse {
   logs: StaticLog[];
+}
+
+export interface ProviderStatus {
+  online: boolean;
+}
+
+export interface ProviderOnChainStatus {
+  provider: {
+    owner: string;
+    host_uri: string;
+    attributes: Attribute[];
+    info: {
+      email: string;
+      website: string;
+    };
+  };
 }

@@ -22,6 +22,7 @@ import { z } from "zod";
 
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
+import { ProviderDetails } from "@src/types/provider";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 import { Title } from "../shared/Title";
@@ -38,7 +39,7 @@ interface ProviderPricingProps {
   editMode?: boolean;
   existingPricing?: ProviderPricingValues;
   disabled?: boolean;
-  providerDetails?: any;
+  providerDetails?: ProviderDetails;
   onComplete?: () => void;
 }
 
@@ -207,7 +208,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
 
   const competitiveEarnings = calculateDefaultEarnings();
 
-  const updateProviderPricingAndProceed = async (data: any) => {
+  const updateProviderPricingAndProceed = async (data: ProviderPricingValues) => {
     setIsLoading(true);
     if (!editMode) {
       setProviderProcess(prev => ({

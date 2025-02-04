@@ -53,7 +53,7 @@ const LayoutApp: React.FC<Props> = ({ children, isLoading, disableContainer, con
     if (_isNavOpen !== null && !smallScreen) {
       setIsNavOpen(_isNavOpen === "true");
     }
-  });
+  }, [smallScreen]);
 
   const onOpenMenuClick = () => {
     setIsNavOpen(prev => {
