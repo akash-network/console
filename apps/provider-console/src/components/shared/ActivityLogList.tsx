@@ -6,7 +6,7 @@ import { useRouter } from "next/router";
 interface ProviderAction {
   id: string;
   name: string;
-  status: "completed" | "in_progress" | "pending" | "failed";
+  status: "completed" | "in_progress" | "pending" | "failed" | "not_started";
   start_time: string;
   end_time?: string;
 }
