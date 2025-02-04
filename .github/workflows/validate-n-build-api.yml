@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate-n-build:
+  validate-n-build-api:
     runs-on: ubuntu-latest
 
     steps:
