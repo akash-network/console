@@ -1,4 +1,4 @@
-name: Release Deploy Web
+name: Release Provider Console
 
 on:
   push:
