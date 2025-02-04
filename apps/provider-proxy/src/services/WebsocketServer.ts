@@ -1,22 +1,33 @@
 import { LoggerService } from "@akashnetwork/logging";
+import { SupportedChainNetworks } from "@akashnetwork/net";
 import http from "http";
 import https from "https";
+import { TLSSocket } from "tls";
 import { v4 as uuidv4 } from "uuid";
 import WebSocket from "ws";
 
 import { ClientWebSocketStats, WebSocketUsage } from "../ClientSocketStats";
 import { container } from "../container";
+import { CertificateValidator } from "./CertificateValidator";
+
+// @see https://www.rfc-editor.org/rfc/rfc6455.html#page-46
+const WS_ERRORS = {
+  VIOLATED_POLICY: 1008
+};
 
 export class WebsocketServer {
-  private readonly openProviderSockets: Record<string, WebSocket> = {};
+  private readonly openProviderSockets: Record<
+    string,
+    {
+      ws: WebSocket;
+      isVerified: boolean;
+    }
+  > = {};
   private wss?: WebSocket.Server;
-
-  static from(appServer: http.Server, logger?: LoggerService): WebsocketServer {
-    return new WebsocketServer(appServer, logger);
-  }
 
   constructor(
     private readonly appServer: http.Server,
+    private readonly certificateValidator: CertificateValidator,
     private readonly logger?: LoggerService
   ) {}
 
@@ -59,7 +70,7 @@ export class WebsocketServer {
         stats.close();
 
         if (id in this.openProviderSockets) {
-          this.openProviderSockets[id].terminate();
+          this.openProviderSockets[id].ws.terminate();
           delete this.openProviderSockets[id];
         } else {
           wsLogger?.debug("Corresponding provider socket not found");
@@ -103,21 +114,24 @@ export class WebsocketServer {
   private proxyMessageToProvider(message: WsMessage, ws: WebSocket, stats: ClientWebSocketStats, logger?: LoggerService): void {
     const url = message.url.replace("https://", "wss://");
 
-    let providerWs = this.openProviderSockets[stats.id];
-    if (!providerWs || providerWs?.url !== url) {
-      providerWs?.terminate();
+    let socketDetails = this.openProviderSockets[stats.id];
+    if (
+      !socketDetails ||
+      socketDetails.ws.url !== url ||
+      socketDetails.ws.readyState === WebSocket.CLOSED ||
+      socketDetails.ws.readyState === WebSocket.CLOSING
+    ) {
+      socketDetails?.ws.terminate();
       logger?.info(`Initializing new provider websocket connection: ${url}`);
-      providerWs = new WebSocket(url, {
+      socketDetails = this.createProviderSocket(url, {
+        wsId: stats.id,
         cert: message.certPem,
         key: message.keyPem,
-        agent: new https.Agent({
-          // create new Agent to ensure TLS resumption is not used for websockets
-          sessionTimeout: 0,
-          rejectUnauthorized: false
-        })
+        chainNetwork: message.chainNetwork,
+        providerAddress: message.providerAddress,
+        logger
       });
-      linkSockets(providerWs, ws, stats, logger);
-      this.openProviderSockets[stats.id] = providerWs;
+      this.linkSockets(socketDetails.ws, ws, stats, logger);
     }
 
     if (!message.data) {
@@ -133,56 +147,142 @@ export class WebsocketServer {
         });
     };
 
-    if (providerWs.readyState === WebSocket.OPEN) {
-      providerWs.send(data, callback);
+    if (socketDetails.ws.readyState === WebSocket.OPEN && socketDetails.isVerified) {
+      socketDetails.ws.send(data, callback);
     } else {
-      providerWs.once("open", () => providerWs.send(data, callback));
+      socketDetails.ws.once("verified", () => socketDetails.ws.send(data, callback));
     }
+  }
+
+  private createProviderSocket(url: string, options: CreateProviderSocketOptions) {
+    const pws = new WebSocket(url, {
+      key: options.key,
+      cert: options.cert,
+      agent: new https.Agent({
+        // do not use TLS session resumption for websocket
+        sessionTimeout: 0,
+        rejectUnauthorized: false
+      })
+    });
+
+    this.openProviderSockets[options.wsId] = { ws: pws, isVerified: false };
+
+    pws.on("upgrade", response => {
+      // Using sync function here to ensure that no data is processed by event handlers until SSL cert validation is finished
+      const certificate = response.socket && response.socket instanceof TLSSocket ? response.socket.getPeerX509Certificate() : undefined;
+
+      if (!certificate) {
+        // call destroy manually because at this time websocket is not connected with the actual socket
+        response.socket.destroy();
+        pws.close(1008, `Server ${url} didn't provide SSL certificate`);
+        return;
+      }
+
+      if (!options.chainNetwork || !options.providerAddress) {
+        // temporary certificate validation is optional
+        pws.once("open", () => {
+          this.openProviderSockets[options.wsId].isVerified = true;
+          pws.emit("verified");
+        });
+        return;
+      }
+
+      // stop reading data from socket until we validate certificate
+      response.socket.pause();
+      this.certificateValidator
+        .validate(certificate, options.chainNetwork, options.providerAddress)
+        .catch(error => {
+          options.logger?.error({
+            message: "Could not validate SSL certificate",
+            error,
+            chainNetwork: options.chainNetwork,
+            providerAddress: options.providerAddress
+          });
+          return {
+            ok: false,
+            code: "serverError"
+          } as const;
+        })
+        .then(result => {
+          if (result.ok === false) {
+            // ensure that no messages are proxied from untrusted websocket
+            pws.removeAllListeners("message");
+            pws.removeAllListeners("verified");
+
+            const reason = result.code === "serverError" ? "Could not validate SSL certificate" : `Invalid SSL certificate: ${result.code}`;
+            pws.close(WS_ERRORS.VIOLATED_POLICY, reason);
+          } else {
+            // ensure that socket was not closed while its certificate was validating
+            if (pws.readyState === WebSocket.OPEN && this.openProviderSockets[options.wsId]) {
+              this.openProviderSockets[options.wsId].isVerified = true;
+              pws.emit("verified");
+            }
+          }
+
+          // need to call this in error and success case, otherwise listeners will not be notified about close event
+          response.socket.resume();
+        });
+    });
+
+    return this.openProviderSockets[options.wsId];
+  }
+
+  private linkSockets(providerWs: WebSocket, ws: WebSocket, stats: ClientWebSocketStats, logger?: LoggerService): void {
+    providerWs.on("open", function open() {
+      logger?.info(`Connected to provider websocket: ${providerWs.url}`);
+    });
+
+    providerWs.on("message", socketMessage => {
+      if (!socketMessage) return;
+      const data = JSON.stringify({
+        type: "websocket",
+        message: socketMessage
+      });
+      stats.logDataTransfer(Buffer.from(data).length);
+      ws.send(data);
+    });
+
+    providerWs.on("error", error => {
+      logger?.error({
+        message: "Websocket received an error",
+        error
+      });
+      const data = JSON.stringify({
+        type: "websocket",
+        message: error,
+        error
+      });
+      stats.logDataTransfer(Buffer.from(data).length);
+      ws.send(data);
+    });
+
+    providerWs.on("close", (code, reason) => {
+      delete this.openProviderSockets[stats.id];
+      logger?.info({
+        message: "Provider websocket was closed",
+        code,
+        reason
+      });
+      const data = JSON.stringify({
+        type: "websocket",
+        message: "",
+        closed: true,
+        code,
+        reason
+      });
+      stats.logDataTransfer(Buffer.from(data).length);
+      ws.send(data);
+    });
   }
 }
 
-function linkSockets(providerWs: WebSocket, ws: WebSocket, stats: ClientWebSocketStats, logger?: LoggerService): void {
-  providerWs.on("open", function open() {
-    logger?.info(`Connected to provider websocket: ${providerWs.url}`);
-  });
-
-  providerWs.on("message", socketMessage => {
-    if (!socketMessage) return;
-    const data = JSON.stringify({
-      type: "websocket",
-      message: socketMessage
-    });
-    stats.logDataTransfer(Buffer.from(data).length);
-    ws.send(data);
-  });
-
-  providerWs.on("error", error => {
-    logger?.error({
-      message: "Websocket received an error",
-      error
-    });
-    const data = JSON.stringify({
-      type: "websocket",
-      message: error,
-      error
-    });
-    stats.logDataTransfer(Buffer.from(data).length);
-    ws.send(data);
-  });
-
-  providerWs.on("close", event => {
-    logger?.info({
-      message: "Provider websocket was closed",
-      event
-    });
-    const data = JSON.stringify({
-      type: "websocket",
-      message: "",
-      closed: true
-    });
-    stats.logDataTransfer(Buffer.from(data).length);
-    ws.send(data);
-  });
+interface CreateProviderSocketOptions {
+  wsId: string;
+  cert: string;
+  key: string;
+  chainNetwork?: SupportedChainNetworks;
+  providerAddress?: string;
+  logger?: LoggerService;
 }
 
 function getWebSocketUsage(message: any): WebSocketUsage {
@@ -222,6 +322,8 @@ interface WsMessage {
   url: string;
   certPem?: string;
   keyPem?: string;
+  chainNetwork?: SupportedChainNetworks;
+  providerAddress?: string;
   /**
    * Currently it's used only for service shell communication
    * and stores only buffered representation of string in char codes

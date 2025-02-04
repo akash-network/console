@@ -1,9 +1,8 @@
 import { SupportedChainNetworks } from "@akashnetwork/net";
-import { bech32 } from "bech32";
 import { setTimeout } from "timers/promises";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";
-import { mockOnChainCertificates, stopChainAPIServer } from "../setup/chainApiServer";
+import { generateBech32, startChainApiServer, stopChainAPIServer } from "../setup/chainApiServer";
 import { startProviderServer, stopProviderServer } from "../setup/providerServer";
 import { request } from "../setup/proxyServer";
 import { startServer, stopServer } from "../setup/proxyServer";
@@ -29,7 +28,7 @@ describe("Provider HTTP proxy", () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    await mockOnChainCertificates([validCertPair.cert]);
+    await startChainApiServer([validCertPair.cert]);
     const providerUrl = await startProviderServer({ certPair: validCertPair });
 
     const response = await request("/", {
@@ -53,7 +52,7 @@ describe("Provider HTTP proxy", () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    await mockOnChainCertificates([validCertPair.cert]);
+    await startChainApiServer([validCertPair.cert]);
     const providerUrl = await startProviderServer({ certPair: validCertPair });
 
     const response = await request("/", {
@@ -78,7 +77,7 @@ describe("Provider HTTP proxy", () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    const chainServer = await mockOnChainCertificates([validCertPair.cert]);
+    const chainServer = await startChainApiServer([validCertPair.cert]);
     const providerUrl = await startProviderServer({ certPair: validCertPair });
 
     let response = await request("/", {
@@ -112,7 +111,7 @@ describe("Provider HTTP proxy", () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
-    await mockOnChainCertificates([
+    await startChainApiServer([
       createX509CertPair({
         commonName: providerAddress,
         validFrom: new Date(Date.now() + ONE_HOUR),
@@ -152,7 +151,7 @@ describe("Provider HTTP proxy", () => {
       validTo: new Date(Date.now() - ONE_HOUR)
     });
 
-    await mockOnChainCertificates([createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() + ONE_HOUR) }).cert, validCertPair.cert]);
+    await startChainApiServer([createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() + ONE_HOUR) }).cert, validCertPair.cert]);
     const providerUrl = await startProviderServer({ certPair: validCertPair });
 
     const requestProvider = () =>
@@ -199,7 +198,7 @@ describe("Provider HTTP proxy", () => {
       })
     });
     await setTimeout(200);
-    await mockOnChainCertificates([validCertPair.cert]);
+    await startChainApiServer([validCertPair.cert]);
     const response = await responsePromise;
 
     expect(response.status).toBe(200);
@@ -214,8 +213,8 @@ describe("Provider HTTP proxy", () => {
     });
 
     const providerUrl = await startProviderServer({ certPair: validCertPair });
-    await mockOnChainCertificates([validCertPair.cert], {
-      respondWithOnceWith: 502
+    await startChainApiServer([validCertPair.cert], {
+      respondOnceWith: 502
     });
 
     const response = await request("/", {
@@ -240,7 +239,7 @@ describe("Provider HTTP proxy", () => {
     });
 
     const providerUrl = await startProviderServer({ certPair: validCertPair });
-    await mockOnChainCertificates([validCertPair.cert]);
+    await startChainApiServer([validCertPair.cert]);
 
     const response = await request("/", {
       method: "POST",
@@ -264,7 +263,7 @@ describe("Provider HTTP proxy", () => {
     });
 
     const providerUrl = await startProviderServer({ certPair: validCertPair });
-    await mockOnChainCertificates([validCertPair.cert]);
+    await startChainApiServer([validCertPair.cert]);
 
     const response = await request("/", {
       method: "POST",
@@ -281,10 +280,4 @@ describe("Provider HTTP proxy", () => {
     const body = await response.text();
     expect(body).toBe("Fast");
   });
-
-  let index = 0;
-  function generateBech32() {
-    const words = bech32.toWords(Buffer.from("foobar2", "utf8"));
-    return bech32.encode(`test${++index}`, words);
-  }
 });

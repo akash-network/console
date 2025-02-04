@@ -69,12 +69,7 @@ export function startProviderServer(options: ProviderServerOptions): Promise<str
     });
 
     if (options.websocketServer?.enable) {
-      const wss = new WebSocket.Server({ noServer: true });
-      server.on("upgrade", (request, socket, head) => {
-        wss.handleUpgrade(request, socket, head, socket => {
-          wss.emit("connection", socket, request);
-        });
-      });
+      const wss = new WebSocket.Server({ server });
       server.on("close", () => wss.close());
       if (options.websocketServer.onConnection) {
         wss.on("connection", options.websocketServer.onConnection);
