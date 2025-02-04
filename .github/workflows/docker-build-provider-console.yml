@@ -1,4 +1,4 @@
-name: Deploy Web CI
+name: Deploy Provider Console CI
 
 on:
   pull_request:
