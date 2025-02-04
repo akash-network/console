@@ -88,8 +88,10 @@ describe("Deployment Settings", () => {
           userId: user.id,
           dseq,
           autoTopUpEnabled: true,
-          createdAt: settings.createdAt,
-          updatedAt: settings.updatedAt
+          createdAt: expect.any(String),
+          updatedAt: expect.any(String),
+          estimatedTopUpAmount: expect.any(Number),
+          topUpFrequencyMs: expect.any(Number)
         }
       });
     });
@@ -195,7 +197,7 @@ describe("Deployment Settings", () => {
       expect(response.status).toBe(401);
     });
 
-    it("should return 404 if deployment settings not found", async () => {
+    it("should create and return new setting if not found", async () => {
       const { token, user } = await walletService.createUserAndWallet();
       const dseq = faker.string.numeric();
 
@@ -212,10 +214,20 @@ describe("Deployment Settings", () => {
         })
       });
 
-      expect(response.status).toBe(404);
-      expect(await response.json()).toEqual({
-        error: "NotFoundError",
-        message: "Deployment setting not found"
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data).toMatchObject({
+        userId: user.id,
+        dseq,
+        autoTopUpEnabled: true
+      });
+
+      const settings = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq });
+      expect(settings).toBeDefined();
+      expect(settings).toMatchObject({
+        userId: user.id,
+        dseq,
+        autoTopUpEnabled: true
       });
     });
 
