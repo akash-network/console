@@ -1,3 +1,4 @@
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { mainnetId } from "./constants";
 
 export type LocalWalletDataType = {
@@ -76,6 +77,6 @@ export function updateLocalStorageWalletName(address: string, name: string) {
 
 export function getNonceMessage(nonce: string, walletAddress: string) {
   const domain = window.location.origin;
-  const baseDomain = domain === "http://localhost:3000" ? "https://provider-console-beta.akash.network" : domain;
+  const baseDomain = domain === "http://localhost:3000" ? browserEnvConfig.NEXT_PUBLIC_BETA_URL : domain;
   return `${baseDomain} wants you to sign in with your Keplr account - ${walletAddress} using Nonce - ${nonce}`;
 }

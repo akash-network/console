@@ -10,7 +10,8 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_BASE_SECURITY_URL: z.string().url(),
   NEXT_PUBLIC_MAINNET_RPC_URL: z.string().url(),
   NEXT_PUBLIC_MAINNET_API_URL: z.string().url(),
-  NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional()
+  NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional(),
+  NEXT_PUBLIC_BETA_URL: z.string().url()
 });
 
 export type BrowserEnvConfig = z.infer<typeof browserEnvSchema>;
