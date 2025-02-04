@@ -5,6 +5,7 @@ import type { Event } from "@sentry/types";
 import type { Context, Env } from "hono";
 import { isHttpError } from "http-errors";
 import omit from "lodash/omit";
+import { DatabaseError } from "sequelize";
 import { singleton } from "tsyringe";
 import { ZodError } from "zod";
 
@@ -26,7 +27,7 @@ export class HonoErrorHandlerService {
   }
 
   async handle<E extends Env = any>(error: Error, c: Context<E>): Promise<Response> {
-    this.logger.error(error);
+    this.logger.error(this.sequelizeErrorToObj(error));
 
     if (isHttpError(error)) {
       const { name } = error.constructor;
@@ -111,5 +112,18 @@ export class HonoErrorHandlerService {
       default:
         return undefined;
     }
+  }
+
+  private sequelizeErrorToObj(error: unknown) {
+    if (error instanceof DatabaseError) {
+      return {
+        name: error.name,
+        message: error.message,
+        sql: error.sql,
+        stack: error.stack
+      };
+    }
+
+    return error;
   }
 }
