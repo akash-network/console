@@ -1,76 +1,137 @@
 import { useQuery } from "react-query";
+import { type ToasterToast, useToast } from "@akashnetwork/ui/hooks";
+import { AxiosError } from "axios";
 
 import { ControlMachineWithAddress } from "@src/types/controlMachine";
-import { ActionStatus, PersistentStorageResponse, ProviderDashoard, ProviderDetails, Task } from "@src/types/provider";
+import { DeploymentDetail, ProviderDeployments } from "@src/types/deployment";
+import {
+  ActionList,
+  ActionStatus,
+  PersistentStorageResponse,
+  ProviderDashoard,
+  ProviderDetails,
+  ProviderOnChainStatus,
+  ProviderStatus
+} from "@src/types/provider";
 import consoleClient from "@src/utils/consoleClient";
 import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 
+type ToastParameters = Omit<ToasterToast, "id">;
+
+const handleQueryError = (
+  error: AxiosError,
+  toast: (props: ToastParameters) => unknown,
+  customMessage?: string,
+  customTitle = "Uh oh! Something went wrong."
+) => {
+  toast({
+    variant: "destructive",
+    title: customTitle,
+    description: customMessage || "There was a problem with your request."
+  });
+
+  throw error;
+};
+
 export const useProviderDeployments = (address: string, status: string, currentPage: number, pageSize: number) => {
+  const { toast } = useToast();
   return useQuery({
     queryKey: ["providerDeployments", address, status, currentPage, pageSize],
     queryFn: async () => {
-      const offset = (currentPage - 1) * pageSize;
-      const response: any = await consoleClient.get(`v1/providers/${address}/deployments/${offset}/${pageSize}?status=${status}`);
-      const latestBlocks = await consoleClient.get(`/v1/blocks`);
-      const latestBlock = latestBlocks[0].height;
+      try {
+        const offset = (currentPage - 1) * pageSize;
+        const response: ProviderDeployments = await consoleClient.get(`v1/providers/${address}/deployments/${offset}/${pageSize}?status=${status}`);
+        const latestBlocks = await consoleClient.get(`/v1/blocks`);
+        const latestBlock = latestBlocks[0].height;
 
-      const deploymentsWithCost = response.deployments.map(deployment => {
-        const totalCost = totalDeploymentCost(deployment.leases);
-        const totalAmtSpent = findTotalAmountSpentOnLeases(deployment.leases, latestBlock);
-        return {
+        const deploymentsWithCost = response.deployments.map(deployment => ({
           ...deployment,
-          amountSpent: totalAmtSpent,
-          costPerMonth: totalCost
-        };
-      });
+          amountSpent: findTotalAmountSpentOnLeases(deployment.leases, latestBlock),
+          costPerMonth: totalDeploymentCost(deployment.leases)
+        }));
 
-      return {
-        deployments: deploymentsWithCost,
-        total: response.total
-      };
+        return {
+          deployments: deploymentsWithCost,
+          total: response.total
+        };
+      } catch (error: unknown) {
+        return handleQueryError(error as AxiosError, toast, "Failed to fetch provider deployments");
+      }
     },
-    enabled: !!address
+    retry: (failureCount, error: AxiosError) => {
+      const status = error.response?.status;
+      if (status && status >= 400 && status < 500) {
+        return false;
+      }
+      return failureCount < 3;
+    }
   });
 };
 
 export const useDeploymentDetails = (owner: string, dseq: string) => {
+  const { toast } = useToast();
   return useQuery({
     queryKey: ["deployment", owner, dseq],
     queryFn: async () => {
-      const [response, latestBlocks]: any = await Promise.all([consoleClient.get<any>(`v1/deployment/${owner}/${dseq}`), consoleClient.get<any>(`/v1/blocks`)]);
+      try {
+        const response: DeploymentDetail = await consoleClient.get(`v1/deployment/${owner}/${dseq}`);
+        const latestBlocks = await consoleClient.get(`/v1/blocks`);
+        const latestBlock = latestBlocks[0].height;
 
-      const latestBlock = latestBlocks[0].height;
-      const totalAmtSpent = findTotalAmountSpentOnLeases(response.leases, latestBlock, true);
-      const totalCost = totalDeploymentCost(response.leases);
-      const timeLeft = totalDeploymentTimeLeft(response.createdHeight, response.totalMonthlyCostUDenom, latestBlock, response.balance, response.closedHeight);
+        const totalAmtSpent = findTotalAmountSpentOnLeases(response.leases, latestBlock, true);
+        const totalCost = totalDeploymentCost(response.leases);
+        const timeLeft = totalDeploymentTimeLeft(response.createdHeight, response.totalMonthlyCostUDenom, latestBlock, response.balance, response.closedHeight);
 
-      return {
-        ...response,
-        amountSpent: totalAmtSpent,
-        costPerMonth: totalCost,
-        timeLeft: timeLeft
-      };
+        return {
+          ...response,
+          amountSpent: totalAmtSpent,
+          costPerMonth: totalCost,
+          timeLeft: timeLeft
+        };
+      } catch (error: unknown) {
+        return handleQueryError(error as AxiosError, toast, "Failed to fetch deployment details");
+      }
     },
     enabled: !!owner && !!dseq
   });
 };
 
 export const useProviderDetails = (address: string | undefined) => {
+  const { toast } = useToast();
   return useQuery<ProviderDetails>({
     queryKey: ["providerDetails", address],
-    queryFn: () => consoleClient.get(`/v1/providers/${address}`),
+    queryFn: async () => {
+      try {
+        return await consoleClient.get(`/v1/providers/${address}`);
+      } catch (error: unknown) {
+        return handleQueryError(error as AxiosError, toast, "Failed to fetch provider details");
+      }
+    },
     refetchOnWindowFocus: false,
-    retry: 3,
+    retry: (failureCount, error: AxiosError) => {
+      const status = error.response?.status;
+      if (status && status >= 400 && status < 500) {
+        return false;
+      }
+      return failureCount < 3;
+    },
     enabled: !!address
   });
 };
 
 export const useProviderDashboard = (address: string | undefined) => {
+  const { toast } = useToast();
   return useQuery<ProviderDashoard>({
     queryKey: ["providerDashboard", address],
-    queryFn: () => consoleClient.get(`/internal/provider-dashboard/${address}`),
+    queryFn: async () => {
+      try {
+        return await consoleClient.get(`/internal/provider-dashboard/${address}`);
+      } catch (error: unknown) {
+        return handleQueryError(error as AxiosError, toast, "Failed to fetch provider dashboard");
+      }
+    },
     refetchOnWindowFocus: false,
     retry: 3,
     enabled: !!address
@@ -78,11 +139,16 @@ export const useProviderDashboard = (address: string | undefined) => {
 };
 
 export const useProviderActions = () => {
+  const { toast } = useToast();
   return useQuery({
     queryKey: ["providerActions"],
     queryFn: async () => {
-      const response: any = await restClient.get("/actions");
-      return response.actions;
+      try {
+        const response: ActionList = await restClient.get("/actions");
+        return response.actions;
+      } catch (error: unknown) {
+        return handleQueryError(error as AxiosError, toast, "Failed to fetch provider actions");
+      }
     },
     refetchOnWindowFocus: false,
     retry: 3
@@ -90,9 +156,17 @@ export const useProviderActions = () => {
 };
 
 export const useProviderActionStatus = (actionId: string | null) => {
+  const { toast } = useToast();
   return useQuery<ActionStatus>({
     queryKey: ["providerActionStatus", actionId],
-    queryFn: () => restClient.get(`/action/status/${actionId}`),
+    queryFn: async (): Promise<ActionStatus> => {
+      try {
+        const response: ActionStatus = await restClient.get(`/action/status/${actionId}`);
+        return response;
+      } catch (error: unknown) {
+        return handleQueryError(error as AxiosError, toast, "Failed to fetch action status");
+      }
+    },
     enabled: !!actionId,
     refetchInterval: data => {
       if (data?.tasks?.some(task => task.status === "in_progress")) {
@@ -105,26 +179,24 @@ export const useProviderActionStatus = (actionId: string | null) => {
       const data = query.state.data;
       return data?.tasks?.some(task => task.status === "in_progress") ?? false;
     },
-    retry: 3,
-    select: (data: ActionStatus) => ({
-      ...data,
-      tasks: data.tasks.map(task => ({
-        ...task,
-        status: task.status.toLowerCase() as Task["status"]
-      }))
-    })
+    retry: 3
   });
 };
 
 export const useProviderStatus = (chainId: string, enabled = true) => {
+  const { toast } = useToast();
   return useQuery({
     queryKey: ["providerStatus", chainId],
     queryFn: async () => {
-      const response: any = await restClient.get(`/provider/status/onchain?chainid=${chainId}`);
-      return {
-        isProvider: response.provider ? true : false,
-        provider: response.provider
-      };
+      try {
+        const response: ProviderOnChainStatus = await restClient.get(`/provider/status/onchain?chainid=${chainId}`);
+        return {
+          isProvider: response.provider ? true : false,
+          provider: response.provider
+        };
+      } catch (error: unknown) {
+        return handleQueryError(error as AxiosError, toast, "Failed to fetch provider status");
+      }
     },
     enabled: enabled,
     retry: 3
@@ -132,11 +204,16 @@ export const useProviderStatus = (chainId: string, enabled = true) => {
 };
 
 export const useProviderOnlineStatus = (chainId: string, isProvider: boolean) => {
+  const { toast } = useToast();
   return useQuery({
     queryKey: ["providerOnlineStatus", chainId],
     queryFn: async () => {
-      const response: any = await restClient.get(`/provider/status/online?chainid=${chainId}`);
-      return response.online;
+      try {
+        const response: ProviderStatus = await restClient.get(`/provider/status/online?chainid=${chainId}`);
+        return response.online;
+      } catch (error: unknown) {
+        return handleQueryError(error as AxiosError, toast, "Failed to fetch provider online status");
+      }
     },
     enabled: isProvider,
     retry: 3
@@ -144,9 +221,16 @@ export const useProviderOnlineStatus = (chainId: string, isProvider: boolean) =>
 };
 
 export const usePersistentStorage = (activeControlMachine: ControlMachineWithAddress | null) => {
+  const { toast } = useToast();
   return useQuery<PersistentStorageResponse>({
     queryKey: ["persistentStorage"],
-    queryFn: () => restClient.post(`/get-unformatted-drives`, { control_machine: sanitizeMachineAccess(activeControlMachine) }),
+    queryFn: async () => {
+      try {
+        return await restClient.post(`/get-unformatted-drives`, { control_machine: sanitizeMachineAccess(activeControlMachine) });
+      } catch (error: unknown) {
+        return handleQueryError(error as AxiosError, toast, "Failed to fetch persistent storage");
+      }
+    },
     enabled: !!activeControlMachine,
     retry: 3
   });

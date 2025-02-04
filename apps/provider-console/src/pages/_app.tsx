@@ -2,7 +2,7 @@ import "@akashnetwork/ui/styles";
 import "../styles/index.css";
 
 import { QueryClientProvider } from "react-query";
-import { TooltipProvider } from "@akashnetwork/ui/components";
+import { Toaster, TooltipProvider } from "@akashnetwork/ui/components";
 import { GeistSans } from "geist/font/sans";
 import { Provider } from "jotai";
 import type { AppProps } from "next/app";
@@ -24,6 +24,7 @@ export default function App({ Component, pageProps }: AppProps) {
       <QueryClientProvider client={queryClient}>
         <Provider>
           <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
+            <Toaster />
             <ColorModeProvider>
               <GoogleAnalytics />
               <PricingProvider>

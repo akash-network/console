@@ -6,6 +6,7 @@ module.exports = function (app: string) {
     content: [
       "./pages/**/*.{ts,tsx}",
       "./components/**/*.{ts,tsx}",
+      "./hooks/**/*.{ts,tsx}",
       "./stories/**/*.{ts,tsx}",
       "./app/**/*.{ts,tsx}",
       "./src/**/*.{ts,tsx}",
@@ -46,7 +47,7 @@ module.exports = function (app: string) {
             foreground: "hsl(var(--warning-foreground))"
           },
           success: {
-            DEFAULT: "hsl(var(--success))",
+            DEFAULT: "hsl(var(--success))"
           },
           destructive: {
             DEFAULT: "hsl(var(--destructive))",

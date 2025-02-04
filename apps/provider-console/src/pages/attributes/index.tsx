@@ -10,7 +10,7 @@ import consoleClient from "@src/utils/consoleClient";
 
 const Attributes: React.FunctionComponent = () => {
   const { address } = useSelectedChain();
-  const { data: providerDetails, isLoading: isLoadingProviderDetails }: { data: any; isLoading: boolean } = useQuery(
+  const { data: providerDetails, isLoading: isLoadingProviderDetails }: { data; isLoading: boolean } = useQuery(
     "providerDetails",
     () => consoleClient.get(`/v1/providers/${address}`),
     {

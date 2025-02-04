@@ -1,21 +1,22 @@
 {
   "name": "@akashnetwork/ui",
   "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "update-apps-local-deps": "mvm-update"
-  },
-  "author": "",
-  "license": "ISC",
   "description": "",
+  "license": "ISC",
+  "author": "",
   "exports": {
     "./components": "./components/index.tsx",
+    "./hooks": "./hooks/index.tsx",
     "./utils": "./utils/index.ts",
     "./tailwind": "./tailwind.config.ts",
     "./postcss": "./postcss.config.js",
     "./styles": "./styles/global.css",
     "./context": "./context/index.tsx"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "update-apps-local-deps": "mvm-update"
   },
   "dependencies": {
     "@mui/material": "^5.15.20",
@@ -36,6 +37,7 @@
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-switch": "^1.0.3",
     "@radix-ui/react-tabs": "^1.0.4",
+    "@radix-ui/react-toast": "^1.2.5",
     "@radix-ui/react-toggle": "^1.0.3",
     "@radix-ui/react-toggle-group": "^1.0.4",
     "@radix-ui/react-tooltip": "^1.0.7",
