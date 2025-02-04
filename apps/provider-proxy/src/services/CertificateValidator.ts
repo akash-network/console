@@ -1,3 +1,4 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { SupportedChainNetworks } from "@akashnetwork/net";
 import { Sema } from "async-sema";
 import { bech32 } from "bech32";
@@ -143,19 +144,19 @@ function parseCertSubject(subject: string, attr: string): string | null {
   return subject.slice(index + attrPrefix.length, endIndex);
 }
 
-export const createCertificateValidatorInstrumentation = (logger: typeof console): CertificateValidatorIntrumentation => ({
+export const createCertificateValidatorInstrumentation = (logger: LoggerService): CertificateValidatorIntrumentation => ({
   onValidationSuccess(certificate, network, providerAddress, now) {
-    logger.log(`Successfully validated ${certificate.serialNumber} in ${network} for "${providerAddress}" at ${now}`);
+    logger.info(`Successfully validated ${certificate.serialNumber} in ${network} for "${providerAddress}" at ${now}`);
   },
   onInvalidAttrs(certificate, network, providerAddress, now, result) {
-    logger.log(`Certificate ${certificate.serialNumber} is invalid in ${network} for "${providerAddress}" because ${result.code} at ${now}`);
+    logger.warn(`Certificate ${certificate.serialNumber} is invalid in ${network} for "${providerAddress}" because ${result.code} at ${now}`);
   },
   onInvalidFingerprint(certificate, network, providerAddress, providerCertificate) {
-    logger.log(
+    logger.warn(
       `Certificate ${certificate.serialNumber} (${certificate.fingerprint256}) fingerprint does not match fingerprint in ${network} for ${providerAddress}: ${providerCertificate.fingerprint256}`
     );
   },
   onUnknownCert(certificate, network, providerAddress) {
-    logger.log(`Certificate ${certificate.serialNumber} does not have corresponding certificate in ${network} for ${providerAddress}`);
+    logger.warn(`Certificate ${certificate.serialNumber} does not have corresponding certificate in ${network} for ${providerAddress}`);
   }
 });
