@@ -5,7 +5,7 @@ on:
     branches: ["main"]
 
 jobs:
-  build:
+  build-deploy-web:
     runs-on: ubuntu-latest
 
     steps:

@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-provider-proxy:
     runs-on: ubuntu-latest
 
     steps:
