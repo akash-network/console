@@ -81,8 +81,8 @@ export const AkashConsoleLogoDark = ({ className = "" }: { className?: string })
       />
       <defs>
         <linearGradient id="paint0_linear_655_3487" x1="12.4053" y1="17.1014" x2="16.5476" y2="12.4556" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#FF414C" />
-          <stop offset="1" stop-color="#FF414C" stop-opacity="0" />
+          <stop stopColor="#FF414C" />
+          <stop offset="1" stopColor="#FF414C" stopOpacity="0" />
         </linearGradient>
       </defs>
     </svg>
@@ -172,8 +172,8 @@ export const AkashConsoleLogoLight = ({ className = "" }: { className?: string }
       />
       <defs>
         <linearGradient id="paint0_linear_655_3458" x1="12.4053" y1="17.1126" x2="16.5476" y2="12.4668" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#FF414C" />
-          <stop offset="1" stop-color="#FF414C" stop-opacity="0" />
+          <stop stopColor="#FF414C" />
+          <stop offset="1" stopColor="#FF414C" stopOpacity="0" />
         </linearGradient>
       </defs>
     </svg>
@@ -197,8 +197,8 @@ export const AkashConsoleBetaLogoDark = ({ className = "" }: { className?: strin
       />
       <defs>
         <linearGradient id="paint0_linear_1_3978" x1="12.0005" y1="17.4995" x2="16.0073" y2="13.0056" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#FF414C" />
-          <stop offset="1" stop-color="#FF414C" stop-opacity="0" />
+          <stop stopColor="#FF414C" />
+          <stop offset="1" stopColor="#FF414C" stopOpacity="0" />
         </linearGradient>
       </defs>
     </svg>
@@ -222,8 +222,8 @@ export const AkashConsoleBetaLogoLight = ({ className = "" }: { className?: stri
       />
       <defs>
         <linearGradient id="paint0_linear_1_3978" x1="12.0005" y1="17.4995" x2="16.0073" y2="13.0056" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#FF414C" />
-          <stop offset="1" stop-color="#FF414C" stop-opacity="0" />
+          <stop stopColor="#FF414C" />
+          <stop offset="1" stopColor="#FF414C" stopOpacity="0" />
         </linearGradient>
       </defs>
     </svg>
