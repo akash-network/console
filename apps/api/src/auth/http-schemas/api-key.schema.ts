@@ -4,7 +4,6 @@ export const ApiKeyResponseSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   description: z.string().nullable(),
-  isActive: z.boolean(),
   expiresAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()
@@ -13,14 +12,19 @@ export const ApiKeyResponseSchema = z.object({
 export const CreateApiKeyRequestSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
-  expiresAt: z.string().datetime().optional()
+  expiresAt: z
+    .string()
+    .datetime()
+    .transform(str => new Date(str))
+    .refine(date => date > new Date(), {
+      message: "Expiration date must be in the future"
+    })
+    .optional()
 });
 
 export const UpdateApiKeyRequestSchema = z.object({
   name: z.string().optional(),
-  description: z.string().optional(),
-  isActive: z.boolean().optional(),
-  expiresAt: z.string().datetime().optional()
+  description: z.string().optional()
 });
 
 export const FindApiKeyParamsSchema = z.object({

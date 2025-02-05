@@ -1,8 +1,7 @@
 import { randomUUID } from "crypto";
 import { singleton } from "tsyringe";
 
-import { CreateApiKeyRequest, UpdateApiKeyRequest } from "@src/auth/http-schemas/api-key.schema";
-import { ApiKeyOutput, ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { ApiKeyInput, ApiKeyOutput, ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { AuthService } from "@src/auth/services/auth.service";
 
 @singleton()
@@ -13,7 +12,6 @@ export class ApiKeyService {
   ) {}
 
   async findAll(): Promise<ApiKeyOutput[]> {
-    console.log("DEBUG", this.authService.currentUser);
     return await this.apiKeyRepository.accessibleBy(this.authService.ability, "read").find({ userId: this.authService.currentUser.id });
   }
 
@@ -21,7 +19,7 @@ export class ApiKeyService {
     return await this.apiKeyRepository.accessibleBy(this.authService.ability, "read").findOneBy({ id, userId: this.authService.currentUser.id });
   }
 
-  async create(input: CreateApiKeyRequest["data"]): Promise<ApiKeyOutput> {
+  async create(input: ApiKeyInput): Promise<ApiKeyOutput> {
     const apiKey = `AKT_${randomUUID()}`;
 
     return await this.apiKeyRepository.accessibleBy(this.authService.ability, "create").create({
@@ -32,11 +30,10 @@ export class ApiKeyService {
     });
   }
 
-  async update(id: string, input: UpdateApiKeyRequest["data"]): Promise<ApiKeyOutput | undefined> {
+  async update(id: string, input: ApiKeyInput): Promise<ApiKeyOutput | undefined> {
     const updateData = {
       ...input,
-      expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
-      ...(input.isActive !== undefined && { lastUsedAt: new Date() })
+      expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined
     };
 
     return await this.apiKeyRepository

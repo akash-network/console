@@ -75,13 +75,11 @@ describe("API Keys", () => {
       expect(result.data).toHaveLength(2);
       expect(result.data[0]).toMatchObject({
         id: apiKey.id,
-        name: "Test key",
-        isActive: true
+        name: "Test key"
       });
       expect(result.data[1]).toMatchObject({
         id: apiKey2.id,
-        name: "Test key 2",
-        isActive: true
+        name: "Test key 2"
       });
     });
   });
@@ -125,7 +123,6 @@ describe("API Keys", () => {
         data: {
           id: apiKey.id,
           name: "Test key",
-          isActive: true,
           expiresAt: null,
           createdAt: expect.any(String),
           updatedAt: expect.any(String),
@@ -176,7 +173,6 @@ describe("API Keys", () => {
       expect(result.data).toMatchObject({
         name: "Test key",
         description: "Test key",
-        isActive: true,
         expiresAt: "2024-12-31T23:59:59.000Z"
       });
 
@@ -185,8 +181,7 @@ describe("API Keys", () => {
       expect(apiKey).toMatchObject({
         userId: user.id,
         name: "Test key",
-        description: "Test key",
-        isActive: true
+        description: "Test key"
       });
     });
   });
@@ -199,8 +194,7 @@ describe("API Keys", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           data: {
-            name: "Updated key",
-            isActive: false
+            name: "Updated key"
           }
         })
       });
@@ -224,8 +218,7 @@ describe("API Keys", () => {
         },
         body: JSON.stringify({
           data: {
-            description: "Updated key",
-            isActive: false
+            description: "Updated key"
           }
         })
       });
@@ -235,16 +228,14 @@ describe("API Keys", () => {
       expect(result.data).toMatchObject({
         id: apiKey.id,
         name: "Test key",
-        description: "Updated key",
-        isActive: false
+        description: "Updated key"
       });
 
       const updatedApiKey = await apiKeyRepository.findOneBy({ id: apiKey.id });
       expect(updatedApiKey).toBeDefined();
       expect(updatedApiKey).toMatchObject({
         name: "Test key",
-        description: "Updated key",
-        isActive: false
+        description: "Updated key"
       });
     });
   });
