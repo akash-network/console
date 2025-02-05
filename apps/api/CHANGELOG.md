@@ -1,5 +1,12 @@
 
 
+## [2.58.1](https://github.com/akash-network/console/compare/console-api/v2.58.0...console-api/v2.58.1) (2025-02-05)
+
+
+### Bug Fixes
+
+* **deployment:** searches leases with the correct params ([#794](https://github.com/akash-network/console/issues/794)) ([b93eedf](https://github.com/akash-network/console/commit/b93eedfb62b5d19ece300bfc8e60e7109289d5ea))
+
 ## [2.58.0](https://github.com/akash-network/console/compare/console-api/v2.57.0...console-api/v2.58.0) (2025-02-05)
 
 
