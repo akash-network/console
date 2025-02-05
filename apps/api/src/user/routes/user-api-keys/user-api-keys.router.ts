@@ -26,7 +26,9 @@ const listRoute = createRoute({
       description: "Returns list of API keys",
       content: {
         "application/json": {
-          schema: z.array(UserApiKeyResponseSchema)
+          schema: z.object({
+            data: z.array(UserApiKeyResponseSchema)
+          })
         }
       }
     }
@@ -46,7 +48,9 @@ const getRoute = createRoute({
       description: "Returns API key details",
       content: {
         "application/json": {
-          schema: UserApiKeyResponseSchema
+          schema: z.object({
+            data: UserApiKeyResponseSchema
+          })
         }
       }
     },
@@ -75,7 +79,9 @@ const postRoute = createRoute({
     body: {
       content: {
         "application/json": {
-          schema: CreateUserApiKeyRequestSchema
+          schema: z.object({
+            data: CreateUserApiKeyRequestSchema
+          })
         }
       }
     }
@@ -85,7 +91,9 @@ const postRoute = createRoute({
       description: "API key created successfully",
       content: {
         "application/json": {
-          schema: UserApiKeyResponseSchema
+          schema: z.object({
+            data: UserApiKeyResponseSchema
+          })
         }
       }
     }
@@ -102,7 +110,9 @@ const patchRoute = createRoute({
     body: {
       content: {
         "application/json": {
-          schema: UpdateUserApiKeyRequestSchema
+          schema: z.object({
+            data: UpdateUserApiKeyRequestSchema
+          })
         }
       }
     }
@@ -112,7 +122,9 @@ const patchRoute = createRoute({
       description: "API key updated successfully",
       content: {
         "application/json": {
-          schema: UserApiKeyResponseSchema
+          schema: z.object({
+            data: UserApiKeyResponseSchema
+          })
         }
       }
     },
@@ -142,7 +154,9 @@ const deleteRoute = createRoute({
       description: "API key deleted successfully",
       content: {
         "application/json": {
-          schema: UserApiKeyResponseSchema
+          schema: z.object({
+            data: UserApiKeyResponseSchema
+          })
         }
       }
     },
@@ -164,34 +178,31 @@ export const userApiKeysRouter = new OpenApiHonoHandler();
 userApiKeysRouter.openapi(listRoute, async function routeListApiKeys(c) {
   const { userId } = c.req.valid("param");
   const result = await container.resolve(UserApiKeyController).findAll(userId);
-  return c.json(
-    result.map(r => r.data),
-    200
-  );
+  return c.json(result, 200);
 });
 
 userApiKeysRouter.openapi(getRoute, async function routeGetApiKey(c) {
   const { id, userId } = c.req.valid("param");
   const result = await container.resolve(UserApiKeyController).findById(id, userId);
-  return c.json(result.data, 200);
+  return c.json(result, 200);
 });
 
 userApiKeysRouter.openapi(postRoute, async function routeCreateApiKey(c) {
   const { userId } = c.req.valid("param");
   const { data } = c.req.valid("json");
   const result = await container.resolve(UserApiKeyController).create(userId, data);
-  return c.json(result.data, 201);
+  return c.json(result, 201);
 });
 
 userApiKeysRouter.openapi(patchRoute, async function routeUpdateApiKey(c) {
   const { id, userId } = c.req.valid("param");
   const { data } = c.req.valid("json");
   const result = await container.resolve(UserApiKeyController).update(id, userId, data);
-  return c.json(result.data, 200);
+  return c.json(result, 200);
 });
 
 userApiKeysRouter.openapi(deleteRoute, async function routeDeleteApiKey(c) {
   const { id, userId } = c.req.valid("param");
   const result = await container.resolve(UserApiKeyController).delete(id, userId);
-  return c.json(result.data, 200);
+  return c.json(result, 200);
 });

@@ -35,10 +35,10 @@ describe("User API Keys", () => {
       });
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual([]);
+      expect(await response.json()).toEqual({ data: [] });
     });
 
-    it("should return 404 when accessing other user's API keys", async () => {
+    it("should return an empty array when accessing other user's API keys", async () => {
       const [{ user: user1 }, { token: token2 }] = await Promise.all([walletService.createUserAndWallet(), walletService.createUserAndWallet()]);
 
       await userApiKeyRepository.create({
@@ -53,7 +53,8 @@ describe("User API Keys", () => {
         }
       });
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ data: [] });
     });
 
     it("should return list of API keys", async () => {
@@ -62,6 +63,11 @@ describe("User API Keys", () => {
         userId: user.id,
         apiKey: `AKT_${faker.string.uuid()}`,
         description: "Test key"
+      });
+      const apiKey2 = await userApiKeyRepository.create({
+        userId: user.id,
+        apiKey: `AKT_${faker.string.uuid()}`,
+        description: "Test key 2"
       });
 
       const response = await app.request(`/v1/users/${user.id}/api-keys`, {
@@ -72,10 +78,15 @@ describe("User API Keys", () => {
 
       expect(response.status).toBe(200);
       const result = await response.json();
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0]).toMatchObject({
         id: apiKey.id,
         description: "Test key",
+        isActive: true
+      });
+      expect(result.data[1]).toMatchObject({
+        id: apiKey2.id,
+        description: "Test key 2",
         isActive: true
       });
     });
@@ -146,7 +157,9 @@ describe("User API Keys", () => {
           isActive: true,
           expiresAt: null,
           createdAt: expect.any(String),
-          updatedAt: expect.any(String)
+          updatedAt: expect.any(String),
+          userId: user.id,
+          apiKey: apiKey.apiKey
         }
       });
     });
