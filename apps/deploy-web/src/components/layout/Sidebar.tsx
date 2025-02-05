@@ -112,18 +112,19 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       hasDivider: false,
       routes: [
         {
-          title: "Deploy with an Expert",
-          icon: props => <HeadsetHelp {...props} />,
-          url: "https://share.hsforms.com/1gQOaeJXgQ-GMc7MnsTOmsAsaima",
-          activeRoutes: [],
-          target: "_blank"
-        },
-        {
           title: "Akash Network",
           icon: props => <Image src="/images/akash-logo.svg" alt="Akash Logo" quality={100} width={20} height={20} {...props} />,
           url: "https://akash.network",
           activeRoutes: [],
           target: "_blank"
+        },
+        {
+          title: "Deploy with an Expert",
+          icon: props => <HeadsetHelp {...props} />,
+          url: "https://share.hsforms.com/1gQOaeJXgQ-GMc7MnsTOmsAsaima",
+          activeRoutes: [],
+          target: "_blank",
+          isNew: true
         },
         {
           title: "Stats",
