@@ -1,5 +1,12 @@
 
 
+## [2.58.0](https://github.com/akash-network/console/compare/console-api/v2.57.0...console-api/v2.58.0) (2025-02-05)
+
+
+### Features
+
+* **deployment:** implements ui auto top up toggle ([f03df32](https://github.com/akash-network/console/commit/f03df324e1064f76b477cf888278eb4ad8f443cf)), closes [#714](https://github.com/akash-network/console/issues/714)
+
 ## [2.57.0](https://github.com/akash-network/console/compare/console-api/v2.56.0...console-api/v2.57.0) (2025-02-05)
 
 
