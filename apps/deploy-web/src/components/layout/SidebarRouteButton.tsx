@@ -44,7 +44,7 @@ export const SidebarRouteButton: React.FunctionComponent<Props> = ({ route, clas
         </span>
       )}
       {isNavOpen && <span className="mb-1 ml-4 mt-1 min-w-0 flex-auto whitespace-nowrap">{route.title}</span>}
-      {route.isNew && <Badge className="absolute right-[.1rem] top-1/2 h-4 -translate-y-1/2 pl-1 pr-1 text-[.5rem] leading-3">New</Badge>}
+      {route.isNew && <Badge className="absolute right-3 top-1/2 h-4 -translate-y-1/2 pl-1 pr-1 text-[.5rem] leading-3">New</Badge>}
     </>
   );
 

@@ -119,7 +119,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           target: "_blank"
         },
         {
-          title: "Deploy with an Expert",
+          title: "Deploy with Expert",
           icon: props => <HeadsetHelp {...props} />,
           url: "https://share.hsforms.com/1gQOaeJXgQ-GMc7MnsTOmsAsaima",
           activeRoutes: [],
