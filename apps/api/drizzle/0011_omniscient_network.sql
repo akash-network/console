@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS "api_keys" (
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"expires_at" timestamp,
-	"is_active" boolean DEFAULT true NOT NULL,
 	CONSTRAINT "api_keys_api_key_unique" UNIQUE("api_key")
 );
 --> statement-breakpoint
