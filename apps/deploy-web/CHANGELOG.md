@@ -1,5 +1,12 @@
 
 
+## [2.40.0](https://github.com/akash-network/console/compare/console-web/v2.39.0...console-web/v2.40.0) (2025-02-05)
+
+
+### Features
+
+* **deployment:** add help sidebar link ([54c501c](https://github.com/akash-network/console/commit/54c501c65276c621b7bf440d758a7c5a4ae3acb6)), closes [#788](https://github.com/akash-network/console/issues/788)
+
 ## [2.39.0](https://github.com/akash-network/console/compare/console-web/v2.38.0...console-web/v2.39.0) (2025-02-05)
 
 
