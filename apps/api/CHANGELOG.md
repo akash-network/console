@@ -1,5 +1,12 @@
 
 
+## [2.57.0](https://github.com/akash-network/console/compare/console-api/v2.56.0...console-api/v2.57.0) (2025-02-05)
+
+
+### Features
+
+* **deployment:** implement deployment settings api ([5e2b976](https://github.com/akash-network/console/commit/5e2b9763242c58025865e3f9b583336eaeda58a6)), closes [#714](https://github.com/akash-network/console/issues/714)
+
 ## [2.56.0](https://github.com/akash-network/console/compare/console-api/v2.55.1...console-api/v2.56.0) (2025-02-03)
 
 
