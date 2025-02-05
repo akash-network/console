@@ -1,5 +1,12 @@
 
 
+## [2.39.0](https://github.com/akash-network/console/compare/console-web/v2.38.0...console-web/v2.39.0) (2025-02-05)
+
+
+### Features
+
+* **deployment:** implements ui auto top up toggle ([f03df32](https://github.com/akash-network/console/commit/f03df324e1064f76b477cf888278eb4ad8f443cf)), closes [#714](https://github.com/akash-network/console/issues/714)
+
 ## [2.38.0](https://github.com/akash-network/console/compare/console-web/v2.37.1...console-web/v2.38.0) (2025-02-03)
 
 
