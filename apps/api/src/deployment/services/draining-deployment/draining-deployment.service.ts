@@ -1,6 +1,7 @@
 import keyBy from "lodash/keyBy";
 import { singleton } from "tsyringe";
 
+import { UserWalletRepository } from "@src/billing/repositories";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { AutoTopUpDeployment, DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
@@ -16,6 +17,7 @@ export class DrainingDeploymentService {
   constructor(
     private readonly blockHttpService: BlockHttpService,
     private readonly leaseRepository: LeaseRepository,
+    private readonly userWalletRepository: UserWalletRepository,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly config: DeploymentConfigService
   ) {}
@@ -47,8 +49,14 @@ export class DrainingDeploymentService {
     });
   }
 
-  async calculateTopUpAmountForDseqAndOwner(dseq: string, owner: string): Promise<number> {
-    const deploymentSetting = await this.leaseRepository.findOneByDseqAndOwner(dseq, owner);
+  async calculateTopUpAmountForDseqAndUserId(dseq: string, userId: string): Promise<number> {
+    const userWallet = await this.userWalletRepository.findOneByUserId(userId);
+
+    if (!userWallet) {
+      return 0;
+    }
+
+    const deploymentSetting = await this.leaseRepository.findOneByDseqAndOwner(dseq, userWallet.address);
 
     if (!deploymentSetting) {
       return 0;

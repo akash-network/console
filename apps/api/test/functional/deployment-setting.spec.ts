@@ -74,7 +74,7 @@ describe("Deployment Settings", () => {
     });
 
     it("should return deployment settings if found", async () => {
-      const { token, user } = await walletService.createUserAndWallet();
+      const { token, user, wallet } = await walletService.createUserAndWallet();
       const dseq = faker.string.numeric();
 
       const settings = await deploymentSettingRepository.create({
@@ -102,7 +102,7 @@ describe("Deployment Settings", () => {
           topUpFrequencyMs: expect.any(Number)
         }
       });
-      expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, user.id);
+      expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, wallet.address);
     });
   });
 
@@ -153,7 +153,7 @@ describe("Deployment Settings", () => {
     });
 
     it("should create deployment settings", async () => {
-      const { token, user } = await walletService.createUserAndWallet();
+      const { token, user, wallet } = await walletService.createUserAndWallet();
       const dseq = faker.string.numeric();
 
       const response = await app.request("/v1/deployment-settings", {
@@ -186,7 +186,7 @@ describe("Deployment Settings", () => {
         dseq,
         autoTopUpEnabled: true
       });
-      expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, user.id);
+      expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, wallet.address);
     });
   });
 
@@ -208,7 +208,7 @@ describe("Deployment Settings", () => {
     });
 
     it("should create and return new setting if not found", async () => {
-      const { token, user } = await walletService.createUserAndWallet();
+      const { token, user, wallet } = await walletService.createUserAndWallet();
       const dseq = faker.string.numeric();
 
       const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
@@ -239,7 +239,7 @@ describe("Deployment Settings", () => {
         dseq,
         autoTopUpEnabled: true
       });
-      expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, user.id);
+      expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, wallet.address);
     });
 
     it("should return 404 when updating other user's deployment settings", async () => {
@@ -273,7 +273,7 @@ describe("Deployment Settings", () => {
     });
 
     it("should update deployment settings", async () => {
-      const { token, user } = await walletService.createUserAndWallet();
+      const { token, user, wallet } = await walletService.createUserAndWallet();
       const dseq = faker.string.numeric();
 
       const settings = await deploymentSettingRepository.create({
@@ -312,7 +312,7 @@ describe("Deployment Settings", () => {
         dseq,
         autoTopUpEnabled: true
       });
-      expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, user.id);
+      expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, wallet.address);
     });
   });
 });
