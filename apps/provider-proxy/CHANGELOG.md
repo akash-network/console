@@ -1,5 +1,17 @@
 
 
+## [1.3.4](https://github.com/akash-network/console/compare/provider-proxy/v1.3.3...provider-proxy/v1.3.4) (2025-02-05)
+
+
+### Bug Fixes
+
+* concurrent provider certs validation ([#766](https://github.com/akash-network/console/issues/766)) ([600c7cd](https://github.com/akash-network/console/commit/600c7cd462562457e042af68853db8cc9af199af))
+
+
+### Code Refactoring
+
+* extracts websocket proxy into a separate service ([#779](https://github.com/akash-network/console/issues/779)) ([2f0cb14](https://github.com/akash-network/console/commit/2f0cb14b75bcd5e1d7bc5cfd8fd683b30dc75166))
+
 ## [1.3.3](https://github.com/akash-network/console/compare/provider-proxy/v1.3.2...provider-proxy/v1.3.3) (2025-01-31)
 
 
