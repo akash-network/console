@@ -28,7 +28,7 @@ export class WebsocketServer {
   constructor(
     private readonly appServer: http.Server,
     private readonly certificateValidator: CertificateValidator,
-    private readonly logger?: LoggerService
+    private readonly createLogger: LoggerService["setContext"]
   ) {}
 
   close(): void {
@@ -46,7 +46,7 @@ export class WebsocketServer {
 
     this.wss.on("connection", ws => {
       const id = uuidv4();
-      const wsLogger = this.logger?.setContext(id);
+      const wsLogger = this.createLogger?.(id);
 
       const stats = new ClientWebSocketStats(id);
       container.wsStats.add(stats);
@@ -209,8 +209,7 @@ export class WebsocketServer {
             pws.removeAllListeners("message");
             pws.removeAllListeners("verified");
 
-            const reason = result.code === "serverError" ? "Could not validate SSL certificate" : `Invalid SSL certificate: ${result.code}`;
-            pws.close(WS_ERRORS.VIOLATED_POLICY, reason);
+            pws.close(WS_ERRORS.VIOLATED_POLICY, `invalidCertificate.${result.code}`);
           } else {
             // ensure that socket was not closed while its certificate was validating
             if (pws.readyState === WebSocket.OPEN && this.openProviderSockets[options.wsId]) {

@@ -162,7 +162,7 @@ describe("Provider proxy ws", () => {
       providerMessage("", {
         closed: true,
         code: 1008,
-        reason: "Invalid SSL certificate: unknownCertificate"
+        reason: "invalidCertificate.unknownCertificate"
       })
     );
 
