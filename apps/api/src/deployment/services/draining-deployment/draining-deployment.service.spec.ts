@@ -1,28 +1,29 @@
 import "@test/mocks/logger-service.mock";
 
+import { faker } from "@faker-js/faker";
+
+import { UserWalletRepository } from "@src/billing/repositories";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { AutoTopUpDeployment, DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
+import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "./draining-deployment.service";
 
-import { MockConfigService } from "@test/mocks/config-service.mock";
+import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
 import { AutoTopUpDeploymentSeeder } from "@test/seeders/auto-top-up-deployment.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
+import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
 jest.mock("@akashnetwork/logging");
-
-type DeploymentConfigValues = {
-  AUTO_TOP_UP_JOB_INTERVAL_IN_H: number;
-  AUTO_TOP_UP_DEPLOYMENT_INTERVAL_IN_H: number;
-};
 
 describe(DrainingDeploymentService.name, () => {
   let blockHttpService: jest.Mocked<BlockHttpService>;
   let leaseRepository: jest.Mocked<LeaseRepository>;
+  let userWalletRepository: jest.Mocked<UserWalletRepository>;
   let deploymentSettingRepository: jest.Mocked<DeploymentSettingRepository>;
   let service: DrainingDeploymentService;
-  let config: MockConfigService<DeploymentConfigValues>;
+  let config: jest.Mocked<DeploymentConfigService>;
   const CURRENT_BLOCK_HEIGHT = 7481457;
 
   beforeEach(() => {
@@ -32,19 +33,29 @@ describe(DrainingDeploymentService.name, () => {
     } as Partial<jest.Mocked<BlockHttpService>> as jest.Mocked<BlockHttpService>;
 
     leaseRepository = {
-      findManyByDseqAndOwner: jest.fn()
+      findManyByDseqAndOwner: jest.fn(),
+      findOneByDseqAndOwner: jest.fn()
     } as Partial<jest.Mocked<LeaseRepository>> as jest.Mocked<LeaseRepository>;
+
+    userWalletRepository = {
+      findOneByUserId: jest.fn()
+    } as Partial<jest.Mocked<UserWalletRepository>> as jest.Mocked<UserWalletRepository>;
 
     deploymentSettingRepository = {
       paginateAutoTopUpDeployments: jest.fn()
     } as Partial<jest.Mocked<DeploymentSettingRepository>> as jest.Mocked<DeploymentSettingRepository>;
 
-    config = new MockConfigService<DeploymentConfigValues>({
+    const configValues = {
       AUTO_TOP_UP_JOB_INTERVAL_IN_H: 1,
       AUTO_TOP_UP_DEPLOYMENT_INTERVAL_IN_H: 3
-    });
+    };
 
-    service = new DrainingDeploymentService(blockHttpService, leaseRepository, deploymentSettingRepository, config);
+    config = {
+      get: jest.fn().mockImplementation((key: keyof typeof configValues) => configValues[key]),
+      config: configValues
+    } as unknown as jest.Mocked<DeploymentConfigService>;
+
+    service = new DrainingDeploymentService(blockHttpService, leaseRepository, userWalletRepository, deploymentSettingRepository, config);
   });
 
   describe("paginate", () => {
@@ -154,6 +165,53 @@ describe(DrainingDeploymentService.name, () => {
         const result = await service.calculateTopUpAmount(testCase.input);
         expect(result).toBe(testCase.expected);
       });
+    });
+  });
+
+  describe("calculateTopUpAmountForDseqAndUserId", () => {
+    const userId = faker.string.uuid();
+    const dseq = faker.string.numeric(6);
+    const address = AkashAddressSeeder.create();
+    const userWallet = UserWalletSeeder.create({ address });
+    const expectedTopUpAmount = 100000;
+
+    beforeEach(() => {
+      userWalletRepository.findOneByUserId.mockResolvedValue(userWallet);
+      jest.spyOn(service, "calculateTopUpAmount").mockResolvedValue(expectedTopUpAmount);
+    });
+
+    it("should calculate top up amount for valid deployment", async () => {
+      const deployment = DrainingDeploymentSeeder.create();
+      leaseRepository.findOneByDseqAndOwner.mockResolvedValue(deployment);
+
+      const amount = await service.calculateTopUpAmountForDseqAndUserId(dseq, userId);
+
+      expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(userId);
+      expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, address);
+      expect(service.calculateTopUpAmount).toHaveBeenCalledWith(deployment);
+      expect(amount).toBe(expectedTopUpAmount);
+    });
+
+    it("should return 0 if user wallet not found", async () => {
+      userWalletRepository.findOneByUserId.mockResolvedValue(null);
+
+      const amount = await service.calculateTopUpAmountForDseqAndUserId(dseq, userId);
+
+      expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(userId);
+      expect(leaseRepository.findOneByDseqAndOwner).not.toHaveBeenCalled();
+      expect(service.calculateTopUpAmount).not.toHaveBeenCalled();
+      expect(amount).toBe(0);
+    });
+
+    it("should return 0 if lease not found", async () => {
+      leaseRepository.findOneByDseqAndOwner.mockResolvedValue(null);
+
+      const amount = await service.calculateTopUpAmountForDseqAndUserId(dseq, userId);
+
+      expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(userId);
+      expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, address);
+      expect(service.calculateTopUpAmount).not.toHaveBeenCalled();
+      expect(amount).toBe(0);
     });
   });
 });
