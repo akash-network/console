@@ -17,7 +17,7 @@ export type DeploymentSettingsOutput = Omit<DeploymentSettingsDbOutput, "created
 };
 
 export type AutoTopUpDeployment = {
-  id: number;
+  id: string;
   walletId: number;
   dseq: string;
   address: string;
@@ -38,7 +38,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
   }
 
   async paginateAutoTopUpDeployments(options: { limit: number }, cb: (page: AutoTopUpDeployment[]) => Promise<void>) {
-    let lastId: number | undefined;
+    let lastId: string | undefined;
 
     do {
       const clauses = [eq(this.table.autoTopUpEnabled, true)];
@@ -69,13 +69,11 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     } while (lastId);
   }
 
-  protected toOutput(payload: DeploymentSettingsDbOutput): DeploymentSettingsOutput {
-    return payload
-      ? {
-          ...payload,
-          createdAt: payload.createdAt.toISOString(),
-          updatedAt: payload.updatedAt.toISOString()
-        }
-      : undefined;
+  protected toInput(payload: Partial<DeploymentSettingsInput>): Partial<DeploymentSettingsInput> {
+    if (!payload.updatedAt) {
+      payload.updatedAt = new Date();
+    }
+
+    return payload;
   }
 }

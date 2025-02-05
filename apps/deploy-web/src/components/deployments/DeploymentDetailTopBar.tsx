@@ -1,16 +1,21 @@
 "use client";
 import { Dispatch, ReactNode, SetStateAction, useState } from "react";
-import { Button, DropdownMenu, DropdownMenuContent } from "@akashnetwork/ui/components";
+import { Button, CustomTooltip, DropdownMenu, DropdownMenuContent, Switch } from "@akashnetwork/ui/components";
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
+import { formatDuration, intervalToDuration } from "date-fns";
 import { Edit, MoreHoriz, NavArrowLeft, Refresh, Upload, XmarkSquare } from "iconoir-react";
 import { useRouter } from "next/navigation";
 import { event } from "nextjs-google-analytics";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { usePricing } from "@src/context/PricingProvider/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
+import { useUser } from "@src/hooks/useUser";
+import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { DeploymentDto } from "@src/types/deployment";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -28,13 +33,16 @@ type Props = {
 
 export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address, loadDeploymentDetail, removeLeases, setActiveTab, deployment }) => {
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
+  const { udenomToUsd } = usePricing();
   const router = useRouter();
-  const { signAndBroadcastTx } = useWallet();
+  const { signAndBroadcastTx, isManaged } = useWallet();
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const deploymentName = getDeploymentName(deployment?.dseq);
   const previousRoute = usePreviousRoute();
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
+  const user = useUser();
+  const deploymentSetting = useDeploymentSettingQuery({ userId: user?.id, dseq: deployment.dseq });
 
   function handleBackClick() {
     if (previousRoute) {
@@ -128,10 +136,33 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
                 </CustomDropdownLinkItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
             <Button variant="default" className="ml-2 whitespace-nowrap" onClick={() => setIsDepositingDeployment(true)} size="sm">
               Add funds
             </Button>
+
+            {isManaged && (
+              <div className="ml-4 flex items-center gap-2">
+                <Switch checked={deploymentSetting.data?.autoTopUpEnabled} onCheckedChange={deploymentSetting.setAutoTopUpEnabled} />
+                <span>Auto top-up</span>
+                <CustomTooltip
+                  title={
+                    <div className="space-y-2">
+                      <div>
+                        <div>
+                          Estimated amount: ${udenomToUsd(deploymentSetting.data?.estimatedTopUpAmount || 0, browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM)}
+                        </div>
+                        <div>Check period: {formatDuration(intervalToDuration({ start: 0, end: deploymentSetting.data?.topUpFrequencyMs || 0 }))}</div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Auto top-up will only occur if there are insufficient funds to maintain the deployment until the next scheduled check.
+                      </div>
+                    </div>
+                  }
+                >
+                  <span className="cursor-help text-muted-foreground">ⓘ</span>
+                </CustomTooltip>
+              </div>
+            )}
           </div>
         )}
 

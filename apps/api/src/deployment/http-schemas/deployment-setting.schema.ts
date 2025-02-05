@@ -1,10 +1,12 @@
 import { z } from "zod";
 
 const DeploymentSettingSchema = z.object({
-  id: z.number(),
+  id: z.string().uuid(),
   userId: z.string(),
   dseq: z.string(),
   autoTopUpEnabled: z.boolean(),
+  estimatedTopUpAmount: z.number(),
+  topUpFrequencyMs: z.number(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()
 });

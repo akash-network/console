@@ -9,3 +9,4 @@ export * from "./block/block-http.service";
 export * from "./types/denom.type";
 export * from "./template/template-http.service";
 export * from "./auth/auth-http.service";
+export * from "./deployment-setting/deployment-setting-http.service";

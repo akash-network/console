@@ -12,6 +12,21 @@ export interface DrainingDeploymentOutput {
 
 @singleton()
 export class LeaseRepository {
+  async findOneByDseqAndOwner(dseq: string, owner: string): Promise<DrainingDeploymentOutput | null> {
+    const leases = await Lease.findAll({
+      where: { dseq, owner },
+      attributes: ["dseq", "owner", "denom", [fn("min", col("predictedClosedHeight")), "predictedClosedHeight"], [fn("sum", col("price")), "blockRate"]],
+      group: ["dseq", "owner", "denom"],
+      raw: true
+    });
+
+    if (leases.length) {
+      return leases[0] as unknown as DrainingDeploymentOutput;
+    }
+
+    return null;
+  }
+
   async findManyByDseqAndOwner(closureHeight: number, pairs: { dseq: string; owner: string }[]): Promise<DrainingDeploymentOutput[]> {
     if (!pairs.length) return [];
 
