@@ -65,7 +65,7 @@ export class DeploymentSettingService {
       return { ...params, estimatedTopUpAmount: 0, topUpFrequencyMs: this.topUpFrequencyMs };
     }
 
-    const estimatedTopUpAmount = await this.drainingDeploymentService.calculateTopUpAmountForDseqAndOwner(params.dseq, params.userId);
+    const estimatedTopUpAmount = await this.drainingDeploymentService.calculateTopUpAmountForDseqAndUserId(params.dseq, params.userId);
 
     return { ...params, estimatedTopUpAmount, topUpFrequencyMs: this.topUpFrequencyMs };
   }
