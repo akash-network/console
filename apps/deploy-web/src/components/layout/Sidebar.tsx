@@ -6,7 +6,7 @@ import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import type { ClassValue } from "clsx";
-import { Discord, Github, Menu, MenuScale, Rocket, X as TwitterX, Youtube } from "iconoir-react";
+import { Discord, Github, HeadsetHelp, Menu, MenuScale, Rocket, X as TwitterX, Youtube } from "iconoir-react";
 import { Cloud, HelpCircle, Home, MultiplePages, OpenInWindow, Server, Settings, Tools } from "iconoir-react";
 import { useAtom } from "jotai";
 import getConfig from "next/config";
@@ -111,6 +111,13 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
     {
       hasDivider: false,
       routes: [
+        {
+          title: "Deploy with an Expert",
+          icon: props => <HeadsetHelp {...props} />,
+          url: "https://share.hsforms.com/1gQOaeJXgQ-GMc7MnsTOmsAsaima",
+          activeRoutes: [],
+          target: "_blank"
+        },
         {
           title: "Akash Network",
           icon: props => <Image src="/images/akash-logo.svg" alt="Akash Logo" quality={100} width={20} height={20} {...props} />,
