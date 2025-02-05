@@ -152,6 +152,8 @@ describe("API Keys", () => {
 
     it("should create API key", async () => {
       const { token, user } = await walletService.createUserAndWallet();
+      const futureDate = new Date();
+      futureDate.setFullYear(futureDate.getFullYear() + 1); // 1 year from now
 
       const response = await app.request("/v1/api-keys", {
         method: "POST",
@@ -163,7 +165,7 @@ describe("API Keys", () => {
           data: {
             name: "Test key",
             description: "Test key",
-            expiresAt: "2024-12-31T23:59:59Z"
+            expiresAt: futureDate.toISOString()
           }
         })
       });
@@ -173,7 +175,7 @@ describe("API Keys", () => {
       expect(result.data).toMatchObject({
         name: "Test key",
         description: "Test key",
-        expiresAt: "2024-12-31T23:59:59.000Z"
+        expiresAt: futureDate.toISOString()
       });
 
       const apiKey = await apiKeyRepository.findOneBy({ id: result.data.id });
@@ -182,6 +184,40 @@ describe("API Keys", () => {
         userId: user.id,
         name: "Test key",
         description: "Test key"
+      });
+    });
+
+    it("should reject API key creation with past expiration date", async () => {
+      const { token } = await walletService.createUserAndWallet();
+      const pastDate = new Date();
+      pastDate.setFullYear(pastDate.getFullYear() - 1); // 1 year ago
+
+      const response = await app.request("/v1/api-keys", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          data: {
+            name: "Test key",
+            description: "Test key",
+            expiresAt: pastDate.toISOString()
+          }
+        })
+      });
+
+      expect(response.status).toBe(400);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "BadRequestError",
+        data: [
+          {
+            code: "custom",
+            message: "Expiration date must be in the future",
+            path: ["data", "expiresAt"]
+          }
+        ]
       });
     });
   });
