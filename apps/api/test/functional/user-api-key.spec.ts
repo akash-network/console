@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
-import { UserApiKeyRepository } from "@src/user/repositories/user-api-key/user-api-key.repository";
+import { UserApiKeyRepository } from "@src/auth/repositories/user-api-key/api-key.repository";
 
 import { DbTestingService } from "@test/services/db-testing.service";
 import { WalletTestingService } from "@test/services/wallet-testing.service";

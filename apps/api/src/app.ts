@@ -15,6 +15,7 @@ import { HttpLoggerService } from "@src/core/services/http-logger/http-logger.se
 import { RequestContextInterceptor } from "@src/core/services/request-context-interceptor/request-context.interceptor";
 import { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import packageJson from "../package.json";
+import { userApiKeysRouter } from "./auth/routes/api-keys/api-keys.router";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
@@ -24,7 +25,6 @@ import { internalRouter } from "./routers/internalRouter";
 import { legacyRouter } from "./routers/legacyRouter";
 import { userRouter } from "./routers/userRouter";
 import { web3IndexRouter } from "./routers/web3indexRouter";
-import { userApiKeysRouter } from "./user/routes/user-api-keys/user-api-keys.router";
 import { env } from "./utils/env";
 import { bytesToHumanReadableSize } from "./utils/files";
 import { sendVerificationEmailRouter } from "./auth";

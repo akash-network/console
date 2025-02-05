@@ -1,14 +1,9 @@
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
+import { CreateUserApiKeyRequest, ListUserApiKeysResponse, SingleUserApiKeyResponse, UpdateUserApiKeyRequest } from "@src/auth/http-schemas/api-key.schema";
+import { UserApiKeyService } from "@src/auth/services/api-key/api-key.service";
 import { Protected } from "@src/auth/services/auth.service";
-import {
-  CreateUserApiKeyRequest,
-  ListUserApiKeysResponse,
-  SingleUserApiKeyResponse,
-  UpdateUserApiKeyRequest
-} from "@src/user/http-schemas/user-api-key.schema";
-import { UserApiKeyService } from "@src/user/services/user-api-key/user-api-key.service";
 
 @singleton()
 export class UserApiKeyController {

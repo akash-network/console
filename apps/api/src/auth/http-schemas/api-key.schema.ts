@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-// Base schemas
 export const UserApiKeyResponseSchema = z.object({
   id: z.string().uuid(),
+  name: z.string(),
   description: z.string().nullable(),
   isActive: z.boolean(),
   expiresAt: z.string().datetime().nullable(),
@@ -10,7 +10,6 @@ export const UserApiKeyResponseSchema = z.object({
   updatedAt: z.string().datetime()
 });
 
-// Request schemas
 export const CreateUserApiKeyRequestSchema = z.object({
   description: z.string().optional(),
   expiresAt: z.string().datetime().optional()
@@ -22,7 +21,6 @@ export const UpdateUserApiKeyRequestSchema = z.object({
   expiresAt: z.string().datetime().optional()
 });
 
-// Route parameter schemas
 export const UserIdParamSchema = z.object({
   userId: z.string().uuid()
 });
@@ -31,7 +29,6 @@ export const FindUserApiKeyParamsSchema = UserIdParamSchema.extend({
   id: z.string().uuid()
 });
 
-// Response wrapper schemas
 export const ListUserApiKeysResponseSchema = z.object({
   data: z.array(UserApiKeyResponseSchema)
 });
@@ -48,12 +45,10 @@ export const UpdateUserApiKeyRequestWrapperSchema = z.object({
   data: UpdateUserApiKeyRequestSchema
 });
 
-// Error response schema
 export const ErrorResponseSchema = z.object({
   message: z.string()
 });
 
-// Type exports
 export type UserApiKeyResponse = z.infer<typeof UserApiKeyResponseSchema>;
 export type ListUserApiKeysResponse = z.infer<typeof ListUserApiKeysResponseSchema>;
 export type SingleUserApiKeyResponse = z.infer<typeof SingleUserApiKeyResponseSchema>;

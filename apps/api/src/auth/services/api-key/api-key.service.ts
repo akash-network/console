@@ -1,9 +1,9 @@
 import { randomUUID } from "crypto";
 import { singleton } from "tsyringe";
 
+import { CreateUserApiKeyRequest, UpdateUserApiKeyRequest } from "@src/auth/http-schemas/api-key.schema";
+import { UserApiKeyOutput, UserApiKeyRepository } from "@src/auth/repositories/user-api-key/api-key.repository";
 import { AuthService } from "@src/auth/services/auth.service";
-import { CreateUserApiKeyRequest, UpdateUserApiKeyRequest } from "@src/user/http-schemas/user-api-key.schema";
-import { UserApiKeyOutput, UserApiKeyRepository } from "@src/user/repositories/user-api-key/user-api-key.repository";
 
 @singleton()
 export class UserApiKeyService {

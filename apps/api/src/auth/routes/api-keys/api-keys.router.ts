@@ -2,14 +2,14 @@ import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
-import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
-import { UserApiKeyController } from "@src/user/controllers/user-api-keys/user-api-keys.controller";
+import { UserApiKeyController } from "@src/auth/controllers/api-key/api-key.controller";
 import {
   CreateUserApiKeyRequestSchema,
   FindUserApiKeyParamsSchema,
   UpdateUserApiKeyRequestSchema,
   UserApiKeyResponseSchema
-} from "@src/user/http-schemas/user-api-key.schema";
+} from "@src/auth/http-schemas/api-key.schema";
+import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
 const listRoute = createRoute({
   method: "get",

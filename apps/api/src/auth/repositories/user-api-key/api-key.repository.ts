@@ -4,9 +4,10 @@ import { ApiPgDatabase, ApiPgTables, InjectPg, InjectPgTable } from "@src/core/p
 import { AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
 
-type Table = ApiPgTables["UserApiKeys"];
+type Table = ApiPgTables["ApiKeys"];
 export type UserApiKeyInput = Partial<Table["$inferInsert"]>;
 export type UserApiKeyDbOutput = Table["$inferSelect"];
+
 export type UserApiKeyOutput = Omit<UserApiKeyDbOutput, "createdAt" | "updatedAt" | "expiresAt"> & {
   createdAt: string;
   updatedAt: string | null;
@@ -17,10 +18,10 @@ export type UserApiKeyOutput = Omit<UserApiKeyDbOutput, "createdAt" | "updatedAt
 export class UserApiKeyRepository extends BaseRepository<Table, UserApiKeyInput, UserApiKeyOutput> {
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,
-    @InjectPgTable("UserApiKeys") protected readonly table: Table,
+    @InjectPgTable("ApiKeys") protected readonly table: Table,
     protected readonly txManager: TxService
   ) {
-    super(pg, table, txManager, "UserApiKey", "UserApiKeys");
+    super(pg, table, txManager, "ApiKey", "ApiKeys");
   }
 
   accessibleBy(...abilityParams: AbilityParams) {
