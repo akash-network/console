@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const UserApiKeyResponseSchema = z.object({
+export const ApiKeyResponseSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   description: z.string().nullable(),
@@ -10,49 +10,46 @@ export const UserApiKeyResponseSchema = z.object({
   updatedAt: z.string().datetime()
 });
 
-export const CreateUserApiKeyRequestSchema = z.object({
+export const CreateApiKeyRequestSchema = z.object({
+  name: z.string(),
   description: z.string().optional(),
   expiresAt: z.string().datetime().optional()
 });
 
-export const UpdateUserApiKeyRequestSchema = z.object({
+export const UpdateApiKeyRequestSchema = z.object({
+  name: z.string().optional(),
   description: z.string().optional(),
   isActive: z.boolean().optional(),
   expiresAt: z.string().datetime().optional()
 });
 
-export const UserIdParamSchema = z.object({
-  userId: z.string().uuid()
-});
-
-export const FindUserApiKeyParamsSchema = UserIdParamSchema.extend({
+export const FindApiKeyParamsSchema = z.object({
   id: z.string().uuid()
 });
 
-export const ListUserApiKeysResponseSchema = z.object({
-  data: z.array(UserApiKeyResponseSchema)
+export const ListApiKeysResponseSchema = z.object({
+  data: z.array(ApiKeyResponseSchema)
 });
 
-export const SingleUserApiKeyResponseSchema = z.object({
-  data: UserApiKeyResponseSchema
+export const SingleApiKeyResponseSchema = z.object({
+  data: ApiKeyResponseSchema
 });
 
-export const CreateUserApiKeyRequestWrapperSchema = z.object({
-  data: CreateUserApiKeyRequestSchema
+export const CreateApiKeyRequestWrapperSchema = z.object({
+  data: CreateApiKeyRequestSchema
 });
 
-export const UpdateUserApiKeyRequestWrapperSchema = z.object({
-  data: UpdateUserApiKeyRequestSchema
+export const UpdateApiKeyRequestWrapperSchema = z.object({
+  data: UpdateApiKeyRequestSchema
 });
 
 export const ErrorResponseSchema = z.object({
   message: z.string()
 });
 
-export type UserApiKeyResponse = z.infer<typeof UserApiKeyResponseSchema>;
-export type ListUserApiKeysResponse = z.infer<typeof ListUserApiKeysResponseSchema>;
-export type SingleUserApiKeyResponse = z.infer<typeof SingleUserApiKeyResponseSchema>;
-export type CreateUserApiKeyRequest = z.infer<typeof CreateUserApiKeyRequestWrapperSchema>;
-export type UpdateUserApiKeyRequest = z.infer<typeof UpdateUserApiKeyRequestWrapperSchema>;
-export type UserIdParam = z.infer<typeof UserIdParamSchema>;
-export type FindUserApiKeyParams = z.infer<typeof FindUserApiKeyParamsSchema>;
+export type ApiKeyResponse = z.infer<typeof ApiKeyResponseSchema>;
+export type ListApiKeysResponse = z.infer<typeof ListApiKeysResponseSchema>;
+export type SingleApiKeyResponse = z.infer<typeof SingleApiKeyResponseSchema>;
+export type CreateApiKeyRequest = z.infer<typeof CreateApiKeyRequestWrapperSchema>;
+export type UpdateApiKeyRequest = z.infer<typeof UpdateApiKeyRequestWrapperSchema>;
+export type FindApiKeyParams = z.infer<typeof FindApiKeyParamsSchema>;

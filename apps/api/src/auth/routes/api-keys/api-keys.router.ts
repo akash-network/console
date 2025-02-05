@@ -2,32 +2,22 @@ import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
-import { UserApiKeyController } from "@src/auth/controllers/api-key/api-key.controller";
-import {
-  CreateUserApiKeyRequestSchema,
-  FindUserApiKeyParamsSchema,
-  UpdateUserApiKeyRequestSchema,
-  UserApiKeyResponseSchema
-} from "@src/auth/http-schemas/api-key.schema";
+import { ApiKeyController } from "@src/auth/controllers/api-key/api-key.controller";
+import { ApiKeyResponseSchema, CreateApiKeyRequestSchema, FindApiKeyParamsSchema, UpdateApiKeyRequestSchema } from "@src/auth/http-schemas/api-key.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
 const listRoute = createRoute({
   method: "get",
-  path: "/v1/users/{userId}/api-keys",
+  path: "/v1/api-keys",
   summary: "List all API keys",
-  tags: ["User API Keys"],
-  request: {
-    params: z.object({
-      userId: z.string().uuid()
-    })
-  },
+  tags: ["API Keys"],
   responses: {
     200: {
       description: "Returns list of API keys",
       content: {
         "application/json": {
           schema: z.object({
-            data: z.array(UserApiKeyResponseSchema)
+            data: z.array(ApiKeyResponseSchema)
           })
         }
       }
@@ -37,11 +27,11 @@ const listRoute = createRoute({
 
 const getRoute = createRoute({
   method: "get",
-  path: "/v1/users/{userId}/api-keys/{id}",
+  path: "/v1/api-keys/{id}",
   summary: "Get API key by ID",
-  tags: ["User API Keys"],
+  tags: ["API Keys"],
   request: {
-    params: FindUserApiKeyParamsSchema
+    params: FindApiKeyParamsSchema
   },
   responses: {
     200: {
@@ -49,7 +39,7 @@ const getRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            data: UserApiKeyResponseSchema
+            data: ApiKeyResponseSchema
           })
         }
       }
@@ -69,18 +59,15 @@ const getRoute = createRoute({
 
 const postRoute = createRoute({
   method: "post",
-  path: "/v1/users/{userId}/api-keys",
+  path: "/v1/api-keys",
   summary: "Create new API key",
-  tags: ["User API Keys"],
+  tags: ["API Keys"],
   request: {
-    params: z.object({
-      userId: z.string().uuid()
-    }),
     body: {
       content: {
         "application/json": {
           schema: z.object({
-            data: CreateUserApiKeyRequestSchema
+            data: CreateApiKeyRequestSchema
           })
         }
       }
@@ -92,7 +79,7 @@ const postRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            data: UserApiKeyResponseSchema
+            data: ApiKeyResponseSchema
           })
         }
       }
@@ -102,16 +89,16 @@ const postRoute = createRoute({
 
 const patchRoute = createRoute({
   method: "patch",
-  path: "/v1/users/{userId}/api-keys/{id}",
+  path: "/v1/api-keys/{id}",
   summary: "Update API key",
-  tags: ["User API Keys"],
+  tags: ["API Keys"],
   request: {
-    params: FindUserApiKeyParamsSchema,
+    params: FindApiKeyParamsSchema,
     body: {
       content: {
         "application/json": {
           schema: z.object({
-            data: UpdateUserApiKeyRequestSchema
+            data: UpdateApiKeyRequestSchema
           })
         }
       }
@@ -123,7 +110,7 @@ const patchRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            data: UserApiKeyResponseSchema
+            data: ApiKeyResponseSchema
           })
         }
       }
@@ -143,22 +130,15 @@ const patchRoute = createRoute({
 
 const deleteRoute = createRoute({
   method: "delete",
-  path: "/v1/users/{userId}/api-keys/{id}",
+  path: "/v1/api-keys/{id}",
   summary: "Delete API key",
-  tags: ["User API Keys"],
+  tags: ["API Keys"],
   request: {
-    params: FindUserApiKeyParamsSchema
+    params: FindApiKeyParamsSchema
   },
   responses: {
-    200: {
-      description: "API key deleted successfully",
-      content: {
-        "application/json": {
-          schema: z.object({
-            data: UserApiKeyResponseSchema
-          })
-        }
-      }
+    204: {
+      description: "API key deleted successfully"
     },
     404: {
       description: "API key not found",
@@ -173,36 +153,34 @@ const deleteRoute = createRoute({
   }
 });
 
-export const userApiKeysRouter = new OpenApiHonoHandler();
+export const apiKeysRouter = new OpenApiHonoHandler();
 
-userApiKeysRouter.openapi(listRoute, async function routeListApiKeys(c) {
-  const { userId } = c.req.valid("param");
-  const result = await container.resolve(UserApiKeyController).findAll(userId);
+apiKeysRouter.openapi(listRoute, async function routeListApiKeys(c) {
+  const result = await container.resolve(ApiKeyController).findAll();
   return c.json(result, 200);
 });
 
-userApiKeysRouter.openapi(getRoute, async function routeGetApiKey(c) {
-  const { id, userId } = c.req.valid("param");
-  const result = await container.resolve(UserApiKeyController).findById(id, userId);
+apiKeysRouter.openapi(getRoute, async function routeGetApiKey(c) {
+  const { id } = c.req.valid("param");
+  const result = await container.resolve(ApiKeyController).findById(id);
   return c.json(result, 200);
 });
 
-userApiKeysRouter.openapi(postRoute, async function routeCreateApiKey(c) {
-  const { userId } = c.req.valid("param");
+apiKeysRouter.openapi(postRoute, async function routeCreateApiKey(c) {
   const { data } = c.req.valid("json");
-  const result = await container.resolve(UserApiKeyController).create(userId, data);
+  const result = await container.resolve(ApiKeyController).create(data);
   return c.json(result, 201);
 });
 
-userApiKeysRouter.openapi(patchRoute, async function routeUpdateApiKey(c) {
-  const { id, userId } = c.req.valid("param");
+apiKeysRouter.openapi(patchRoute, async function routeUpdateApiKey(c) {
+  const { id } = c.req.valid("param");
   const { data } = c.req.valid("json");
-  const result = await container.resolve(UserApiKeyController).update(id, userId, data);
+  const result = await container.resolve(ApiKeyController).update(id, data);
   return c.json(result, 200);
 });
 
-userApiKeysRouter.openapi(deleteRoute, async function routeDeleteApiKey(c) {
-  const { id, userId } = c.req.valid("param");
-  const result = await container.resolve(UserApiKeyController).delete(id, userId);
-  return c.json(result, 200);
+apiKeysRouter.openapi(deleteRoute, async function routeDeleteApiKey(c) {
+  const { id } = c.req.valid("param");
+  await container.resolve(ApiKeyController).delete(id);
+  return c.body(null, 204);
 });

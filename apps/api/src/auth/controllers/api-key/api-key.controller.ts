@@ -1,44 +1,43 @@
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
-import { CreateUserApiKeyRequest, ListUserApiKeysResponse, SingleUserApiKeyResponse, UpdateUserApiKeyRequest } from "@src/auth/http-schemas/api-key.schema";
-import { UserApiKeyService } from "@src/auth/services/api-key/api-key.service";
+import { CreateApiKeyRequest, ListApiKeysResponse, SingleApiKeyResponse, UpdateApiKeyRequest } from "@src/auth/http-schemas/api-key.schema";
+import { ApiKeyService } from "@src/auth/services/api-key/api-key.service";
 import { Protected } from "@src/auth/services/auth.service";
 
 @singleton()
-export class UserApiKeyController {
-  constructor(private readonly userApiKeyService: UserApiKeyService) {}
+export class ApiKeyController {
+  constructor(private readonly apiKeyService: ApiKeyService) {}
 
-  @Protected([{ action: "read", subject: "UserApiKey" }])
-  async findAll(userId: string): Promise<ListUserApiKeysResponse> {
-    const apiKeys = await this.userApiKeyService.findAll(userId);
+  @Protected([{ action: "read", subject: "ApiKey" }])
+  async findAll(): Promise<ListApiKeysResponse> {
+    const apiKeys = await this.apiKeyService.findAll();
     return { data: apiKeys };
   }
 
-  @Protected([{ action: "read", subject: "UserApiKey" }])
-  async findById(id: string, userId: string): Promise<SingleUserApiKeyResponse> {
-    const apiKey = await this.userApiKeyService.findById(id, userId);
+  @Protected([{ action: "read", subject: "ApiKey" }])
+  async findById(id: string): Promise<SingleApiKeyResponse> {
+    const apiKey = await this.apiKeyService.findById(id);
     assert(apiKey, 404, "API key not found");
     return { data: apiKey };
   }
 
-  @Protected([{ action: "create", subject: "UserApiKey" }])
-  async create(userId: string, input: CreateUserApiKeyRequest["data"]): Promise<SingleUserApiKeyResponse> {
-    const apiKey = await this.userApiKeyService.create(userId, input);
+  @Protected([{ action: "create", subject: "ApiKey" }])
+  async create(input: CreateApiKeyRequest["data"]): Promise<SingleApiKeyResponse> {
+    const apiKey = await this.apiKeyService.create(input);
     return { data: apiKey };
   }
 
-  @Protected([{ action: "update", subject: "UserApiKey" }])
-  async update(id: string, userId: string, input: UpdateUserApiKeyRequest["data"]): Promise<SingleUserApiKeyResponse> {
-    const apiKey = await this.userApiKeyService.update(id, userId, input);
+  @Protected([{ action: "update", subject: "ApiKey" }])
+  async update(id: string, input: UpdateApiKeyRequest["data"]): Promise<SingleApiKeyResponse> {
+    const apiKey = await this.apiKeyService.update(id, input);
     assert(apiKey, 404, "API key not found");
     return { data: apiKey };
   }
 
-  @Protected([{ action: "delete", subject: "UserApiKey" }])
-  async delete(id: string, userId: string): Promise<SingleUserApiKeyResponse> {
-    const apiKey = await this.userApiKeyService.delete(id, userId);
+  @Protected([{ action: "delete", subject: "ApiKey" }])
+  async delete(id: string): Promise<void> {
+    const apiKey = await this.apiKeyService.delete(id);
     assert(apiKey, 404, "API key not found");
-    return { data: apiKey };
   }
 }

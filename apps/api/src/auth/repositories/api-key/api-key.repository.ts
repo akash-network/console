@@ -5,17 +5,17 @@ import { AbilityParams, BaseRepository } from "@src/core/repositories/base.repos
 import { TxService } from "@src/core/services";
 
 type Table = ApiPgTables["ApiKeys"];
-export type UserApiKeyInput = Partial<Table["$inferInsert"]>;
-export type UserApiKeyDbOutput = Table["$inferSelect"];
+export type ApiKeyInput = Partial<Table["$inferInsert"]>;
+export type ApiKeyDbOutput = Table["$inferSelect"];
 
-export type UserApiKeyOutput = Omit<UserApiKeyDbOutput, "createdAt" | "updatedAt" | "expiresAt"> & {
+export type ApiKeyOutput = Omit<ApiKeyDbOutput, "createdAt" | "updatedAt" | "expiresAt"> & {
   createdAt: string;
   updatedAt: string | null;
   expiresAt: string | null;
 };
 
 @singleton()
-export class UserApiKeyRepository extends BaseRepository<Table, UserApiKeyInput, UserApiKeyOutput> {
+export class ApiKeyRepository extends BaseRepository<Table, ApiKeyInput, ApiKeyOutput> {
   constructor(
     @InjectPg() protected readonly pg: ApiPgDatabase,
     @InjectPgTable("ApiKeys") protected readonly table: Table,
@@ -25,10 +25,10 @@ export class UserApiKeyRepository extends BaseRepository<Table, UserApiKeyInput,
   }
 
   accessibleBy(...abilityParams: AbilityParams) {
-    return new UserApiKeyRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
+    return new ApiKeyRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  protected toOutput(payload: UserApiKeyDbOutput): UserApiKeyOutput {
+  protected toOutput(payload: ApiKeyDbOutput): ApiKeyOutput {
     return payload
       ? {
           ...payload,
