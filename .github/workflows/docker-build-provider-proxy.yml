@@ -50,14 +50,18 @@ jobs:
         if: steps.filter.outputs.provider-proxy == 'true'
         run: npm run lint -w apps/provider-proxy
 
-      - name: Run unit tests
+      - name: Run tests
         if: steps.filter.outputs.provider-proxy == 'true'
-        run: npm run test:unit --workspace=apps/provider-proxy
-
-      - name: Run functional tests
-        if: steps.filter.outputs.provider-proxy == 'true'
-        run: npm run test:functional --workspace=apps/provider-proxy
+        run: npm run test:cov --workspace=apps/provider-proxy
 
       - name: Build the Docker image
         if: steps.filter.outputs.provider-proxy == 'true'
         run: packages/docker/script/dc.sh build provider-proxy
+
+      - name: Upload Test Coverage
+        if: steps.filter.outputs.provider-proxy == 'true'
+        uses: codecov/codecov-action@v5
+        with:
+          directory: ./apps/provider-proxy/coverage
+          flags: provider-proxy
+          token: ${{ secrets.CODECOV_TOKEN }}

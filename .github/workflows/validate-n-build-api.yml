@@ -63,6 +63,7 @@ jobs:
         run: packages/docker/script/dc.sh build api
 
       - name: Upload Test Coverage
+        if: steps.filter.outputs.api == 'true'
         uses: codecov/codecov-action@v5
         with:
           directory: ./apps/api/coverage
