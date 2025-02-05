@@ -122,6 +122,6 @@ deploymentSettingRouter.openapi(postRoute, async function routeCreateDeploymentS
 deploymentSettingRouter.openapi(patchRoute, async function routeUpdateDeploymentSettings(c) {
   const params = c.req.valid("param");
   const { data } = c.req.valid("json");
-  const result = await container.resolve(DeploymentSettingController).update(params, data);
+  const result = await container.resolve(DeploymentSettingController).upsert(params, data);
   return c.json(result, 200);
 });

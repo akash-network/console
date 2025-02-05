@@ -28,8 +28,8 @@ export class DeploymentSettingController {
   }
 
   @Protected([{ action: "update", subject: "DeploymentSetting" }])
-  async update(params: FindDeploymentSettingParams, input: UpdateDeploymentSettingRequest["data"]): Promise<DeploymentSettingResponse> {
-    const setting = await this.deploymentSettingService.update(params, input);
+  async upsert(params: FindDeploymentSettingParams, input: UpdateDeploymentSettingRequest["data"]): Promise<DeploymentSettingResponse> {
+    const setting = await this.deploymentSettingService.upsert(params, input);
     assert(setting, 404, "Deployment setting not found");
     return { data: setting };
   }

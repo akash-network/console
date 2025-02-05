@@ -3,7 +3,9 @@ import { container } from "tsyringe";
 
 import { app } from "@src/app";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 
+import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
 import { DbTestingService } from "@test/services/db-testing.service";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
@@ -13,9 +15,15 @@ describe("Deployment Settings", () => {
   const dbService = container.resolve(DbTestingService);
   const walletService = new WalletTestingService(app);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+  const leaseRepository = container.resolve(LeaseRepository);
 
-  beforeEach(async () => {
+  beforeEach(() => {
+    jest.spyOn(leaseRepository, "findOneByDseqAndOwner").mockResolvedValue(DrainingDeploymentSeeder.create());
+  });
+
+  afterEach(async () => {
     await dbService.cleanAll();
+    jest.restoreAllMocks();
   });
 
   describe("GET /v1/deployment-settings/{userId}/{dseq}", () => {
@@ -88,10 +96,13 @@ describe("Deployment Settings", () => {
           userId: user.id,
           dseq,
           autoTopUpEnabled: true,
-          createdAt: settings.createdAt,
-          updatedAt: settings.updatedAt
+          createdAt: expect.any(String),
+          updatedAt: expect.any(String),
+          estimatedTopUpAmount: expect.any(Number),
+          topUpFrequencyMs: expect.any(Number)
         }
       });
+      expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, user.id);
     });
   });
 
@@ -175,6 +186,7 @@ describe("Deployment Settings", () => {
         dseq,
         autoTopUpEnabled: true
       });
+      expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, user.id);
     });
   });
 
@@ -195,7 +207,7 @@ describe("Deployment Settings", () => {
       expect(response.status).toBe(401);
     });
 
-    it("should return 404 if deployment settings not found", async () => {
+    it("should create and return new setting if not found", async () => {
       const { token, user } = await walletService.createUserAndWallet();
       const dseq = faker.string.numeric();
 
@@ -212,11 +224,22 @@ describe("Deployment Settings", () => {
         })
       });
 
-      expect(response.status).toBe(404);
-      expect(await response.json()).toEqual({
-        error: "NotFoundError",
-        message: "Deployment setting not found"
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data).toMatchObject({
+        userId: user.id,
+        dseq,
+        autoTopUpEnabled: true
       });
+
+      const settings = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq });
+      expect(settings).toBeDefined();
+      expect(settings).toMatchObject({
+        userId: user.id,
+        dseq,
+        autoTopUpEnabled: true
+      });
+      expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, user.id);
     });
 
     it("should return 404 when updating other user's deployment settings", async () => {
@@ -289,6 +312,7 @@ describe("Deployment Settings", () => {
         dseq,
         autoTopUpEnabled: true
       });
+      expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, user.id);
     });
   });
 });

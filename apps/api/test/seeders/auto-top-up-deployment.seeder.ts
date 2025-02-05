@@ -6,7 +6,7 @@ import { AkashAddressSeeder } from "./akash-address.seeder";
 export class AutoTopUpDeploymentSeeder {
   static create(overrides: Partial<AutoTopUpDeployment> = {}): AutoTopUpDeployment {
     return {
-      id: faker.number.int(),
+      id: faker.string.uuid(),
       walletId: faker.number.int(),
       dseq: faker.string.numeric(),
       address: AkashAddressSeeder.create(),

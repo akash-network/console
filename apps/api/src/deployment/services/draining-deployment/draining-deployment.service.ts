@@ -47,6 +47,16 @@ export class DrainingDeploymentService {
     });
   }
 
+  async calculateTopUpAmountForDseqAndOwner(dseq: string, owner: string): Promise<number> {
+    const deploymentSetting = await this.leaseRepository.findOneByDseqAndOwner(dseq, owner);
+
+    if (!deploymentSetting) {
+      return 0;
+    }
+
+    return this.calculateTopUpAmount(deploymentSetting);
+  }
+
   async calculateTopUpAmount(deployment: Pick<DrainingDeploymentOutput, "blockRate">): Promise<number> {
     return Math.floor(deployment.blockRate * (averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_DEPLOYMENT_INTERVAL_IN_H")));
   }

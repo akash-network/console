@@ -64,6 +64,20 @@
       "when": 1738322520567,
       "tag": "0008_pale_dakota_north",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1738662238304,
+      "tag": "0009_mysterious_blacklash",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1738662254123,
+      "tag": "0010_naive_living_tribunal",
+      "breakpoints": true
     }
   ]
 }

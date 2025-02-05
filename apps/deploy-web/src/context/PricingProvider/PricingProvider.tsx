@@ -1,10 +1,11 @@
 "use client";
-import React from "react";
+import React, { useCallback } from "react";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useMarketData } from "@src/queries";
-import { roundDecimal } from "@src/utils/mathHelpers";
+import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
+import { uaktToAKT } from "@src/utils/priceUtils";
 
 type ContextType = {
   isLoaded: boolean;
@@ -14,6 +15,7 @@ type ContextType = {
   aktToUSD: (amount: number) => number | null;
   usdToAkt: (amount: number) => number | null;
   getPriceForDenom: (denom: string) => number;
+  udenomToUsd: (amount: string | number, denom: string) => number;
 };
 
 const PricingProviderContext = React.createContext<ContextType>({} as ContextType);
@@ -49,8 +51,26 @@ export const PricingProvider = ({ children }) => {
     }
   };
 
+  const udenomToUsd = useCallback(
+    (amount: string | number, denom: string) => {
+      let value = 0;
+      const parsedAmount = typeof amount === "number" ? amount : parseFloat(amount);
+
+      if (denom === UAKT_DENOM) {
+        value = uaktToAKT(parsedAmount, 6) * (marketData?.price || 0);
+      } else if (denom === usdcIbcDenom) {
+        value = udenomToDenom(parsedAmount, 6);
+      }
+
+      return value;
+    },
+    [marketData?.price, usdcIbcDenom]
+  );
+
   return (
-    <PricingProviderContext.Provider value={{ isLoaded: !!marketData, uaktToUSD, aktToUSD, usdToAkt, price: marketData?.price, isLoading, getPriceForDenom }}>
+    <PricingProviderContext.Provider
+      value={{ isLoaded: !!marketData, uaktToUSD, aktToUSD, usdToAkt, price: marketData?.price, isLoading, getPriceForDenom, udenomToUsd }}
+    >
       {children}
     </PricingProviderContext.Provider>
   );

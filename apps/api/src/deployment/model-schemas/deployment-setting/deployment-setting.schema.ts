@@ -1,11 +1,15 @@
-import { boolean, index, pgTable, serial, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { boolean, index, pgTable, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Users } from "@src/user/model-schemas";
 
 export const DeploymentSettings = pgTable(
   "deployment_settings",
   {
-    id: serial("id").primaryKey(),
+    id: uuid("id")
+      .primaryKey()
+      .notNull()
+      .default(sql`uuid_generate_v4()`),
     userId: uuid("user_id")
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
