@@ -58,7 +58,7 @@ export const PricingProvider = ({ children }) => {
 
       if (denom === UAKT_DENOM) {
         value = uaktToAKT(parsedAmount, 6) * (marketData?.price || 0);
-      } else if (denom === usdcIbcDenom) {
+      } else if (denom === usdcIbcDenom || denom === "usdc") {
         value = udenomToDenom(parsedAmount, 6);
       }
 
