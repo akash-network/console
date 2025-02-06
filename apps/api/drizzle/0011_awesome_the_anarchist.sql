@@ -1,13 +1,14 @@
 CREATE TABLE IF NOT EXISTS "api_keys" (
 	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
 	"user_id" uuid NOT NULL,
-	"api_key" varchar NOT NULL,
+	"hashed_key" varchar NOT NULL,
+	"key_format" varchar NOT NULL,
 	"name" varchar NOT NULL,
 	"description" varchar,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"expires_at" timestamp,
-	CONSTRAINT "api_keys_api_key_unique" UNIQUE("api_key")
+	CONSTRAINT "api_keys_hashed_key_unique" UNIQUE("hashed_key")
 );
 --> statement-breakpoint
 DO $$ BEGIN
