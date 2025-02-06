@@ -140,7 +140,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
               Add funds
             </Button>
 
-            {isManaged && (
+            {isManaged && browserEnvConfig.NEXT_PUBLIC_AUTO_TOP_UP_ENABLED && (
               <div className="ml-4 flex items-center gap-2">
                 <Switch checked={deploymentSetting.data?.autoTopUpEnabled} onCheckedChange={deploymentSetting.setAutoTopUpEnabled} />
                 <span>Auto top-up</span>
