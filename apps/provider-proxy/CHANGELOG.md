@@ -1,5 +1,12 @@
 
 
+## [1.4.0](https://github.com/akash-network/console/compare/provider-proxy/v1.3.4...provider-proxy/v1.4.0) (2025-02-06)
+
+
+### Features
+
+* adds certificate validation to ws proxy ([#780](https://github.com/akash-network/console/issues/780)) ([2d1cc3d](https://github.com/akash-network/console/commit/2d1cc3d7c39ec50ea3ca292d3d3bce47db3185ca)), closes [#170](https://github.com/akash-network/console/issues/170)
+
 ## [1.3.4](https://github.com/akash-network/console/compare/provider-proxy/v1.3.3...provider-proxy/v1.3.4) (2025-02-05)
 
 
