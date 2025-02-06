@@ -1,3 +1,4 @@
+import { LoggerService } from "@akashnetwork/logging";
 import fs from "fs";
 import { Level } from "level";
 import path from "path";
@@ -6,6 +7,7 @@ import { dataFolderPath } from "@src/shared/constants";
 import { bytesToHumanReadableSize } from "@src/shared/utils/files";
 
 const LevelNotFoundCode = "LEVEL_NOT_FOUND";
+const logger = LoggerService.forContext("DataStore");
 
 if (!fs.existsSync(dataFolderPath)) {
   fs.mkdirSync(dataFolderPath, { recursive: true });
@@ -37,10 +39,10 @@ export const getCacheSize = async function () {
 };
 
 export const deleteCache = async function () {
-  console.log("Deleting cache...");
+  logger.info("Deleting cache...");
   await blocksDb.clear();
   await blockResultsDb.clear();
-  console.log("Deleted");
+  logger.info("Deleted");
 };
 
 export async function getCachedBlockByHeight(height: number) {

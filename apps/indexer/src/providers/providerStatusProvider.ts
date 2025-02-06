@@ -7,6 +7,7 @@ import {
   ProviderSnapshotNodeGPU,
   ProviderSnapshotStorage
 } from "@akashnetwork/database/dbSchemas/akash";
+import { LoggerService } from "@akashnetwork/logging";
 import { asyncify, eachLimit } from "async";
 import axios from "axios";
 import { add, differenceInDays, differenceInHours, differenceInMinutes, isSameDay } from "date-fns";
@@ -23,6 +24,7 @@ import { ProviderStatusInfo, ProviderVersionEndpointResponseType } from "./statu
 const ConcurrentStatusCall = 10;
 const StatusCallTimeout = 10_000; // 10 seconds
 const UptimeCheckIntervalSeconds = 15 * 60; // 15 minutes
+const logger = LoggerService.forContext("ProviderStatusProvider");
 
 export async function syncProvidersInfo() {
   const providers = await Provider.findAll({
@@ -75,7 +77,7 @@ export async function syncProvidersInfo() {
       await saveProviderStatus(provider, providerStatus, akashVersion, cosmosVersion, errorMessage);
 
       doneCount++;
-      console.log("Fetched provider info: " + doneCount + " / " + providers.length);
+      logger.info("Fetched provider info: " + doneCount + " / " + providers.length);
     })
   );
 }

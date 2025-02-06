@@ -1,6 +1,9 @@
 import { Validator } from "@akashnetwork/database/dbSchemas/base";
+import { LoggerService } from "@akashnetwork/logging";
 import fetch from "node-fetch";
 import { Op } from "sequelize";
+
+const logger = LoggerService.forContext("KeybaseProvider");
 
 export async function fetchValidatorKeybaseInfos() {
   const validators = await Validator.findAll({
@@ -12,11 +15,11 @@ export async function fetchValidatorKeybaseInfos() {
   const requests = validators.map(async validator => {
     try {
       if (!/^[A-F0-9]{16}$/.test(validator.identity)) {
-        console.warn("Invalid identity " + validator.identity + " for validator " + validator.operatorAddress);
+        logger.warn("Invalid identity " + validator.identity + " for validator " + validator.operatorAddress);
         return Promise.resolve();
       }
 
-      console.log("Fetching keybase info for " + validator.operatorAddress);
+      logger.info("Fetching keybase info for " + validator.operatorAddress);
       const response = await fetch(`https://keybase.io/_/api/1.0/user/lookup.json?key_suffix=${validator.identity}`);
 
       if (response.status === 200) {
@@ -31,7 +34,7 @@ export async function fetchValidatorKeybaseInfos() {
 
       await validator.save();
     } catch (err) {
-      console.error("Error while fetching keybase info for " + validator.operatorAddress);
+      logger.error("Error while fetching keybase info for " + validator.operatorAddress);
       throw err;
     }
   });

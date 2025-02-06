@@ -1,7 +1,10 @@
+import { LoggerService } from "@akashnetwork/logging";
 import humanInterval from "human-interval";
 import fetch from "node-fetch";
 
 import { getPrettyTime } from "./shared/utils/date";
+
+const logger = LoggerService.forContext("Scheduler");
 
 class TaskDef {
   name: string;
@@ -20,7 +23,7 @@ class TaskDef {
 
   constructor(name: string, fn: () => Promise<void>, interval: number, runAtStart?: boolean, healthchecksConfig?: HealthchecksConfig) {
     if (healthchecksConfig && !healthchecksConfig.id) {
-      console.warn("Healthchecks config provided without an id.");
+      logger.warn("Healthchecks config provided without an id.");
     }
 
     this.name = name;
@@ -48,7 +51,7 @@ export class Scheduler {
   constructor(config?: SchedulerConfig) {
     this.config = {
       ...config,
-      errorHandler: config?.errorHandler || ((task, err) => console.error(`Task "${task.name}" failed: ${err}`))
+      errorHandler: config?.errorHandler || ((task, err) => logger.error(`Task "${task.name}" failed: ${err}`))
     };
   }
 
@@ -68,7 +71,7 @@ export class Scheduler {
     }
 
     const intervalMs = typeof interval === "string" ? humanInterval(interval) : interval;
-    console.log(`Registered task "${name}" to run every ${getPrettyTime(intervalMs)}`);
+    logger.info(`Registered task "${name}" to run every ${getPrettyTime(intervalMs)}`);
 
     this.tasks.set(name, new TaskDef(name, fn, intervalMs, runAtStart, healthchecksConfig));
   }
@@ -82,11 +85,11 @@ export class Scheduler {
       setInterval(() => {
         const runningTask = this.tasks.get(task.name);
         if (runningTask.runningPromise) {
-          console.log(`Skipping task "${task.name}" because it is already running`);
+          logger.info(`Skipping task "${task.name}" because it is already running`);
           return;
         }
 
-        console.log(`Starting task "${task.name}"`);
+        logger.info(`Starting task "${task.name}"`);
         this.runTask(runningTask);
       }, task.interval);
     }
@@ -101,7 +104,7 @@ export class Scheduler {
     runningTask.runningPromise = runningTask
       .function()
       .then(() => {
-        console.log(`Task "${runningTask.name}" completed successfully`);
+        logger.info(`Task "${runningTask.name}" completed successfully`);
         runningTask.successfulRunCount++;
 
         if (this.config.healthchecksEnabled && runningTask.healthchecksConfig) {
@@ -126,7 +129,7 @@ export class Scheduler {
     try {
       await fetch(`https://hc-ping.com/${runningTask.healthchecksConfig.id}/start`);
     } catch (err) {
-      console.error(err);
+      logger.error(err);
     }
   }
 
@@ -134,7 +137,7 @@ export class Scheduler {
     try {
       await fetch(`https://hc-ping.com/${runningTask.healthchecksConfig.id}`);
     } catch (err) {
-      console.error(err);
+      logger.error(err);
     }
   }
 
@@ -142,7 +145,7 @@ export class Scheduler {
     try {
       await fetch(`https://hc-ping.com/${runningTask.healthchecksConfig.id}/fail`);
     } catch (err) {
-      console.error(err);
+      logger.error(err);
     }
   }
 

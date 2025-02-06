@@ -1,3 +1,4 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { performance } from "perf_hooks";
 
 import { getPrettyTime } from "./date";
@@ -13,6 +14,7 @@ type BenchmarkDetails = {
 };
 
 const benchmarkTimes: { [key: string]: BenchmarkDetails } = {};
+const logger = LoggerService.forContext("Benchmark");
 let firstTime = null;
 let lastTime = null;
 let activeTimer = null;
@@ -107,7 +109,7 @@ export function displayTimes(): void {
 }
 
 export function displayTimesForGroup(group: string) {
-  console.log("Group: " + (group || "ROOT"));
+  logger.info("Group: " + (group || "ROOT"));
 
   const fullTime = group
     ? Object.values(benchmarkTimes)

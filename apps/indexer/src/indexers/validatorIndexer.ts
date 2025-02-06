@@ -1,5 +1,6 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { Message, Validator } from "@akashnetwork/database/dbSchemas/base";
+import { LoggerService } from "@akashnetwork/logging";
 import { fromBase64, fromBech32, toBech32, toHex } from "@cosmjs/encoding";
 import { MsgCreateValidator, MsgEditValidator } from "cosmjs-types/cosmos/staking/v1beta1/tx";
 import { Transaction as DbTransaction } from "sequelize";
@@ -9,6 +10,8 @@ import { sequelize } from "@src/db/dbConnection";
 import { pubkeyToRawAddress } from "@src/shared/utils/addresses";
 import * as benchmark from "../shared/utils/benchmark";
 import { Indexer } from "./indexer";
+
+const logger = LoggerService.forContext("ValidatorIndexers");
 
 export class ValidatorIndexer extends Indexer {
   msgHandlers: { [key: string]: (msgSubmitProposal: any, height: number, blockGroupTransaction: DbTransaction, msg: Message) => Promise<void> };
@@ -37,7 +40,7 @@ export class ValidatorIndexer extends Indexer {
 
     await sequelize.transaction(async dbTransaction => {
       for (const validator of validators) {
-        console.log("Creating validator :" + validator.operator_address);
+        logger.info("Creating validator :" + validator.operator_address);
 
         await this.createValidatorFromGenesis(validator, dbTransaction);
       }
@@ -48,7 +51,7 @@ export class ValidatorIndexer extends Indexer {
         .filter(x => x["@type"] === "/cosmos.staking.v1beta1.MsgCreateValidator") as IGentxCreateValidator[];
 
       for (const msg of msgs) {
-        console.log("Creating validator :" + msg.validator_address);
+        logger.info("Creating validator :" + msg.validator_address);
 
         await this.createValidatorFromGentx(msg, dbTransaction);
       }
@@ -114,10 +117,10 @@ export class ValidatorIndexer extends Indexer {
     const existingValidator = await Validator.findOne({ where: { operatorAddress: decodedMessage.validatorAddress }, transaction: dbTransaction });
 
     if (!existingValidator) {
-      console.log(`Creating validator ${decodedMessage.validatorAddress}`);
+      logger.info(`Creating validator ${decodedMessage.validatorAddress}`);
       await Validator.create(validatorInfo, { transaction: dbTransaction });
     } else {
-      console.log(`Updating validator ${decodedMessage.validatorAddress}`);
+      logger.info(`Updating validator ${decodedMessage.validatorAddress}`);
       await Validator.update(validatorInfo, { where: { operatorAddress: decodedMessage.validatorAddress }, transaction: dbTransaction });
     }
   }

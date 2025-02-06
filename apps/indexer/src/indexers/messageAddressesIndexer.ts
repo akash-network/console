@@ -1,5 +1,6 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { AddressReference, Message, Transaction } from "@akashnetwork/database/dbSchemas/base";
+import { LoggerService } from "@akashnetwork/logging";
 import { toBech32 } from "@cosmjs/encoding";
 import { DecodedTxRaw, decodePubkey } from "@cosmjs/proto-signing";
 import { MsgMultiSend, MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
@@ -12,6 +13,8 @@ import { rawSecp256k1PubkeyToRawAddress } from "@src/shared/utils/addresses";
 import { getAmountFromCoin, getAmountFromCoinArray } from "@src/shared/utils/coin";
 import * as benchmark from "../shared/utils/benchmark";
 import { Indexer } from "./indexer";
+
+const logger = LoggerService.forContext("MessageAddressesIndexer");
 
 export class MessageAddressesIndexer extends Indexer {
   constructor() {
@@ -117,7 +120,7 @@ export class MessageAddressesIndexer extends Indexer {
     const signerInfos = tx.authInfo.signerInfos;
 
     if (signerInfos.length !== 1) {
-      console.warn("More than one signer in tx: " + hash);
+      logger.warn("More than one signer in tx: " + hash);
     }
 
     let multisigThreshold: number | null = null;
@@ -146,7 +149,7 @@ export class MessageAddressesIndexer extends Indexer {
       } catch (e) {
         // TEMPORARY FIX FOR TX 63CBF2B5C23E30B774F5072F625E3400603C95B993F0428E375F8078EAC95B17
         if (signerInfo.publicKey.typeUrl === "/cosmos.crypto.multisig.LegacyAminoPubKey") {
-          console.log("FAILED TO DECODE MULTISIG PUBKEY: ", hash);
+          logger.info(`FAILED TO DECODE MULTISIG PUBKEY: ${hash}`);
           return { multisigThreshold: null, addresses: [] };
         }
 

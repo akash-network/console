@@ -1,6 +1,7 @@
 import "@akashnetwork/env-loader";
 
 import { activeChain, chainDefinitions } from "@akashnetwork/database/chainDefinitions";
+import { LoggerService } from "@akashnetwork/logging";
 import * as Sentry from "@sentry/node";
 import express from "express";
 
@@ -27,6 +28,8 @@ const app = express();
 
 const { PORT = 3079 } = process.env;
 
+const logger = LoggerService.forContext("App");
+
 Sentry.init({
   dsn: env.SENTRY_DSN,
   environment: env.NODE_ENV,
@@ -47,7 +50,7 @@ Sentry.setTag("chain", env.ACTIVE_CHAIN);
 const scheduler = new Scheduler({
   healthchecksEnabled: env.HEALTH_CHECKS_ENABLED === "true",
   errorHandler: (task, error) => {
-    console.error(`Task "${task.name}" failed: `, error);
+    logger.error(`Task "${task.name}" failed: ${error}`);
     Sentry.captureException(error, { tags: { task: task.name } });
   }
 });
@@ -125,7 +128,7 @@ function startScheduler() {
 async function initApp() {
   try {
     if (env.STANDBY) {
-      console.log("STANDBY mode enabled. Doing nothing.");
+      logger.debug("STANDBY mode enabled. Doing nothing.");
       // eslint-disable-next-line no-constant-condition
       while (true) {
         await sleep(5_000);
@@ -152,10 +155,10 @@ async function initApp() {
     }
 
     app.listen(PORT, () => {
-      console.log("server started at http://localhost:" + PORT);
+      logger.debug("server started at http://localhost:" + PORT);
     });
   } catch (err) {
-    console.error("Error while initializing app", err);
+    logger.debug(`Error while initializing app ${err}`);
 
     Sentry.captureException(err);
   }

@@ -2,19 +2,22 @@ import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
 import { Day, Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { MonitoredValue } from "@akashnetwork/database/dbSchemas/base/monitoredValue";
+import { LoggerService } from "@akashnetwork/logging";
 
 import { getGenesis } from "@src/chain/genesisImporter";
 import { indexers } from "@src/indexers";
 import { ExecutionMode, executionMode } from "@src/shared/constants";
 import { sequelize } from "./dbConnection";
 
+const logger = LoggerService.forContext("BuildDatabase");
+
 /**
  * Initiate database schema
  */
 export const initDatabase = async () => {
-  console.log(`Connecting to db (${sequelize.config.host}/${sequelize.config.database})...`);
+  logger.info(`Connecting to db (${sequelize.config.host}/${sequelize.config.database})...`);
   await sequelize.authenticate();
-  console.log("Connection has been established successfully.");
+  logger.info("Connection has been established successfully.");
 
   if (executionMode === ExecutionMode.RebuildAll) {
     await Day.drop({ cascade: true });
@@ -41,7 +44,7 @@ export const initDatabase = async () => {
   if (!activeChain.startHeight) {
     const firstBlock = await Block.findOne();
     if (!firstBlock) {
-      console.log("First time syncing, seeding from genesis file...");
+      logger.info("First time syncing, seeding from genesis file...");
 
       const genesis = await getGenesis();
       for (const indexer of indexers) {

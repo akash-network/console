@@ -1,8 +1,11 @@
 import { AkashBlock } from "@akashnetwork/database/dbSchemas/akash";
 import { Day } from "@akashnetwork/database/dbSchemas/base";
+import { LoggerService } from "@akashnetwork/logging";
 import { Op } from "sequelize";
 
 import { sequelize } from "@src/db/dbConnection";
+
+const logger = LoggerService.forContext("UsdSpendingTracker");
 
 export async function updateUsdSpending() {
   // Check if there is a day flagged for update (akt price changed)
@@ -28,7 +31,7 @@ export async function updateUsdSpending() {
   }
 
   if (!firstDayToRefresh) {
-    console.log("No days to update usd spending.");
+    logger.info("No days to update usd spending.");
     return;
   }
 
@@ -40,10 +43,10 @@ export async function updateUsdSpending() {
     order: [["date", "ASC"]]
   });
 
-  console.log(`There are ${days.length} days to update USD spending.`);
+  logger.info(`There are ${days.length} days to update USD spending.`);
 
   for (const day of days) {
-    console.log(`Updating usd spending for blocks of day ${day.date.toISOString().substring(0, 10)}... `);
+    logger.info(`Updating usd spending for blocks of day ${day.date.toISOString().substring(0, 10)}... `);
     let lastBlockOfPreviousDay: AkashBlock | null = null;
 
     if (day.firstBlockHeight > 1) {
@@ -72,7 +75,7 @@ export async function updateUsdSpending() {
       }
     );
 
-    console.log("Updated " + affectedCount + " blocks.");
+    logger.info("Updated " + affectedCount + " blocks.");
 
     if (day.aktPriceChanged) {
       day.aktPriceChanged = false;

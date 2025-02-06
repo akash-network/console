@@ -1,6 +1,9 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { MonitoredValue } from "@akashnetwork/database/dbSchemas/base/monitoredValue";
+import { LoggerService } from "@akashnetwork/logging";
 import axios from "axios";
+
+const logger = LoggerService.forContext("AddressBalanceMonitor");
 
 export class AddressBalanceMonitor {
   async run() {
@@ -12,7 +15,7 @@ export class AddressBalanceMonitor {
 
     await Promise.allSettled(monitoredValues.map(x => this.updateValue(x)));
 
-    console.log("Refreshed balances for " + monitoredValues.length + " addresses.");
+    logger.info("Refreshed balances for " + monitoredValues.length + " addresses.");
   }
 
   async updateValue(monitoredValue: MonitoredValue) {

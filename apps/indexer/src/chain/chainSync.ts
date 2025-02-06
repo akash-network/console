@@ -1,6 +1,7 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
 import { Day, Transaction } from "@akashnetwork/database/dbSchemas/base";
+import { LoggerService } from "@akashnetwork/logging";
 import { fromBase64 } from "@cosmjs/encoding";
 import { decodeTxRaw } from "@cosmjs/proto-signing";
 import { asyncify, eachLimit } from "async";
@@ -24,6 +25,8 @@ import {
 } from "./dataStore";
 import { nodeAccessor } from "./nodeAccessor";
 import { statsProcessor } from "./statsProcessor";
+
+const logger = LoggerService.forContext("ChainSync");
 
 export const setMissingBlock = (height: number) => (missingBlock = height);
 let missingBlock: number;
@@ -83,13 +86,13 @@ export async function syncBlocks() {
   const latestHeightInCache = await getLatestHeightInCache();
 
   if (latestHeightInCache >= latestBlockToDownload) {
-    console.log("No blocks to download");
+    logger.info("No blocks to download");
   } else {
     let startHeight = !env.KEEP_CACHE ? latestInsertedHeight + 1 : Math.max(latestHeightInCache, 1);
 
     // If database is empty
     if (latestInsertedHeight === 0) {
-      console.log("Starting from scratch");
+      logger.info("Starting from scratch");
       startHeight = activeChain.startHeight || 1;
     }
 
@@ -101,13 +104,11 @@ export async function syncBlocks() {
 
     const maxDownloadGroupSize = 1_000;
     if (latestBlockToDownload - startHeight > maxDownloadGroupSize) {
-      console.log("Limiting download to " + maxDownloadGroupSize + " blocks");
+      logger.info("Limiting download to " + maxDownloadGroupSize + " blocks");
       latestBlockToDownload = startHeight + maxDownloadGroupSize;
     }
-
-    console.log("Starting download at block #" + startHeight);
-    console.log("Will end download at block #" + latestBlockToDownload);
-    console.log(latestBlockToDownload - startHeight + 1 + " blocks to download");
+    const blocksCount = latestBlockToDownload - startHeight + 1
+    logger.info({ event: 'DOWNLOAD', startHeight, latestBlockToDownload, blocksCount });
 
     await benchmark.measureAsync("downloadBlocks", async () => {
       await downloadBlocks(startHeight, latestBlockToDownload);
@@ -151,7 +152,7 @@ export async function syncBlocks() {
 
 async function insertBlocks(startHeight: number, endHeight: number) {
   const blockCount = endHeight - startHeight + 1;
-  console.log("Inserting " + blockCount + " blocks into database");
+  logger.info("Inserting " + blockCount + " blocks into database");
 
   let lastInsertedBlock = (await Block.findOne({
     include: [
@@ -242,7 +243,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
     const blockDate = new Date(Date.UTC(blockDatetime.getUTCFullYear(), blockDatetime.getUTCMonth(), blockDatetime.getUTCDate()));
 
     if (!lastInsertedBlock || !isEqual(blockDate, lastInsertedBlock.day.date)) {
-      console.log("Creating day: ", blockDate, i);
+      logger.info(`Creating day: ${blockDate} ${i}`);
       const [newDay, created] = await Day.findOrCreate({
         where: {
           date: blockDate
@@ -256,7 +257,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
       });
 
       if (!created) {
-        console.warn(`Day ${blockDate} already exists in database`);
+        logger.warn(`Day ${blockDate} already exists in database`);
       }
 
       blockEntry.dayId = newDay.id;
@@ -287,7 +288,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
           blocksToAdd = [];
           txsToAdd = [];
           msgsToAdd = [];
-          console.log(`Blocks added to db: ${i - startHeight + 1} / ${blockCount} (${(((i - startHeight + 1) * 100) / blockCount).toFixed(2)}%)`);
+          logger.info(`Blocks added to db: ${i - startHeight + 1} / ${blockCount} (${(((i - startHeight + 1) * 100) / blockCount).toFixed(2)}%)`);
 
           if (lastInsertedBlock) {
             lastInsertedBlock.day.lastBlockHeightYet = lastInsertedBlock.height;
@@ -295,7 +296,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
           }
         });
       } catch (error) {
-        console.log(error, txsToAdd);
+        logger.info(`${error}, ${txsToAdd}`);
       }
     }
   }
@@ -319,7 +320,7 @@ async function downloadBlocks(startHeight: number, endHeight: number) {
       if (Date.now() - lastLogDate > 500) {
         lastLogDate = Date.now();
         console.clear();
-        console.log("Progress: " + ((downloadedCount * 100) / missingBlockCount).toFixed(2) + "%");
+        logger.info("Progress: " + ((downloadedCount * 100) / missingBlockCount).toFixed(2) + "%");
 
         if (!isProd) {
           nodeAccessor.displayTable();
