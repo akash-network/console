@@ -16,8 +16,8 @@ import { useCertificate } from "@src/context/CertificateProvider";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
+import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDepositParams } from "@src/queries/useSettings";
 import { analyticsService } from "@src/services/analytics/analytics.service";
@@ -66,6 +66,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const [isRepoInputValid, setIsRepoInputValid] = useState(false);
   const [sdlDenom, setSdlDenom] = useState("uakt");
+  const depositData = useDenomData(sdlDenom);
+
   const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged, isTrialing } = useWallet();
   const router = useRouter();
@@ -82,8 +84,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const defaultDeposit = depositParams || browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
   const wallet = useWallet();
   const managedDenom = useManagedWalletDenom();
-  const { createDeploymentConfirm } = useManagedDeploymentConfirm();
   const { enqueueSnackbar } = useSnackbar();
+  const services = importSimpleSdl(editedManifest as string);
 
   useWhen(
     wallet.isManaged && sdlDenom === "uakt" && editedManifest,
@@ -191,18 +193,12 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     }
 
     if (isManaged) {
-      const services = importSimpleSdl(editedManifest as string);
-
       if (!services) {
         setParsingError("Error while parsing SDL file");
         return;
       }
 
-      const isConfirmed = await createDeploymentConfirm(services);
-
-      if (isConfirmed) {
-        await handleCreateClick(defaultDeposit, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
-      }
+      setIsDepositingDeployment(true);
     } else {
       setIsCheckingPrerequisites(true);
     }
@@ -428,14 +424,24 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
           handleCancel={() => setIsDepositingDeployment(false)}
           onDeploymentDeposit={onDeploymentDeposit}
           denom={sdlDenom}
+          title="Confirm deployment creation?"
           infoText={
             <Alert className="mb-4 text-xs" variant="default">
-              To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
+              {isManaged ? (
+                <>
+                  To create a deployment, you need to have at least <b>${depositData?.min}</b> in an escrow account.{" "}
+                </>
+              ) : (
+                <>
+                  To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
+                </>
+              )}
               <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/other-resources/payments/")}>
                 <strong>Learn more.</strong>
               </LinkTo>
             </Alert>
           }
+          services={services}
         />
       )}
       {isCheckingPrerequisites && <PrerequisiteList onClose={() => setIsCheckingPrerequisites(false)} onContinue={onPrerequisiteContinue} />}
