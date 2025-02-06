@@ -1,5 +1,12 @@
 
 
+## [2.42.1](https://github.com/akash-network/console/compare/console-web/v2.42.0...console-web/v2.42.1) (2025-02-06)
+
+
+### Bug Fixes
+
+* **deployment:** adds usdc option to parse pricing amount ([0f38c18](https://github.com/akash-network/console/commit/0f38c18c521b2cc68fe79d3634623baea5a59f64)), closes [#714](https://github.com/akash-network/console/issues/714)
+
 ## [2.42.0](https://github.com/akash-network/console/compare/console-web/v2.41.0...console-web/v2.42.0) (2025-02-06)
 
 
