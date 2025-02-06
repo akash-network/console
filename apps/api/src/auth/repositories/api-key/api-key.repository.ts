@@ -10,8 +10,9 @@ export type ApiKeyDbOutput = Table["$inferSelect"];
 
 export type ApiKeyOutput = Omit<ApiKeyDbOutput, "createdAt" | "updatedAt" | "expiresAt"> & {
   createdAt: string;
-  updatedAt: string | null;
+  updatedAt: string;
   expiresAt: string | null;
+  apiKey: string;
 };
 
 @singleton()
@@ -34,7 +35,8 @@ export class ApiKeyRepository extends BaseRepository<Table, ApiKeyInput, ApiKeyO
           ...payload,
           createdAt: payload.createdAt.toISOString(),
           updatedAt: payload.updatedAt.toISOString(),
-          expiresAt: payload.expiresAt?.toISOString() ?? null
+          expiresAt: payload.expiresAt?.toISOString() ?? null,
+          apiKey: payload.keyFormat
         }
       : undefined;
   }

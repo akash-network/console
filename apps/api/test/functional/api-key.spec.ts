@@ -3,9 +3,17 @@ import { container } from "tsyringe";
 
 import { app } from "@src/app";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 
 import { DbTestingService } from "@test/services/db-testing.service";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
+
+// Pattern for obfuscated keys in list/get responses
+const OBFUSCATED_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{6}\*{3}[A-Za-z0-9]{6}$/;
+// Pattern for full keys in create response
+const FULL_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{64}$/;
+// Pattern for SHA-256 hashed keys in database
+const HASHED_API_KEY_PATTERN = /^[a-f0-9]{64}$/;
 
 jest.setTimeout(20000);
 
@@ -13,6 +21,7 @@ describe("API Keys", () => {
   const dbService = container.resolve(DbTestingService);
   const walletService = new WalletTestingService(app);
   const apiKeyRepository = container.resolve(ApiKeyRepository);
+  const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
 
   beforeEach(async () => {
     await dbService.cleanAll();
@@ -38,11 +47,15 @@ describe("API Keys", () => {
     it("should not return other user's API keys", async () => {
       const [{ user: user1 }, { token: token2 }] = await Promise.all([walletService.createUserAndWallet(), walletService.createUserAndWallet()]);
 
+      const apiKey = apiKeyGenerator.generateApiKey();
+      const hashedKey = apiKeyGenerator.hashApiKey(apiKey);
+      const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
+
       await apiKeyRepository.create({
         userId: user1.id,
-        apiKey: `AKT_${faker.string.uuid()}`,
-        name: "Test key",
-        description: "Test key"
+        hashedKey,
+        keyFormat: obfuscatedKey,
+        name: "Test key"
       });
 
       const response = await app.request("/v1/api-keys", {
@@ -53,16 +66,27 @@ describe("API Keys", () => {
       expect(await response.json()).toEqual({ data: [] });
     });
 
-    it("should return list of API keys", async () => {
+    it("should return list of API keys with obfuscated keys", async () => {
       const { token, user } = await walletService.createUserAndWallet();
-      const apiKey = await apiKeyRepository.create({
+      const apiKey1 = apiKeyGenerator.generateApiKey();
+      const hashedKey1 = apiKeyGenerator.hashApiKey(apiKey1);
+      const obfuscatedKey1 = apiKeyGenerator.obfuscateApiKey(apiKey1);
+
+      const createdKey1 = await apiKeyRepository.create({
         userId: user.id,
-        apiKey: `AKT_${faker.string.uuid()}`,
-        name: "Test key"
+        hashedKey: hashedKey1,
+        keyFormat: obfuscatedKey1,
+        name: "Test key 1"
       });
-      const apiKey2 = await apiKeyRepository.create({
+
+      const apiKey2 = apiKeyGenerator.generateApiKey();
+      const hashedKey2 = apiKeyGenerator.hashApiKey(apiKey2);
+      const obfuscatedKey2 = apiKeyGenerator.obfuscateApiKey(apiKey2);
+
+      const createdKey2 = await apiKeyRepository.create({
         userId: user.id,
-        apiKey: `AKT_${faker.string.uuid()}`,
+        hashedKey: hashedKey2,
+        keyFormat: obfuscatedKey2,
         name: "Test key 2"
       });
 
@@ -74,12 +98,14 @@ describe("API Keys", () => {
       const result = await response.json();
       expect(result.data).toHaveLength(2);
       expect(result.data[0]).toMatchObject({
-        id: apiKey.id,
-        name: "Test key"
+        id: createdKey1.id,
+        name: "Test key 1",
+        apiKey: expect.stringMatching(OBFUSCATED_API_KEY_PATTERN)
       });
       expect(result.data[1]).toMatchObject({
-        id: apiKey2.id,
-        name: "Test key 2"
+        id: createdKey2.id,
+        name: "Test key 2",
+        apiKey: expect.stringMatching(OBFUSCATED_API_KEY_PATTERN)
       });
     });
   });
@@ -106,31 +132,34 @@ describe("API Keys", () => {
       });
     });
 
-    it("should return API key details", async () => {
+    it("should return API key details with obfuscated key", async () => {
       const { token, user } = await walletService.createUserAndWallet();
-      const apiKey = await apiKeyRepository.create({
+      const apiKey = apiKeyGenerator.generateApiKey();
+      const hashedKey = apiKeyGenerator.hashApiKey(apiKey);
+      const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
+
+      const createdKey = await apiKeyRepository.create({
         userId: user.id,
-        apiKey: `AKT_${faker.string.uuid()}`,
+        hashedKey,
+        keyFormat: obfuscatedKey,
         name: "Test key"
       });
 
-      const response = await app.request(`/v1/api-keys/${apiKey.id}`, {
+      const response = await app.request(`/v1/api-keys/${createdKey.id}`, {
         headers: { authorization: `Bearer ${token}` }
       });
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({
-        data: {
-          id: apiKey.id,
-          name: "Test key",
-          expiresAt: null,
-          createdAt: expect.any(String),
-          updatedAt: expect.any(String),
-          userId: user.id,
-          apiKey: apiKey.apiKey,
-          description: null
-        }
+      const result = await response.json();
+      expect(result.data).toMatchObject({
+        id: createdKey.id,
+        name: "Test key",
+        apiKey: expect.stringMatching(OBFUSCATED_API_KEY_PATTERN),
+        expiresAt: null,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String)
       });
+      expect(result.data.apiKey).not.toBe(hashedKey);
     });
   });
 
@@ -150,10 +179,10 @@ describe("API Keys", () => {
       expect(response.status).toBe(401);
     });
 
-    it("should create API key", async () => {
-      const { token, user } = await walletService.createUserAndWallet();
+    it("should create API key and return full key once", async () => {
+      const { token } = await walletService.createUserAndWallet();
       const futureDate = new Date();
-      futureDate.setFullYear(futureDate.getFullYear() + 1); // 1 year from now
+      futureDate.setFullYear(futureDate.getFullYear() + 1);
 
       const response = await app.request("/v1/api-keys", {
         method: "POST",
@@ -164,7 +193,7 @@ describe("API Keys", () => {
         body: JSON.stringify({
           data: {
             name: "Test key",
-            description: "Test key",
+            description: "Test description",
             expiresAt: futureDate.toISOString()
           }
         })
@@ -174,17 +203,16 @@ describe("API Keys", () => {
       const result = await response.json();
       expect(result.data).toMatchObject({
         name: "Test key",
-        description: "Test key",
-        expiresAt: futureDate.toISOString()
+        description: "Test description",
+        expiresAt: futureDate.toISOString(),
+        apiKey: expect.stringMatching(FULL_API_KEY_PATTERN)
       });
 
-      const apiKey = await apiKeyRepository.findOneBy({ id: result.data.id });
-      expect(apiKey).toBeDefined();
-      expect(apiKey).toMatchObject({
-        userId: user.id,
-        name: "Test key",
-        description: "Test key"
-      });
+      const storedKey = await apiKeyRepository.findOneBy({ id: result.data.id });
+      expect(storedKey).toBeDefined();
+      expect(storedKey.apiKey).not.toBe(result.data.apiKey);
+      expect(storedKey.apiKey).toMatch(OBFUSCATED_API_KEY_PATTERN);
+      expect(storedKey.hashedKey).toMatch(HASHED_API_KEY_PATTERN);
     });
 
     it("should reject API key creation with past expiration date", async () => {
@@ -240,13 +268,18 @@ describe("API Keys", () => {
 
     it("should update API key", async () => {
       const { token, user } = await walletService.createUserAndWallet();
-      const apiKey = await apiKeyRepository.create({
+      const apiKey = apiKeyGenerator.generateApiKey();
+      const hashedKey = apiKeyGenerator.hashApiKey(apiKey);
+      const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
+
+      const createdKey = await apiKeyRepository.create({
         userId: user.id,
-        apiKey: `AKT_${faker.string.uuid()}`,
+        hashedKey,
+        keyFormat: obfuscatedKey,
         name: "Test key"
       });
 
-      const response = await app.request(`/v1/api-keys/${apiKey.id}`, {
+      const response = await app.request(`/v1/api-keys/${createdKey.id}`, {
         method: "PATCH",
         headers: {
           authorization: `Bearer ${token}`,
@@ -261,13 +294,14 @@ describe("API Keys", () => {
 
       expect(response.status).toBe(200);
       const result = await response.json();
+      console.log(result.data);
       expect(result.data).toMatchObject({
-        id: apiKey.id,
+        id: createdKey.id,
         name: "Test key",
         description: "Updated key"
       });
 
-      const updatedApiKey = await apiKeyRepository.findOneBy({ id: apiKey.id });
+      const updatedApiKey = await apiKeyRepository.findOneBy({ id: createdKey.id });
       expect(updatedApiKey).toBeDefined();
       expect(updatedApiKey).toMatchObject({
         name: "Test key",
@@ -287,13 +321,18 @@ describe("API Keys", () => {
 
     it("should delete API key", async () => {
       const { token, user } = await walletService.createUserAndWallet();
-      const apiKey = await apiKeyRepository.create({
+      const apiKey = apiKeyGenerator.generateApiKey();
+      const hashedKey = apiKeyGenerator.hashApiKey(apiKey);
+      const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
+
+      const createdKey = await apiKeyRepository.create({
         userId: user.id,
-        apiKey: `AKT_${faker.string.uuid()}`,
+        hashedKey,
+        keyFormat: obfuscatedKey,
         name: "Test key"
       });
 
-      const response = await app.request(`/v1/api-keys/${apiKey.id}`, {
+      const response = await app.request(`/v1/api-keys/${createdKey.id}`, {
         method: "DELETE",
         headers: { authorization: `Bearer ${token}` }
       });
@@ -301,7 +340,7 @@ describe("API Keys", () => {
       expect(response.status).toBe(204);
       expect(await response.text()).toBe("");
 
-      const deletedApiKey = await apiKeyRepository.findOneBy({ id: apiKey.id });
+      const deletedApiKey = await apiKeyRepository.findOneBy({ id: createdKey.id });
       expect(deletedApiKey).toBeUndefined();
     });
   });
