@@ -9,6 +9,7 @@ import { kvStore } from "@src/middlewares/userMiddleware";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { env } from "@src/utils/env";
 import { getJwks, useKVStore, verify } from "@src/verify-rsa-jwt-cloudflare-worker-main";
+import { ApiKeyAuthService } from "./api-key/api-key-auth.service";
 
 @singleton()
 export class AuthInterceptor implements HonoInterceptor {
@@ -16,7 +17,8 @@ export class AuthInterceptor implements HonoInterceptor {
     private readonly abilityService: AbilityService,
     private readonly userRepository: UserRepository,
     private readonly authService: AuthService,
-    private readonly anonymousUserAuthService: AuthTokenService
+    private readonly anonymousUserAuthService: AuthTokenService,
+    private readonly apiKeyAuthService: ApiKeyAuthService
   ) {}
 
   intercept() {
@@ -39,6 +41,18 @@ export class AuthInterceptor implements HonoInterceptor {
         await this.auth(currentUser);
         c.set("user", currentUser);
         return await next();
+      }
+
+      const apiKey = c.req.header("x-api-key");
+
+      if (apiKey) {
+        const apiKeyOutput = await this.apiKeyAuthService.validateApiKeyFromHeader(apiKey);
+        if (apiKeyOutput) {
+          const currentUser = await this.userRepository.findByUserId(apiKeyOutput.userId);
+          await this.auth(currentUser);
+          c.set("user", currentUser);
+          return await next();
+        }
       }
 
       this.authService.ability = this.abilityService.EMPTY_ABILITY;
