@@ -52,7 +52,8 @@ export async function startAppServer(port: number): Promise<AppServer> {
         }
       });
     });
-    const wss = WebsocketServer.from(httpAppServer, container.wsLogger).listen();
+    const wss = new WebsocketServer(httpAppServer, container.certificateValidator, container.createWsLogger);
+    wss.listen();
   });
 }
 

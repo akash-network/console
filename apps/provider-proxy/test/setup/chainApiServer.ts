@@ -1,3 +1,4 @@
+import { bech32 } from "bech32";
 import { X509Certificate } from "crypto";
 import http from "http";
 import { AddressInfo } from "net";
@@ -7,13 +8,13 @@ let chainServer: http.Server | undefined;
  * Cannot mock blockchain API using nock and msw that's why have a separate server
  * @see https://github.com/mswjs/msw/discussions/2416
  */
-export function mockOnChainCertificates(certificates: X509Certificate[], options?: ChainApiOptions) {
+export function startChainApiServer(certificates: X509Certificate[], options?: ChainApiOptions) {
   let isRespondedWithCustomStatus = false;
   return new Promise<http.Server>(resolve => {
     const server = http.createServer((req, res) => {
-      if (options?.respondWithOnceWith && !isRespondedWithCustomStatus) {
+      if (options?.respondOnceWith && !isRespondedWithCustomStatus) {
         isRespondedWithCustomStatus = true;
-        res.writeHead(options?.respondWithOnceWith);
+        res.writeHead(options?.respondOnceWith);
         res.end();
         return;
       }
@@ -26,12 +27,13 @@ export function mockOnChainCertificates(certificates: X509Certificate[], options
 
       const url = new URL(`http://localhost${req.url || "/"}`);
       const serialNumber = BigInt(url.searchParams.get("filter.serial")!).toString(16).toUpperCase();
+      const providerAddress = url.searchParams.get("filter.owner")!;
 
       res.writeHead(200, "OK");
       res.end(
         JSON.stringify({
           certificates: certificates
-            .filter(cert => cert.serialNumber === serialNumber)
+            .filter(cert => cert.serialNumber === serialNumber && cert.toLegacyObject().subject.CN === providerAddress)
             .map(cert => ({
               serial: BigInt(`0x${cert.serialNumber}`).toString(10),
               certificate: {
@@ -56,5 +58,11 @@ export function stopChainAPIServer(): void {
 }
 
 export interface ChainApiOptions {
-  respondWithOnceWith?: number;
+  respondOnceWith?: number;
+}
+
+let index = 0;
+export function generateBech32() {
+  const words = bech32.toWords(Buffer.from("foobar2", "utf8"));
+  return bech32.encode(`test${++index}`, words);
 }

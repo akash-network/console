@@ -4,9 +4,7 @@ export class ClientWebSocketStats {
   private closedOn?: Date;
   private usage: WebSocketUsage = "Unknown";
 
-  private usageStats: {
-    [key in WebSocketUsage]: { count: number; data: number };
-  } = {
+  private usageStats: Record<WebSocketUsage, { count: number; data: number }> = {
     StreamLogs: { count: 0, data: 0 },
     StreamEvents: { count: 0, data: 0 },
     Shell: { count: 0, data: 0 },

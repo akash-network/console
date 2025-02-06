@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import useWebSocket from "react-use-websocket";
 import { Alert, Button, Checkbox, CheckboxWithLabel, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Monaco } from "@monaco-editor/react";
@@ -15,9 +14,9 @@ import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkele
 import { MemoMonaco } from "@src/components/shared/MemoMonaco";
 import { SelectCheckbox } from "@src/components/shared/SelectCheckbox";
 import ViewPanel from "@src/components/shared/ViewPanel";
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
 import { useCertificate } from "@src/context/CertificateProvider";
+import { useProviderWebsocket } from "@src/hooks/useProviderWebsocket";
 import { useThrottledCallback } from "@src/hooks/useThrottle";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
@@ -57,13 +56,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   } = useLeaseStatus(providerInfo, selectedLease as LeaseDto, {
     enabled: false
   });
-  const { sendJsonMessage } = useWebSocket(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL_WS, {
-    onOpen: () => {},
-    onMessage: onLogReceived,
-    onError: error => console.error("error", error),
-    shouldReconnect: () => {
-      return true;
-    }
+  const { sendJsonMessage } = useProviderWebsocket(providerInfo, {
+    onMessage: onLogReceived
   });
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
@@ -127,24 +121,22 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
 
     logs.current = [];
 
-    let url: string | null = null;
+    let url: string;
     if (selectedLogsMode === "logs") {
-      url = `${providerInfo.hostUri}/lease/${selectedLease.dseq}/${selectedLease.gseq}/${selectedLease.oseq}/logs?follow=true&tail=100`;
+      url = `/lease/${selectedLease.dseq}/${selectedLease.gseq}/${selectedLease.oseq}/logs?follow=true&tail=100`;
 
       if (selectedServices.length < services.length) {
         url += "&service=" + selectedServices.join(",");
       }
     } else {
-      url = `${providerInfo.hostUri}/lease/${selectedLease.dseq}/${selectedLease.gseq}/${selectedLease.oseq}/kubeevents?follow=true`;
+      url = `/lease/${selectedLease.dseq}/${selectedLease.gseq}/${selectedLease.oseq}/kubeevents?follow=true`;
     }
 
     setIsLoadingLogs(true);
 
     sendJsonMessage({
       type: "websocket",
-      url: url,
-      certPem: localCert?.certPem,
-      keyPem: localCert?.keyPem
+      url
     });
   }, [
     isLocalCertMatching,
@@ -228,7 +220,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     if (!isDownloadingLogs && providerInfo && selectedLease) {
       setIsDownloadingLogs(true);
       const isLogs = selectedLogsMode === "logs";
-      await downloadLogs(providerInfo.hostUri, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, isLogs);
+      await downloadLogs(providerInfo, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, isLogs);
 
       event(AnalyticsEvents.DOWNLOADED_LOGS, {
         category: AnalyticsCategory.DEPLOYMENTS,

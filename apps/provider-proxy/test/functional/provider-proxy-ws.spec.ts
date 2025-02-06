@@ -1,13 +1,16 @@
 import { setTimeout } from "timers/promises";
 import WebSocket from "ws";
 
+import { createX509CertPair } from "../seeders/createX509CertPair";
+import { generateBech32, startChainApiServer, stopChainAPIServer } from "../setup/chainApiServer";
 import { startProviderServer, stopProviderServer } from "../setup/providerServer";
 import { startServer, stopServer } from "../setup/proxyServer";
 
 describe("Provider proxy ws", () => {
-  afterEach(async () => {
+  afterEach(() => {
     stopProviderServer();
     stopServer();
+    stopChainAPIServer();
   });
 
   it("proxies provider websocket messages", async () => {
@@ -110,27 +113,82 @@ describe("Provider proxy ws", () => {
         onConnection: pws =>
           pws.on("message", data => {
             if (data.toString() === "please_close") {
-              pws.close();
+              pws.close(1000);
             }
           })
       }
     });
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
-    await new Promise(resolve => ws.once("open", resolve));
-    ws.send(JSON.stringify(ourMessage("please_close", providerServerUrl)));
-    expect(await waitForMessage(ws)).toEqual({ closed: true, message: "", type: "websocket" });
+    await new Promise(resolve => ws.once("open", resolve)), ws.send(JSON.stringify(ourMessage("please_close", providerServerUrl)));
+    expect(await waitForMessage(ws)).toEqual(
+      providerMessage("", {
+        closed: true,
+        code: 1000,
+        reason: ""
+      })
+    );
   });
 
-  function providerMessage<T>(message: T) {
+  it('validates server certificate if "chainNetwork" and "providerAddress" are provided', async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = createX509CertPair({ commonName: providerAddress });
+    await startChainApiServer([validCertPair.cert]);
+    const providerServerUrl = await startProviderServer({
+      certPair: validCertPair,
+      websocketServer: {
+        enable: true,
+        onConnection: pws => {
+          pws.send("connected");
+          pws.on("message", data => pws.send(`replied: ${data.toString()}`));
+        }
+      }
+    });
+    const proxyServerUrl = await startServer();
+
+    const ws = new WebSocket(`${proxyServerUrl}/ws`);
+    await new Promise(resolve => ws.once("open", resolve));
+
+    ws.send(
+      JSON.stringify(
+        ourMessage("test1", providerServerUrl, {
+          providerAddress: generateBech32(),
+          chainNetwork: "sandbox"
+        })
+      )
+    );
+
+    expect(await waitForMessage(ws)).toEqual(
+      providerMessage("", {
+        closed: true,
+        code: 1008,
+        reason: "invalidCertificate.unknownCertificate"
+      })
+    );
+
+    ws.send(
+      JSON.stringify(
+        ourMessage("test2", providerServerUrl, {
+          providerAddress,
+          chainNetwork: "sandbox"
+        })
+      )
+    );
+    expect(await waitForMessage(ws)).toEqual(providerMessage("connected"));
+    expect(await waitForMessage(ws)).toEqual(providerMessage("replied: test2"));
+  });
+
+  function providerMessage<T>(message: T, extra?: Record<string, any>) {
     return {
+      ...extra,
       type: "websocket",
       message
     };
   }
 
-  function ourMessage(message: string, url: string) {
+  function ourMessage(message: string, url: string, extra?: Record<string, any>) {
     return {
+      ...extra,
       type: "websocket",
       data: message
         .split("")
