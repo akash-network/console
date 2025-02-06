@@ -5,11 +5,12 @@ import { singleton } from "tsyringe";
 export class ApiKeyGeneratorService {
   private readonly KEY_PREFIX = "ac";
   private readonly KEY_TYPE = "sk";
-  private readonly ENV = process.env.NODE_ENV === "production" ? "live" : "test";
   private readonly SEGMENT_LENGTH = 32;
   private readonly VISIBLE_CHARS = 6;
 
-  constructor() {}
+  private get ENV(): string {
+    return process.env.NODE_ENV === "production" ? "live" : "test";
+  }
 
   generateApiKey(): string {
     const randomSegment = randomBytes(this.SEGMENT_LENGTH).toString("hex");
