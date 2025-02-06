@@ -6,9 +6,8 @@ import { OpenInWindow } from "iconoir-react";
 import Link from "next/link";
 
 import ViewPanel from "@src/components/shared/ViewPanel";
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
-import { useCustomWebSocket } from "@src/hooks/useCustomWebSocket";
+import { useProviderWebsocket } from "@src/hooks/useProviderWebsocket";
 import { XTerm } from "@src/lib/XTerm";
 import { XTermRefType } from "@src/lib/XTerm/XTerm";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
@@ -47,16 +46,12 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   });
   const currentUrl = useRef<string | null>(null);
   const terminalRef = useRef<XTermRefType>(null);
-  const { sendJsonMessage } = useCustomWebSocket(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL_WS, {
+  const { sendJsonMessage } = useProviderWebsocket(providerInfo, {
+    setupPingPong: true,
     onOpen: () => {
       console.log("opened");
     },
-    onMessage: onCommandResponseReceived,
-    onError: error => console.error("error", error),
-    shouldReconnect: closeEvent => {
-      console.log(closeEvent);
-      return true;
-    }
+    onMessage: onCommandResponseReceived
   });
 
   useEffect(() => {
@@ -85,7 +80,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   useEffect(() => {
     if (!canSetConnection || !providerInfo || !isLocalCertMatching || !selectedLease || !selectedService || isConnectionEstablished) return;
 
-    const url = `${providerInfo.hostUri}/lease/${selectedLease.dseq}/${selectedLease.gseq}/${
+    const url = `/lease/${selectedLease.dseq}/${selectedLease.gseq}/${
       selectedLease.oseq
     }/shell?stdin=1&tty=1&podIndex=0&cmd0=${encodeURIComponent("/bin/sh")}&service=${selectedService}`;
     setIsLoadingData(true);
@@ -94,9 +89,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
 
     sendJsonMessage({
       type: "websocket",
-      url: url,
-      certPem: localCert?.certPem,
-      keyPem: localCert?.keyPem
+      url: url
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providerInfo, isLocalCertMatching, selectedLease, selectedService, localCert?.certPem, localCert?.keyPem, isConnectionEstablished]);
@@ -179,7 +172,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
 
       sendJsonMessage({
         type: "websocket",
-        url: currentUrl.current,
+        url: currentUrl.current || "",
         data: data.toString()
       });
     },
@@ -192,7 +185,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
 
       sendJsonMessage({
         type: "websocket",
-        url: currentUrl.current,
+        url: currentUrl.current || "",
         data: data.toString()
       });
     },

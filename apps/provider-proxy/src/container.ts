@@ -22,12 +22,12 @@ const certificateValidator = new CertificateValidator(
 );
 const providerProxy = new ProviderProxy(certificateValidator);
 const httpLogger = new LoggerService({ name: "http-proxy" });
-const wsLogger = process.env.NODE_ENV === "test" ? undefined : new LoggerService({ name: "ws-proxy" });
+const createWsLogger = process.env.NODE_ENV === "test" ? undefined : (context: string) => new LoggerService({ name: "ws-proxy" }).setContext(context);
 
 export const container = {
   wsStats,
   providerProxy,
   certificateValidator,
   httpLogger,
-  wsLogger
+  createWsLogger
 };
