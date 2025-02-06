@@ -29,7 +29,7 @@ export function useDeploymentList(address: string, options) {
 
 // Deployment detail
 async function getDeploymentDetail(apiEndpoint: string, address: string, dseq: string) {
-  if (!address) return null;
+  if (!address || !apiEndpoint) return null;
 
   const response = await axios.get(ApiUrlService.deploymentDetail(apiEndpoint, address, dseq));
 
