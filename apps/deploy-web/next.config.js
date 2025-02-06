@@ -20,6 +20,12 @@ try {
   }
 }
 
+const transpilePackages = ["geist", "@akashnetwork/ui"];
+
+if (process.env.NODE_ENV === "test") {
+  transpilePackages.push("nanoid", "uint8arrays", "multiformats");
+}
+
 /**
  * @type {import('next').NextConfig}
  */
@@ -39,7 +45,7 @@ const moduleExports = {
   eslint: {
     ignoreDuringBuilds: true
   },
-  transpilePackages: ["geist", "@akashnetwork/ui"],
+  transpilePackages,
   experimental: {
     instrumentationHook: true
   },
