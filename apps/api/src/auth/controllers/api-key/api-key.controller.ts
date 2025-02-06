@@ -37,7 +37,6 @@ export class ApiKeyController {
 
   @Protected([{ action: "delete", subject: "ApiKey" }])
   async delete(id: string): Promise<void> {
-    const apiKey = await this.apiKeyService.delete(id);
-    assert(apiKey, 404, "API key not found");
+    await this.apiKeyService.delete(id);
   }
 }

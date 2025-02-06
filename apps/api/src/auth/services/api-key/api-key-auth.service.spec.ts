@@ -84,8 +84,7 @@ describe("ApiKeyAuthService", () => {
         description: null,
         expiresAt: pastDate.toISOString(),
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        apiKey: apiKeyGenerator.obfuscateApiKey(key)
+        updatedAt: new Date().toISOString()
       });
 
       const result = await service.validateApiKeyFromHeader(key);
@@ -103,8 +102,7 @@ describe("ApiKeyAuthService", () => {
         description: null,
         expiresAt: null,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        apiKey: apiKeyGenerator.obfuscateApiKey(key)
+        updatedAt: new Date().toISOString()
       });
 
       const result = await service.validateApiKeyFromHeader(key);
@@ -126,8 +124,7 @@ describe("ApiKeyAuthService", () => {
         description: null,
         expiresAt: futureDate.toISOString(),
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        apiKey: apiKeyGenerator.obfuscateApiKey(key)
+        updatedAt: new Date().toISOString()
       });
 
       const result = await service.validateApiKeyFromHeader(key);

@@ -100,12 +100,20 @@ describe("API Keys", () => {
       expect(result.data[0]).toMatchObject({
         id: createdKey1.id,
         name: "Test key 1",
-        apiKey: expect.stringMatching(OBFUSCATED_API_KEY_PATTERN)
+        keyFormat: expect.stringMatching(OBFUSCATED_API_KEY_PATTERN),
+        hashedKey: expect.stringMatching(HASHED_API_KEY_PATTERN),
+        expiresAt: null,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String)
       });
       expect(result.data[1]).toMatchObject({
         id: createdKey2.id,
         name: "Test key 2",
-        apiKey: expect.stringMatching(OBFUSCATED_API_KEY_PATTERN)
+        keyFormat: expect.stringMatching(OBFUSCATED_API_KEY_PATTERN),
+        hashedKey: expect.stringMatching(HASHED_API_KEY_PATTERN),
+        expiresAt: null,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String)
       });
     });
   });
@@ -154,7 +162,6 @@ describe("API Keys", () => {
       expect(result.data).toMatchObject({
         id: createdKey.id,
         name: "Test key",
-        apiKey: expect.stringMatching(OBFUSCATED_API_KEY_PATTERN),
         expiresAt: null,
         createdAt: expect.any(String),
         updatedAt: expect.any(String)
@@ -210,8 +217,7 @@ describe("API Keys", () => {
 
       const storedKey = await apiKeyRepository.findOneBy({ id: result.data.id });
       expect(storedKey).toBeDefined();
-      expect(storedKey.apiKey).not.toBe(result.data.apiKey);
-      expect(storedKey.apiKey).toMatch(OBFUSCATED_API_KEY_PATTERN);
+      expect(storedKey.keyFormat).toMatch(OBFUSCATED_API_KEY_PATTERN);
       expect(storedKey.hashedKey).toMatch(HASHED_API_KEY_PATTERN);
     });
 
@@ -294,7 +300,6 @@ describe("API Keys", () => {
 
       expect(response.status).toBe(200);
       const result = await response.json();
-      console.log(result.data);
       expect(result.data).toMatchObject({
         id: createdKey.id,
         name: "Test key",

@@ -12,7 +12,6 @@ export type ApiKeyOutput = Omit<ApiKeyDbOutput, "createdAt" | "updatedAt" | "exp
   createdAt: string;
   updatedAt: string;
   expiresAt: string | null;
-  apiKey: string;
 };
 
 @singleton()
@@ -35,8 +34,7 @@ export class ApiKeyRepository extends BaseRepository<Table, ApiKeyInput, ApiKeyO
           ...payload,
           createdAt: payload.createdAt.toISOString(),
           updatedAt: payload.updatedAt.toISOString(),
-          expiresAt: payload.expiresAt?.toISOString() ?? null,
-          apiKey: payload.keyFormat
+          expiresAt: payload.expiresAt?.toISOString() ?? null
         }
       : undefined;
   }

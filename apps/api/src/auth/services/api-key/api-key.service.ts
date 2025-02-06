@@ -13,12 +13,7 @@ export class ApiKeyService {
   ) {}
 
   async findAll(): Promise<ApiKeyOutput[]> {
-    const keys = await this.apiKeyRepository.accessibleBy(this.authService.ability, "read").find({ userId: this.authService.currentUser.id });
-
-    return keys.map(key => ({
-      ...key,
-      apiKey: key.keyFormat
-    }));
+    return await this.apiKeyRepository.accessibleBy(this.authService.ability, "read").find({ userId: this.authService.currentUser.id });
   }
 
   async findById(id: string): Promise<ApiKeyOutput | undefined> {
@@ -26,13 +21,10 @@ export class ApiKeyService {
 
     if (!key) return undefined;
 
-    return {
-      ...key,
-      apiKey: key.keyFormat
-    };
+    return key;
   }
 
-  async create(input: ApiKeyInput): Promise<ApiKeyOutput> {
+  async create(input: ApiKeyInput): Promise<ApiKeyOutput & { apiKey: string }> {
     const apiKey = this.apiKeyGenerator.generateApiKey();
     const hashedKey = this.apiKeyGenerator.hashApiKey(apiKey);
     const obfuscatedKey = this.apiKeyGenerator.obfuscateApiKey(apiKey);
@@ -62,14 +54,11 @@ export class ApiKeyService {
       .updateBy({ id, userId: this.authService.currentUser.id }, updateData, { returning: true });
 
     return {
-      ...updated,
-      apiKey: updated.keyFormat
+      ...updated
     };
   }
 
-  async delete(id: string): Promise<ApiKeyOutput | undefined> {
-    return await this.apiKeyRepository
-      .accessibleBy(this.authService.ability, "delete")
-      .deleteBy({ id, userId: this.authService.currentUser.id }, { returning: true });
+  async delete(id: string): Promise<void> {
+    await this.apiKeyRepository.accessibleBy(this.authService.ability, "delete").deleteBy({ id, userId: this.authService.currentUser.id }, { returning: true });
   }
 }
