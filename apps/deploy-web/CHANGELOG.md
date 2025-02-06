@@ -1,5 +1,12 @@
 
 
+## [2.42.0](https://github.com/akash-network/console/compare/console-web/v2.41.0...console-web/v2.42.0) (2025-02-06)
+
+
+### Features
+
+* **deployment:** adds auto top feature flag ([da008e9](https://github.com/akash-network/console/commit/da008e9251a52bbd53a0cc10ac3e026ddd8652f1)), closes [#714](https://github.com/akash-network/console/issues/714)
+
 ## [2.41.0](https://github.com/akash-network/console/compare/console-web/v2.40.0...console-web/v2.41.0) (2025-02-06)
 
 
