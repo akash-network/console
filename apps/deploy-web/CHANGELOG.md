@@ -1,5 +1,13 @@
 
 
+## [2.41.0](https://github.com/akash-network/console/compare/console-web/v2.40.0...console-web/v2.41.0) (2025-02-06)
+
+
+### Features
+
+* adds certificate validation to ws proxy ([#780](https://github.com/akash-network/console/issues/780)) ([2d1cc3d](https://github.com/akash-network/console/commit/2d1cc3d7c39ec50ea3ca292d3d3bce47db3185ca)), closes [#170](https://github.com/akash-network/console/issues/170)
+* **deployment:** add new badge ([dd338ee](https://github.com/akash-network/console/commit/dd338ee7b4e6378a5627d4ea16fdf14a056145c6)), closes [#796](https://github.com/akash-network/console/issues/796)
+
 ## [2.40.0](https://github.com/akash-network/console/compare/console-web/v2.39.0...console-web/v2.40.0) (2025-02-05)
 
 
