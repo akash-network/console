@@ -10,5 +10,8 @@ export default defineConfig({
   dialect: "postgresql",
   dbCredentials: {
     url: config.POSTGRES_DB_URI
+  },
+  migrations: {
+    prefix: "timestamp"
   }
 });

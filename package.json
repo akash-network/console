@@ -36,7 +36,7 @@
     ]
   },
   "dependencies": {
-    "drizzle-orm": "^0.31.2",
+    "drizzle-orm": "^0.39.2",
     "pg": "^8.11.6"
   },
   "devDependencies": {

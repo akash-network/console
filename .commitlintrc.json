@@ -23,7 +23,8 @@
         "styling",
         "observability",
         "analytics",
-        "template"
+        "template",
+        "db"
       ]
     ]
   }
