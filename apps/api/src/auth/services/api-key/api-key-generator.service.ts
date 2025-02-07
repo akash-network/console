@@ -1,16 +1,17 @@
 import { createHash, randomBytes } from "crypto";
 import { singleton } from "tsyringe";
 
+import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+
 @singleton()
 export class ApiKeyGeneratorService {
   private readonly KEY_PREFIX = "ac";
   private readonly KEY_TYPE = "sk";
   private readonly SEGMENT_LENGTH = 32;
   private readonly VISIBLE_CHARS = 6;
+  private readonly ENV = this.config.get("DEPLOYMENT_ENV");
 
-  private get ENV(): string {
-    return process.env.NODE_ENV === "production" ? "live" : "test";
-  }
+  constructor(private readonly config: CoreConfigService) {}
 
   generateApiKey(): string {
     const randomSegment = randomBytes(this.SEGMENT_LENGTH).toString("hex");

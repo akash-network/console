@@ -1,6 +1,9 @@
 import { container } from "tsyringe";
 
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
+import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+
+import { stub } from "@test/services/stub";
 
 const FULL_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{64}$/;
 const OBFUSCATED_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{6}\*{3}[A-Za-z0-9]{6}$/;
@@ -9,10 +12,13 @@ const HASHED_API_KEY_PATTERN = /^[a-f0-9]{64}$/;
 describe("ApiKeyGeneratorService", () => {
   let service: ApiKeyGeneratorService;
   let originalEnv: string | undefined;
+  let config: jest.Mocked<CoreConfigService>;
 
   beforeEach(() => {
     originalEnv = process.env.NODE_ENV;
-    service = new ApiKeyGeneratorService();
+    config = stub<CoreConfigService>({ get: jest.fn() });
+    config.get.mockReturnValue("test");
+    service = new ApiKeyGeneratorService(config);
   });
 
   afterEach(() => {
@@ -33,11 +39,13 @@ describe("ApiKeyGeneratorService", () => {
     });
 
     it("should use correct environment prefix", () => {
-      process.env.NODE_ENV = "production";
-      expect(service.generateApiKey()).toMatch(/^ac\.sk\.live\./);
+      config.get.mockReturnValue("live");
+      const testService = new ApiKeyGeneratorService(config);
+      expect(testService.generateApiKey()).toMatch(/^ac\.sk\.live\./);
 
-      process.env.NODE_ENV = "test";
-      expect(service.generateApiKey()).toMatch(/^ac\.sk\.test\./);
+      config.get.mockReturnValue("tester");
+      const testService2 = new ApiKeyGeneratorService(config);
+      expect(testService2.generateApiKey()).toMatch(/^ac\.sk\.tester\./);
     });
   });
 

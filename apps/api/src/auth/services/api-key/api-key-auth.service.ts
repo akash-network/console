@@ -1,5 +1,6 @@
 import isAfter from "date-fns/isAfter";
 import parseISO from "date-fns/parseISO";
+import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { ApiKeyOutput, ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
@@ -18,30 +19,21 @@ export class ApiKeyAuthService {
     private readonly config: CoreConfigService
   ) {}
 
-  async getAndValidateApiKeyFromHeader(apiKey: string | undefined): Promise<ApiKeyOutput | undefined> {
-    if (!apiKey) {
-      return undefined;
-    }
+  async getAndValidateApiKeyFromHeader(apiKey: string | undefined): Promise<ApiKeyOutput> {
+    assert(apiKey, 401, "Invalid API key");
 
     const [prefix, type, env] = apiKey.split(".");
-    if (prefix !== this.API_KEY_PREFIX || type !== this.API_KEY_TYPE || env !== this.DEPLOYMENT_ENV) {
-      return undefined;
-    }
+    assert(prefix === this.API_KEY_PREFIX && type === this.API_KEY_TYPE && env === this.DEPLOYMENT_ENV, 401, "Invalid API key format");
 
     const hashedKey = this.apiKeyGenerator.hashApiKey(apiKey);
     const key = await this.apiKeyRepository.findOneBy({ hashedKey });
-
-    if (!key) {
-      return undefined;
-    }
+    assert(key, 401, "API key not found");
 
     if (key.expiresAt) {
       const expirationDate = parseISO(key.expiresAt);
       const now = parseISO(new Date().toISOString());
 
-      if (!isAfter(expirationDate, now)) {
-        return undefined;
-      }
+      assert(isAfter(expirationDate, now), 401, "API key has expired");
     }
 
     return key;

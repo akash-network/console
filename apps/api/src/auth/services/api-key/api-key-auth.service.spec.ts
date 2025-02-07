@@ -1,3 +1,4 @@
+import { HTTPException } from "hono/http-exception";
 import { container } from "tsyringe";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
@@ -15,11 +16,10 @@ describe("ApiKeyAuthService", () => {
   let config: jest.Mocked<CoreConfigService>;
 
   beforeEach(() => {
-    apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
     config = stub<CoreConfigService>({ get: jest.fn() });
-    apiKeyRepository = stub<ApiKeyRepository>({ findOneBy: jest.fn() });
-
     config.get.mockReturnValue("test");
+    apiKeyGenerator = new ApiKeyGeneratorService(config);
+    apiKeyRepository = stub<ApiKeyRepository>({ findOneBy: jest.fn() });
 
     service = new ApiKeyAuthService(apiKeyGenerator, apiKeyRepository, config);
   });
@@ -30,61 +30,59 @@ describe("ApiKeyAuthService", () => {
   });
 
   describe("validateApiKeyFromHeader", () => {
-    it("should return false for undefined key", async () => {
-      const result = await service.getAndValidateApiKeyFromHeader(undefined);
-      expect(result).toBe(undefined);
+    it("should throw for undefined key", async () => {
+      await expect(service.getAndValidateApiKeyFromHeader(undefined)).rejects.toThrow(new HTTPException(401, { message: "Invalid API key" }));
     });
 
-    it("should return false for invalid format", async () => {
-      const result = await service.getAndValidateApiKeyFromHeader("invalid-key");
-      expect(result).toBe(undefined);
+    it("should throw for invalid format", async () => {
+      await expect(service.getAndValidateApiKeyFromHeader("invalid-key")).rejects.toThrow(new HTTPException(401, { message: "Invalid API key format" }));
     });
 
-    it("should return false for wrong prefix", async () => {
+    it("should throw for wrong prefix", async () => {
       const key = apiKeyGenerator.generateApiKey().replace("ac", "wrong");
-      const result = await service.getAndValidateApiKeyFromHeader(key);
-      expect(result).toBe(undefined);
+      await expect(service.getAndValidateApiKeyFromHeader(key)).rejects.toThrow(new HTTPException(401, { message: "Invalid API key format" }));
     });
 
-    it("should return false for wrong type", async () => {
+    it("should throw for wrong type", async () => {
       const key = apiKeyGenerator.generateApiKey().replace("sk", "wrong");
-      const result = await service.getAndValidateApiKeyFromHeader(key);
-      expect(result).toBe(undefined);
+      await expect(service.getAndValidateApiKeyFromHeader(key)).rejects.toThrow(new HTTPException(401, { message: "Invalid API key format" }));
     });
 
-    it("should return false for wrong environment", async () => {
+    it("should throw for wrong environment", async () => {
       config.get.mockReturnValue("live");
-      const key = apiKeyGenerator.generateApiKey().replace("live", "test");
-      const result = await service.getAndValidateApiKeyFromHeader(key);
-      expect(result).toBe(undefined);
+      const testApiKeyGeneratorService = new ApiKeyGeneratorService(config);
+      const testApiKeyAuthService = new ApiKeyAuthService(testApiKeyGeneratorService, apiKeyRepository, config);
+      const key = testApiKeyGeneratorService.generateApiKey().replace("live", "test");
+      await expect(testApiKeyAuthService.getAndValidateApiKeyFromHeader(key)).rejects.toThrow(new HTTPException(401, { message: "Invalid API key format" }));
     });
 
-    it("should return false when key not found in database", async () => {
+    it("should throw when key not found in database", async () => {
       const key = apiKeyGenerator.generateApiKey();
       apiKeyRepository.findOneBy.mockResolvedValue(null);
 
-      const result = await service.getAndValidateApiKeyFromHeader(key);
-      expect(result).toBe(undefined);
+      await expect(service.getAndValidateApiKeyFromHeader(key)).rejects.toThrow(new HTTPException(401, { message: "API key not found" }));
     });
 
-    it("should return false for expired key", async () => {
-      const key = apiKeyGenerator.generateApiKey();
+    it("should throw for expired key", async () => {
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
 
-      const mockApiKey = ApiKeySeeder.create({
-        expiresAt: pastDate.toISOString(),
-        hashedKey: apiKeyGenerator.hashApiKey(key)
+      const { apiKey, data } = ApiKeySeeder.createWithKey({
+        expiresAt: pastDate.toISOString()
       });
 
-      apiKeyRepository.findOneBy.mockResolvedValue(mockApiKey);
+      apiKeyRepository.findOneBy.mockResolvedValue(data);
 
-      const result = await service.getAndValidateApiKeyFromHeader(key);
-      expect(result).toBe(undefined);
+      await expect(service.getAndValidateApiKeyFromHeader(apiKey)).rejects.toThrow(new HTTPException(401, { message: "API key has expired" }));
     });
 
-    it("should return true for valid active key and no expiration date", async () => {
-      const { apiKey, data } = ApiKeySeeder.createWithKey();
+    it("should return API key data for valid key with future expiration", async () => {
+      const futureDate = new Date();
+      futureDate.setUTCFullYear(futureDate.getUTCFullYear() + 1);
+
+      const { apiKey, data } = ApiKeySeeder.createWithKey({
+        expiresAt: futureDate.toISOString()
+      });
 
       apiKeyRepository.findOneBy.mockResolvedValue(data);
 
@@ -92,11 +90,8 @@ describe("ApiKeyAuthService", () => {
       expect(result).toBe(data);
     });
 
-    it("should return true for valid key with future expiration", async () => {
-      const { apiKey, data } = ApiKeySeeder.createWithKey({
-        expiresAt: new Date(Date.now() + 86400000).toISOString() // tomorrow
-      });
-
+    it("should return API key data for valid key with no expiration", async () => {
+      const { apiKey, data } = ApiKeySeeder.createWithKey();
       apiKeyRepository.findOneBy.mockResolvedValue(data);
 
       const result = await service.getAndValidateApiKeyFromHeader(apiKey);
