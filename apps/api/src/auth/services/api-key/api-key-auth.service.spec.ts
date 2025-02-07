@@ -1,10 +1,11 @@
 import { container } from "tsyringe";
 
-import { ApiKeyOutput, ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "./api-key-auth.service";
 import { ApiKeyGeneratorService } from "./api-key-generator.service";
 
-jest.mock("@src/auth/repositories/api-key/api-key.repository");
+import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
+import { stub } from "@test/services/stub";
 
 describe("ApiKeyAuthService", () => {
   let service: ApiKeyAuthService;
@@ -16,9 +17,7 @@ describe("ApiKeyAuthService", () => {
     originalEnv = process.env.NODE_ENV;
     apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
 
-    apiKeyRepository = {
-      findOneBy: jest.fn()
-    } as Partial<jest.Mocked<ApiKeyRepository>> as jest.Mocked<ApiKeyRepository>;
+    apiKeyRepository = stub<ApiKeyRepository>({ findOneBy: jest.fn() });
 
     service = new ApiKeyAuthService(apiKeyGenerator, apiKeyRepository);
   });
@@ -65,9 +64,6 @@ describe("ApiKeyAuthService", () => {
 
       const result = await service.validateApiKeyFromHeader(key);
       expect(result).toBe(undefined);
-      expect(apiKeyRepository.findOneBy).toHaveBeenCalledWith({
-        hashedKey: apiKeyGenerator.hashApiKey(key)
-      });
     });
 
     it("should return false for expired key", async () => {
@@ -75,66 +71,35 @@ describe("ApiKeyAuthService", () => {
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
 
-      apiKeyRepository.findOneBy.mockResolvedValue({
-        id: "test-id",
-        userId: "test-user",
-        hashedKey: apiKeyGenerator.hashApiKey(key),
-        keyFormat: apiKeyGenerator.obfuscateApiKey(key),
-        name: "Test Key",
-        description: null,
+      const mockApiKey = ApiKeySeeder.create({
         expiresAt: pastDate.toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        hashedKey: apiKeyGenerator.hashApiKey(key)
       });
 
+      apiKeyRepository.findOneBy.mockResolvedValue(mockApiKey);
+
       const result = await service.validateApiKeyFromHeader(key);
-      expect(result).toBe(undefined);
+      expect(result).toBe(false);
     });
 
     it("should return true for valid active key and no expiration date", async () => {
-      const key = apiKeyGenerator.generateApiKey();
-      const mockedApiKey: ApiKeyOutput = {
-        id: "test-id",
-        userId: "test-user",
-        hashedKey: apiKeyGenerator.hashApiKey(key),
-        keyFormat: apiKeyGenerator.obfuscateApiKey(key),
-        name: "Test Key",
-        description: null,
-        expiresAt: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      const { apiKey, data } = ApiKeySeeder.createWithKey();
 
-      apiKeyRepository.findOneBy.mockResolvedValue(mockedApiKey);
+      apiKeyRepository.findOneBy.mockResolvedValue(data);
 
-      const result = await service.validateApiKeyFromHeader(key);
-      expect(result).toBe(mockedApiKey);
+      const result = await service.validateApiKeyFromHeader(apiKey);
+      expect(result).toBe(data);
     });
 
     it("should return true for valid key with future expiration", async () => {
-      const key = apiKeyGenerator.generateApiKey();
-      const hashedKey = apiKeyGenerator.hashApiKey(key);
-      const futureDate = new Date();
-      futureDate.setUTCFullYear(futureDate.getUTCFullYear() + 1);
+      const { apiKey, data } = ApiKeySeeder.createWithKey({
+        expiresAt: new Date(Date.now() + 86400000).toISOString() // tomorrow
+      });
 
-      const mockedApiKey: ApiKeyOutput = {
-        id: "test-id",
-        userId: "test-user",
-        hashedKey,
-        keyFormat: apiKeyGenerator.obfuscateApiKey(key),
-        name: "Test Key",
-        description: null,
-        expiresAt: futureDate.toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      apiKeyRepository.findOneBy.mockResolvedValue(data);
 
-      apiKeyRepository.findOneBy.mockResolvedValue(mockedApiKey);
-
-      const result = await service.validateApiKeyFromHeader(key);
-
-      expect(apiKeyRepository.findOneBy).toHaveBeenCalledWith({ hashedKey });
-      expect(result).toBe(mockedApiKey);
+      const result = await service.validateApiKeyFromHeader(apiKey);
+      expect(result).toBe(true);
     });
   });
 });

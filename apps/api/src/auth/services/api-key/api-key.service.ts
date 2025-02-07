@@ -53,6 +53,8 @@ export class ApiKeyService {
       .accessibleBy(this.authService.ability, "update")
       .updateBy({ id, userId: this.authService.currentUser.id }, updateData, { returning: true });
 
+    if (!updated) return undefined;
+
     return {
       ...updated
     };

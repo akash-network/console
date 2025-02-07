@@ -5,14 +5,12 @@ import { app } from "@src/app";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 
+import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 import { DbTestingService } from "@test/services/db-testing.service";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
-// Pattern for obfuscated keys in list/get responses
 const OBFUSCATED_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{6}\*{3}[A-Za-z0-9]{6}$/;
-// Pattern for full keys in create response
 const FULL_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{64}$/;
-// Pattern for SHA-256 hashed keys in database
 const HASHED_API_KEY_PATTERN = /^[a-f0-9]{64}$/;
 
 jest.setTimeout(20000);
@@ -47,15 +45,15 @@ describe("API Keys", () => {
     it("should not return other user's API keys", async () => {
       const [{ user: user1 }, { token: token2 }] = await Promise.all([walletService.createUserAndWallet(), walletService.createUserAndWallet()]);
 
-      const apiKey = apiKeyGenerator.generateApiKey();
-      const hashedKey = apiKeyGenerator.hashApiKey(apiKey);
-      const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
-
-      await apiKeyRepository.create({
+      const key1 = ApiKeySeeder.create({
         userId: user1.id,
-        hashedKey,
-        keyFormat: obfuscatedKey,
-        name: "Test key"
+        name: "Test key 1"
+      });
+      await apiKeyRepository.create({
+        ...key1,
+        createdAt: new Date(key1.createdAt),
+        updatedAt: new Date(key1.updatedAt),
+        expiresAt: key1.expiresAt ? new Date(key1.expiresAt) : null
       });
 
       const response = await app.request("/v1/api-keys", {
@@ -68,27 +66,30 @@ describe("API Keys", () => {
 
     it("should return list of API keys with obfuscated keys", async () => {
       const { token, user } = await walletService.createUserAndWallet();
-      const apiKey1 = apiKeyGenerator.generateApiKey();
-      const hashedKey1 = apiKeyGenerator.hashApiKey(apiKey1);
-      const obfuscatedKey1 = apiKeyGenerator.obfuscateApiKey(apiKey1);
 
-      const createdKey1 = await apiKeyRepository.create({
+      const key1 = ApiKeySeeder.create({
         userId: user.id,
-        hashedKey: hashedKey1,
-        keyFormat: obfuscatedKey1,
         name: "Test key 1"
       });
-
-      const apiKey2 = apiKeyGenerator.generateApiKey();
-      const hashedKey2 = apiKeyGenerator.hashApiKey(apiKey2);
-      const obfuscatedKey2 = apiKeyGenerator.obfuscateApiKey(apiKey2);
-
-      const createdKey2 = await apiKeyRepository.create({
+      const key2 = ApiKeySeeder.create({
         userId: user.id,
-        hashedKey: hashedKey2,
-        keyFormat: obfuscatedKey2,
         name: "Test key 2"
       });
+
+      await Promise.all([
+        apiKeyRepository.create({
+          ...key1,
+          createdAt: new Date(key1.createdAt),
+          updatedAt: new Date(key1.updatedAt),
+          expiresAt: key1.expiresAt ? new Date(key1.expiresAt) : null
+        }),
+        apiKeyRepository.create({
+          ...key2,
+          createdAt: new Date(key2.createdAt),
+          updatedAt: new Date(key2.updatedAt),
+          expiresAt: key2.expiresAt ? new Date(key2.expiresAt) : null
+        })
+      ]);
 
       const response = await app.request("/v1/api-keys", {
         headers: { authorization: `Bearer ${token}` }
@@ -98,7 +99,7 @@ describe("API Keys", () => {
       const result = await response.json();
       expect(result.data).toHaveLength(2);
       expect(result.data[0]).toMatchObject({
-        id: createdKey1.id,
+        id: key1.id,
         name: "Test key 1",
         keyFormat: expect.stringMatching(OBFUSCATED_API_KEY_PATTERN),
         hashedKey: expect.stringMatching(HASHED_API_KEY_PATTERN),
@@ -107,7 +108,7 @@ describe("API Keys", () => {
         updatedAt: expect.any(String)
       });
       expect(result.data[1]).toMatchObject({
-        id: createdKey2.id,
+        id: key2.id,
         name: "Test key 2",
         keyFormat: expect.stringMatching(OBFUSCATED_API_KEY_PATTERN),
         hashedKey: expect.stringMatching(HASHED_API_KEY_PATTERN),
