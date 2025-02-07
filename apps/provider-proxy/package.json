@@ -24,9 +24,11 @@
   "dependencies": {
     "@akashnetwork/logging": "*",
     "@akashnetwork/net": "*",
+    "@hono/node-server": "^1.13.8",
+    "@hono/zod-openapi": "^0.18.4",
+    "async-sema": "^3.1.1",
     "bech32": "^2.0.0",
-    "cors": "^2.8.5",
-    "express": "^4.18.2",
+    "hono": "^4.6.20",
     "lru-cache": "^11.0.2",
     "uuid": "^9.0.0",
     "ws": "^7.5.9"

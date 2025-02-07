@@ -29,5 +29,6 @@ export const container = {
   providerProxy,
   certificateValidator,
   httpLogger,
-  createWsLogger
+  createWsLogger,
+  netConfig
 };
