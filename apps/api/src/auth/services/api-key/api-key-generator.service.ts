@@ -1,4 +1,5 @@
-import { createHash, randomBytes } from "crypto";
+import { compare, hash } from "bcrypt";
+import { randomBytes } from "crypto";
 import { singleton } from "tsyringe";
 
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
@@ -10,6 +11,7 @@ export class ApiKeyGeneratorService {
   private readonly SEGMENT_LENGTH = 32;
   private readonly VISIBLE_CHARS = 6;
   private readonly ENV = this.config.get("DEPLOYMENT_ENV");
+  private readonly SALT_ROUNDS = 10;
 
   constructor(private readonly config: CoreConfigService) {}
 
@@ -18,8 +20,12 @@ export class ApiKeyGeneratorService {
     return [this.KEY_PREFIX, this.KEY_TYPE, this.ENV, randomSegment].join(".");
   }
 
-  hashApiKey(apiKey: string): string {
-    return createHash("sha256").update(apiKey).digest("hex");
+  async hashApiKey(apiKey: string): Promise<string> {
+    return hash(apiKey, this.SALT_ROUNDS);
+  }
+
+  async validateApiKey(apiKey: string, hashedKey: string): Promise<boolean> {
+    return compare(apiKey, hashedKey);
   }
 
   obfuscateApiKey(apiKey: string): string {
@@ -29,10 +35,5 @@ export class ApiKeyGeneratorService {
     const end = lastPart.slice(-this.VISIBLE_CHARS);
     parts[parts.length - 1] = `${start}***${end}`;
     return parts.join(".");
-  }
-
-  validateApiKey(apiKey: string, hashedKey: string): boolean {
-    const computedHash = this.hashApiKey(apiKey);
-    return computedHash === hashedKey;
   }
 }

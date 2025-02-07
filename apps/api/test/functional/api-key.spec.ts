@@ -144,7 +144,7 @@ describe("API Keys", () => {
     it("should return API key details with obfuscated key", async () => {
       const { token, user } = await walletService.createUserAndWallet();
       const apiKey = apiKeyGenerator.generateApiKey();
-      const hashedKey = apiKeyGenerator.hashApiKey(apiKey);
+      const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
       const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
 
       const createdKey = await apiKeyRepository.create({
@@ -276,7 +276,7 @@ describe("API Keys", () => {
     it("should update API key", async () => {
       const { token, user } = await walletService.createUserAndWallet();
       const apiKey = apiKeyGenerator.generateApiKey();
-      const hashedKey = apiKeyGenerator.hashApiKey(apiKey);
+      const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
       const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
 
       const createdKey = await apiKeyRepository.create({
@@ -328,7 +328,7 @@ describe("API Keys", () => {
     it("should delete API key", async () => {
       const { token, user } = await walletService.createUserAndWallet();
       const apiKey = apiKeyGenerator.generateApiKey();
-      const hashedKey = apiKeyGenerator.hashApiKey(apiKey);
+      const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
       const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
 
       const createdKey = await apiKeyRepository.create({

@@ -67,8 +67,11 @@ describe("ApiKeyAuthService", () => {
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 1);
 
-      const { apiKey, data } = ApiKeySeeder.createWithKey({
-        expiresAt: pastDate.toISOString()
+      const apiKey = apiKeyGenerator.generateApiKey();
+      const data = ApiKeySeeder.create({
+        expiresAt: pastDate.toISOString(),
+        hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
+        keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
       });
 
       apiKeyRepository.findOneBy.mockResolvedValue(data);
@@ -80,8 +83,11 @@ describe("ApiKeyAuthService", () => {
       const futureDate = new Date();
       futureDate.setUTCFullYear(futureDate.getUTCFullYear() + 1);
 
-      const { apiKey, data } = ApiKeySeeder.createWithKey({
-        expiresAt: futureDate.toISOString()
+      const apiKey = apiKeyGenerator.generateApiKey();
+      const data = ApiKeySeeder.create({
+        expiresAt: futureDate.toISOString(),
+        hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
+        keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
       });
 
       apiKeyRepository.findOneBy.mockResolvedValue(data);
@@ -91,7 +97,11 @@ describe("ApiKeyAuthService", () => {
     });
 
     it("should return API key data for valid key with no expiration", async () => {
-      const { apiKey, data } = ApiKeySeeder.createWithKey();
+      const apiKey = apiKeyGenerator.generateApiKey();
+      const data = ApiKeySeeder.create({
+        hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
+        keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
+      });
       apiKeyRepository.findOneBy.mockResolvedValue(data);
 
       const result = await service.getAndValidateApiKeyFromHeader(apiKey);

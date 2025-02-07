@@ -7,7 +7,7 @@ import { stub } from "@test/services/stub";
 
 const FULL_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{64}$/;
 const OBFUSCATED_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{6}\*{3}[A-Za-z0-9]{6}$/;
-const HASHED_API_KEY_PATTERN = /^[a-f0-9]{64}$/;
+const HASHED_API_KEY_PATTERN = /^\$2[abxy]\$\d{2}\$[A-Za-z0-9./]{53}$/;
 
 describe("ApiKeyGeneratorService", () => {
   let service: ApiKeyGeneratorService;
@@ -50,20 +50,25 @@ describe("ApiKeyGeneratorService", () => {
   });
 
   describe("hashApiKey", () => {
-    it("should hash API key consistently", () => {
+    it("should generate consistent hashes", async () => {
       const apiKey = service.generateApiKey();
-      const hash1 = service.hashApiKey(apiKey);
-      const hash2 = service.hashApiKey(apiKey);
+      const hash1 = await service.hashApiKey(apiKey);
+      const hash2 = await service.hashApiKey(apiKey);
 
       expect(hash1).toMatch(HASHED_API_KEY_PATTERN);
-      expect(hash1).toBe(hash2);
+      expect(await service.validateApiKey(apiKey, hash1)).toBe(true);
+      expect(await service.validateApiKey(apiKey, hash2)).toBe(true);
     });
 
-    it("should generate different hashes for different keys", () => {
+    it("should generate different hashes for different keys", async () => {
       const key1 = service.generateApiKey();
       const key2 = service.generateApiKey();
 
-      expect(service.hashApiKey(key1)).not.toBe(service.hashApiKey(key2));
+      const hash1 = await service.hashApiKey(key1);
+      const hash2 = await service.hashApiKey(key2);
+
+      expect(hash1).not.toBe(hash2);
+      expect(await service.validateApiKey(key1, hash1)).toBe(true);
     });
   });
 
@@ -102,27 +107,27 @@ describe("ApiKeyGeneratorService", () => {
   });
 
   describe("validateApiKey", () => {
-    it("should validate hashed key correctly", () => {
+    it("should validate hashed key correctly", async () => {
       const apiKey = service.generateApiKey();
-      const hashedKey = service.hashApiKey(apiKey);
+      const hashedKey = await service.hashApiKey(apiKey);
 
-      expect(service.validateApiKey(apiKey, hashedKey)).toBe(true);
+      expect(await service.validateApiKey(apiKey, hashedKey)).toBe(true);
     });
 
-    it("should reject invalid keys", () => {
+    it("should reject invalid keys", async () => {
       const apiKey = service.generateApiKey();
-      const hashedKey = service.hashApiKey(apiKey);
+      const hashedKey = await service.hashApiKey(apiKey);
       const wrongKey = service.generateApiKey();
 
-      expect(service.validateApiKey(wrongKey, hashedKey)).toBe(false);
+      expect(await service.validateApiKey(wrongKey, hashedKey)).toBe(false);
     });
 
-    it("should reject tampered keys", () => {
+    it("should reject tampered keys", async () => {
       const apiKey = service.generateApiKey();
-      const hashedKey = service.hashApiKey(apiKey);
+      const hashedKey = await service.hashApiKey(apiKey);
       const tamperedKey = apiKey.replace("test", "live");
 
-      expect(service.validateApiKey(tamperedKey, hashedKey)).toBe(false);
+      expect(await service.validateApiKey(tamperedKey, hashedKey)).toBe(false);
     });
   });
 });

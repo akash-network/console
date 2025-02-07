@@ -25,9 +25,9 @@ export class ApiKeyAuthService {
     const [prefix, type, env] = apiKey.split(".");
     assert(prefix === this.API_KEY_PREFIX && type === this.API_KEY_TYPE && env === this.DEPLOYMENT_ENV, 401, "Invalid API key format");
 
-    const hashedKey = this.apiKeyGenerator.hashApiKey(apiKey);
-    const key = await this.apiKeyRepository.findOneBy({ hashedKey });
-    assert(key, 401, "API key not found");
+    const obfuscatedKey = this.apiKeyGenerator.obfuscateApiKey(apiKey);
+    const key = await this.apiKeyRepository.findOneBy({ keyFormat: obfuscatedKey });
+    assert(key && (await this.apiKeyGenerator.validateApiKey(apiKey, key.hashedKey)), 401, "API key not found");
 
     if (key.expiresAt) {
       const expirationDate = parseISO(key.expiresAt);
