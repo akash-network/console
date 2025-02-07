@@ -15,11 +15,12 @@ export const DeploymentSettings = pgTable(
       .notNull(),
     dseq: varchar("dseq").notNull(),
     autoTopUpEnabled: boolean("auto_top_up_enabled").notNull().default(false),
+    closed: boolean("closed").notNull().default(false),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow()
   },
   table => ({
     dseqUserIdIdx: unique("dseq_user_id_idx").on(table.dseq, table.userId),
-    autoTopUpEnabledIdIdx: index("auto_top_up_enabled_id_idx").on(table.autoTopUpEnabled, table.id)
+    idAutoTopUpEnabledClosedIdx: index("id_auto_top_up_enabled_closed_idx").on(table.id, table.autoTopUpEnabled, table.closed)
   })
 );

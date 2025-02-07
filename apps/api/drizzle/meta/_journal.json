@@ -78,6 +78,13 @@
       "when": 1738662254123,
       "tag": "0010_naive_living_tribunal",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1738917698642,
+      "tag": "0011_confused_storm",
+      "breakpoints": true
     }
   ]
 }

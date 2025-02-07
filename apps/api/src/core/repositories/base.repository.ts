@@ -124,6 +124,16 @@ export abstract class BaseRepository<
     return this.updateBy({ id } as Partial<Output>, payload, options);
   }
 
+  async updateManyById(ids: Output["id"][], payload: Partial<Input>): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({
+        ...this.toInput(payload),
+        updated_at: sql`now()`
+      })
+      .where(inArray(this.table.id, ids));
+  }
+
   async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: MutationOptions): Promise<Output>;
   async updateBy(query: Partial<Output>, payload: Partial<Input>): Promise<void>;
   async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: MutationOptions): Promise<void | Output> {
