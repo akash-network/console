@@ -1,4 +1,5 @@
 import { X509Certificate } from "crypto";
+import { setTimeout } from "timers/promises";
 
 import { CertificateValidator, CertificateValidatorIntrumentation, CertValidationResultError } from "../../src/services/CertificateValidator";
 import { ProviderService } from "../../src/services/ProviderService";
@@ -159,10 +160,16 @@ describe(CertificateValidator.name, () => {
       commonName: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
       serialNumber: "177831BE7F249E66"
     });
-    const getCertificate = jest.fn(async () => cert);
+    const getCertificate = jest.fn(() => setTimeout(20, cert));
     const validator = setup({ getCertificate });
 
-    const results = await Promise.all([validator.validate(cert, "mainnet", "provider"), validator.validate(cert, "mainnet", "provider")]);
+    const results = await Promise.all([
+      // keep-newline
+      validator.validate(cert, "mainnet", "provider"),
+      validator.validate(cert, "mainnet", "provider"),
+      validator.validate(cert, "mainnet", "provider"),
+      validator.validate(cert, "mainnet", "provider")
+    ]);
 
     expect(getCertificate).toHaveBeenCalledTimes(1);
     expect(results[0].ok).toBe(true);
