@@ -1,5 +1,17 @@
 
 
+## [2.43.0](https://github.com/akash-network/console/compare/console-web/v2.42.1...console-web/v2.43.0) (2025-02-07)
+
+
+### Features
+
+* **deployment:** creates setting if not exists on get ([66cd74b](https://github.com/akash-network/console/commit/66cd74b039e6fab8c848a296047d1669b9c5a574)), closes [#714](https://github.com/akash-network/console/issues/714)
+
+
+### Bug Fixes
+
+* ensure that deployment details are not fetched unless node api endpoint is not empty ([#806](https://github.com/akash-network/console/issues/806)) ([8fc4523](https://github.com/akash-network/console/commit/8fc4523034e06036bddc75378d1503d7ba8ead64))
+
 ## [2.42.1](https://github.com/akash-network/console/compare/console-web/v2.42.0...console-web/v2.42.1) (2025-02-06)
 
 
