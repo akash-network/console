@@ -15,8 +15,8 @@ export class DeploymentSettingController {
   constructor(private readonly deploymentSettingService: DeploymentSettingService) {}
 
   @Protected([{ action: "read", subject: "DeploymentSetting" }])
-  async findByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingResponse> {
-    const setting = await this.deploymentSettingService.findByUserIdAndDseq(params);
+  async findOrCreateByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingResponse> {
+    const setting = await this.deploymentSettingService.findOrCreateByUserIdAndDseq(params);
     assert(setting, 404, "Deployment setting not found");
     return { data: setting };
   }
