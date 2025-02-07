@@ -8,6 +8,7 @@ export interface DrainingDeploymentOutput {
   denom: string;
   blockRate: number;
   predictedClosedHeight: number;
+  closedHeight?: number;
 }
 
 @singleton()
@@ -37,7 +38,14 @@ export class LeaseRepository {
           [Op.and]: [{ dseq, owner }]
         }))
       },
-      attributes: ["dseq", "owner", "denom", [fn("min", col("predictedClosedHeight")), "predictedClosedHeight"], [fn("sum", col("price")), "blockRate"]],
+      attributes: [
+        "dseq",
+        "owner",
+        "denom",
+        [fn("min", col("predictedClosedHeight")), "predictedClosedHeight"],
+        [fn("min", col("closedHeight")), "closedHeight"],
+        [fn("sum", col("price")), "blockRate"]
+      ],
       group: ["dseq", "owner", "denom"],
       raw: true
     });

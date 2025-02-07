@@ -52,7 +52,8 @@ describe("Deployment Settings", () => {
           createdAt: expect.any(String),
           updatedAt: expect.any(String),
           estimatedTopUpAmount: expect.any(Number),
-          topUpFrequencyMs: expect.any(Number)
+          topUpFrequencyMs: expect.any(Number),
+          closed: false
         }
       });
     });
@@ -106,7 +107,8 @@ describe("Deployment Settings", () => {
           createdAt: expect.any(String),
           updatedAt: expect.any(String),
           estimatedTopUpAmount: expect.any(Number),
-          topUpFrequencyMs: expect.any(Number)
+          topUpFrequencyMs: expect.any(Number),
+          closed: false
         }
       });
       expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, wallet.address);

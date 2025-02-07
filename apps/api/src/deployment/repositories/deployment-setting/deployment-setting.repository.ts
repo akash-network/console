@@ -41,7 +41,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     let lastId: string | undefined;
 
     do {
-      const clauses = [eq(this.table.autoTopUpEnabled, true)];
+      const clauses = [eq(this.table.autoTopUpEnabled, true), eq(this.table.closed, false)];
 
       if (lastId) {
         clauses.push(lt(this.table.id, lastId));
