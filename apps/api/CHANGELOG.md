@@ -1,5 +1,13 @@
 
 
+## [2.59.0](https://github.com/akash-network/console/compare/console-api/v2.58.1...console-api/v2.59.0) (2025-02-07)
+
+
+### Features
+
+* **deployment:** creates setting if not exists on get ([66cd74b](https://github.com/akash-network/console/commit/66cd74b039e6fab8c848a296047d1669b9c5a574)), closes [#714](https://github.com/akash-network/console/issues/714)
+* **deployment:** marks closed deployments settings ([bef955c](https://github.com/akash-network/console/commit/bef955ccb4f49f08015c94421ce2b87e16004395)), closes [#714](https://github.com/akash-network/console/issues/714)
+
 ## [2.58.1](https://github.com/akash-network/console/compare/console-api/v2.58.0...console-api/v2.58.1) (2025-02-05)
 
 
