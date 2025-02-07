@@ -14,7 +14,8 @@ import {
   ProviderSnapshot,
   ProviderSnapshotNode,
   ProviderSnapshotNodeCPU,
-  ProviderSnapshotNodeGPU
+  ProviderSnapshotNodeGPU,
+  ProviderSnapshotStorage
 } from "@akashnetwork/database/dbSchemas/akash";
 import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
 import { Op, Transaction as DbTransaction } from "sequelize";
@@ -25,8 +26,11 @@ import { getAmountFromCoin } from "@src/shared/utils/coin";
 import { uint8arrayToString } from "@src/shared/utils/protobuf";
 import * as benchmark from "../shared/utils/benchmark";
 import { Indexer } from "./indexer";
+import { Transaction, TransactionEvent } from "@akashnetwork/database/dbSchemas/base";
+import { DecodedTxRaw } from "@cosmjs/proto-signing";
 
-class ITotalResources {
+class IActiveLeases {
+  predictedClosedHeights: number[];
   count: number;
   cpuSum: number;
   gpuSum: number;
@@ -46,24 +50,7 @@ const denomMapping = {
 export class AkashStatsIndexer extends Indexer {
   private totalLeaseCount = 0;
   private activeProviderCount = 0;
-  private deploymentIdCache: { [key: string]: string } = {};
-  private deploymentGroupIdCache: { [key: string]: string } = {};
-  private totalResources: ITotalResources;
-  private predictedClosedHeights: number[];
-
-  private addToDeploymentIdCache(owner: string, dseq: string, id: string) {
-    this.deploymentIdCache[owner + "_" + dseq] = id;
-  }
-  private getDeploymentIdFromCache(owner: string, dseq: string) {
-    return this.deploymentIdCache[owner + "_" + dseq];
-  }
-
-  private addToDeploymentGroupIdCache(owner: string, dseq: string, gseq: number, id: string) {
-    this.deploymentGroupIdCache[owner + "_" + dseq + "_" + gseq] = id;
-  }
-  private getDeploymentGroupIdFromCache(owner: string, dseq: string, gseq: number): string {
-    return this.deploymentGroupIdCache[owner + "_" + dseq + "_" + gseq];
-  }
+  private activeLeases: IActiveLeases;
 
   constructor() {
     super();
@@ -89,7 +76,7 @@ export class AkashStatsIndexer extends Indexer {
       "/akash.deployment.v1beta2.MsgCloseDeployment": this.handleCloseDeployment,
       "/akash.market.v1beta2.MsgCreateLease": this.handleCreateLease,
       "/akash.market.v1beta2.MsgCloseLease": this.handleCloseLease,
-      "/akash.market.v1beta2.MsgCreateBid": this.handleCreateBidV2,
+      "/akash.market.v1beta2.MsgCreateBid": this.handleCreateBid,
       "/akash.market.v1beta2.MsgCloseBid": this.handleCloseBid,
       "/akash.deployment.v1beta2.MsgDepositDeployment": this.handleDepositDeployment,
       "/akash.market.v1beta2.MsgWithdrawLease": this.handleWithdrawLease,
@@ -103,7 +90,7 @@ export class AkashStatsIndexer extends Indexer {
       "/akash.deployment.v1beta3.MsgCloseDeployment": this.handleCloseDeployment,
       "/akash.market.v1beta3.MsgCreateLease": this.handleCreateLease,
       "/akash.market.v1beta3.MsgCloseLease": this.handleCloseLease,
-      "/akash.market.v1beta3.MsgCreateBid": this.handleCreateBidV3,
+      "/akash.market.v1beta3.MsgCreateBid": this.handleCreateBid,
       "/akash.market.v1beta3.MsgCloseBid": this.handleCloseBid,
       "/akash.deployment.v1beta3.MsgDepositDeployment": this.handleDepositDeployment,
       "/akash.market.v1beta3.MsgWithdrawLease": this.handleWithdrawLease,
@@ -115,7 +102,7 @@ export class AkashStatsIndexer extends Indexer {
       // Akash v1beta4 types
       "/akash.market.v1beta4.MsgCreateLease": this.handleCreateLease,
       "/akash.market.v1beta4.MsgCloseLease": this.handleCloseLease,
-      "/akash.market.v1beta4.MsgCreateBid": this.handleCreateBidV4,
+      "/akash.market.v1beta4.MsgCreateBid": this.handleCreateBid,
       "/akash.market.v1beta4.MsgCloseBid": this.handleCloseBid,
       "/akash.market.v1beta4.MsgWithdrawLease": this.handleWithdrawLease
     };
@@ -127,6 +114,7 @@ export class AkashStatsIndexer extends Indexer {
     await Lease.drop({ cascade: true });
     await ProviderSnapshotNodeCPU.drop({ cascade: true });
     await ProviderSnapshotNodeGPU.drop({ cascade: true });
+    await ProviderSnapshotStorage.drop({ cascade: true });
     await ProviderSnapshotNode.drop({ cascade: true });
     await ProviderSnapshot.drop({ cascade: true });
     await ProviderAttributeSignature.drop({ cascade: true });
@@ -145,6 +133,7 @@ export class AkashStatsIndexer extends Indexer {
     await ProviderAttribute.sync({ force: false });
     await ProviderAttributeSignature.sync({ force: false });
     await ProviderSnapshot.sync({ force: false });
+    await ProviderSnapshotStorage.sync({ force: false });
     await ProviderSnapshotNode.sync({ force: false });
     await ProviderSnapshotNodeCPU.sync({ force: false });
     await ProviderSnapshotNodeGPU.sync({ force: false });
@@ -153,22 +142,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   async initCache(firstBlockHeight: number) {
-    this.totalResources = await this.getTotalResources(null, firstBlockHeight);
-    this.predictedClosedHeights = await this.getFuturePredictedCloseHeights(firstBlockHeight, null);
-
-    console.log("Fetching deployment id cache...");
-
-    const existingDeployments = await Deployment.findAll({
-      attributes: ["id", "owner", "dseq"]
-    });
-
-    existingDeployments.forEach(d => this.addToDeploymentIdCache(d.owner, d.dseq, d.id));
-
-    const existingDeploymentGroups = await DeploymentGroup.findAll({
-      attributes: ["id", "owner", "dseq", "gseq"]
-    });
-
-    existingDeploymentGroups.forEach(d => this.addToDeploymentGroupIdCache(d.owner, d.dseq, d.gseq, d.id));
+    this.activeLeases = await this.getActiveLeases(null, firstBlockHeight);
 
     this.totalLeaseCount = await Lease.count();
     this.activeProviderCount = await Provider.count();
@@ -177,43 +151,37 @@ export class AkashStatsIndexer extends Indexer {
   @benchmark.measureMethodAsync
   async afterEveryBlock(currentBlock: Block, previousBlock: Block, dbTransaction: DbTransaction) {
     const shouldRefreshPredictedHeights = currentBlock.transactions.some(tx => tx.messages.some(msg => this.checkShouldRefreshPredictedCloseHeight(msg)));
-    if (shouldRefreshPredictedHeights) {
-      this.predictedClosedHeights = await this.getFuturePredictedCloseHeights(currentBlock.height, dbTransaction);
-    }
 
-    if (shouldRefreshPredictedHeights || this.predictedClosedHeights.includes(currentBlock.height)) {
-      this.totalResources = await this.getTotalResources(dbTransaction, currentBlock.height);
+    if (shouldRefreshPredictedHeights || this.activeLeases.predictedClosedHeights.includes(currentBlock.height)) {
+      this.activeLeases = await this.getActiveLeases(dbTransaction, currentBlock.height);
     }
 
     currentBlock.activeProviderCount = this.activeProviderCount;
-    currentBlock.activeLeaseCount = this.totalResources.count;
+    currentBlock.activeLeaseCount = this.activeLeases.count;
     currentBlock.totalLeaseCount = this.totalLeaseCount;
-    currentBlock.activeCPU = this.totalResources.cpuSum;
-    currentBlock.activeGPU = this.totalResources.gpuSum;
-    currentBlock.activeMemory = this.totalResources.memorySum;
-    currentBlock.activeEphemeralStorage = this.totalResources.ephemeralStorageSum;
-    currentBlock.activePersistentStorage = this.totalResources.persistentStorageSum;
-    currentBlock.totalUAktSpent = (previousBlock?.totalUAktSpent || 0) + this.totalResources.priceSumUAKT;
-    currentBlock.totalUUsdcSpent = (previousBlock?.totalUUsdcSpent || 0) + this.totalResources.priceSumUUSDC;
+    currentBlock.activeCPU = this.activeLeases.cpuSum;
+    currentBlock.activeGPU = this.activeLeases.gpuSum;
+    currentBlock.activeMemory = this.activeLeases.memorySum;
+    currentBlock.activeEphemeralStorage = this.activeLeases.ephemeralStorageSum;
+    currentBlock.activePersistentStorage = this.activeLeases.persistentStorageSum;
+    currentBlock.totalUAktSpent = (previousBlock?.totalUAktSpent || 0) + this.activeLeases.priceSumUAKT;
+    currentBlock.totalUUsdcSpent = (previousBlock?.totalUUsdcSpent || 0) + this.activeLeases.priceSumUUSDC;
   }
 
   @benchmark.measureMethodAsync
-  private async getFuturePredictedCloseHeights(firstBlock: number, blockGroupTransaction: DbTransaction) {
-    const leases = await Lease.findAll({
-      attributes: ["predictedClosedHeight"],
-      where: {
-        predictedClosedHeight: { [Op.gte]: firstBlock }
-      },
-      transaction: blockGroupTransaction
-    });
-
-    return leases.map(x => parseInt(x.predictedClosedHeight));
-  }
-
-  @benchmark.measureMethodAsync
-  private async getTotalResources(blockGroupTransaction: DbTransaction, height: number) {
-    const totalResources = await Lease.findAll({
-      attributes: ["cpuUnits", "gpuUnits", "memoryQuantity", "ephemeralStorageQuantity", "persistentStorageQuantity", "price", "denom"],
+  private async getActiveLeases(blockGroupTransaction: DbTransaction, height: number) {
+    const activeLeases = await Lease.findAll({
+      raw: true,
+      attributes: [
+        "cpuUnits",
+        "gpuUnits",
+        "memoryQuantity",
+        "ephemeralStorageQuantity",
+        "persistentStorageQuantity",
+        "price",
+        "denom",
+        "predictedClosedHeight"
+      ],
       where: {
         closedHeight: { [Op.is]: null },
         predictedClosedHeight: { [Op.gt]: height }
@@ -222,17 +190,18 @@ export class AkashStatsIndexer extends Indexer {
     });
 
     return {
-      count: totalResources.length,
-      cpuSum: totalResources.map(x => x.cpuUnits).reduce((a, b) => a + b, 0),
-      gpuSum: totalResources.map(x => x.gpuUnits).reduce((a, b) => a + b, 0),
-      memorySum: totalResources.map(x => x.memoryQuantity).reduce((a, b) => a + b, 0),
-      ephemeralStorageSum: totalResources.map(x => x.ephemeralStorageQuantity).reduce((a, b) => a + b, 0),
-      persistentStorageSum: totalResources.map(x => x.persistentStorageQuantity).reduce((a, b) => a + b, 0),
-      priceSumUAKT: totalResources
+      predictedClosedHeights: activeLeases.map(x => parseInt(x.predictedClosedHeight)),
+      count: activeLeases.length,
+      cpuSum: activeLeases.map(x => x.cpuUnits).reduce((a, b) => a + b, 0),
+      gpuSum: activeLeases.map(x => x.gpuUnits).reduce((a, b) => a + b, 0),
+      memorySum: activeLeases.map(x => x.memoryQuantity).reduce((a, b) => a + b, 0),
+      ephemeralStorageSum: activeLeases.map(x => x.ephemeralStorageQuantity).reduce((a, b) => a + b, 0),
+      persistentStorageSum: activeLeases.map(x => x.persistentStorageQuantity).reduce((a, b) => a + b, 0),
+      priceSumUAKT: activeLeases
         .filter(x => x.denom === "uakt")
         .map(x => x.price)
         .reduce((a, b) => a + b, 0),
-      priceSumUUSDC: totalResources
+      priceSumUUSDC: activeLeases
         .filter(x => x.denom === "uusdc")
         .map(x => x.price)
         .reduce((a, b) => a + b, 0)
@@ -291,8 +260,6 @@ export class AkashStatsIndexer extends Indexer {
 
     msg.relatedDeploymentId = created.id;
 
-    this.addToDeploymentIdCache(decodedMessage.id.owner, decodedMessage.id.dseq.toString(), created.id);
-
     for (const group of decodedMessage.groups) {
       const createdGroup = await DeploymentGroup.create(
         {
@@ -304,7 +271,6 @@ export class AkashStatsIndexer extends Indexer {
         },
         { transaction: blockGroupTransaction }
       );
-      this.addToDeploymentGroupIdCache(createdGroup.owner, createdGroup.dseq, createdGroup.gseq, createdGroup.id);
 
       for (const groupResource of group.resources) {
         await DeploymentGroupResource.create(
@@ -342,8 +308,6 @@ export class AkashStatsIndexer extends Indexer {
 
     msg.relatedDeploymentId = created.id;
 
-    this.addToDeploymentIdCache(decodedMessage.id.owner, decodedMessage.id.dseq.toString(), created.id);
-
     for (const group of decodedMessage.groups) {
       const createdGroup = await DeploymentGroup.create(
         {
@@ -355,7 +319,6 @@ export class AkashStatsIndexer extends Indexer {
         },
         { transaction: blockGroupTransaction }
       );
-      this.addToDeploymentGroupIdCache(createdGroup.owner, createdGroup.dseq, createdGroup.gseq, createdGroup.id);
 
       for (const groupResource of group.resources) {
         await DeploymentGroupResource.create(
@@ -403,8 +366,6 @@ export class AkashStatsIndexer extends Indexer {
 
     msg.relatedDeploymentId = created.id;
 
-    this.addToDeploymentIdCache(decodedMessage.id.owner, decodedMessage.id.dseq.toString(), created.id);
-
     for (const group of decodedMessage.groups) {
       const createdGroup = await DeploymentGroup.create(
         {
@@ -416,7 +377,6 @@ export class AkashStatsIndexer extends Indexer {
         },
         { transaction: blockGroupTransaction }
       );
-      this.addToDeploymentGroupIdCache(createdGroup.owner, createdGroup.dseq, createdGroup.gseq, createdGroup.id);
 
       for (const groupResource of group.resources) {
         const { vendor: gpuVendor, model: gpuModel } = getGPUAttributes(groupResource.resource.gpu);
@@ -452,19 +412,18 @@ export class AkashStatsIndexer extends Indexer {
     blockGroupTransaction: DbTransaction,
     msg: Message
   ) {
-    const deploymentId = this.getDeploymentIdFromCache(decodedMessage.id.owner, decodedMessage.id.dseq.toString());
-
-    if (!deploymentId) {
-      throw new Error(`Deployment ID for ${decodedMessage.id.owner}/${decodedMessage.id.dseq.toString()} not found in cache.`);
-    }
-
     const deployment = await Deployment.findOne({
       where: {
-        id: deploymentId
+        owner: decodedMessage.id.owner,
+        dseq: decodedMessage.id.dseq.toString()
       },
       include: [{ model: Lease }],
       transaction: blockGroupTransaction
     });
+
+    if (!deployment) {
+      throw new Error(`Deployment for ${decodedMessage.id.owner}/${decodedMessage.id.dseq.toString()} not found.`);
+    }
 
     msg.relatedDeploymentId = deployment.id;
 
@@ -496,35 +455,39 @@ export class AkashStatsIndexer extends Indexer {
       transaction: blockGroupTransaction
     });
 
-    const deploymentGroupId = this.getDeploymentGroupIdFromCache(decodedMessage.bidId.owner, decodedMessage.bidId.dseq.toString(), decodedMessage.bidId.gseq);
-
-    if (!deploymentGroupId) {
-      throw new Error(
-        `Deployment group ID for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()}/${decodedMessage.bidId.gseq} not found in cache.`
-      );
-    }
-
-    const deploymentGroups = await DeploymentGroupResource.findAll({
-      attributes: ["count", "cpuUnits", "gpuUnits", "memoryQuantity", "ephemeralStorageQuantity", "persistentStorageQuantity"],
+    const deploymentGroup = await DeploymentGroup.findOne({
+      attributes: ["id"],
       where: {
-        deploymentGroupId: deploymentGroupId
+        owner: decodedMessage.bidId.owner,
+        dseq: decodedMessage.bidId.dseq.toString(),
+        gseq: decodedMessage.bidId.gseq
       },
+      include: [
+        {
+          model: DeploymentGroupResource,
+          attributes: ["count", "cpuUnits", "gpuUnits", "memoryQuantity", "ephemeralStorageQuantity", "persistentStorageQuantity"],
+          required: false
+        }
+      ],
       transaction: blockGroupTransaction
     });
 
-    const deploymentId = this.getDeploymentIdFromCache(decodedMessage.bidId.owner, decodedMessage.bidId.dseq.toString());
-
-    if (!deploymentId) {
-      throw new Error(`Deployment ID for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()} not found in cache.`);
+    if (!deploymentGroup) {
+      throw new Error(`Deployment group for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()}/${decodedMessage.bidId.gseq} not found.`);
     }
 
     const deployment = await Deployment.findOne({
       where: {
-        id: deploymentId
+        owner: decodedMessage.bidId.owner,
+        dseq: decodedMessage.bidId.dseq.toString()
       },
       include: [{ model: Lease }],
       transaction: blockGroupTransaction
     });
+
+    if (!deployment) {
+      throw new Error(`Deployment for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()} not found.`);
+    }
 
     const { blockRate } = await accountSettle(deployment, height, blockGroupTransaction);
 
@@ -533,8 +496,8 @@ export class AkashStatsIndexer extends Indexer {
     await Lease.create(
       {
         id: uuid.v4(),
-        deploymentId: deploymentId,
-        deploymentGroupId: deploymentGroupId,
+        deploymentId: deployment.id,
+        deploymentGroupId: deploymentGroup.id,
         owner: decodedMessage.bidId.owner,
         dseq: decodedMessage.bidId.dseq.toString(),
         oseq: decodedMessage.bidId.oseq,
@@ -546,21 +509,21 @@ export class AkashStatsIndexer extends Indexer {
         denom: deployment.denom,
 
         // Stats
-        cpuUnits: deploymentGroups.map(x => x.cpuUnits * x.count).reduce((a, b) => a + b, 0),
-        gpuUnits: deploymentGroups.map(x => x.gpuUnits * x.count).reduce((a, b) => a + b, 0),
-        memoryQuantity: deploymentGroups.map(x => x.memoryQuantity * x.count).reduce((a, b) => a + b, 0),
-        ephemeralStorageQuantity: deploymentGroups.map(x => x.ephemeralStorageQuantity * x.count).reduce((a, b) => a + b, 0),
-        persistentStorageQuantity: deploymentGroups.map(x => x.persistentStorageQuantity * x.count).reduce((a, b) => a + b, 0)
+        cpuUnits: deploymentGroup.deploymentGroupResources.map(x => x.cpuUnits * x.count).reduce((a, b) => a + b, 0),
+        gpuUnits: deploymentGroup.deploymentGroupResources.map(x => x.gpuUnits * x.count).reduce((a, b) => a + b, 0),
+        memoryQuantity: deploymentGroup.deploymentGroupResources.map(x => x.memoryQuantity * x.count).reduce((a, b) => a + b, 0),
+        ephemeralStorageQuantity: deploymentGroup.deploymentGroupResources.map(x => x.ephemeralStorageQuantity * x.count).reduce((a, b) => a + b, 0),
+        persistentStorageQuantity: deploymentGroup.deploymentGroupResources.map(x => x.persistentStorageQuantity * x.count).reduce((a, b) => a + b, 0)
       },
       { transaction: blockGroupTransaction }
     );
 
     await Lease.update(
       { predictedClosedHeight: predictedClosedHeight.toString() },
-      { where: { deploymentId: deploymentId }, transaction: blockGroupTransaction }
+      { where: { deploymentId: deployment.id }, transaction: blockGroupTransaction }
     );
 
-    msg.relatedDeploymentId = deploymentId;
+    msg.relatedDeploymentId = deployment.id;
 
     this.totalLeaseCount++;
   }
@@ -571,25 +534,27 @@ export class AkashStatsIndexer extends Indexer {
     blockGroupTransaction: DbTransaction,
     msg: Message
   ) {
-    const deploymentId = this.getDeploymentIdFromCache(decodedMessage.leaseId.owner, decodedMessage.leaseId.dseq.toString());
-
-    if (!deploymentId) {
-      throw new Error(`Deployment ID for ${decodedMessage.leaseId.owner}/${decodedMessage.leaseId.dseq.toString()} not found in cache.`);
-    }
-
     const deployment = await Deployment.findOne({
       where: {
-        id: deploymentId
+        owner: decodedMessage.leaseId.owner,
+        dseq: decodedMessage.leaseId.dseq.toString()
       },
       include: [{ model: Lease }],
       transaction: blockGroupTransaction
     });
 
+    if (!deployment) {
+      throw new Error(`Deployment for ${decodedMessage.leaseId.owner}/${decodedMessage.leaseId.dseq.toString()} not found.`);
+    }
+
     const lease = deployment.leases.find(
       x => x.oseq === decodedMessage.leaseId.oseq && x.gseq === decodedMessage.leaseId.gseq && x.providerAddress === decodedMessage.leaseId.provider
     );
 
-    if (!lease) throw new Error("Lease not found");
+    if (!lease)
+      throw new Error(
+        `Lease for ${decodedMessage.leaseId.owner}/${decodedMessage.leaseId.dseq}/${decodedMessage.leaseId.gseq}/${decodedMessage.leaseId.provider} not found.`
+      );
 
     msg.relatedDeploymentId = deployment.id;
 
@@ -610,24 +575,12 @@ export class AkashStatsIndexer extends Indexer {
     }
   }
 
-  private async handleCreateBid(decodedMessage: v1beta1.MsgCreateBid, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
-    await Bid.create(
-      {
-        owner: decodedMessage.order.owner,
-        dseq: decodedMessage.order.dseq.toString(),
-        gseq: decodedMessage.order.gseq,
-        oseq: decodedMessage.order.oseq,
-        provider: decodedMessage.provider,
-        price: parseInt(decodedMessage.price.amount),
-        createdHeight: height
-      },
-      { transaction: blockGroupTransaction }
-    );
-
-    msg.relatedDeploymentId = this.getDeploymentIdFromCache(decodedMessage.order.owner, decodedMessage.order.dseq.toString());
-  }
-
-  private async handleCreateBidV2(decodedMessage: v1beta2.MsgCreateBid, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+  private async handleCreateBid(
+    decodedMessage: v1beta1.MsgCreateBid | v1beta2.MsgCreateBid | v1beta3.MsgCreateBid | v1beta4.MsgCreateBid,
+    height: number,
+    blockGroupTransaction: DbTransaction,
+    msg: Message
+  ) {
     await Bid.create(
       {
         owner: decodedMessage.order.owner,
@@ -641,41 +594,16 @@ export class AkashStatsIndexer extends Indexer {
       { transaction: blockGroupTransaction }
     );
 
-    msg.relatedDeploymentId = this.getDeploymentIdFromCache(decodedMessage.order.owner, decodedMessage.order.dseq.toString());
-  }
-
-  private async handleCreateBidV3(decodedMessage: v1beta3.MsgCreateBid, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
-    await Bid.create(
-      {
+    const deployment = await Deployment.findOne({
+      attributes: ["id"],
+      where: {
         owner: decodedMessage.order.owner,
-        dseq: decodedMessage.order.dseq.toString(),
-        gseq: decodedMessage.order.gseq,
-        oseq: decodedMessage.order.oseq,
-        provider: decodedMessage.provider,
-        price: parseFloat(decodedMessage.price.amount),
-        createdHeight: height
+        dseq: decodedMessage.order.dseq.toString()
       },
-      { transaction: blockGroupTransaction }
-    );
+      transaction: blockGroupTransaction
+    });
 
-    msg.relatedDeploymentId = this.getDeploymentIdFromCache(decodedMessage.order.owner, decodedMessage.order.dseq.toString());
-  }
-
-  private async handleCreateBidV4(decodedMessage: v1beta4.MsgCreateBid, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
-    await Bid.create(
-      {
-        owner: decodedMessage.order.owner,
-        dseq: decodedMessage.order.dseq.toString(),
-        gseq: decodedMessage.order.gseq,
-        oseq: decodedMessage.order.oseq,
-        provider: decodedMessage.provider,
-        price: parseFloat(decodedMessage.price.amount),
-        createdHeight: height
-      },
-      { transaction: blockGroupTransaction }
-    );
-
-    msg.relatedDeploymentId = this.getDeploymentIdFromCache(decodedMessage.order.owner, decodedMessage.order.dseq.toString());
+    msg.relatedDeploymentId = deployment.id;
   }
 
   private async handleCloseBid(
@@ -684,19 +612,18 @@ export class AkashStatsIndexer extends Indexer {
     blockGroupTransaction: DbTransaction,
     msg: Message
   ) {
-    const deploymentId = this.getDeploymentIdFromCache(decodedMessage.bidId.owner, decodedMessage.bidId.dseq.toString());
-
-    if (!deploymentId) {
-      throw new Error(`Deployment ID for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()} not found in cache.`);
-    }
-
     const deployment = await Deployment.findOne({
       where: {
-        id: deploymentId
+        owner: decodedMessage.bidId.owner,
+        dseq: decodedMessage.bidId.dseq.toString()
       },
       include: [{ model: Lease }],
       transaction: blockGroupTransaction
     });
+
+    if (!deployment) {
+      throw new Error(`Deployment for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()} not found.`);
+    }
 
     msg.relatedDeploymentId = deployment.id;
 
@@ -740,15 +667,10 @@ export class AkashStatsIndexer extends Indexer {
     blockGroupTransaction: DbTransaction,
     msg: Message
   ) {
-    const deploymentId = this.getDeploymentIdFromCache(decodedMessage.id.owner, decodedMessage.id.dseq.toString());
-
-    if (!deploymentId) {
-      throw new Error(`Deployment ID for ${decodedMessage.id.owner}/${decodedMessage.id.dseq.toString()} not found in cache.`);
-    }
-
     const deployment = await Deployment.findOne({
       where: {
-        id: deploymentId
+        owner: decodedMessage.id.owner,
+        dseq: decodedMessage.id.dseq.toString()
       },
       include: [
         {
@@ -757,6 +679,10 @@ export class AkashStatsIndexer extends Indexer {
       ],
       transaction: blockGroupTransaction
     });
+
+    if (!deployment) {
+      throw new Error(`Deployment for ${decodedMessage.id.owner}/${decodedMessage.id.dseq.toString()} not found.`);
+    }
 
     msg.relatedDeploymentId = deployment.id;
 
@@ -963,8 +889,90 @@ export class AkashStatsIndexer extends Indexer {
     return Promise.resolve(undefined);
   }
 
-  afterEveryTransaction(): Promise<void> {
-    return Promise.resolve(undefined);
+  async afterEveryTransaction(rawTx: DecodedTxRaw, currentTransaction: Transaction, dbTransaction: DbTransaction, txEvents: TransactionEvent[]): Promise<void> {
+    await this.handleMissedClosedDeployments(currentTransaction, dbTransaction, txEvents);
+    await this.handleMissedClosedLeases(currentTransaction, dbTransaction, txEvents);
+  }
+
+  private async handleMissedClosedDeployments(currentTransaction: Transaction, dbTransaction: DbTransaction, txEvents: TransactionEvent[]) {
+    const deploymentClosedEvents = txEvents.filter(
+      event => event.type === "akash.v1" && event.attributes.some(attr => attr.key === "action" && attr.value === "deployment-closed")
+    );
+
+    for (const deploymentClosedEvent of deploymentClosedEvents) {
+      const dseq = deploymentClosedEvent.attributes.find(attr => attr.key === "dseq").value;
+      const owner = deploymentClosedEvent.attributes.find(attr => attr.key === "owner").value;
+
+      const deployment = await Deployment.findOne({
+        raw: true,
+        attributes: ["closedHeight"],
+        where: {
+          owner,
+          dseq
+        },
+        transaction: dbTransaction
+      });
+
+      if (deployment.closedHeight !== currentTransaction.height) {
+        await Deployment.update(
+          {
+            closedHeight: currentTransaction.height
+          },
+          {
+            where: {
+              owner,
+              dseq
+            },
+            transaction: dbTransaction
+          }
+        );
+      }
+    }
+  }
+
+  private async handleMissedClosedLeases(currentTransaction: Transaction, dbTransaction: DbTransaction, txEvents: TransactionEvent[]) {
+    const leaseClosedEvents = txEvents.filter(
+      event => event.type === "akash.v1" && event.attributes.some(attr => attr.key === "action" && attr.value === "lease-closed")
+    );
+
+    for (const event of leaseClosedEvents) {
+      const dseq = event.attributes.find(attr => attr.key === "dseq").value;
+      const owner = event.attributes.find(attr => attr.key === "owner").value;
+      const oseq = event.attributes.find(attr => attr.key === "oseq").value;
+      const gseq = event.attributes.find(attr => attr.key === "gseq").value;
+      const provider = event.attributes.find(attr => attr.key === "provider").value;
+
+      const lease = await Lease.findOne({
+        raw: true,
+        attributes: ["closedHeight"],
+        where: {
+          owner,
+          dseq,
+          oseq,
+          gseq,
+          providerAddress: provider
+        },
+        transaction: dbTransaction
+      });
+
+      if (lease.closedHeight !== currentTransaction.height) {
+        await Lease.update(
+          {
+            closedHeight: currentTransaction.height
+          },
+          {
+            where: {
+              owner,
+              dseq,
+              oseq,
+              gseq,
+              providerAddress: provider
+            },
+            transaction: dbTransaction
+          }
+        );
+      }
+    }
   }
 }
 

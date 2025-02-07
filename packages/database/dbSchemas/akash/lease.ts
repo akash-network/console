@@ -20,7 +20,7 @@ import { Provider } from "./provider";
     { unique: false, fields: ["closedHeight"] },
     { unique: false, fields: ["predictedClosedHeight"] },
     { unique: false, fields: ["deploymentId"] },
-    { unique: false, fields: ["owner", "dseq", "gseq", "oseq"] },
+    { unique: true, fields: ["owner", "dseq", "gseq", "oseq", "providerAddress"] },
     { unique: false, fields: ["providerAddress", "closedHeight", "createdHeight"] }
   ]
 })
