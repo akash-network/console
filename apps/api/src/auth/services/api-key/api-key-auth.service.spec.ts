@@ -1,6 +1,7 @@
 import { container } from "tsyringe";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { ApiKeyAuthService } from "./api-key-auth.service";
 import { ApiKeyGeneratorService } from "./api-key-generator.service";
 
@@ -11,50 +12,50 @@ describe("ApiKeyAuthService", () => {
   let service: ApiKeyAuthService;
   let apiKeyGenerator: ApiKeyGeneratorService;
   let apiKeyRepository: jest.Mocked<ApiKeyRepository>;
-  let originalEnv: string | undefined;
+  let config: jest.Mocked<CoreConfigService>;
 
   beforeEach(() => {
-    originalEnv = process.env.NODE_ENV;
     apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
-
+    config = stub<CoreConfigService>({ get: jest.fn() });
     apiKeyRepository = stub<ApiKeyRepository>({ findOneBy: jest.fn() });
 
-    service = new ApiKeyAuthService(apiKeyGenerator, apiKeyRepository);
+    config.get.mockReturnValue("test");
+
+    service = new ApiKeyAuthService(apiKeyGenerator, apiKeyRepository, config);
   });
 
   afterEach(() => {
-    process.env.NODE_ENV = originalEnv;
     container.clearInstances();
     jest.resetAllMocks();
   });
 
   describe("validateApiKeyFromHeader", () => {
     it("should return false for undefined key", async () => {
-      const result = await service.validateApiKeyFromHeader(undefined);
+      const result = await service.getAndValidateApiKeyFromHeader(undefined);
       expect(result).toBe(undefined);
     });
 
     it("should return false for invalid format", async () => {
-      const result = await service.validateApiKeyFromHeader("invalid-key");
+      const result = await service.getAndValidateApiKeyFromHeader("invalid-key");
       expect(result).toBe(undefined);
     });
 
     it("should return false for wrong prefix", async () => {
       const key = apiKeyGenerator.generateApiKey().replace("ac", "wrong");
-      const result = await service.validateApiKeyFromHeader(key);
+      const result = await service.getAndValidateApiKeyFromHeader(key);
       expect(result).toBe(undefined);
     });
 
     it("should return false for wrong type", async () => {
       const key = apiKeyGenerator.generateApiKey().replace("sk", "wrong");
-      const result = await service.validateApiKeyFromHeader(key);
+      const result = await service.getAndValidateApiKeyFromHeader(key);
       expect(result).toBe(undefined);
     });
 
     it("should return false for wrong environment", async () => {
-      process.env.NODE_ENV = "production";
+      config.get.mockReturnValue("live");
       const key = apiKeyGenerator.generateApiKey().replace("live", "test");
-      const result = await service.validateApiKeyFromHeader(key);
+      const result = await service.getAndValidateApiKeyFromHeader(key);
       expect(result).toBe(undefined);
     });
 
@@ -62,7 +63,7 @@ describe("ApiKeyAuthService", () => {
       const key = apiKeyGenerator.generateApiKey();
       apiKeyRepository.findOneBy.mockResolvedValue(null);
 
-      const result = await service.validateApiKeyFromHeader(key);
+      const result = await service.getAndValidateApiKeyFromHeader(key);
       expect(result).toBe(undefined);
     });
 
@@ -78,8 +79,8 @@ describe("ApiKeyAuthService", () => {
 
       apiKeyRepository.findOneBy.mockResolvedValue(mockApiKey);
 
-      const result = await service.validateApiKeyFromHeader(key);
-      expect(result).toBe(false);
+      const result = await service.getAndValidateApiKeyFromHeader(key);
+      expect(result).toBe(undefined);
     });
 
     it("should return true for valid active key and no expiration date", async () => {
@@ -87,7 +88,7 @@ describe("ApiKeyAuthService", () => {
 
       apiKeyRepository.findOneBy.mockResolvedValue(data);
 
-      const result = await service.validateApiKeyFromHeader(apiKey);
+      const result = await service.getAndValidateApiKeyFromHeader(apiKey);
       expect(result).toBe(data);
     });
 
@@ -98,8 +99,8 @@ describe("ApiKeyAuthService", () => {
 
       apiKeyRepository.findOneBy.mockResolvedValue(data);
 
-      const result = await service.validateApiKeyFromHeader(apiKey);
-      expect(result).toBe(true);
+      const result = await service.getAndValidateApiKeyFromHeader(apiKey);
+      expect(result).toBe(data);
     });
   });
 });

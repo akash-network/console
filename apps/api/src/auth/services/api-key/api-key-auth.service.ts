@@ -3,22 +3,28 @@ import parseISO from "date-fns/parseISO";
 import { singleton } from "tsyringe";
 
 import { ApiKeyOutput, ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { ApiKeyGeneratorService } from "./api-key-generator.service";
 
 @singleton()
 export class ApiKeyAuthService {
+  private readonly DEPLOYMENT_ENV = this.config.get("DEPLOYMENT_ENV");
+  private readonly API_KEY_PREFIX = "ac";
+  private readonly API_KEY_TYPE = "sk";
+
   constructor(
     private readonly apiKeyGenerator: ApiKeyGeneratorService,
-    private readonly apiKeyRepository: ApiKeyRepository
+    private readonly apiKeyRepository: ApiKeyRepository,
+    private readonly config: CoreConfigService
   ) {}
 
-  async validateApiKeyFromHeader(apiKey: string | undefined): Promise<ApiKeyOutput | undefined> {
+  async getAndValidateApiKeyFromHeader(apiKey: string | undefined): Promise<ApiKeyOutput | undefined> {
     if (!apiKey) {
       return undefined;
     }
 
     const [prefix, type, env] = apiKey.split(".");
-    if (prefix !== "ac" || type !== "sk" || env !== (process.env.NODE_ENV === "production" ? "live" : "test")) {
+    if (prefix !== this.API_KEY_PREFIX || type !== this.API_KEY_TYPE || env !== this.DEPLOYMENT_ENV) {
       return undefined;
     }
 

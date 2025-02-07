@@ -12,7 +12,7 @@ describe("ApiKeyGeneratorService", () => {
 
   beforeEach(() => {
     originalEnv = process.env.NODE_ENV;
-    service = container.resolve(ApiKeyGeneratorService);
+    service = new ApiKeyGeneratorService();
   });
 
   afterEach(() => {
