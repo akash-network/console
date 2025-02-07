@@ -5,6 +5,7 @@ import { Required } from "../decorators/requiredDecorator";
 import { AddressReference } from "./addressReference";
 import { Block } from "./block";
 import { Message } from "./message";
+import { TransactionEvent } from "./transactionEvent";
 
 /**
  * Transaction model for Akash
@@ -82,6 +83,10 @@ export class Transaction extends Model {
    * The messages in this transaction
    */
   @HasMany(() => Message, "txId") messages?: Message[];
+  /**
+   * The events in this transaction
+   */
+  @HasMany(() => TransactionEvent, "tx_id") events: TransactionEvent[];
   /**
    * The address references in this transaction
    */

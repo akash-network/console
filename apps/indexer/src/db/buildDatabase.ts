@@ -1,6 +1,6 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
-import { Day, Transaction } from "@akashnetwork/database/dbSchemas/base";
+import { Day, Transaction, TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
 import { MonitoredValue } from "@akashnetwork/database/dbSchemas/base/monitoredValue";
 
 import { getGenesis } from "@src/chain/genesisImporter";
@@ -19,15 +19,22 @@ export const initDatabase = async () => {
   if (executionMode === ExecutionMode.RebuildAll) {
     await Day.drop({ cascade: true });
     await Message.drop({ cascade: true });
+    await TransactionEventAttribute.drop({ cascade: true });
+    await TransactionEvent.drop({ cascade: true });
     await Transaction.drop({ cascade: true });
     await Block.drop({ cascade: true });
   }
 
   await Block.sync();
   await Transaction.sync();
+  await TransactionEvent.sync();
+  await TransactionEventAttribute.sync();
   await Message.sync();
   await Day.sync();
   await MonitoredValue.sync();
+
+  // Setting STATISTICS value here since it cannot be defined in the sequelize model
+  await sequelize.query(`ALTER TABLE IF EXISTS public.transaction_event_attribute ALTER COLUMN transaction_event_id SET STATISTICS 1000;`);
 
   for (const indexer of indexers) {
     if (executionMode === ExecutionMode.RebuildAll) {

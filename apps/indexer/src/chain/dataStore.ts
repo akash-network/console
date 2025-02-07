@@ -4,6 +4,7 @@ import path from "path";
 
 import { dataFolderPath } from "@src/shared/constants";
 import { bytesToHumanReadableSize } from "@src/shared/utils/files";
+import { BlockResultType, BlockType } from "@src/shared/types";
 
 const LevelNotFoundCode = "LEVEL_NOT_FOUND";
 
@@ -46,7 +47,7 @@ export const deleteCache = async function () {
 export async function getCachedBlockByHeight(height: number) {
   try {
     const content = await blocksDb.get(blockHeightToKey(height));
-    return JSON.parse(content);
+    return JSON.parse(content) as BlockType;
   } catch (err) {
     if (err.code !== LevelNotFoundCode) throw err;
 
@@ -57,7 +58,7 @@ export async function getCachedBlockByHeight(height: number) {
 export async function getCachedBlockResultsByHeight(height: number) {
   try {
     const content = await blockResultsDb.get(blockHeightToKey(height));
-    return JSON.parse(content);
+    return JSON.parse(content) as BlockResultType;
   } catch (err) {
     if (err.code !== LevelNotFoundCode) throw err;
 

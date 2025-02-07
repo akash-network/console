@@ -1,6 +1,6 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
-import { Day, Transaction } from "@akashnetwork/database/dbSchemas/base";
+import { Day, Transaction, TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
 import { fromBase64 } from "@cosmjs/encoding";
 import { decodeTxRaw } from "@cosmjs/proto-signing";
 import { asyncify, eachLimit } from "async";
@@ -24,6 +24,7 @@ import {
 } from "./dataStore";
 import { nodeAccessor } from "./nodeAccessor";
 import { statsProcessor } from "./statsProcessor";
+import { BlockResultType } from "@src/shared/types";
 
 export const setMissingBlock = (height: number) => (missingBlock = height);
 let missingBlock: number;
@@ -165,6 +166,8 @@ async function insertBlocks(startHeight: number, endHeight: number) {
 
   let blocksToAdd = [];
   let txsToAdd = [];
+  let txsEventsToAdd = [];
+  let txsEventAttributesToAdd = [];
   let msgsToAdd = [];
 
   for (let i = startHeight; i <= endHeight; ++i) {
@@ -181,7 +184,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
     const blockDatetime = new Date(blockData.block.header.time);
 
     const txs = blockData.block.data.txs;
-    let blockResults = null;
+    let blockResults: BlockResultType | null = null;
 
     if (txs.length > 0) {
       blockResults = await getCachedBlockResultsByHeight(i);
@@ -226,6 +229,26 @@ async function insertBlocks(startHeight: number, endHeight: number) {
         gasUsed: parseInt(txJson.gas_used),
         gasWanted: parseInt(txJson.gas_wanted)
       });
+
+      for (const [index, event] of blockResults.txs_results[txIndex].events.entries()) {
+        const eventId = uuid.v4();
+        txsEventsToAdd.push({
+          id: eventId,
+          height: i,
+          txId: txId,
+          index: index,
+          type: event.type
+        });
+
+        txsEventAttributesToAdd.push(
+          ...event.attributes.map((attr, i) => ({
+            transactionEventId: eventId,
+            index: i,
+            key: atob(attr.key),
+            value: attr.value ? atob(attr.value) : attr.value
+          }))
+        );
+      }
     }
 
     const blockEntry = {
@@ -272,7 +295,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
 
     blocksToAdd.push(blockEntry);
 
-    if (blocksToAdd.length >= 500 || i === endHeight) {
+    if (blocksToAdd.length >= 50 || i === endHeight) {
       try {
         await sequelize.transaction(async insertDbTransaction => {
           await benchmark.measureAsync("createBlocks", async () => {
@@ -281,11 +304,19 @@ async function insertBlocks(startHeight: number, endHeight: number) {
           await benchmark.measureAsync("createTransactions", async () => {
             await Transaction.bulkCreate(txsToAdd, { transaction: insertDbTransaction });
           });
+          await benchmark.measureAsync("createTransactionsEvents", async () => {
+            await TransactionEvent.bulkCreate(txsEventsToAdd, { transaction: insertDbTransaction });
+          });
+          await benchmark.measureAsync("createTransactionsEventsAttributes", async () => {
+            await TransactionEventAttribute.bulkCreate(txsEventAttributesToAdd, { transaction: insertDbTransaction });
+          });
           await benchmark.measureAsync("createmessages", async () => {
             await Message.bulkCreate(msgsToAdd, { transaction: insertDbTransaction });
           });
           blocksToAdd = [];
           txsToAdd = [];
+          txsEventsToAdd = [];
+          txsEventAttributesToAdd = [];
           msgsToAdd = [];
           console.log(`Blocks added to db: ${i - startHeight + 1} / ${blockCount} (${(((i - startHeight + 1) * 100) / blockCount).toFixed(2)}%)`);
 
@@ -296,6 +327,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
         });
       } catch (error) {
         console.log(error, txsToAdd);
+        throw error;
       }
     }
   }
