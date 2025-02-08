@@ -15,7 +15,7 @@ type Props = {
 
 export const GranteeRow: React.FunctionComponent<Props> = ({ grant }) => {
   const limit = grant?.authorization?.spend_limit;
-  const denomData = limit ? useDenomData(limit.denom) : null;
+  const denomData = useDenomData(limit?.denom);
 
   return (
     <TableRow className="[&>td]:px-2 [&>td]:py-1">
