@@ -84,9 +84,11 @@ export class BatchSigningClientService {
     await this.semaphore.acquire();
     try {
       return await backOff(() => this.executeTxBatch(inputs), {
-        maxDelay: 5000,
-        numOfAttempts: 3,
-        jitter: "full",
+        maxDelay: 10000,
+        startingDelay: 1000,
+        timeMultiple: 2,
+        numOfAttempts: 5,
+        jitter: "none",
         retry: async (error: Error, attempt) => {
           const isSequenceMismatch = error?.message?.includes("account sequence mismatch");
 
