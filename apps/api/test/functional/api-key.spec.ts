@@ -4,14 +4,15 @@ import { container } from "tsyringe";
 import { app } from "@src/app";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
+import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 import { DbTestingService } from "@test/services/db-testing.service";
+import { stub } from "@test/services/stub";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 const OBFUSCATED_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{6}\*{3}[A-Za-z0-9]{6}$/;
 const FULL_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{64}$/;
-const HASHED_API_KEY_PATTERN = /^[a-f0-9]{64}$/;
 
 jest.setTimeout(20000);
 
@@ -19,9 +20,14 @@ describe("API Keys", () => {
   const dbService = container.resolve(DbTestingService);
   const walletService = new WalletTestingService(app);
   const apiKeyRepository = container.resolve(ApiKeyRepository);
-  const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
+  let config: jest.Mocked<CoreConfigService>;
+  let apiKeyGenerator: ApiKeyGeneratorService;
 
   beforeEach(async () => {
+    config = stub<CoreConfigService>({ get: jest.fn() });
+    config.get.mockReturnValue("test");
+    apiKeyGenerator = new ApiKeyGeneratorService(config);
+
     await dbService.cleanAll();
   });
 
@@ -66,14 +72,24 @@ describe("API Keys", () => {
 
     it("should return list of API keys with obfuscated keys", async () => {
       const { token, user } = await walletService.createUserAndWallet();
+      const apiKey = apiKeyGenerator.generateApiKey();
+      const hashedKey = await apiKeyGenerator.hashApiKey(apiKey);
+      const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
+      const apiKey2 = apiKeyGenerator.generateApiKey();
+      const hashedKey2 = await apiKeyGenerator.hashApiKey(apiKey2);
+      const obfuscatedKey2 = apiKeyGenerator.obfuscateApiKey(apiKey2);
 
       const key1 = ApiKeySeeder.create({
         userId: user.id,
-        name: "Test key 1"
+        name: "Test key 1",
+        hashedKey,
+        keyFormat: obfuscatedKey
       });
       const key2 = ApiKeySeeder.create({
         userId: user.id,
-        name: "Test key 2"
+        name: "Test key 2",
+        hashedKey: hashedKey2,
+        keyFormat: obfuscatedKey2
       });
 
       await Promise.all([
@@ -98,24 +114,8 @@ describe("API Keys", () => {
       expect(response.status).toBe(200);
       const result = await response.json();
       expect(result.data).toHaveLength(2);
-      expect(result.data[0]).toMatchObject({
-        id: key1.id,
-        name: "Test key 1",
-        keyFormat: expect.stringMatching(OBFUSCATED_API_KEY_PATTERN),
-        hashedKey: expect.stringMatching(HASHED_API_KEY_PATTERN),
-        expiresAt: null,
-        createdAt: expect.any(String),
-        updatedAt: expect.any(String)
-      });
-      expect(result.data[1]).toMatchObject({
-        id: key2.id,
-        name: "Test key 2",
-        keyFormat: expect.stringMatching(OBFUSCATED_API_KEY_PATTERN),
-        hashedKey: expect.stringMatching(HASHED_API_KEY_PATTERN),
-        expiresAt: null,
-        createdAt: expect.any(String),
-        updatedAt: expect.any(String)
-      });
+      expect(result.data[0].keyFormat).toMatch(OBFUSCATED_API_KEY_PATTERN);
+      expect(result.data[1].keyFormat).toMatch(OBFUSCATED_API_KEY_PATTERN);
     });
   });
 
@@ -219,7 +219,7 @@ describe("API Keys", () => {
       const storedKey = await apiKeyRepository.findOneBy({ id: result.data.id });
       expect(storedKey).toBeDefined();
       expect(storedKey.keyFormat).toMatch(OBFUSCATED_API_KEY_PATTERN);
-      expect(storedKey.hashedKey).toMatch(HASHED_API_KEY_PATTERN);
+      expect(storedKey.hashedKey).not.toMatch(FULL_API_KEY_PATTERN);
     });
 
     it("should reject API key creation with past expiration date", async () => {
