@@ -6,4 +6,8 @@ export class NetConfig {
   getBaseAPIUrl(network: SupportedChainNetworks): string {
     return netConfigData[network].apiUrls[0];
   }
+
+  getSupportedNetworks(): SupportedChainNetworks[] {
+    return Object.keys(netConfigData) as SupportedChainNetworks[];
+  }
 }

@@ -1,10 +1,36 @@
-import { Request, Response } from "express";
+import { z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
+import { Context, TypedResponse } from "hono";
 
 import packageJson from "../../package.json";
 import { container } from "../container";
 import { humanFileSize } from "../sizeUtils";
 
-export async function getAppStatus(_: Request, res: Response): Promise<void> {
+const AppStatus = z.object({
+  openClientWebSocketCount: z.number(),
+  totalRequestCount: z.number(),
+  totalTransferred: z.string(),
+  logStreaming: z.string(),
+  logDownload: z.string(),
+  eventStreaming: z.string(),
+  shell: z.string(),
+  version: z.string()
+});
+
+export const statusRoute = createRoute({
+  method: "get",
+  path: "/status",
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: AppStatus }
+      },
+      description: "Retrieve app status"
+    }
+  }
+});
+
+export async function getAppStatus(ctx: Context): Promise<TypedResponse<z.infer<typeof AppStatus>, 200>> {
   const webSocketStats = container.wsStats.getItems();
   const openClientWebSocketCount = webSocketStats.filter(x => !x.isClosed()).length;
   const totalRequestCount = webSocketStats.reduce((a, b) => a + b.getStats().totalStats.count, 0);
@@ -35,7 +61,7 @@ export async function getAppStatus(_: Request, res: Response): Promise<void> {
       data: 0
     });
 
-  res.send({
+  return ctx.json({
     openClientWebSocketCount,
     totalRequestCount,
     totalTransferred: humanFileSize(totalTransferred),
