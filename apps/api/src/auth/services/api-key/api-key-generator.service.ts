@@ -1,4 +1,4 @@
-import { compare, hash } from "bcrypt";
+import { compare, hash } from "bcryptjs";
 import { randomBytes } from "crypto";
 import { singleton } from "tsyringe";
 
