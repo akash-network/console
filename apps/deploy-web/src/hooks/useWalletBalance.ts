@@ -83,7 +83,7 @@ type DenomData = {
   balance: number;
 };
 
-export const useDenomData = (denom: string) => {
+export const useDenomData = (denom?: string) => {
   const { isLoaded, price, aktToUSD } = usePricing();
   const { balance: walletBalance } = useWalletBalance();
   const [depositData, setDepositData] = useState<DenomData | null>(null);

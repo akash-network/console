@@ -11,11 +11,19 @@ import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import ProviderDetailLayout, { ProviderDetailTabs } from "./ProviderDetailLayout";
 
-type Props = {
-  owner: string;
+export const COMPONENTS = {
+  Layout,
+  CustomNextSeo,
+  ProviderDetailLayout,
+  DynamicReactJson
 };
 
-export const ProviderRawData: React.FunctionComponent<Props> = ({ owner }) => {
+type Props = {
+  owner: string;
+  components?: typeof COMPONENTS;
+};
+
+export const ProviderRawData: React.FunctionComponent<Props> = ({ owner, components: c = COMPONENTS }) => {
   const [provider, setProvider] = useState<Partial<ClientProviderDetailWithStatus> | null>(null);
   const { isLoading: isLoadingProvider, refetch: getProviderDetail } = useProviderDetail(owner, {
     enabled: false,
@@ -59,12 +67,12 @@ export const ProviderRawData: React.FunctionComponent<Props> = ({ owner }) => {
   };
 
   return (
-    <Layout isLoading={isLoadingLeases || isLoadingProvider || isLoadingStatus}>
-      <CustomNextSeo title={`Provider raw data for ${owner}`} url={`${domainName}${UrlService.providerDetailRaw(owner)}`} />
+    <c.Layout isLoading={isLoadingLeases || isLoadingProvider || isLoadingStatus}>
+      <c.CustomNextSeo title={`Provider raw data for ${owner}`} url={`${domainName}${UrlService.providerDetailRaw(owner)}`} />
 
-      <ProviderDetailLayout address={owner} page={ProviderDetailTabs.RAW} refresh={refresh} provider={provider as ClientProviderDetailWithStatus}>
-        {provider && <DynamicReactJson src={JSON.parse(JSON.stringify(provider))} collapsed={1} />}
-      </ProviderDetailLayout>
-    </Layout>
+      <c.ProviderDetailLayout address={owner} page={ProviderDetailTabs.RAW} refresh={refresh} provider={provider as ClientProviderDetailWithStatus}>
+        {provider && <c.DynamicReactJson src={JSON.parse(JSON.stringify(provider))} collapsed={1} />}
+      </c.ProviderDetailLayout>
+    </c.Layout>
   );
 };

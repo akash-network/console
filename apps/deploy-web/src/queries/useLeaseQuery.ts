@@ -1,5 +1,7 @@
 import { useQuery } from "react-query";
+import { AxiosStatic } from "axios";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
 import { LeaseDto, RpcLease } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
@@ -28,12 +30,12 @@ export function useDeploymentLeaseList(address: string, deployment, options) {
   return useQuery(QueryKeys.getLeasesKey(address, deployment?.dseq), () => getDeploymentLeases(settings.apiEndpoint, address, deployment), options);
 }
 
-async function getAllLeases(apiEndpoint: string, address: string, deployment?) {
+async function getAllLeases(apiEndpoint: string, address: string, deployment?: any, httpClient?: AxiosStatic) {
   if (!address) {
     return null;
   }
 
-  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList(apiEndpoint, address, deployment?.dseq), "leases", 1000);
+  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList(apiEndpoint, address, deployment?.dseq), "leases", 1000, httpClient);
 
   const leases = response.map(l => leaseToDto(l, deployment));
 
@@ -42,7 +44,8 @@ async function getAllLeases(apiEndpoint: string, address: string, deployment?) {
 
 export function useAllLeases(address: string, options = {}) {
   const { settings } = useSettings();
-  return useQuery(QueryKeys.getAllLeasesKey(address), () => getAllLeases(settings.apiEndpoint, address), options);
+  const { axios } = useServices();
+  return useQuery(QueryKeys.getAllLeasesKey(address), () => getAllLeases(settings.apiEndpoint, address, undefined, axios), options);
 }
 
 export function useLeaseStatus(provider: ApiProviderList | undefined, lease: LeaseDto, options) {
