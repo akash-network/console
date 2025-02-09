@@ -8,7 +8,7 @@ import axios from "axios";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { singleton } from "tsyringe";
 
-import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { getGpuModelsAvailability } from "@src/routes/v1/gpu";
 import { RestAkashBidListResponseType } from "@src/types/rest";
 import { apiNodeUrl } from "@src/utils/constants";
@@ -20,11 +20,11 @@ import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templa
 export class GpuBidsCreatorService {
   private readonly logger = LoggerService.forContext(GpuBidsCreatorService.name);
 
-  constructor(@InjectBillingConfig() private readonly config: BillingConfig) {}
+  constructor(private readonly config: BillingConfigService) {}
 
   async createGpuBids() {
     if (!env.GPU_BOT_WALLET_MNEMONIC) throw new Error("The env variable GPU_BOT_WALLET_MNEMONIC is not set.");
-    if (!this.config.RPC_NODE_ENDPOINT) throw new Error("The env variable RPC_NODE_ENDPOINT is not set.");
+    if (!this.config.get("RPC_NODE_ENDPOINT")) throw new Error("The env variable RPC_NODE_ENDPOINT is not set.");
 
     const wallet = await DirectSecp256k1HdWallet.fromMnemonic(env.GPU_BOT_WALLET_MNEMONIC, { prefix: "akash" });
     const [account] = await wallet.getAccounts();
@@ -33,7 +33,7 @@ export class GpuBidsCreatorService {
 
     const myRegistry = new Registry([...getAkashTypeRegistry()]);
 
-    const client = await SigningStargateClient.connectWithSigner(this.config.RPC_NODE_ENDPOINT, wallet, {
+    const client = await SigningStargateClient.connectWithSigner(this.config.get("RPC_NODE_ENDPOINT"), wallet, {
       registry: myRegistry,
       broadcastTimeoutMs: 30_000
     });
@@ -57,7 +57,7 @@ export class GpuBidsCreatorService {
   private async signAndBroadcast(address: string, client: SigningStargateClient, messages: readonly EncodeObject[]) {
     const simulation = await client.simulate(address, messages, "");
 
-    const fee = calculateFee(Math.round(simulation * 1.35), "0.025uakt");
+    const fee = calculateFee(Math.round(simulation * 1.35), `${this.config.get("AVERAGE_GAS_PRICE")}uakt`);
 
     const txRaw = await client.sign(address, messages, fee, "");
 
