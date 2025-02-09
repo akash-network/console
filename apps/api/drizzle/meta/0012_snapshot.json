@@ -1,5 +1,5 @@
 {
-  "id": "adf34666-5cf7-44cc-9a5c-211c35d9e0c8",
+  "id": "83a114a7-fab7-4239-ac3d-ebd3cacaed84",
   "prevId": "6abcb9de-b27b-483e-867c-a55d2e9fef01",
   "version": "7",
   "dialect": "postgresql",
@@ -436,12 +436,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "description": {
-          "name": "description",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -486,6 +480,13 @@
           "nullsNotDistinct": false,
           "columns": [
             "hashed_key"
+          ]
+        },
+        "api_keys_key_format_unique": {
+          "name": "api_keys_key_format_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "key_format"
           ]
         }
       }

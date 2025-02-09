@@ -4,11 +4,11 @@ CREATE TABLE IF NOT EXISTS "api_keys" (
 	"hashed_key" varchar NOT NULL,
 	"key_format" varchar NOT NULL,
 	"name" varchar NOT NULL,
-	"description" varchar,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"expires_at" timestamp,
-	CONSTRAINT "api_keys_hashed_key_unique" UNIQUE("hashed_key")
+	CONSTRAINT "api_keys_hashed_key_unique" UNIQUE("hashed_key"),
+	CONSTRAINT "api_keys_key_format_unique" UNIQUE("key_format")
 );
 --> statement-breakpoint
 DO $$ BEGIN

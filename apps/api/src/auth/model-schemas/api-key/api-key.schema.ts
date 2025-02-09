@@ -12,9 +12,8 @@ export const ApiKeys = pgTable("api_keys", {
     .references(() => Users.id, { onDelete: "cascade" })
     .notNull(),
   hashedKey: varchar("hashed_key").notNull().unique(),
-  keyFormat: varchar("key_format").notNull(),
+  keyFormat: varchar("key_format").notNull().unique(),
   name: varchar("name").notNull(),
-  description: varchar("description"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at")

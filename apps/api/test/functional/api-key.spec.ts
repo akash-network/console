@@ -178,8 +178,7 @@ describe("API Keys", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           data: {
-            name: "Test key",
-            description: "Test key"
+            name: "Test key"
           }
         })
       });
@@ -201,7 +200,6 @@ describe("API Keys", () => {
         body: JSON.stringify({
           data: {
             name: "Test key",
-            description: "Test description",
             expiresAt: futureDate.toISOString()
           }
         })
@@ -211,7 +209,6 @@ describe("API Keys", () => {
       const result = await response.json();
       expect(result.data).toMatchObject({
         name: "Test key",
-        description: "Test description",
         expiresAt: futureDate.toISOString(),
         apiKey: expect.stringMatching(FULL_API_KEY_PATTERN)
       });
@@ -236,7 +233,6 @@ describe("API Keys", () => {
         body: JSON.stringify({
           data: {
             name: "Test key",
-            description: "Test key",
             expiresAt: pastDate.toISOString()
           }
         })
@@ -294,7 +290,7 @@ describe("API Keys", () => {
         },
         body: JSON.stringify({
           data: {
-            description: "Updated key"
+            name: "Updated key"
           }
         })
       });
@@ -303,15 +299,13 @@ describe("API Keys", () => {
       const result = await response.json();
       expect(result.data).toMatchObject({
         id: createdKey.id,
-        name: "Test key",
-        description: "Updated key"
+        name: "Updated key"
       });
 
       const updatedApiKey = await apiKeyRepository.findOneBy({ id: createdKey.id });
       expect(updatedApiKey).toBeDefined();
       expect(updatedApiKey).toMatchObject({
-        name: "Test key",
-        description: "Updated key"
+        name: "Updated key"
       });
     });
   });
