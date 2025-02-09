@@ -1,5 +1,12 @@
 
 
+## [2.60.0](https://github.com/akash-network/console/compare/console-api/v2.59.0...console-api/v2.60.0) (2025-02-09)
+
+
+### Features
+
+* **billing:** updates average gas price ([99fcb82](https://github.com/akash-network/console/commit/99fcb82000f9a96a3317962230187c5e3f585eba))
+
 ## [2.59.0](https://github.com/akash-network/console/compare/console-api/v2.58.1...console-api/v2.59.0) (2025-02-07)
 
 
