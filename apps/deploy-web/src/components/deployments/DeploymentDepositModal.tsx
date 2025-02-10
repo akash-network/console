@@ -29,14 +29,13 @@ import { UAKT_DENOM } from "@src/config/denom.config";
 import { usePricing } from "@src/context/PricingProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useUser } from "@src/hooks/useUser";
+import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
 import { useDenomData, useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useGranteeGrants } from "@src/queries/useGrantsQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import { ServiceType } from "@src/types";
 import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { coinToUDenom } from "@src/utils/priceUtils";
-import { UrlService } from "@src/utils/urlUtils";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { LinkTo } from "../shared/LinkTo";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
@@ -103,10 +102,12 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   const { handleSubmit, control, watch, setValue, clearErrors, unregister } = form;
   const { amount, useDepositor, depositorAddress } = watch();
   const validGrants = granteeGrants?.filter(x => compareAsc(new Date(), new Date(x.expiration)) !== 1 && x.authorization.spend_limit.denom === denom) || [];
-  const user = useUser();
+  const whenLoggedInAndVerified = useAddFundsVerifiedLoginRequiredEventHandler();
 
-  const goToSignIn = () => {
-    window.location.href = UrlService.login();
+  const closePopupAndGoToCheckoutIfPossible = (event: React.MouseEvent) => {
+    handleCancel();
+
+    whenLoggedInAndVerified(goToCheckout)(event);
   };
 
   const goToCheckout = () => {
@@ -294,17 +295,13 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
                 );
               }}
             />
-            <div className="mt-1 flex justify-end text-xs">
-              {user?.userId ? (
-                <LinkTo onClick={() => goToCheckout()} className="text-primary">
+            {isManaged && (
+              <div className="mt-1 flex justify-end text-xs">
+                <LinkTo onClick={closePopupAndGoToCheckoutIfPossible} className="text-primary">
                   Buy more credits
                 </LinkTo>
-              ) : (
-                <LinkTo onClick={() => goToSignIn()} className="text-primary">
-                  Sign in to buy more credits
-                </LinkTo>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {isCustodial && (
