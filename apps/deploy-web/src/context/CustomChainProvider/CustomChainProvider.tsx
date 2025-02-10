@@ -12,10 +12,13 @@ import { wallets as leap } from "@cosmos-kit/leap";
 import { ChainProvider, DefaultModal } from "@cosmos-kit/react";
 import { useChain } from "@cosmos-kit/react";
 import { useAtom } from "jotai";
+import { event } from "nextjs-google-analytics";
 
 import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
+import { AnalyticsCategory } from "@src/types/analytics";
+import { AnalyticsEvents } from "@src/types/analytics";
 import { customRegistry } from "@src/utils/customRegistry";
 
 type Props = {
@@ -78,6 +81,11 @@ const ModalWrapper = (props: WalletModalProps) => {
 
     if (isWalletModalOpen && !props.isOpen && isWalletConnected) {
       setSelectedWalletType("custodial");
+
+      event(AnalyticsEvents.CONNECT_WALLET, {
+        category: AnalyticsCategory.WALLET,
+        label: "Connect wallet"
+      });
     }
   }, [isWalletModalOpen, props.isOpen, isWalletConnected]);
 

@@ -43,7 +43,6 @@ type ContextType = {
   walletName: string;
   isWalletConnected: boolean;
   isWalletLoaded: boolean;
-  connectWallet: () => Promise<void>;
   connectManagedWallet: () => void;
   logout: () => void;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<any>;
@@ -120,6 +119,13 @@ export const WalletProvider = ({ children }) => {
       });
     }
 
+    if (selectedWalletType === "managed" && userWallet.isWalletConnected) {
+      event(AnalyticsEvents.CONNECT_WALLET, {
+        category: AnalyticsCategory.WALLET,
+        label: "Connect wallet"
+      });
+    }
+
     setSelectedWalletType(prev => (prev === "custodial" ? "managed" : "custodial"));
   }
 
@@ -143,18 +149,6 @@ export const WalletProvider = ({ children }) => {
     if (managedWallet) {
       setSelectedWalletType("managed");
     }
-  }
-
-  async function connectWallet() {
-    console.log("Connecting wallet with CosmosKit...");
-    await userWallet.connect();
-
-    await loadWallet();
-
-    event(AnalyticsEvents.CONNECT_WALLET, {
-      category: AnalyticsCategory.WALLET,
-      label: "Connect wallet"
-    });
   }
 
   async function loadWallet(): Promise<void> {
@@ -309,7 +303,6 @@ export const WalletProvider = ({ children }) => {
         walletName: username as string,
         isWalletConnected: isWalletConnected,
         isWalletLoaded: isWalletLoaded,
-        connectWallet,
         connectManagedWallet,
         logout,
         signAndBroadcastTx,
