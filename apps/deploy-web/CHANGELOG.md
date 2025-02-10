@@ -1,5 +1,12 @@
 
 
+## [2.44.0](https://github.com/akash-network/console/compare/console-web/v2.43.0...console-web/v2.44.0) (2025-02-10)
+
+
+### Features
+
+* **analytics:** lease conversion events ([76beedf](https://github.com/akash-network/console/commit/76beedf2cb17d94ca53df127a40f9cfabb852231)), closes [#817](https://github.com/akash-network/console/issues/817)
+
 ## [2.43.0](https://github.com/akash-network/console/compare/console-web/v2.42.1...console-web/v2.43.0) (2025-02-07)
 
 
