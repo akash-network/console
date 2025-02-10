@@ -75,7 +75,7 @@ export class BatchSigningClientService {
   async executeTx(messages: readonly EncodeObject[], options?: ExecuteTxOptions) {
     const tx = await this.execTxLoader.load({ messages, options });
 
-    assert(tx.code === 0, 500, "Failed to sign and broadcast tx", { data: tx });
+    assert(tx?.code === 0, 500, "Failed to sign and broadcast tx", { data: tx });
 
     return tx;
   }
