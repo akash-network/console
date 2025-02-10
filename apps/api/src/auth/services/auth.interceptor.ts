@@ -1,7 +1,6 @@
 import { LoggerService } from "@akashnetwork/logging";
 import { Context, Next } from "hono";
 import { HTTPException } from "hono/http-exception";
-import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
@@ -28,51 +27,45 @@ export class AuthInterceptor implements HonoInterceptor {
 
   intercept() {
     return async (c: Context, next: Next) => {
-      try {
-        const bearer = c.req.header("authorization");
+      const bearer = c.req.header("authorization");
 
-        const anonymousUserId = bearer && (await this.anonymousUserAuthService.getValidUserId(bearer));
+      const anonymousUserId = bearer && (await this.anonymousUserAuthService.getValidUserId(bearer));
 
-        if (anonymousUserId) {
-          const currentUser = await this.userRepository.findAnonymousById(anonymousUserId);
-          assert(currentUser, 401, "Invalid anonymous user");
-          await this.auth(currentUser);
-          c.set("user", currentUser);
-          return await next();
-        }
+      if (anonymousUserId) {
+        const currentUser = await this.userRepository.findAnonymousById(anonymousUserId);
+        await this.auth(currentUser);
+        c.set("user", currentUser);
+        return await next();
+      }
 
-        const userId = bearer && (await this.getValidUserId(bearer, c));
+      const userId = bearer && (await this.getValidUserId(bearer, c));
 
-        if (userId) {
-          const currentUser = await this.userRepository.findByUserId(userId);
-          assert(currentUser, 401, "Invalid user");
-          await this.auth(currentUser);
-          c.set("user", currentUser);
-          return await next();
-        }
+      if (userId) {
+        const currentUser = await this.userRepository.findByUserId(userId);
+        await this.auth(currentUser);
+        c.set("user", currentUser);
+        return await next();
+      }
 
-        const apiKey = c.req.header("x-api-key");
+      const apiKey = c.req.header("x-api-key");
 
-        if (apiKey) {
+      if (apiKey) {
+        try {
           const apiKeyOutput = await this.apiKeyAuthService.getAndValidateApiKeyFromHeader(apiKey);
           const currentUser = await this.userRepository.findByUserId(apiKeyOutput.userId);
-          assert(currentUser, 401, "Invalid API key user");
           await this.auth(currentUser);
           c.set("user", currentUser);
           return await next();
+        } catch (error) {
+          this.logger.error(error);
+          throw new HTTPException(401, {
+            message: "Invalid API key"
+          });
         }
-
-        this.authService.ability = this.abilityService.EMPTY_ABILITY;
-        return await next();
-      } catch (error) {
-        if (error instanceof HTTPException) {
-          throw error;
-        }
-
-        this.logger.error(error);
-
-        throw new HTTPException(500, { message: "Authentication failed" });
       }
+
+      this.authService.ability = this.abilityService.EMPTY_ABILITY;
+      return await next();
     };
   }
 
