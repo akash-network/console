@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/provider-proxy",
-  "version": "1.4.0",
+  "version": "1.4.2",
   "description": "Proxy that allows communication between the Web UI and providers",
   "license": "Apache-2.0",
   "author": "Akash Network",
@@ -8,6 +8,7 @@
   "scripts": {
     "build": "rm -rf dist/* && npx tsc && esbuild server.ts --bundle --sourcemap --platform=node --target=node20.14.0 --outdir=dist",
     "dev": "nodemon server.ts",
+    "dev:inspect": "nodemon --exec node --inspect -r ts-node/register server.ts",
     "dev-nodc": "npm run dev",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
@@ -23,10 +24,11 @@
   "dependencies": {
     "@akashnetwork/logging": "*",
     "@akashnetwork/net": "*",
+    "@hono/node-server": "^1.13.8",
+    "@hono/zod-openapi": "^0.18.4",
     "async-sema": "^3.1.1",
     "bech32": "^2.0.0",
-    "cors": "^2.8.5",
-    "express": "^4.18.2",
+    "hono": "^4.6.20",
     "lru-cache": "^11.0.2",
     "uuid": "^9.0.0",
     "ws": "^7.5.9"

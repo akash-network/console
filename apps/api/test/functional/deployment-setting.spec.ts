@@ -32,21 +32,29 @@ describe("Deployment Settings", () => {
       expect(response.status).toBe(401);
     });
 
-    it("should return 404 if deployment settings not found", async () => {
-      const { token } = await walletService.createUserAndWallet();
-      const userId = faker.string.uuid();
+    it("should return a new deployment setting if not found", async () => {
+      const { token, user } = await walletService.createUserAndWallet();
       const dseq = faker.string.numeric();
 
-      const response = await app.request(`/v1/deployment-settings/${userId}/${dseq}`, {
+      const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
         headers: {
           authorization: `Bearer ${token}`
         }
       });
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
-        error: "NotFoundError",
-        message: "Deployment setting not found"
+        data: {
+          id: expect.any(String),
+          userId: user.id,
+          dseq,
+          autoTopUpEnabled: false,
+          createdAt: expect.any(String),
+          updatedAt: expect.any(String),
+          estimatedTopUpAmount: expect.any(Number),
+          topUpFrequencyMs: expect.any(Number),
+          closed: false
+        }
       });
     });
 
@@ -99,7 +107,8 @@ describe("Deployment Settings", () => {
           createdAt: expect.any(String),
           updatedAt: expect.any(String),
           estimatedTopUpAmount: expect.any(Number),
-          topUpFrequencyMs: expect.any(Number)
+          topUpFrequencyMs: expect.any(Number),
+          closed: false
         }
       });
       expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, wallet.address);

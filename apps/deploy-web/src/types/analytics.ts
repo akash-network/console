@@ -1,5 +1,6 @@
 export enum AnalyticsEvents {
   CONNECT_WALLET = "connect_wallet",
+  CONNECT_MANAGED_WALLET = "connect_managed_wallet",
   DISCONNECT_WALLET = "disconnect_wallet",
   SUCCESSFUL_TX = "successful_transaction",
   FAILED_TX = "failed_tx",

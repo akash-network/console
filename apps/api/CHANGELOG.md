@@ -1,5 +1,27 @@
 
 
+## [2.61.0](https://github.com/akash-network/console/compare/console-api/v2.60.0...console-api/v2.61.0) (2025-02-10)
+
+
+### Features
+
+* **billing:** skips trialing wallets refill ([8961a21](https://github.com/akash-network/console/commit/8961a21459d721d1c517a1a500a09bcae2ef57dd))
+
+## [2.60.0](https://github.com/akash-network/console/compare/console-api/v2.59.0...console-api/v2.60.0) (2025-02-09)
+
+
+### Features
+
+* **billing:** updates average gas price ([99fcb82](https://github.com/akash-network/console/commit/99fcb82000f9a96a3317962230187c5e3f585eba))
+
+## [2.59.0](https://github.com/akash-network/console/compare/console-api/v2.58.1...console-api/v2.59.0) (2025-02-07)
+
+
+### Features
+
+* **deployment:** creates setting if not exists on get ([66cd74b](https://github.com/akash-network/console/commit/66cd74b039e6fab8c848a296047d1669b9c5a574)), closes [#714](https://github.com/akash-network/console/issues/714)
+* **deployment:** marks closed deployments settings ([bef955c](https://github.com/akash-network/console/commit/bef955ccb4f49f08015c94421ce2b87e16004395)), closes [#714](https://github.com/akash-network/console/issues/714)
+
 ## [2.58.1](https://github.com/akash-network/console/compare/console-api/v2.58.0...console-api/v2.58.1) (2025-02-05)
 
 

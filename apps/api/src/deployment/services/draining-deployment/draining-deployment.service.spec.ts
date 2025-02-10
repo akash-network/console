@@ -42,7 +42,8 @@ describe(DrainingDeploymentService.name, () => {
     } as Partial<jest.Mocked<UserWalletRepository>> as jest.Mocked<UserWalletRepository>;
 
     deploymentSettingRepository = {
-      paginateAutoTopUpDeployments: jest.fn()
+      paginateAutoTopUpDeployments: jest.fn(),
+      updateManyById: jest.fn()
     } as Partial<jest.Mocked<DeploymentSettingRepository>> as jest.Mocked<DeploymentSettingRepository>;
 
     const configValues = {
@@ -70,8 +71,8 @@ describe(DrainingDeploymentService.name, () => {
       (blockHttpService.getCurrentHeight as jest.Mock).mockResolvedValue(CURRENT_HEIGHT);
     });
 
-    it("should paginate draining deployments", async () => {
-      const deploymentSettings = AutoTopUpDeploymentSeeder.createMany(2);
+    it("should paginate draining deployments and mark closed ones as such", async () => {
+      const deploymentSettings = AutoTopUpDeploymentSeeder.createMany(4);
       const addresses = deploymentSettings.map(s => s.address);
       const dseqs = deploymentSettings.map(s => Number(s.dseq));
 
@@ -86,7 +87,14 @@ describe(DrainingDeploymentService.name, () => {
           dseq: dseqs[1],
           owner: addresses[1],
           predictedClosedHeight: CURRENT_HEIGHT + PREDICTED_CLOSURE_OFFSET_2,
-          blockRate: BLOCK_RATE_2
+          blockRate: BLOCK_RATE_2,
+          closedHeight: CURRENT_HEIGHT - 100
+        }),
+        DrainingDeploymentSeeder.create({
+          dseq: dseqs[3],
+          owner: addresses[3],
+          predictedClosedHeight: CURRENT_HEIGHT + PREDICTED_CLOSURE_OFFSET_1,
+          blockRate: BLOCK_RATE_1
         })
       ];
 
@@ -109,9 +117,14 @@ describe(DrainingDeploymentService.name, () => {
         expectedClosureHeight,
         expect.arrayContaining([
           { dseq: String(dseqs[0]), owner: addresses[0] },
-          { dseq: String(dseqs[1]), owner: addresses[1] }
+          { dseq: String(dseqs[1]), owner: addresses[1] },
+          { dseq: String(dseqs[2]), owner: addresses[2] },
+          { dseq: String(dseqs[3]), owner: addresses[3] }
         ])
       );
+
+      expect(deploymentSettingRepository.updateManyById).toHaveBeenCalledWith(expect.arrayContaining([deploymentSettings[1].id]), { closed: true });
+
       expect(callback).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({
@@ -121,13 +134,14 @@ describe(DrainingDeploymentService.name, () => {
             blockRate: BLOCK_RATE_1
           }),
           expect.objectContaining({
-            dseq: dseqs[1].toString(),
-            address: addresses[1],
-            predictedClosedHeight: CURRENT_HEIGHT + PREDICTED_CLOSURE_OFFSET_2,
-            blockRate: BLOCK_RATE_2
+            dseq: dseqs[3].toString(),
+            address: addresses[3],
+            predictedClosedHeight: CURRENT_HEIGHT + PREDICTED_CLOSURE_OFFSET_1,
+            blockRate: BLOCK_RATE_1
           })
         ])
       );
+      expect(callback.mock.calls[0][0]).toHaveLength(2);
     });
 
     it("should not call callback if no draining deployments found", async () => {
@@ -143,6 +157,7 @@ describe(DrainingDeploymentService.name, () => {
       await service.paginate({ limit: LIMIT }, callback);
 
       expect(callback).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.updateManyById).not.toHaveBeenCalled();
     });
   });
 

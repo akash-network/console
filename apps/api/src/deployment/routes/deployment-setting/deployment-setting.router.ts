@@ -108,7 +108,7 @@ export const deploymentSettingRouter = new OpenApiHonoHandler();
 
 deploymentSettingRouter.openapi(getRoute, async function routeGetDeploymentSettings(c) {
   const params = c.req.valid("param");
-  const result = await container.resolve(DeploymentSettingController).findByUserIdAndDseq(params);
+  const result = await container.resolve(DeploymentSettingController).findOrCreateByUserIdAndDseq(params);
 
   return c.json(result, 200);
 });

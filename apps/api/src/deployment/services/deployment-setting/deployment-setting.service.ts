@@ -25,8 +25,21 @@ export class DeploymentSettingService {
     private readonly config: DeploymentConfigService
   ) {}
 
-  async findByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {
-    return this.withEstimatedTopUpAmount(await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(params));
+  async findOrCreateByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingWithEstimatedTopUpAmount | undefined> {
+    const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(params);
+
+    if (setting) {
+      return this.withEstimatedTopUpAmount(setting);
+    }
+
+    try {
+      return await this.create(params);
+    } catch (error) {
+      if (error instanceof ForbiddenError) {
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   async create(input: DeploymentSettingsInput): Promise<DeploymentSettingWithEstimatedTopUpAmount> {

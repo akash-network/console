@@ -34,17 +34,33 @@ export class DrainingDeploymentService {
 
       if (drainingDeployments.length) {
         const byDseqOwner = keyBy(drainingDeployments, ({ dseq, owner }) => `${dseq}-${owner}`);
-
-        await cb(
-          deploymentSettings.map(deploymentSetting => {
+        const [active, missingIds] = deploymentSettings.reduce(
+          (acc, deploymentSetting) => {
             const deployment = byDseqOwner[`${deploymentSetting.dseq}-${deploymentSetting.address}`];
-            return {
-              ...deploymentSetting,
-              predictedClosedHeight: deployment.predictedClosedHeight,
-              blockRate: deployment.blockRate
-            };
-          })
+
+            if (!deployment) {
+              return acc;
+            }
+
+            if (deployment.closedHeight) {
+              acc[1].push(deploymentSetting.id);
+            } else {
+              acc[0].push({
+                ...deploymentSetting,
+                predictedClosedHeight: deployment?.predictedClosedHeight,
+                blockRate: deployment?.blockRate
+              });
+            }
+            return acc;
+          },
+          [[], []]
         );
+
+        if (missingIds.length) {
+          await this.deploymentSettingRepository.updateManyById(missingIds, { closed: true });
+        }
+
+        await cb(active);
       }
     });
   }

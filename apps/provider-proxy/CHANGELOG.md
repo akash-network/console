@@ -1,5 +1,19 @@
 
 
+## [1.4.2](https://github.com/akash-network/console/compare/provider-proxy/v1.4.1...provider-proxy/v1.4.2) (2025-02-09)
+
+
+### Code Refactoring
+
+* replaces express with hono in provider-proxy ([#815](https://github.com/akash-network/console/issues/815)) ([f3e4991](https://github.com/akash-network/console/commit/f3e4991c765e108c8c34b2fd716a5257bc797391))
+
+## [1.4.1](https://github.com/akash-network/console/compare/provider-proxy/v1.4.0...provider-proxy/v1.4.1) (2025-02-07)
+
+
+### Bug Fixes
+
+* ensure certificates validator is not blocked by more than 2 requests ([#814](https://github.com/akash-network/console/issues/814)) ([ca0db09](https://github.com/akash-network/console/commit/ca0db09246a25402bdfbb4a71ee07b4da640d292)), closes [#170](https://github.com/akash-network/console/issues/170)
+
 ## [1.4.0](https://github.com/akash-network/console/compare/provider-proxy/v1.3.4...provider-proxy/v1.4.0) (2025-02-06)
 
 

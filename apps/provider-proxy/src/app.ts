@@ -1,16 +1,20 @@
-import cors from "cors";
-import express, { Express } from "express";
+import { serve } from "@hono/node-server";
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { RegExpRouter } from "hono/router/reg-exp-router";
+import http from "http";
 import { AddressInfo } from "net";
 
-import { getAppStatus } from "./routes/getAppStatus";
-import { proxyProviderRequest } from "./routes/proxyProviderRequest";
+import { getAppStatus, statusRoute } from "./routes/getAppStatus";
+import { proxyProviderRequest, proxyRoute } from "./routes/proxyProviderRequest";
 import { WebsocketServer } from "./services/WebsocketServer";
 import { container } from "./container";
 
-export function createApp(): Express {
-  const app = express();
+export function createApp(): Hono {
+  const app = new OpenAPIHono({ router: new RegExpRouter() });
 
-  const whitelist = [
+  const corsWhitelist = [
     "http://localhost:3001",
     "http://localhost:3000",
     "https://cloudmos.grafana.net",
@@ -20,41 +24,36 @@ export function createApp(): Express {
     "https://console-beta.akash.network"
   ];
 
-  app.disable("x-powered-by");
   app.use(
+    "/*",
     cors({
-      origin: function (origin, callback) {
-        if (!origin || whitelist.indexOf(origin) !== -1) {
-          callback(null, true);
-        } else {
-          container.httpLogger?.warn(`Cors refused: ${origin}`);
-          callback(new Error("Not allowed by CORS"));
-        }
-      }
+      allowMethods: ["GET", "HEAD", "PUT", "POST", "DELETE", "PATCH", "OPTIONS"],
+      origin: corsWhitelist,
+      maxAge: 60
     })
   );
-  app.use(express.json());
-  app.get("/status", getAppStatus);
-  app.post("/", proxyProviderRequest);
+  app.openapi(statusRoute, getAppStatus);
+  app.openapi(proxyRoute, proxyProviderRequest as any);
 
   return app;
 }
 
 export async function startAppServer(port: number): Promise<AppServer> {
-  return new Promise(resolve => {
-    const app = createApp();
-    const httpAppServer = app.listen(port, () => {
-      resolve({
-        host: `http://localhost:${(httpAppServer.address() as AddressInfo).port}`,
-        close() {
-          wss.close();
-          httpAppServer.close();
-        }
-      });
-    });
-    const wss = new WebsocketServer(httpAppServer, container.certificateValidator, container.createWsLogger);
-    wss.listen();
-  });
+  const app = createApp();
+  const httpAppServer = serve({
+    fetch: app.fetch,
+    port
+  }) as http.Server;
+  const wss = new WebsocketServer(httpAppServer, container.certificateValidator, container.createWsLogger);
+  wss.listen();
+
+  return {
+    host: `http://localhost:${(httpAppServer.address() as AddressInfo).port}`,
+    close() {
+      wss.close();
+      httpAppServer.close();
+    }
+  };
 }
 
 export interface AppServer {

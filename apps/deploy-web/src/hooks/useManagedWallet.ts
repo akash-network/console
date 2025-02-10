@@ -1,11 +1,14 @@
 import { useEffect, useMemo } from "react";
 import { useAtom } from "jotai";
+import { event } from "nextjs-google-analytics";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useUser } from "@src/hooks/useUser";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
 import walletStore from "@src/store/walletStore";
+import { AnalyticsEvents } from "@src/types/analytics";
+import { AnalyticsCategory } from "@src/types/analytics";
 import { deleteManagedWalletFromStorage, ensureUserManagedWalletOwnership, getSelectedStorageWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
 import { useCustomUser } from "./useCustomUser";
 
@@ -27,11 +30,17 @@ export const useManagedWallet = () => {
       if (selectedWalletType === "custodial" && wallet && !userWallet.isWalletConnected && !userWallet.isWalletConnecting) {
         setSelectedWalletType("managed");
       }
+
+      event(AnalyticsEvents.CONNECT_MANAGED_WALLET, {
+        category: AnalyticsCategory.WALLET,
+        label: "Connect managed wallet"
+      });
     }
   });
   const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => queried || created, [queried, created]);
   const isLoading = isFetching || isCreating;
+
   const [, setIsSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const selected = getSelectedStorageWallet();
 
