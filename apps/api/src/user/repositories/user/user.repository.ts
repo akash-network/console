@@ -8,7 +8,9 @@ import { ApiPgDatabase, ApiPgTables, InjectPg, InjectPgTable } from "@src/core/p
 import { AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
 
-export type UserOutput = ApiPgTables["Users"]["$inferSelect"];
+export type UserOutput = ApiPgTables["Users"]["$inferSelect"] & {
+  trial?: boolean;
+};
 export type UserInput = Partial<UserOutput>;
 
 @singleton()
@@ -30,7 +32,23 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
   }
 
   async findByUserId(userId: UserOutput["userId"]) {
-    return await this.cursor.query.Users.findFirst({ where: this.whereAccessibleBy(eq(this.table.userId, userId)) });
+    const result = await this.cursor.query.Users.findFirst({
+      where: this.whereAccessibleBy(eq(this.table.userId, userId)),
+      with: {
+        userWallets: {
+          columns: {
+            isTrialing: true
+          }
+        }
+      }
+    });
+
+    if (!result) return undefined;
+
+    return {
+      ...result,
+      trial: result.userWallets?.isTrialing ?? true
+    };
   }
 
   async findAnonymousById(id: UserOutput["id"]) {

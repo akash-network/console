@@ -1,5 +1,7 @@
-import { sql } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { boolean, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+
+import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema";
 
 export const Users = pgTable("userSetting", {
   id: uuid("id")
@@ -22,3 +24,10 @@ export const Users = pgTable("userSetting", {
   lastFingerprint: varchar("last_fingerprint", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow()
 });
+
+export const UsersRelations = relations(Users, ({ one }) => ({
+  userWallets: one(UserWallets, {
+    fields: [Users.id],
+    references: [UserWallets.userId]
+  })
+}));

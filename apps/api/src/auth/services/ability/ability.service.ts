@@ -3,24 +3,28 @@ import type { TemplateExecutor } from "lodash";
 import template from "lodash/template";
 import { singleton } from "tsyringe";
 
-type Role = "REGULAR_USER" | "REGULAR_ANONYMOUS_USER" | "SUPER_USER";
+type Role = "REGULAR_USER" | "REGULAR_ANONYMOUS_USER" | "REGULAR_PAYING_USER" | "SUPER_USER";
 
 @singleton()
 export class AbilityService {
   readonly EMPTY_ABILITY = new Ability([]);
 
   private readonly RULES: Record<Role, RawRule[]> = {
+    REGULAR_ANONYMOUS_USER: [
+      { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
+      { action: "read", subject: "User", conditions: { id: "${user.id}" } }
+    ],
     REGULAR_USER: [
       { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
       { action: "read", subject: "User", conditions: { id: "${user.id}" } },
       { action: "read", subject: "StripePrice" },
-      { action: "create", subject: "VerificationEmail", conditions: { id: "${user.id}" } },
-      { action: "manage", subject: "DeploymentSetting", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "ApiKey", conditions: { userId: "${user.id}" } }
+      { action: "create", subject: "VerificationEmail", conditions: { id: "${user.id}" } }
     ],
-    REGULAR_ANONYMOUS_USER: [
+    REGULAR_PAYING_USER: [
       { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
       { action: "read", subject: "User", conditions: { id: "${user.id}" } },
+      { action: "read", subject: "StripePrice" },
+      { action: "create", subject: "VerificationEmail", conditions: { id: "${user.id}" } },
       { action: "manage", subject: "DeploymentSetting", conditions: { userId: "${user.id}" } },
       { action: "manage", subject: "ApiKey", conditions: { userId: "${user.id}" } }
     ],

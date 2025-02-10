@@ -72,11 +72,19 @@ export class AuthInterceptor implements HonoInterceptor {
   private async auth(user?: UserOutput) {
     this.authService.currentUser = user;
     if (user) {
-      this.authService.ability = this.abilityService.getAbilityFor(user.userId ? "REGULAR_USER" : "REGULAR_ANONYMOUS_USER", user);
+      this.authService.ability = this.abilityService.getAbilityFor(this.getUserRole(user), user);
       await this.userRepository.markAsActive(user.id);
     } else {
       this.authService.ability = this.abilityService.EMPTY_ABILITY;
     }
+  }
+
+  private getUserRole(user: UserOutput) {
+    if (user) {
+      return user.trial === false ? "REGULAR_PAYING_USER" : "REGULAR_USER";
+    }
+
+    return "REGULAR_ANONYMOUS_USER";
   }
 
   private async getValidUserId(bearer: string, c: Context) {
