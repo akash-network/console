@@ -1,6 +1,6 @@
 import { AnyAbility } from "@casl/ability";
 import { and, DBQueryConfig, eq, inArray, sql } from "drizzle-orm";
-import { PgTableWithColumns } from "drizzle-orm/pg-core/table";
+import { PgTableWithColumns } from "drizzle-orm/pg-core";
 import { SQL } from "drizzle-orm/sql/sql";
 import first from "lodash/first";
 
@@ -32,8 +32,8 @@ export abstract class BaseRepository<
     return this.txManager.getPgTx() || this.pg;
   }
 
-  get queryCursor() {
-    return this.cursor.query[this.tableName] as unknown as T;
+  get queryCursor(): T {
+    return this.cursor.query[this.tableName];
   }
 
   protected constructor(
@@ -41,7 +41,7 @@ export abstract class BaseRepository<
     protected readonly table: T,
     protected readonly txManager: TxService,
     protected readonly entityName: string,
-    protected readonly tableName: keyof ApiPgTables
+    protected readonly tableName: TableNameInSchema<T>
   ) {}
 
   protected withAbility(ability: AnyAbility, action: Parameters<AnyAbility["can"]>[0]) {
@@ -194,3 +194,8 @@ export abstract class BaseRepository<
     return payload as Output;
   }
 }
+
+type TableName<T extends PgTableWithColumns<any>> = T extends PgTableWithColumns<infer TableConfig> ? TableConfig["name"] : never;
+type TableNameInSchema<T extends PgTableWithColumns<any>> = {
+  [K in keyof ApiPgTables as TableName<ApiPgTables[K]>]: K;
+}[TableName<T>];
