@@ -42,7 +42,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
         name={`services.${serviceIndex}.profile.persistentStorage`}
         render={({ field, fieldState }) => (
           <FormItem>
-            <div className="flex flex-col items-start sm:flex-row sm:items-center">
+            <div className="flex flex-col items-start lg:flex-row lg:items-center">
               <div className="flex items-center">
                 <div className="flex items-center">
                   <MdStorage className="mr-2 text-2xl text-muted-foreground" />
@@ -75,7 +75,7 @@ export const PersistentStorage: React.FunctionComponent<Props> = ({ currentServi
               </div>
 
               {currentService.profile.hasPersistentStorage && (
-                <div className="mt-2 flex items-center sm:ml-4 sm:mt-0">
+                <div className="mt-2 flex items-center lg:ml-4 lg:mt-0">
                   <Input
                     type="number"
                     color="secondary"
