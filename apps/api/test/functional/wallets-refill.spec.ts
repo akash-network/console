@@ -25,7 +25,8 @@ describe("Wallets Refill", () => {
 
   describe("console refill-wallets", () => {
     it("should refill wallets low on fee allowance", async () => {
-      const prepareRecords = Array.from({ length: 15 }).map(async () => {
+      const NUMBER_OF_WALLETS = 15;
+      const prepareRecords = Array.from({ length: NUMBER_OF_WALLETS }).map(async (_, index) => {
         const records = await walletService.createUserAndWallet();
         const { user, token } = records;
         const { wallet } = records;
@@ -44,7 +45,8 @@ describe("Wallets Refill", () => {
         walletRecord = await userWalletRepository.updateById(
           wallet.id,
           {
-            feeAllowance: limits.fees
+            feeAllowance: limits.fees,
+            isTrialing: index === NUMBER_OF_WALLETS - 1
           },
           { returning: true }
         );
@@ -57,14 +59,18 @@ describe("Wallets Refill", () => {
 
       const records = await Promise.all(prepareRecords);
       await walletController.refillWallets();
+      const trialingWallet = records.pop();
 
-      await Promise.all(
-        records.map(async ({ wallet }) => {
+      await Promise.all([
+        ...records.map(async ({ wallet }) => {
           const walletRecord = await userWalletRepository.findById(wallet.id);
 
           expect(walletRecord.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_AMOUNT);
+        }),
+        userWalletRepository.findById(trialingWallet.wallet.id).then(walletRecord => {
+          expect(walletRecord.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_THRESHOLD);
         })
-      );
+      ]);
     });
   });
 });

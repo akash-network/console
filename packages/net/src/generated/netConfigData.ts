@@ -9,10 +9,10 @@ export const netConfigData = {
     ],
     rpcUrls: [
       "https://rpc.akashnet.net:443",
-      "https://rpc.akash.forbole.com:443",
       "https://rpc-akash.ecostake.com:443",
       "https://akash-rpc.polkachu.com:443",
-      "https://akash.c29r3.xyz:443/rpc"
+      "https://akash.c29r3.xyz:443/rpc",
+      "https://akash-rpc.europlots.com:443"
     ]
   },
   sandbox: {
