@@ -253,8 +253,8 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
                   <span className="font-bold">{service.title}</span>:{service.image}
                 </div>
                 <div className="flex items-center space-x-4 whitespace-nowrap">
-                  <LeaseSpecDetail type="cpu" className="flex-shrink-0" value={service.profile?.cpu as number} />
-                  {service.profile?.hasGpu && <LeaseSpecDetail type="gpu" className="flex-shrink-0" value={service.profile?.gpu as number} />}
+                  <LeaseSpecDetail type="cpu" className="flex-shrink-0" value={service.profile?.cpu} />
+                  {!!service.profile?.gpu && <LeaseSpecDetail type="gpu" className="flex-shrink-0" value={service.profile?.gpu} />}
                   <LeaseSpecDetail type="ram" className="flex-shrink-0" value={`${service.profile?.ram} ${service.profile?.ramUnit}`} />
                   <LeaseSpecDetail type="storage" className="flex-shrink-0" value={`${service.profile?.storage} ${service.profile?.storageUnit}`} />
                 </div>
