@@ -1,5 +1,12 @@
 
 
+## [2.61.0](https://github.com/akash-network/console/compare/console-api/v2.60.0...console-api/v2.61.0) (2025-02-10)
+
+
+### Features
+
+* **billing:** skips trialing wallets refill ([8961a21](https://github.com/akash-network/console/commit/8961a21459d721d1c517a1a500a09bcae2ef57dd))
+
 ## [2.60.0](https://github.com/akash-network/console/compare/console-api/v2.59.0...console-api/v2.60.0) (2025-02-09)
 
 
