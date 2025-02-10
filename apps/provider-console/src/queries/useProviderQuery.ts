@@ -20,12 +20,7 @@ import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 
 type ToastParameters = Omit<ToasterToast, "id">;
 
-const handleQueryError = (
-  error: AxiosError,
-  toast: (props: ToastParameters) => unknown,
-  customMessage?: string,
-  customTitle = "Uh oh! Something went wrong."
-) => {
+const handleQueryError = (error: AxiosError, toast: (props: ToastParameters) => unknown, customMessage?: string, customTitle = "Please try again") => {
   toast({
     variant: "destructive",
     title: customTitle,
@@ -106,7 +101,12 @@ export const useProviderDetails = (address: string | undefined) => {
       try {
         return await consoleClient.get(`/v1/providers/${address}`);
       } catch (error: unknown) {
-        return handleQueryError(error as AxiosError, toast, "Failed to fetch provider details");
+        const axiosError = error as AxiosError;
+        // Don't show toast for 404 errors as it's an expected response for non-providers
+        if (axiosError.response?.status === 404) {
+          throw error;
+        }
+        return handleQueryError(axiosError, toast, "Failed to fetch provider details");
       }
     },
     refetchOnWindowFocus: false,
@@ -129,11 +129,22 @@ export const useProviderDashboard = (address: string | undefined) => {
       try {
         return await consoleClient.get(`/internal/provider-dashboard/${address}`);
       } catch (error: unknown) {
-        return handleQueryError(error as AxiosError, toast, "Failed to fetch provider dashboard");
+        const axiosError = error as AxiosError;
+        // Don't show toast for 404 errors as it's an expected response for non-providers
+        if (axiosError.response?.status === 404) {
+          throw error;
+        }
+        return handleQueryError(axiosError, toast, "Failed to fetch provider dashboard");
       }
     },
     refetchOnWindowFocus: false,
-    retry: 3,
+    retry: (failureCount, error: AxiosError) => {
+      const status = error.response?.status;
+      if (status && status >= 400 && status < 500) {
+        return false;
+      }
+      return failureCount < 3;
+    },
     enabled: !!address
   });
 };
