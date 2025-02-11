@@ -80,7 +80,7 @@ export class AuthInterceptor implements HonoInterceptor {
   }
 
   private getUserRole(user: UserOutput) {
-    if (user) {
+    if (user.userId) {
       return user.trial === false ? "REGULAR_PAYING_USER" : "REGULAR_USER";
     }
 
