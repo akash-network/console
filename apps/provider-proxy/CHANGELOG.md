@@ -1,5 +1,12 @@
 
 
+## [1.4.3](https://github.com/akash-network/console/compare/provider-proxy/v1.4.2...provider-proxy/v1.4.3) (2025-02-11)
+
+
+### Code Refactoring
+
+* changes structure and reduce side-effects in provider proxy ([#831](https://github.com/akash-network/console/issues/831)) ([3002e00](https://github.com/akash-network/console/commit/3002e00508019c5adaca4a0bdc42e3b9bf0e4ef1))
+
 ## [1.4.2](https://github.com/akash-network/console/compare/provider-proxy/v1.4.1...provider-proxy/v1.4.2) (2025-02-09)
 
 

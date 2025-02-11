@@ -1,3 +1,7 @@
+
+
+## [1.0.3](https://github.com/akash-network/console/compare/provider-console/v1.0.2...provider-console/v1.0.3) (2025-02-11)
+
 ## [1.0.2] (https://github.com/akash-network/console/compare/provider-console/v1.0.1...provider-console/v1.0.2) (2025-02-05)
 
 ### Bug Fixes
