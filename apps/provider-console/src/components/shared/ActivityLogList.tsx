@@ -93,7 +93,9 @@ export const ActivityLogList: React.FC<ActivityLogsListProps> = ({ actions }) =>
           <li className="py-4">
             <div className="grid grid-cols-12 items-center gap-4">
               <div className="col-span-12">
-                <p className="text-base text-gray-500">No recent actions to display.</p>
+                <p className="text-base text-gray-500">
+                  No recent actions to display. Once you perform any activity using the provider console, it will appear here.
+                </p>
               </div>
             </div>
           </li>
