@@ -29,6 +29,18 @@ export interface ExecDepositDeploymentMsgOptions extends DepositDeploymentMsgOpt
   grantee: string;
 }
 
+export interface DepositDeploymentMsg {
+  typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment";
+  value: {
+    id: {
+      owner: string;
+      dseq: Long;
+    };
+    amount: { denom: string; amount: string };
+    depositor: string;
+  };
+}
+
 @singleton()
 export class RpcMessageService {
   getFeesAllowanceGrantMsg({ limit, expiration, granter, grantee }: Omit<SpendingAuthorizationMsgOptions, "denom">) {
@@ -123,7 +135,7 @@ export class RpcMessageService {
     };
   }
 
-  getDepositDeploymentMsg({ owner, dseq, amount, denom, depositor }: DepositDeploymentMsgOptions) {
+  getDepositDeploymentMsg({ owner, dseq, amount, denom, depositor }: DepositDeploymentMsgOptions): DepositDeploymentMsg {
     return {
       typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
       value: {

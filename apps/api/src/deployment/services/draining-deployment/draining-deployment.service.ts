@@ -8,7 +8,7 @@ import { DrainingDeploymentOutput, LeaseRepository } from "@src/deployment/repos
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 
-type DrainingDeployment = AutoTopUpDeployment & {
+export type DrainingDeployment = AutoTopUpDeployment & {
   predictedClosedHeight: number;
   blockRate: number;
 };
