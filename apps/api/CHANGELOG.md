@@ -1,5 +1,12 @@
 
 
+## [2.62.0](https://github.com/akash-network/console/compare/console-api/v2.61.0...console-api/v2.62.0) (2025-02-11)
+
+
+### Features
+
+* **deployment:** tops up deployments for the same owner in a single tx ([5f6192f](https://github.com/akash-network/console/commit/5f6192fc67f0536e50f173ede9897124c9add0fd)), closes [#714](https://github.com/akash-network/console/issues/714)
+
 ## [2.61.0](https://github.com/akash-network/console/compare/console-api/v2.60.0...console-api/v2.61.0) (2025-02-10)
 
 
