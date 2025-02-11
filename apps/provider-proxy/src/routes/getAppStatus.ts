@@ -1,10 +1,9 @@
-import { z } from "@hono/zod-openapi";
-import { createRoute } from "@hono/zod-openapi";
-import { Context, TypedResponse } from "hono";
+import { createRoute, z } from "@hono/zod-openapi";
+import { TypedResponse } from "hono";
 
 import packageJson from "../../package.json";
-import { container } from "../container";
-import { humanFileSize } from "../sizeUtils";
+import { AppContext } from "../types/AppContext";
+import { humanFileSize } from "../utils/sizeUtils";
 
 const AppStatus = z.object({
   openClientWebSocketCount: z.number(),
@@ -30,8 +29,8 @@ export const statusRoute = createRoute({
   }
 });
 
-export async function getAppStatus(ctx: Context): Promise<TypedResponse<z.infer<typeof AppStatus>, 200>> {
-  const webSocketStats = container.wsStats.getItems();
+export async function getAppStatus(ctx: AppContext): Promise<TypedResponse<z.infer<typeof AppStatus>, 200>> {
+  const webSocketStats = ctx.get("container").wsStats.getItems();
   const openClientWebSocketCount = webSocketStats.filter(x => !x.isClosed()).length;
   const totalRequestCount = webSocketStats.reduce((a, b) => a + b.getStats().totalStats.count, 0);
   const totalTransferred = webSocketStats.reduce((a, b) => a + b.getStats().totalStats.data, 0);

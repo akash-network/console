@@ -39,7 +39,6 @@ export class ProviderProxy {
         },
         async res => {
           try {
-            res.setEncoding("utf8");
             const socket = res.socket;
             if (!socket || !(socket instanceof TLSSocket)) {
               return resolve({ ok: false, code: "insecureConnection" });
