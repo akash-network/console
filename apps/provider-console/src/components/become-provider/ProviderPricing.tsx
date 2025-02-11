@@ -259,7 +259,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-lg font-semibold">GPU</FormLabel>
-                      <p className="text-muted-foreground text-sm">GPU pricing is set for all types of GPUs.</p>
+                      <p className="text-muted-foreground text-sm">Same price will be applied to all GPU models in case of a heterogeneous provider </p>
                       <FormControl>
                         <div className="flex items-center space-x-4">
                           <Slider
