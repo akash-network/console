@@ -1,5 +1,13 @@
 
 
+## [2.62.1](https://github.com/akash-network/console/compare/console-api/v2.62.0...console-api/v2.62.1) (2025-02-11)
+
+
+### Code Refactoring
+
+* changes structure and reduce side-effects in provider proxy ([#831](https://github.com/akash-network/console/issues/831)) ([3002e00](https://github.com/akash-network/console/commit/3002e00508019c5adaca4a0bdc42e3b9bf0e4ef1))
+* **deployment:** parallelize some calls in top up job  ([5a27caa](https://github.com/akash-network/console/commit/5a27caae6466340001689ef1018b7ad728b704f5))
+
 ## [2.62.0](https://github.com/akash-network/console/compare/console-api/v2.61.0...console-api/v2.62.0) (2025-02-11)
 
 
