@@ -65,8 +65,10 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
           const { address, predictedClosedHeight } = deployment;
           this.summarizer.ensurePredictedClosedHeight(predictedClosedHeight);
 
-          const balance = await this.cachedBalanceService.get(address);
-          const desiredAmount = await this.drainingDeploymentService.calculateTopUpAmount(deployment);
+          const [balance, desiredAmount] = await Promise.all([
+            this.cachedBalanceService.get(address),
+            this.drainingDeploymentService.calculateTopUpAmount(deployment)
+          ]);
           const sufficientAmount = balance.reserveSufficientAmount(desiredAmount);
 
           const messageInput: DepositDeploymentMsgOptions = {
