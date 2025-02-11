@@ -1,8 +1,6 @@
-import { LoggerService } from "@akashnetwork/logging";
-import { Context, Next } from "hono";
-import { singleton } from "tsyringe";
+import type { MiddlewareHandler } from "hono";
 
-import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
+import { LoggerService } from "../../servicies/logger/logger.service";
 
 type HttpRequestLog = {
   httpRequest: {
@@ -19,12 +17,11 @@ type HttpRequestLog = {
   userId?: string;
 };
 
-@singleton()
-export class HttpLoggerService implements HonoInterceptor {
-  private readonly logger = LoggerService.forContext("HTTP");
+export class HttpLoggerIntercepter {
+  constructor(private readonly logger?: LoggerService) {}
 
-  intercept() {
-    return async (c: Context, next: Next) => {
+  intercept(): MiddlewareHandler {
+    return async (c, next) => {
       const timer = performance.now();
 
       try {
@@ -54,7 +51,7 @@ export class HttpLoggerService implements HonoInterceptor {
           log.userId = currentUser.id;
         }
 
-        this.logger.info(log);
+        this.logger?.info(log);
       }
     };
   }

@@ -4,6 +4,10 @@
   "description": "Package containing logging tools",
   "license": "ISC",
   "author": "",
+  "exports": {
+    ".": "./src/index.ts",
+    "./hono": "./src/hono/index.ts"
+  },
   "main": "src/index.ts",
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
@@ -28,5 +32,13 @@
     "@types/http-errors": "^2.0.4",
     "@types/node": "^22.8.6",
     "pino-pretty": "^11.3.0"
+  },
+  "peerDependencies": {
+    "hono": "4.6.12"
+  },
+  "peerDependenciesMeta": {
+    "hono": {
+      "optional": true
+    }
   }
 }

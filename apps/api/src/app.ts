@@ -1,9 +1,10 @@
-import "reflect-metadata";
 import "@src/core/providers/sentry.provider";
+import "reflect-metadata";
 
 import { LoggerService } from "@akashnetwork/logging";
+import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
 import { serve } from "@hono/node-server";
-import { Context, Hono, Next } from "hono";
+import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { container } from "tsyringe";
 
@@ -11,7 +12,6 @@ import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
 import { config } from "@src/core/config";
 import { getSentry, sentryOptions } from "@src/core/providers/sentry.provider";
 import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
-import { HttpLoggerService } from "@src/core/services/http-logger/http-logger.service";
 import { RequestContextInterceptor } from "@src/core/services/request-context-interceptor/request-context.interceptor";
 import { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import packageJson from "../package.json";
@@ -52,11 +52,11 @@ const scheduler = new Scheduler({
   }
 });
 
-appHono.use(container.resolve(HttpLoggerService).intercept());
+appHono.use(container.resolve(HttpLoggerIntercepter).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
 appHono.use(container.resolve<HonoInterceptor>(AuthInterceptor).intercept());
 appHono.use(clientInfoMiddleware);
-appHono.use("*", async (c: Context, next: Next) => {
+appHono.use("*", async (c, next) => {
   const { sentry } = await import("@hono/sentry");
   return sentry({
     ...sentryOptions,

@@ -3,12 +3,10 @@ import { SupportedChainNetworks } from "@akashnetwork/net";
 import http from "http";
 import https from "https";
 import { TLSSocket } from "tls";
-import { v4 as uuidv4 } from "uuid";
 import WebSocket from "ws";
 
-import { ClientWebSocketStats, WebSocketUsage } from "../ClientSocketStats";
-import { container } from "../container";
 import { CertificateValidator } from "./CertificateValidator";
+import { ClientWebSocketStats, WebsocketStats, WebSocketUsage } from "./WebsocketStats";
 
 // @see https://www.rfc-editor.org/rfc/rfc6455.html#page-46
 const WS_ERRORS = {
@@ -28,6 +26,7 @@ export class WebsocketServer {
   constructor(
     private readonly appServer: http.Server,
     private readonly certificateValidator: CertificateValidator,
+    private readonly wsStats: WebsocketStats,
     private readonly createLogger: LoggerService["setContext"]
   ) {}
 
@@ -45,11 +44,8 @@ export class WebsocketServer {
     });
 
     this.wss.on("connection", ws => {
-      const id = uuidv4();
-      const wsLogger = this.createLogger?.(id);
-
-      const stats = new ClientWebSocketStats(id);
-      container.wsStats.add(stats);
+      const stats = this.wsStats.create();
+      const wsLogger = this.createLogger?.(stats.id);
 
       ws.on("message", async (messageStr: string) => {
         const message = parseMessage(messageStr, wsLogger);
@@ -69,9 +65,9 @@ export class WebsocketServer {
         wsLogger?.info("Closing socket");
         stats.close();
 
-        if (id in this.openProviderSockets) {
-          this.openProviderSockets[id].ws.terminate();
-          delete this.openProviderSockets[id];
+        if (stats.id in this.openProviderSockets) {
+          this.openProviderSockets[stats.id].ws.terminate();
+          delete this.openProviderSockets[stats.id];
         } else {
           wsLogger?.debug("Corresponding provider socket not found");
         }

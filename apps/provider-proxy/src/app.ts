@@ -9,10 +9,11 @@ import { AddressInfo } from "net";
 import { getAppStatus, statusRoute } from "./routes/getAppStatus";
 import { proxyProviderRequest, proxyRoute } from "./routes/proxyProviderRequest";
 import { WebsocketServer } from "./services/WebsocketServer";
-import { container } from "./container";
+import { AppEnv } from "./types/AppContext";
+import { Container, createContainer } from "./container";
 
-export function createApp(): Hono {
-  const app = new OpenAPIHono({ router: new RegExpRouter() });
+export function createApp(container: Container): Hono<AppEnv> {
+  const app = new OpenAPIHono<AppEnv>({ router: new RegExpRouter() });
 
   const corsWhitelist = [
     "http://localhost:3001",
@@ -24,6 +25,11 @@ export function createApp(): Hono {
     "https://console-beta.akash.network"
   ];
 
+  app.use((c, next) => {
+    c.set("container", container);
+    return next();
+  });
+  app.use(container.httpLoggerInterceptor.intercept());
   app.use(
     "/*",
     cors({
@@ -39,16 +45,18 @@ export function createApp(): Hono {
 }
 
 export async function startAppServer(port: number): Promise<AppServer> {
-  const app = createApp();
+  const container = createContainer();
+  const app = createApp(container);
   const httpAppServer = serve({
     fetch: app.fetch,
     port
   }) as http.Server;
-  const wss = new WebsocketServer(httpAppServer, container.certificateValidator, container.createWsLogger);
+  const wss = new WebsocketServer(httpAppServer, container.certificateValidator, container.wsStats, container.createWsLogger);
   wss.listen();
 
   return {
     host: `http://localhost:${(httpAppServer.address() as AddressInfo).port}`,
+    container,
     close() {
       wss.close();
       httpAppServer.close();
@@ -58,5 +66,6 @@ export async function startAppServer(port: number): Promise<AppServer> {
 
 export interface AppServer {
   host: string;
+  container: Container;
   close(): void;
 }
