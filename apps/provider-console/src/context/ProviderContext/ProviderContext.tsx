@@ -19,7 +19,7 @@ export const ProviderContextProvider = ({ children }) => {
   const { address } = useWallet();
 
   const { data: providerDetails, isLoading: isLoadingProviderDetails } = useQuery<ProviderDetails | null>(
-    "providerDetails",
+    ["providerDetails", address],
     async () => {
       try {
         return await consoleClient.get<ProviderDetails, ProviderDetails>(`/v1/providers/${address}`);
@@ -38,7 +38,7 @@ export const ProviderContextProvider = ({ children }) => {
   );
 
   const { data: providerDashboard, isLoading: isLoadingProviderDashboard } = useQuery<ProviderDashoard | null>(
-    "providerDashboard",
+    ["providerDashboard", address],
     async () => {
       try {
         return await consoleClient.get(`/internal/provider-dashboard/${address}`);
