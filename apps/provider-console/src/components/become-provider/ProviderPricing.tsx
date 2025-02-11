@@ -100,7 +100,6 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
         });
       } else if (providerDetails) {
         const { activeStats, pendingStats, availableStats } = providerDetails;
-        console.log("activeStats", activeStats);
 
         // Calculate totals by summing active, pending, and available stats
         const totalCpu = (activeStats.cpu + pendingStats.cpu + availableStats.cpu) / 1000;
