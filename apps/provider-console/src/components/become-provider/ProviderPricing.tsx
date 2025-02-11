@@ -23,6 +23,7 @@ import { z } from "zod";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
 import { ProviderDetails } from "@src/types/provider";
+import { roundDecimal } from "@src/utils/mathHelpers";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 import { Title } from "../shared/Title";
@@ -257,6 +258,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-lg font-semibold">GPU</FormLabel>
+                      <p className="text-muted-foreground text-sm">Same price will be applied to all GPU models in case of a heterogeneous provider </p>
                       <FormControl>
                         <div className="flex items-center space-x-4">
                           <Slider
@@ -508,10 +510,10 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                 <div className="bg-secondary rounded-lg p-6">
                   <h4 className="mb-2 text-lg font-semibold">Estimated Monthly Earnings</h4>
                   <p className="text-muted-foreground mb-4 text-sm">The earnings are estimated and based on 80% resource utilization</p>
-                  <div className="text-2xl font-bold">${estimatedEarnings.toFixed(2)}/month</div>
+                  <div className="text-2xl font-bold">{isNaN(estimatedEarnings) ? "-" : `$${roundDecimal(estimatedEarnings)}/month`}</div>
                 </div>
                 <div className="bg-secondary rounded-lg p-6">
-                  <h4 className="mb-2 text-lg font-semibold">Competitive Pricing Insights</h4>
+                  <h4 className="mb-2 text-lg font-semibold">Comparative Pricing Insights</h4>
                   <p className="text-muted-foreground mb-4 text-sm">
                     See how other providers price similar resources on the Akash Network. Use this information to set competitive rates and maximize your
                     monthly earnings.

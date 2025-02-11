@@ -89,7 +89,7 @@ export const Deployments: React.FC = () => {
               <TableHead className="w-[10%] font-bold">Owner</TableHead>
               <TableHead className="w-[15%] font-bold">DSEQ</TableHead>
               <TableHead className="w-[15%] font-bold">Spent</TableHead>
-              <TableHead className="w-[15%] font-bold">Monthly Cost</TableHead>
+              <TableHead className="w-[15%] font-bold">Monthly Earnings</TableHead>
               <TableHead className="w-[5%] font-bold">GPUs</TableHead>
               <TableHead className="w-[5%] font-bold">CPUs</TableHead>
               <TableHead className="w-[10%] font-bold">Memory</TableHead>

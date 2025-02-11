@@ -92,8 +92,13 @@ export const ActivityLogList: React.FC<ActivityLogsListProps> = ({ actions }) =>
         ) : (
           <li className="py-4">
             <div className="grid grid-cols-12 items-center gap-4">
-              <div className="col-span-12">
-                <p className="text-base text-gray-500">No recent actions to display.</p>
+              <div className="col-span-12 text-center">
+                <p className="text-base text-lg text-gray-500">
+                  No activity logs to display. <br />
+                </p>
+                <p className="text-md pt-2 text-gray-500">
+                  This is likely because this Provider was not set up using Provider Console and/or hasn&apos;t had any changes made to it via Provider Console.
+                </p>
               </div>
             </div>
           </li>
