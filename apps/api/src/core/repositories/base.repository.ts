@@ -195,7 +195,11 @@ export abstract class BaseRepository<
   }
 }
 
+type TablesOnly<T> = {
+  [K in keyof T as T[K] extends PgTableWithColumns<any> ? K : never]: T[K];
+};
+
 type TableName<T extends PgTableWithColumns<any>> = T extends PgTableWithColumns<infer TableConfig> ? TableConfig["name"] : never;
 type TableNameInSchema<T extends PgTableWithColumns<any>> = {
-  [K in keyof ApiPgTables as TableName<ApiPgTables[K]>]: K;
+  [K in keyof TablesOnly<ApiPgTables> as TableName<ApiPgTables[K]>]: K;
 }[TableName<T>];
