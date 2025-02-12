@@ -35,7 +35,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
   const { udenomToUsd } = usePricing();
   const router = useRouter();
-  const { signAndBroadcastTx, isManaged } = useWallet();
+  const { signAndBroadcastTx, isManaged, isTrialing } = useWallet();
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const deploymentName = getDeploymentName(deployment?.dseq);
@@ -140,7 +140,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
               Add funds
             </Button>
 
-            {isManaged && browserEnvConfig.NEXT_PUBLIC_AUTO_TOP_UP_ENABLED && (
+            {isManaged && !isTrialing && browserEnvConfig.NEXT_PUBLIC_AUTO_TOP_UP_ENABLED && (
               <div className="ml-4 flex items-center gap-2">
                 <Switch checked={deploymentSetting.data?.autoTopUpEnabled} onCheckedChange={deploymentSetting.setAutoTopUpEnabled} />
                 <span>Auto top-up</span>

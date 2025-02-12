@@ -15,6 +15,7 @@ import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/h
 import { RequestContextInterceptor } from "@src/core/services/request-context-interceptor/request-context.interceptor";
 import { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import packageJson from "../package.json";
+import { apiKeysRouter } from "./auth/routes/api-keys/api-keys.router";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
@@ -85,6 +86,7 @@ appHono.route("/", createAnonymousUserRouter);
 appHono.route("/", getAnonymousUserRouter);
 appHono.route("/", sendVerificationEmailRouter);
 appHono.route("/", deploymentSettingRouter);
+appHono.route("/", apiKeysRouter);
 
 appHono.get("/status", c => {
   const version = packageJson.version;

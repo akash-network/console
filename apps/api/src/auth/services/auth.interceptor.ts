@@ -1,4 +1,6 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { Context, Next } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { singleton } from "tsyringe";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
@@ -9,14 +11,18 @@ import { kvStore } from "@src/middlewares/userMiddleware";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { env } from "@src/utils/env";
 import { getJwks, useKVStore, verify } from "@src/verify-rsa-jwt-cloudflare-worker-main";
+import { ApiKeyAuthService } from "./api-key/api-key-auth.service";
 
 @singleton()
 export class AuthInterceptor implements HonoInterceptor {
+  private readonly logger = LoggerService.forContext(AuthInterceptor.name);
+
   constructor(
     private readonly abilityService: AbilityService,
     private readonly userRepository: UserRepository,
     private readonly authService: AuthService,
-    private readonly anonymousUserAuthService: AuthTokenService
+    private readonly anonymousUserAuthService: AuthTokenService,
+    private readonly apiKeyAuthService: ApiKeyAuthService
   ) {}
 
   intercept() {
@@ -41,8 +47,24 @@ export class AuthInterceptor implements HonoInterceptor {
         return await next();
       }
 
-      this.authService.ability = this.abilityService.EMPTY_ABILITY;
+      const apiKey = c.req.header("x-api-key");
 
+      if (apiKey) {
+        try {
+          const apiKeyOutput = await this.apiKeyAuthService.getAndValidateApiKeyFromHeader(apiKey);
+          const currentUser = await this.userRepository.findByUserId(apiKeyOutput.userId);
+          await this.auth(currentUser);
+          c.set("user", currentUser);
+          return await next();
+        } catch (error) {
+          this.logger.error(error);
+          throw new HTTPException(401, {
+            message: "Invalid API key"
+          });
+        }
+      }
+
+      this.authService.ability = this.abilityService.EMPTY_ABILITY;
       return await next();
     };
   }
@@ -50,11 +72,19 @@ export class AuthInterceptor implements HonoInterceptor {
   private async auth(user?: UserOutput) {
     this.authService.currentUser = user;
     if (user) {
-      this.authService.ability = this.abilityService.getAbilityFor(user.userId ? "REGULAR_USER" : "REGULAR_ANONYMOUS_USER", user);
+      this.authService.ability = this.abilityService.getAbilityFor(this.getUserRole(user), user);
       await this.userRepository.markAsActive(user.id);
     } else {
       this.authService.ability = this.abilityService.EMPTY_ABILITY;
     }
+  }
+
+  private getUserRole(user: UserOutput) {
+    if (user.userId) {
+      return user.trial === false ? "REGULAR_PAYING_USER" : "REGULAR_USER";
+    }
+
+    return "REGULAR_ANONYMOUS_USER";
   }
 
   private async getValidUserId(bearer: string, c: Context) {
