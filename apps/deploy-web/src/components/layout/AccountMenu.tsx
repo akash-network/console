@@ -68,7 +68,7 @@ export function AccountMenu() {
                         )}
                         <DropdownMenuSeparator />
                         <CustomDropdownLinkItem onClick={() => router.push(UrlService.userSettings())} icon={<Settings />}>
-                          Settings
+                          Profile Settings
                         </CustomDropdownLinkItem>
                         {username && (
                           <CustomDropdownLinkItem onClick={() => router.push(UrlService.userProfile(username))} icon={<MultiplePages />}>
