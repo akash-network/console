@@ -60,7 +60,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
       const response = await restClient.get<StaticLogsResponse, StaticLogsResponse>(`/tasks/logs/archive/${taskId}`);
       setTaskLogs(prev => ({
         ...prev,
-        [taskId]: response.logs.map((log: StaticLog) => `${log.type === "stderr" ? "[ERROR] " : ""}${log.message}`).join("\n")
+        [taskId]: response.logs.map((log: StaticLog) => `${log.message}`).join("\n")
       }));
     } finally {
       setLoadingLogs(prev => ({ ...prev, [taskId]: false }));
@@ -79,7 +79,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
     eventSource.onmessage = event => {
       try {
         const logData = JSON.parse(event.data);
-        const formattedMessage = `${logData.type === "stderr" ? "[ERROR] " : ""}${logData.message}`;
+        const formattedMessage = `${logData.message}`;
 
         setTaskLogs(prev => ({
           ...prev,
