@@ -170,7 +170,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
     );
   }
 
-  if (isLoading) {
+  if (isLoading || !actionDetails) {
     return <div>Loading...</div>;
   }
 
