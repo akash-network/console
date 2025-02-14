@@ -71,6 +71,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
       label: "Save SDL description"
     });
   };
+
   return (
     <Layout>
       <CustomNextSeo title={`${template.title}`} url={`${domainName}${UrlService.template(id)}`} description={getShortText(template.description || "", 140)} />

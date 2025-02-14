@@ -41,9 +41,23 @@ export function useCreateApiKey() {
     {
       onSuccess: _response => {
         queryClient.setQueryData(QueryKeys.getApiKeysKey(user?.userId ?? ""), (oldData: IApiKey[]) => {
-          return [...oldData, _response.data];
+          return [...oldData, _response.data.data];
         });
       }
     }
   );
+}
+
+export function useDeleteApiKey(id: string, onSuccess?: () => void) {
+  const user = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation(() => axios.delete(`/api/proxy/v1/api-keys/${id}`), {
+    onSuccess: () => {
+      queryClient.setQueryData(QueryKeys.getApiKeysKey(user?.userId ?? ""), (oldData: IApiKey[] = []) => {
+        return oldData.filter(t => t.id !== id);
+      });
+      onSuccess?.();
+    }
+  });
 }
