@@ -1,5 +1,12 @@
 
 
+## [2.63.0](https://github.com/akash-network/console/compare/console-api/v2.62.1...console-api/v2.63.0) (2025-02-14)
+
+
+### Features
+
+* **user:** add user api keys schema + api ([2eac7e9](https://github.com/akash-network/console/commit/2eac7e97246f63570bdd7d9d9700438e99948c7f)), closes [#787](https://github.com/akash-network/console/issues/787)
+
 ## [2.62.1](https://github.com/akash-network/console/compare/console-api/v2.62.0...console-api/v2.62.1) (2025-02-11)
 
 

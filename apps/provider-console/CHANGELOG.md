@@ -1,5 +1,12 @@
 
 
+## [1.0.4](https://github.com/akash-network/console/compare/provider-console/v1.0.3...provider-console/v1.0.4) (2025-02-14)
+
+
+### Bug Fixes
+
+* **provider:** fixed onchain error and blank client error on retry provider process ([#848](https://github.com/akash-network/console/issues/848)) ([c354e77](https://github.com/akash-network/console/commit/c354e77f065d411441424787d30188e800053737))
+
 ## [1.0.3](https://github.com/akash-network/console/compare/provider-console/v1.0.2...provider-console/v1.0.3) (2025-02-11)
 
 ## [1.0.2] (https://github.com/akash-network/console/compare/provider-console/v1.0.1...provider-console/v1.0.2) (2025-02-05)
