@@ -17,7 +17,8 @@ type ContextType = {
 const ProviderContext = React.createContext<ContextType>({} as ContextType);
 
 export const ProviderContextProvider = ({ children }) => {
-  const { address, setIsWalletProvider, setIsProviderStatusFetched, setIsProviderOnlineStatusFetched, setIsWalletProviderOnline } = useWallet();
+  const { address, isProviderStatusFetched, setIsWalletProvider, setIsProviderStatusFetched, setIsProviderOnlineStatusFetched, setIsWalletProviderOnline } =
+    useWallet();
   const selectedNetwork = getSelectedNetwork();
 
   const { data: providerDetails, isLoading: isLoadingProviderDetails } = useProviderDetails(address);
@@ -34,15 +35,26 @@ export const ProviderContextProvider = ({ children }) => {
           setIsWalletProviderOnline(isOnlineResponse.online);
         } catch (error) {
           console.error("Error fetching provider online status:", error);
+        } finally {
+          setIsProviderOnlineStatusFetched(true);
         }
-      } else if (providerDetails === null) {
+      } else {
         setIsWalletProvider(false);
+        setIsWalletProviderOnline(false);
+        setIsProviderOnlineStatusFetched(true);
         setIsProviderStatusFetched(true);
       }
     };
-
     checkProviderStatus();
-  }, [providerDetails, selectedNetwork.chainId, setIsWalletProvider, setIsProviderStatusFetched, setIsProviderOnlineStatusFetched, setIsWalletProviderOnline]);
+  }, [
+    providerDetails,
+    selectedNetwork.chainId,
+    isProviderStatusFetched,
+    setIsWalletProvider,
+    setIsProviderStatusFetched,
+    setIsProviderOnlineStatusFetched,
+    setIsWalletProviderOnline
+  ]);
 
   return (
     <ProviderContext.Provider

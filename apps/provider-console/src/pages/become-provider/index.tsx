@@ -33,6 +33,11 @@ const BecomeProvider: React.FC = () => {
   }, [providerProcess.process, providerSteps]);
 
   const handleStepComplete = useCallback(() => {
+    // Skip processing for wallet import step
+    if (providerSteps[activeStep].key === "walletImport") {
+      return;
+    }
+
     setProviderProcess(prev => ({
       ...prev,
       process: {
