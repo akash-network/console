@@ -19,7 +19,6 @@ import {
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { addYears, format } from "date-fns";
-import { event } from "nextjs-google-analytics";
 import { z } from "zod";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
@@ -27,7 +26,7 @@ import { UAKT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { getUsdcDenom, useUsdcDenom } from "@src/hooks/useDenom";
 import { useDenomData } from "@src/hooks/useWalletBalance";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { GrantType } from "@src/types/grant";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
@@ -89,8 +88,8 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
     const response = await signAndBroadcastTx([message]);
 
     if (response) {
-      event(AnalyticsEvents.AUTHORIZE_SPEND, {
-        category: AnalyticsCategory.DEPLOYMENTS,
+      analyticsService.track("authorize_spend", {
+        category: "deployments",
         label: "Authorize wallet to spend on deployment deposits"
       });
 

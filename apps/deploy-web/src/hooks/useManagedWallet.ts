@@ -1,14 +1,12 @@
 import { useEffect, useMemo } from "react";
 import { useAtom } from "jotai";
-import { event } from "nextjs-google-analytics";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useUser } from "@src/hooks/useUser";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import walletStore from "@src/store/walletStore";
-import { AnalyticsEvents } from "@src/types/analytics";
-import { AnalyticsCategory } from "@src/types/analytics";
 import { deleteManagedWalletFromStorage, ensureUserManagedWalletOwnership, getSelectedStorageWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
 import { useCustomUser } from "./useCustomUser";
 
@@ -31,8 +29,8 @@ export const useManagedWallet = () => {
         setSelectedWalletType("managed");
       }
 
-      event(AnalyticsEvents.CONNECT_MANAGED_WALLET, {
-        category: AnalyticsCategory.WALLET,
+      analyticsService.track("connect_managed_wallet", {
+        category: "wallet",
         label: "Connect managed wallet"
       });
     }

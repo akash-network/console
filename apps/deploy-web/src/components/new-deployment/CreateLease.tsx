@@ -20,7 +20,6 @@ import { ArrowRight, BadgeCheck, Bin, InfoCircle, MoreHoriz, Xmark } from "icono
 import yaml from "js-yaml";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
 import { useWallet } from "@src/context/WalletProvider";
@@ -29,8 +28,8 @@ import { useWhen } from "@src/hooks/useWhen";
 import { useBidList } from "@src/queries/useBidQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import networkStore from "@src/store/networkStore";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { BidDto } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
@@ -115,8 +114,8 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
     const localDeploymentData = getDeploymentLocalData(dseq);
 
-    event(AnalyticsEvents.SEND_MANIFEST, {
-      category: AnalyticsCategory.DEPLOYMENTS,
+    analyticsService.track("send_manifest", {
+      category: "deployments",
       label: "Send manifest after creating lease"
     });
 
@@ -205,8 +204,8 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
       if (!response) throw new Error("Rejected transaction");
 
-      event(AnalyticsEvents.CREATE_LEASE, {
-        category: AnalyticsCategory.DEPLOYMENTS,
+      analyticsService.track("create_lease", {
+        category: "deployments",
         label: "Create lease"
       });
       await sendManifest();

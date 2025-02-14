@@ -3,11 +3,10 @@ import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { Alert, Form, FormField, FormInput, Popup } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { event } from "nextjs-google-analytics";
 import { z } from "zod";
 
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 
 const formSchema = z.object({
   filePath: z
@@ -38,8 +37,8 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
   const onSubmit = async ({ filePath }) => {
     downloadFileFromShell(providerInfo, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, selectedService, filePath);
 
-    event(AnalyticsEvents.DOWNLOADED_SHELL_FILE, {
-      category: AnalyticsCategory.DEPLOYMENTS,
+    analyticsService.track("downloaded_shell_file", {
+      category: "deployments",
       label: "Download file from shell"
     });
 

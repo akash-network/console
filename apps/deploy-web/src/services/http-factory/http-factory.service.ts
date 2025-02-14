@@ -1,10 +1,9 @@
 import { AuthHttpService, DeploymentSettingHttpService, TemplateHttpService, TxHttpService, UserHttpService } from "@akashnetwork/http-sdk";
 import { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
 import axios from "axios";
-import { event } from "nextjs-google-analytics";
 
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { authService } from "@src/services/auth/auth.service";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { customRegistry } from "@src/utils/customRegistry";
 import { ProviderProxyService } from "../provider-proxy/provider-proxy.service";
 
@@ -26,7 +25,7 @@ export const createServices = (config: ServicesConfig) => {
   deploymentSetting.interceptors.request.use(authService.withAnonymousUserHeader);
   user.interceptors.response.use(response => {
     if (response.config.url?.startsWith("/v1/anonymous-users") && response.config.method === "post" && response.status === 200) {
-      event(AnalyticsEvents.ANONYMOUS_USER_CREATED, { category: AnalyticsCategory.USER, label: "Anonymous User Created" });
+      analyticsService.track("anonymous_user_created", { category: "user", label: "Anonymous User Created" });
     }
     return response;
   });

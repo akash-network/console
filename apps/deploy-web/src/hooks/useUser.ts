@@ -13,9 +13,13 @@ export const useUser = (): CustomUserProfile => {
 
   useEffect(() => {
     if (user?.id) {
-      analyticsService.setUser(user?.id);
+      analyticsService.identify({
+        id: user.id,
+        anonymous: !user.userId,
+        emailVerified: !!user.emailVerified
+      });
     }
-  }, [user?.id]);
+  }, [user]);
 
   return user;
 };

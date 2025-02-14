@@ -18,14 +18,13 @@ import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import isValid from "date-fns/isValid";
 import { Edit, InfoCircle, MoreHoriz, NavArrowRight, Plus, Upload, WarningCircle, WarningTriangle, XmarkSquare } from "iconoir-react";
 import { useRouter } from "next/navigation";
-import { event } from "nextjs-google-analytics";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { getShortText } from "@src/hooks/useShortText";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { NamedDeploymentDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -137,8 +136,8 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     if (response) {
       refreshDeployments();
 
-      event(AnalyticsEvents.DEPLOYMENT_DEPOSIT, {
-        category: AnalyticsCategory.DEPLOYMENTS,
+      analyticsService.track("deployment_deposit", {
+        category: "deployments",
         label: "Deposit to deployment from list"
       });
     }
@@ -162,8 +161,8 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
 
       refreshDeployments();
 
-      event(AnalyticsEvents.CLOSE_DEPLOYMENT, {
-        category: AnalyticsCategory.DEPLOYMENTS,
+      analyticsService.track("close_deployment", {
+        category: "deployments",
         label: "Close deployment from list"
       });
     }

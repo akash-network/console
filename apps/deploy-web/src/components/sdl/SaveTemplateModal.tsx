@@ -3,7 +3,6 @@ import { Dispatch, ReactNode, SetStateAction, useEffect, useRef, useState } from
 import { useForm } from "react-hook-form";
 import { Alert, Form, FormField, FormInput, Label, Popup, RadioGroup, RadioGroupItem, Snackbar } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
@@ -11,8 +10,8 @@ import { MustConnect } from "@src/components/shared/MustConnect";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { EnvironmentVariableType, ITemplate, ServiceType } from "@src/types";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 
 type Props = {
   services: ServiceType[];
@@ -75,13 +74,13 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
     });
 
     if (newTemplateMetadata.id) {
-      event(AnalyticsEvents.UPDATE_SDL_TEMPLATE, {
-        category: AnalyticsCategory.SDL_BUILDER,
+      analyticsService.track("update_sdl_template", {
+        category: "sdl_builder",
         label: "Update SDL template"
       });
     } else {
-      event(AnalyticsEvents.CREATE_SDL_TEMPLATE, {
-        category: AnalyticsCategory.SDL_BUILDER,
+      analyticsService.track("create_sdl_template", {
+        category: "sdl_builder",
         label: "Create SDL template"
       });
     }

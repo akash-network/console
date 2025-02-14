@@ -1,12 +1,11 @@
 import { Spinner } from "@akashnetwork/ui/components";
 import { NextSeo } from "next-seo";
-import { event } from "nextjs-google-analytics";
 
 import { TemplateGridButton } from "@src/components/shared/TemplateGridButton";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useUserFavoriteTemplates } from "@src/queries/useTemplateQuery";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import Layout from "../layout/Layout";
 
 export const UserFavorites: React.FunctionComponent = () => {
@@ -35,8 +34,8 @@ export const UserFavorites: React.FunctionComponent = () => {
               key={t.id}
               template={t}
               onClick={() => {
-                event(AnalyticsEvents.USER_PROFILE_CLICK_TEMPLATE, {
-                  category: AnalyticsCategory.PROFILE,
+                analyticsService.track("user_profile_click_template", {
+                  category: "profile",
                   label: "Click on template from templates"
                 });
               }}

@@ -6,7 +6,6 @@ import { Bin, Edit, Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { event } from "nextjs-google-analytics";
 
 import { EditDescriptionForm } from "@src/components/sdl/EditDescriptionForm";
 import { LeaseSpecDetail } from "@src/components/shared/LeaseSpecDetail";
@@ -16,9 +15,9 @@ import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { useDeleteTemplate } from "@src/queries/useTemplateQuery";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import { ITemplate } from "@src/types";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { RouteStep } from "@src/types/route-steps.type";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
@@ -51,8 +50,8 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
   const onDeleteTemplate = async () => {
     await deleteTemplate();
 
-    event(AnalyticsEvents.DEPLOY_SDL, {
-      category: AnalyticsCategory.SDL_BUILDER,
+    analyticsService.track("deploy_sdl", {
+      category: "sdl_builder",
       label: "Delete SDL template from detail"
     });
 
@@ -67,8 +66,8 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
     setDescription(desc);
     setIsEditingDescription(false);
 
-    event(AnalyticsEvents.SAVE_SDL_DESCRIPTION, {
-      category: AnalyticsCategory.SDL_BUILDER,
+    analyticsService.track("save_sdl_description", {
+      category: "sdl_builder",
       label: "Save SDL description"
     });
   };
@@ -110,8 +109,8 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
         &nbsp;&nbsp;by&nbsp;
         <span
           onClick={() => {
-            event(AnalyticsEvents.CLICK_SDL_PROFILE, {
-              category: AnalyticsCategory.SDL_BUILDER,
+            analyticsService.track("click_sdl_profile", {
+              category: "sdl_builder",
               label: "Click on SDL user profile in template detail"
             });
           }}
@@ -123,8 +122,8 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
       <div className="flex items-center space-x-4">
         <Button
           onClick={() => {
-            event(AnalyticsEvents.DEPLOY_SDL, {
-              category: AnalyticsCategory.SDL_BUILDER,
+            analyticsService.track("deploy_sdl", {
+              category: "sdl_builder",
               label: "Deploy SDL from template detail"
             });
 
@@ -147,8 +146,8 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
           href={UrlService.sdlBuilder(template.id)}
           className={cn(buttonVariants({ variant: "text" }))}
           onClick={() => {
-            event(AnalyticsEvents.CLICK_EDIT_SDL_TEMPLATE, {
-              category: AnalyticsCategory.SDL_BUILDER,
+            analyticsService.track("click_edit_sdl_template", {
+              category: "sdl_builder",
               label: "Click on edit SDL template"
             });
           }}
@@ -160,14 +159,14 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
           isFavorite={template.isFavorite}
           id={id}
           onAddFavorite={() => {
-            event(AnalyticsEvents.ADD_SDL_FAVORITE, {
-              category: AnalyticsCategory.SDL_BUILDER,
+            analyticsService.track("add_sdl_favorite", {
+              category: "sdl_builder",
               label: "Add SDL to favorites"
             });
           }}
           onRemoveFavorite={() => {
-            event(AnalyticsEvents.REMOVE_SDL_FAVORITE, {
-              category: AnalyticsCategory.SDL_BUILDER,
+            analyticsService.track("remove_sdl_favorite", {
+              category: "sdl_builder",
               label: "Remove SDL from favorites"
             });
           }}

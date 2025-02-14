@@ -7,7 +7,6 @@ import { ArrowLeft } from "iconoir-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
-import { event } from "nextjs-google-analytics";
 
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useSettings } from "@src/context/SettingsProvider";
@@ -15,8 +14,8 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { extractRepositoryUrl, isCiCdImageInYaml } from "@src/services/remote-deploy/remote-deployment-controller.service";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { RouteStep } from "@src/types/route-steps.type";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { UrlService } from "@src/utils/urlUtils";
@@ -134,9 +133,10 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
       router.replace(UrlService.deploymentDetails(dseq));
     }
 
-    event(`${AnalyticsEvents.NAVIGATE_TAB}${value}`, {
-      category: AnalyticsCategory.DEPLOYMENTS,
-      label: `Navigate tab ${value} in deployment detail`
+    analyticsService.track(`navigate_tab`, {
+      category: "deployments",
+      label: `Navigate tab ${value} in deployment detail`,
+      tab: value
     });
   };
 

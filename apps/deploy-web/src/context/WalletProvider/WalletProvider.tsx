@@ -9,7 +9,6 @@ import { OpenNewWindow } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { event } from "nextjs-google-analytics";
 import { SnackbarKey, useSnackbar } from "notistack";
 
 import { LoadingState, TransactionModal } from "@src/components/layout/TransactionModal";
@@ -19,10 +18,10 @@ import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBalances } from "@src/queries/useBalancesQuery";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { txHttpService } from "@src/services/http/http-browser.service";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { UrlService } from "@src/utils/urlUtils";
 import { getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
@@ -120,8 +119,8 @@ export const WalletProvider = ({ children }) => {
     }
 
     if (selectedWalletType === "managed" && userWallet.isWalletConnected) {
-      event(AnalyticsEvents.CONNECT_WALLET, {
-        category: AnalyticsCategory.WALLET,
+      analyticsService.track("connect_wallet", {
+        category: "wallet",
         label: "Connect wallet"
       });
     }
@@ -139,8 +138,8 @@ export const WalletProvider = ({ children }) => {
   function logout() {
     userWallet.disconnect();
 
-    event(AnalyticsEvents.DISCONNECT_WALLET, {
-      category: AnalyticsCategory.WALLET,
+    analyticsService.track("disconnect_wallet", {
+      category: "wallet",
       label: "Disconnect wallet"
     });
 
@@ -215,7 +214,7 @@ export const WalletProvider = ({ children }) => {
         showTransactionSnackbar("Transaction success!", "", txResult.transactionHash, "success");
       }
 
-      event(AnalyticsEvents.SUCCESSFUL_TX, {
+      analyticsService.track("successful_tx", {
         category: "transactions",
         label: "Successful transaction"
       });
@@ -257,7 +256,7 @@ export const WalletProvider = ({ children }) => {
         }
 
         if (!errorMsg.includes("Request rejected")) {
-          event(AnalyticsEvents.FAILED_TX, {
+          analyticsService.track("failed_tx", {
             category: "transactions",
             label: "Failed transaction"
           });

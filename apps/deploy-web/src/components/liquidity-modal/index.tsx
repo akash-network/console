@@ -5,17 +5,16 @@ import { Button, Spinner } from "@akashnetwork/ui/components";
 import { useWallet as useConnectedWallet, useWalletClient } from "@cosmos-kit/react";
 // import * as Elements from "@leapwallet/elements-umd-types";
 import { Modal } from "@mui/material";
-import { event } from "nextjs-google-analytics";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 
 export type NonUndefined<T> = T extends undefined ? never : T;
 
 const ToggleLiquidityModalButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
   const _onClick = () => {
-    event(AnalyticsEvents.LEAP_GET_MORE_TOKENS, {
-      category: AnalyticsCategory.WALLET,
+    analyticsService.track("leap_get_more_tokens", {
+      category: "wallet",
       label: "Open Leap liquidity modal"
     });
 
@@ -134,8 +133,8 @@ const LiquidityModal: React.FC<Props> = ({ refreshBalances }) => {
     const txnLifecycleHooks: any = {
       onTxnComplete: () => {
         refreshBalances();
-        event(AnalyticsEvents.LEAP_TRANSACTION_COMPLETE, {
-          category: AnalyticsCategory.WALLET,
+        analyticsService.track("leap_tx_complete", {
+          category: "wallet",
           label: "Completed a transaction on Leap liquidity modal"
         });
       }

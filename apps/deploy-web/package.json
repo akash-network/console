@@ -14,8 +14,8 @@
     "lint": "eslint .",
     "release": "release-it",
     "start": "next start",
-    "test:cov": "DEPLOYMENT_ENV=staging jest --coverage",
-    "test:unit": "DEPLOYMENT_ENV=staging jest",
+    "test:cov": "NODE_ENV=test DEPLOYMENT_ENV=staging jest --coverage",
+    "test:unit": "NODE_ENV=test DEPLOYMENT_ENV=staging jest",
     "type-check": "tsc"
   },
   "dependencies": {
@@ -26,6 +26,7 @@
     "@akashnetwork/logging": "*",
     "@akashnetwork/network-store": "*",
     "@akashnetwork/ui": "*",
+    "@amplitude/analytics-browser": "^2.11.11",
     "@auth0/nextjs-auth0": "^3.5.0",
     "@cosmjs/encoding": "^0.32.4",
     "@cosmjs/proto-signing": "^0.32.4",

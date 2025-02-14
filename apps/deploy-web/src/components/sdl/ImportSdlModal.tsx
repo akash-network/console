@@ -4,13 +4,12 @@ import { UseFormSetValue } from "react-hook-form";
 import { Alert, Popup, Snackbar } from "@akashnetwork/ui/components";
 import Editor from "@monaco-editor/react";
 import { ArrowDown } from "iconoir-react";
-import { editor } from 'monaco-editor';
+import { editor } from "monaco-editor";
 import { useTheme } from "next-themes";
-import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { Timer } from "@src/utils/timer";
 
@@ -78,8 +77,8 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
       autoHideDuration: 4000
     });
 
-    event(AnalyticsEvents.IMPORT_SDL, {
-      category: AnalyticsCategory.SDL_BUILDER,
+    analyticsService.track("import_sdl", {
+      category: "sdl_builder",
       label: "Import SDL"
     });
 
@@ -117,7 +116,14 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
         Paste your sdl here to import <ArrowDown className="ml-4 text-sm" />
       </h6>
       <div className="mb-2">
-        <Editor height="500px" defaultLanguage="yaml" value={sdl} onChange={value => setSdl(value)} theme={resolvedTheme === "dark" ? "vs-dark" : "light"} onMount={onEditorMount} />
+        <Editor
+          height="500px"
+          defaultLanguage="yaml"
+          value={sdl}
+          onChange={value => setSdl(value)}
+          theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
+          onMount={onEditorMount}
+        />
       </div>
       {parsingError && (
         <Alert className="mt-4" variant="destructive">

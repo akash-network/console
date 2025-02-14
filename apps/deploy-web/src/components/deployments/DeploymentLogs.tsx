@@ -7,7 +7,6 @@ import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { Download, MoreHoriz } from "iconoir-react";
 import { editor } from "monaco-editor";
-import { event } from "nextjs-google-analytics";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
@@ -20,7 +19,7 @@ import { useProviderWebsocket } from "@src/hooks/useProviderWebsocket";
 import { useThrottledCallback } from "@src/hooks/useThrottle";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { LeaseDto } from "@src/types/deployment";
 import { LeaseSelect } from "./LeaseSelect";
 
@@ -222,8 +221,8 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       const isLogs = selectedLogsMode === "logs";
       await downloadLogs(providerInfo, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, isLogs);
 
-      event(AnalyticsEvents.DOWNLOADED_LOGS, {
-        category: AnalyticsCategory.DEPLOYMENTS,
+      analyticsService.track("downloaded_logs", {
+        category: "deployments",
         label: isLogs ? "Downloaded deployment logs" : "Downloaded deployment events"
       });
 

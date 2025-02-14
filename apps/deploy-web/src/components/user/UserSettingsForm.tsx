@@ -5,7 +5,6 @@ import { Alert, Button, Form, FormField, FormInput, Spinner, Switch, Textarea } 
 import axios from "axios";
 import { CheckCircle } from "iconoir-react";
 import { NextSeo } from "next-seo";
-import { event } from "nextjs-google-analytics";
 import { z } from "zod";
 
 import { FormPaper } from "@src/components/sdl/FormPaper";
@@ -13,7 +12,7 @@ import { LabelValue } from "@src/components/shared/LabelValue";
 import type { RequiredUserConsumer } from "@src/components/user/RequiredUserContainer";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useSaveSettings } from "@src/queries/useSettings";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { UserSettings } from "@src/types/user";
 import Layout from "../layout/Layout";
 
@@ -88,8 +87,8 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
   async function onSubmit() {
     saveSettings(getValues() as UserSettings);
 
-    event(AnalyticsEvents.USER_SETTINGS_SAVE, {
-      category: AnalyticsCategory.SETTINGS,
+    analyticsService.track("user_settings_save", {
+      category: "settings",
       label: "Save user settings"
     });
   }

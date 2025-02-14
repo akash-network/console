@@ -2,13 +2,12 @@
 import { buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import Link from "next/link";
-import { event } from "nextjs-google-analytics";
 
 import { TemplateGridButton } from "@src/components/shared/TemplateGridButton";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useUserTemplates } from "@src/queries/useTemplateQuery";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { IUserSetting } from "@src/types/user";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
@@ -41,8 +40,8 @@ export const UserProfile: React.FunctionComponent<Props> = ({ username, user }) 
                   className={cn(buttonVariants({ variant: "default", size: "sm" }), "mt-4")}
                   href={UrlService.sdlBuilder()}
                   onClick={() => {
-                    event(AnalyticsEvents.CREATE_SDL_TEMPLATE_LINK, {
-                      category: AnalyticsCategory.PROFILE,
+                    analyticsService.track("create_sdl_template_link", {
+                      category: "profile",
                       label: "Create SDL template link from profile"
                     });
                   }}
@@ -58,8 +57,8 @@ export const UserProfile: React.FunctionComponent<Props> = ({ username, user }) 
               key={t.id}
               template={t}
               onClick={() => {
-                event(AnalyticsEvents.USER_PROFILE_CLICK_TEMPLATE, {
-                  category: AnalyticsCategory.PROFILE,
+                analyticsService.track("user_profile_click_template", {
+                  category: "profile",
                   label: "Click on template from templates"
                 });
               }}
