@@ -26,7 +26,7 @@ restClient.interceptors.response.use(
         status: error.response.status,
         data: error.response.data,
         url: error.config.url,
-        method: error.config.method,
+        method: error.config.method
       });
       if (error.response.status >= 400 && error.response.status < 500) {
         errorNotification(`Client Error: ${error.response.status}`);
@@ -42,14 +42,23 @@ restClient.interceptors.response.use(
   }
 );
 
+const waitForToken = async (maxAttempts = 5, delayMs = 1000): Promise<string | null> => {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const token = await checkAndRefreshToken();
+    if (token) return token;
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+  }
+  return null;
+};
+
 restClient.interceptors.request.use(async request => {
   request.headers = request.headers ?? {};
-  const token = await checkAndRefreshToken();
-  if (token) {
-    request.headers.Authorization = `Bearer ${token}`;
-  } else {
-    throw new Error("No valid token available");
+  const token = await waitForToken();
+  if (!token) {
+    return Promise.reject(new Error("Unable to obtain valid token after multiple attempts"));
   }
+
+  request.headers.Authorization = `Bearer ${token}`;
   request.headers["ngrok-skip-browser-warning"] = "69420";
   return request;
 });
