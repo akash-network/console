@@ -47,6 +47,8 @@ export class QueryKeys {
   static getGpuModelsKey = () => ["GPU_MODELS"];
   static getTrialProvidersKey = () => ["TRIAL_PROVIDERS"];
   static getDeploymentSettingKey = (userId: string, dseq: string) => ["DEPLOYMENT_SETTING", userId, dseq];
+  static getApiKeysKey = (userId: string) => ["API_KEYS", userId];
+
   // Remote deploy
   static getProviderTokenKey = () => ["TOKEN"];
   static getUserProfileKey = (accessToken?: string | null) => ["USER_PROFILE", accessToken];
