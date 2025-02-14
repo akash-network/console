@@ -1,5 +1,17 @@
 
 
+## [2.45.0](https://github.com/akash-network/console/compare/console-web/v2.44.0...console-web/v2.45.0) (2025-02-14)
+
+
+### Features
+
+* **user:** add user api keys schema + api ([2eac7e9](https://github.com/akash-network/console/commit/2eac7e97246f63570bdd7d9d9700438e99948c7f)), closes [#787](https://github.com/akash-network/console/issues/787)
+
+
+### Bug Fixes
+
+* **sdl:** break controls earlier so columns don't overlap  ([c9d3b45](https://github.com/akash-network/console/commit/c9d3b4528a7a1e864f98541d1a93fbf7622f7cde)), closes [#828](https://github.com/akash-network/console/issues/828)
+
 ## [2.44.0](https://github.com/akash-network/console/compare/console-web/v2.43.0...console-web/v2.44.0) (2025-02-10)
 
 
