@@ -1,5 +1,12 @@
 
 
+## [1.0.5](https://github.com/akash-network/console/compare/provider-console/v1.0.4...provider-console/v1.0.5) (2025-02-14)
+
+
+### Bug Fixes
+
+* **provider:** fixed token issue and actionDetails issue ([#852](https://github.com/akash-network/console/issues/852)) ([48d58f4](https://github.com/akash-network/console/commit/48d58f4b3eecbe469f96bc4df0d8f9d5bbde80ea))
+
 ## [1.0.4](https://github.com/akash-network/console/compare/provider-console/v1.0.3...provider-console/v1.0.4) (2025-02-14)
 
 
