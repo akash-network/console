@@ -12,12 +12,9 @@ import { SnackbarKey, useSnackbar } from "notistack";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useUsdcDenom } from "@src/hooks/useDenom";
-import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import authClient from "@src/utils/authClient";
 import { uAktDenom } from "@src/utils/constants";
-import restClient from "@src/utils/restClient";
-import { checkAndRefreshToken } from "@src/utils/tokenUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { LocalWalletDataType } from "@src/utils/walletUtils";
 import { getNonceMessage } from "@src/utils/walletUtils";
@@ -43,10 +40,13 @@ type ContextType = {
   refreshBalances: (address?: string) => Promise<Balances>;
   isProvider: boolean;
   isOnline: boolean;
-  provider: any;
   isProviderStatusFetched: boolean;
   isProviderOnlineStatusFetched: boolean;
   handleArbitrarySigning: () => Promise<void>;
+  setIsWalletProvider: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsProviderStatusFetched: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsProviderOnlineStatusFetched: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsWalletProviderOnline: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
@@ -57,7 +57,6 @@ export const WalletProvider = ({ children }) => {
   const [isWalletProvider, setIsWalletProvider] = useState<boolean>(false);
   const [isWalletProviderOnline, setIsWalletProviderOnline] = useState<boolean>(false);
   const [isProviderOnlineStatusFetched, setIsProviderOnlineStatusFetched] = useState<boolean>(false);
-  const [provider, setProvider] = useState<any>(null);
   const [isProviderStatusFetched, setIsProviderStatusFetched] = useState<boolean>(false);
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
   const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
@@ -79,7 +78,7 @@ export const WalletProvider = ({ children }) => {
     signArbitrary
   } = useSelectedChain();
   const { addEndpoints } = useManager();
-  const selectedNetwork = useSelectedNetwork();
+
   useEffect(() => {
     if (!browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL || !browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL) return;
 
@@ -118,38 +117,6 @@ export const WalletProvider = ({ children }) => {
     router.push(UrlService.home());
   }, [disconnect, router]);
 
-  useEffect(() => {
-    async function fetchProviderStatus() {
-      try {
-        const isProviderResponse: any = await restClient.get(`/provider/status/onchain?chainid=${selectedNetwork.chainId}`);
-        setIsWalletProvider(isProviderResponse.provider ? true : false);
-        setProvider(isProviderResponse.provider);
-        setIsProviderStatusFetched(true);
-        if (isProviderResponse.provider) {
-          const isOnlineResponse: any = await restClient.get(`/provider/status/online?chainid=${selectedNetwork.chainId}`);
-          setIsProviderOnlineStatusFetched(true);
-          setIsWalletProviderOnline(isOnlineResponse.online);
-        }
-      } catch (error) {
-        console.error("Error fetching provider status:", error);
-      }
-    }
-
-    (async () => {
-      if (browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL && isWalletConnected) {
-        // sigingClient.current = await createStargateClient();
-        try {
-          const validAccessToken = await checkAndRefreshToken();
-          if (validAccessToken) {
-            await fetchProviderStatus();
-          }
-        } catch (error) {
-          logout();
-        }
-      }
-    })();
-  }, [isWalletConnected, isWalletArbitrarySigned, selectedNetwork.chainId]);
-
   async function getStargateClient() {
     if (!sigingClient.current) {
       sigingClient.current = await createStargateClient();
@@ -165,7 +132,6 @@ export const WalletProvider = ({ children }) => {
     setIsProviderOnlineStatusFetched(false);
     setIsWalletProvider(false);
     setIsWalletProviderOnline(false);
-    setProvider(null);
   }
 
   async function connectWallet() {
@@ -375,10 +341,13 @@ export const WalletProvider = ({ children }) => {
         refreshBalances,
         isProvider: isWalletProvider,
         isOnline: isWalletProviderOnline,
-        provider: provider,
         isProviderStatusFetched,
         isProviderOnlineStatusFetched,
-        handleArbitrarySigning
+        handleArbitrarySigning,
+        setIsWalletProvider,
+        setIsProviderStatusFetched,
+        setIsProviderOnlineStatusFetched,
+        setIsWalletProviderOnline
       }}
     >
       {children}
