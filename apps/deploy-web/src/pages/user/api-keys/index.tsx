@@ -64,7 +64,7 @@ export default function ApiKeysPage() {
               }
             ]}
             onClose={onDeleteClose}
-            maxWidth="xs"
+            maxWidth="sm"
             enableCloseOnBackdropClick
             open={!!apiKeyToDelete}
             title="Delete API Key"
@@ -84,10 +84,10 @@ export default function ApiKeysPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-2/12">name</TableHead>
-                <TableHead className="w-4/12">key</TableHead>
-                <TableHead className="w-4/12">created</TableHead>
-                <TableHead className="w-4/12">last used</TableHead>
+                <TableHead className="w-2/12">Name</TableHead>
+                <TableHead className="w-4/12">Key</TableHead>
+                <TableHead className="w-4/12">Created</TableHead>
+                <TableHead className="w-4/12">Last Used</TableHead>
                 <TableHead className="w-1/12"></TableHead>
               </TableRow>
             </TableHeader>

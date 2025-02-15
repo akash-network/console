@@ -119,7 +119,7 @@ export const CreateApiKeyModal = ({ isOpen, onClose }: Props) => {
           </p>
 
           <div className="mb-2 mt-8 flex w-full items-center gap-2">
-            <Input type="text" value={apiKey} className="flex-grow" onFocus={event => event.target.select()} />
+            <Input type="text" value={apiKey} className="flex-grow" autoFocus onFocus={event => event.target.select()} />
             <Button variant="default" size="sm" onClick={onCopyClick}>
               Copy
             </Button>
