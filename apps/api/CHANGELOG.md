@@ -1,5 +1,12 @@
 
 
+## [2.63.1](https://github.com/akash-network/console/compare/console-api/v2.63.0...console-api/v2.63.1) (2025-02-15)
+
+
+### Bug Fixes
+
+* **deployment:** ensure draining deployment are searched by an extended runout time ([07154ab](https://github.com/akash-network/console/commit/07154ab71257c40a2da8cce771b2e37f3e461b48))
+
 ## [2.63.0](https://github.com/akash-network/console/compare/console-api/v2.62.1...console-api/v2.63.0) (2025-02-14)
 
 
