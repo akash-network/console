@@ -109,7 +109,7 @@ describe(DrainingDeploymentService.name, () => {
       const callback = jest.fn();
       await service.paginate({ limit: LIMIT }, callback);
 
-      const expectedClosureHeight = Math.floor(CURRENT_HEIGHT + averageBlockCountInAnHour * config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H"));
+      const expectedClosureHeight = Math.floor(CURRENT_HEIGHT + averageBlockCountInAnHour * 2 * config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H"));
 
       expect(blockHttpService.getCurrentHeight).toHaveBeenCalled();
       expect(deploymentSettingRepository.paginateAutoTopUpDeployments).toHaveBeenCalledWith({ limit: LIMIT }, expect.any(Function));
