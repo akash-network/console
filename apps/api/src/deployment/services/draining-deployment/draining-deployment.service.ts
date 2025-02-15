@@ -25,7 +25,7 @@ export class DrainingDeploymentService {
   async paginate(params: { limit: number }, cb: (page: DrainingDeployment[]) => Promise<void>) {
     await this.deploymentSettingRepository.paginateAutoTopUpDeployments({ limit: params.limit }, async deploymentSettings => {
       const currentHeight = await this.blockHttpService.getCurrentHeight();
-      const expectedClosureHeight = Math.floor(currentHeight + averageBlockCountInAnHour * this.config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H"));
+      const expectedClosureHeight = Math.floor(currentHeight + averageBlockCountInAnHour * 2 * this.config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H"));
 
       const drainingDeployments = await this.leaseRepository.findManyByDseqAndOwner(
         expectedClosureHeight,
