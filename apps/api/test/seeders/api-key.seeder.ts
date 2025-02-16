@@ -11,7 +11,8 @@ export class ApiKeySeeder {
     keyFormat = `ac.sk.test.${faker.string.alphanumeric(15)}`,
     expiresAt = null,
     createdAt = new Date().toISOString(),
-    updatedAt = new Date().toISOString()
+    updatedAt = new Date().toISOString(),
+    lastUsedAt = null
   }: Partial<ApiKeyOutput> = {}): ApiKeyOutput {
     return {
       id,
@@ -21,7 +22,8 @@ export class ApiKeySeeder {
       keyFormat,
       expiresAt,
       createdAt,
-      updatedAt
+      updatedAt,
+      lastUsedAt
     };
   }
 }
