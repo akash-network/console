@@ -1,22 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { QueryKey, UseQueryOptions } from "react-query";
-import axios from "axios";
+import { ApiKeyResponse } from "@akashnetwork/http-sdk";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
-import { IApiKey } from "@src/types/apiKeys";
+import { apiKeysHttpService } from "@src/services/api-keys/api-keys-http.service";
 import { QueryKeys } from "./queryKeys";
 
-export function useUserApiKeys(options: Omit<UseQueryOptions<IApiKey[], Error, any, QueryKey>, "queryKey" | "queryFn"> = {}) {
+export function useUserApiKeys(options: Omit<UseQueryOptions<ApiKeyResponse[], Error, any, QueryKey>, "queryKey" | "queryFn"> = {}) {
   const user = useUser();
   const { isTrialing } = useWallet();
 
-  return useQuery<IApiKey[], Error>(
+  return useQuery<ApiKeyResponse[], Error>(
     QueryKeys.getApiKeysKey(user?.userId ?? ""),
     async () => {
-      const response = await axios.get(`/api/proxy/v1/api-keys`);
+      const response = await apiKeysHttpService.getApiKeys();
 
-      return response.data.data;
+      return response;
     },
     {
       enabled: !!user?.userId && !isTrialing,
@@ -31,17 +31,17 @@ export function useCreateApiKey() {
   const user = useUser();
   const queryClient = useQueryClient();
 
-  return useMutation<{ data: { data: IApiKey } }, Error, string>(
+  return useMutation<ApiKeyResponse, Error, string>(
     (name: string) =>
-      axios.post("/api/proxy/v1/api-keys", {
+      apiKeysHttpService.createApiKey({
         data: {
           name: name
         }
       }),
     {
       onSuccess: _response => {
-        queryClient.setQueryData(QueryKeys.getApiKeysKey(user?.userId ?? ""), (oldData: IApiKey[]) => {
-          return [...oldData, _response.data.data];
+        queryClient.setQueryData(QueryKeys.getApiKeysKey(user?.userId ?? ""), (oldData: ApiKeyResponse[]) => {
+          return [...oldData, _response];
         });
       }
     }
@@ -52,9 +52,9 @@ export function useDeleteApiKey(id: string, onSuccess?: () => void) {
   const user = useUser();
   const queryClient = useQueryClient();
 
-  return useMutation(() => axios.delete(`/api/proxy/v1/api-keys/${id}`), {
+  return useMutation(() => apiKeysHttpService.deleteApiKey(id), {
     onSuccess: () => {
-      queryClient.setQueryData(QueryKeys.getApiKeysKey(user?.userId ?? ""), (oldData: IApiKey[] = []) => {
+      queryClient.setQueryData(QueryKeys.getApiKeysKey(user?.userId ?? ""), (oldData: ApiKeyResponse[] = []) => {
         return oldData.filter(t => t.id !== id);
       });
       onSuccess?.();

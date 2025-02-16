@@ -8,10 +8,11 @@ type Table = ApiPgTables["ApiKeys"];
 export type ApiKeyInput = Partial<Table["$inferInsert"]>;
 export type ApiKeyDbOutput = Table["$inferSelect"];
 
-export type ApiKeyOutput = Omit<ApiKeyDbOutput, "createdAt" | "updatedAt" | "expiresAt"> & {
+export type ApiKeyOutput = Omit<ApiKeyDbOutput, "createdAt" | "updatedAt" | "expiresAt" | "lastUsedAt"> & {
   createdAt: string;
   updatedAt: string;
   expiresAt: string | null;
+  lastUsedAt: string | null;
 };
 
 @singleton()
@@ -34,7 +35,8 @@ export class ApiKeyRepository extends BaseRepository<Table, ApiKeyInput, ApiKeyO
           ...payload,
           createdAt: payload.createdAt.toISOString(),
           updatedAt: payload.updatedAt.toISOString(),
-          expiresAt: payload.expiresAt?.toISOString() ?? null
+          expiresAt: payload.expiresAt?.toISOString() ?? null,
+          lastUsedAt: payload.lastUsedAt?.toISOString() ?? null
         }
       : undefined;
   }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FormattedDate } from "react-intl";
+import { ApiKeyResponse } from "@akashnetwork/http-sdk";
 import { Button, Popup, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Trash } from "iconoir-react";
 import { NextSeo } from "next-seo";
@@ -9,12 +10,11 @@ import { CreateApiKeyModal } from "@src/components/api-keys/CreateApiKeyModal";
 import Layout from "@src/components/layout/Layout";
 import { RequiredUserContainer } from "@src/components/user/RequiredUserContainer";
 import { useDeleteApiKey, useUserApiKeys } from "@src/queries/useApiKeysQuery";
-import { IApiKey } from "@src/types/apiKeys";
 
 export default function ApiKeysPage() {
   const { enqueueSnackbar } = useSnackbar();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [apiKeyToDelete, setApiKeyToDelete] = useState<IApiKey | null>(null);
+  const [apiKeyToDelete, setApiKeyToDelete] = useState<ApiKeyResponse | null>(null);
   const { mutate: deleteApiKey, isLoading: isDeleting } = useDeleteApiKey(apiKeyToDelete?.id ?? "", () => {
     setApiKeyToDelete(null);
     enqueueSnackbar("API Key deleted successfully", {
@@ -49,7 +49,7 @@ export default function ApiKeysPage() {
               {
                 label: "Close",
                 color: "primary",
-                variant: "text",
+                variant: "secondary",
                 side: "left",
                 onClick: onDeleteClose
               },
@@ -81,50 +81,52 @@ export default function ApiKeysPage() {
             <Button onClick={() => setIsCreateModalOpen(true)}>Create Key</Button>
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-2/12">Name</TableHead>
-                <TableHead className="w-4/12">Key</TableHead>
-                <TableHead className="w-4/12">Created</TableHead>
-                <TableHead className="w-4/12">Last Used</TableHead>
-                <TableHead className="w-1/12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {apiKeys
-                ?.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                ?.map(key => (
-                  <TableRow key={key.id}>
-                    <TableCell>{key.name}</TableCell>
-                    <TableCell>{key.keyFormat}</TableCell>
-                    <TableCell>
-                      <FormattedDate value={key.createdAt} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />
-                    </TableCell>
-                    <TableCell>
-                      {key.lastUsedAt ? (
-                        <FormattedDate value={key.lastUsedAt} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />
-                      ) : (
-                        "Never"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="default" size="icon" className="h-8 w-8 rounded-full text-xs" onClick={() => setApiKeyToDelete(key)}>
-                        <Trash />
-                      </Button>
+          <div className="rounded-lg bg-card p-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-2/12">Name</TableHead>
+                  <TableHead className="w-4/12">Key</TableHead>
+                  <TableHead className="w-4/12">Created</TableHead>
+                  <TableHead className="w-4/12">Last Used</TableHead>
+                  <TableHead className="w-1/12"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {apiKeys
+                  ?.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  ?.map(key => (
+                    <TableRow key={key.id}>
+                      <TableCell>{key.name}</TableCell>
+                      <TableCell>{key.keyFormat}</TableCell>
+                      <TableCell>
+                        <FormattedDate value={key.createdAt} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />
+                      </TableCell>
+                      <TableCell>
+                        {key.lastUsedAt ? (
+                          <FormattedDate value={key.lastUsedAt} year="numeric" month="2-digit" day="2-digit" hour="2-digit" minute="2-digit" />
+                        ) : (
+                          "Never"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="default" size="icon" className="h-8 w-8 rounded-full text-xs" onClick={() => setApiKeyToDelete(key)}>
+                          <Trash />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+
+                {apiKeys?.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      No API keys found
                     </TableCell>
                   </TableRow>
-                ))}
-
-              {apiKeys?.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center">
-                    No API keys found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
           {isCreateModalOpen && <CreateApiKeyModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />}
         </div>

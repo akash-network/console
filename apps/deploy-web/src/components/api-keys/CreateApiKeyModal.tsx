@@ -39,14 +39,14 @@ export const CreateApiKeyModal = ({ isOpen, onClose }: Props) => {
     control,
     formState: { errors }
   } = form;
-  const isCreatingNewKey = !createdApiKey?.data;
-  const apiKey = createdApiKey?.data?.data.apiKey || "";
+  const isCreatingNewKey = !createdApiKey;
+  const apiKey = createdApiKey?.apiKey || "";
   const actions: ActionButton[] = isCreatingNewKey
     ? [
         {
           label: "Cancel",
           color: "primary",
-          variant: "ghost",
+          variant: "secondary",
           side: "left",
           onClick: onClose
         },
@@ -67,7 +67,7 @@ export const CreateApiKeyModal = ({ isOpen, onClose }: Props) => {
         {
           label: "Done",
           color: "primary",
-          variant: "ghost",
+          variant: "secondary",
           side: "right",
           onClick: onClose
         }
@@ -119,7 +119,7 @@ export const CreateApiKeyModal = ({ isOpen, onClose }: Props) => {
           </p>
 
           <div className="mb-2 mt-8 flex w-full items-center gap-2">
-            <Input type="text" value={apiKey} className="flex-grow" autoFocus onFocus={event => event.target.select()} />
+            <Input type="text" value={apiKey} className="flex-grow" autoFocus onFocus={event => event.target.select()} readOnly />
             <Button variant="default" size="sm" onClick={onCopyClick}>
               Copy
             </Button>
