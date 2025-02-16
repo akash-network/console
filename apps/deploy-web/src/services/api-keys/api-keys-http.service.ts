@@ -1,3 +1,3 @@
 import { ApiKeyHttpService } from "@akashnetwork/http-sdk";
 
-export const apiKeysHttpService = new ApiKeyHttpService({});
+export const apiKeysHttpService = new ApiKeyHttpService();

@@ -11,20 +11,12 @@ export function useUserApiKeys(options: Omit<UseQueryOptions<ApiKeyResponse[], E
   const user = useUser();
   const { isTrialing } = useWallet();
 
-  return useQuery<ApiKeyResponse[], Error>(
-    QueryKeys.getApiKeysKey(user?.userId ?? ""),
-    async () => {
-      const response = await apiKeysHttpService.getApiKeys();
-
-      return response;
-    },
-    {
-      enabled: !!user?.userId && !isTrialing,
-      refetchInterval: 10000,
-      retry: 5,
-      ...options
-    }
-  );
+  return useQuery<ApiKeyResponse[], Error>(QueryKeys.getApiKeysKey(user?.userId ?? ""), async () => await apiKeysHttpService.getApiKeys(), {
+    enabled: !!user?.userId && !isTrialing,
+    refetchInterval: 10000,
+    retry: 5,
+    ...options
+  });
 }
 
 export function useCreateApiKey() {
