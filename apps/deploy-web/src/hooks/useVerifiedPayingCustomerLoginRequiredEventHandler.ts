@@ -14,8 +14,8 @@ export const useVerifiedPayingCustomerLoginRequiredEventHandler = (): ((callback
     (handler: MouseEventHandler) =>
       flow(
         whenEmailIsVerified("Verify your email and add funds to add access this feature."),
-        whenLoggedIn("Sign In or Sign Upto your balance to add access this feature"),
-        whenPayingCustomer("Add funds to your balance to add access this feature")
+        whenLoggedIn("Sign In or Sign Up to add access this feature."),
+        whenPayingCustomer("Add funds to your balance to add access this feature.")
       )(handler),
     [whenEmailIsVerified, whenLoggedIn, whenPayingCustomer]
   );
