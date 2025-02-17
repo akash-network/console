@@ -1,4 +1,4 @@
-import { AuthHttpService, DeploymentSettingHttpService, TemplateHttpService, TxHttpService, UserHttpService } from "@akashnetwork/http-sdk";
+import { ApiKeyHttpService, AuthHttpService, DeploymentSettingHttpService, TemplateHttpService, TxHttpService, UserHttpService } from "@akashnetwork/http-sdk";
 import { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
 import axios from "axios";
 
@@ -17,6 +17,7 @@ export const createServices = (config: ServicesConfig) => {
   const auth = new AuthHttpService(apiConfig);
   const providerProxy = new ProviderProxyService({ baseURL: config.BASE_PROVIDER_PROXY_URL });
   const deploymentSetting = new DeploymentSettingHttpService(apiConfig);
+  const apiKey = new ApiKeyHttpService();
 
   user.interceptors.request.use(authService.withAnonymousUserHeader);
   stripe.interceptors.request.use(authService.withAnonymousUserHeader);
@@ -30,7 +31,7 @@ export const createServices = (config: ServicesConfig) => {
     return response;
   });
 
-  return { user, stripe, tx, template, auth, providerProxy, deploymentSetting, axios };
+  return { user, stripe, tx, template, auth, providerProxy, deploymentSetting, apiKey, axios };
 };
 
 export interface ServicesConfig {

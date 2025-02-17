@@ -2,16 +2,17 @@ import { useMutation, useQuery, useQueryClient } from "react-query";
 import { QueryKey, UseQueryOptions } from "react-query";
 import { ApiKeyResponse } from "@akashnetwork/http-sdk";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
-import { apiKeysHttpService } from "@src/services/api-keys/api-keys-http.service";
 import { QueryKeys } from "./queryKeys";
 
 export function useUserApiKeys(options: Omit<UseQueryOptions<ApiKeyResponse[], Error, any, QueryKey>, "queryKey" | "queryFn"> = {}) {
   const user = useUser();
   const { isTrialing } = useWallet();
+  const { apiKey } = useServices();
 
-  return useQuery<ApiKeyResponse[], Error>(QueryKeys.getApiKeysKey(user?.userId ?? ""), async () => await apiKeysHttpService.getApiKeys(), {
+  return useQuery<ApiKeyResponse[], Error>(QueryKeys.getApiKeysKey(user?.userId ?? ""), async () => await apiKey.getApiKeys(), {
     enabled: !!user?.userId && !isTrialing,
     refetchInterval: 10000,
     retry: 5,
@@ -22,10 +23,11 @@ export function useUserApiKeys(options: Omit<UseQueryOptions<ApiKeyResponse[], E
 export function useCreateApiKey() {
   const user = useUser();
   const queryClient = useQueryClient();
+  const { apiKey } = useServices();
 
   return useMutation<ApiKeyResponse, Error, string>(
     (name: string) =>
-      apiKeysHttpService.createApiKey({
+      apiKey.createApiKey({
         data: {
           name: name
         }
@@ -43,8 +45,9 @@ export function useCreateApiKey() {
 export function useDeleteApiKey(id: string, onSuccess?: () => void) {
   const user = useUser();
   const queryClient = useQueryClient();
+  const { apiKey } = useServices();
 
-  return useMutation(() => apiKeysHttpService.deleteApiKey(id), {
+  return useMutation(() => apiKey.deleteApiKey(id), {
     onSuccess: () => {
       queryClient.setQueryData(QueryKeys.getApiKeysKey(user?.userId ?? ""), (oldData: ApiKeyResponse[] = []) => {
         return oldData.filter(t => t.id !== id);

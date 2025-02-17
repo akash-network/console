@@ -9,9 +9,11 @@ import { useSnackbar } from "notistack";
 import { CreateApiKeyModal } from "@src/components/api-keys/CreateApiKeyModal";
 import Layout from "@src/components/layout/Layout";
 import { RequiredUserContainer } from "@src/components/user/RequiredUserContainer";
+import { useWallet } from "@src/context/WalletProvider";
 import { useDeleteApiKey, useUserApiKeys } from "@src/queries/useApiKeysQuery";
 
 export default function ApiKeysPage() {
+  const { isTrialing } = useWallet();
   const { enqueueSnackbar } = useSnackbar();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [apiKeyToDelete, setApiKeyToDelete] = useState<ApiKeyResponse | null>(null);
@@ -117,7 +119,7 @@ export default function ApiKeysPage() {
                     </TableRow>
                   ))}
 
-                {apiKeys?.length === 0 && (
+                {(apiKeys?.length === 0 || isTrialing) && (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center">
                       No API keys found
