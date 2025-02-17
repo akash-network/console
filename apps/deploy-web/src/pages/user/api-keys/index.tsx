@@ -9,6 +9,7 @@ import { useSnackbar } from "notistack";
 import { CreateApiKeyModal } from "@src/components/api-keys/CreateApiKeyModal";
 import Layout from "@src/components/layout/Layout";
 import { RequiredUserContainer } from "@src/components/user/RequiredUserContainer";
+import { VerifiedPayingCustomerRequiredLink } from "@src/components/user/VerifiedPayingCustomerRequiredLink";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeleteApiKey, useUserApiKeys } from "@src/queries/useApiKeysQuery";
 
@@ -80,7 +81,9 @@ export default function ApiKeysPage() {
             <div>
               <h1 className="text-2xl font-bold">API Keys</h1>
             </div>
-            <Button onClick={() => setIsCreateModalOpen(true)}>Create Key</Button>
+            <VerifiedPayingCustomerRequiredLink onClick={() => setIsCreateModalOpen(true)}>
+              <Button>Create Key</Button>
+            </VerifiedPayingCustomerRequiredLink>
           </div>
 
           <div className="rounded-lg bg-card p-4">
