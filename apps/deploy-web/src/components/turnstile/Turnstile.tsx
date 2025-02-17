@@ -71,7 +71,7 @@ export const Turnstile: FC = () => {
   return browserEnvConfig.NEXT_PUBLIC_TURNSTILE_ENABLED ? (
     <>
       <motion.div
-        className="fixed inset-0 z-[101] flex content-center items-center justify-center bg-white bg-opacity-90"
+        className="fixed inset-0 z-[101] flex content-center items-center justify-center bg-popover-foreground bg-opacity-90"
         initial={{ opacity: 0 }}
         animate={{ opacity: isVisible ? 1 : 0 }}
         style={{ pointerEvents: isVisible ? "auto" : "none" }}
