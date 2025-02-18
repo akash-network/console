@@ -114,7 +114,7 @@ export const CreateApiKeyModal = ({ isOpen, onClose }: Props) => {
       ) : (
         <div>
           <p className="text-sm text-muted-foreground">
-            Please save your secret key in a safe place since <b>you won't be able to view it again.</b> Keet it secure, as anyone with your API key can makes
+            Please save your secret key in a safe place since <b>you won't be able to view it again.</b> Keep it secure, as anyone with your API key can make
             requests on your behalf. If you lose it, you'll need to create a new one.
           </p>
 
