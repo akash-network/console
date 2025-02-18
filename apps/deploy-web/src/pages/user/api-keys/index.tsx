@@ -24,7 +24,7 @@ export default function ApiKeysPage() {
       variant: "success"
     });
   });
-  const { data: apiKeys } = useUserApiKeys();
+  const { data: apiKeys, isLoading } = useUserApiKeys();
 
   const onDeleteApiKey = () => {
     deleteApiKey();
@@ -41,7 +41,7 @@ export default function ApiKeysPage() {
 
   return (
     <RequiredUserContainer>
-      <Layout>
+      <Layout isLoading={isLoading}>
         <NextSeo title="API Keys" />
 
         {!!apiKeyToDelete && (

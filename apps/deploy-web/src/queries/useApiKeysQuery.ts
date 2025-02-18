@@ -14,8 +14,9 @@ export function useUserApiKeys(options: Omit<UseQueryOptions<ApiKeyResponse[], E
 
   return useQuery<ApiKeyResponse[], Error>(QueryKeys.getApiKeysKey(user?.userId ?? ""), async () => await apiKey.getApiKeys(), {
     enabled: !!user?.userId && !isTrialing,
-    refetchInterval: 10000,
-    retry: 5,
+    refetchInterval: 10_000,
+    retry: failureCount => failureCount < 5,
+    retryDelay: 10_000,
     ...options
   });
 }
