@@ -1,5 +1,12 @@
 
 
+## [1.0.7](https://github.com/akash-network/console/compare/provider-console/v1.0.6...provider-console/v1.0.7) (2025-02-19)
+
+
+### Bug Fixes
+
+* **provider:** added missing prop passphrase ([#867](https://github.com/akash-network/console/issues/867)) ([8a38776](https://github.com/akash-network/console/commit/8a3877685bd046d828b53060996ba963e765c51b))
+
 ## [1.0.6](https://github.com/akash-network/console/compare/provider-console/v1.0.5...provider-console/v1.0.6) (2025-02-19)
 
 
