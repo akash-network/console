@@ -12,6 +12,7 @@ import { RequiredUserContainer } from "@src/components/user/RequiredUserContaine
 import { VerifiedPayingCustomerRequiredLink } from "@src/components/user/VerifiedPayingCustomerRequiredLink";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeleteApiKey, useUserApiKeys } from "@src/queries/useApiKeysQuery";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 
 export default function ApiKeysPage() {
   const { isTrialing } = useWallet();
@@ -29,10 +30,10 @@ export default function ApiKeysPage() {
   const onDeleteApiKey = () => {
     deleteApiKey();
 
-    // event(AnalyticsEvents.DEPLOY_SDL, {
-    //   category: AnalyticsCategory.SDL_BUILDER,
-    //   label: "Delete SDL template from detail"
-    // });
+    analyticsService.track("delete_api_key", {
+      category: "settings",
+      label: "Delete API key"
+    });
   };
 
   const onDeleteClose = () => {

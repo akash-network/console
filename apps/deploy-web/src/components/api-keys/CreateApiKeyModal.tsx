@@ -7,6 +7,7 @@ import { useSnackbar } from "notistack";
 import { z } from "zod";
 
 import { useCreateApiKey } from "@src/queries";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 
 interface Props {
   isOpen: boolean;
@@ -78,10 +79,10 @@ export const CreateApiKeyModal = ({ isOpen, onClose }: Props) => {
   };
 
   const onSubmit = async ({ name }) => {
-    // event(AnalyticsEvents.DOWNLOADED_SHELL_FILE, {
-    //   category: AnalyticsCategory.DEPLOYMENTS,
-    //   label: "Download file from shell"
-    // });
+    analyticsService.track("create_api_key", {
+      category: "settings",
+      label: "Create API key"
+    });
 
     createApiKey(name);
   };
