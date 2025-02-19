@@ -114,6 +114,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
       port: machine.access.port,
       username: machine.access.username,
       keyfile: machine.access.file,
+      passphrase: machine.access.passphrase,
       password: machine.access.password,
       install_gpu_drivers: machine.systemInfo.gpu.count > 0
     })),
@@ -130,7 +131,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
     try {
       if (providerProcess.machines && providerProcess.machines.length > 0) {
         const keyId = providerProcess.machines[0].systemInfo.key_id;
-        let finalRequest: any;
+        let finalRequest;
         if (mode === "seed") {
           const publicKey = providerProcess.machines[0].systemInfo.public_key;
           const encryptedSeedPhrase = await encrypt(data?.seedPhrase || "", publicKey);
