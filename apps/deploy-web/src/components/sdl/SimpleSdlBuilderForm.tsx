@@ -9,16 +9,15 @@ import { useAtom } from "jotai";
 import { nanoid } from "nanoid";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
 import { SimpleServiceFormControl } from "@src/components/sdl/SimpleServiceFormControl";
 import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import useFormPersist from "@src/hooks/useFormPersist";
 import { useGpuModels } from "@src/queries/useGpuQuery";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import { ITemplate, SdlBuilderFormValuesSchema, SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { RouteStep } from "@src/types/route-steps.type";
 import { memoryUnits, storageUnits } from "@src/utils/akash/units";
 import { defaultService } from "@src/utils/sdl/data";
@@ -141,8 +140,8 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
 
       router.push(UrlService.newDeployment({ step: RouteStep.editDeployment }));
 
-      event(AnalyticsEvents.DEPLOY_SDL, {
-        category: AnalyticsCategory.SDL_BUILDER,
+      analyticsService.track("deploy_sdl", {
+        category: "sdl_builder",
         label: "Deploy SDL from create page"
       });
     } catch (error) {
@@ -166,8 +165,8 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
       setSdlResult(sdl);
       setIsPreviewingSdl(true);
 
-      event(AnalyticsEvents.PREVIEW_SDL, {
-        category: AnalyticsCategory.SDL_BUILDER,
+      analyticsService.track("preview_sdl", {
+        category: "sdl_builder",
         label: "Preview SDL from create page"
       });
     } catch (error) {
@@ -225,8 +224,8 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
                 {templateMetadata.username && (
                   <span
                     onClick={() => {
-                      event(AnalyticsEvents.CLICK_SDL_PROFILE, {
-                        category: AnalyticsCategory.SDL_BUILDER,
+                      analyticsService.track("click_sdl_profile", {
+                        category: "sdl_builder",
                         label: "Click on SDL user profile"
                       });
                     }}
@@ -241,8 +240,8 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
                   href={UrlService.template(templateQueryId as string)}
                   className="inline-flex cursor-pointer items-center"
                   onClick={() => {
-                    event(AnalyticsEvents.CLICK_VIEW_TEMPLATE, {
-                      category: AnalyticsCategory.SDL_BUILDER,
+                    analyticsService.track("click_view_template", {
+                      category: "sdl_builder",
                       label: "Click on view SDL template"
                     });
                   }}
@@ -272,8 +271,8 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
                 className="ml-4"
                 type="button"
                 onClick={() => {
-                  event(AnalyticsEvents.RESET_SDL, {
-                    category: AnalyticsCategory.SDL_BUILDER,
+                  analyticsService.track("reset_sdl", {
+                    category: "sdl_builder",
                     label: "Reset SDL"
                   });
 

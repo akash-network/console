@@ -59,7 +59,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
         .leftJoin(UserWallets, eq(Users.id, UserWallets.userId))
         .where(and(...clauses))
         .limit(options.limit)
-        .orderBy(desc(this.table.id), desc(UserWallets.address));
+        .orderBy(desc(this.table.id));
 
       lastId = last(items)?.id;
 

@@ -9,7 +9,6 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { ArrowRight, InfoCircle, Upload } from "iconoir-react";
 import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
-import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -21,9 +20,9 @@ import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConf
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDepositParams } from "@src/queries/useSettings";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import type { DepositParams } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
@@ -285,8 +284,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.version, address, deploymentName);
         router.replace(UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
 
-        event(AnalyticsEvents.CREATE_DEPLOYMENT, {
-          category: AnalyticsCategory.DEPLOYMENTS,
+        analyticsService.track("create_deployment", {
+          category: "deployments",
           label: "Create deployment in wizard"
         });
       } else {

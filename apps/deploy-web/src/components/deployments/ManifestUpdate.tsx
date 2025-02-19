@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { Alert, Button, CustomTooltip, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { InfoCircle, WarningCircle } from "iconoir-react";
 import yaml from "js-yaml";
-import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
 import { DynamicMonacoEditor } from "@src/components/shared/DynamicMonacoEditor";
@@ -14,8 +13,8 @@ import { useCertificate } from "@src/context/CertificateProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import networkStore from "@src/store/networkStore";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { deploymentData } from "@src/utils/deploymentData";
@@ -172,8 +171,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
           await sendManifest(providerInfo as ApiProviderList, mani);
         }
 
-        event(AnalyticsEvents.UPDATE_DEPLOYMENT, {
-          category: AnalyticsCategory.DEPLOYMENTS,
+        analyticsService.track("update_deployment", {
+          category: "deployments",
           label: "Update deployment"
         });
 

@@ -2,10 +2,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { Snackbar } from "@akashnetwork/ui/components";
-import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { RestApiCertificate } from "@src/types/certificate";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -190,8 +189,8 @@ export const CertificateProvider = ({ children }) => {
         const currentCert = validCerts.find(({ parsed }) => parsed === crtpem);
         setSelectedCertificate(currentCert as ChainCertificate);
 
-        event(AnalyticsEvents.CREATE_CERTIFICATE, {
-          category: AnalyticsCategory.CERTIFICATES,
+        analyticsService.track("create_certificate", {
+          category: "certificates",
           label: "Created certificate"
         });
       }
@@ -228,8 +227,8 @@ export const CertificateProvider = ({ children }) => {
         const currentCert = validCerts.find(x => x.parsed === crtpem);
         setSelectedCertificate(currentCert as ChainCertificate);
 
-        event(AnalyticsEvents.REGENERATE_CERTIFICATE, {
-          category: AnalyticsCategory.CERTIFICATES,
+        analyticsService.track("regenerate_certificate", {
+          category: "certificates",
           label: "Regenerated certificate"
         });
       }
@@ -263,8 +262,8 @@ export const CertificateProvider = ({ children }) => {
         setSelectedCertificate(null);
       }
 
-      event(AnalyticsEvents.REVOKE_CERTIFICATE, {
-        category: AnalyticsCategory.CERTIFICATES,
+      analyticsService.track("revoke_certificate", {
+        category: "certificates",
         label: "Revoked certificate"
       });
     }
@@ -289,8 +288,8 @@ export const CertificateProvider = ({ children }) => {
 
       setSelectedCertificate(null);
 
-      event(AnalyticsEvents.REVOKE_ALL_CERTIFICATE, {
-        category: AnalyticsCategory.CERTIFICATES,
+      analyticsService.track("revoke_all_certificates", {
+        category: "certificates",
         label: "Revoked all certificates"
       });
     }

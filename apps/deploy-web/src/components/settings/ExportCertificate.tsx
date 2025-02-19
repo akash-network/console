@@ -1,10 +1,9 @@
 "use client";
 import { useEffect } from "react";
 import { Alert, Popup } from "@akashnetwork/ui/components";
-import { event } from "nextjs-google-analytics";
 
 import { CodeSnippet } from "@src/components/shared/CodeSnippet";
-import { AnalyticsEvents } from "@src/types/analytics";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { useSelectedWalletFromStorage } from "@src/utils/walletUtils";
 
 export function ExportCertificate({ isOpen, onClose }: React.PropsWithChildren<{ isOpen: boolean; onClose: () => void }>) {
@@ -12,7 +11,7 @@ export function ExportCertificate({ isOpen, onClose }: React.PropsWithChildren<{
 
   useEffect(() => {
     async function init() {
-      event(AnalyticsEvents.EXPORT_CERTIFICATE, {
+      analyticsService.track("export_certificate", {
         category: "certificates",
         label: "Export certificate"
       });

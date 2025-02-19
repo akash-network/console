@@ -5,7 +5,6 @@ import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { formatDuration, intervalToDuration } from "date-fns";
 import { Edit, MoreHoriz, NavArrowLeft, Refresh, Upload, XmarkSquare } from "iconoir-react";
 import { useRouter } from "next/navigation";
-import { event } from "nextjs-google-analytics";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -16,7 +15,7 @@ import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConf
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { useUser } from "@src/hooks/useUser";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { DeploymentDto } from "@src/types/deployment";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
@@ -66,8 +65,8 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
       removeLeases();
       loadDeploymentDetail();
 
-      event(AnalyticsEvents.CLOSE_DEPLOYMENT, {
-        category: AnalyticsCategory.DEPLOYMENTS,
+      analyticsService.track("close_deployment", {
+        category: "deployments",
         label: "Close deployment in deployment detail"
       });
     }
@@ -90,8 +89,8 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
     if (response) {
       loadDeploymentDetail();
 
-      event(AnalyticsEvents.DEPLOYMENT_DEPOSIT, {
-        category: AnalyticsCategory.DEPLOYMENTS,
+      analyticsService.track("deployment_deposit", {
+        category: "deployments",
         label: "Deposit deployment in deployment detail"
       });
     }

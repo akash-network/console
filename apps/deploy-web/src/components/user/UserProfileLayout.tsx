@@ -2,10 +2,9 @@ import React, { ReactNode } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useRouter } from "next/router";
-import { event } from "nextjs-google-analytics";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { UrlService } from "@src/utils/urlUtils";
 
 type UserProfileTab = "templates" | "favorites" | "settings";
@@ -21,8 +20,8 @@ export const UserProfileLayout: React.FunctionComponent<Props> = ({ page, childr
   const { user } = useCustomUser();
 
   const handleTabChange = (newValue: string) => {
-    event(AnalyticsEvents.USER_PROFILE_TEMPLATE_TAB, {
-      category: AnalyticsCategory.PROFILE,
+    analyticsService.track("user_profile_template_tab", {
+      category: "profile",
       label: `Click on ${newValue} tab`
     });
 

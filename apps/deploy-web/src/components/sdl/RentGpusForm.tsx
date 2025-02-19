@@ -8,7 +8,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
-import { event } from "nextjs-google-analytics";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
@@ -21,9 +20,9 @@ import { useWhen } from "@src/hooks/useWhen";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import { useDepositParams } from "@src/queries/useSettings";
 import { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import { ProfileGpuModelType, RentGpusFormValuesSchema, RentGpusFormValuesType, ServiceType } from "@src/types";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
 import { DepositParams } from "@src/types/deployment";
 import { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -275,8 +274,8 @@ export const RentGpusForm: React.FunctionComponent = () => {
         saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.version, address, currentService.image);
         router.push(UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
 
-        event(AnalyticsEvents.CREATE_GPU_DEPLOYMENT, {
-          category: AnalyticsCategory.DEPLOYMENTS,
+        analyticsService.track("create_gpu_deployment", {
+          category: "deployments",
           label: "Create deployment rent gpu form"
         });
       } else {

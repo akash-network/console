@@ -145,7 +145,15 @@ const moduleExports = {
         permanent: false
       }
     ];
-  }
+  },
+  rewrites: async () => ({
+    fallback: [
+      {
+        source: "/api/analytics",
+        destination: "https://api2.amplitude.com/2/httpapi"
+      }
+    ]
+  })
 };
 
 const sentryWebpackPluginOptions = {
