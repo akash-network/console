@@ -48,7 +48,8 @@ export function ControlMachineProvider({ children }: Props) {
             hostname: controlMachine.access.hostname,
             port: controlMachine.access.port,
             username: controlMachine.access.username,
-            password: controlMachine.access.password
+            password: controlMachine.access.password,
+            passphrase: controlMachine.access.passphrase
           };
           const isControlMachineConnected = await restClient.post(`/verify/control-machine`, request);
           if (isControlMachineConnected) {
