@@ -131,7 +131,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
     try {
       if (providerProcess.machines && providerProcess.machines.length > 0) {
         const keyId = providerProcess.machines[0].systemInfo.key_id;
-        let finalRequest;
+        let finalRequest: any;
         if (mode === "seed") {
           const publicKey = providerProcess.machines[0].systemInfo.public_key;
           const encryptedSeedPhrase = await encrypt(data?.seedPhrase || "", publicKey);
