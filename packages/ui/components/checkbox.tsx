@@ -2,7 +2,6 @@
 import * as React from "react";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import { Check } from "lucide-react";
-import { nanoid } from "nanoid";
 
 import { cn } from "../utils";
 
@@ -32,7 +31,7 @@ const CheckboxWithLabel = React.forwardRef<
     labelClassName?: string;
   }
 >(({ className, label, labelPosition = "right", labelClassName = "", ...props }) => {
-  const id = nanoid();
+  const id = React.useId();
   const _label = (
     <label htmlFor={id} className={cn("cursor-pointer text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70", labelClassName)}>
       {label}

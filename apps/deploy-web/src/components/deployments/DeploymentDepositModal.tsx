@@ -21,7 +21,6 @@ import {
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import compareAsc from "date-fns/compareAsc";
-import { event } from "nextjs-google-analytics";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
@@ -32,7 +31,7 @@ import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDenomData, useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useGranteeGrants } from "@src/queries/useGrantsQuery";
-import { AnalyticsCategory, AnalyticsEvents } from "@src/types/analytics";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { coinToUDenom } from "@src/utils/priceUtils";
 import { LinkTo } from "../shared/LinkTo";
@@ -188,8 +187,8 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
         return;
       }
 
-      event(AnalyticsEvents.USE_DEPOSITOR, {
-        category: AnalyticsCategory.DEPLOYMENTS,
+      analyticsService.track("use_depositor", {
+        category: "deployments",
         label: "Use depositor to deposit in deployment"
       });
     } else if (depositData && amount > depositData?.balance) {
