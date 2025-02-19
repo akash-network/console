@@ -1,5 +1,12 @@
 
 
+## [2.47.0](https://github.com/akash-network/console/compare/console-web/v2.46.0...console-web/v2.47.0) (2025-02-19)
+
+
+### Features
+
+* **auth:** adds turnstile interceptor to all the services ([f4b517a](https://github.com/akash-network/console/commit/f4b517a35a1bf54ccad26304f37c5213d8635ab8))
+
 ## [2.46.0](https://github.com/akash-network/console/compare/console-web/v2.45.0...console-web/v2.46.0) (2025-02-19)
 
 
