@@ -1,5 +1,12 @@
 
 
+## [1.0.6](https://github.com/akash-network/console/compare/provider-console/v1.0.5...provider-console/v1.0.6) (2025-02-19)
+
+
+### Bug Fixes
+
+* **provider:** added missing passphrase field in final request ([#864](https://github.com/akash-network/console/issues/864)) ([98dfc89](https://github.com/akash-network/console/commit/98dfc892d93c4db40e8bae7c18d8743ad5c68d69))
+
 ## [1.0.5](https://github.com/akash-network/console/compare/provider-console/v1.0.4...provider-console/v1.0.5) (2025-02-14)
 
 
