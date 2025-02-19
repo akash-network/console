@@ -4,16 +4,34 @@ import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MdInfo } from "react-icons/md";
 import { Button } from "@akashnetwork/ui/components";
 import { Turnstile as ReactTurnstile, TurnstileInstance } from "@marsidev/react-turnstile";
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, AxiosResponse } from "axios";
 import { motion } from "framer-motion";
 import { firstValueFrom, Subject } from "rxjs";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
+import { useWhen } from "@src/hooks/useWhen";
+import { services } from "@src/services/http/http-browser.service";
 import { managedWalletHttpService } from "@src/services/managed-wallet-http/managed-wallet-http.service";
 
-type TurnstileStatus = "uninitialized" | "solved" | "interactive" | "expired" | "error" | "dismissed" | "retrying";
+const HTTP_SERVICES = [managedWalletHttpService, services.user, services.stripe, services.tx, services.template, services.auth, services.deploymentSetting];
 
-const VISIBILITY_STATUSES: TurnstileStatus[] = ["interactive", "error", "retrying"];
+const addResponseInterceptor = (interceptor: (value: AxiosError) => AxiosResponse | Promise<AxiosResponse>) => {
+  const removes = HTTP_SERVICES.map(service => {
+    const interceptorId = service.interceptors.response.use(null, interceptor);
+
+    return () => {
+      service.interceptors.response.eject(interceptorId);
+    };
+  });
+
+  return () => {
+    removes.forEach(remove => remove());
+  };
+};
+
+type TurnstileStatus = "uninitialized" | "solved" | "interactive" | "expired" | "error" | "dismissed";
+
+const VISIBILITY_STATUSES: TurnstileStatus[] = ["interactive", "error"];
 
 export const Turnstile: FC = () => {
   const turnstileRef = useRef<TurnstileInstance>();
@@ -22,28 +40,22 @@ export const Turnstile: FC = () => {
   const dismissedSubject = useRef(new Subject<void>());
 
   useEffect(() => {
-    const interceptorId = managedWalletHttpService.interceptors.response.use(
-      response => response,
-      async (error: AxiosError) => {
-        const request = error?.request;
+    return addResponseInterceptor(async error => {
+      const request = error?.request;
 
-        if ((!request?.status || request?.status > 400) && turnstileRef.current) {
-          turnstileRef.current?.render();
-          turnstileRef.current.execute();
-          const response = await Promise.race([turnstileRef.current.getResponsePromise(), firstValueFrom(dismissedSubject.current.asObservable())]);
+      if ((!request?.status || request?.status > 400) && turnstileRef.current) {
+        turnstileRef.current?.render();
+        turnstileRef.current?.execute();
 
-          if (response) {
-            return axios(error.config!);
-          }
+        const response = await Promise.race([turnstileRef.current.getResponsePromise(), firstValueFrom(dismissedSubject.current.asObservable())]);
+
+        if (response) {
+          return axios(error.config!);
         }
-
-        return Promise.reject(error);
       }
-    );
 
-    return () => {
-      managedWalletHttpService.interceptors.response.eject(interceptorId);
-    };
+      return Promise.reject(error);
+    });
   }, []);
 
   const resetWidget = useCallback(() => {
@@ -51,6 +63,10 @@ export const Turnstile: FC = () => {
     turnstileRef.current?.render();
     turnstileRef.current?.execute();
   }, []);
+
+  useWhen(status === "error", () => {
+    resetWidget();
+  });
 
   return browserEnvConfig.NEXT_PUBLIC_TURNSTILE_ENABLED ? (
     <>
