@@ -1,5 +1,12 @@
 
 
+## [2.46.0](https://github.com/akash-network/console/compare/console-web/v2.45.0...console-web/v2.46.0) (2025-02-19)
+
+
+### Features
+
+* **analytics:** integrates amplitude ([c88ff59](https://github.com/akash-network/console/commit/c88ff59c19c0096916afa3774b2d15a1bd30d3eb))
+
 ## [2.45.0](https://github.com/akash-network/console/compare/console-web/v2.44.0...console-web/v2.45.0) (2025-02-14)
 
 
