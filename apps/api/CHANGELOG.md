@@ -1,5 +1,12 @@
 
 
+## [2.64.0](https://github.com/akash-network/console/compare/console-api/v2.63.1...console-api/v2.64.0) (2025-02-19)
+
+
+### Features
+
+* **analytics:** integrates amplitude ([c88ff59](https://github.com/akash-network/console/commit/c88ff59c19c0096916afa3774b2d15a1bd30d3eb))
+
 ## [2.63.1](https://github.com/akash-network/console/compare/console-api/v2.63.0...console-api/v2.63.1) (2025-02-15)
 
 
