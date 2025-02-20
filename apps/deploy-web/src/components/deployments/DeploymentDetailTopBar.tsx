@@ -1,8 +1,13 @@
 "use client";
-import { Dispatch, ReactNode, SetStateAction, useState } from "react";
+import { Dispatch, ReactNode, SetStateAction, useCallback, useState } from "react";
 import { Button, CustomTooltip, DropdownMenu, DropdownMenuContent, Switch } from "@akashnetwork/ui/components";
+import { usePopup } from "@akashnetwork/ui/context";
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
-import { formatDuration, intervalToDuration } from "date-fns";
+import addHours from "date-fns/addHours";
+import differenceInSeconds from "date-fns/differenceInSeconds";
+import formatDuration from "date-fns/formatDuration";
+import intervalToDuration from "date-fns/intervalToDuration";
+import startOfHour from "date-fns/startOfHour";
 import { Edit, MoreHoriz, NavArrowLeft, Refresh, Upload, XmarkSquare } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
@@ -11,12 +16,13 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { usePricing } from "@src/context/PricingProvider/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { useUser } from "@src/hooks/useUser";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { DeploymentDto } from "@src/types/deployment";
+import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { DeploymentDepositModal } from "./DeploymentDepositModal";
@@ -27,10 +33,11 @@ type Props = {
   removeLeases: () => void;
   setActiveTab: Dispatch<SetStateAction<string>>;
   deployment: DeploymentDto;
+  leases: LeaseDto[] | undefined | null;
   children?: ReactNode;
 };
 
-export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address, loadDeploymentDetail, removeLeases, setActiveTab, deployment }) => {
+export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address, loadDeploymentDetail, removeLeases, setActiveTab, deployment, leases }) => {
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
   const { udenomToUsd } = usePricing();
   const router = useRouter();
@@ -42,6 +49,8 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
   const user = useUser();
   const deploymentSetting = useDeploymentSettingQuery({ userId: user?.id, dseq: deployment.dseq });
+  const { realTimeLeft, deploymentCost } = useDeploymentMetrics({ deployment, leases });
+  const { confirm } = usePopup();
 
   function handleBackClick() {
     if (previousRoute) {
@@ -83,7 +92,6 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
 
   const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {
     setIsDepositingDeployment(false);
-
     const message = TransactionMessageData.getDepositDeploymentMsg(address, deployment.dseq, deposit, deployment.escrowAccount.balance.denom, depositorAddress);
     const response = await signAndBroadcastTx([message]);
     if (response) {
@@ -95,6 +103,34 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
       });
     }
   };
+
+  const setAutoTopUpEnabled = useCallback(
+    async (autoTopUpEnabled: boolean) => {
+      if (autoTopUpEnabled && realTimeLeft?.timeLeft) {
+        const secTillNextTopUp = differenceInSeconds(addHours(startOfHour(new Date()), 2), new Date());
+        const secTillClosed = differenceInSeconds(realTimeLeft.timeLeft, new Date());
+
+        if (secTillClosed < secTillNextTopUp) {
+          const secToDepositFor = secTillNextTopUp - secTillClosed;
+          const deposit = Math.ceil((deploymentCost * secToDepositFor) / 6);
+
+          const isConfirmed = await confirm({
+            title: "Deposit required",
+            message: `To enable auto top-up, you need to deposit $${udenomToUsd(deposit, deployment.escrowAccount.balance.denom)}. This is required to maintain your deployment til the next scheduled check.`
+          });
+
+          if (!isConfirmed) {
+            return;
+          }
+
+          await onDeploymentDeposit(deposit, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+        }
+      }
+
+      deploymentSetting.setAutoTopUpEnabled(autoTopUpEnabled);
+    },
+    [confirm, deployment.escrowAccount.balance.denom, deploymentCost, deploymentSetting, onDeploymentDeposit, realTimeLeft?.timeLeft, udenomToUsd]
+  );
 
   return (
     <>
@@ -141,7 +177,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
 
             {isManaged && !isTrialing && browserEnvConfig.NEXT_PUBLIC_AUTO_TOP_UP_ENABLED && (
               <div className="ml-4 flex items-center gap-2">
-                <Switch checked={deploymentSetting.data?.autoTopUpEnabled} onCheckedChange={deploymentSetting.setAutoTopUpEnabled} />
+                <Switch checked={deploymentSetting.data?.autoTopUpEnabled} onCheckedChange={setAutoTopUpEnabled} />
                 <span>Auto top-up</span>
                 <CustomTooltip
                   title={
