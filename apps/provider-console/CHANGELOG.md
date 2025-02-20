@@ -1,5 +1,12 @@
 
 
+## [1.1.2](https://github.com/akash-network/console/compare/provider-console/v1.1.1...provider-console/v1.1.2) (2025-02-20)
+
+
+### Bug Fixes
+
+* **provider:** fixed non provider login issue ([#879](https://github.com/akash-network/console/issues/879)) ([1d571a5](https://github.com/akash-network/console/commit/1d571a5725e18b791c77ce50d6066755901e2f5b))
+
 ## [1.1.1](https://github.com/akash-network/console/compare/provider-console/v1.1.0...provider-console/v1.1.1) (2025-02-20)
 
 
