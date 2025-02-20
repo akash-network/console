@@ -58,7 +58,8 @@ export function useDeploymentSettingQuery(params: Omit<FindDeploymentSettingPara
     data: query.data,
     update: update.mutate,
     setAutoTopUpEnabled,
-    isLoading: query.isLoading,
+    isLoading: query.isLoading || update.isLoading,
+    isFetching: query.isLoading,
     isUpdating: update.isLoading,
     error: query.error
   };
