@@ -1,5 +1,17 @@
 
 
+## [2.48.0](https://github.com/akash-network/console/compare/console-web/v2.47.0...console-web/v2.48.0) (2025-02-20)
+
+
+### Features
+
+* **deployment:** requires a deposit to maintain a deployment till the next auto top up ([e3ad957](https://github.com/akash-network/console/commit/e3ad9579d6336912b1e51ca8f983f64322571d2d)), closes [#714](https://github.com/akash-network/console/issues/714)
+
+
+### Bug Fixes
+
+* **sdl:** can use AMD GPUs  ([1569a35](https://github.com/akash-network/console/commit/1569a35fda166bab34d3ba5e41207acf2545ed80)), closes [#64](https://github.com/akash-network/console/issues/64)
+
 ## [2.47.0](https://github.com/akash-network/console/compare/console-web/v2.46.0...console-web/v2.47.0) (2025-02-19)
 
 
