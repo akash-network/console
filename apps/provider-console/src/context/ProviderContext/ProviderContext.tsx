@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect } from "react";
+import { AxiosError } from "axios";
 
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { useProviderDashboard, useProviderDetails } from "@src/queries/useProviderQuery";
@@ -21,11 +22,18 @@ export const ProviderContextProvider = ({ children }) => {
     useWallet();
   const selectedNetwork = getSelectedNetwork();
 
-  const { data: providerDetails, isLoading: isLoadingProviderDetails } = useProviderDetails(address);
+  const { data: providerDetails, isLoading: isLoadingProviderDetails, error: providerError } = useProviderDetails(address);
   const { data: providerDashboard, isLoading: isLoadingProviderDashboard } = useProviderDashboard(address);
 
   useEffect(() => {
     const checkProviderStatus = async () => {
+      if ((providerError as AxiosError)?.response?.status === 404) {
+        setIsWalletProvider(false);
+        setIsProviderStatusFetched(true);
+        setIsProviderOnlineStatusFetched(true);
+        return;
+      }
+
       if (providerDetails) {
         setIsWalletProvider(true);
         setIsProviderStatusFetched(true);
@@ -43,6 +51,7 @@ export const ProviderContextProvider = ({ children }) => {
     checkProviderStatus();
   }, [
     providerDetails,
+    providerError,
     selectedNetwork.chainId,
     isProviderStatusFetched,
     setIsWalletProvider,
