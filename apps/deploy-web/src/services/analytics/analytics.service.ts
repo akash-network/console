@@ -64,7 +64,9 @@ export type AnalyticsEvent =
   | "user_profile_template_tab"
   | "user_settings_save"
   | "anonymous_user_created"
-  | "trial_started";
+  | "trial_started"
+  | "create_api_key"
+  | "delete_api_key";
 
 export type AnalyticsCategory = "user" | "billing" | "deployments" | "wallet" | "sdl_builder" | "transactions" | "certificates" | "profile" | "settings";
 

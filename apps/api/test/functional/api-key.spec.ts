@@ -95,7 +95,8 @@ describe("API Keys", () => {
         ...key1,
         createdAt: new Date(key1.createdAt),
         updatedAt: new Date(key1.updatedAt),
-        expiresAt: key1.expiresAt ? new Date(key1.expiresAt) : null
+        expiresAt: key1.expiresAt ? new Date(key1.expiresAt) : null,
+        lastUsedAt: key1.lastUsedAt ? new Date(key1.lastUsedAt) : null
       });
 
       const response = await app.request("/v1/api-keys", {
@@ -133,13 +134,15 @@ describe("API Keys", () => {
           ...key1,
           createdAt: new Date(key1.createdAt),
           updatedAt: new Date(key1.updatedAt),
-          expiresAt: key1.expiresAt ? new Date(key1.expiresAt) : null
+          expiresAt: key1.expiresAt ? new Date(key1.expiresAt) : null,
+          lastUsedAt: key1.lastUsedAt ? new Date(key1.lastUsedAt) : null
         }),
         apiKeyRepository.create({
           ...key2,
           createdAt: new Date(key2.createdAt),
           updatedAt: new Date(key2.updatedAt),
-          expiresAt: key2.expiresAt ? new Date(key2.expiresAt) : null
+          expiresAt: key2.expiresAt ? new Date(key2.expiresAt) : null,
+          lastUsedAt: key2.lastUsedAt ? new Date(key2.lastUsedAt) : null
         })
       ]);
 

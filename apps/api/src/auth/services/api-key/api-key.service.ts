@@ -34,7 +34,8 @@ export class ApiKeyService {
       userId: this.authService.currentUser.id,
       hashedKey,
       keyFormat: obfuscatedKey,
-      expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined
+      expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
+      lastUsedAt: null
     });
 
     return {

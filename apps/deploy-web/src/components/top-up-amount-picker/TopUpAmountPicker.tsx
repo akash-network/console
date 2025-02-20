@@ -28,17 +28,17 @@ export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ chil
     <div className={cn("group relative", className)}>
       {data.length > 1 ? (
         <>
-          <div className="flex">
+          <div className="flex space-x-2">
             {children}
             {isOnClick && (
-              <Button size="icon" variant="ghost" className="ml-2 min-w-max rounded-full" onClick={() => setIsOpened(prev => !prev)}>
+              <Button size="icon" variant="ghost" className="min-w-max flex-shrink-0 rounded-full" onClick={() => setIsOpened(prev => !prev)}>
                 <MoreHoriz />
               </Button>
             )}
           </div>
           <div
             className={cn(
-              "opacity-1 invisible max-h-0 overflow-hidden rounded bg-white transition-all duration-200 ease-out hover:opacity-100",
+              "opacity-1 invisible my-2 max-h-0 flex-wrap space-x-2 overflow-hidden rounded transition-all duration-200 ease-out hover:opacity-100",
               { "visible max-h-24": isOpened && isOnClick, "group-hover:visible group-hover:max-h-24": !isOnClick },
               popoverClassName
             )}
@@ -47,7 +47,7 @@ export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ chil
               return (
                 <VerifiedLoginRequiredLink
                   key={price.unitAmount || "custom"}
-                  className={cn("mr-1 mt-2", buttonVariants({ variant: "default" }))}
+                  className={cn(buttonVariants({ variant: "default" }))}
                   href={`/api/proxy/v1/checkout${price.isCustom ? "" : `?amount=${price.unitAmount}`}`}
                 >
                   {price.isCustom ? "Custom" : "$"}

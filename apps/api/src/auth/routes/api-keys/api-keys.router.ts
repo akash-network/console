@@ -3,7 +3,13 @@ import { container } from "tsyringe";
 import { z } from "zod";
 
 import { ApiKeyController } from "@src/auth/controllers/api-key/api-key.controller";
-import { ApiKeyResponseSchema, CreateApiKeyRequestSchema, FindApiKeyParamsSchema, UpdateApiKeyRequestSchema } from "@src/auth/http-schemas/api-key.schema";
+import {
+  CreateApiKeyRequestSchema,
+  FindApiKeyParamsSchema,
+  SingleApiKeyResponseSchema,
+  UpdateApiKeyRequestSchema
+} from "@src/auth/http-schemas/api-key.schema";
+import { ListApiKeysResponseSchema } from "@src/auth/http-schemas/api-key.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
 const listRoute = createRoute({
@@ -16,9 +22,7 @@ const listRoute = createRoute({
       description: "Returns list of API keys",
       content: {
         "application/json": {
-          schema: z.object({
-            data: z.array(ApiKeyResponseSchema)
-          })
+          schema: ListApiKeysResponseSchema
         }
       }
     }
@@ -38,9 +42,7 @@ const getRoute = createRoute({
       description: "Returns API key details",
       content: {
         "application/json": {
-          schema: z.object({
-            data: ApiKeyResponseSchema
-          })
+          schema: SingleApiKeyResponseSchema
         }
       }
     },
@@ -66,9 +68,7 @@ const postRoute = createRoute({
     body: {
       content: {
         "application/json": {
-          schema: z.object({
-            data: CreateApiKeyRequestSchema
-          })
+          schema: CreateApiKeyRequestSchema
         }
       }
     }
@@ -78,9 +78,7 @@ const postRoute = createRoute({
       description: "API key created successfully",
       content: {
         "application/json": {
-          schema: z.object({
-            data: ApiKeyResponseSchema
-          })
+          schema: SingleApiKeyResponseSchema
         }
       }
     }
@@ -97,9 +95,7 @@ const patchRoute = createRoute({
     body: {
       content: {
         "application/json": {
-          schema: z.object({
-            data: UpdateApiKeyRequestSchema
-          })
+          schema: UpdateApiKeyRequestSchema
         }
       }
     }
@@ -109,9 +105,7 @@ const patchRoute = createRoute({
       description: "API key updated successfully",
       content: {
         "application/json": {
-          schema: z.object({
-            data: ApiKeyResponseSchema
-          })
+          schema: SingleApiKeyResponseSchema
         }
       }
     },
