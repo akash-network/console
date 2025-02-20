@@ -181,7 +181,7 @@ export const useProviderActionStatus = (actionId: string | null) => {
     enabled: !!actionId,
     refetchInterval: data => {
       if (data?.tasks?.some(task => task.status === "in_progress")) {
-        return 1000;
+        return 5000;
       }
       return false;
     },

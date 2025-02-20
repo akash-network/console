@@ -40,6 +40,68 @@ const attributeKeys = Object.keys(providerAttributesFormValuesSchema.shape);
 
 const DEFAULT_ATTRIBUTES = ["host", "tier"];
 
+interface GpuConfig {
+  count: number;
+  vendor: string;
+  name: string;
+  memory_size: string;
+  interface: string;
+}
+
+const createGpuAttributes = (gpuConfigs: GpuConfig[] | undefined) => {
+  // Return empty array if gpuConfigs is undefined, empty, or has no valid GPUs
+  if (!gpuConfigs || gpuConfigs.length === 0) return [];
+
+  // Filter out configurations with count=0 or null values
+  const validGpuConfigs = gpuConfigs.filter(
+    gpu => gpu.count !== 0 && gpu.vendor !== null && gpu.name !== null && gpu.memory_size !== null && gpu.interface !== null
+  );
+
+  if (validGpuConfigs.length === 0) return [];
+
+  // Get unique GPU configurations based on vendor, model, memory, and interface
+  const uniqueConfigs = validGpuConfigs.reduce(
+    (acc, gpu) => {
+      const key = `${gpu.vendor}-${gpu.name}-${gpu.memory_size}-${gpu.interface}`;
+      if (!acc[key]) {
+        acc[key] = gpu;
+      }
+      return acc;
+    },
+    {} as Record<string, GpuConfig>
+  );
+
+  return Object.values(uniqueConfigs).flatMap(gpu => {
+    const vendor = gpu.vendor.toLowerCase();
+    const model = gpu.name.toLowerCase();
+    const memory = gpu.memory_size;
+    const iface = gpu.interface.toLowerCase();
+
+    return [
+      {
+        key: "unknown-attributes",
+        value: "true",
+        customKey: `capabilities/gpu/vendor/${vendor}/model/${model}`
+      },
+      {
+        key: "unknown-attributes",
+        value: "true",
+        customKey: `capabilities/gpu/vendor/${vendor}/model/${model}/ram/${memory}`
+      },
+      {
+        key: "unknown-attributes",
+        value: "true",
+        customKey: `capabilities/gpu/vendor/${vendor}/model/${model}/ram/${memory}/interface/${iface}`
+      },
+      {
+        key: "unknown-attributes",
+        value: "true",
+        customKey: `capabilities/gpu/vendor/${vendor}/model/${model}/interface/${iface}`
+      }
+    ];
+  });
+};
+
 interface ProviderAttributesProps {
   existingAttributes?: ProviderAttribute[];
   editMode?: boolean;
@@ -62,6 +124,9 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const organizationName = providerProcess.config?.organization;
 
+  // Collect GPU configurations from all machines
+  const gpuConfigs = providerProcess.machines?.map(machine => machine.systemInfo?.gpu).filter((gpu): gpu is GpuConfig => !!gpu);
+
   const form = useForm<ProviderFormValues>({
     resolver: zodResolver(providerFormSchema),
     defaultValues: {
@@ -74,7 +139,8 @@ export const ProviderAttributes: React.FunctionComponent<ProviderAttributesProps
         : [
             { key: "host", value: "akash", customKey: "" },
             { key: "tier", value: "community", customKey: "" },
-            { key: "organization", value: organizationName || "", customKey: "" }
+            { key: "organization", value: organizationName || "", customKey: "" },
+            ...(gpuConfigs?.length ? createGpuAttributes(gpuConfigs) : [])
           ]
     }
   });

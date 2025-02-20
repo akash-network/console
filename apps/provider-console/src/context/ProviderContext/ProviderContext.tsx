@@ -38,11 +38,6 @@ export const ProviderContextProvider = ({ children }) => {
         } finally {
           setIsProviderOnlineStatusFetched(true);
         }
-      } else {
-        setIsWalletProvider(false);
-        setIsWalletProviderOnline(false);
-        setIsProviderOnlineStatusFetched(true);
-        setIsProviderStatusFetched(true);
       }
     };
     checkProviderStatus();

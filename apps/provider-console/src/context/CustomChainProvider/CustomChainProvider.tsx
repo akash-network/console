@@ -12,16 +12,30 @@ import { akash, assetLists } from "@src/chains";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { customRegistry } from "@src/utils/customRegistry";
 
+declare global {
+  interface Window {
+    leap?: any;
+  }
+}
+
 type Props = {
   children: React.ReactNode;
 };
 
 export function CustomChainProvider({ children }: Props) {
+  // Filter out Leap wallets if the extension is not detected
+  const availableWallets = [...keplr, ...leap].filter(wallet => {
+    if (wallet.walletInfo.name.toLowerCase().includes("leap")) {
+      return typeof window !== "undefined" && window.leap;
+    }
+    return true;
+  });
+
   return (
     <ChainProvider
       chains={[akash]}
       assetLists={assetLists}
-      wallets={[...keplr, ...leap]}
+      wallets={availableWallets}
       sessionOptions={{
         duration: 31_556_926_000, // 1 Year
         callback: () => {
