@@ -1,7 +1,9 @@
 import React, { useCallback } from "react";
-import { Separator } from "@akashnetwork/ui/components";
-import { CheckCircle, Play, XmarkCircle } from "iconoir-react";
+import { Separator, Spinner } from "@akashnetwork/ui/components";
+import { CheckCircle, XmarkCircle } from "iconoir-react";
 import { useRouter } from "next/router";
+
+import { formatTimeLapse } from "@src/utils/dateUtils";
 
 interface ProviderAction {
   id: string;
@@ -24,7 +26,7 @@ const StatusIcon: React.FC<StatusIconProps> = ({ status }) => {
     case "completed":
       return <CheckCircle className="text-green-500" />;
     case "in_progress":
-      return <Play className="text-blue-500" />;
+      return <Spinner size="small" />;
     case "failed":
       return <XmarkCircle className="text-red-500" />;
     default:
@@ -49,13 +51,6 @@ export const ActivityLogList: React.FC<ActivityLogsListProps> = ({ actions }) =>
     });
   }, []);
 
-  const calculateTimeLapse = (start: string, end?: string) => {
-    const startTime = new Date(start).getTime();
-    const endTime = end ? new Date(end).getTime() : Date.now();
-    const timeLapse = endTime - startTime;
-    return `${Math.floor(timeLapse / 1000)} seconds`;
-  };
-
   const handleRowClick = (actionId: string) => {
     router.push(`/activity-logs/${actionId}`);
   };
@@ -65,7 +60,7 @@ export const ActivityLogList: React.FC<ActivityLogsListProps> = ({ actions }) =>
       <div className="mb-4 grid grid-cols-12 items-center gap-4 px-4 text-sm font-medium text-gray-500">
         <div className="col-span-4">Action</div>
         <div className="col-span-2">Duration</div>
-        <div className="col-span-4">Timestamp</div>
+        <div className="col-span-4">Start Time</div>
         <div className="col-span-2 text-right">Status</div>
       </div>
       <Separator />
@@ -78,7 +73,7 @@ export const ActivityLogList: React.FC<ActivityLogsListProps> = ({ actions }) =>
                   <p className="text-sm font-medium">{action.name}</p>
                 </div>
                 <div className="col-span-2">
-                  <p className="text-muted-foreground text-sm">{calculateTimeLapse(action.start_time, action.end_time)}</p>
+                  <p className="text-muted-foreground text-sm">{formatTimeLapse(action.start_time, action.end_time || null)}</p>
                 </div>
                 <div className="col-span-4">
                   <p className="text-muted-foreground text-sm">{formatDate(action.start_time)}</p>

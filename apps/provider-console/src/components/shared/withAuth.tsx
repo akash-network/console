@@ -16,55 +16,77 @@ export const withAuth = ({ WrappedComponent, authLevel = "wallet" }: WithAuthPro
     const [loading, setLoading] = useState(true);
     const [loadingMessage, setLoadingMessage] = useState("Checking wallet connection...");
 
+    const delayedRedirect = (message: string) => {
+      setLoadingMessage(message);
+      return new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
+    };
+
+    const delayedCheck = (message: string) => {
+      setLoadingMessage(message);
+      return new Promise(resolve => setTimeout(resolve, 5000)); // 3 second delay
+    };
+
     useEffect(() => {
-      if (authLevel === "wallet") {
-        if (!isWalletConnected) {
-          setLoadingMessage("Connecting to wallet...");
-          router.push("/");
-          return;
-        }
-        setLoading(false);
-      }
-
-      if (authLevel === "provider") {
-        if (!isWalletConnected) {
-          setLoadingMessage("Connecting to wallet...");
-          router.push("/");
-          return;
+      const checkAuth = async () => {
+        // Wait for initial wallet connection check
+        while (!isWalletConnected) {
+          await delayedCheck("Checking wallet connection...");
+          if (!isWalletConnected) continue;
         }
 
-        if (!isProviderStatusFetched) {
-          setLoadingMessage("Checking provider status...");
-          return;
+        if (authLevel === "wallet") {
+          if (!isWalletConnected) {
+            await delayedRedirect("Wallet not connected, redirecting to home page...");
+            router.push("/");
+            return;
+          }
+          setLoading(false);
         }
 
-        if (!isProvider) {
-          router.push("/");
-          return;
+        if (authLevel === "provider") {
+          if (!isWalletConnected) {
+            await delayedRedirect("Wallet not connected, redirecting to home page...");
+            router.push("/");
+            return;
+          }
+
+          if (!isProviderStatusFetched) {
+            setLoadingMessage("Checking provider status...");
+            return;
+          }
+
+          if (!isProvider) {
+            await delayedRedirect("Not a provider, redirecting to home page...");
+            router.push("/");
+            return;
+          }
+
+          setLoading(false);
         }
 
-        setLoading(false);
-      }
+        if (authLevel === "onlineProvider") {
+          if (!isWalletConnected) {
+            await delayedRedirect("Wallet not connected, redirecting to home page...");
+            router.push("/");
+            return;
+          }
 
-      if (authLevel === "onlineProvider") {
-        if (!isWalletConnected) {
-          setLoadingMessage("Wallet not connected, redirecting to home page...");
-          router.push("/");
-          return;
-        }
+          if (!isProviderStatusFetched || !isProviderOnlineStatusFetched) {
+            setLoadingMessage("Checking provider status...");
+            return;
+          }
 
-        if (!isProviderStatusFetched || !isProviderOnlineStatusFetched) {
-          setLoadingMessage("Checking provider status...");
-          return;
+          if (!isProvider && !isOnline) {
+            await delayedRedirect("Provider is offline, redirecting to home page...");
+            router.push("/");
+            return;
+          }
+          setLoading(false);
         }
+      };
 
-        if (!isProvider && !isOnline) {
-          router.push("/");
-          return;
-        }
-        setLoading(false);
-      }
-    }, [isWalletConnected, isProvider, isProviderStatusFetched, isProviderOnlineStatusFetched, router, authLevel]);
+      checkAuth();
+    }, [isWalletConnected, isProvider, isProviderStatusFetched, isProviderOnlineStatusFetched, isOnline, router]);
 
     if (loading) {
       return (
