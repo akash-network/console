@@ -10,10 +10,11 @@ import { PricePerMonth } from "@src/components/shared/PricePerMonth";
 import { PriceValue } from "@src/components/shared/PriceValue";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { useWallet } from "@src/context/WalletProvider";
+import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { getAvgCostPerMonth, useRealTimeLeft } from "@src/utils/priceUtils";
+import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 
 type Props = {
   deployment: DeploymentDto;
@@ -22,11 +23,10 @@ type Props = {
 };
 
 export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment, leases }) => {
-  const hasLeases = leases && leases.length > 0;
-  const deploymentCost = hasLeases ? leases.reduce((prev, current) => prev + parseFloat(current.price.amount), 0) : 0;
-  const realTimeLeft = useRealTimeLeft(deploymentCost, deployment.escrowBalance, parseFloat(deployment.escrowAccount.settled_at), deployment.createdAt);
+  const { deploymentCost, realTimeLeft } = useDeploymentMetrics({ deployment, leases });
   const avgCost = udenomToDenom(getAvgCostPerMonth(deploymentCost));
   const isActive = deployment.state === "active";
+  const hasLeases = !!leases && leases.length > 0;
   const hasActiveLeases = hasLeases && leases.some(l => l.state === "active");
   const denomData = useDenomData(deployment.escrowAccount.balance.denom);
   const { isCustodial } = useWallet();

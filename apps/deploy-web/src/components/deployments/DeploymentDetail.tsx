@@ -151,6 +151,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
           removeLeases={removeLeases}
           setActiveTab={setActiveTab}
           deployment={deployment}
+          leases={leases}
         />
       )}
 
