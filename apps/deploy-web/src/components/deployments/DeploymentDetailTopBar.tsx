@@ -1,6 +1,6 @@
 "use client";
 import { Dispatch, ReactNode, SetStateAction, useCallback, useState } from "react";
-import { Button, CustomTooltip, DropdownMenu, DropdownMenuContent, Switch } from "@akashnetwork/ui/components";
+import { Button, CustomTooltip, DropdownMenu, DropdownMenuContent, Spinner, Switch } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import addHours from "date-fns/addHours";
@@ -23,6 +23,7 @@ import { useUser } from "@src/hooks/useUser";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import { averageBlockTime } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { DeploymentDepositModal } from "./DeploymentDepositModal";
@@ -112,11 +113,11 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
 
         if (secTillClosed < secTillNextTopUp) {
           const secToDepositFor = secTillNextTopUp - secTillClosed;
-          const deposit = Math.ceil((deploymentCost * secToDepositFor) / 6);
+          const deposit = Math.ceil((deploymentCost * secToDepositFor) / averageBlockTime);
 
           const isConfirmed = await confirm({
             title: "Deposit required",
-            message: `To enable auto top-up, you need to deposit $${udenomToUsd(deposit, deployment.escrowAccount.balance.denom)}. This is required to maintain your deployment til the next scheduled check.`
+            message: `To enable auto top-up, please deposit $${udenomToUsd(deposit, deployment.escrowAccount.balance.denom)}. This ensures your deployment remains active until the next scheduled check.`
           });
 
           if (!isConfirmed) {
@@ -177,7 +178,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
 
             {isManaged && !isTrialing && browserEnvConfig.NEXT_PUBLIC_AUTO_TOP_UP_ENABLED && (
               <div className="ml-4 flex items-center gap-2">
-                <Switch checked={deploymentSetting.data?.autoTopUpEnabled} onCheckedChange={setAutoTopUpEnabled} />
+                <Switch checked={deploymentSetting.data?.autoTopUpEnabled} onCheckedChange={setAutoTopUpEnabled} disabled={deploymentSetting.isLoading} />
                 <span>Auto top-up</span>
                 <CustomTooltip
                   title={
@@ -196,6 +197,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
                 >
                   <span className="cursor-help text-muted-foreground">ⓘ</span>
                 </CustomTooltip>
+                {deploymentSetting.isLoading && <Spinner />}
               </div>
             )}
           </div>
