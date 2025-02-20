@@ -94,7 +94,9 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
     resolver: zodResolver(seedFormSchema)
   });
 
-  const [copiedCommand, setCopiedCommand] = useState(false);
+  const [copiedRootCommand, setCopiedRootCommand] = useState(false);
+  const [copiedInstallCommand, setCopiedInstallCommand] = useState(false);
+  const [copiedAddKeyCommand, setCopiedAddKeyCommand] = useState(false);
   const [copiedPassphrase, setCopiedPassphrase] = useState(false);
 
   const handleCopy = (text: string, setCopied: React.Dispatch<React.SetStateAction<boolean>>) => {
@@ -346,8 +348,30 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                 Go to your control node's root directory
                 <div className="bg-secondary relative mt-2 rounded-md p-4">
                   <code className="text-sm">cd ~</code>
-                  <Button variant="ghost" size="sm" className="absolute right-2 top-2" onClick={() => handleCopy("cd ~", setCopiedCommand)}>
-                    {copiedCommand ? <Check className="text-green-500" /> : <Copy />}
+                  <Button variant="ghost" size="sm" className="absolute right-2 top-2" onClick={() => handleCopy("cd ~", setCopiedRootCommand)}>
+                    {copiedRootCommand ? <Check className="text-green-500" /> : <Copy />}
+                  </Button>
+                </div>
+              </li>
+              <li>
+                Run This Command: Copy and paste the following command into the terminal, then press Enter:
+                <div className="bg-secondary relative mt-2 rounded-md p-4">
+                  <code className="text-sm">
+                    curl https://raw.githubusercontent.com/akash-network/provider/main/install.sh | bash -s $(curl -s
+                    https://api.github.com/repos/akash-network/provider/releases/latest | jq -r '.tag_name')
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-2"
+                    onClick={() =>
+                      handleCopy(
+                        "curl https://raw.githubusercontent.com/akash-network/provider/main/install.sh | bash -s $(curl -s https://api.github.com/repos/akash-network/provider/releases/latest | jq -r '.tag_name')",
+                        setCopiedInstallCommand
+                      )
+                    }
+                  >
+                    {copiedInstallCommand ? <Check className="text-green-500" /> : <Copy />}
                   </Button>
                 </div>
               </li>
@@ -359,9 +383,9 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                     variant="ghost"
                     size="sm"
                     className="absolute right-2 top-2"
-                    onClick={() => handleCopy("~/bin/provider-services keys add provider --recover --keyring-backend file", setCopiedCommand)}
+                    onClick={() => handleCopy("~/bin/provider-services keys add provider --recover --keyring-backend file", setCopiedAddKeyCommand)}
                   >
-                    {copiedCommand ? <Check className="text-green-500" /> : <Copy />}
+                    {copiedAddKeyCommand ? <Check className="text-green-500" /> : <Copy />}
                   </Button>
                 </div>
               </li>
@@ -371,7 +395,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                   <li>
                     First, it will ask for your 12 or 24-word mnemonic phrase. <br />
                     Type or paste the seed phrase for the wallet you want to import and press Enter. <br />
-                    Next, it will ask for your wallet passphrase.{" "}
+                    Next, it will ask for your wallet passphrase (Make sure you use below passphrase).{" "}
                   </li>
                   <li>
                     Copy and paste the passphrase below and press Enter:
