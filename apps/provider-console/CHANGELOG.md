@@ -1,5 +1,12 @@
 
 
+## [1.1.0](https://github.com/akash-network/console/compare/provider-console/v1.0.7...provider-console/v1.1.0) (2025-02-20)
+
+
+### Features
+
+* **provider:** added auto attributes, fixed issue on activity-logs ([#872](https://github.com/akash-network/console/issues/872)) ([309922b](https://github.com/akash-network/console/commit/309922ba65013363c024ff7ace1f00d2bfe64004))
+
 ## [1.0.7](https://github.com/akash-network/console/compare/provider-console/v1.0.6...provider-console/v1.0.7) (2025-02-19)
 
 
