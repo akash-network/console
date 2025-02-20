@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Avatar, AvatarFallback, Button, DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, Spinner } from "@akashnetwork/ui/components";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
-import { User } from "iconoir-react";
+import { Key, User } from "iconoir-react";
 import { Bell, LogOut, MultiplePages, Settings, Star } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
@@ -68,7 +68,10 @@ export function AccountMenu() {
                         )}
                         <DropdownMenuSeparator />
                         <CustomDropdownLinkItem onClick={() => router.push(UrlService.userSettings())} icon={<Settings />}>
-                          Settings
+                          Profile Settings
+                        </CustomDropdownLinkItem>
+                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.userApiKeys())} icon={<Key />}>
+                          API Keys
                         </CustomDropdownLinkItem>
                         {username && (
                           <CustomDropdownLinkItem onClick={() => router.push(UrlService.userProfile(username))} icon={<MultiplePages />}>

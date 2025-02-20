@@ -2,7 +2,7 @@
   "dependencies": {
     "@akashnetwork/database": "1.0.0",
     "@akashnetwork/env-loader": "1.0.1",
-    "@akashnetwork/http-sdk": "1.1.3",
+    "@akashnetwork/http-sdk": "1.1.4",
     "@akashnetwork/logging": "2.0.2"
   }
 }

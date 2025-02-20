@@ -16,5 +16,6 @@ export const ApiKeys = pgTable("api_keys", {
   name: varchar("name").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  expiresAt: timestamp("expires_at")
+  expiresAt: timestamp("expires_at"),
+  lastUsedAt: timestamp("last_used_at")
 });

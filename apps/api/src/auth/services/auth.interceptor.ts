@@ -9,8 +9,10 @@ import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.servi
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import { kvStore } from "@src/middlewares/userMiddleware";
 import { UserOutput, UserRepository } from "@src/user/repositories";
+import { toUTC } from "@src/utils";
 import { env } from "@src/utils/env";
 import { getJwks, useKVStore, verify } from "@src/verify-rsa-jwt-cloudflare-worker-main";
+import { ApiKeyRepository } from "../repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "./api-key/api-key-auth.service";
 
 @singleton()
@@ -22,6 +24,7 @@ export class AuthInterceptor implements HonoInterceptor {
     private readonly userRepository: UserRepository,
     private readonly authService: AuthService,
     private readonly anonymousUserAuthService: AuthTokenService,
+    private readonly apiKeyRepository: ApiKeyRepository,
     private readonly apiKeyAuthService: ApiKeyAuthService
   ) {}
 
@@ -55,6 +58,13 @@ export class AuthInterceptor implements HonoInterceptor {
           const currentUser = await this.userRepository.findByUserId(apiKeyOutput.userId);
           await this.auth(currentUser);
           c.set("user", currentUser);
+
+          if (apiKeyOutput && currentUser) {
+            await this.apiKeyRepository.updateById(apiKeyOutput.id, {
+              lastUsedAt: toUTC(new Date())
+            });
+          }
+
           return await next();
         } catch (error) {
           this.logger.error(error);
