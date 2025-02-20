@@ -5,8 +5,7 @@ Sentry.init({
   enabled: !!process.env.NEXT_PUBLIC_SENTRY_DSN,
   integrations: [
     Sentry.replayIntegration(),
-    new Sentry.BrowserTracing({
-      // Set sampling rate for performance monitoring
+    Sentry.browserTracingIntegration({
       tracePropagationTargets: ["localhost", /^https:\/\/provider-console.akash.network/]
     })
   ],
