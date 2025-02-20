@@ -16,19 +16,31 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
   const [openAccordions, setOpenAccordions] = useState<boolean[]>([]);
   const [taskLogs, setTaskLogs] = useState<TaskLogs>({});
   const [loadingLogs, setLoadingLogs] = useState<{ [taskId: string]: boolean }>({});
+  const [elapsedTimes, setElapsedTimes] = useState<{ [taskId: string]: string }>({});
   const logStreams = useRef<{ [taskId: string]: EventSourcePolyfill | null }>({});
   const { data: actionDetails, isLoading } = useProviderActionStatus(actionId);
 
   useEffect(() => {
-    if (actionDetails) {
+    if (actionDetails && actionDetails.tasks) {
       const initialAccordions = actionDetails.tasks?.map(task => task.status === "in_progress");
       setOpenAccordions(initialAccordions ?? []);
     }
   }, [actionDetails]);
 
   useEffect(() => {
-    if (actionDetails?.tasks) {
-      Object.values(logStreams.current).forEach(stream => stream?.close());
+    if (actionDetails?.tasks?.length && actionDetails.tasks.length > 0) {
+      // Safely close existing streams
+      if (logStreams.current) {
+        Object.values(logStreams.current).forEach(stream => {
+          if (stream && typeof stream.close === "function") {
+            try {
+              stream.close();
+            } catch (error) {
+              console.warn("Error closing stream:", error);
+            }
+          }
+        });
+      }
       logStreams.current = {};
 
       actionDetails.tasks.forEach((task, index) => {
@@ -41,7 +53,11 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
           setupLogStream(task.id);
         } else {
           if (logStreams.current[task.id]) {
-            logStreams.current[task.id]?.close();
+            try {
+              logStreams.current[task.id]?.close();
+            } catch (error) {
+              console.warn("Error closing stream:", error);
+            }
             logStreams.current[task.id] = null;
           }
         }
@@ -49,9 +65,40 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
     }
 
     return () => {
-      Object.values(logStreams.current).forEach(stream => stream?.close());
+      // Cleanup function
+      if (logStreams.current) {
+        Object.values(logStreams.current).forEach(stream => {
+          if (stream && typeof stream.close === "function") {
+            try {
+              stream.close();
+            } catch (error) {
+              console.warn("Error closing stream:", error);
+            }
+          }
+        });
+      }
       logStreams.current = {};
     };
+  }, [actionDetails?.tasks]);
+
+  useEffect(() => {
+    if (!actionDetails?.tasks) return;
+
+    const interval = setInterval(() => {
+      const newElapsedTimes: { [taskId: string]: string } = {};
+
+      actionDetails?.tasks?.forEach(task => {
+        if (task.status === "in_progress" && task.start_time) {
+          newElapsedTimes[task.id] = formatTimeLapse(task.start_time, null);
+        } else if (task.start_time && task.end_time) {
+          newElapsedTimes[task.id] = formatTimeLapse(task.start_time, task.end_time);
+        }
+      });
+
+      setElapsedTimes(newElapsedTimes);
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, [actionDetails?.tasks]);
 
   const fetchTaskLogs = async (taskId: string) => {
@@ -79,6 +126,8 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
     eventSource.onmessage = event => {
       try {
         const logData = JSON.parse(event.data);
+        if (!logData || !logData.message) return; // Skip invalid messages
+
         const formattedMessage = `${logData.message}`;
 
         setTaskLogs(prev => ({
@@ -125,7 +174,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
       );
     }
 
-    if (!logs) {
+    if (!logs || typeof logs !== "string") {
       return (
         <div className="text-muted-foreground mt-4 flex items-center justify-center" style={{ height: 200 }}>
           No logs recorded for this task or this task is more than 7 days old.
@@ -133,30 +182,44 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
       );
     }
 
-    return (
-      <div className="mt-4" style={{ height: 200 }}>
-        <ScrollFollow
-          startFollowing={true}
-          render={({ follow, onScroll }) => (
-            <LazyLog
-              text={logs}
-              follow={follow}
-              onScroll={onScroll}
-              highlight={[]}
-              extraLines={1}
-              ansi
-              caseInsensitive
-              selectableLines
-              enableLineNumbers={false}
-              containerStyle={{
-                maxHeight: "200px",
-                borderRadius: "0.375rem"
-              }}
-            />
-          )}
-        />
-      </div>
-    );
+    try {
+      const sanitizedLogs = logs.trim();
+
+      return (
+        <div className="mt-4" style={{ height: 200 }}>
+          <ScrollFollow
+            startFollowing={true}
+            render={({ onScroll }) => (
+              <LazyLog
+                text={sanitizedLogs}
+                follow={true}
+                onScroll={onScroll}
+                highlight={[]}
+                extraLines={1}
+                ansi
+                caseInsensitive
+                selectableLines
+                enableLineNumbers={false}
+                containerStyle={{
+                  maxHeight: "200px",
+                  borderRadius: "0.375rem",
+                  backgroundColor: "var(--log-background, #1e1e1e)",
+                  color: "var(--log-text, #ffffff)"
+                }}
+                key={`${taskId}-${sanitizedLogs.length}`}
+                scrollToLine={sanitizedLogs.split("\n").length}
+              />
+            )}
+          />
+        </div>
+      );
+    } catch (error) {
+      return (
+        <div className="mt-4 rounded-md bg-gray-100 p-4 dark:bg-gray-800" style={{ height: 200, overflowY: "auto" }}>
+          <pre className="whitespace-pre-wrap break-words text-sm">{logs}</pre>
+        </div>
+      );
+    }
   };
 
   if (actionId === null) {
@@ -205,15 +268,7 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
                     <span>{task.description}</span>
                   </div>
                   <div className="flex items-center">
-                    {task.start_time && (
-                      <p className="text-muted-foreground mr-2 text-xs">
-                        {task.status === "in_progress"
-                          ? formatTimeLapse(task.start_time, null)
-                          : task.end_time
-                            ? formatTimeLapse(task.start_time, task.end_time)
-                            : ""}
-                      </p>
-                    )}
+                    {task.start_time && <p className="text-muted-foreground mr-2 text-xs">{elapsedTimes[task.id] || ""}</p>}
                     {task.status === "completed" && <Check className="h-4 w-4 text-green-500" />}
                     {task.status === "in_progress" && <Spinner className="text-blue-500" size="small" />}
                     {task.status === "not_started" && <div className="h-5 w-5 rounded-full border-2"></div>}
