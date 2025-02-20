@@ -1,7 +1,7 @@
-import { CreateApiKeyRequest, ListApiKeysResponse, SingleApiKeyResponse, UpdateApiKeyRequest } from "@akashnetwork/http-sdk";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
+import { CreateApiKeyRequest, ListApiKeysResponse, SingleApiKeyResponse, UpdateApiKeyRequest } from "@src/auth/http-schemas/api-key.schema";
 import { ApiKeyService } from "@src/auth/services/api-key/api-key.service";
 import { Protected } from "@src/auth/services/auth.service";
 

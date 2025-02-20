@@ -1,15 +1,15 @@
-import {
-  CreateApiKeyRequestSchema,
-  FindApiKeyParamsSchema,
-  ListApiKeysResponseSchema,
-  SingleApiKeyResponseSchema,
-  UpdateApiKeyRequestSchema
-} from "@akashnetwork/http-sdk";
 import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
 import { ApiKeyController } from "@src/auth/controllers/api-key/api-key.controller";
+import {
+  CreateApiKeyRequestSchema,
+  FindApiKeyParamsSchema,
+  SingleApiKeyResponseSchema,
+  UpdateApiKeyRequestSchema
+} from "@src/auth/http-schemas/api-key.schema";
+import { ListApiKeysResponseSchema } from "@src/auth/http-schemas/api-key.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
 const listRoute = createRoute({

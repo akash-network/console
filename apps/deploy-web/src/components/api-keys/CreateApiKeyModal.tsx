@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { ActionButton, Button, Form, FormField, FormInput, Input, Popup, Snackbar } from "@akashnetwork/ui/components";
 import { copyTextToClipboard } from "@akashnetwork/ui/utils";
@@ -42,43 +42,48 @@ export const CreateApiKeyModal = ({ isOpen, onClose }: Props) => {
   } = form;
   const isCreatingNewKey = !createdApiKey;
   const apiKey = createdApiKey?.apiKey || "";
-  const actions: ActionButton[] = isCreatingNewKey
-    ? [
-        {
-          label: "Cancel",
-          color: "primary",
-          variant: "secondary",
-          side: "left",
-          onClick: onClose
-        },
-        {
-          label: "Create Key",
-          color: "secondary",
-          variant: "default",
-          side: "right",
-          disabled: !!errors.name || isLoading,
-          isLoading,
-          onClick: event => {
-            event.preventDefault();
-            formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
-          }
-        }
-      ]
-    : [
-        {
-          label: "Done",
-          color: "primary",
-          variant: "secondary",
-          side: "right",
-          onClick: onClose
-        }
-      ];
+  const actions: ActionButton[] = useMemo(
+    () =>
+      isCreatingNewKey
+        ? [
+            {
+              label: "Cancel",
+              color: "primary",
+              variant: "secondary",
+              side: "left",
+              onClick: onClose
+            },
+            {
+              label: "Create Key",
+              color: "secondary",
+              variant: "default",
+              side: "right",
+              disabled: !!errors.name || isLoading,
+              isLoading,
+              onClick: event => {
+                event.preventDefault();
+                formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+              }
+            }
+          ]
+        : [
+            {
+              label: "Done",
+              color: "primary",
+              variant: "secondary",
+              side: "right",
+              onClick: onClose
+            }
+          ],
+    [isCreatingNewKey, isLoading, errors.name, onClose]
+  );
+
   const onCopyClick = () => {
     copyTextToClipboard(apiKey);
     enqueueSnackbar(<Snackbar title="Copied to clipboard!" iconVariant="success" />, { variant: "success", autoHideDuration: 1500 });
   };
 
-  const onSubmit = async ({ name }) => {
+  const createApiKeyTracked = async ({ name }) => {
     analyticsService.track("create_api_key", {
       category: "settings",
       label: "Create API key"
@@ -100,7 +105,7 @@ export const CreateApiKeyModal = ({ isOpen, onClose }: Props) => {
     >
       {isCreatingNewKey ? (
         <Form {...form}>
-          <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+          <form onSubmit={handleSubmit(createApiKeyTracked)} ref={formRef}>
             <div className="py-4">
               <FormField
                 control={control}
