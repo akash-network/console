@@ -4,19 +4,22 @@ Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   enabled: !!process.env.NEXT_PUBLIC_SENTRY_DSN,
   integrations: [
-    Sentry.replayIntegration(),
-    Sentry.browserTracingIntegration({
-      tracePropagationTargets: ["localhost", /^https:\/\/provider-console.akash.network/]
-    })
+    Sentry.browserTracingIntegration(),
+    Sentry.replayIntegration() // Use this instead of new Sentry.Replay()
   ],
-  // Session replay sampling rates
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
 
-  // Performance monitoring sampling rate
-  tracesSampleRate: 0.2,
+  // Performance Monitoring
+  tracesSampleRate: 1.0, // Capture all transactions (adjust in production)
+  profilesSampleRate: 0.1, // Capture CPU profiles (useful for debugging performance)
 
-  // Enable automatic instrumentation for analytics
-  enableAutoSessionTracking: true,
-  sessionTrackingIntervalMillis: 30000
+  // Session Replay Configuration
+  replaysSessionSampleRate: 0.1, // Capture 10% of sessions for replay
+  replaysOnErrorSampleRate: 1.0, // Always capture sessions when an error occurs
+
+  // Additional Debugging Options
+  normalizeDepth: 5, // Increase depth of serialized objects for better error insights
+  ignoreErrors: [
+    "Non-Error promise rejection", // Ignore common harmless errors
+    "ResizeObserver loop limit exceeded"
+  ]
 });
