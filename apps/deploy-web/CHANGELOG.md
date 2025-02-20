@@ -1,5 +1,12 @@
 
 
+## [2.49.0](https://github.com/akash-network/console/compare/console-web/v2.48.0...console-web/v2.49.0) (2025-02-20)
+
+
+### Features
+
+* **users:** api keys UI ([#857](https://github.com/akash-network/console/issues/857)) ([32f9567](https://github.com/akash-network/console/commit/32f9567f05590c2d9bbd6445366570c474f8e063))
+
 ## [2.48.0](https://github.com/akash-network/console/compare/console-web/v2.47.0...console-web/v2.48.0) (2025-02-20)
 
 

@@ -1,5 +1,12 @@
 
 
+## [2.65.0](https://github.com/akash-network/console/compare/console-api/v2.64.0...console-api/v2.65.0) (2025-02-20)
+
+
+### Features
+
+* **users:** api keys UI ([#857](https://github.com/akash-network/console/issues/857)) ([32f9567](https://github.com/akash-network/console/commit/32f9567f05590c2d9bbd6445366570c474f8e063))
+
 ## [2.64.0](https://github.com/akash-network/console/compare/console-api/v2.63.1...console-api/v2.64.0) (2025-02-19)
 
 

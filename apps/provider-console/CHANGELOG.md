@@ -1,5 +1,12 @@
 
 
+## [1.1.1](https://github.com/akash-network/console/compare/provider-console/v1.1.0...provider-console/v1.1.1) (2025-02-20)
+
+
+### Bug Fixes
+
+* **provider:** added akash install step in manual wallet import part ([#875](https://github.com/akash-network/console/issues/875)) ([d8a21bd](https://github.com/akash-network/console/commit/d8a21bdb1f63cdb4ccc6e1de151fec9bde080476))
+
 ## [1.1.0](https://github.com/akash-network/console/compare/provider-console/v1.0.7...provider-console/v1.1.0) (2025-02-20)
 
 
