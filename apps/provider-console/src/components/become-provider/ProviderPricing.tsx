@@ -21,6 +21,7 @@ import { useAtom } from "jotai";
 import { z } from "zod";
 
 import { useControlMachine } from "@src/context/ControlMachineProvider";
+import { useGpuPrices } from "@src/queries/useProviderQuery";
 import providerProcessStore from "@src/store/providerProcessStore";
 import { ProviderDetails } from "@src/types/provider";
 import { roundDecimal } from "@src/utils/mathHelpers";
@@ -56,6 +57,8 @@ const providerPricingSchema = z.object({
 
 type ProviderPricingValues = z.infer<typeof providerPricingSchema>;
 
+const HOURS_PER_MONTH = 730.488;
+
 export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, editMode = false, existingPricing, disabled = false, providerDetails }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const { activeControlMachine } = useControlMachine();
@@ -68,6 +71,8 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
     gpu: 5
   });
   const [isLoading, setIsLoading] = useState(false);
+  const { data: gpuPricesData } = useGpuPrices();
+  const [gpuMarketPrice, setGpuMarketPrice] = useState<number | null>(null);
 
   useEffect(() => {
     const calculateResources = () => {
@@ -122,25 +127,74 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
     calculateResources();
   }, [providerProcess.machines, editMode, providerDetails]);
 
+  useEffect(() => {
+    if (!gpuPricesData) return;
+
+    // Get GPU configurations from provider process
+    const gpuConfigs = providerProcess.machines?.map(machine => machine.systemInfo?.gpu).filter(Boolean);
+
+    if (!gpuConfigs?.length) return;
+
+    // Calculate weighted average price based on matching GPUs
+    let totalWeightedPrice = 0;
+    let totalGpus = 0;
+
+    gpuConfigs.forEach(gpu => {
+      const matchingModel = gpuPricesData.models.find(
+        model =>
+          model.vendor.toLowerCase() === gpu.vendor.toLowerCase() &&
+          model.model.toLowerCase() === gpu.name.toLowerCase() &&
+          model.ram.toLowerCase() === gpu.memory_size.toLowerCase() &&
+          model.interface.toLowerCase() === gpu.interface.toLowerCase()
+      );
+
+      if (matchingModel) {
+        totalWeightedPrice += matchingModel.price.weightedAverage * gpu.count;
+        totalGpus += gpu.count;
+      }
+    });
+
+    const averageMarketPrice = totalGpus > 0 ? totalWeightedPrice / totalGpus : null;
+    setGpuMarketPrice(averageMarketPrice);
+  }, [gpuPricesData, providerProcess.machines]);
+
   const [showAdvanced, setShowAdvanced] = useState(false);
   const form = useForm<ProviderPricingValues>({
     resolver: zodResolver(providerPricingSchema),
-    defaultValues: editMode
-      ? existingPricing
-      : {
-          gpu: 100,
-          cpu: 1.6,
-          memory: 0.8,
-          storage: 0.02,
-          persistentStorage: 0.3,
-          ipScalePrice: 5,
-          endpointBidPrice: 0.5
-        }
+    defaultValues:
+      editMode && existingPricing
+        ? {
+            gpu: Number((existingPricing.gpu / HOURS_PER_MONTH).toFixed(3)),
+            cpu: Number((existingPricing.cpu / HOURS_PER_MONTH).toFixed(4)),
+            memory: Number((existingPricing.memory / HOURS_PER_MONTH).toFixed(4)),
+            storage: Number((existingPricing.storage / HOURS_PER_MONTH).toFixed(6)),
+            persistentStorage: Number((existingPricing.persistentStorage / HOURS_PER_MONTH).toFixed(5)),
+            ipScalePrice: Number((existingPricing.ipScalePrice / HOURS_PER_MONTH).toFixed(4)),
+            endpointBidPrice: Number((existingPricing.endpointBidPrice / HOURS_PER_MONTH).toFixed(5))
+          }
+        : {
+            gpu: 0.55,
+            cpu: 0.0022,
+            memory: 0.0011,
+            storage: 0.000027,
+            persistentStorage: 0.0004,
+            ipScalePrice: 0.0069,
+            endpointBidPrice: 0.00069
+          }
   });
 
   useEffect(() => {
     if (editMode && existingPricing) {
-      form.reset(existingPricing);
+      const hourlyPricing = {
+        gpu: Number((existingPricing.gpu / HOURS_PER_MONTH).toFixed(3)),
+        cpu: Number((existingPricing.cpu / HOURS_PER_MONTH).toFixed(4)),
+        memory: Number((existingPricing.memory / HOURS_PER_MONTH).toFixed(4)),
+        storage: Number((existingPricing.storage / HOURS_PER_MONTH).toFixed(6)),
+        persistentStorage: Number((existingPricing.persistentStorage / HOURS_PER_MONTH).toFixed(5)),
+        ipScalePrice: Number((existingPricing.ipScalePrice / HOURS_PER_MONTH).toFixed(4)),
+        endpointBidPrice: Number((existingPricing.endpointBidPrice / HOURS_PER_MONTH).toFixed(5))
+      };
+      form.reset(hourlyPricing);
     }
   }, [editMode, existingPricing, form]);
 
@@ -167,7 +221,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
         totalIpScaleEarnings +
         totalEndpointBidEarnings;
 
-      return totalEarnings * 0.8;
+      return totalEarnings * 0.8 * 730.88;
     },
     [resources]
   );
@@ -176,13 +230,13 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
 
   const calculateDefaultEarnings = useCallback(() => {
     const defaultPricing = {
-      gpu: 100,
-      cpu: 1.6,
-      memory: 0.8,
-      storage: 0.02,
-      persistentStorage: 0.3,
-      ipScalePrice: 5,
-      endpointBidPrice: 0.5
+      gpu: gpuMarketPrice ?? 0.55,
+      cpu: 0.0022,
+      memory: 0.0011,
+      storage: 0.000027,
+      persistentStorage: 0.0004,
+      ipScalePrice: 0.0069,
+      endpointBidPrice: 0.00069
     };
 
     const { cpu, memory, storage, gpu, persistentStorage, ipScalePrice, endpointBidPrice } = defaultPricing;
@@ -204,17 +258,28 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
       totalIpScaleEarnings +
       totalEndpointBidEarnings;
 
-    return totalEarnings * 0.8;
-  }, [resources]);
+    return totalEarnings * 0.8 * 730.88;
+  }, [resources, gpuMarketPrice]);
 
   const competitiveEarnings = calculateDefaultEarnings();
 
   const updateProviderPricingAndProceed = async (data: ProviderPricingValues) => {
     setIsLoading(true);
+    // Convert hourly prices to monthly prices
+    const monthlyPricing = {
+      gpu: data.gpu * HOURS_PER_MONTH,
+      cpu: data.cpu * HOURS_PER_MONTH,
+      memory: data.memory * HOURS_PER_MONTH,
+      storage: data.storage * HOURS_PER_MONTH,
+      persistentStorage: data.persistentStorage * HOURS_PER_MONTH,
+      ipScalePrice: data.ipScalePrice * HOURS_PER_MONTH,
+      endpointBidPrice: data.endpointBidPrice * HOURS_PER_MONTH
+    };
+
     if (!editMode) {
       setProviderProcess(prev => ({
         ...prev,
-        pricing: data,
+        pricing: monthlyPricing,
         process: {
           ...prev.process,
           providerPricing: true
@@ -224,7 +289,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
     } else {
       const request = {
         control_machine: sanitizeMachineAccess(activeControlMachine),
-        pricing: data
+        pricing: monthlyPricing
       };
 
       const response = await restClient.post(`/update-provider-pricing`, request);
@@ -265,18 +330,18 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                             disabled={disabled}
                             value={[field.value]}
                             onValueChange={([newValue]) => field.onChange(newValue)}
-                            max={500}
-                            step={0.01}
+                            max={3}
+                            step={0.001}
                             className="w-full"
                           />
                           <Input
                             disabled={disabled}
                             type="number"
                             {...field}
-                            onChange={e => field.onChange(parseFloat(e.target.value))}
+                            onChange={e => field.onChange(Number(parseFloat(e.target.value).toFixed(3)))}
                             className="w-72"
-                            step="0.01"
-                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/GPU-month</span>}
+                            step="0.001"
+                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/GPU-hour</span>}
                           />
                         </div>
                       </FormControl>
@@ -296,18 +361,18 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                             disabled={disabled}
                             value={[field.value]}
                             onValueChange={([newValue]) => field.onChange(newValue)}
-                            max={4}
-                            step={0.01}
+                            max={0.01}
+                            step={0.0001}
                             className="w-full"
                           />
                           <Input
                             disabled={disabled}
                             type="number"
                             {...field}
-                            onChange={e => field.onChange(parseFloat(e.target.value))}
+                            onChange={e => field.onChange(Number(parseFloat(e.target.value).toFixed(4)))}
                             className="w-72"
                             step="0.001"
-                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/thread-month</span>}
+                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/thread-hour</span>}
                           />
                         </div>
                       </FormControl>
@@ -327,18 +392,18 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                             disabled={disabled}
                             value={[field.value]}
                             onValueChange={([newValue]) => field.onChange(newValue)}
-                            max={4}
-                            step={0.001}
+                            max={0.005}
+                            step={0.0001}
                             className="w-full"
                           />
                           <Input
                             disabled={disabled}
                             type="number"
                             {...field}
-                            onChange={e => field.onChange(parseFloat(e.target.value))}
+                            onChange={e => field.onChange(Number(parseFloat(e.target.value).toFixed(4)))}
                             className="w-72"
                             step="0.001"
-                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/GB-month</span>}
+                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/GB-hour</span>}
                           />
                         </div>
                       </FormControl>
@@ -358,18 +423,18 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                             disabled={disabled}
                             value={[field.value]}
                             onValueChange={([newValue]) => field.onChange(newValue)}
-                            max={0.1}
-                            step={0.001}
+                            max={0.0001}
+                            step={0.000001}
                             className="w-full"
                           />
                           <Input
                             disabled={disabled}
                             type="number"
                             {...field}
-                            onChange={e => field.onChange(parseFloat(e.target.value))}
+                            onChange={e => field.onChange(Number(parseFloat(e.target.value).toFixed(6)))}
                             className="w-72"
                             step="0.001"
-                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/GB-month</span>}
+                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/GB-hour</span>}
                           />
                         </div>
                       </FormControl>
@@ -389,18 +454,18 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                             disabled={disabled}
                             value={[field.value]}
                             onValueChange={([newValue]) => field.onChange(newValue)}
-                            max={1}
-                            step={0.01}
+                            max={0.002}
+                            step={0.00001}
                             className="w-full"
                           />
                           <Input
                             disabled={disabled}
                             type="number"
                             {...field}
-                            onChange={e => field.onChange(parseFloat(e.target.value))}
+                            onChange={e => field.onChange(Number(parseFloat(e.target.value).toFixed(5)))}
                             className="w-72"
                             step="0.01"
-                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/GB-month</span>}
+                            endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/GB-hour</span>}
                           />
                         </div>
                       </FormControl>
@@ -429,18 +494,18 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                                 disabled={disabled}
                                 value={[field.value]}
                                 onValueChange={([newValue]) => field.onChange(newValue)}
-                                max={10}
-                                step={0.1}
+                                max={0.02}
+                                step={0.0001}
                                 className="w-full"
                               />
                               <Input
                                 disabled={disabled}
                                 type="number"
                                 {...field}
-                                onChange={e => field.onChange(parseFloat(e.target.value))}
+                                onChange={e => field.onChange(Number(parseFloat(e.target.value).toFixed(4)))}
                                 className="w-72"
                                 step="0.1"
-                                endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/IP-month</span>}
+                                endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/IP-hour</span>}
                               />
                             </div>
                           </FormControl>
@@ -460,18 +525,18 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                                 disabled={disabled}
                                 value={[field.value]}
                                 onValueChange={([newValue]) => field.onChange(newValue)}
-                                max={1}
-                                step={0.01}
+                                max={0.003}
+                                step={0.00001}
                                 className="w-full"
                               />
                               <Input
                                 disabled={disabled}
                                 type="number"
                                 {...field}
-                                onChange={e => field.onChange(parseFloat(e.target.value))}
+                                onChange={e => field.onChange(Number(parseFloat(e.target.value).toFixed(5)))}
                                 className="w-72"
                                 step="0.01"
-                                endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/port-month</span>}
+                                endIcon={<span className="text-muted-foreground pr-3 text-sm">USD/port-hour</span>}
                               />
                             </div>
                           </FormControl>
@@ -521,6 +586,9 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                   <div>
                     <span className="text-sm">Benchmark Price</span>
                     <div className="text-2xl font-bold">${competitiveEarnings.toFixed(2)}/month</div>
+                    {gpuMarketPrice && (
+                      <p className="text-muted-foreground mt-2 text-sm">Current market rate for your GPU configuration: ${gpuMarketPrice.toFixed(2)}/hour</p>
+                    )}
                   </div>
                 </div>
               </div>
