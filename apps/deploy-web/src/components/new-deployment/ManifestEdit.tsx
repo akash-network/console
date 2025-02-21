@@ -13,10 +13,8 @@ import { useSnackbar } from "notistack";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
-import { useChainParam } from "@src/context/ChainParamProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDepositParams } from "@src/queries/useSettings";
@@ -36,6 +34,7 @@ import { domainName, handleDocClick, UrlService } from "@src/utils/urlUtils";
 import { updateWallet } from "@src/utils/walletUtils";
 import { useSettings } from "../../context/SettingsProvider";
 import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
+import { DeploymentMinimumEscrowAlertText } from "../sdl/DeploymentMinimumEscrowAlertText";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { DynamicMonacoEditor } from "../shared/DynamicMonacoEditor";
 import { LinkTo } from "../shared/LinkTo";
@@ -66,6 +65,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const [isRepoInputValid, setIsRepoInputValid] = useState(false);
   const [sdlDenom, setSdlDenom] = useState("uakt");
+
   const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged, isTrialing } = useWallet();
   const router = useRouter();
@@ -74,7 +74,6 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const sdlBuilderRef = useRef<SdlBuilderRefType>(null);
-  const { minDeposit } = useChainParam();
   const { hasComponent } = useSdlBuilder();
   const searchParams = useSearchParams();
   const templateId = searchParams.get("templateId");
@@ -82,8 +81,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const defaultDeposit = depositParams || browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
   const wallet = useWallet();
   const managedDenom = useManagedWalletDenom();
-  const { createDeploymentConfirm } = useManagedDeploymentConfirm();
   const { enqueueSnackbar } = useSnackbar();
+  const services = importSimpleSdl(editedManifest as string);
 
   useWhen(
     wallet.isManaged && sdlDenom === "uakt" && editedManifest,
@@ -191,18 +190,12 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     }
 
     if (isManaged) {
-      const services = importSimpleSdl(editedManifest as string);
-
       if (!services) {
         setParsingError("Error while parsing SDL file");
         return;
       }
 
-      const isConfirmed = await createDeploymentConfirm(services);
-
-      if (isConfirmed) {
-        await handleCreateClick(defaultDeposit, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
-      }
+      setIsDepositingDeployment(true);
     } else {
       setIsCheckingPrerequisites(true);
     }
@@ -428,14 +421,16 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
           handleCancel={() => setIsDepositingDeployment(false)}
           onDeploymentDeposit={onDeploymentDeposit}
           denom={sdlDenom}
+          title="Confirm deployment creation?"
           infoText={
             <Alert className="mb-4 text-xs" variant="default">
-              To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
+              <DeploymentMinimumEscrowAlertText />
               <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/other-resources/payments/")}>
                 <strong>Learn more.</strong>
               </LinkTo>
             </Alert>
           }
+          services={services}
         />
       )}
       {isCheckingPrerequisites && <PrerequisiteList onClose={() => setIsCheckingPrerequisites(false)} onContinue={onPrerequisiteContinue} />}

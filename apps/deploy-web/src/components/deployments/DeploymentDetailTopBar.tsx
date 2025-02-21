@@ -103,6 +103,8 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
         label: "Deposit deployment in deployment detail"
       });
     }
+
+    return response;
   };
 
   const setAutoTopUpEnabled = useCallback(
@@ -124,7 +126,11 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
             return;
           }
 
-          await onDeploymentDeposit(deposit, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+          const isSuccess = await onDeploymentDeposit(deposit, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+
+          if (!isSuccess) {
+            return;
+          }
         }
       }
 
