@@ -1,5 +1,12 @@
 
 
+## [2.49.1](https://github.com/akash-network/console/compare/console-web/v2.49.0...console-web/v2.49.1) (2025-02-21)
+
+
+### Bug Fixes
+
+* **deployment:** only enables auto top up if deposit is successful ([151b781](https://github.com/akash-network/console/commit/151b78178ff392fd2106e598bb01e481ddf8086d))
+
 ## [2.49.0](https://github.com/akash-network/console/compare/console-web/v2.48.0...console-web/v2.49.0) (2025-02-20)
 
 
