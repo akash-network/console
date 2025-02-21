@@ -11,10 +11,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
-import { useChainParam } from "@src/context/ChainParamProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
 import { useGpuModels } from "@src/queries/useGpuQuery";
@@ -40,6 +38,7 @@ import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import { AdvancedConfig } from "./AdvancedConfig";
 import { CpuFormControl } from "./CpuFormControl";
+import { DeploymentMinimumEscrowAlertText } from "./DeploymentMinimumEscrowAlertText";
 import { FormPaper } from "./FormPaper";
 import { GpuFormControl } from "./GpuFormControl";
 import { ImageSelect } from "./ImageSelect";
@@ -74,9 +73,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx, isManaged } = useWallet();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [sdlDenom, setSdlDenom] = useState("uakt");
-  const { minDeposit } = useChainParam();
   const router = useRouter();
-  const { createDeploymentConfirm } = useManagedDeploymentConfirm();
   const managedDenom = useManagedWalletDenom();
   const { data: depositParams } = useDepositParams();
   const defaultDeposit = depositParams || browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
@@ -206,13 +203,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
     setRentGpuSdl(data);
 
     if (isManaged) {
-      const isConfirmed = await createDeploymentConfirm(rentGpuSdl?.services as ServiceType[]);
-
-      if (!isConfirmed) {
-        return;
-      }
-
-      await handleCreateClick(defaultDeposit, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      setIsDepositingDeployment(true);
     } else {
       setIsCheckingPrerequisites(true);
     }
@@ -297,13 +288,15 @@ export const RentGpusForm: React.FunctionComponent = () => {
           infoText={
             <Alert className="mb-4" variant="default">
               <p className="text-sm text-muted-foreground">
-                To create a deployment, you need to have at least <b>{minDeposit.akt} AKT</b> or <b>{minDeposit.usdc} USDC</b> in an escrow account.{" "}
+                <DeploymentMinimumEscrowAlertText />
                 <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/getting-started/intro-to-akash/bids-and-leases/#escrow-accounts")}>
                   <strong>Learn more.</strong>
                 </LinkTo>
               </p>
             </Alert>
           }
+          title="Confirm deployment creation?"
+          services={rentGpuSdl?.services}
         />
       )}
       {isCheckingPrerequisites && <PrerequisiteList onClose={() => setIsCheckingPrerequisites(false)} onContinue={onPrerequisiteContinue} />}
