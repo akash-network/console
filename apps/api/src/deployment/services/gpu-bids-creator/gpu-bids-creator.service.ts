@@ -1,16 +1,17 @@
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
 import { getAkashTypeRegistry } from "@akashnetwork/akashjs/build/stargate";
+import { BidHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, SigningStargateClient } from "@cosmjs/stargate";
 import axios from "axios";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
+import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { getGpuModelsAvailability } from "@src/routes/v1/gpu";
-import { RestAkashBidListResponseType } from "@src/types/rest";
 import { apiNodeUrl } from "@src/utils/constants";
 import { sleep } from "@src/utils/delay";
 import { env } from "@src/utils/env";
@@ -20,7 +21,10 @@ import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templa
 export class GpuBidsCreatorService {
   private readonly logger = LoggerService.forContext(GpuBidsCreatorService.name);
 
-  constructor(private readonly config: BillingConfigService) {}
+  constructor(
+    private readonly config: BillingConfigService,
+    private readonly bidHttpService: BidHttpService,
+  ) { }
 
   async createGpuBids() {
     if (!env.GPU_BOT_WALLET_MNEMONIC) throw new Error("The env variable GPU_BOT_WALLET_MNEMONIC is not set.");
@@ -29,7 +33,7 @@ export class GpuBidsCreatorService {
     const wallet = await DirectSecp256k1HdWallet.fromMnemonic(env.GPU_BOT_WALLET_MNEMONIC, { prefix: "akash" });
     const [account] = await wallet.getAccounts();
 
-    this.logger.info("Wallet Address: " + account.address);
+    this.logger.info({ event: "CREATING_GPU_BIDS", address: account.address });
 
     const myRegistry = new Registry([...getAkashTypeRegistry()]);
 
@@ -40,7 +44,7 @@ export class GpuBidsCreatorService {
     const balanceBefore = await client.getBalance(account.address, "uakt");
     const balanceBeforeUAkt = parseFloat(balanceBefore.amount);
     const akt = Math.round((balanceBeforeUAkt / 1_000_000) * 100) / 100;
-    this.logger.info("Balance: " + akt + "akt");
+    this.logger.info({ event: "CLIENT_CONNECTED", balance: akt });
 
     const gpuModels = await getGpuModelsAvailability();
 
@@ -51,7 +55,7 @@ export class GpuBidsCreatorService {
     const balanceAfterUAkt = parseFloat(balanceAfter.amount);
     const diff = balanceBeforeUAkt - balanceAfterUAkt;
 
-    this.logger.info(`The operation cost ${diff / 1_000_000} akt`);
+    this.logger.info({ event: "GPU_BIDS_CREATED", cost: diff / 1_000_000 });
   }
 
   private async signAndBroadcast(address: string, client: SigningStargateClient, messages: readonly EncodeObject[]) {
@@ -86,34 +90,30 @@ export class GpuBidsCreatorService {
       (a, b) => a.vendor.localeCompare(b.vendor) || a.model.localeCompare(b.model) || a.ram.localeCompare(b.ram) || a.interface.localeCompare(b.interface)
     );
 
-    this.logger.info(`Creating bids for every models (includeInterface: ${includeInterface})...`);
+    this.logger.info({ event: "CREATING_BIDS", includeInterface });
 
     const doneModels: string[] = [];
     for (const model of models) {
       const dseq = (await this.getCurrentHeight()).toString();
-
-      this.logger.info(`Creating deployment for ${model.vendor} ${model.model} ${model.ram} ${model.interface}...`);
+      this.logger.info({ event: "CREATING_DEPLOYMENT", ...pick(model, ["vendor", "model", "ram", "interface"]) });
 
       if (doneModels.includes(model.model + "-" + model.ram)) {
-        this.logger.info(" Skipping.");
+        this.logger.info({ event: "SKIPPING_DEPLOYMENT", ...pick(model, ["model", "ram"]) });
         continue;
       }
 
       const gpuSdl = this.getModelSdl(model.vendor, model.model, model.ram, includeInterface ? model.interface : undefined);
 
       await this.createDeployment(client, gpuSdl, walletAddress, dseq);
-
-      this.logger.info("Done. Waiting for bids... ");
+      this.logger.info({ event: "DEPLOYMENT_CREATED" });
 
       await sleep(30_000);
 
-      const bids = await this.getBids(walletAddress, dseq);
+      const bids = await this.bidHttpService.list(walletAddress, dseq);
 
-      this.logger.info(`Got ${bids.bids.length} bids. Closing deployment...`);
-
+      this.logger.info({ event: "DEPLOYMENT_CLOSING", bidsCount: bids.length });
       await this.closeDeployment(client, walletAddress, dseq);
-
-      this.logger.info(" Done.");
+      this.logger.info({ event: "DEPLOYMENT_CLOSED" });
 
       if (!includeInterface) {
         doneModels.push(model.model + "-" + model.ram);
@@ -122,7 +122,7 @@ export class GpuBidsCreatorService {
       await sleep(10_000);
     }
 
-    this.logger.info("Finished!");
+    this.logger.info({ event: "BIDS_CREATED" });
   }
 
   private async createDeployment(client: SigningStargateClient, sdlStr: string, owner: string, dseq: string) {
@@ -161,12 +161,6 @@ export class GpuBidsCreatorService {
     };
 
     await this.signAndBroadcast(owner, client, [message]);
-  }
-
-  private async getBids(owner: string, dseq: string) {
-    const response = await axios.get<RestAkashBidListResponseType>(`${apiNodeUrl}/akash/market/v1beta4/bids/list?filters.owner=${owner}&filters.dseq=${dseq}`);
-
-    return response.data;
   }
 
   private getModelSdl(vendor: string, model: string, ram: string, gpuInterface?: string) {
