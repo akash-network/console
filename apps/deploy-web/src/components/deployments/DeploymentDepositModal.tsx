@@ -2,6 +2,7 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
+  ActionButton,
   Alert,
   CheckboxWithLabel,
   Form,
@@ -230,6 +231,14 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
           side: "left",
           onClick: onClose
         },
+        ...(isManaged ? [{
+          label: "Buy credits",
+          color: "primary",
+          variant: "ghost",
+          side: "right",
+          onClick: closePopupAndGoToCheckoutIfPossible,
+          "data-testid": "deposit-modal-buy-credits-button"
+        }] : []),
         {
           label: "Continue",
           color: "secondary",
@@ -240,7 +249,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
           onClick: onDepositClick,
           "data-testid": "deposit-modal-continue-button"
         }
-      ]}
+      ] as ActionButton[]}
       onClose={onClose}
       enableCloseOnBackdropClick
       title={title}
@@ -295,13 +304,6 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
                 );
               }}
             />
-            {isManaged && (
-              <div className="mt-1 flex justify-end text-xs">
-                <LinkTo onClick={closePopupAndGoToCheckoutIfPossible} className="text-primary">
-                  Buy more credits
-                </LinkTo>
-              </div>
-            )}
           </div>
 
           {isCustodial && (
