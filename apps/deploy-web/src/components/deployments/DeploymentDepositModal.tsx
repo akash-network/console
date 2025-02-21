@@ -2,6 +2,7 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
+  ActionButton,
   Alert,
   CheckboxWithLabel,
   Form,
@@ -29,11 +30,14 @@ import { UAKT_DENOM } from "@src/config/denom.config";
 import { usePricing } from "@src/context/PricingProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
 import { useDenomData, useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useGranteeGrants } from "@src/queries/useGrantsQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
+import { ServiceType } from "@src/types";
 import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { coinToUDenom } from "@src/utils/priceUtils";
+import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { LinkTo } from "../shared/LinkTo";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
 
@@ -44,6 +48,8 @@ export type DeploymentDepositModalProps = {
   onDeploymentDeposit: (deposit: number, depositorAddress: string) => void;
   handleCancel: () => void;
   children?: ReactNode;
+  title?: string;
+  services?: ServiceType[];
 };
 
 const formSchema = z
@@ -72,7 +78,9 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   onDeploymentDeposit,
   disableMin,
   denom,
-  infoText = null
+  title = "Deployment Deposit",
+  infoText = null,
+  services = []
 }) => {
   const formRef = useRef<HTMLFormElement>(null);
   const { settings } = useSettings();
@@ -95,6 +103,17 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   const { handleSubmit, control, watch, setValue, clearErrors, unregister } = form;
   const { amount, useDepositor, depositorAddress } = watch();
   const validGrants = granteeGrants?.filter(x => compareAsc(new Date(), new Date(x.expiration)) !== 1 && x.authorization.spend_limit.denom === denom) || [];
+  const whenLoggedInAndVerified = useAddFundsVerifiedLoginRequiredEventHandler();
+
+  const closePopupAndGoToCheckoutIfPossible = (event: React.MouseEvent) => {
+    handleCancel();
+
+    whenLoggedInAndVerified(goToCheckout)(event);
+  };
+
+  const goToCheckout = () => {
+    window.location.href = "/api/proxy/v1/checkout";
+  };
 
   useEffect(() => {
     if (depositData && amount === 0 && !disableMin) {
@@ -212,6 +231,14 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
           side: "left",
           onClick: onClose
         },
+        ...(isManaged ? [{
+          label: "Buy credits",
+          color: "primary",
+          variant: "ghost",
+          side: "right",
+          onClick: closePopupAndGoToCheckoutIfPossible,
+          "data-testid": "deposit-modal-buy-credits-button"
+        }] : []),
         {
           label: "Continue",
           color: "secondary",
@@ -222,12 +249,31 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
           onClick: onDepositClick,
           "data-testid": "deposit-modal-continue-button"
         }
-      ]}
+      ] as ActionButton[]}
       onClose={onClose}
-      maxWidth="xs"
       enableCloseOnBackdropClick
-      title="Deployment Deposit"
+      title={title}
     >
+      {services.length > 0 && (
+        <div className="mb-3 max-h-[300px] overflow-scroll">
+          {services.map(service => {
+            return (
+              <Alert key={service.title} className="mb-1">
+                <div className="mb-2 text-sm">
+                  <span className="font-bold">{service.title}</span>:{service.image}
+                </div>
+                <div className="flex items-center space-x-4 whitespace-nowrap">
+                  <LeaseSpecDetail type="cpu" className="flex-shrink-0" value={service.profile?.cpu} />
+                  {!!service.profile?.gpu && <LeaseSpecDetail type="gpu" className="flex-shrink-0" value={service.profile?.gpu} />}
+                  <LeaseSpecDetail type="ram" className="flex-shrink-0" value={`${service.profile?.ram} ${service.profile?.ramUnit}`} />
+                  <LeaseSpecDetail type="storage" className="flex-shrink-0" value={`${service.profile?.storage} ${service.profile?.storageUnit}`} />
+                </div>
+              </Alert>
+            );
+          })}
+        </div>
+      )}
+
       <Form {...form}>
         <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
           {infoText}
