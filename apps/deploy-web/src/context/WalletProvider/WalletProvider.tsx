@@ -44,7 +44,7 @@ type ContextType = {
   isWalletLoaded: boolean;
   connectManagedWallet: () => void;
   logout: () => void;
-  signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<any>;
+  signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<boolean>;
   isManaged: boolean;
   isCustodial: boolean;
   isWalletLoading: boolean;
