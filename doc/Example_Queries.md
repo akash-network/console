@@ -321,11 +321,7 @@ ORDER BY date DESC
 ## Query to fetch the daily spent for a wallet address (owner)
 
 ```
-WITH current_block AS (
-    SELECT MAX(height) as height 
-    FROM block
-),
-daily_leases AS (
+WITH daily_leases AS (
     SELECT 
         d.date,
         l.owner,
@@ -385,4 +381,80 @@ GROUP BY
     dc.daily_usdc_spent,
     dc.daily_usd_spent
 ORDER BY d.date DESC;
+```
+
+## Query to fetch provider revenue over time
+
+```
+WITH filtered_providers AS (
+    SELECT owner, "hostUri"
+    FROM provider
+    WHERE "hostUri" = 'https://provider.europlots.com:8443' -- change the condition to filter providers
+),
+daily_leases AS (
+    SELECT 
+        d.date,
+        p."hostUri",
+        l.id as lease_id,
+        l.denom,
+        l.price,
+        l."createdHeight",
+        CASE 
+            WHEN l.id IS NULL THEN 0
+            ELSE LEAST(d."lastBlockHeightYet", COALESCE(l."closedHeight", l."predictedClosedHeight")) - 
+                 GREATEST(d."firstBlockHeight", l."createdHeight")
+        END as blocks_in_day,
+        d."aktPrice"
+    FROM day d
+    CROSS JOIN filtered_providers p
+    LEFT JOIN lease l ON 
+        p.owner = l."providerAddress" AND
+        l."createdHeight" < d."lastBlockHeightYet" AND 
+        COALESCE(l."closedHeight", l."predictedClosedHeight") > d."firstBlockHeight"
+),
+daily_revenue AS (
+    SELECT 
+        date,
+        "hostUri",
+        ROUND(CAST(SUM(CASE 
+            WHEN denom = 'uakt' 
+            THEN blocks_in_day * price / 1000000.0
+            ELSE 0 
+        END) as numeric), 2) as daily_akt_revenue,
+        ROUND(CAST(SUM(CASE 
+            WHEN denom = 'uusdc' 
+            THEN blocks_in_day * price / 1000000.0
+            ELSE 0 
+        END) as numeric), 2) as daily_usdc_revenue,
+        ROUND(CAST(SUM(CASE 
+            WHEN denom = 'uakt' 
+            THEN blocks_in_day * price * "aktPrice" / 1000000.0
+            WHEN denom = 'uusdc' 
+            THEN blocks_in_day * price / 1000000.0
+            ELSE 0 
+        END) as numeric), 2) as daily_usd_revenue
+    FROM daily_leases
+    WHERE lease_id IS NOT NULL
+    GROUP BY date, "hostUri"
+)
+SELECT 
+    dl.date::DATE AS "Date",
+    dl."hostUri",
+    COUNT(DISTINCT dl.lease_id) AS "Active Leases",
+    COALESCE(dr.daily_akt_revenue, 0) as "Daily AKT Revenue",
+    COALESCE(SUM(dr.daily_akt_revenue) OVER (PARTITION BY dl."hostUri" ORDER BY dl.date), 0) as "Total AKT Revenue",
+    COALESCE(dr.daily_usdc_revenue, 0) as "Daily USDC Revenue",
+    COALESCE(SUM(dr.daily_usdc_revenue) OVER (PARTITION BY dl."hostUri" ORDER BY dl.date), 0) as "Total USDC Revenue",
+    COALESCE(dr.daily_usd_revenue, 0) as "Daily USD Revenue",
+    COALESCE(SUM(dr.daily_usd_revenue) OVER (PARTITION BY dl."hostUri" ORDER BY dl.date), 0) as "Total USD Revenue"
+FROM daily_leases dl
+LEFT JOIN daily_revenue dr ON dr.date = dl.date AND dr."hostUri" = dl."hostUri"
+WHERE dl.lease_id IS NOT NULL
+GROUP BY 
+    dl.date,
+    dl."hostUri",
+    dr.daily_akt_revenue,
+    dr.daily_usdc_revenue,
+    dr.daily_usd_revenue
+ORDER BY dl.date DESC, dl."hostUri";
 ```
