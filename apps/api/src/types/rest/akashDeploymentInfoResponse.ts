@@ -1,4 +1,4 @@
-export type RestAkasheploymentInfoResponse =
+export type RestAkashDeploymentInfoResponse =
   | {
       code: number;
       message: string;

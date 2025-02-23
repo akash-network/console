@@ -19,6 +19,7 @@ import { apiKeysRouter } from "./auth/routes/api-keys/api-keys.router";
 import { bidsRouter } from "./bid/routes/bids/bids.router";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
+import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
 import { apiRouter } from "./routers/apiRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
@@ -87,6 +88,7 @@ appHono.route("/", createAnonymousUserRouter);
 appHono.route("/", getAnonymousUserRouter);
 appHono.route("/", sendVerificationEmailRouter);
 appHono.route("/", deploymentSettingRouter);
+appHono.route("/", deploymentsRouter);
 appHono.route("/", apiKeysRouter);
 appHono.route("/", bidsRouter);
 
