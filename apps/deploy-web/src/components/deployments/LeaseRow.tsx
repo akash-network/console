@@ -386,21 +386,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                                   <OpenInWindow className="text-xs" />
                                 </Link>
                                 &nbsp;&nbsp;
-                                <Button
-                                  aria-label="uri"
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6 rounded-full"
-                                  onClick={() => {
-                                    copyTextToClipboard(uri);
-                                    enqueueSnackbar(<Snackbar title="Uri copied to clipboard!" iconVariant="success" />, {
-                                      variant: "success",
-                                      autoHideDuration: 2000
-                                    });
-                                  }}
-                                >
-                                  <Copy className="text-xs" />
-                                </Button>
+                                <CopyTextToClipboardButton value={uri} />
                               </li>
                             );
                           })}
