@@ -1,8 +1,8 @@
-import { AuthzHttpService, BalanceHttpService, BidHttpService, BlockHttpService } from "@akashnetwork/http-sdk";
+import { AuthzHttpService, BalanceHttpService, BidHttpService, BlockHttpService, DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { container } from "tsyringe";
 
 import { apiNodeUrl } from "@src/utils/constants";
 
-const SERVICES = [BalanceHttpService, AuthzHttpService, BlockHttpService, BidHttpService];
+const SERVICES = [BalanceHttpService, AuthzHttpService, BlockHttpService, BidHttpService, DeploymentHttpService, LeaseHttpService];
 
 SERVICES.forEach(Service => container.register(Service, { useValue: new Service({ baseURL: apiNodeUrl }) }));
