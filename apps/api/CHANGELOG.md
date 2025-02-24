@@ -1,5 +1,12 @@
 
 
+## [2.66.0](https://github.com/akash-network/console/compare/console-api/v2.65.0...console-api/v2.66.0) (2025-02-24)
+
+
+### Features
+
+* **network:** API endpoint listing bids ([#859](https://github.com/akash-network/console/issues/859)) ([0c7a8b9](https://github.com/akash-network/console/commit/0c7a8b97bd8bfaeaee78640a7256ef8cf279eb70)), closes [#767](https://github.com/akash-network/console/issues/767)
+
 ## [2.65.0](https://github.com/akash-network/console/compare/console-api/v2.64.0...console-api/v2.65.0) (2025-02-20)
 
 
