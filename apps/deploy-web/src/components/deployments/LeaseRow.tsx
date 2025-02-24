@@ -19,7 +19,6 @@ import { SpecDetail } from "@src/components/shared/SpecDetail";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { getSplitText } from "@src/hooks/useShortText";
 import { useBidInfo } from "@src/queries/useBidQuery";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
@@ -32,7 +31,9 @@ import { getGpusFromAttributes, sendManifestToProvider } from "@src/utils/deploy
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { sshVmImages } from "@src/utils/sdl/data";
 import { UrlService } from "@src/utils/urlUtils";
+import { CopyTextToClipboardButton } from "../copy-text-to-clipboard-button/CopyTextToClipboardButton";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
+import { ShortenedValue } from "../shortened-value/ShortenedValue";
 
 type Props = {
   index: number;
@@ -222,10 +223,11 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                   {provider && (
                     <div className="flex items-center space-x-2">
                       <Link href={UrlService.providerDetail(lease.provider)}>
-                        {provider.name?.length > 25 ? getSplitText(provider.name, 10, 10) : provider.name}
+                        <ShortenedValue value={provider.name} maxLength={40} headLength={14} />
                       </Link>
 
                       <div className="flex items-center space-x-2">
+                        <CopyTextToClipboardButton value={provider.name} />
                         <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
 
                         {provider?.isAudited && (
@@ -384,21 +386,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                                   <OpenInWindow className="text-xs" />
                                 </Link>
                                 &nbsp;&nbsp;
-                                <Button
-                                  aria-label="uri"
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6 rounded-full"
-                                  onClick={() => {
-                                    copyTextToClipboard(uri);
-                                    enqueueSnackbar(<Snackbar title="Uri copied to clipboard!" iconVariant="success" />, {
-                                      variant: "success",
-                                      autoHideDuration: 2000
-                                    });
-                                  }}
-                                >
-                                  <Copy className="text-xs" />
-                                </Button>
+                                <CopyTextToClipboardButton value={uri} />
                               </li>
                             );
                           })}
