@@ -30,6 +30,7 @@ on:
         required: false
         type: choice
         options:
+          - NA
           - mainnet
           - sandbox
   workflow_call:
@@ -65,7 +66,7 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          KUBECONFIG: op://console/console.akash.network/kubeconfig
+          KUBECONFIG: ${{ vars.OP_KUBECONFIG_URI }}
 
       - name: Set up Helm
         uses: azure/setup-helm@v4.3.0
@@ -80,11 +81,11 @@ jobs:
 
           values_file_path=".helm/${{ inputs.app }}-${{ inputs.environment }}"
 
-          if [ -n "${{ inputs.chain }}" ]; then
+          if [ -n "${{ inputs.chain }}" ] && [ "${{ inputs.chain }}" != "NA" ]; then
             release_name="${release_name}-${{ inputs.chain }}"
             values_file_path="${values_file_path}-${{ inputs.chain }}"
           fi
-          
+
           values_file_path="${values_file_path}-values.yaml"
 
           if [ -f "$values_file_path" ]; then
