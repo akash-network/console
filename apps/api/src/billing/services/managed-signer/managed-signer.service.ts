@@ -45,15 +45,17 @@ export class ManagedSignerService {
   }
 
   async executeEncodedTxByUserId(userId: UserWalletOutput["userId"], messages: StringifiedEncodeObject[]) {
+    return this.executeDecodedTxByUserId(userId, this.decodeMessages(messages));
+  }
+
+  async executeDecodedTxByUserId(userId: UserWalletOutput["userId"], messages: EncodeObject[]) {
     const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findOneByUserId(userId);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    const decodedMessages = this.decodeMessages(messages);
-
-    await Promise.all(decodedMessages.map(message => this.anonymousValidateService.validateLeaseProviders(message, userWallet)));
+    await Promise.all(messages.map(message => this.anonymousValidateService.validateLeaseProviders(message, userWallet)));
 
     try {
-      const tx = await this.executeManagedTx(userWallet.id, decodedMessages);
+      const tx = await this.executeManagedTx(userWallet.id, messages);
 
       await this.balancesService.refreshUserWalletLimits(userWallet);
 
@@ -68,7 +70,7 @@ export class ManagedSignerService {
 
       return result;
     } catch (error) {
-      throw this.chainErrorService.toAppError(error, decodedMessages);
+      throw this.chainErrorService.toAppError(error, messages);
     }
   }
 

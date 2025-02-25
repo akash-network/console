@@ -31,7 +31,7 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     return first(await this.cursor.insert(this.table).values(input).returning());
   }
 
-  async findByUserId(userId: UserOutput["userId"]) {
+  async findByUserId(userId: UserOutput["userId"]): Promise<UserOutput> {
     const result = await this.cursor.query.Users.findFirst({
       where: this.whereAccessibleBy(eq(this.table.userId, userId)),
       with: {
