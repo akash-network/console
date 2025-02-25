@@ -73,9 +73,10 @@ jobs:
       - name: Tailscale
         uses: tailscale/github-action@v3
         with:
-          oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ env.TS_OAUTH_SECRET }}
-          tags: tag:console
+#          oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
+#          oauth-secret: ${{ env.TS_OAUTH_SECRET }}
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          tags: tag:ci
 
       - name: Set up Helm
         uses: azure/setup-helm@v4.3.0
