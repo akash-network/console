@@ -1,0 +1,27 @@
+chain: mainnet
+hostName: console-api-mainnet-staging.akash.network
+jobs:
+  - name: top-up-deployments
+    schedule: "0 * * * *" # 0 minutes past the hour
+    command:
+      - node
+      - dist/console.js
+      - top-up-deployments
+  - name: refill-wallets
+    schedule: "45 * * * *" # 45 minutes past the hour
+    command:
+      - node
+      - dist/console.js
+      - refill-wallets
+  - name: cleanup-stale-deployments
+    schedule: "30 10 * * 2" # 10:30 AM every Tuesday
+    command:
+      - node
+      - dist/console.js
+      - cleanup-stale-deployments
+  - name: cleanup-stale-anonymous-users
+    schedule: "0 9 * * 1" # 9:00 AM every Monday
+    command:
+      - node
+      - dist/console.js
+      - cleanup-stale-anonymous-users
