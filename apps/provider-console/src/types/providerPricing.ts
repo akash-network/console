@@ -12,3 +12,26 @@ export interface ProviderPricingResponse {
     price_target_ip: number;
   };
 }
+
+export interface GpuPriceData {
+  vendor: string;
+  model: string;
+  ram: string;
+  interface: string;
+  price: {
+    currency: string;
+    min: number;
+    max: number;
+    avg: number;
+    weightedAverage: number;
+    med: number;
+  };
+}
+
+export interface GpuPricesResponse {
+  availability: {
+    total: number;
+    available: number;
+  };
+  models: GpuPriceData[];
+}
