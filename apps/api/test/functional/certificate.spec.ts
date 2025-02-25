@@ -34,7 +34,7 @@ describe("Certificate API", () => {
     const apiKey = apiKeyGenerator.generateApiKey();
     const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
 
-    jest.spyOn(userRepository, "findByUserId").mockImplementation(async id => {
+    jest.spyOn(userRepository, "findById").mockImplementation(async id => {
       if (id === userWithId.userId) {
         return {
           ...userWithId,
