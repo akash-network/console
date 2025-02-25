@@ -78,11 +78,14 @@ jobs:
 
           release_name=${{ inputs.app }}
 
+          values_file_path=".helm/${{ inputs.app }}-${{ inputs.environment }}"
+
           if [ -n "${{ inputs.chain }}" ]; then
             release_name="${release_name}-${{ inputs.chain }}"
+            values_file_path="${values_file_path}-${{ inputs.chain }}"
           fi
-
-          values_file_path=".helm/${release_name}-values.yaml"
+          
+          values_file_path="${values_file_path}-values.yaml"
 
           if [ -f "$values_file_path" ]; then
             values_file_arg="--values $values_file_path"
