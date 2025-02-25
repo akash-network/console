@@ -1,11 +1,5 @@
 import { GroupSpec } from "@akashnetwork/akash-api/akash/deployment/v1beta3";
-import {
-  DepositDeploymentAuthorization,
-  MsgCloseDeployment,
-  MsgCreateCertificate,
-  MsgCreateDeployment,
-  MsgDepositDeployment
-} from "@akashnetwork/akash-api/v1beta3";
+import { DepositDeploymentAuthorization, MsgCloseDeployment, MsgCreateDeployment,MsgDepositDeployment } from "@akashnetwork/akash-api/v1beta3";
 import { MsgExec, MsgRevoke } from "cosmjs-types/cosmos/authz/v1beta1/tx";
 import { BasicAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/feegrant";
 import { MsgGrantAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/tx";
@@ -214,11 +208,11 @@ export class RpcMessageService {
   getCreateCertificateMsg(address: string, crtpem: string, pubpem: string) {
     return {
       typeUrl: "/akash.cert.v1beta3.MsgCreateCertificate",
-      value: MsgCreateCertificate.fromPartial({
+      value: {
         owner: address,
-        cert: Buffer.from(Buffer.from(crtpem).toString("base64")),
-        pubkey: Buffer.from(Buffer.from(pubpem).toString("base64"))
-      })
+        cert: Buffer.from(crtpem).toString("base64"),
+        pubkey: Buffer.from(pubpem).toString("base64")
+      }
     };
   }
 }

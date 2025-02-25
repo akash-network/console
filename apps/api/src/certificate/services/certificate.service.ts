@@ -4,6 +4,7 @@ import { singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { RpcMessageService } from "@src/billing/services";
+import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 
 interface CertificateOutput {
@@ -18,23 +19,29 @@ export class CertificateService {
     private readonly userWalletRepository: UserWalletRepository,
     private readonly authService: AuthService,
     private readonly rpcMessageService: RpcMessageService,
-    private readonly managedSignerService: ManagedSignerService
+    private readonly managedSignerService: ManagedSignerService,
+    private readonly chainErrorService: ChainErrorService
   ) {}
 
   async create(): Promise<CertificateOutput> {
     const userWallet = await this.userWalletRepository.findOneByUserId(this.authService.currentUser.id);
 
-    if (!userWallet) {
+    if (userWallet) {
       const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = certificateManager.generatePEM(userWallet.address);
-
       const createCertificateMsg = this.rpcMessageService.getCreateCertificateMsg(userWallet.address, crtpem, pubpem);
-      await this.managedSignerService.executeRootTx([createCertificateMsg]);
+      const messages = [createCertificateMsg];
 
-      return {
-        certPem: crtpem,
-        pubkeyPem: pubpem,
-        encryptedKey: encryptedKey
-      };
+      try {
+        await this.managedSignerService.executeManagedTx(userWallet.id, messages);
+
+        return {
+          certPem: crtpem,
+          pubkeyPem: pubpem,
+          encryptedKey: encryptedKey
+        };
+      } catch (error) {
+        throw this.chainErrorService.toAppError(error, messages);
+      }
     }
 
     return null;
