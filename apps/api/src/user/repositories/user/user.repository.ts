@@ -1,5 +1,5 @@
 import subDays from "date-fns/subDays";
-import { and, desc, eq, isNull, lt, lte, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, lte, SQL, sql } from "drizzle-orm";
 import first from "lodash/first";
 import last from "lodash/last";
 import { singleton } from "tsyringe";
@@ -72,7 +72,7 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     } while (lastId);
   }
 
-  private async findUserWithWallet(whereClause: any) {
+  private async findUserWithWallet(whereClause: SQL<unknown>) {
     const result = await this.cursor.query.Users.findFirst({
       where: this.whereAccessibleBy(whereClause),
       with: {
