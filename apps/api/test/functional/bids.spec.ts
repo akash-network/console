@@ -33,12 +33,16 @@ describe("Bids API", () => {
     knownApiKeys = {};
     knownWallets = {};
 
-    jest.spyOn(userRepository, "findByUserId").mockImplementation(async (id: string) => {
-      return Promise.resolve(knownUsers[id] ? {
-        ...knownUsers[id],
-        trial: false,
-        userWallets: { isTrialing: false }
-      } : undefined);
+    jest.spyOn(userRepository, "findById").mockImplementation(async (id: string) => {
+      return Promise.resolve(
+        knownUsers[id]
+          ? {
+              ...knownUsers[id],
+              trial: false,
+              userWallets: { isTrialing: false }
+            }
+          : undefined
+      );
     });
 
     jest.spyOn(apiKeyAuthService, "getAndValidateApiKeyFromHeader").mockImplementation(async (key: string) => {
@@ -65,7 +69,7 @@ describe("Bids API", () => {
     nock.cleanAll();
   });
 
-  async function mockUser(dseq = '1234') {
+  async function mockUser(dseq = "1234") {
     const userId = faker.string.uuid();
     const userApiKeySecret = faker.word.noun();
     const user = UserSeeder.create({ userId });
@@ -76,12 +80,16 @@ describe("Bids API", () => {
     knownApiKeys[userApiKeySecret] = apiKey;
     knownWallets[userId] = wallets;
 
-    nock(apiNodeUrl).get(`/akash/market/v1beta4/bids/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`).reply(200, {
-      bids: [{
-        bid: "fake-bid",
-        escrow_account: "fake-escrow-account",
-      }]
-    });
+    nock(apiNodeUrl)
+      .get(`/akash/market/v1beta4/bids/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`)
+      .reply(200, {
+        bids: [
+          {
+            bid: "fake-bid",
+            escrow_account: "fake-escrow-account"
+          }
+        ]
+      });
 
     return { user, userApiKeySecret, wallets };
   }
@@ -98,7 +106,7 @@ describe("Bids API", () => {
     const originalGetAbilityFor = abilityService.getAbilityFor.bind(abilityService);
     jest.spyOn(abilityService, "getAbilityFor").mockImplementation((role, user) => {
       if (user.userId === adminId) {
-        return originalGetAbilityFor('SUPER_USER', user);
+        return originalGetAbilityFor("SUPER_USER", user);
       }
 
       return originalGetAbilityFor(role, user);
@@ -109,55 +117,61 @@ describe("Bids API", () => {
 
   describe("GET /v1/bids", () => {
     it("returns bids by dseq", async () => {
-      const dseq = '1234';
+      const dseq = "1234";
       const { userApiKeySecret } = await mockUser(dseq);
 
       const response = await app.request(`/v1/bids?dseq=${dseq}`, {
         method: "GET",
-        headers: new Headers({ "Content-Type": "application/json", 'x-api-key': userApiKeySecret })
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
 
       expect(response.status).toBe(200);
       const result = await response.json();
-      expect(result.data).toEqual([{
-        bid: 'fake-bid',
-        escrow_account: 'fake-escrow-account',
-      }]);
+      expect(result.data).toEqual([
+        {
+          bid: "fake-bid",
+          escrow_account: "fake-escrow-account"
+        }
+      ]);
     });
 
     it("returns bids by dseq and userId", async () => {
-      const dseq = '1234';
+      const dseq = "1234";
       const { user, userApiKeySecret } = await mockUser(dseq);
 
       const response = await app.request(`/v1/bids?dseq=${dseq}&userId=${user.userId}`, {
         method: "GET",
-        headers: new Headers({ "Content-Type": "application/json", 'x-api-key': userApiKeySecret })
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
 
       expect(response.status).toBe(200);
       const result = await response.json();
-      expect(result.data).toEqual([{
-        bid: 'fake-bid',
-        escrow_account: 'fake-escrow-account',
-      }]);
+      expect(result.data).toEqual([
+        {
+          bid: "fake-bid",
+          escrow_account: "fake-escrow-account"
+        }
+      ]);
     });
 
     it("returns bids by dseq and userId, any user for an admin", async () => {
-      const dseq = '1234';
+      const dseq = "1234";
       const { user } = await mockUser(dseq);
       const { adminApiKeySecret } = await mockAdmin();
 
       const response = await app.request(`/v1/bids?dseq=${dseq}&userId=${user.userId}`, {
         method: "GET",
-        headers: new Headers({ "Content-Type": "application/json", 'x-api-key': adminApiKeySecret })
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": adminApiKeySecret })
       });
 
       expect(response.status).toBe(200);
       const result = await response.json();
-      expect(result.data).toEqual([{
-        bid: 'fake-bid',
-        escrow_account: 'fake-escrow-account',
-      }]);
+      expect(result.data).toEqual([
+        {
+          bid: "fake-bid",
+          escrow_account: "fake-escrow-account"
+        }
+      ]);
     });
 
     it("returns 401 for an unauthenticated request", async () => {
@@ -174,7 +188,7 @@ describe("Bids API", () => {
 
       const response = await app.request(`/v1/bids`, {
         method: "GET",
-        headers: new Headers({ "Content-Type": "application/json", 'x-api-key': userApiKeySecret })
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
 
       expect(response.status).toBe(400);
