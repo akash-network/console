@@ -178,4 +178,15 @@ export class RpcMessageService {
       }
     };
   }
+
+  getCreateCertificateMsg(address: string, crtpem: string, pubpem: string) {
+    return {
+      typeUrl: "/akash.cert.v1beta3.MsgCreateCertificate",
+      value: {
+        owner: address,
+        cert: Buffer.from(crtpem).toString("base64"),
+        pubkey: Buffer.from(pubpem).toString("base64")
+      }
+    };
+  }
 }

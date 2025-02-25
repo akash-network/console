@@ -223,39 +223,45 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
       fullWidth
       open
       variant="custom"
-      actions={[
-        {
-          label: "Cancel",
-          color: "primary",
-          variant: "ghost",
-          side: "left",
-          onClick: onClose
-        },
-        ...(isManaged ? [{
-          label: "Buy credits",
-          color: "primary",
-          variant: "ghost",
-          side: "right",
-          onClick: closePopupAndGoToCheckoutIfPossible,
-          "data-testid": "deposit-modal-buy-credits-button"
-        }] : []),
-        {
-          label: "Continue",
-          color: "secondary",
-          variant: "default",
-          side: "right",
-          disabled: !amount || isCheckingDepositor || (useDepositor && validGrants.length === 0) || !walletBalance,
-          isLoading: isCheckingDepositor,
-          onClick: onDepositClick,
-          "data-testid": "deposit-modal-continue-button"
-        }
-      ] as ActionButton[]}
+      actions={
+        [
+          {
+            label: "Cancel",
+            color: "primary",
+            variant: "ghost",
+            side: "left",
+            onClick: onClose
+          },
+          ...(isManaged
+            ? [
+                {
+                  label: "Buy credits",
+                  color: "primary",
+                  variant: "ghost",
+                  side: "right",
+                  onClick: closePopupAndGoToCheckoutIfPossible,
+                  "data-testid": "deposit-modal-buy-credits-button"
+                }
+              ]
+            : []),
+          {
+            label: "Continue",
+            color: "secondary",
+            variant: "default",
+            side: "right",
+            disabled: !amount || isCheckingDepositor || (useDepositor && validGrants.length === 0) || !walletBalance,
+            isLoading: isCheckingDepositor,
+            onClick: onDepositClick,
+            "data-testid": "deposit-modal-continue-button"
+          }
+        ] as ActionButton[]
+      }
       onClose={onClose}
       enableCloseOnBackdropClick
       title={title}
     >
       {services.length > 0 && (
-        <div className="mb-3 max-h-[300px] overflow-scroll">
+        <div className="mb-3 max-h-[300px] overflow-auto">
           {services.map(service => {
             return (
               <Alert key={service.title} className="mb-1">
