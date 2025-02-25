@@ -1,5 +1,17 @@
 
 
+## [2.50.0](https://github.com/akash-network/console/compare/console-web/v2.49.1...console-web/v2.50.0) (2025-02-24)
+
+
+### Features
+
+* **billing:** unify deployment modals ([#804](https://github.com/akash-network/console/issues/804)) ([03137c6](https://github.com/akash-network/console/commit/03137c68740b76a7ad162415425b566148dd7bd3)), closes [#628](https://github.com/akash-network/console/issues/628) [#628](https://github.com/akash-network/console/issues/628) [#628](https://github.com/akash-network/console/issues/628) [#628](https://github.com/akash-network/console/issues/628) [#628](https://github.com/akash-network/console/issues/628)
+
+
+### Bug Fixes
+
+* **provider:** render longer provider names, make them copiable ([#898](https://github.com/akash-network/console/issues/898)) ([64f8fa0](https://github.com/akash-network/console/commit/64f8fa02a5b98a75b08382db97c0534ed26ed959)), closes [#858](https://github.com/akash-network/console/issues/858) [#858](https://github.com/akash-network/console/issues/858)
+
 ## [2.49.1](https://github.com/akash-network/console/compare/console-web/v2.49.0...console-web/v2.49.1) (2025-02-21)
 
 

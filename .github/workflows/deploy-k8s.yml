@@ -1,0 +1,99 @@
+name: Deploy Kubernetes
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "The environment to deploy to"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      app:
+        description: "The app to deploy"
+        required: true
+        type: choice
+        options:
+          - console-web
+          - console-api
+          - provider-proxy
+          - provider-console
+          - provider-console-api
+          - provider-console-security
+      appVersion:
+        description: "The version of the app to deploy"
+        required: true
+        type: string
+      chain:
+        description: "The chain to deploy to"
+        required: false
+        type: choice
+        options:
+          - mainnet
+          - sandbox
+  workflow_call:
+    inputs:
+      environment:
+        description: "The environment to deploy to"
+        required: true
+        type: string
+      app:
+        description: "The app to deploy"
+        required: true
+        type: string
+      appVersion:
+        description: "The version of the app to deploy"
+        required: true
+        type: string
+      chain:
+        description: "The chain to deploy to"
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load kubeconfig
+        id: op-load-secret
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          KUBECONFIG: op://console/console.akash.network/kubeconfig
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4.3.0
+        with:
+          version: "latest"
+
+      - name: Deploy with Helm
+        run: |
+          echo "$KUBECONFIG" > kubeconfig
+
+          release_name=${{ inputs.app }}
+
+          values_file_path=".helm/${{ inputs.app }}-${{ inputs.environment }}"
+
+          if [ -n "${{ inputs.chain }}" ]; then
+            release_name="${release_name}-${{ inputs.chain }}"
+            values_file_path="${values_file_path}-${{ inputs.chain }}"
+          fi
+          
+          values_file_path="${values_file_path}-values.yaml"
+
+          if [ -f "$values_file_path" ]; then
+            values_file_arg="--values $values_file_path"
+          fi
+
+          chart_name=akash/${{ inputs.app }}
+
+          helm repo add akash https://akash-network.github.io/helm-charts
+
+          echo "executing: helm upgrade $release_name $chart_name --install --atomic -n ${{ inputs.environment }} --set appVersion=${{ inputs.appVersion }} --debug --kubeconfig kubeconfig $values_file_arg"
+          helm upgrade $release_name $chart_name --install --atomic -n ${{ inputs.environment }} --set appVersion=${{ inputs.appVersion }} --debug --kubeconfig kubeconfig $values_file_arg
