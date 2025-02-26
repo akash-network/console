@@ -80,10 +80,16 @@ const ModalWrapper = (props: WalletModalProps) => {
     if (isWalletModalOpen && !props.isOpen && isWalletConnected) {
       setSelectedWalletType("custodial");
 
-      analyticsService.track("connect_wallet", {
-        category: "wallet",
-        label: "Connect wallet"
-      });
+      analyticsService.track(
+        "connect_wallet",
+        {
+          category: "wallet",
+          label: "Connect wallet"
+        },
+        "GA"
+      );
+
+      analyticsService.trackSwitch("connect_wallet", "custodial", "Amplitude");
     }
   }, [isWalletModalOpen, props.isOpen, isWalletConnected]);
 

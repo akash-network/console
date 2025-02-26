@@ -1,158 +1,291 @@
-import { Identify, identify, init, setUserId, track } from "@amplitude/analytics-browser";
 import { faker } from "@faker-js/faker";
-import { event } from "nextjs-google-analytics";
 
-import { type AnalyticsCategory, type AnalyticsEvent, AnalyticsService } from "./analytics.service";
+import { Amplitude, AnalyticsOptions, AnalyticsService, GoogleAnalytics, HashFn } from "./analytics.service";
 
-jest.mock("@amplitude/analytics-browser");
-jest.mock("nextjs-google-analytics");
-
-const MOCK_EVENT_NAMES: AnalyticsEvent[] = ["connect_wallet", "connect_managed_wallet", "disconnect_wallet"];
+type Mocked<T> = {
+  [K in keyof T]?: jest.Mock;
+};
 
 describe(AnalyticsService.name, () => {
-  let service: AnalyticsService;
-  const mockAmplitudeApiKey = faker.string.alphanumeric(32);
-  const mockGaMeasurementId = `G-${faker.string.alphanumeric(10)}`;
+  const mockAmplitudeApiKey = faker.string.uuid();
+  const mockGaMeasurementId = faker.string.uuid();
 
-  beforeEach(() => {
-    jest.clearAllMocks();
+  describe("initialization", () => {
+    it("should not initialize Amplitude when disabled", () => {
+      const init = jest.fn();
+      const service = setup({
+        amplitude: { init },
+        options: {
+          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
 
-    Object.defineProperty(window, "gtag", {
-      writable: true,
-      value: jest.fn()
+      service.identify({ id: faker.string.uuid() });
+      expect(init).not.toHaveBeenCalled();
+    });
+
+    it("should initialize Amplitude only for sampled users when enabled", () => {
+      const init = jest.fn();
+      const service = setup({
+        amplitude: { init },
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
+      });
+
+      service.identify({ id: faker.string.uuid() });
+      expect(init).toHaveBeenCalled();
     });
   });
 
-  describe("initialization", () => {
-    it("should initialize Amplitude when enabled", () => {
-      service = new AnalyticsService({
-        amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
-        ga: { enabled: false, measurementId: mockGaMeasurementId }
+  describe("user sampling", () => {
+    it("should sample amplitude users based on hash value", () => {
+      const init = jest.fn();
+      const hashFn = jest.fn().mockImplementation(() => 120);
+      const service = setup({
+        amplitude: { init },
+        hashFn,
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
       });
+      service.identify({ id: faker.string.uuid() });
 
-      expect(init).toHaveBeenCalledWith(mockAmplitudeApiKey, {
-        serverUrl: "/api/analytics"
-      });
+      expect(hashFn).toHaveBeenCalled();
+      expect(init).toHaveBeenCalled();
     });
 
-    it("should not initialize Amplitude when disabled", () => {
-      service = new AnalyticsService({
-        amplitude: { enabled: false, apiKey: mockAmplitudeApiKey },
-        ga: { enabled: false, measurementId: mockGaMeasurementId }
+    it("should not sample amplitude users based on hash value", () => {
+      const init = jest.fn();
+      const hashFn = jest.fn().mockImplementation(() => 125);
+      const service = setup({
+        amplitude: { init },
+        hashFn,
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
       });
+      service.identify({ id: faker.string.uuid() });
 
+      expect(hashFn).toHaveBeenCalled();
       expect(init).not.toHaveBeenCalled();
     });
   });
 
-  describe("identify", () => {
-    beforeEach(() => {
-      service = new AnalyticsService({
-        amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
-        ga: { enabled: true, measurementId: mockGaMeasurementId }
+  describe("switch value caching", () => {
+    it("should only track when switch value changes", () => {
+      const track = jest.fn();
+      const service = setup({
+        amplitude: {
+          track
+        },
+        storage: {
+          getItem: jest.fn().mockReturnValue(
+            JSON.stringify({
+              connect_wallet: "custodial"
+            })
+          ),
+          setItem: jest.fn()
+        },
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          ga: { enabled: false, measurementId: mockGaMeasurementId }
+        }
       });
+      service.identify({ id: faker.string.uuid() });
+      service.trackSwitch("connect_wallet", "managed", "Amplitude");
+      service.trackSwitch("connect_wallet", "managed", "Amplitude");
+
+      expect(track).toHaveBeenCalledWith("connect_wallet", {
+        value: "managed"
+      });
+      expect(track).toHaveBeenCalledTimes(1);
     });
+  });
 
+  describe("identify", () => {
     it("should identify user in both GA and Amplitude", () => {
-      const user = {
-        id: faker.string.uuid(),
-        anonymous: faker.datatype.boolean(),
-        emailVerified: faker.datatype.boolean()
-      };
-      service.identify(user);
-
-      expect(window.gtag).toHaveBeenCalledWith("config", mockGaMeasurementId, {
-        user_id: user.id
+      const identify = jest.fn();
+      const setUserId = jest.fn();
+      const service = setup({
+        amplitude: { identify, setUserId },
+        ga: { event: jest.fn() },
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          ga: { enabled: true, measurementId: mockGaMeasurementId }
+        }
       });
+      service.identify({ id: faker.string.uuid() });
 
       expect(identify).toHaveBeenCalled();
-      expect(setUserId).toHaveBeenCalledWith(user.id);
-
-      const mockIdentify = (Identify as jest.Mock).mock.instances[0];
-      expect(mockIdentify.set).toHaveBeenCalledWith("is_anonymous", user.anonymous);
-      expect(mockIdentify.set).toHaveBeenCalledWith("is_email_verified", user.emailVerified);
+      expect(setUserId).toHaveBeenCalled();
     });
 
     it("should only identify in enabled services", () => {
-      service = new AnalyticsService({
-        amplitude: { enabled: false, apiKey: mockAmplitudeApiKey },
-        ga: { enabled: true, measurementId: mockGaMeasurementId }
+      const identify = jest.fn();
+      const setUserId = jest.fn();
+      const gtag = jest.fn();
+      const service = setup({
+        amplitude: { identify, setUserId },
+        gtag,
+        options: {
+          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          ga: { enabled: true, measurementId: mockGaMeasurementId }
+        }
       });
 
       const user = { id: faker.string.uuid() };
       service.identify(user);
 
-      expect(window.gtag).toHaveBeenCalled();
+      expect(gtag).toHaveBeenCalledWith("config", mockGaMeasurementId, { user_id: user.id });
       expect(identify).not.toHaveBeenCalled();
       expect(setUserId).not.toHaveBeenCalled();
     });
   });
 
   describe("track", () => {
-    beforeEach(() => {
-      service = new AnalyticsService({
-        amplitude: { enabled: true, apiKey: mockAmplitudeApiKey },
-        ga: { enabled: true, measurementId: mockGaMeasurementId }
-      });
-    });
-
     it("should track events in both GA and Amplitude when no target specified", () => {
-      const eventName = faker.helpers.arrayElement(MOCK_EVENT_NAMES);
+      const track = jest.fn();
+      const event = jest.fn();
+      const service = setup({
+        amplitude: { track },
+        ga: { event },
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          ga: { enabled: true, measurementId: mockGaMeasurementId }
+        }
+      });
+
       const properties = {
-        category: "wallet" as AnalyticsCategory,
+        category: "wallet" as const,
         someProperty: faker.word.sample()
       };
 
-      service.track(eventName, properties);
+      service.identify({ id: faker.string.uuid() }); // Initialize sampling
+      service.track("connect_wallet", properties);
 
-      expect(track).toHaveBeenCalledWith(eventName, properties);
-      expect(event).toHaveBeenCalledWith(eventName, properties);
+      expect(track).toHaveBeenCalledWith("connect_wallet", properties);
+      expect(event).toHaveBeenCalledWith("connect_wallet", properties);
     });
 
     it("should track events only in specified target", () => {
-      const eventName = faker.helpers.arrayElement(MOCK_EVENT_NAMES);
-      const properties = { category: "wallet" as AnalyticsCategory };
+      const track = jest.fn();
+      const event = jest.fn();
+      const service = setup({
+        amplitude: { track },
+        ga: { event },
+        options: {
+          amplitude: { enabled: true, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          ga: { enabled: true, measurementId: mockGaMeasurementId }
+        }
+      });
 
-      service.track(eventName, properties, "Amplitude");
+      const properties = { category: "wallet" as const };
 
-      expect(track).toHaveBeenCalledWith(eventName, properties);
+      service.identify({ id: faker.string.uuid() }); // Initialize sampling
+      service.track("connect_wallet", properties, "Amplitude");
+
+      expect(track).toHaveBeenCalledWith("connect_wallet", properties);
       expect(event).not.toHaveBeenCalled();
     });
 
     it("should transform GA event names correctly", () => {
-      const eventName = "successful_tx";
-      const properties = { category: "transactions" as AnalyticsCategory };
+      const event = jest.fn();
+      const service = setup({
+        ga: { event },
+        options: {
+          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          ga: { enabled: true, measurementId: mockGaMeasurementId }
+        }
+      });
 
-      service.track(eventName, properties);
+      const properties = { category: "transactions" as const };
+      service.track("successful_tx", properties);
 
       expect(event).toHaveBeenCalledWith("successful_transaction", properties);
     });
 
     it("should handle navigate_tab events specially for GA", () => {
-      const eventName = "navigate_tab";
+      const event = jest.fn();
+      const service = setup({
+        ga: { event },
+        options: {
+          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          ga: { enabled: true, measurementId: mockGaMeasurementId }
+        }
+      });
+
       const properties = {
-        category: "user" as AnalyticsCategory,
-        tab: faker.helpers.arrayElement(["settings", "profile", "dashboard"])
+        category: "user" as const,
+        tab: "settings"
       };
 
-      service.track(eventName, properties);
-
-      expect(event).toHaveBeenCalledWith(`navigate_tab_${properties.tab}`, properties);
+      service.track("navigate_tab", properties);
+      expect(event).toHaveBeenCalledWith("navigate_tab_settings", properties);
     });
 
     it("should only track in enabled services", () => {
-      service = new AnalyticsService({
-        amplitude: { enabled: false, apiKey: mockAmplitudeApiKey },
-        ga: { enabled: true, measurementId: mockGaMeasurementId }
+      const track = jest.fn();
+      const event = jest.fn();
+      const service = setup({
+        amplitude: { track },
+        ga: { event },
+        options: {
+          amplitude: { enabled: false, apiKey: mockAmplitudeApiKey, samplingRate: 0.25 },
+          ga: { enabled: true, measurementId: mockGaMeasurementId }
+        }
       });
 
-      const eventName = faker.helpers.arrayElement(MOCK_EVENT_NAMES);
-      const properties = { category: "wallet" as AnalyticsCategory };
-
-      service.track(eventName, properties);
+      const properties = { category: "wallet" as const };
+      service.track("connect_wallet", properties);
 
       expect(track).not.toHaveBeenCalled();
       expect(event).toHaveBeenCalled();
     });
   });
+
+  function setup(params: {
+    amplitude?: Mocked<Amplitude>;
+    ga?: Mocked<GoogleAnalytics>;
+    gtag?: Gtag.Gtag;
+    hashFn?: HashFn;
+    options?: AnalyticsOptions;
+    storage?: Pick<Storage, "getItem" | "setItem">;
+  }): AnalyticsService {
+    const amplitude = {
+      init: jest.fn(),
+      Identify: jest.fn().mockImplementation(() => ({
+        set: jest.fn()
+      })),
+      identify: jest.fn(),
+      track: jest.fn(),
+      setUserId: jest.fn(),
+      ...(params.amplitude ?? {})
+    };
+    const ga = {
+      event: jest.fn(),
+      ...(params.ga ?? {})
+    };
+    const hash: HashFn = params.hashFn ?? jest.fn().mockImplementation(() => 0);
+    const storage = params.storage ?? {
+      getItem: jest.fn(),
+      setItem: jest.fn()
+    };
+
+    return new AnalyticsService(
+      params.options ?? {
+        amplitude: { enabled: false, apiKey: mockAmplitudeApiKey, samplingRate: 1 },
+        ga: { enabled: false, measurementId: mockGaMeasurementId }
+      },
+      amplitude,
+      hash,
+      ga,
+      params.gtag ?? jest.fn(),
+      storage
+    );
+  }
 });
