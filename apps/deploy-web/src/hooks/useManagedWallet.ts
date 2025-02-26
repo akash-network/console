@@ -29,10 +29,16 @@ export const useManagedWallet = () => {
         setSelectedWalletType("managed");
       }
 
-      analyticsService.track("connect_managed_wallet", {
-        category: "wallet",
-        label: "Connect managed wallet"
-      });
+      analyticsService.track(
+        "connect_managed_wallet",
+        {
+          category: "wallet",
+          label: "Connect managed wallet"
+        },
+        "GA"
+      );
+
+      analyticsService.trackSwitch("connect_wallet", "managed", "Amplitude");
     }
   });
   const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
