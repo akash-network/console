@@ -4,7 +4,6 @@ import { singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { RpcMessageService } from "@src/billing/services";
-import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 
 interface CertificateOutput {
@@ -19,8 +18,7 @@ export class CertificateService {
     private readonly userWalletRepository: UserWalletRepository,
     private readonly authService: AuthService,
     private readonly rpcMessageService: RpcMessageService,
-    private readonly managedSignerService: ManagedSignerService,
-    private readonly chainErrorService: ChainErrorService
+    private readonly managedSignerService: ManagedSignerService
   ) {}
 
   async create(): Promise<CertificateOutput> {
@@ -31,17 +29,13 @@ export class CertificateService {
       const createCertificateMsg = this.rpcMessageService.getCreateCertificateMsg(userWallet.address, crtpem, pubpem);
       const messages = [createCertificateMsg];
 
-      try {
-        await this.managedSignerService.executeManagedTx(userWallet.id, messages);
+      await this.managedSignerService.executeDecodedTxByUserId(userWallet.userId, messages);
 
-        return {
-          certPem: crtpem,
-          pubkeyPem: pubpem,
-          encryptedKey: encryptedKey
-        };
-      } catch (error) {
-        throw this.chainErrorService.toAppError(error, messages);
-      }
+      return {
+        certPem: crtpem,
+        pubkeyPem: pubpem,
+        encryptedKey: encryptedKey
+      };
     }
 
     return null;
