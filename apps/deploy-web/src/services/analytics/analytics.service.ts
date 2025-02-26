@@ -1,4 +1,5 @@
 import { Identify, identify, init, setUserId, track } from "@amplitude/analytics-browser";
+import murmurhash from "murmurhash";
 import { event } from "nextjs-google-analytics";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -90,37 +91,93 @@ const AMPLITUDE_USER_PROPERTIES_MAP = {
 const isBrowser = typeof window !== "undefined";
 
 export class AnalyticsService {
+  private readonly STORAGE_KEY = "analytics_values_cache";
+
+  private readonly valuesCache: Map<string, string> = this.loadSwitchValuesFromStorage();
+
+  private readonly SAMPLING_RATE = 0.25;
+
+  private isAmplitudeEnabled: boolean | undefined;
+
   constructor(private readonly options: AnalyticsOptions) {
-    if (isBrowser && this.options.amplitude.enabled) {
-      init(this.options.amplitude.apiKey, {
-        serverUrl: "/api/analytics"
-      });
+    if (this.options.amplitude.enabled === false) {
+      this.isAmplitudeEnabled = false;
     }
+  }
+
+  private loadSwitchValuesFromStorage() {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(this.STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return new Map(Object.entries(parsed));
+      }
+    }
+
+    return new Map();
   }
 
   identify(user: AnalyticsUser): void {
     if (!isBrowser) {
       return;
     }
+
     if (this.options.ga.enabled && typeof window !== "undefined") {
       window.gtag("config", this.options.ga.measurementId, { user_id: user.id });
     }
 
-    if (this.options.amplitude.enabled) {
-      const event = new Identify();
+    this.ensureAmplitudeFor(user);
 
-      for (const key in user) {
-        if (key !== "id") {
-          event.set(AMPLITUDE_USER_PROPERTIES_MAP[key] || AMPLITUDE_USER_PROPERTIES_MAP, user[key]);
-        }
-      }
+    if (!this.isAmplitudeEnabled) {
+      return;
+    }
 
-      identify(event);
+    const event = new Identify();
 
-      if (user.id) {
-        setUserId(user.id);
+    for (const key in user) {
+      if (key !== "id") {
+        event.set(AMPLITUDE_USER_PROPERTIES_MAP[key] || AMPLITUDE_USER_PROPERTIES_MAP, user[key]);
       }
     }
+
+    identify(event);
+
+    if (user.id) {
+      setUserId(user.id);
+    }
+  }
+
+  private ensureAmplitudeFor(user: AnalyticsUser) {
+    if (typeof this.isAmplitudeEnabled === "undefined" && user.id) {
+      this.isAmplitudeEnabled = this.shouldSampleUser(user.id);
+
+      if (this.isAmplitudeEnabled) {
+        init(this.options.amplitude.apiKey, {
+          serverUrl: "/api/analytics"
+        });
+      }
+    }
+  }
+
+  trackSwitch(eventName: "connect_wallet", value: "managed" | "custodial", target?: AnalyticsTarget);
+  trackSwitch(eventName: any, value: any, target?: AnalyticsTarget) {
+    if (!isBrowser) {
+      return;
+    }
+
+    if (this.valuesCache.get(eventName) === value) {
+      return;
+    }
+
+    this.saveSwitchValue(eventName, value);
+
+    return this.track(eventName, { tab: value }, target);
+  }
+
+  private saveSwitchValue(eventName: string, value: string) {
+    this.valuesCache.set(eventName, value);
+    const obj = Object.fromEntries(this.valuesCache);
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(obj));
   }
 
   track(eventName: AnalyticsEvent, eventProperties: EventProperties, target?: AnalyticsTarget): void {
@@ -128,9 +185,10 @@ export class AnalyticsService {
       return;
     }
 
-    if (this.options.amplitude.enabled && (!target || target === "Amplitude")) {
+    if (this.isAmplitudeEnabled && (!target || target === "Amplitude")) {
       track(eventName, eventProperties);
     }
+
     if (this.options.ga.enabled && (!target || target === "GA")) {
       event(...this.transformGaEvent(eventName, eventProperties));
     }
@@ -142,6 +200,12 @@ export class AnalyticsService {
     }
 
     return [GA_EVENTS[eventName] || eventName, eventProperties];
+  }
+
+  private shouldSampleUser(userId: string): boolean {
+    const hashValue = murmurhash.v3(userId);
+    const percentage = Math.abs(hashValue) % 100;
+    return percentage < this.SAMPLING_RATE * 100;
   }
 }
 
