@@ -15,6 +15,8 @@ import { managedWalletHttpService } from "@src/services/managed-wallet-http/mana
 
 const HTTP_SERVICES = [managedWalletHttpService, services.user, services.stripe, services.tx, services.template, services.auth, services.deploymentSetting];
 
+const originalFetch = typeof window !== "undefined" && window.fetch;
+
 const addResponseInterceptor = (interceptor: (value: AxiosError) => AxiosResponse | Promise<AxiosResponse>) => {
   const removes = HTTP_SERVICES.map(service => {
     const interceptorId = service.interceptors.response.use(null, interceptor);
@@ -40,7 +42,26 @@ export const Turnstile: FC = () => {
   const dismissedSubject = useRef(new Subject<void>());
 
   useEffect(() => {
-    return addResponseInterceptor(async error => {
+    if (originalFetch) {
+      window.fetch = async (...args) => {
+        let response = await originalFetch(...args);
+
+        if (typeof args[0] === "string" && args[0].startsWith("/") && response.status > 400 && turnstileRef.current) {
+          turnstileRef.current?.render();
+          turnstileRef.current?.execute();
+
+          const turnstileResponse = await Promise.race([turnstileRef.current.getResponsePromise(), firstValueFrom(dismissedSubject.current.asObservable())]);
+
+          if (turnstileResponse) {
+            response = await originalFetch(...args);
+          }
+        }
+
+        return response;
+      };
+    }
+
+    const ejectInterceptors = addResponseInterceptor(async error => {
       const request = error?.request;
 
       if ((!request?.status || request?.status > 400) && turnstileRef.current) {
@@ -56,6 +77,13 @@ export const Turnstile: FC = () => {
 
       return Promise.reject(error);
     });
+
+    return () => {
+      ejectInterceptors();
+      if (originalFetch) {
+        window.fetch = originalFetch;
+      }
+    };
   }, []);
 
   const resetWidget = useCallback(() => {
