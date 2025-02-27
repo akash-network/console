@@ -26,7 +26,7 @@ import { TemplateCreation } from "@src/types";
 import type { DepositParams } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
-import { appendTrialAttribute } from "@src/utils/deploymentData/v1beta3";
+import { appendTrialAttribute, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
@@ -71,7 +71,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [sdlDenom, setSdlDenom] = useState("uakt");
 
   const { settings } = useSettings();
-  const { address, signAndBroadcastTx, isManaged, isTrialing } = useWallet();
+  const { address, signAndBroadcastTx, isManaged, isTrialing, isOnboarding } = useWallet();
   const router = useRouter();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
@@ -234,7 +234,9 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
       }
 
       if (isTrialing) {
-        sdl = appendTrialAttribute(sdl);
+        sdl = appendTrialAttribute(sdl, TRIAL_ATTRIBUTE);
+      } else if (isOnboarding) {
+        sdl = appendTrialAttribute(sdl, TRIAL_REGISTERED_ATTRIBUTE);
       }
 
       const dd = await createAndValidateDeploymentData(sdl, null, deposit, depositorAddress);
