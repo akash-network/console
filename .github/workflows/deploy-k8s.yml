@@ -72,10 +72,12 @@ jobs:
 
       - name: Install jq
         uses: dcarbone/install-jq-action@v3.0.1
+
       - name: Tailscale
         uses: tailscale/github-action@v3
         with:
-          auth-key: ${{ env.TS_AUTHKEY }}
+          oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ env.TS_OAUTH_SECRET }}
           tags: tag:ci
 
       - name: Check tailscale connection
@@ -87,7 +89,7 @@ jobs:
 
           tlstatus=$(tailscale status --json | jq -r '.CurrentTailnet.Name')
 
-          if [[ $tlstatus != "${{ env.$TAILSCALE_ORG }}" ]]; then
+          if [[ $tlstatus != "${{ vars.TAILSCALE_ORG }}" ]]; then
               exit 1
           fi
 
