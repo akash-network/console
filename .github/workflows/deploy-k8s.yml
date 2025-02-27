@@ -85,7 +85,6 @@ jobs:
               exit 1
           fi
 
-
           tlstatus=$(tailscale status --json | jq -r '.CurrentTailnet.Name')
 
           if [[ $tlstatus != "${{ env.$TAILSCALE_ORG }}" ]]; then
