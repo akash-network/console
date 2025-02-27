@@ -70,12 +70,27 @@ jobs:
           TS_OAUTH_CLIENT_ID: ${{ vars.OP_TS_OAUTH_CLIENT_ID_URI }}
           TS_OAUTH_SECRET: ${{ vars.OP_TS_OAUTH_CLIENT_SECRET_URI }}
 
+      - name: Install jq
+        uses: dcarbone/install-jq-action@v3.0.1
       - name: Tailscale
         uses: tailscale/github-action@v3
         with:
-          oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ env.TS_OAUTH_SECRET }}
+          auth-key: ${{ env.TS_AUTHKEY }}
           tags: tag:ci
+
+      - name: Check tailscale connection
+        run: |
+          tlrunning=$(tailscale status --json | jq -r '.BackendState')
+          if [[ $tlrunning != "Running" ]]; then
+              exit 1
+          fi
+
+
+          tlstatus=$(tailscale status --json | jq -r '.CurrentTailnet.Name')
+
+          if [[ $tlstatus != "${{ env.$TAILSCALE_ORG }}" ]]; then
+              exit 1
+          fi
 
       - name: Set up Helm
         uses: azure/setup-helm@v4.3.0
