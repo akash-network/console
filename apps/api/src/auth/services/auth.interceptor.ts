@@ -55,7 +55,7 @@ export class AuthInterceptor implements HonoInterceptor {
       if (apiKey) {
         try {
           const apiKeyOutput = await this.apiKeyAuthService.getAndValidateApiKeyFromHeader(apiKey);
-          const currentUser = await this.userRepository.findByUserId(apiKeyOutput.userId);
+          const currentUser = await this.userRepository.findById(apiKeyOutput.userId);
           await this.auth(currentUser);
           c.set("user", currentUser);
 
