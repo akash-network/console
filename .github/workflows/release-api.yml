@@ -25,3 +25,25 @@ jobs:
       packages: write
     with:
       tag: ${{ needs.release.outputs.version }}
+
+  release-beta-mainnet:
+    needs: build
+    name: Deploy to beta sandbox
+    uses: ./.github/workflows/deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: console-api
+      appVersion: ${{ needs.build.outputs.image_tag }}
+      environment: staging
+      chain: mainnet
+
+  release-beta-sandbox:
+    needs: build
+    name: Deploy to beta sandbox
+    uses: ./.github/workflows/deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: console-api
+      appVersion: ${{ needs.build.outputs.image_tag }}
+      environment: staging
+      chain: sandbox

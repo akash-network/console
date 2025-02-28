@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to build'
+        description: "Tag to build"
         required: true
         type: string
       deployment-env:
-        description: 'Deployment environment'
+        description: "Deployment environment"
         type: choice
         options:
           - staging
@@ -16,11 +16,11 @@ on:
   workflow_call:
     inputs:
       tag:
-        description: 'Tag to build'
+        description: "Tag to build"
         required: true
         type: string
       deployment-env:
-        description: 'Deployment environment'
+        description: "Deployment environment"
         type: string
 
 concurrency:
@@ -34,6 +34,9 @@ jobs:
   build:
     name: Build Docker image
     runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.determine.outputs.tag }}
 
     steps:
       - name: Checkout repository
@@ -73,6 +76,7 @@ jobs:
           tag="${tag#*/}"
           tag="${tag#v}"
           echo "tag=$tag" >> $GITHUB_ENV
+          echo "tag=$tag" >> $GITHUB_OUTPUT
 
       - name: Build Docker image
         env:
