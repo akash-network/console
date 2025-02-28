@@ -6,6 +6,8 @@ services:
       DB_HOST: db
     ports:
       - '3080:3000'
+    depends_on:
+      - vault
 
   indexer:
     restart: always
@@ -47,3 +49,18 @@ services:
       - .env.sandbox.docker-compose-dev
     ports:
       - '3003:3000'
+
+  vault:
+    image: hashicorp/vault
+    network_mode: "host"
+    ports:
+      - "8200:8200"
+    volumes:
+      - ./file:/vault/file:rw
+      - ./config:/vault/config:rw
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: "myroot"
+      VAULT_ADDR: "http://127.0.0.1:8200"
+    cap_add:
+      - IPC_LOCK
+    entrypoint: vault server -dev -dev-root-token-id=myroot

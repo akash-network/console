@@ -83,6 +83,7 @@
     "memory-cache": "^0.2.0",
     "node-dependency-injection": "^3.1.2",
     "node-fetch": "^2.6.1",
+    "node-vault": "^0.10.2",
     "pg": "^8.12.0",
     "pg-hstore": "^2.3.4",
     "postgres": "^3.4.4",
