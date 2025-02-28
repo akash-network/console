@@ -10,7 +10,7 @@ on:
 jobs:
   release:
     name: Create Release
-    uses: ./.github/workflows/create-github-release.yml
+    uses: ./.github/workflows/reusable-create-github-release.yml
     secrets: inherit
     with:
       app: api
@@ -18,18 +18,18 @@ jobs:
   build:
     needs: release
     name: Build Docker image
-    uses: ./.github/workflows/build-image.yml
+    uses: ./.github/workflows/reusable-build-image.yml
     secrets: inherit
     permissions:
       contents: write
       packages: write
     with:
-      tag: ${{ needs.release.outputs.version }}
+      tag: ${{ needs.release.outputs.git_tag }}
 
-  release-beta-mainnet:
+  deploy-beta-mainnet:
     needs: build
     name: Deploy to beta sandbox
-    uses: ./.github/workflows/deploy-k8s.yml
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
       app: console-api
@@ -37,10 +37,10 @@ jobs:
       environment: staging
       chain: mainnet
 
-  release-beta-sandbox:
+  deploy-beta-sandbox:
     needs: build
     name: Deploy to beta sandbox
-    uses: ./.github/workflows/deploy-k8s.yml
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
       app: console-api
