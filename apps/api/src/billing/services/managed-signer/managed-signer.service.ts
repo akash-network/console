@@ -1,5 +1,6 @@
 import { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import assert from "http-assert";
+import flatten from "lodash/flatten";
 import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
@@ -52,7 +53,14 @@ export class ManagedSignerService {
     const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findOneByUserId(userId);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    await Promise.all(messages.map(message => this.anonymousValidateService.validateLeaseProviders(message, userWallet)));
+    await Promise.all(
+      flatten(
+        messages.map(message => [
+          this.anonymousValidateService.validateLeaseProviders(message, userWallet),
+          this.anonymousValidateService.validateTrialLimit(message, userWallet)
+        ])
+      )
+    );
 
     try {
       const tx = await this.executeManagedTx(userWallet.id, messages);
