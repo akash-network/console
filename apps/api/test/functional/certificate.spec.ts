@@ -95,11 +95,11 @@ describe("Certificate API", () => {
       expect(response.status).toBe(200);
       const result = (await response.json()) as CreateCertificateResponse;
 
-      expect(result.certPem).toBeDefined();
-      expect(result.pubkeyPem).toBeDefined();
-      expect(result.encryptedKey).toBeDefined();
+      expect(result.data?.certPem).toBeDefined();
+      expect(result.data?.pubkeyPem).toBeDefined();
+      expect(result.data?.encryptedKey).toBeDefined();
 
-      const cert = certificateManager.parsePem(result.certPem);
+      const cert = certificateManager.parsePem(result.data!.certPem!);
       expect(cert.sSubject).toContain(wallet.address);
     });
 
