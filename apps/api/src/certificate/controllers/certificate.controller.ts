@@ -9,13 +9,10 @@ import { CertificateService } from "../services/certificate.service";
 export class CertificateController {
   constructor(private readonly certificateService: CertificateService) {}
 
-  @Protected([
-    { action: "sign", subject: "UserWallet" },
-    { action: "read", subject: "ApiKey" }
-  ])
+  @Protected([{ action: "sign", subject: "UserWallet" }])
   async create(): Promise<CreateCertificateResponse> {
     const cert = await this.certificateService.create();
     assert(cert, 404, "Certificate not found");
-    return cert;
+    return { data: cert };
   }
 }
