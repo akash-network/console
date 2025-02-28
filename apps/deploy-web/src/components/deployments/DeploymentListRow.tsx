@@ -17,13 +17,13 @@ import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import isValid from "date-fns/isValid";
 import { Edit, InfoCircle, MoreHoriz, NavArrowRight, Plus, Upload, WarningCircle, WarningTriangle, XmarkSquare } from "iconoir-react";
+import { keyBy } from "lodash";
 import { useRouter } from "next/navigation";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
-import { getShortText } from "@src/hooks/useShortText";
 import { useDenomData } from "@src/hooks/useWalletBalance";
-import { useAllLeases } from "@src/queries/useLeaseQuery";
+import { useAllLeases, useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import { NamedDeploymentDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
@@ -36,6 +36,7 @@ import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import { PriceValue } from "../shared/PriceValue";
 import { SpecDetailList } from "../shared/SpecDetailList";
+import { DeploymentName } from "./DeploymentName/DeploymentName";
 import { DeploymentDepositModal, DeploymentDepositModalProps } from "./DeploymentDepositModal";
 import { LeaseChip } from "./LeaseChip";
 
@@ -64,47 +65,6 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const deploymentCost = hasLeases ? filteredLeases?.reduce((prev, current) => prev + parseFloat(current.price.amount), 0) : 0;
   const timeLeft = getTimeLeft(deploymentCost || 0, deployment.escrowBalance);
   const realTimeLeft = useRealTimeLeft(deploymentCost || 0, deployment.escrowBalance, parseFloat(deployment.escrowAccount.settled_at), deployment.createdAt);
-  const deploymentName = deployment.name ? (
-    <>
-      {deployment.name.length > 20 ? (
-        <CustomTooltip
-          title={
-            <>
-              <div>{deployment.name}</div>
-              <small>{deployment.dseq}</small>
-            </>
-          }
-        >
-          <span className="text-sm">
-            <strong>{getShortText(deployment.name, 15)}</strong>
-            <span className="inline text-xs">
-              &nbsp;-&nbsp;<small>{getShortText(deployment.dseq, 15)}</small>
-            </span>
-          </span>
-        </CustomTooltip>
-      ) : (
-        <CustomTooltip
-          title={
-            <>
-              <div>{deployment.name}</div>
-              <small>{deployment.dseq}</small>
-            </>
-          }
-        >
-          <span className="text-sm">
-            <strong>{deployment.name}</strong>
-            <span className="inline text-xs">
-              &nbsp;-&nbsp;<small>{getShortText(deployment.dseq, 15)}</small>
-            </span>
-          </span>
-        </CustomTooltip>
-      )}
-    </>
-  ) : (
-    <span className="inline text-sm">
-      <small>{deployment.dseq}</small>
-    </span>
-  );
   const showTimeLeftWarning = differenceInCalendarDays(timeLeft, new Date()) < 7;
   const escrowBalance = isActive && hasActiveLeases ? realTimeLeft?.escrow : deployment.escrowBalance;
   const amountSpent = isActive && hasActiveLeases ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount);
@@ -113,6 +73,10 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
   const denomData = useDenomData(deployment.escrowAccount.balance.denom);
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
+  const providersByOwner = useMemo(() => keyBy(providers, p => p.owner), [providers]);
+  const lease = filteredLeases?.find(lease => !!(lease?.provider && providersByOwner[lease.provider]));
+  const provider = providersByOwner[lease?.provider || ""];
+  const { data: leaseStatus } = useLeaseStatus(provider, lease, { enabled: !!(provider && lease) });
 
   function viewDeployment() {
     router.push(UrlService.deploymentDetails(deployment.dseq));
@@ -204,7 +168,9 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
             />
           </div>
         </TableCell>
-        <TableCell className="max-w-[100px] text-center">{deploymentName}</TableCell>
+        <TableCell className="max-w-[100px] text-center">
+          <DeploymentName deployment={deployment} deploymentServices={leaseStatus?.services} providerHostUri={provider?.hostUri} />
+        </TableCell>
         <TableCell className="text-center">
           {isActive && isValidTimeLeft && realTimeLeft && (
             <div className="inline-flex items-center space-x-2">
