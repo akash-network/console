@@ -152,9 +152,9 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
           return acc;
         }
 
-        const exposes = leaseStatus.forwarded_ports[serviceName];
+        const exposes = leaseStatus?.forwarded_ports?.[serviceName];
 
-        return exposes.reduce((exposesAcc, expose) => {
+        return exposes?.reduce((exposesAcc, expose) => {
           if (expose.port !== 22) {
             return exposesAcc;
           }
