@@ -1,23 +1,21 @@
-import { MockComponents } from "tests/unit/mocks";
-
 import { COMPONENTS, DeploymentName, Props } from "./DeploymentName";
 
 import { render, screen } from "@testing-library/react";
+import { MockComponents } from "@tests/unit/mocks";
 
 describe(DeploymentName.name, () => {
-  it("renders only deployment dseq if no name", () => {
+  it("renders 'Unknown' if no name and no services", () => {
     const deployment = { dseq: "123" };
     const { container } = setup({ deployment });
 
-    expect(container.textContent?.trim()).toBe(deployment.dseq);
+    expect(container.textContent?.trim()).toBe("Unknown");
   });
 
-  it("should render deployment name and dseq if provided", () => {
+  it("should render deployment name if provided", () => {
     const deployment = { dseq: "123", name: "test" };
     setup({ deployment });
 
     expect(screen.queryByText(deployment.name)).toBeInTheDocument();
-    expect(screen.queryByText(deployment.dseq)).toBeInTheDocument();
   });
 
   it("renders first deployment service URI if no name specified", () => {
@@ -74,14 +72,17 @@ describe(DeploymentName.name, () => {
       test: { uris: ["test.com", "adasdq3dfslkm1o232.provider.test.com"] },
       api: { uris: ["api.akash.network"] }
     };
+    const CustomTooltip: (typeof COMPONENTS)["CustomTooltip"] = jest.fn(props => <div>{props.title}</div>);
     setup({
       deployment,
       deploymentServices,
-      renderTooltip: true
+      components: {
+        CustomTooltip
+      }
     });
 
+    expect(CustomTooltip).toHaveBeenCalledWith(expect.objectContaining({ disabled: false }), {});
     expect(screen.queryByText(deployment.name)).toBeInTheDocument();
-    expect(screen.queryByText(deployment.dseq)).toBeInTheDocument();
     expect(screen.queryByText(deploymentServices.test.uris[0])).toBeInTheDocument();
     expect(screen.queryByText(deploymentServices.test.uris[1])).toBeInTheDocument();
     expect(screen.queryByText(deploymentServices.api.uris[0])).toBeInTheDocument();
@@ -93,14 +94,17 @@ describe(DeploymentName.name, () => {
       test: { uris: ["test.com", "adasdq3dfslkm1o232.provider.test.com"] },
       api: { uris: ["api.akash.network"] }
     };
+    const CustomTooltip: (typeof COMPONENTS)["CustomTooltip"] = jest.fn(props => <div>{props.title}</div>);
     setup({
       deployment,
       deploymentServices,
-      renderTooltip: true
+      components: {
+        CustomTooltip
+      }
     });
 
+    expect(CustomTooltip).toHaveBeenCalledWith(expect.objectContaining({ disabled: false }), {});
     expect(screen.queryByText("Name:")).not.toBeInTheDocument();
-    expect(screen.queryByText(deployment.dseq)).toBeInTheDocument();
     expect(screen.queryByText(deploymentServices.test.uris[0])).toBeInTheDocument();
     expect(screen.queryByText(deploymentServices.test.uris[1])).toBeInTheDocument();
     expect(screen.queryByText(deploymentServices.api.uris[0])).toBeInTheDocument();
@@ -113,14 +117,17 @@ describe(DeploymentName.name, () => {
         providerHostUri={input?.providerHostUri}
         deploymentServices={input?.deploymentServices}
         components={MockComponents(COMPONENTS, {
-          CustomTooltip: input?.renderTooltip ? (props: Record<string, React.ReactNode | string>) => <div>{props.title}</div> : undefined,
-          LabelValue: (props: Record<string, React.ReactNode | string>) => <div>{props.label}</div>
+          LabelValue: props => <div>{props.label}</div>,
+          ...input?.components
         })}
       />
     );
   }
 
-  interface TestInput extends Partial<Props> {
-    renderTooltip?: boolean;
+  interface TestInput {
+    deployment?: Props["deployment"];
+    providerHostUri?: Props["providerHostUri"];
+    deploymentServices?: Props["deploymentServices"];
+    components?: Partial<typeof COMPONENTS>;
   }
 });
