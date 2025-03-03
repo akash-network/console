@@ -2,7 +2,12 @@ import { singleton } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import { UserWalletRepository } from "@src/billing/repositories";
-import { CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import {
+  CloseDeploymentResponse,
+  CreateDeploymentRequest,
+  CreateDeploymentResponse,
+  GetDeploymentResponse
+} from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentService } from "@src/deployment/services/deployment/deployment.service";
 
 @singleton()
@@ -22,11 +27,11 @@ export class DeploymentController {
 
     return {
       data: deployment
-    }
+    };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
-  async create(input: CreateDeploymentRequest['data']): Promise<CreateDeploymentResponse> {
+  async create(input: CreateDeploymentRequest["data"]): Promise<CreateDeploymentResponse> {
     const { currentUser, ability } = this.authService;
 
     const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(currentUser.userId);
@@ -35,5 +40,15 @@ export class DeploymentController {
     return {
       data: result
     };
+  }
+
+  @Protected([{ action: "sign", subject: "UserWallet" }])
+  async close(dseq: string): Promise<CloseDeploymentResponse> {
+    const { currentUser, ability } = this.authService;
+
+    const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(currentUser.userId);
+    const result = await this.deploymentService.close(wallets[0], dseq);
+
+    return { data: result };
   }
 }

@@ -18,11 +18,12 @@ export class DeploymentService {
     private readonly signerService: ManagedSignerService,
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
     private readonly billingConfigService: BillingConfigService,
-    private readonly rpcMessageService: RpcMessageService,
-  ) { }
+    private readonly rpcMessageService: RpcMessageService
+  ) {}
 
-  public async findByOwnerAndDseq(owner: string, dseq: string): Promise<GetDeploymentResponse['data']> {
+  public async findByOwnerAndDseq(owner: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
     const deploymentResponse = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
+
     if ("code" in deploymentResponse) {
       if (deploymentResponse.message?.toLowerCase().includes("deployment not found")) {
         throw new NotFound("Deployment not found");
@@ -40,21 +41,22 @@ export class DeploymentService {
     };
   }
 
-  public async create(wallet: UserWalletOutput, input: CreateDeploymentRequest['data']): Promise<CreateDeploymentResponse['data']> {
+  public async create(wallet: UserWalletOutput, input: CreateDeploymentRequest["data"]): Promise<CreateDeploymentResponse["data"]> {
     let sdl: SDL;
     try {
-      sdl = SDL.fromString(input.sdl, 'beta3');
+      sdl = SDL.fromString(input.sdl, "beta3");
     } catch (error) {
-      if (error.name === 'SdlValidationError') {
+      if (error.name === "SdlValidationError") {
         throw new BadRequest(error.message);
       }
 
       throw new BadRequest("Invalid SDL");
     }
 
+    const dseq = await this.blockHttpService.getCurrentHeight();
     const message = this.rpcMessageService.getCreateDeploymentMsg({
       owner: wallet.address,
-      dseq: await this.blockHttpService.getCurrentHeight(),
+      dseq,
       groups: sdl.groups(),
       denom: this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM"),
       amount: input.deposit,
@@ -62,6 +64,18 @@ export class DeploymentService {
       depositor: await this.masterWallet.getFirstAddress()
     });
 
-    return await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
+    const result = await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
+    return {
+      dseq: dseq.toString(),
+      signTx: result
+    };
+  }
+
+  public async close(wallet: UserWalletOutput, dseq: string): Promise<{ success: boolean }> {
+    const deployment = await this.findByOwnerAndDseq(wallet.address, dseq);
+    const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.deployment_id.dseq);
+    await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
+
+    return { success: true };
   }
 }

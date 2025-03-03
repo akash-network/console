@@ -130,7 +130,7 @@ export class RpcMessageService {
     };
   }
 
-  getCloseDeploymentMsg(address: string, dseq: number) {
+  getCloseDeploymentMsg(address: string, dseq: number | string) {
     return {
       typeUrl: `/${MsgCloseDeployment.$type}`,
       value: {
@@ -148,15 +148,15 @@ export class RpcMessageService {
       value: MsgCreateDeployment.fromPartial({
         id: {
           owner,
-          dseq,
+          dseq
         },
         groups,
         version: manifestVersion,
         deposit: {
           denom,
-          amount: amount.toString(),
+          amount: amount.toString()
         },
-        depositor,
+        depositor
       })
     };
   }
