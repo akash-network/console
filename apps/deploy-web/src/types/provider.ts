@@ -237,7 +237,7 @@ export interface ApiProviderList {
       ephemeral: StatsItem;
       persistent: StatsItem;
     };
-  },
+  };
   attributes: Array<{
     key: string;
     value: string;
@@ -309,4 +309,38 @@ export interface StatsItem {
   active: number;
   available: number;
   pending: number;
+}
+
+export interface LeaseServiceStatus {
+    name: string;
+    available: number;
+    total: number;
+    uris: string[];
+    observed_generation: number;
+    replicas: number;
+    updated_replicas: number;
+    ready_replicas: number;
+    available_replicas: number;
+}
+
+export interface LeaseStatus {
+  services: Record<string, LeaseServiceStatus>;
+  ips: Record<
+    string,
+    {
+      IP: string;
+      Port: number;
+      Protocol: string;
+      ExternalPort: number;
+    }[]
+  >;
+  forwarded_ports: Record<
+    string,
+    {
+      host: string;
+      port: number;
+      proto: string;
+      externalPort: number;
+    }[]
+  >;
 }

@@ -23,25 +23,30 @@ export function HomeContainer() {
   const { address, isWalletLoaded } = useWallet();
   const [activeDeployments, setActiveDeployments] = useState<DeploymentDto[]>([]);
   const { getDeploymentName } = useLocalNotes();
-  const { isFetching: isLoadingDeployments, refetch: getDeployments } = useDeploymentList(address, {
-    enabled: false,
-    onSuccess: _deployments => {
-      setActiveDeployments(
-        _deployments
-          ? [..._deployments]
-              .filter(d => d.state === "active")
-              .map(d => {
-                const name = getDeploymentName(d.dseq);
-
-                return {
-                  ...d,
-                  name
-                };
-              })
-          : []
-      );
-    }
+  const {
+    data: deployments,
+    isFetching: isLoadingDeployments,
+    refetch: getDeployments
+  } = useDeploymentList(address, {
+    enabled: false
   });
+  useEffect(() => {
+    setActiveDeployments(
+      deployments
+        ? [...deployments]
+            .filter(d => d.state === "active")
+            .map(d => {
+              const name = getDeploymentName(d.dseq);
+
+              return {
+                ...d,
+                name
+              };
+            })
+        : []
+    );
+  }, [deployments, getDeploymentName]);
+
   const { settings, isSettingsInit } = useSettings();
   const { apiEndpoint } = settings;
   const { balance: walletBalance, isLoading: isLoadingBalances } = useWalletBalance();

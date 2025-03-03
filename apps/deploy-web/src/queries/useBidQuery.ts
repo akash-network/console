@@ -1,4 +1,4 @@
-import { QueryKey, useQuery, UseQueryOptions } from "react-query";
+import { QueryKey, useQuery, UseQueryOptions } from "@tanstack/react-query";
 import axios from "axios";
 
 import { BidDto, RpcBid } from "@src/types/deployment";
@@ -28,7 +28,11 @@ async function getBidList(apiEndpoint: string, address: string, dseq: string): P
 export function useBidList(address: string, dseq: string, options?: Omit<UseQueryOptions<BidDto[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
   const { settings } = useSettings();
 
-  return useQuery(QueryKeys.getBidListKey(address, dseq), () => getBidList(settings.apiEndpoint, address, dseq), options);
+  return useQuery({
+    queryKey: QueryKeys.getBidListKey(address, dseq),
+    queryFn: () => getBidList(settings.apiEndpoint, address, dseq),
+    ...options
+  });
 }
 
 async function getBidInfo(apiEndpoint: string, address: string, dseq: string, gseq: number, oseq: number, provider: string): Promise<RpcBid | null> {
@@ -41,9 +45,9 @@ async function getBidInfo(apiEndpoint: string, address: string, dseq: string, gs
 
 export function useBidInfo(address: string, dseq: string, gseq: number, oseq: number, provider: string, options = {}) {
   const { settings } = useSettings();
-  return useQuery(
-    QueryKeys.getBidInfoKey(address, dseq, gseq, oseq, provider),
-    () => getBidInfo(settings.apiEndpoint, address, dseq, gseq, oseq, provider),
-    options
-  );
+  return useQuery({
+    queryKey: QueryKeys.getBidInfoKey(address, dseq, gseq, oseq, provider),
+    queryFn: () => getBidInfo(settings.apiEndpoint, address, dseq, gseq, oseq, provider),
+    ...options
+  });
 }

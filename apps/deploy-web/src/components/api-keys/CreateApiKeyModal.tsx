@@ -27,7 +27,7 @@ const formSchema = z.object({
 
 export const CreateApiKeyModal = ({ isOpen, onClose }: Props) => {
   const { enqueueSnackbar } = useSnackbar();
-  const { mutate: createApiKey, data: createdApiKey, isLoading } = useCreateApiKey();
+  const { mutate: createApiKey, data: createdApiKey, isPending } = useCreateApiKey();
   const formRef = useRef<HTMLFormElement | null>(null);
   const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
@@ -58,8 +58,8 @@ export const CreateApiKeyModal = ({ isOpen, onClose }: Props) => {
               color: "secondary",
               variant: "default",
               side: "right",
-              disabled: !!errors.name || isLoading,
-              isLoading,
+              disabled: !!errors.name || isPending,
+              isPending,
               onClick: event => {
                 event.preventDefault();
                 formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
@@ -75,7 +75,7 @@ export const CreateApiKeyModal = ({ isOpen, onClose }: Props) => {
               onClick: onClose
             }
           ],
-    [isCreatingNewKey, isLoading, errors.name, onClose]
+    [isCreatingNewKey, isPending, errors.name, onClose]
   );
 
   const onCopyClick = () => {

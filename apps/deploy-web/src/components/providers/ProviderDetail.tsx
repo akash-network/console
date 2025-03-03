@@ -13,7 +13,7 @@ import { LabelValue } from "@src/components/shared/LabelValue";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderAttributesSchema, useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
-import { ApiProviderDetail, ClientProviderDetailWithStatus, StatsItem } from "@src/types/provider";
+import { ApiProviderDetail, ApiProviderList, ClientProviderDetailWithStatus, StatsItem } from "@src/types/provider";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
@@ -35,22 +35,36 @@ type Props = {
 export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provider }) => {
   const [provider, setProvider] = useState<ClientProviderDetailWithStatus>(_provider as ClientProviderDetailWithStatus);
   const { address } = useWallet();
-  const { isLoading: isLoadingProvider, refetch: getProviderDetail } = useProviderDetail(owner, {
+  const {
+    data: providerDetail,
+    isLoading: isLoadingProvider,
+    refetch: getProviderDetail
+  } = useProviderDetail(owner, {
     enabled: false,
-    retry: false,
-    onSuccess: _providerDetail => {
-      setProvider(provider => (provider ? { ...provider, ..._providerDetail } : _providerDetail));
-    }
+    retry: false
   });
+  useEffect(() => {
+    if (providerDetail) {
+      setProvider(provider => (provider ? { ...provider, ...providerDetail } : (providerDetail as ClientProviderDetailWithStatus)));
+    }
+  }, [providerDetail]);
+
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
   const { data: providerAttributesSchema, isFetching: isLoadingSchema } = useProviderAttributesSchema();
-  const { isLoading: isLoadingStatus, refetch: getProviderStatus } = useProviderStatus(provider, {
+  const {
+    data: providerStatus,
+    isLoading: isLoadingStatus,
+    refetch: getProviderStatus
+  } = useProviderStatus(provider as ApiProviderList, {
     enabled: true,
-    retry: false,
-    onSuccess: _providerStatus => {
-      setProvider(provider => (provider ? { ...provider, ..._providerStatus } : _providerStatus));
-    }
+    retry: false
   });
+  useEffect(() => {
+    if (providerStatus) {
+      setProvider(provider => (provider ? { ...provider, ...providerStatus } : (providerStatus as ClientProviderDetailWithStatus)));
+    }
+  }, [providerStatus]);
+
   const isLoading = isLoadingProvider || isLoadingStatus || isLoadingLeases || isLoadingSchema;
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("lg"));
@@ -68,7 +82,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
 
       setProvider(provider => ({ ...provider, userLeases: numberOfDeployments, userActiveLeases: numberOfActiveLeases }));
     }
-  }, [leases]);
+  }, [leases, owner]);
 
   const networkCapacity = useMemo<NetworkCapacityProps>(() => {
     return {

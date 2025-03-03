@@ -1,5 +1,5 @@
-import { useQuery } from "react-query";
 import { type ToasterToast, useToast } from "@akashnetwork/ui/hooks";
+import { useQuery } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 
 import { ControlMachineWithAddress } from "@src/types/controlMachine";
@@ -173,20 +173,19 @@ export const useProviderActionStatus = (actionId: string | null) => {
     queryKey: ["providerActionStatus", actionId],
     queryFn: async (): Promise<ActionStatus> => {
       try {
-        const response: ActionStatus = await restClient.get(`/action/status/${actionId}`);
-        return response;
+        return await restClient.get(`/action/status/${actionId}`);
       } catch (error: unknown) {
         return handleQueryError(error as AxiosError, toast, "Failed to fetch action status");
       }
     },
     enabled: !!actionId,
-    refetchInterval: data => {
-      if (data?.tasks?.some(task => task.status === "in_progress")) {
+    refetchInterval: query => {
+      if (query.state.data?.tasks?.some(task => task.status === "in_progress")) {
         return 5000;
       }
       return false;
     },
-    keepPreviousData: true,
+    placeholderData: previousValue => previousValue,
     refetchOnWindowFocus: query => {
       const data = query.state.data;
       return data?.tasks?.some(task => task.status === "in_progress") ?? false;

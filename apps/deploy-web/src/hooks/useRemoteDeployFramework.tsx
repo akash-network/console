@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { supportedFrameworks } from "@src/config/remote-deploy.config";
 import { useBitPackageJson } from "@src/queries/useBitBucketQuery";
@@ -22,21 +22,45 @@ const useRemoteDeployFramework = ({
 }) => {
   const [packageJson, setPackageJson] = useState<PackageJson | null>(null);
 
-  const { isLoading } = usePackageJson(setValueHandler, formatUrlWithoutInitialPath(currentRepoUrl), subFolder);
-  const { isLoading: gitlabLoading, isFetching } = useGitlabPackageJson(setValueHandler, currentGitlabProjectId, subFolder);
+  const setValueHandler = useCallback(
+    (data: PackageJson) => {
+      if (data?.dependencies) {
+        setPackageJson(data);
+        const cpus = (Object.keys(data?.dependencies ?? {})?.length / 10 / 2)?.toFixed(1);
 
-  const { isLoading: bitbucketLoading } = useBitPackageJson(setValueHandler, formatUrlWithoutInitialPath(currentRepoUrl), currentBranchName, subFolder);
+        setCpus(+cpus > 2 ? +cpus : 2);
+      } else {
+        setPackageJson(null);
+      }
+    },
+    [setCpus]
+  );
 
-  function setValueHandler(data: PackageJson) {
-    if (data?.dependencies) {
-      setPackageJson(data);
-      const cpus = (Object.keys(data?.dependencies ?? {})?.length / 10 / 2)?.toFixed(1);
-
-      setCpus(+cpus > 2 ? +cpus : 2);
-    } else {
-      setPackageJson(null);
+  const { isLoading, data: gitHubPackagJson } = usePackageJson(formatUrlWithoutInitialPath(currentRepoUrl), subFolder);
+  useEffect(() => {
+    if (gitHubPackagJson?.content) {
+      setValueHandler(JSON.parse(atob(gitHubPackagJson.content)));
     }
-  }
+  }, [gitHubPackagJson, setValueHandler]);
+
+  const { isLoading: gitlabLoading, isFetching, data: gitlabPackageJson } = useGitlabPackageJson(currentGitlabProjectId, subFolder);
+  useEffect(() => {
+    if (gitlabPackageJson?.content) {
+      setValueHandler(JSON.parse(atob(gitlabPackageJson.content)));
+    }
+  }, [gitlabPackageJson, setValueHandler]);
+
+  const { isLoading: bitbucketLoading, data: bitbucketPackageJson } = useBitPackageJson(
+    formatUrlWithoutInitialPath(currentRepoUrl),
+    currentBranchName,
+    subFolder
+  );
+  useEffect(() => {
+    if (bitbucketPackageJson) {
+      setValueHandler(bitbucketPackageJson);
+    }
+  }, [bitbucketPackageJson, setValueHandler]);
+
   return {
     currentFramework: supportedFrameworks.find(f => packageJson?.scripts?.dev?.includes(f.value)) ?? {
       title: "Other",

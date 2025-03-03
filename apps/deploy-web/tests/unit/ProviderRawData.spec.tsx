@@ -1,4 +1,4 @@
-import { QueryClientProvider } from "react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { AxiosStatic } from "axios";
 
 import { COMPONENTS, ProviderRawData } from "@src/components/providers/ProviderRawData";
@@ -9,7 +9,7 @@ import { ApiProviderDetail } from "@src/types/provider";
 import { buildProvider } from "../seeders/provider";
 import { MockComponents } from "./mocks";
 
-import { act, render } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 
 describe(ProviderRawData.name, () => {
   it("renders", async () => {
@@ -19,7 +19,7 @@ describe(ProviderRawData.name, () => {
 
     expect(components.Layout).toHaveBeenCalled();
     expect(components.CustomNextSeo).toHaveBeenCalled();
-    expect(components.ProviderDetailLayout).toHaveBeenCalledWith(expect.objectContaining({ address: provider.owner, provider }), {});
+    await waitFor(() => expect(components.ProviderDetailLayout).toHaveBeenCalledWith(expect.objectContaining({ address: provider.owner, provider }), {}));
     expect(components.DynamicReactJson).toHaveBeenCalledWith(expect.objectContaining({ src: JSON.parse(JSON.stringify(provider)) }), {});
   });
 

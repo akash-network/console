@@ -20,8 +20,8 @@ type Props = {
 export const UserFavoriteButton: React.FunctionComponent<Props> = ({ id, isFavorite: _isFavorite, onAddFavorite, onRemoveFavorite }) => {
   const { user } = useCustomUser();
   const [isFavorite, setIsFavorite] = useState(_isFavorite);
-  const { mutate: addFavorite, isLoading: isAdding } = useAddFavoriteTemplate(id);
-  const { mutate: removeFavorite, isLoading: isRemoving } = useRemoveFavoriteTemplate(id);
+  const { mutate: addFavorite, isPending: isAdding } = useAddFavoriteTemplate(id);
+  const { mutate: removeFavorite, isPending: isRemoving } = useRemoveFavoriteTemplate(id);
   const [showMustConnectModal, setShowMustConnectModal] = useState(false);
   const isSaving = isAdding || isRemoving;
   const { enqueueSnackbar } = useSnackbar();

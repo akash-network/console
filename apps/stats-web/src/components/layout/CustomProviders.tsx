@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
-import { QueryClientProvider } from "react-query";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Provider } from "jotai";
 import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
 import { ThemeProvider } from "next-themes";

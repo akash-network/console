@@ -18,30 +18,24 @@ export const useManagedWallet = () => {
   const { user: signedInUser } = useCustomUser();
   const userWallet = useSelectedChain();
   const [selectedWalletType, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
-  const {
-    data: queried,
-    isFetched,
-    isLoading: isFetching,
-    refetch
-  } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined, {
-    onSuccess: wallet => {
-      if (selectedWalletType === "custodial" && wallet && !userWallet.isWalletConnected && !userWallet.isWalletConnecting) {
-        setSelectedWalletType("managed");
-      }
-
-      analyticsService.track(
-        "connect_managed_wallet",
-        {
-          category: "wallet",
-          label: "Connect managed wallet"
-        },
-        "GA"
-      );
-
-      analyticsService.trackSwitch("connect_wallet", "managed", "Amplitude");
+  const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined);
+  useEffect(() => {
+    if (selectedWalletType === "custodial" && queried && !userWallet.isWalletConnected && !userWallet.isWalletConnecting) {
+      setSelectedWalletType("managed");
     }
-  });
-  const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
+
+    analyticsService.track(
+      "connect_managed_wallet",
+      {
+        category: "wallet",
+        label: "Connect managed wallet"
+      },
+      "GA"
+    );
+
+    analyticsService.trackSwitch("connect_wallet", "managed", "Amplitude");
+  }, [queried, selectedWalletType, setSelectedWalletType, userWallet.isWalletConnected, userWallet.isWalletConnecting]);
+  const { mutate: create, data: created, isPending: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => queried || created, [queried, created]);
   const isLoading = isFetching || isCreating;
 
