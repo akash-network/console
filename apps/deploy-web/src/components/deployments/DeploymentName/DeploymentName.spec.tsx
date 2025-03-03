@@ -5,19 +5,18 @@ import { COMPONENTS, DeploymentName, Props } from "./DeploymentName";
 import { render, screen } from "@testing-library/react";
 
 describe(DeploymentName.name, () => {
-  it("renders only deployment dseq if no name", () => {
+  it("renders 'Unknown' if no name and no services", () => {
     const deployment = { dseq: "123" };
     const { container } = setup({ deployment });
 
-    expect(container.textContent?.trim()).toBe(deployment.dseq);
+    expect(container.textContent?.trim()).toBe("Unknown");
   });
 
-  it("should render deployment name and dseq if provided", () => {
+  it("should render deployment name if provided", () => {
     const deployment = { dseq: "123", name: "test" };
     setup({ deployment });
 
     expect(screen.queryByText(deployment.name)).toBeInTheDocument();
-    expect(screen.queryByText(deployment.dseq)).toBeInTheDocument();
   });
 
   it("renders first deployment service URI if no name specified", () => {
@@ -81,7 +80,6 @@ describe(DeploymentName.name, () => {
     });
 
     expect(screen.queryByText(deployment.name)).toBeInTheDocument();
-    expect(screen.queryByText(deployment.dseq)).toBeInTheDocument();
     expect(screen.queryByText(deploymentServices.test.uris[0])).toBeInTheDocument();
     expect(screen.queryByText(deploymentServices.test.uris[1])).toBeInTheDocument();
     expect(screen.queryByText(deploymentServices.api.uris[0])).toBeInTheDocument();
@@ -100,7 +98,6 @@ describe(DeploymentName.name, () => {
     });
 
     expect(screen.queryByText("Name:")).not.toBeInTheDocument();
-    expect(screen.queryByText(deployment.dseq)).toBeInTheDocument();
     expect(screen.queryByText(deploymentServices.test.uris[0])).toBeInTheDocument();
     expect(screen.queryByText(deploymentServices.test.uris[1])).toBeInTheDocument();
     expect(screen.queryByText(deploymentServices.api.uris[0])).toBeInTheDocument();

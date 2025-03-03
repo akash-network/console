@@ -33,20 +33,16 @@ export const DeploymentName: React.FunctionComponent<Props> = ({ deployment, dep
       const providerHost = providerHostUri ? new URL(providerHostUri).hostname.replace(/^provider\./, "") : "";
       name = firstServiceWithUris.uris.find(uri => providerHost && !uri.endsWith(providerHost)) || firstServiceWithUris.uris[0];
     }
+    name = name || "Unknown";
     return {
       short: name.length > 20 ? getShortText(name, 15) : name,
       full: name,
       services: Object.entries(deploymentServices || {})
     };
   }, [deployment.name, deploymentServices, providerHostUri]);
-  const deploymentDseq = useMemo(() => {
-    return {
-      short: getShortText(deployment.dseq, 15),
-      full: deployment.dseq
-    };
-  }, [deployment.dseq]);
   return (
     <c.CustomTooltip
+      disabled={!deploymentName.services.length || !deployment.name}
       title={
         <div className="space-y-1 text-left">
           {deployment.name && (
@@ -55,8 +51,6 @@ export const DeploymentName: React.FunctionComponent<Props> = ({ deployment, dep
               <div>{deployment.name.trim()}</div>
             </>
           )}
-          <c.LabelValue label="DSEQ:" />
-          <div>{deploymentDseq.full}</div>
           {deploymentName.services.length > 0 && <c.LabelValue label="Services:" />}
           {deploymentName.services.map(([, service]) =>
             service.uris.map(uri => (
@@ -69,17 +63,7 @@ export const DeploymentName: React.FunctionComponent<Props> = ({ deployment, dep
         </div>
       }
     >
-      <span className="text-sm">
-        {deploymentName.short && (
-          <>
-            <strong>{deploymentName.short}</strong>
-            &nbsp;-&nbsp;
-          </>
-        )}
-        <span className="inline text-xs">
-          <small>{deploymentDseq.short}</small>
-        </span>
-      </span>
+      <div className="truncate text-sm">{deploymentName.short && <strong>{deploymentName.short}</strong>}</div>
     </c.CustomTooltip>
   );
 };
