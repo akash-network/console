@@ -4,13 +4,13 @@ on:
   workflow_call:
     inputs:
       app:
-        description: 'The app to release' # dir name in ./apps/*
+        description: "The app to release" # dir name in ./apps/*
         required: true
         type: string
     outputs:
-      version:
-        description: 'The version released'
-        value: ${{ jobs.release.outputs.version }}
+      git_tag:
+        description: "The git tag released"
+        value: ${{ jobs.release.outputs.git_tag }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.app }}
