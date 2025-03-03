@@ -2,6 +2,7 @@ require("@akashnetwork/env-loader");
 /** @type {import('next').NextConfig} */
 
 const { withSentryConfig } = require("@sentry/nextjs");
+const { version } = require("./package.json");
 
 try {
   const { browserEnvSchema } = require("./env-config.schema");
@@ -24,8 +25,14 @@ const nextConfig = {
   typescript: {
     tsconfigPath: "./tsconfig.json"
   },
+  publicRuntimeConfig: {
+    version
+  },
   eslint: {
     ignoreDuringBuilds: true
+  },
+  sentry: {
+    hideSourceMaps: true
   },
   transpilePackages: ["geist", "@akashnetwork/ui"],
   // experimental: {
