@@ -1,5 +1,12 @@
 
 
+## [2.68.0](https://github.com/akash-network/console/compare/console-api/v2.66.0...console-api/v2.68.0) (2025-03-03)
+
+
+### Features
+
+* **network:** add API endpoints for deployment ([#860](https://github.com/akash-network/console/issues/860)) ([5a58c29](https://github.com/akash-network/console/commit/5a58c298e6ad15944a93b7cd1d82837b78235c9a)), closes [#767](https://github.com/akash-network/console/issues/767)
+
 ## [2.67.0](https://github.com/akash-network/console/compare/console-api/v2.66.0...console-api/v2.67.0) (2025-02-28)
 
 
