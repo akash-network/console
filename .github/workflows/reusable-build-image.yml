@@ -22,6 +22,10 @@ on:
       deployment-env:
         description: "Deployment environment"
         type: string
+    outputs:
+      image_tag:
+        description: "The image tag"
+        value: ${{ jobs.build.outputs.image_tag }}
 
 concurrency:
   group: ${{ github.workflow }}
