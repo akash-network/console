@@ -76,12 +76,12 @@ jobs:
           fi
 
       - name: Create Release
-        if: ${{ steps.bumps.outputs.version != '' }}
+        if: ${{ steps.bumps.outputs.git_tag != '' }}
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.bumps.outputs.version }}
-          release_name: ${{ steps.bumps.outputs.version }}
+          tag_name: ${{ steps.bumps.outputs.git_tag }}
+          release_name: ${{ steps.bumps.outputs.git_tag }}
           body: ${{ steps.bumps.outputs.changelog }}
