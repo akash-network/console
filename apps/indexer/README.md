@@ -104,7 +104,7 @@ Here are the properties/methods that can be overriden:
 
 ### /data/[chain]/
 
-- `blockResults.db` - [LevelDB Database](https://github.com/Level/level) containing block results infomation from RPC nodes
-- `blocks.db` - [LevelDB Database](https://github.com/Level/level) containing block infomation from RPC nodes
+- `blockResults.db` - [LevelDB Database](https://github.com/Level/level) containing block results information from RPC nodes
+- `blocks.db` - [LevelDB Database](https://github.com/Level/level) containing block information from RPC nodes
 - `genesis.json` - If syncing from block 1 the chain's [genesis file](https://github.com/akash-network/net/blob/master/mainnet/genesis.json) will be downloaded here.
 - `nodeStatus.json` - Saved status of every rpc node so that invalid/rate limited nodes are remembered after a restart (if there is persistent storage)
