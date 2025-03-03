@@ -15,6 +15,7 @@ import { useDenomData } from "@src/hooks/useWalletBalance";
 import { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
+import { CopyTextToClipboardButton } from "../copy-text-to-clipboard-button/CopyTextToClipboardButton";
 
 type Props = {
   deployment: DeploymentDto;
@@ -134,7 +135,16 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           labelWidth="6rem"
           value={realTimeLeft && isValid(realTimeLeft?.timeLeft) && `~${formatDistanceToNow(realTimeLeft?.timeLeft)}`}
         />
-        <LabelValue label="DSEQ" labelWidth="6rem" value={deployment.dseq} />
+        <LabelValue
+          label="DSEQ"
+          labelWidth="6rem"
+          value={
+            <div className="flex items-center space-x-2">
+              <span>{deployment.dseq}</span>
+              <CopyTextToClipboardButton value={deployment.dseq} />
+            </div>
+          }
+        />
       </div>
     </div>
   );
