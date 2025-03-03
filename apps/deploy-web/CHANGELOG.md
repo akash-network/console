@@ -1,17 +1,5 @@
 
 
-## [2.52.0](https://github.com/akash-network/console/compare/console-web/v2.50.0...console-web/v2.52.0) (2025-03-03)
-
-
-### Features
-
-* **analytics:** improves amplitude reporting ([c8399ae](https://github.com/akash-network/console/commit/c8399ae3a08d13de35679bd6e6acac49f504a66a))
-
-
-### Bug Fixes
-
-* **auth:** patches fetch to retry on cloudflare challenge ([c6f4c7d](https://github.com/akash-network/console/commit/c6f4c7d5f97e318cef77d232011dcee9b10f5aa8)), closes [#836](https://github.com/akash-network/console/issues/836)
-
 ## [2.51.0](https://github.com/akash-network/console/compare/console-web/v2.50.0...console-web/v2.51.0) (2025-02-28)
 
 
