@@ -4,13 +4,13 @@ on:
   workflow_call:
     inputs:
       app:
-        description: 'The app to release' # folder name in ./apps/*
+        description: "The app to release" # dir name in ./apps/*
         required: true
         type: string
     outputs:
-      version:
-        description: 'The version released'
-        value: ${{ jobs.release.outputs.version }}
+      git_tag:
+        description: "The git tag released"
+        value: ${{ jobs.release.outputs.git_tag }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.app }}
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      version: ${{ steps.bumps.outputs.version }}
+      git_tag: ${{ steps.bumps.outputs.git_tag }}
 
     steps:
       - name: Checkout repository
@@ -62,8 +62,8 @@ jobs:
           has_tag=$(git rev-parse "$git_tag" >/dev/null 2>&1 && echo "true" || echo "false")
 
           if [ "$has_tag" = "false" ]; then
-            echo "version=$git_tag" >> $GITHUB_OUTPUT
-            echo "version=$git_tag"
+            echo "git_tag=$git_tag" >> $GITHUB_OUTPUT
+            echo "git_tag=$git_tag"
 
             changelog=$(script/extract-changelog.sh "$current_version" "apps/${{ inputs.app }}/CHANGELOG.md")
 
@@ -76,12 +76,12 @@ jobs:
           fi
 
       - name: Create Release
-        if: ${{ steps.bumps.outputs.version != '' }}
+        if: ${{ steps.bumps.outputs.git_tag != '' }}
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.bumps.outputs.version }}
-          release_name: ${{ steps.bumps.outputs.version }}
+          tag_name: ${{ steps.bumps.outputs.git_tag }}
+          release_name: ${{ steps.bumps.outputs.git_tag }}
           body: ${{ steps.bumps.outputs.changelog }}

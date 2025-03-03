@@ -119,10 +119,15 @@ export const WalletProvider = ({ children }) => {
     }
 
     if (selectedWalletType === "managed" && userWallet.isWalletConnected) {
-      analyticsService.track("connect_wallet", {
-        category: "wallet",
-        label: "Connect wallet"
-      });
+      analyticsService.track(
+        "connect_wallet",
+        {
+          category: "wallet",
+          label: "Connect wallet"
+        },
+        "GA"
+      );
+      analyticsService.trackSwitch("connect_wallet", "custodial", "Amplitude");
     }
 
     setSelectedWalletType(prev => (prev === "custodial" ? "managed" : "custodial"));

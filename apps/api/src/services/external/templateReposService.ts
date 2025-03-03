@@ -508,7 +508,7 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
   return categories;
 }
 
-// Find a github file by name and dowload it
+// Find a github file by name and download it
 async function findFileContentAsync(filename: string | string[], fileList: GithubDirectoryItem[]) {
   const filenames = typeof filename === "string" ? [filename] : filename;
   const fileDef = fileList.find(f => filenames.some(x => x.toLowerCase() === f.name.toLowerCase()));

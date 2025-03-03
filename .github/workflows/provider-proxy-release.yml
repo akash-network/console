@@ -1,0 +1,38 @@
+name: Release Provider proxy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/provider-proxy/package.json"
+
+jobs:
+  release:
+    name: Create Release
+    uses: ./.github/workflows/reusable-create-github-release.yml
+    secrets: inherit
+    with:
+      app: provider-proxy
+
+  build:
+    needs: release
+    name: Build Docker image
+    uses: ./.github/workflows/reusable-build-image.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+    with:
+      tag: ${{ needs.release.outputs.git_tag }}
+
+  deploy-beta:
+    needs: build
+    name: Deploy to beta
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: provider-proxy
+      appVersion: ${{ needs.build.outputs.image_tag }}
+      environment: staging
