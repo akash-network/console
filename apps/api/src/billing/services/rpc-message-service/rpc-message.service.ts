@@ -1,4 +1,5 @@
-import { DepositDeploymentAuthorization, MsgCloseDeployment, MsgDepositDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { GroupSpec } from "@akashnetwork/akash-api/akash/deployment/v1beta3";
+import { DepositDeploymentAuthorization, MsgCloseDeployment, MsgCreateDeployment, MsgDepositDeployment } from "@akashnetwork/akash-api/v1beta3";
 import { MsgExec, MsgRevoke } from "cosmjs-types/cosmos/authz/v1beta1/tx";
 import { BasicAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/feegrant";
 import { MsgGrantAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/tx";
@@ -27,6 +28,12 @@ export interface DepositDeploymentMsgOptions extends DepositDeploymentMsgOptions
 
 export interface ExecDepositDeploymentMsgOptions extends DepositDeploymentMsgOptionsBase {
   grantee: string;
+}
+
+export interface CreateDeploymentMsgOptions extends DepositDeploymentMsgOptionsBase {
+  groups: GroupSpec[];
+  manifestVersion: Uint8Array;
+  depositor: string;
 }
 
 export interface DepositDeploymentMsg {
@@ -132,6 +139,25 @@ export class RpcMessageService {
           dseq: Long.fromString(dseq.toString(), true)
         }
       }
+    };
+  }
+
+  getCreateDeploymentMsg({ owner, dseq, groups, manifestVersion, denom, amount, depositor }: CreateDeploymentMsgOptions) {
+    return {
+      typeUrl: `/akash.deployment.v1beta3.MsgCreateDeployment`,
+      value: MsgCreateDeployment.fromPartial({
+        id: {
+          owner,
+          dseq,
+        },
+        groups,
+        version: manifestVersion,
+        deposit: {
+          denom,
+          amount: amount.toString(),
+        },
+        depositor,
+      })
     };
   }
 

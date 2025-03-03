@@ -11,8 +11,8 @@ import { getTransactionByAddress } from "@src/services/db/transactionsService";
 import {
   CosmosGovProposalResponse,
   CosmosGovProposalsResponse,
+  RestAkashDeploymentInfoResponse,
   RestAkashDeploymentListResponse,
-  RestAkasheploymentInfoResponse,
   RestAkashLeaseListResponse,
   RestCosmosBankBalancesResponse,
   RestCosmosDistributionDelegatorsRewardsResponse,
@@ -392,7 +392,7 @@ export async function getDeployment(owner: string, dseq: string) {
     return null;
   }
 
-  const deploymentData = (await deploymentResponse.json()) as RestAkasheploymentInfoResponse;
+  const deploymentData = (await deploymentResponse.json()) as RestAkashDeploymentInfoResponse;
 
   if ("code" in deploymentData) {
     if (deploymentData.message?.toLowerCase().includes("deployment not found")) {

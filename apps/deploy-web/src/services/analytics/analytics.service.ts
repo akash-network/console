@@ -1,5 +1,6 @@
-import { Identify, identify, init, setUserId, track } from "@amplitude/analytics-browser";
-import { event } from "nextjs-google-analytics";
+import * as amplitude from "@amplitude/analytics-browser";
+import murmurhash from "murmurhash";
+import nextGa from "nextjs-google-analytics";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 
@@ -9,10 +10,11 @@ export type AnalyticsUser = {
   emailVerified?: boolean;
 };
 
-type AnalyticsOptions = {
+export type AnalyticsOptions = {
   amplitude: {
     apiKey: string;
     enabled: boolean;
+    samplingRate: number;
   };
   ga: {
     measurementId: string;
@@ -89,38 +91,103 @@ const AMPLITUDE_USER_PROPERTIES_MAP = {
 
 const isBrowser = typeof window !== "undefined";
 
+export type Amplitude = Pick<typeof amplitude, "init" | "Identify" | "identify" | "track" | "setUserId">;
+export type GoogleAnalytics = Pick<typeof nextGa, "event">;
+export type HashFn = typeof murmurhash.v3;
+
 export class AnalyticsService {
-  constructor(private readonly options: AnalyticsOptions) {
-    if (isBrowser && this.options.amplitude.enabled) {
-      init(this.options.amplitude.apiKey, {
-        serverUrl: "/api/analytics"
-      });
+  private readonly STORAGE_KEY = "analytics_values_cache";
+
+  private readonly valuesCache: Map<string, string> = this.loadSwitchValuesFromStorage();
+
+  private isAmplitudeEnabled: boolean | undefined;
+
+  constructor(
+    private readonly options: AnalyticsOptions,
+    private readonly amplitude: Amplitude,
+    private readonly hash: HashFn,
+    private readonly ga: GoogleAnalytics,
+    private readonly gtag?: Gtag.Gtag,
+    private readonly storage?: Pick<Storage, "getItem" | "setItem">
+  ) {
+    if (this.options.amplitude.enabled === false) {
+      this.isAmplitudeEnabled = false;
     }
+  }
+
+  private loadSwitchValuesFromStorage() {
+    if (typeof window !== "undefined") {
+      const stored = this.storage?.getItem(this.STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return new Map(Object.entries(parsed));
+      }
+    }
+
+    return new Map();
   }
 
   identify(user: AnalyticsUser): void {
     if (!isBrowser) {
       return;
     }
-    if (this.options.ga.enabled && typeof window !== "undefined") {
-      window.gtag("config", this.options.ga.measurementId, { user_id: user.id });
+
+    if (this.options.ga.enabled && this.gtag) {
+      this.gtag("config", this.options.ga.measurementId, { user_id: user.id });
     }
 
-    if (this.options.amplitude.enabled) {
-      const event = new Identify();
+    this.ensureAmplitudeFor(user);
 
-      for (const key in user) {
-        if (key !== "id") {
-          event.set(AMPLITUDE_USER_PROPERTIES_MAP[key] || AMPLITUDE_USER_PROPERTIES_MAP, user[key]);
-        }
-      }
+    if (!this.isAmplitudeEnabled) {
+      return;
+    }
 
-      identify(event);
+    const event = new this.amplitude.Identify();
 
-      if (user.id) {
-        setUserId(user.id);
+    for (const key in user) {
+      if (key !== "id") {
+        event.set(AMPLITUDE_USER_PROPERTIES_MAP[key] || AMPLITUDE_USER_PROPERTIES_MAP, user[key]);
       }
     }
+
+    this.amplitude.identify(event);
+
+    if (user.id) {
+      this.amplitude.setUserId(user.id);
+    }
+  }
+
+  private ensureAmplitudeFor(user: AnalyticsUser) {
+    if (typeof this.isAmplitudeEnabled === "undefined" && user.id) {
+      this.isAmplitudeEnabled = this.shouldSampleUser(user.id);
+
+      if (this.isAmplitudeEnabled) {
+        this.amplitude.init(this.options.amplitude.apiKey, {
+          serverUrl: "/api/analytics"
+        });
+      }
+    }
+  }
+
+  trackSwitch(eventName: "connect_wallet", value: "managed" | "custodial", target?: AnalyticsTarget);
+  trackSwitch(eventName: any, value: any, target?: AnalyticsTarget) {
+    if (!isBrowser) {
+      return;
+    }
+
+    if (this.valuesCache.get(eventName) === value) {
+      return;
+    }
+
+    this.saveSwitchValue(eventName, value);
+
+    return this.track(eventName, { value }, target);
+  }
+
+  private saveSwitchValue(eventName: string, value: string) {
+    this.valuesCache.set(eventName, value);
+    const obj = Object.fromEntries(this.valuesCache);
+    this.storage?.setItem(this.STORAGE_KEY, JSON.stringify(obj));
   }
 
   track(eventName: AnalyticsEvent, eventProperties: EventProperties, target?: AnalyticsTarget): void {
@@ -128,11 +195,12 @@ export class AnalyticsService {
       return;
     }
 
-    if (this.options.amplitude.enabled && (!target || target === "Amplitude")) {
-      track(eventName, eventProperties);
+    if (this.isAmplitudeEnabled && (!target || target === "Amplitude")) {
+      this.amplitude.track(eventName, eventProperties);
     }
+
     if (this.options.ga.enabled && (!target || target === "GA")) {
-      event(...this.transformGaEvent(eventName, eventProperties));
+      this.ga?.event(...this.transformGaEvent(eventName, eventProperties));
     }
   }
 
@@ -143,15 +211,32 @@ export class AnalyticsService {
 
     return [GA_EVENTS[eventName] || eventName, eventProperties];
   }
+
+  private shouldSampleUser(userId: string): boolean {
+    const hashValue = this.hash(userId);
+    const percentage = Math.abs(hashValue) % 100;
+    return percentage < this.options.amplitude.samplingRate * 100;
+  }
 }
 
-export const analyticsService = new AnalyticsService({
-  amplitude: {
-    enabled: browserEnvConfig.NEXT_PUBLIC_AMPLITUDE_ENABLED,
-    apiKey: browserEnvConfig.NEXT_PUBLIC_AMPLITUDE_API_KEY
+const localStorage = isBrowser ? window.localStorage : undefined;
+const gtag = isBrowser ? window.gtag : undefined;
+
+export const analyticsService = new AnalyticsService(
+  {
+    amplitude: {
+      enabled: browserEnvConfig.NEXT_PUBLIC_AMPLITUDE_ENABLED,
+      apiKey: browserEnvConfig.NEXT_PUBLIC_AMPLITUDE_API_KEY,
+      samplingRate: 0.25
+    },
+    ga: {
+      measurementId: browserEnvConfig.NEXT_PUBLIC_GA_MEASUREMENT_ID,
+      enabled: browserEnvConfig.NEXT_PUBLIC_GA_ENABLED
+    }
   },
-  ga: {
-    measurementId: browserEnvConfig.NEXT_PUBLIC_GA_MEASUREMENT_ID,
-    enabled: browserEnvConfig.NEXT_PUBLIC_GA_ENABLED
-  }
-});
+  amplitude,
+  murmurhash.v3,
+  nextGa,
+  gtag,
+  localStorage
+);

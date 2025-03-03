@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Badge, CustomTooltip, Spinner } from "@akashnetwork/ui/components";
+import { Badge, Spinner } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
-import { getSplitText } from "@src/hooks/useShortText";
 import { LeaseDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
+import { CopyTextToClipboardButton } from "../copy-text-to-clipboard-button/CopyTextToClipboardButton";
 import { StatusPill } from "../shared/StatusPill";
+import { ShortenedValue } from "../shortened-value/ShortenedValue";
 
 type Props = {
   lease: LeaseDto;
@@ -27,6 +28,7 @@ export const LeaseChip: React.FunctionComponent<Props> = ({ lease, providers }) 
   }, [providers]);
 
   return (
+    <div className="flex items-center space-x-2">
     <Link
       href={UrlService.providerDetail(lease.provider)}
       onClick={event => {
@@ -34,18 +36,16 @@ export const LeaseChip: React.FunctionComponent<Props> = ({ lease, providers }) 
       }}
     >
       <Badge variant="outline" className="whitespace-nowrap text-xs hover:bg-primary/20">
-        {!providerName && <Spinner size="xSmall" />}
-        <span>
-          {providerName?.length > 20 ? (
-            <CustomTooltip title={providerName}>
-              <div>{getSplitText(providerName, 4, 13)}</div>
-            </CustomTooltip>
-          ) : (
-            providerName
-          )}
-        </span>
+        {providerName ? (
+          <ShortenedValue value={providerName} maxLength={40} headLength={14} />
+        ) : (
+          <Spinner size="xSmall" />
+        )}
         <StatusPill state={lease.state} size="small" />
       </Badge>
     </Link>
+
+    {providerName && <CopyTextToClipboardButton value={providerName} />}
+    </div>
   );
 };
