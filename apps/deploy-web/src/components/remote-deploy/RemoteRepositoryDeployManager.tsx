@@ -58,15 +58,15 @@ const RemoteRepositoryDeployManager = ({
   const { reLoginWithGithub, loginWithGithub } = useMemo(() => new GitHubService(), []);
 
   const { data: userProfile, isLoading: fetchingProfile } = useUserProfile();
-  const { mutate: fetchAccessToken, isLoading: fetchingToken } = useFetchAccessToken(navigateToNewDeployment);
+  const { mutate: fetchAccessToken, isPending: fetchingToken } = useFetchAccessToken(navigateToNewDeployment);
 
   const { loginWithBitBucket } = useMemo(() => new BitbucketService(), []);
   const { data: userProfileBit, isLoading: fetchingProfileBit } = useBitUserProfile();
-  const { mutate: fetchAccessTokenBit, isLoading: fetchingTokenBit } = useBitFetchAccessToken(navigateToNewDeployment);
+  const { mutate: fetchAccessTokenBit, isPending: fetchingTokenBit } = useBitFetchAccessToken(navigateToNewDeployment);
 
   const { loginWithGitLab } = useMemo(() => new GitLabService(), []);
   const { data: userProfileGitLab, isLoading: fetchingProfileGitLab } = useGitLabUserProfile();
-  const { mutate: fetchAccessTokenGitLab, isLoading: fetchingTokenGitLab } = useGitLabFetchAccessToken(navigateToNewDeployment);
+  const { mutate: fetchAccessTokenGitLab, isPending: fetchingTokenGitLab } = useGitLabFetchAccessToken(navigateToNewDeployment);
 
   useWhen(isValid, () => {
     setIsRepoInputValid?.(true);

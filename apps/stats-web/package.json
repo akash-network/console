@@ -20,6 +20,7 @@
     "@nivo/line": "^0.87.0",
     "@radix-ui/react-icons": "^1.3.0",
     "@radix-ui/react-slot": "^1.0.2",
+    "@tanstack/react-query": "^5.67.1",
     "@tanstack/react-table": "^8.11.2",
     "@textea/json-viewer": "^3.2.3",
     "axios": "^1.7.2",
@@ -41,7 +42,6 @@
     "react-icons": "^5.0.1",
     "react-intl": "^6.5.5",
     "react-modern-drawer": "^1.2.2",
-    "react-query": "^3.39.3",
     "tailwind-merge": "^2.0.0",
     "usehooks-ts": "^2.9.1",
     "zod": "^3.22.4"
