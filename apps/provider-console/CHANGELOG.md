@@ -1,5 +1,12 @@
 
 
+## [1.2.0](https://github.com/akash-network/console/compare/provider-console/v1.1.2...provider-console/v1.2.0) (2025-03-03)
+
+
+### Features
+
+* **provider:** converted monthly pricing to hourly pricing ([#896](https://github.com/akash-network/console/issues/896)) ([c6e21c7](https://github.com/akash-network/console/commit/c6e21c7cc3a3395c31b95a298fa73c2748eeec0e))
+
 ## [1.1.2](https://github.com/akash-network/console/compare/provider-console/v1.1.1...provider-console/v1.1.2) (2025-02-20)
 
 
