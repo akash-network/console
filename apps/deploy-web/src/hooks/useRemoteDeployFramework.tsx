@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { supportedFrameworks } from "@src/config/remote-deploy.config";
 import { useBitPackageJson } from "@src/queries/useBitBucketQuery";
@@ -20,23 +20,54 @@ const useRemoteDeployFramework = ({
   subFolder?: string;
   setCpus: (cpu: number) => void;
 }) => {
+  const setValueHandler = useCallback(
+    (data: PackageJson) => {
+      if (data?.dependencies) {
+        setPackageJson(data);
+        const cpus = (Object.keys(data?.dependencies ?? {})?.length / 10 / 2)?.toFixed(1);
+
+        setCpus(+cpus > 2 ? +cpus : 2);
+      } else {
+        setPackageJson(null);
+      }
+    },
+    [setCpus]
+  );
+
   const [packageJson, setPackageJson] = useState<PackageJson | null>(null);
 
-  const { isLoading } = usePackageJson(setValueHandler, formatUrlWithoutInitialPath(currentRepoUrl), subFolder);
-  const { isLoading: gitlabLoading, isFetching } = useGitlabPackageJson(setValueHandler, currentGitlabProjectId, subFolder);
-
-  const { isLoading: bitbucketLoading } = useBitPackageJson(setValueHandler, formatUrlWithoutInitialPath(currentRepoUrl), currentBranchName, subFolder);
-
-  function setValueHandler(data: PackageJson) {
-    if (data?.dependencies) {
-      setPackageJson(data);
-      const cpus = (Object.keys(data?.dependencies ?? {})?.length / 10 / 2)?.toFixed(1);
-
-      setCpus(+cpus > 2 ? +cpus : 2);
-    } else {
-      setPackageJson(null);
+  const {
+    isLoading,
+    data: { content: packageJsonContent }
+  } = usePackageJson(formatUrlWithoutInitialPath(currentRepoUrl), subFolder);
+  useEffect(() => {
+    if (packageJsonContent === undefined) {
+      setValueHandler(JSON.parse(atob(packageJsonContent)));
     }
-  }
+  }, [packageJsonContent, setValueHandler]);
+
+  const {
+    isLoading: gitlabLoading,
+    isFetching,
+    data: { content: gitlabPackageJsonContent }
+  } = useGitlabPackageJson(currentGitlabProjectId, subFolder);
+  useEffect(() => {
+    if (gitlabPackageJsonContent === undefined) {
+      setValueHandler(JSON.parse(atob(gitlabPackageJsonContent)));
+    }
+  }, [gitlabPackageJsonContent, setValueHandler]);
+
+  const { isLoading: bitbucketLoading, data: bitbucketPackageJson } = useBitPackageJson(
+    formatUrlWithoutInitialPath(currentRepoUrl),
+    currentBranchName,
+    subFolder
+  );
+  useEffect(() => {
+    if (bitbucketPackageJson) {
+      setValueHandler(bitbucketPackageJson);
+    }
+  }, [bitbucketPackageJson, setValueHandler]);
+
   return {
     currentFramework: supportedFrameworks.find(f => packageJson?.scripts?.dev?.includes(f.value)) ?? {
       title: "Other",
