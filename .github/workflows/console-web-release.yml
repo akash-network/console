@@ -34,7 +34,7 @@ jobs:
     secrets: inherit
     with:
       app: console-web
-      appVersion: ${{ needs.build-beta.outputs.image_tag }}
+      appVersion: ${{ needs.build-beta.outputs.base_image_tag }}
       environment: staging
 
   build-prod:
