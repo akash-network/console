@@ -1,4 +1,4 @@
-import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions, UseQueryResult } from "react-query";
+import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions } from "react-query";
 import type { TemplateCategory, TemplateOutputSummary } from "@akashnetwork/http-sdk";
 import { Snackbar } from "@akashnetwork/ui/components";
 import axios from "axios";
@@ -140,12 +140,22 @@ export interface CategoriesAndTemplates {
   templates: TemplateOutputSummaryWithCategory[];
 }
 
-export function useTemplates(options = {}): UseQueryResult<CategoriesAndTemplates> {
-  return useQuery(QueryKeys.getTemplatesKey(), () => getTemplates(), {
+export interface CategoriesAndTemplatesResult extends CategoriesAndTemplates {
+  isLoading: boolean;
+}
+
+export function useTemplates(options = {}): CategoriesAndTemplatesResult {
+  const query = useQuery(QueryKeys.getTemplatesKey(), () => getTemplates(), {
     ...options,
     refetchInterval: 60000 * 2, // Refetch templates every 2 minutes
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false
   });
+
+  return {
+    isLoading: query.isFetching,
+    categories: query.data?.categories || [],
+    templates: query.data?.templates || []
+  };
 }
