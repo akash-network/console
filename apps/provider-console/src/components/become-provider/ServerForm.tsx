@@ -228,7 +228,7 @@ export const ServerForm: React.FC<ServerFormProps> = ({ currentServerNumber, onC
   };
 
   const getDescription = () => {
-    if (editMode) return "Enter the required details for your control machine";
+    if (editMode) return "Provider Console need to connect to log into your control node, in order to make any configuration changes to your provider";
     if (isControlPlane) {
       return "Configure access for your control plane node that manages cluster operations";
     }
