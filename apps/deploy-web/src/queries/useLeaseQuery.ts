@@ -48,14 +48,16 @@ export function useAllLeases(address: string, options = {}) {
   return useQuery(QueryKeys.getAllLeasesKey(address), () => getAllLeases(settings.apiEndpoint, address, undefined, axios), options);
 }
 
-export function useLeaseStatus(provider: ApiProviderList | undefined, lease: LeaseDto, options) {
+export function useLeaseStatus(provider: ApiProviderList | undefined, lease: LeaseDto | undefined, options) {
   const { localCert } = useCertificate();
   const fetchProviderUrl = useScopedFetchProviderUrl(provider);
 
   return useQuery(
-    QueryKeys.getLeaseStatusKey(lease?.dseq, lease?.gseq, lease?.oseq),
+    QueryKeys.getLeaseStatusKey(lease?.dseq || "", lease?.gseq || NaN, lease?.oseq || NaN),
     async () => {
-      const response = await fetchProviderUrl<any>(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, {
+      if (!lease) return null;
+
+      const response = await fetchProviderUrl<LeaseStatusDto>(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, {
         method: "GET",
         certPem: localCert?.certPem,
         keyPem: localCert?.keyPem
@@ -64,4 +66,22 @@ export function useLeaseStatus(provider: ApiProviderList | undefined, lease: Lea
     },
     options
   );
+}
+
+export interface LeaseStatusDto {
+  forwarded_ports: any;
+  ips: any;
+  services: Record<string, LeaseServiceStatus>;
+}
+
+export interface LeaseServiceStatus {
+  name: string;
+  available: number;
+  total: number;
+  uris: string[];
+  observed_generation: number;
+  replicas: number;
+  updated_replicas: number;
+  ready_replicas: number;
+  available_replicas: number;
 }
