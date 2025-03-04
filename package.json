@@ -33,6 +33,9 @@
     ],
     "package.json": [
       "node_modules/.bin/sort-package-json"
+    ],
+    "./packages/http-sdk/**/*.ts": [
+      "npm run validate:types -w packages/http-sdk"
     ]
   },
   "dependencies": {

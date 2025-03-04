@@ -1,6 +1,7 @@
 import { AxiosRequestConfig } from "axios";
 import { isFuture } from "date-fns";
 
+import { isHttpError } from "@src/utils/isHttpError";
 import { HttpService } from "../http/http.service";
 import type { Denom } from "../types/denom.type";
 
@@ -48,9 +49,10 @@ interface DepositDeploymentGrantResponse<T extends ExactDepositDeploymentGrant =
 }
 
 export class AuthzHttpService extends HttpService {
-  private readonly DEPOSIT_DEPLOYMENT_GRANT_TYPE: ExactDepositDeploymentGrant['authorization']['@type'] = "/akash.deployment.v1beta3.DepositDeploymentAuthorization";
+  private readonly DEPOSIT_DEPLOYMENT_GRANT_TYPE: ExactDepositDeploymentGrant["authorization"]["@type"] =
+    "/akash.deployment.v1beta3.DepositDeploymentAuthorization";
 
-  private readonly FEE_ALLOWANCE_TYPE: FeeAllowance['allowance']['@type'] = "/cosmos.feegrant.v1beta1.BasicAllowance";
+  private readonly FEE_ALLOWANCE_TYPE: FeeAllowance["allowance"]["@type"] = "/cosmos.feegrant.v1beta1.BasicAllowance";
 
   constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
     super(config);
@@ -71,7 +73,7 @@ export class AuthzHttpService extends HttpService {
       const response = this.extractData(await this.get<FeeAllowanceResponse>(`cosmos/feegrant/v1beta1/allowance/${granter}/${grantee}`));
       return this.isValidFeeAllowance(response.allowance) ? response.allowance : undefined;
     } catch (error) {
-      if (error.response.data.message.includes("fee-grant not found")) {
+      if (isHttpError(error) && error.response?.data.message?.includes("fee-grant not found")) {
         return undefined;
       }
 
@@ -114,29 +116,26 @@ export class AuthzHttpService extends HttpService {
   }
 
   async hasDepositDeploymentGrant(granter: string, grantee: string) {
-    return !!(await this.getDepositDeploymentGrantsForGranterAndGrantee(granter, grantee))
+    return !!(await this.getDepositDeploymentGrantsForGranterAndGrantee(granter, grantee));
   }
 
   async hasValidDepositDeploymentGrant(granter: string, grantee: string) {
-    return !!(await this.getValidDepositDeploymentGrantsForGranterAndGrantee(granter, grantee))
+    return !!(await this.getValidDepositDeploymentGrantsForGranterAndGrantee(granter, grantee));
   }
 
   async paginateDepositDeploymentGrants(
     options: ({ granter: string } | { grantee: string }) & { limit: number },
     cb: (page: DepositDeploymentGrantResponse["grants"]) => Promise<void>
   ): Promise<void> {
-    let nextPageKey: string | null = null;
+    let nextPageKey: unknown;
     const side = "granter" in options ? "granter" : "grantee";
     const address = "granter" in options ? options.granter : options.grantee;
 
     do {
       const response = this.extractData(
-        await this.get<DepositDeploymentGrantResponse>(
-          `cosmos/authz/v1beta1/grants/${side}/${address}`,
-            {
-                params: { "pagination.key": nextPageKey, "pagination.limit": options.limit }
-              }
-        )
+        await this.get<DepositDeploymentGrantResponse>(`cosmos/authz/v1beta1/grants/${side}/${address}`, {
+          params: { "pagination.key": nextPageKey, "pagination.limit": options.limit }
+        })
       );
       nextPageKey = response.pagination.next_key;
 
@@ -144,20 +143,18 @@ export class AuthzHttpService extends HttpService {
     } while (nextPageKey);
   }
 
-  async getAllDepositDeploymentGrants(
-    options: ({ granter: string } | { grantee: string }) & { limit: number },
-  ): Promise<DepositDeploymentGrant[]> {
+  async getAllDepositDeploymentGrants(options: ({ granter: string } | { grantee: string }) & { limit: number }): Promise<DepositDeploymentGrant[]> {
     const result: DepositDeploymentGrant[] = [];
 
-    await this.paginateDepositDeploymentGrants(options, async (page) => {
+    await this.paginateDepositDeploymentGrants(options, async page => {
       result.push(...page);
-    })
+    });
 
     return result;
   }
 
   private isValidFeeAllowance(allowance: FeeAllowance) {
-    return (!allowance.allowance.expiration || isFuture(new Date(allowance.allowance.expiration)));
+    return !allowance.allowance.expiration || isFuture(new Date(allowance.allowance.expiration));
   }
 
   private isValidDepositDeploymentGrant(grant: ExactDepositDeploymentGrant) {

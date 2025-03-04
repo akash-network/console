@@ -9,7 +9,7 @@ export class HttpService extends Axios {
     });
   }
 
-  protected extractData<T = unknown>(response: AxiosResponse<T>): AxiosResponse<T>["data"] {
+  protected extractData<T = unknown, U extends AxiosResponse<T> = AxiosResponse<T>>(response: U): U["data"] {
     return response.data;
   }
 }
