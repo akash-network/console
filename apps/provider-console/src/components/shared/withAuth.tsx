@@ -15,78 +15,63 @@ export const withAuth = ({ WrappedComponent, authLevel = "wallet" }: WithAuthPro
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [loadingMessage, setLoadingMessage] = useState("Checking wallet connection...");
-
-    const delayedRedirect = (message: string) => {
-      setLoadingMessage(message);
-      return new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
-    };
-
-    const delayedCheck = (message: string) => {
-      setLoadingMessage(message);
-      return new Promise(resolve => setTimeout(resolve, 5000)); // 3 second delay
-    };
+    const [walletCheckCount, setWalletCheckCount] = useState(0);
 
     useEffect(() => {
+      let isMounted = true;
+
       const checkAuth = async () => {
-        // Wait for initial wallet connection check
-        while (!isWalletConnected) {
-          await delayedCheck("Checking wallet connection...");
-          if (!isWalletConnected) continue;
+        if (!isMounted) return;
+
+        if (!isWalletConnected) {
+          if (walletCheckCount >= 3) {
+            setLoadingMessage("Wallet not connected, redirecting to home page...");
+            setTimeout(() => {
+              if (isMounted) router.push("/");
+            }, 2000);
+            return;
+          }
+
+          setWalletCheckCount(prev => prev + 1);
+          setLoadingMessage("Checking wallet connection...");
+          return;
+        }
+
+        // Reset wallet check count when wallet is connected
+        if (walletCheckCount > 0) {
+          setWalletCheckCount(0);
         }
 
         if (authLevel === "wallet") {
-          if (!isWalletConnected) {
-            await delayedRedirect("Wallet not connected, redirecting to home page...");
-            router.push("/");
-            return;
-          }
           setLoading(false);
+          return;
         }
 
-        if (authLevel === "provider") {
-          if (!isWalletConnected) {
-            await delayedRedirect("Wallet not connected, redirecting to home page...");
-            router.push("/");
-            return;
-          }
-
-          if (!isProviderStatusFetched) {
-            setLoadingMessage("Checking provider status...");
-            return;
-          }
-
-          if (!isProvider) {
-            await delayedRedirect("Not a provider, redirecting to home page...");
-            router.push("/");
-            return;
-          }
-
-          setLoading(false);
+        if (!isProviderStatusFetched || (authLevel === "onlineProvider" && !isProviderOnlineStatusFetched)) {
+          setLoadingMessage("Checking provider status...");
+          return;
         }
 
-        if (authLevel === "onlineProvider") {
-          if (!isWalletConnected) {
-            await delayedRedirect("Wallet not connected, redirecting to home page...");
-            router.push("/");
-            return;
-          }
+        const isAuthorized = authLevel === "provider" ? isProvider : isProvider || isOnline;
 
-          if (!isProviderStatusFetched || !isProviderOnlineStatusFetched) {
-            setLoadingMessage("Checking provider status...");
-            return;
-          }
-
-          if (!isProvider && !isOnline) {
-            await delayedRedirect("Provider is offline, redirecting to home page...");
-            router.push("/");
-            return;
-          }
-          setLoading(false);
+        if (!isAuthorized) {
+          const message = authLevel === "provider" ? "Not a provider, redirecting to home page..." : "Provider is offline, redirecting to home page...";
+          setLoadingMessage(message);
+          setTimeout(() => {
+            if (isMounted) router.push("/");
+          }, 2000);
+          return;
         }
+
+        setLoading(false);
       };
 
       checkAuth();
-    }, [isWalletConnected, isProvider, isProviderStatusFetched, isProviderOnlineStatusFetched, isOnline, router]);
+
+      return () => {
+        isMounted = false;
+      };
+    }, [isWalletConnected, isProvider, isProviderStatusFetched, isProviderOnlineStatusFetched, isOnline, router, walletCheckCount]);
 
     if (loading) {
       return (
@@ -98,7 +83,7 @@ export const withAuth = ({ WrappedComponent, authLevel = "wallet" }: WithAuthPro
             alignItems: "center",
             height: "100vh",
             fontSize: "18px",
-            color: "#333"
+            color: "var(--text-color, currentColor)"
           }}
         >
           <Spinner />
