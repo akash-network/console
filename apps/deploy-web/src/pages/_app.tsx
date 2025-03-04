@@ -12,6 +12,7 @@ import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
 import { AppProps } from "next/app";
 import Router from "next/router";
+import { NextSeoProps } from "next-seo/lib/types";
 import { ThemeProvider } from "next-themes";
 import NProgress from "nprogress";
 
@@ -29,12 +30,13 @@ import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
-import { TemplatesProvider } from "@src/context/TemplatesProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
 import { queryClient } from "@src/queries";
 import { store } from "@src/store/global-store";
 
-interface Props extends AppProps {}
+interface Props extends AppProps {
+  seo?: NextSeoProps;
+}
 
 NProgress.configure({
   minimum: 0.2
@@ -52,7 +54,7 @@ const App: React.FunctionComponent<Props> = props => {
     <>
       <Turnstile />
       <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
-        <PageHead />
+        <PageHead pageSeo={pageProps.seo} />
 
         <AppCacheProvider {...props}>
           <CustomIntlProvider>
@@ -72,13 +74,11 @@ const App: React.FunctionComponent<Props> = props => {
                                     <ChainParamProvider>
                                       <CertificateProvider>
                                         <BackgroundTaskProvider>
-                                          <TemplatesProvider>
-                                            <LocalNoteProvider>
-                                              <ServicesProvider>
-                                                <Component {...pageProps} />
-                                              </ServicesProvider>
-                                            </LocalNoteProvider>
-                                          </TemplatesProvider>
+                                          <LocalNoteProvider>
+                                            <ServicesProvider>
+                                              <Component {...pageProps} />
+                                            </ServicesProvider>
+                                          </LocalNoteProvider>
                                         </BackgroundTaskProvider>
                                       </CertificateProvider>
                                     </ChainParamProvider>

@@ -13,6 +13,7 @@ import {
   ProviderOnChainStatus,
   ProviderStatus
 } from "@src/types/provider";
+import { GpuPricesResponse } from "@src/types/providerPricing";
 import consoleClient from "@src/utils/consoleClient";
 import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
 import restClient from "@src/utils/restClient";
@@ -244,5 +245,23 @@ export const usePersistentStorage = (activeControlMachine: ControlMachineWithAdd
     },
     enabled: !!activeControlMachine,
     retry: 3
+  });
+};
+
+export const useGpuPrices = () => {
+  const { toast } = useToast();
+  return useQuery<GpuPricesResponse>({
+    queryKey: ["gpuPrices"],
+    queryFn: async () => {
+      try {
+        return await consoleClient.get("/internal/gpu-prices");
+      } catch (error: unknown) {
+        return handleQueryError(error as AxiosError, toast, "Failed to fetch GPU prices");
+      }
+    },
+    refetchOnWindowFocus: false,
+    retry: 3,
+    // Cache the data for 5 minutes
+    staleTime: 5 * 60 * 1000
   });
 };

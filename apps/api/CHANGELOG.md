@@ -1,5 +1,26 @@
 
 
+## [2.67.1](https://github.com/akash-network/console/compare/console-api/v2.67.0...console-api/v2.67.1) (2025-03-04)
+
+
+### Bug Fixes
+
+* typos in documentation files ([07a7858](https://github.com/akash-network/console/commit/07a7858d950fe5bb0a438e7205213a107c67874a))
+
+## [2.67.0](https://github.com/akash-network/console/compare/console-api/v2.66.0...console-api/v2.67.0) (2025-03-03)
+
+
+### Features
+
+* **network:** add API endpoints for deployment ([#860](https://github.com/akash-network/console/issues/860)) ([5a58c29](https://github.com/akash-network/console/commit/5a58c298e6ad15944a93b7cd1d82837b78235c9a)), closes [#767](https://github.com/akash-network/console/issues/767)
+
+## [2.66.0](https://github.com/akash-network/console/compare/console-api/v2.65.0...console-api/v2.66.0) (2025-02-24)
+
+
+### Features
+
+* **network:** API endpoint listing bids ([#859](https://github.com/akash-network/console/issues/859)) ([0c7a8b9](https://github.com/akash-network/console/commit/0c7a8b97bd8bfaeaee78640a7256ef8cf279eb70)), closes [#767](https://github.com/akash-network/console/issues/767)
+
 ## [2.65.0](https://github.com/akash-network/console/compare/console-api/v2.64.0...console-api/v2.65.0) (2025-02-20)
 
 

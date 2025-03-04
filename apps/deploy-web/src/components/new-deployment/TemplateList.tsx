@@ -8,8 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
-import { useTemplates } from "@src/context/TemplatesProvider";
-import { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
+import { TemplateOutputSummaryWithCategory, useTemplates } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -54,7 +53,9 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
 
   useEffect(() => {
     if (templates) {
-      const _previewTemplates = templates.filter(template => previewTemplateIds.includes(template.id));
+      const _previewTemplates = previewTemplateIds
+        .map(id => templates.find(template => template.id === id))
+        .filter((template): template is TemplateOutputSummaryWithCategory => template !== undefined);
       setPreviewTemplates(_previewTemplates);
     }
   }, [templates]);

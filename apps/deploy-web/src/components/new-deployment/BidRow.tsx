@@ -6,7 +6,6 @@ import { CloudXmark, WarningTriangle } from "iconoir-react";
 import Link from "next/link";
 
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { getSplitText } from "@src/hooks/useShortText";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
 import { BidDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
@@ -14,11 +13,13 @@ import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { UrlService } from "@src/utils/urlUtils";
+import { CopyTextToClipboardButton } from "../copy-text-to-clipboard-button/CopyTextToClipboardButton";
 import { AuditorButton } from "../providers/AuditorButton";
 import { Uptime } from "../providers/Uptime";
 import { FavoriteButton } from "../shared/FavoriteButton";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
 import { PricePerMonth } from "../shared/PricePerMonth";
+import { ShortenedValue } from "../shortened-value/ShortenedValue";
 
 type Props = {
   testIndex: number;
@@ -110,21 +111,14 @@ export const BidRow: React.FunctionComponent<Props> = ({ testIndex, bid, selecte
           <div className="ml-2">
             {provider.name ? (
               <Link href={UrlService.providerDetail(provider.owner)} onClick={e => e.stopPropagation()}>
-                {provider.name?.length > 20 ? (
-                  <CustomTooltip title={provider.name}>
-                    <span>{getSplitText(provider.name, 4, 13)}</span>
-                  </CustomTooltip>
-                ) : (
-                  provider.name
-                )}
+                <ShortenedValue value={provider.name} maxLength={40} headLength={14} />
               </Link>
             ) : (
-              <div>
-                <CustomTooltip title={provider.hostUri}>
-                  <div>{getSplitText(provider.hostUri, 4, 13)}</div>
-                </CustomTooltip>
-              </div>
+              <ShortenedValue value={provider.hostUri} maxLength={40} headLength={14} />
             )}
+          </div>
+          <div className="pl-2">
+            <CopyTextToClipboardButton value={provider.name ?? provider.hostUri} />
           </div>
         </div>
       </TableCell>
