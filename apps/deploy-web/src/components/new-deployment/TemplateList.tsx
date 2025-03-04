@@ -53,7 +53,9 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
 
   useEffect(() => {
     if (templates) {
-      const _previewTemplates = templates.filter(template => previewTemplateIds.includes(template.id));
+      const _previewTemplates = previewTemplateIds
+        .map(id => templates.find(template => template.id === id))
+        .filter((template): template is TemplateOutputSummaryWithCategory => template !== undefined);
       setPreviewTemplates(_previewTemplates);
     }
   }, [templates]);

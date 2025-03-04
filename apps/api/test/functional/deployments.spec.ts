@@ -42,12 +42,16 @@ describe("Deployments API", () => {
     knownWallets = {};
     currentHeight = faker.number.int({ min: 1000000, max: 10000000 });
 
-    jest.spyOn(userRepository, "findByUserId").mockImplementation(async (id: string) => {
-      return Promise.resolve(knownUsers[id] ? {
-        ...knownUsers[id],
-        trial: false,
-        userWallets: { isTrialing: false }
-      } : undefined);
+    jest.spyOn(userRepository, "findById").mockImplementation(async (id: string) => {
+      return Promise.resolve(
+        knownUsers[id]
+          ? {
+              ...knownUsers[id],
+              trial: false,
+              userWallets: { isTrialing: false }
+            }
+          : undefined
+      );
     });
 
     jest.spyOn(apiKeyAuthService, "getAndValidateApiKeyFromHeader").mockImplementation(async (key: string) => {
@@ -85,10 +89,13 @@ describe("Deployments API", () => {
     nock.cleanAll();
   });
 
-  async function mockUser(dseq = "1234", deploymentInfo: RestAkashDeploymentInfoResponse = {
-    deployment: "fake-deployment",
-    escrow_account: "fake-escrow-account",
-  } as unknown as RestAkashDeploymentInfoResponse) {
+  async function mockUser(
+    dseq = "1234",
+    deploymentInfo: RestAkashDeploymentInfoResponse = {
+      deployment: "fake-deployment",
+      escrow_account: "fake-escrow-account"
+    } as unknown as RestAkashDeploymentInfoResponse
+  ) {
     const userId = faker.string.uuid();
     const userApiKeySecret = faker.word.noun();
     const user = UserSeeder.create({ userId });
@@ -101,13 +108,18 @@ describe("Deployments API", () => {
 
     nock(apiNodeUrl).get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${wallets[0].address}&id.dseq=${dseq}`).reply(200, deploymentInfo);
 
-    nock(apiNodeUrl).get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`).reply(200, {
-      leases: [{
-        lease: "fake-lease-1"
-      }, {
-        lease: "fake-lease-2"
-      }]
-    });
+    nock(apiNodeUrl)
+      .get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`)
+      .reply(200, {
+        leases: [
+          {
+            lease: "fake-lease-1"
+          },
+          {
+            lease: "fake-lease-2"
+          }
+        ]
+      });
 
     return { user, userApiKeySecret, wallets };
   }
@@ -156,11 +168,8 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result.data).toEqual({
         deployment: "fake-deployment",
-        leases: [
-          "fake-lease-1",
-          "fake-lease-2"
-        ],
-        escrow_account: "fake-escrow-account",
+        leases: ["fake-lease-1", "fake-lease-2"],
+        escrow_account: "fake-escrow-account"
       });
     });
 
@@ -177,11 +186,8 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result.data).toEqual({
         deployment: "fake-deployment",
-        leases: [
-          "fake-lease-1",
-          "fake-lease-2"
-        ],
-        escrow_account: "fake-escrow-account",
+        leases: ["fake-lease-1", "fake-lease-2"],
+        escrow_account: "fake-escrow-account"
       });
     });
 
@@ -199,11 +205,8 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result.data).toEqual({
         deployment: "fake-deployment",
-        leases: [
-          "fake-lease-1",
-          "fake-lease-2"
-        ],
-        escrow_account: "fake-escrow-account",
+        leases: ["fake-lease-1", "fake-lease-2"],
+        escrow_account: "fake-escrow-account"
       });
     });
 
@@ -293,7 +296,7 @@ describe("Deployments API", () => {
       expect(result.data).toEqual({
         code: 200,
         transactionHash: expect.any(String),
-        rawLog: expect.any(String),
+        rawLog: expect.any(String)
       });
     });
 
@@ -329,7 +332,7 @@ describe("Deployments API", () => {
 
       expect(response.status).toBe(400);
       const result = await response.json();
-      expect(result.message).toContain("Invalid denom: \"eur\"");
+      expect(result.message).toContain('Invalid denom: "eur"');
     });
 
     it("returns 400 if the SDL sent is invalid", async () => {
