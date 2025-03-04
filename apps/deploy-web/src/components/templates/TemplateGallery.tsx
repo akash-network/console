@@ -9,9 +9,8 @@ import { FilterList, Xmark } from "iconoir-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { LinkTo } from "@src/components/shared/LinkTo";
-import { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
+import { TemplateOutputSummaryWithCategory, useTemplates } from "@src/queries/useTemplateQuery";
 import { domainName, UrlService } from "@src/utils/urlUtils";
-import { useTemplates } from "../../context/TemplatesProvider";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { Title } from "../shared/Title";

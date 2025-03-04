@@ -1,6 +1,6 @@
 import yaml from "js-yaml";
 
-import { useTemplates } from "@src/context/TemplatesProvider";
+import { useTemplates } from "@src/queries/useTemplateQuery";
 
 export const useGpuTemplates = () => {
   const { isLoading: isLoadingTemplates, categories } = useTemplates();
