@@ -1,5 +1,12 @@
 
 
+## [2.67.1](https://github.com/akash-network/console/compare/console-api/v2.67.0...console-api/v2.67.1) (2025-03-04)
+
+
+### Bug Fixes
+
+* typos in documentation files ([07a7858](https://github.com/akash-network/console/commit/07a7858d950fe5bb0a438e7205213a107c67874a))
+
 ## [2.67.0](https://github.com/akash-network/console/compare/console-api/v2.66.0...console-api/v2.67.0) (2025-03-03)
 
 
