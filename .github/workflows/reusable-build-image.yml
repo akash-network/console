@@ -26,6 +26,9 @@ on:
       image_tag:
         description: "The image tag"
         value: ${{ jobs.build.outputs.image_tag }}
+      base_image_tag:
+        description: "The base image tag without the pre-release suffix"
+        value: ${{ jobs.build.outputs.base_image_tag }}
 
 concurrency:
   group: ${{ github.workflow }}
@@ -41,7 +44,7 @@ jobs:
 
     outputs:
       image_tag: ${{ steps.determine.outputs.tag }}
-
+      base_image_tag: ${{ steps.determine.outputs.base_tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -81,6 +84,7 @@ jobs:
           tag="${tag#v}"
           echo "tag=$tag" >> $GITHUB_ENV
           echo "tag=$tag" >> $GITHUB_OUTPUT
+          echo "base_tag=${tag%-*}" >> $GITHUB_OUTPUT
 
       - name: Build Docker image
         env:
