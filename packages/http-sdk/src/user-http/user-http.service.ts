@@ -3,6 +3,7 @@ import memoize from "lodash/memoize";
 
 import { ApiOutput } from "../api-http/api-http.service";
 import { HttpService } from "../http/http.service";
+import { isHttpError } from "../utils/isHttpError";
 
 export interface UserOutput {
   id: string;
@@ -41,7 +42,7 @@ export class UserHttpService extends HttpService {
     try {
       return this.extractData(await this.get<ApiOutput<UserOutput>>(`/v1/anonymous-users/${id}`));
     } catch (error) {
-      if (error.response?.status === 404) {
+      if (isHttpError(error) && error.response?.status === 404) {
         return this.createAnonymousUser();
       } else {
         throw error;
