@@ -8,7 +8,7 @@ import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider";
-import { useTemplates } from "@src/context/TemplatesProvider";
+import { useTemplates } from "@src/queries/useTemplateQuery";
 import { isCiCdImageInYaml } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";

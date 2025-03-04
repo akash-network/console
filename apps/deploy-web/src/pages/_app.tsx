@@ -29,7 +29,6 @@ import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
-import { TemplatesProvider } from "@src/context/TemplatesProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
 import { queryClient } from "@src/queries";
 import { store } from "@src/store/global-store";
@@ -72,13 +71,11 @@ const App: React.FunctionComponent<Props> = props => {
                                     <ChainParamProvider>
                                       <CertificateProvider>
                                         <BackgroundTaskProvider>
-                                          <TemplatesProvider>
-                                            <LocalNoteProvider>
-                                              <ServicesProvider>
-                                                <Component {...pageProps} />
-                                              </ServicesProvider>
-                                            </LocalNoteProvider>
-                                          </TemplatesProvider>
+                                          <LocalNoteProvider>
+                                            <ServicesProvider>
+                                              <Component {...pageProps} />
+                                            </ServicesProvider>
+                                          </LocalNoteProvider>
                                         </BackgroundTaskProvider>
                                       </CertificateProvider>
                                     </ChainParamProvider>
