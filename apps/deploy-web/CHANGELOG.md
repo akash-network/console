@@ -1,5 +1,22 @@
 
 
+## [2.52.0](https://github.com/akash-network/console/compare/console-web/v2.51.0...console-web/v2.52.0) (2025-03-04)
+
+
+### Features
+
+* displays first lease service uri on deployment list if deployment name is unknown and small UX improvements ([#924](https://github.com/akash-network/console/issues/924)) ([f3e9b8d](https://github.com/akash-network/console/commit/f3e9b8d96878fab4cc89c37a2ad7747ab844c1b1))
+
+
+### Bug Fixes
+
+* **template:** forces templates seo meta rendering on the backend ([cc674d8](https://github.com/akash-network/console/commit/cc674d807526fde167c9a768ec2cd5be7075a040)), closes [#786](https://github.com/akash-network/console/issues/786)
+
+
+### Code Refactoring
+
+* replaces TemplatesContext with direct usage of useTemplates on top of react-query ([#935](https://github.com/akash-network/console/issues/935)) ([ce5dc1e](https://github.com/akash-network/console/commit/ce5dc1e04737765f76b486356d77d9ddc3723317))
+
 ## [2.51.0](https://github.com/akash-network/console/compare/console-web/v2.50.0...console-web/v2.51.0) (2025-03-03)
 
 
