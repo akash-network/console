@@ -177,7 +177,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         </TableCell>
         <TableCell className="text-center">
           <div className="flex items-center justify-center">
-            <span>{deployment.dseq || "N/A"}</span>
+            <span className="mr-1">{deployment.dseq || "N/A"}</span>
             <CopyTextToClipboardButton value={deployment.dseq} />
           </div>
         </TableCell>
