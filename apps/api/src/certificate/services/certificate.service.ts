@@ -27,20 +27,16 @@ export class CertificateService {
 
     assert(userWallet, 404, "UserWallet not found");
 
-    if (userWallet) {
-      const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = certificateManager.generatePEM(userWallet.address);
-      const createCertificateMsg = this.rpcMessageService.getCreateCertificateMsg(userWallet.address, crtpem, pubpem);
-      const messages = [createCertificateMsg];
+    const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = certificateManager.generatePEM(userWallet.address);
+    const createCertificateMsg = this.rpcMessageService.getCreateCertificateMsg(userWallet.address, crtpem, pubpem);
+    const messages = [createCertificateMsg];
 
-      await this.managedSignerService.executeDecodedTxByUserId(userWallet.userId, messages);
+    await this.managedSignerService.executeDecodedTxByUserId(userWallet.userId, messages);
 
-      return {
-        certPem: crtpem,
-        pubkeyPem: pubpem,
-        encryptedKey: encryptedKey
-      };
-    }
-
-    return null;
+    return {
+      certPem: crtpem,
+      pubkeyPem: pubpem,
+      encryptedKey: encryptedKey
+    };
   }
 }

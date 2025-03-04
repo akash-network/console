@@ -1,4 +1,3 @@
-import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { Protected } from "@src/auth/services/auth.service";
@@ -12,7 +11,6 @@ export class CertificateController {
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async create(): Promise<CreateCertificateResponse> {
     const cert = await this.certificateService.create();
-    assert(cert, 404, "Certificate not found");
     return { data: cert };
   }
 }
