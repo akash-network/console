@@ -43,7 +43,16 @@ const TooltipContent = React.forwardRef<React.ElementRef<typeof TooltipPrimitive
 );
 TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 
-function CustomTooltip({ children, className = "", title }: React.PropsWithChildren<{ className?: string; title: string | React.ReactNode }>) {
+function CustomTooltip({
+  children,
+  className = "",
+  title,
+  disabled = false
+}: React.PropsWithChildren<{ className?: string; title: string | React.ReactNode; disabled?: boolean }>) {
+  if (disabled) {
+    return <>{children}</>;
+  }
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>

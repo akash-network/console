@@ -4,7 +4,8 @@
     "baseUrl": ".",
     "moduleResolution": "Bundler",
     "paths": {
-      "@src/*": ["./src/*"]
+      "@src/*": ["./src/*"],
+      "@tests/*": ["./tests/*"]
     },
     "plugins": [
       {
