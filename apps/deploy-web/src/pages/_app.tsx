@@ -12,6 +12,7 @@ import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
 import { AppProps } from "next/app";
 import Router from "next/router";
+import { NextSeoProps } from "next-seo/lib/types";
 import { ThemeProvider } from "next-themes";
 import NProgress from "nprogress";
 
@@ -33,7 +34,9 @@ import { WalletProvider } from "@src/context/WalletProvider";
 import { queryClient } from "@src/queries";
 import { store } from "@src/store/global-store";
 
-interface Props extends AppProps {}
+interface Props extends AppProps {
+  seo?: NextSeoProps;
+}
 
 NProgress.configure({
   minimum: 0.2
@@ -51,7 +54,7 @@ const App: React.FunctionComponent<Props> = props => {
     <>
       <Turnstile />
       <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
-        <PageHead />
+        <PageHead pageSeo={pageProps.seo} />
 
         <AppCacheProvider {...props}>
           <CustomIntlProvider>

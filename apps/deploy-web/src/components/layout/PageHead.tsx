@@ -1,8 +1,9 @@
 import React from "react";
 import Head from "next/head";
-import { DefaultSeo } from "next-seo";
+import { DefaultSeo, NextSeo } from "next-seo";
+import { NextSeoProps } from "next-seo/lib/types";
 
-export const PageHead: React.FunctionComponent = () => {
+export const PageHead: React.FunctionComponent<{ pageSeo?: NextSeoProps }> = ({ pageSeo }) => {
   return (
     <>
       <Head>
@@ -36,6 +37,8 @@ export const PageHead: React.FunctionComponent = () => {
           cardType: "summary_large_image"
         }}
       />
+
+      <NextSeo {...pageSeo} />
     </>
   );
 };

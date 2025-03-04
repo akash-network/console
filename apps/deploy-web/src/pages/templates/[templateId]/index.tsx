@@ -3,6 +3,9 @@ import { z } from "zod";
 import { TemplateDetail, TemplateDetailProps } from "@src/components/templates/TemplateDetail";
 import { getValidatedServerSideProps } from "@src/lib/nextjs/getValidatedServerSIdeProps";
 import { services } from "@src/services/http/http-server.service";
+import { getShortText } from "@src/utils/stringUtils";
+import { UrlService } from "@src/utils/urlUtils";
+import { domainName } from "@src/utils/urlUtils";
 
 export default TemplateDetail;
 
@@ -21,10 +24,31 @@ export const getServerSideProps = getValidatedServerSideProps<TemplateDetailProp
     };
   }
 
+  const url = `${domainName}${UrlService.templateDetails(params.templateId)}`;
+  const description = getShortText(template.summary || "", 140);
+  const title = `Template detail ${template.name}`;
+
   return {
     props: {
-      templateId: params.templateId,
-      template
+      template,
+      seo: {
+        title,
+        description,
+        canonical: url,
+        openGraph: {
+          title,
+          description,
+          url,
+          images: [
+            {
+              url: template.logoUrl,
+              width: 1200,
+              height: 630,
+              alt: "Template image"
+            }
+          ]
+        }
+      }
     }
   };
 });
