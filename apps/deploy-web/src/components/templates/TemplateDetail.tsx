@@ -12,19 +12,16 @@ import { DynamicMonacoEditor } from "@src/components/shared/DynamicMonacoEditor"
 import Markdown from "@src/components/shared/Markdown";
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
-import { getShortText } from "@src/hooks/useShortText";
 import { ApiTemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
-import { domainName, UrlService } from "@src/utils/urlUtils";
+import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
-import { CustomNextSeo } from "../shared/CustomNextSeo";
 
 export interface TemplateDetailProps {
-  templateId: string;
   template: ApiTemplate;
 }
 
-export const TemplateDetail: FC<TemplateDetailProps> = ({ templateId, template }) => {
+export const TemplateDetail: FC<TemplateDetailProps> = ({ template }) => {
   const [activeTab, setActiveTab] = useState("README");
   const router = useRouter();
   const previousRoute = usePreviousRoute();
@@ -44,12 +41,6 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ templateId, template }
   return (
     <Layout disableContainer>
       <div className="[&>img]:max-w-full">
-        <CustomNextSeo
-          title={`Template detail ${template.name}`}
-          url={`${domainName}${UrlService.templateDetails(templateId)}`}
-          description={getShortText(template.summary || "", 140)}
-        />
-
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="w-full rounded-none">
             <TabsTrigger value="README" className={cn({ ["font-bold"]: activeTab === "README" })}>
