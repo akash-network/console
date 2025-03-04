@@ -189,10 +189,10 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
         <div className="mt-4" style={{ height: 200 }}>
           <ScrollFollow
             startFollowing={true}
-            render={({ onScroll }) => (
+            render={({ follow, onScroll }) => (
               <LazyLog
                 text={sanitizedLogs}
-                follow={true}
+                follow={follow}
                 onScroll={onScroll}
                 highlight={[]}
                 extraLines={1}
@@ -207,7 +207,6 @@ export const ActivityLogDetails: React.FC<{ actionId: string | null }> = ({ acti
                   color: "var(--log-text, #ffffff)"
                 }}
                 key={`${taskId}-${sanitizedLogs.length}`}
-                scrollToLine={sanitizedLogs.split("\n").length}
               />
             )}
           />
