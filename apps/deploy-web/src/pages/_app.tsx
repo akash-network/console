@@ -19,7 +19,7 @@ import NProgress from "nprogress";
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
-import { Turnstile } from "@src/components/turnstile/Turnstile";
+import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { UserProviders } from "@src/components/user/UserProviders";
 import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 import { CertificateProvider } from "@src/context/CertificateProvider";
@@ -52,7 +52,7 @@ const App: React.FunctionComponent<Props> = props => {
 
   return (
     <>
-      <Turnstile />
+      <ClientOnlyTurnstile />
       <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
         <PageHead pageSeo={pageProps.seo} />
 
