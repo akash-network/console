@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { useMutation, useQuery, useQueryClient } from "react-query";
 import { FindDeploymentSettingParams } from "@akashnetwork/http-sdk";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { millisecondsInMinute } from "date-fns/constants";
 
@@ -58,9 +58,9 @@ export function useDeploymentSettingQuery(params: Omit<FindDeploymentSettingPara
     data: query.data,
     update: update.mutate,
     setAutoTopUpEnabled,
-    isLoading: query.isLoading || update.isLoading,
+    isLoading: query.isLoading || update.isPending,
     isFetching: query.isLoading,
-    isUpdating: update.isLoading,
+    isUpdating: update.isPending,
     error: query.error
   };
 }

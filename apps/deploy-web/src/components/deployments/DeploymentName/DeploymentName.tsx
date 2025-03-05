@@ -4,7 +4,7 @@ import { OpenInWindow } from "iconoir-react";
 import Link from "next/link";
 
 import { LabelValueOld } from "@src/components/shared/LabelValueOld";
-import { LeaseServiceStatus } from "@src/queries/useLeaseQuery";
+import { LeaseServiceStatus } from "@src/types/provider";
 import { getShortText } from "@src/utils/stringUtils";
 
 export const COMPONENTS = {
