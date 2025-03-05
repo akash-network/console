@@ -1,5 +1,6 @@
 import { BlockHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
+import { NotFound } from "http-errors";
 import nock from "nock";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -11,6 +12,7 @@ import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
+import { DeploymentService } from "@src/deployment/services/deployment/deployment.service";
 import { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { apiNodeUrl, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/constants";
@@ -30,6 +32,7 @@ describe("Deployments API", () => {
   const abilityService = container.resolve(AbilityService);
   const blockHttpService = container.resolve(BlockHttpService);
   const signerService = container.resolve(ManagedSignerService);
+  const deploymentService = container.resolve(DeploymentService);
 
   let knownUsers: Record<string, UserOutput>;
   let knownApiKeys: Record<string, ApiKeyOutput>;
@@ -89,13 +92,7 @@ describe("Deployments API", () => {
     nock.cleanAll();
   });
 
-  async function mockUser(
-    dseq = "1234",
-    deploymentInfo: RestAkashDeploymentInfoResponse = {
-      deployment: "fake-deployment",
-      escrow_account: "fake-escrow-account"
-    } as unknown as RestAkashDeploymentInfoResponse
-  ) {
+  async function mockUser() {
     const userId = faker.string.uuid();
     const userApiKeySecret = faker.word.noun();
     const user = UserSeeder.create({ userId });
@@ -105,21 +102,6 @@ describe("Deployments API", () => {
     knownUsers[userId] = user;
     knownApiKeys[userApiKeySecret] = apiKey;
     knownWallets[userId] = wallets;
-
-    nock(apiNodeUrl).get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${wallets[0].address}&id.dseq=${dseq}`).reply(200, deploymentInfo);
-
-    nock(apiNodeUrl)
-      .get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`)
-      .reply(200, {
-        leases: [
-          {
-            lease: "fake-lease-1"
-          },
-          {
-            lease: "fake-lease-2"
-          }
-        ]
-      });
 
     return { user, userApiKeySecret, wallets };
   }
@@ -145,19 +127,67 @@ describe("Deployments API", () => {
     return { adminApiKeySecret };
   }
 
-  afterEach(async () => {
-    await dbService.cleanAll();
-  });
+  function createMockDeploymentInfo(wallets: UserWalletOutput[], dseq: string, deploymentInfo?: RestAkashDeploymentInfoResponse) {
+    const defaultDeploymentInfo = deploymentInfo || {
+      deployment: {
+        deployment_id: {
+          owner: wallets[0].address,
+          dseq
+        },
+        state: "active",
+        version: betaTypeVersion,
+        created_at: "2021-01-01T00:00:00Z"
+      },
+      groups: [],
+      escrow_account: {
+        id: {
+          scope: "deployment",
+          xid: dseq
+        },
+        owner: wallets[0].address,
+        state: "open",
+        balance: {
+          denom: "uakt",
+          amount: "5000000"
+        },
+        transferred: {
+          denom: "uakt",
+          amount: "0"
+        },
+        settled_at: new Date().toISOString(),
+        depositor: wallets[0].address,
+        funds: {
+          denom: "uakt",
+          amount: "5000000"
+        }
+      }
+    };
 
-  afterAll(() => {
-    jest.restoreAllMocks();
-    nock.cleanAll();
-  });
+    nock(apiNodeUrl)
+      .get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${wallets[0].address}&id.dseq=${dseq}`)
+      .reply(200, defaultDeploymentInfo);
+
+    nock(apiNodeUrl)
+      .get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`)
+      .reply(200, {
+        leases: [
+          {
+            lease: "fake-lease-1"
+          },
+          {
+            lease: "fake-lease-2"
+          }
+        ]
+      });
+
+    return defaultDeploymentInfo;
+  }
 
   describe("GET /v1/deployments", () => {
     it("returns deployment by dseq", async () => {
       const dseq = "1234";
-      const { userApiKeySecret } = await mockUser(dseq);
+      const { userApiKeySecret, wallets } = await mockUser();
+      createMockDeploymentInfo(wallets, dseq);
 
       const response = await app.request(`/v1/deployments?dseq=${dseq}`, {
         method: "GET",
@@ -167,15 +197,16 @@ describe("Deployments API", () => {
       expect(response.status).toBe(200);
       const result = await response.json();
       expect(result.data).toEqual({
-        deployment: "fake-deployment",
+        deployment: expect.any(Object),
         leases: ["fake-lease-1", "fake-lease-2"],
-        escrow_account: "fake-escrow-account"
+        escrow_account: expect.any(Object)
       });
     });
 
     it("returns deployment by dseq and userId", async () => {
       const dseq = "1234";
-      const { user, userApiKeySecret } = await mockUser(dseq);
+      const { user, userApiKeySecret, wallets } = await mockUser();
+      createMockDeploymentInfo(wallets, dseq);
 
       const response = await app.request(`/v1/deployments?dseq=${dseq}&userId=${user.userId}`, {
         method: "GET",
@@ -185,16 +216,17 @@ describe("Deployments API", () => {
       expect(response.status).toBe(200);
       const result = await response.json();
       expect(result.data).toEqual({
-        deployment: "fake-deployment",
+        deployment: expect.any(Object),
         leases: ["fake-lease-1", "fake-lease-2"],
-        escrow_account: "fake-escrow-account"
+        escrow_account: expect.any(Object)
       });
     });
 
     it("returns deployment by dseq and userId, any user for an admin", async () => {
       const dseq = "1234";
-      const { user } = await mockUser(dseq);
+      const { user, wallets } = await mockUser();
       const { adminApiKeySecret } = await mockAdmin();
+      createMockDeploymentInfo(wallets, dseq);
 
       const response = await app.request(`/v1/deployments?dseq=${dseq}&userId=${user.userId}`, {
         method: "GET",
@@ -204,20 +236,21 @@ describe("Deployments API", () => {
       expect(response.status).toBe(200);
       const result = await response.json();
       expect(result.data).toEqual({
-        deployment: "fake-deployment",
+        deployment: expect.any(Object),
         leases: ["fake-lease-1", "fake-lease-2"],
-        escrow_account: "fake-escrow-account"
+        escrow_account: expect.any(Object)
       });
     });
 
     it("returns 404 for an error in deployment info", async () => {
       const dseq = "1234";
-      const { user } = await mockUser(dseq, {
+      const { user, wallets } = await mockUser();
+      const { adminApiKeySecret } = await mockAdmin();
+      createMockDeploymentInfo(wallets, dseq, {
         code: 404,
         message: "Deployment not found",
         details: []
       });
-      const { adminApiKeySecret } = await mockAdmin();
 
       const response = await app.request(`/v1/deployments?dseq=${dseq}&userId=${user.userId}`, {
         method: "GET",
@@ -234,12 +267,13 @@ describe("Deployments API", () => {
 
     it("returns 500 for an error in deployment info", async () => {
       const dseq = "1234";
-      const { user } = await mockUser(dseq, {
+      const { user, wallets } = await mockUser();
+      const { adminApiKeySecret } = await mockAdmin();
+      createMockDeploymentInfo(wallets, dseq, {
         code: 987,
         message: "Some kind of error",
         details: []
       });
-      const { adminApiKeySecret } = await mockAdmin();
 
       const response = await app.request(`/v1/deployments?dseq=${dseq}&userId=${user.userId}`, {
         method: "GET",
@@ -264,7 +298,8 @@ describe("Deployments API", () => {
     });
 
     it("returns 400 if no dseq set", async () => {
-      const { userApiKeySecret } = await mockUser();
+      const { userApiKeySecret, wallets } = await mockUser();
+      createMockDeploymentInfo(wallets, "1234");
 
       const response = await app.request("/v1/deployments", {
         method: "GET",
@@ -294,9 +329,12 @@ describe("Deployments API", () => {
       expect(response.status).toBe(201);
       const result = await response.json();
       expect(result.data).toEqual({
-        code: 200,
-        transactionHash: expect.any(String),
-        rawLog: expect.any(String)
+        dseq: expect.any(String),
+        signTx: {
+          code: 200,
+          transactionHash: expect.any(String),
+          rawLog: expect.any(String)
+        }
       });
     });
 
@@ -369,6 +407,87 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(400);
+    });
+  });
+
+  describe("DELETE /v1/deployments/{dseq}", () => {
+    it("should close a deployment successfully", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const dseq = "1234";
+      createMockDeploymentInfo(wallets, dseq);
+
+      const mockTxResult = {
+        code: 0,
+        hash: "test-hash",
+        rawLog: "success"
+      };
+
+      jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result).toEqual({
+        data: {
+          success: true
+        }
+      });
+    });
+
+    it("should return 404 if deployment does not exist", async () => {
+      const { userApiKeySecret } = await mockUser();
+      const dseq = "1234";
+
+      jest.spyOn(deploymentService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(404);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "NotFoundError",
+        message: "Deployment not found"
+      });
+    });
+
+    it("should return 500 if transaction fails", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const dseq = "1234";
+      createMockDeploymentInfo(wallets, dseq);
+
+      jest.spyOn(signerService, "executeDecodedTxByUserId").mockRejectedValueOnce(new Error("Failed to sign and broadcast tx"));
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(500);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "InternalServerError"
+      });
+    });
+
+    it("should return 401 for an unauthenticated request", async () => {
+      const response = await app.request("/v1/deployments/1234", {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json" })
+      });
+
+      expect(response.status).toBe(401);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "UnauthorizedError",
+        message: "Unauthorized"
+      });
     });
   });
 });

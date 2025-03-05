@@ -3,7 +3,14 @@ import { container } from "tsyringe";
 
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
-import { CreateDeploymentRequestSchema, CreateDeploymentResponseSchema, GetDeploymentQuerySchema, GetDeploymentResponseSchema } from "@src/deployment/http-schemas/deployment.schema";
+import {
+  CloseDeploymentParamsSchema,
+  CloseDeploymentResponseSchema,
+  CreateDeploymentRequestSchema,
+  CreateDeploymentResponseSchema,
+  GetDeploymentQuerySchema,
+  GetDeploymentResponseSchema
+} from "@src/deployment/http-schemas/deployment.schema";
 
 const getRoute = createRoute({
   method: "get",
@@ -41,10 +48,30 @@ const postRoute = createRoute({
   },
   responses: {
     201: {
-      description: "API key created successfully",
+      description: "Create deployment successfully",
       content: {
         "application/json": {
           schema: CreateDeploymentResponseSchema
+        }
+      }
+    }
+  }
+});
+
+const deleteRoute = createRoute({
+  method: "delete",
+  path: "/v1/deployments/{dseq}",
+  summary: "Close a deployment",
+  tags: ["Deployments"],
+  request: {
+    params: CloseDeploymentParamsSchema
+  },
+  responses: {
+    200: {
+      description: "Deployment closed successfully",
+      content: {
+        "application/json": {
+          schema: CloseDeploymentResponseSchema
         }
       }
     }
@@ -63,4 +90,10 @@ deploymentsRouter.openapi(postRoute, async function routeCreateDeployment(c) {
   const { data } = c.req.valid("json");
   const result = await container.resolve(DeploymentController).create(data);
   return c.json(result, 201);
+});
+
+deploymentsRouter.openapi(deleteRoute, async function routeCloseDeployment(c) {
+  const { dseq } = c.req.valid("param");
+  const result = await container.resolve(DeploymentController).close(dseq);
+  return c.json(result, 200);
 });

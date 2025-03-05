@@ -130,7 +130,7 @@ export class RpcMessageService {
     };
   }
 
-  getCloseDeploymentMsg(address: string, dseq: number) {
+  getCloseDeploymentMsg(address: string, dseq: number | string) {
     return {
       typeUrl: `/${MsgCloseDeployment.$type}`,
       value: {
