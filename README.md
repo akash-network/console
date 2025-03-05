@@ -1,9 +1,9 @@
 <div align="left">
-  
+
   <a href="https://aimeos.org/">
     <img src="./apps/deploy-web/public/android-chrome-192x192.png" alt="Akash logo" title="Akash Console" align="left" height="40" />
   </a>
-  
+
   # Akash Console
 
   **Akash Console** is a powerful application that allows you to deploy any [Docker container](https://www.docker.com/) on the [Akash Network](https://akash.network) with just a few clicks. 🚀
@@ -33,7 +33,7 @@ To get started with Akash Console, follow these steps:
 ```bash
 git clone git@github.com:akash-network/console.git ./akash-console
 cd akash-console
-npm run dc:up:dev -- deploy-web 
+npm run dc:up:dev -- deploy-web
 ```
 
 This will start the deploy-web service in development mode with all the necessary dependencies (API, indexer, PostgreSQL). It will also import a backup of the sandbox database by default to speed up the process.
@@ -57,7 +57,7 @@ This document provides instructions on how to set up and run the application, in
 
 ### Using Docker and Docker Compose
 This project's service are deployed using Docker and Docker Compose. The following sections provide instructions for setting up and running the application using Docker Compose.
-All the Dockerfiles are using multi-stage builds to optimize the image build processes. Same files are used to build both development and production images. 
+All the Dockerfiles are using multi-stage builds to optimize the image build processes. Same files are used to build both development and production images.
 
 There are 3 docker-compose files:
 - **docker-compose.build.yml:** Base file solely building production images for the services. It can be used to verify the same build process as in CICD.
@@ -137,6 +137,8 @@ For more information on how to use or contribute to shared packages, please refe
 ## Contributing
 
 If you'd like to contribute to the development of Akash Console, please refer to the guidelines outlined in the [CONTRIBUTING.md](./CONTRIBUTING.md) file.
+
+test changes3
 
 ## License
 
