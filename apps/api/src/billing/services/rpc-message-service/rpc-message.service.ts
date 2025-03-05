@@ -1,5 +1,5 @@
 import { GroupSpec } from "@akashnetwork/akash-api/akash/deployment/v1beta3";
-import { DepositDeploymentAuthorization, MsgCloseDeployment, MsgCreateDeployment,MsgDepositDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { DepositDeploymentAuthorization, MsgCloseDeployment, MsgCreateDeployment, MsgCreateLease, MsgDepositDeployment } from "@akashnetwork/akash-api/v1beta3";
 import { MsgExec, MsgRevoke } from "cosmjs-types/cosmos/authz/v1beta1/tx";
 import { BasicAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/feegrant";
 import { MsgGrantAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/tx";
@@ -34,6 +34,14 @@ export interface CreateDeploymentMsgOptions extends DepositDeploymentMsgOptionsB
   groups: GroupSpec[];
   manifestVersion: Uint8Array;
   depositor: string;
+}
+
+export interface CreateLeaseMsgOptions {
+  owner: string;
+  dseq: number | string;
+  gseq: number;
+  oseq: number;
+  provider: string;
 }
 
 export interface DepositDeploymentMsg {
@@ -157,6 +165,21 @@ export class RpcMessageService {
           amount: amount.toString()
         },
         depositor
+      })
+    };
+  }
+
+  getCreateLeaseMsg({ owner, dseq, gseq, oseq, provider }: CreateLeaseMsgOptions) {
+    return {
+      typeUrl: `/akash.market.v1beta4.MsgCreateLease`,
+      value: MsgCreateLease.fromPartial({
+        bidId: {
+          owner,
+          dseq: Long.fromString(dseq.toString(), true),
+          gseq,
+          oseq,
+          provider
+        }
       })
     };
   }

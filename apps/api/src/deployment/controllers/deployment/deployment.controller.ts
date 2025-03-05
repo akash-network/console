@@ -8,6 +8,7 @@ import {
   CreateDeploymentResponse,
   GetDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
+import { CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { DeploymentService } from "@src/deployment/services/deployment/deployment.service";
 
 @singleton()
@@ -48,6 +49,16 @@ export class DeploymentController {
 
     const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(currentUser.userId);
     const result = await this.deploymentService.close(wallets[0], dseq);
+
+    return { data: result };
+  }
+
+  @Protected([{ action: "sign", subject: "UserWallet" }])
+  async createLeasesAndSendManifest(dseq: string, input: CreateLeaseRequest): Promise<{ data: { success: boolean } }> {
+    const { currentUser, ability } = this.authService;
+
+    const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(currentUser.userId);
+    const result = await this.deploymentService.createLeasesAndSendManifest(wallets[0], input);
 
     return { data: result };
   }
