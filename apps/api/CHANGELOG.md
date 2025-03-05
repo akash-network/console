@@ -1,5 +1,12 @@
 
 
+## [2.68.0](https://github.com/akash-network/console/compare/console-api/v2.67.1...console-api/v2.68.0) (2025-03-05)
+
+
+### Features
+
+* **certificate:** managed wallet api create certificates ([#903](https://github.com/akash-network/console/issues/903)) ([e00ef07](https://github.com/akash-network/console/commit/e00ef07444a9a8bce9c5c4d5749b4adff5e8903b))
+
 ## [2.67.1](https://github.com/akash-network/console/compare/console-api/v2.67.0...console-api/v2.67.1) (2025-03-04)
 
 

@@ -1,5 +1,12 @@
 
 
+## [1.2.1](https://github.com/akash-network/console/compare/provider-console/v1.2.0...provider-console/v1.2.1) (2025-03-05)
+
+
+### Bug Fixes
+
+* **provider:** fixed loading issue on some pages, fixed some guides ([#939](https://github.com/akash-network/console/issues/939)) ([5054b19](https://github.com/akash-network/console/commit/5054b192e7a656bc82fa3b22862bea090f13e02c))
+
 ## [1.2.0](https://github.com/akash-network/console/compare/provider-console/v1.1.2...provider-console/v1.2.0) (2025-03-04)
 
 
