@@ -6,6 +6,7 @@ import { Button } from "@akashnetwork/ui/components";
 import { Turnstile as ReactTurnstile, TurnstileInstance } from "@marsidev/react-turnstile";
 import axios, { AxiosError, AxiosResponse } from "axios";
 import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
 import { firstValueFrom, Subject } from "rxjs";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -35,13 +36,23 @@ type TurnstileStatus = "uninitialized" | "solved" | "interactive" | "expired" | 
 
 const VISIBILITY_STATUSES: TurnstileStatus[] = ["interactive", "error"];
 
-export const Turnstile: FC = () => {
+type TurnstileProps = {
+  enabled?: boolean;
+  siteKey?: string;
+};
+
+export const Turnstile: FC<TurnstileProps> = ({
+  enabled = browserEnvConfig.NEXT_PUBLIC_TURNSTILE_ENABLED,
+  siteKey = browserEnvConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+}) => {
   const turnstileRef = useRef<TurnstileInstance>();
   const [status, setStatus] = useState<TurnstileStatus>("uninitialized");
-  const isVisible = useMemo(() => !!browserEnvConfig.NEXT_PUBLIC_TURNSTILE_ENABLED && VISIBILITY_STATUSES.includes(status), [status]);
+  const isVisible = useMemo(() => enabled && VISIBILITY_STATUSES.includes(status), [enabled, status]);
   const dismissedSubject = useRef(new Subject<void>());
 
   useEffect(() => {
+    if (!enabled) return;
+
     if (originalFetch) {
       window.fetch = async (...args) => {
         let response = await originalFetch(...args);
@@ -84,7 +95,7 @@ export const Turnstile: FC = () => {
         window.fetch = originalFetch;
       }
     };
-  }, []);
+  }, [enabled]);
 
   const resetWidget = useCallback(() => {
     turnstileRef.current?.remove();
@@ -96,7 +107,11 @@ export const Turnstile: FC = () => {
     resetWidget();
   });
 
-  return browserEnvConfig.NEXT_PUBLIC_TURNSTILE_ENABLED ? (
+  if (!enabled) {
+    return null;
+  }
+
+  return (
     <>
       <motion.div
         className="fixed inset-0 z-[101] flex content-center items-center justify-center bg-popover/90"
@@ -114,7 +129,7 @@ export const Turnstile: FC = () => {
           <div className="h-[66px]">
             <ReactTurnstile
               ref={turnstileRef}
-              siteKey={browserEnvConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+              siteKey={siteKey}
               options={{ execution: "execute" }}
               onError={() => setStatus("error")}
               onExpire={() => setStatus("expired")}
@@ -157,5 +172,7 @@ export const Turnstile: FC = () => {
         </div>
       </motion.div>
     </>
-  ) : null;
+  );
 };
+
+export const ClientOnlyTurnstile = dynamic(() => Promise.resolve(Turnstile), { ssr: false });
