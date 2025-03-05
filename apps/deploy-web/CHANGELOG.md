@@ -1,5 +1,12 @@
 
 
+## [2.53.1](https://github.com/akash-network/console/compare/console-web/v2.53.0...console-web/v2.53.1) (2025-03-05)
+
+
+### Bug Fixes
+
+* renders turnstile only on client side ([#949](https://github.com/akash-network/console/issues/949)) ([d282d20](https://github.com/akash-network/console/commit/d282d20ae2cb5e78704190a5016081766467d6ff))
+
 ## [2.53.0](https://github.com/akash-network/console/compare/console-web/v2.52.0...console-web/v2.53.0) (2025-03-05)
 
 
