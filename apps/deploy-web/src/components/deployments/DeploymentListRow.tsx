@@ -20,6 +20,7 @@ import { CalendarArrowDown, Coins, Edit, MoreHoriz, NavArrowRight, Plus, Upload,
 import { keyBy } from "lodash";
 import { useRouter } from "next/navigation";
 
+import { useCertificate } from "@src/context/CertificateProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useDenomData } from "@src/hooks/useWalletBalance";
@@ -78,7 +79,8 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const providersByOwner = useMemo(() => keyBy(providers, p => p.owner), [providers]);
   const lease = filteredLeases?.find(lease => !!(lease?.provider && providersByOwner[lease.provider]));
   const provider = providersByOwner[lease?.provider || ""];
-  const { data: leaseStatus } = useLeaseStatus(provider, lease, { enabled: !!(provider && lease) });
+  const { localCert } = useCertificate();
+  const { data: leaseStatus } = useLeaseStatus(provider, lease, { enabled: !!(provider && lease && localCert) });
 
   const viewDeployment = useCallback(
     (event: React.MouseEvent) => {
@@ -176,13 +178,13 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
           <DeploymentName deployment={deployment} deploymentServices={leaseStatus?.services} providerHostUri={provider?.hostUri} />
         </TableCell>
         <TableCell className="text-center">
-          <div className="flex items-center justify-center">
-            <span className="mr-1">{deployment.dseq || "N/A"}</span>
+          <div className="flex items-center justify-center gap-x-1">
+            <span>{deployment.dseq || "N/A"}</span>
             <CopyTextToClipboardButton value={deployment.dseq} />
           </div>
         </TableCell>
         <TableCell className="text-center">
-          <div className="inline-flex space-x-4 text-left">
+          <div className="inline-flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             {isActive && !!deploymentCost && (
               <CustomTooltip
                 disabled={isManagedWallet}
