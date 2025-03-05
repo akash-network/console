@@ -1,5 +1,17 @@
 
 
+## [2.53.0](https://github.com/akash-network/console/compare/console-web/v2.52.0...console-web/v2.53.0) (2025-03-05)
+
+
+### Features
+
+* **certificate:** managed wallet api create certificates ([#903](https://github.com/akash-network/console/issues/903)) ([e00ef07](https://github.com/akash-network/console/commit/e00ef07444a9a8bce9c5c4d5749b4adff5e8903b))
+
+
+### Bug Fixes
+
+* ensure user has local certificate before checking lease status ([#943](https://github.com/akash-network/console/issues/943)) ([c53dfc1](https://github.com/akash-network/console/commit/c53dfc1006f2eb3ea30092efd05715f842090150))
+
 ## [2.52.0](https://github.com/akash-network/console/compare/console-web/v2.51.0...console-web/v2.52.0) (2025-03-04)
 
 
