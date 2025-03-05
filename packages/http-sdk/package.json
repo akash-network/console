@@ -9,7 +9,8 @@
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
     "lint": "eslint .",
-    "update-apps-local-deps": "mvm-update"
+    "update-apps-local-deps": "mvm-update",
+    "validate:types": "tsc --noEmit && echo"
   },
   "dependencies": {
     "axios": "^1.7.2",
