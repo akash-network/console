@@ -135,8 +135,17 @@ jobs:
 
       - name: Create Pull Request
         if: env.pr_number == 'null'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Creating release PR..."
-          curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -d "{\"title\":\"chore(release): update versions and changelogs\", \"head\":\"${{ env.RELEASE_BRANCH }}\", \"base\":\"${{ env.BASE_BRANCH }}\", \"body\":\"This PR updates versions and changelogs for the next release. Merging will trigger release workflows.\"}" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls"
+          pr_body="This PR updates versions and changelogs for the next release."
+          pr_body="${pr_body} Merging will trigger release workflows.\n\nThis PR does not include any changes to the codebase."
+          pr_body="${pr_body}\n\nThis PR does not trigger GH checks and we don't need them to pass here because they were already run at PR review stage."
+          pr_body=$pr_body' In order **to merge this PR**, you must click on "Merge without waiting for requirements to be met (bypass rules)".'
+          pr_body=$pr_body' If you do not have permission to bypass checks, just close and reopen the PR, it will trigger github actions on your behalf.'
+
+          gh pr create --base "${{ env.BASE_BRANCH }}" \
+            --head "${{ env.RELEASE_BRANCH }}" \
+            --title "chore(release): update versions and changelogs" \
+            --body "$pr_body"
