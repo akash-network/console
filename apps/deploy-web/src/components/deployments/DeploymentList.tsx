@@ -258,7 +258,7 @@ export const DeploymentList: React.FunctionComponent = () => {
         )}
 
         {currentPageDeployments?.length > 0 && (
-          <Table className="table-fixed">
+          <Table className="min-w-[1024px] table-fixed">
             <colgroup>
               <col width="120" />
               <col />
