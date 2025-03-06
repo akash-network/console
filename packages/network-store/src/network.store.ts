@@ -21,11 +21,16 @@ interface NetworksStore {
 
 const networkIds = INITIAL_NETWORKS_CONFIG.map(({ id }) => id);
 
+interface NetworkError {
+  network: Network;
+  error: unknown;
+}
+
 class NetworkStoreVersionsInitError extends Error {
   errors: Error[];
-  constructor(errors: { network: Network; error: Error }[]) {
+  constructor(errors: NetworkError[]) {
     super(`Failed to fetch network versions: ${errors.map(({ network }) => network.id).join(", ")}`);
-    this.errors = errors.map(({ error }) => error);
+    this.errors = errors.map(({ error }) => error as Error);
   }
 }
 
@@ -104,7 +109,7 @@ export class NetworkStore {
   }
 
   private async initiateNetworks() {
-    const errors: { network: Network; error: Error }[] = [];
+    const errors: NetworkError[] = [];
     const networks = await Promise.all(
       cloneDeep(INITIAL_NETWORKS_CONFIG).map(async network => {
         try {

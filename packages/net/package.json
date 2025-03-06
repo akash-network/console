@@ -8,6 +8,7 @@
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
     "generate": "ts-node scripts/generate.ts",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "validate:types": "tsc --noEmit && echo"
   }
 }
