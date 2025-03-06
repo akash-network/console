@@ -36,6 +36,12 @@
     ],
     "./packages/ui/**/*.ts": [
       "npm run validate:types -w packages/ui"
+    ],
+    "./packages/net/**/*.ts": [
+      "npm run validate:types -w packages/net"
+    ],
+    "./packages/network-store/**/*.ts": [
+      "npm run validate:types -w packages/network-store"
     ]
   },
   "dependencies": {
