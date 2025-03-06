@@ -8,7 +8,6 @@ import { UserWalletOutput } from "@src/billing/repositories";
 import { ManagedSignerService, RpcMessageService, Wallet } from "@src/billing/services";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
-import { CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderService } from "@src/deployment/services/provider/provider.service";
 
 @singleton()
@@ -78,32 +77,6 @@ export class DeploymentService {
     const deployment = await this.findByOwnerAndDseq(wallet.address, dseq);
     const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.deployment_id.dseq);
     await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
-
-    return { success: true };
-  }
-
-  public async createLeasesAndSendManifest(wallet: UserWalletOutput, input: CreateLeaseRequest): Promise<{ success: boolean }> {
-    // Create lease messages
-    const leaseMessages = input.leases.map(lease =>
-      this.rpcMessageService.getCreateLeaseMsg({
-        owner: wallet.address,
-        dseq: lease.dseq,
-        gseq: lease.gseq,
-        oseq: lease.oseq,
-        provider: lease.provider
-      })
-    );
-
-    // Execute lease creation transaction
-    await this.signerService.executeDecodedTxByUserId(wallet.userId, leaseMessages);
-
-    // Send manifest to each provider
-    for (const lease of input.leases) {
-      await this.providerService.sendManifest(lease.provider, lease.dseq, lease.gseq, lease.oseq, input.manifest, {
-        certPem: input.certificate.certPem,
-        keyPem: input.certificate.keyPem
-      });
-    }
 
     return { success: true };
   }
