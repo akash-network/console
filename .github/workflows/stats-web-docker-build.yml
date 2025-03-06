@@ -14,14 +14,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - uses: ./.github/actions/local-dependencies
+        id: local_deps
+        with:
+          app: stats-web
+
       # Check for changes in stats-web folder
       - uses: dorny/paths-filter@v2
         id: filter
         with:
           filters: |
+            local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
             stats-web:
               - 'apps/stats-web/**'
-
+              - *local_deps
       - name: Build the Docker image
         if: steps.filter.outputs.stats-web == 'true'
         run: packages/docker/script/dc.sh build stats-web --build-arg DEPLOYMENT_ENV=production
