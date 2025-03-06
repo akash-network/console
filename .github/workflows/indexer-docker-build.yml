@@ -14,14 +14,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - uses: ./.github/actions/local-dependencies
+        id: local_deps
+        with:
+          app: indexer
+
       # Check for changes
       - uses: dorny/paths-filter@v2
         id: filter
         with:
           filters: |
+            local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
             indexer:
               - 'apps/indexer/**'
-              - 'packages/shared/**'
+              - *local_deps
 
       - name: Build the Docker image
         if: steps.filter.outputs.indexer == 'true'

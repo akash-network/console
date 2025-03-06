@@ -1,9 +1,0 @@
-{
-  "dependencies": {
-    "@akashnetwork/logging": "2.0.2",
-    "@akashnetwork/net": "0.0.1"
-  },
-  "devDependencies": {
-    "@akashnetwork/dev-config": "1.0.0"
-  }
-}

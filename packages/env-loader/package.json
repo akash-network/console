@@ -6,19 +6,15 @@
   "license": "Apache-2.0",
   "author": "",
   "main": "src/index.js",
+  "bin": {
+    "detect-env-files": "src/detect-files-stdout.js"
+  },
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
-    "lint": "eslint .",
-    "update-apps-local-deps": "mvm-update"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.12.1",
     "pino": "^9.5.0"
-  },
-  "bin": {
-    "detect-env-files": "src/detect-files-stdout.js"
-  },
-  "devDependencies": {
-    "@b12k/mvm": "^0.0.10"
   }
 }

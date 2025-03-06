@@ -18,15 +18,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - uses: ./.github/actions/local-dependencies
+        id: local_deps
+        with:
+          app: provider-proxy
+
       # Check for changes
       - uses: dorny/paths-filter@v2
         if: github.event_name == 'pull_request'
         id: has_changes
         with:
           filters: |
+            local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
             provider-proxy:
               - 'apps/provider-proxy/**'
-              - 'packages/net/**'
+              - *local_deps
 
       - name: Decide whether to validate
         id: validation
