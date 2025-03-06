@@ -1,9 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
-import { z } from "zod";
 
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
-import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
+import { LeaseController } from "@src/deployment/controllers/lease/lease.controller";
+import { GetDeploymentResponseSchema } from "@src/deployment/http-schemas/deployment.schema";
 import { CreateLeaseRequestSchema } from "@src/deployment/http-schemas/lease.schema";
 
 const createLeaseRoute = createRoute({
@@ -25,11 +25,7 @@ const createLeaseRoute = createRoute({
       description: "Leases created and manifest sent",
       content: {
         "application/json": {
-          schema: z.object({
-            data: z.object({
-              success: z.boolean()
-            })
-          })
+          schema: GetDeploymentResponseSchema
         }
       }
     }
@@ -40,6 +36,6 @@ export const leasesRouter = new OpenApiHonoHandler();
 
 leasesRouter.openapi(createLeaseRoute, async function routeCreateLease(c) {
   const input = c.req.valid("json");
-  const result = await container.resolve(DeploymentController).createLeasesAndSendManifest(input.leases[0].dseq, input);
+  const result = await container.resolve(LeaseController).createLeasesAndSendManifest(input);
   return c.json(result, 200);
 });

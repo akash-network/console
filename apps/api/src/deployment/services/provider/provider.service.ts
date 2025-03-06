@@ -1,14 +1,22 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import { LoggerService } from "@akashnetwork/logging";
 import { SupportedChainNetworks } from "@akashnetwork/net";
 import { singleton } from "tsyringe";
 
+import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderIdentity, ProviderProxyService } from "./provider-proxy.service";
 
 @singleton()
 export class ProviderService {
+  private readonly logger = LoggerService.forContext(ProviderService.name);
+  private readonly LEASE_STATUS_MAX_RETRIES = 5;
+  private readonly LEASE_STATUS_RETRY_DELAY = 3000;
+  private readonly MANIFEST_SEND_MAX_RETRIES = 3;
+  private readonly MANIFEST_SEND_RETRY_DELAY = 6000;
+
   constructor(private readonly providerProxy: ProviderProxyService) {}
 
-  async sendManifest(provider: string, dseq: string, gseq: number, oseq: number, manifest: unknown, options: { certPem: string; keyPem: string }) {
+  async sendManifest(provider: string, dseq: string, gseq: number, oseq: number, manifest: string, options: { certPem: string; keyPem: string }) {
     let jsonStr = JSON.stringify(manifest);
     jsonStr = jsonStr.replace(/"quantity":{"val/g, '"size":{"val');
 
@@ -22,11 +30,22 @@ export class ProviderService {
       hostUri: dbProvider.hostUri
     };
 
-    // Check lease status with retries
-    let leaseActive = false;
-    for (let i = 1; i <= 5 && !leaseActive; i++) {
+    // Check lease status
+    const leaseActive = await this.checkLeaseStatus(dseq, gseq, oseq, options, providerIdentity);
+    if (!leaseActive) {
+      throw new Error("Lease not found or not active");
+    }
+
+    // Send manifest
+    const response = await this.sendManifestToProvider(dseq, jsonStr, options, providerIdentity);
+
+    return response;
+  }
+
+  private async checkLeaseStatus(dseq: string, gseq: number, oseq: number, options: { certPem: string; keyPem: string }, providerIdentity: ProviderIdentity) {
+    for (let i = 1; i <= this.LEASE_STATUS_MAX_RETRIES; i++) {
       try {
-        const response = await this.providerProxy.fetchProviderUrl(`/lease/${dseq}/${gseq}/${oseq}/status`, {
+        const response = await this.providerProxy.fetchProviderUrl<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
           method: "GET",
           certPem: options.certPem,
           keyPem: options.keyPem,
@@ -35,29 +54,25 @@ export class ProviderService {
           timeout: 10000
         });
 
-        if (response) {
-          leaseActive = true;
-        } else {
-          await new Promise(resolve => setTimeout(resolve, 3000));
+        if (response && response.services) {
+          const allServicesAvailable = Object.values(response.services).every(service => service.available > 0);
+          return allServicesAvailable;
         }
+        return false;
       } catch (err) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        this.logger.error(`Failed to check lease status (attempt ${i}/${this.LEASE_STATUS_MAX_RETRIES}): ${err}`);
       }
+      await new Promise(resolve => setTimeout(resolve, this.LEASE_STATUS_RETRY_DELAY));
     }
+    return false;
+  }
 
-    if (!leaseActive) {
-      throw new Error("Lease not found or not active");
-    }
-
-    // Send manifest with retries
-    let response;
-    for (let i = 1; i <= 3 && !response; i++) {
+  private async sendManifestToProvider(dseq: string, jsonStr: string, options: { certPem: string; keyPem: string }, providerIdentity: ProviderIdentity) {
+    for (let i = 1; i <= this.MANIFEST_SEND_MAX_RETRIES; i++) {
       try {
         const result = await this.providerProxy.fetchProviderUrl(`/deployment/${dseq}/manifest`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: jsonStr,
           certPem: options.certPem,
           keyPem: options.keyPem,
@@ -65,45 +80,15 @@ export class ProviderService {
           providerIdentity,
           timeout: 60000
         });
-
-        if (result) {
-          response = result;
-        } else {
-          throw new Error("Failed to send manifest");
-        }
+        if (result) return result;
       } catch (err) {
-        if (err.message?.includes("no lease for deployment") && i < 3) {
-          await new Promise(resolve => setTimeout(resolve, 6000));
-        } else {
-          throw new Error(err?.response?.data || err);
+        if (err.message?.includes("no lease for deployment") && i < this.MANIFEST_SEND_MAX_RETRIES) {
+          await new Promise(resolve => setTimeout(resolve, this.MANIFEST_SEND_RETRY_DELAY));
+          continue;
         }
+        throw new Error(err?.response?.data || err);
       }
+      throw new Error("Failed to send manifest");
     }
-
-    // Check if manifest was applied successfully
-    let manifestApplied = false;
-    for (let i = 1; i <= 5 && !manifestApplied; i++) {
-      try {
-        const result = await this.providerProxy.fetchProviderUrl(`/lease/${dseq}/status`, {
-          method: "GET",
-          certPem: options.certPem,
-          keyPem: options.keyPem,
-          chainNetwork: "mainnet" as SupportedChainNetworks,
-          providerIdentity,
-          timeout: 10000
-        });
-
-        if (result) {
-          manifestApplied = true;
-        }
-      } catch (err) {
-        // Ignore errors during status check
-      }
-      if (!manifestApplied) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
-    }
-
-    return response;
   }
 }
