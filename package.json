@@ -45,6 +45,9 @@
     ],
     "./packages/http-sdk/**/*.ts": [
       "npm run validate:types -w packages/http-sdk"
+    ],
+    "./packages/logging/**/*.ts": [
+      "npm run validate:types -w packages/logging"
     ]
   },
   "dependencies": {
