@@ -28,10 +28,10 @@ export const DeploymentName: React.FunctionComponent<Props> = ({ deployment, dep
   const deploymentName = useMemo(() => {
     let name = deployment.name?.trim() || "";
     const services = deploymentServices ? Object.values(deploymentServices) : [];
-    const firstServiceWithUris = name ? null : services.find(service => service.uris.length > 0);
+    const firstServiceWithUris = name ? null : services.find(service => service && service.uris && service.uris.length > 0);
     if (firstServiceWithUris) {
       const providerHost = providerHostUri ? new URL(providerHostUri).hostname.replace(/^provider\./, "") : "";
-      name = firstServiceWithUris.uris.find(uri => providerHost && !uri.endsWith(providerHost)) || firstServiceWithUris.uris[0];
+      name = firstServiceWithUris.uris.find(uri => providerHost && uri && !uri.endsWith(providerHost)) || firstServiceWithUris.uris[0];
     }
     name = name || "Unknown";
     return {
@@ -53,7 +53,7 @@ export const DeploymentName: React.FunctionComponent<Props> = ({ deployment, dep
           )}
           {deploymentName.services.length > 0 && <c.LabelValue label="Services:" />}
           {deploymentName.services.map(([, service]) =>
-            service.uris.map(uri => (
+            (service.uris || []).map(uri => (
               <c.Link key={uri} href={`http://${uri}`} target="_blank" className="inline-flex items-center space-x-2 space-y-1 truncate text-sm">
                 <span>{uri}</span>
                 <c.OpenInWindow className="text-xs" />
