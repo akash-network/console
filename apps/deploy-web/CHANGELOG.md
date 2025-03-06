@@ -1,5 +1,13 @@
 
 
+## [2.53.1](https://github.com/akash-network/console/compare/console-web/v2.53.0...console-web/v2.53.1) (2025-03-06)
+
+
+### Bug Fixes
+
+* handles case when service.uris is null ([#957](https://github.com/akash-network/console/issues/957)) ([82b43c5](https://github.com/akash-network/console/commit/82b43c58786bf31af94cd1c12c2ab572dede4fb5))
+* renders turnstile only on client side ([#949](https://github.com/akash-network/console/issues/949)) ([d282d20](https://github.com/akash-network/console/commit/d282d20ae2cb5e78704190a5016081766467d6ff))
+
 ## [2.53.0](https://github.com/akash-network/console/compare/console-web/v2.52.0...console-web/v2.53.0) (2025-03-05)
 
 
