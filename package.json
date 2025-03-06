@@ -48,6 +48,9 @@
     ],
     "./packages/logging/**/*.ts": [
       "npm run validate:types -w packages/logging"
+    ],
+    "./packages/database/**/*.ts": [
+      "npm run validate:types -w packages/database"
     ]
   },
   "dependencies": {

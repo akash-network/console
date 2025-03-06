@@ -6,7 +6,8 @@
   "author": "Akash Network",
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "validate:types": "tsc --noEmit && echo"
   },
   "dependencies": {
     "dotenv": "^12.0.4",

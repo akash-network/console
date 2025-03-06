@@ -33,35 +33,35 @@ export class Message extends Model {
   /**
    * The ID of the transaction that this message belongs to
    */
-  @Required @Column(DataTypes.UUID) txId: string;
+  @Required @Column(DataTypes.UUID) txId!: string;
   /**
    * The height of the block that this message belongs to
    */
-  @Required @Column height: number;
+  @Required @Column height!: number;
   /**
    * The type of the message (ex: /akash.market.v1beta4.MsgWithdrawLease)
    */
-  @Required @Column type: string;
+  @Required @Column type!: string;
   /**
    * The category of the message (ex: ibc, akash, cosmos)
    */
-  @Required @Column typeCategory: string;
+  @Required @Column typeCategory!: string;
   /**
    * The index of the message in the transaction
    */
-  @Required @Column index: number;
+  @Required @Column index!: number;
   /**
    * The index of the message in the block
    */
-  @Required @Column indexInBlock: number;
+  @Required @Column indexInBlock!: number;
   /**
    * Whether the message has been processed by the indexer
    */
-  @Required @Default(false) @Column isProcessed: boolean;
+  @Required @Default(false) @Column isProcessed!: boolean;
   /**
    * Whether the message has been processed by the notification service
    */
-  @Required @Default(false) @Column isNotificationProcessed: boolean;
+  @Required @Default(false) @Column isNotificationProcessed!: boolean;
   /**
    * The amount of the message
    * This is only used for messages that have an amount (ex: MsgDelegate, MsgSend, etc.)
@@ -70,18 +70,18 @@ export class Message extends Model {
   /**
    * The protobuf encoded data of the message
    */
-  @Required @Column(DataTypes.BLOB) data: Uint8Array;
+  @Required @Column(DataTypes.BLOB) data!: Uint8Array;
 
   /**
    * The transaction that this message belongs to
    */
-  @BelongsTo(() => Transaction, "txId") transaction: Transaction;
+  @BelongsTo(() => Transaction, "txId") transaction!: Transaction;
   /**
    * The block that this message belongs to
    */
-  @BelongsTo(() => Block, "height") block: Block;
+  @BelongsTo(() => Block, "height") block!: Block;
   /**
    * The address references of the message
    */
-  @HasMany(() => AddressReference, "messageId") addressReferences: AddressReference[];
+  @HasMany(() => AddressReference, "messageId") addressReferences!: AddressReference[];
 }

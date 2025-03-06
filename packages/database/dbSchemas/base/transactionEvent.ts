@@ -2,8 +2,8 @@ import { DataTypes } from "sequelize";
 import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 
 import { Required } from "../decorators/requiredDecorator";
-import { TransactionEventAttribute } from "./transactionEventAttribute";
 import { Transaction } from "./transaction";
+import { TransactionEventAttribute } from "./transactionEventAttribute";
 
 @Table({
   modelName: "transaction_event",
@@ -13,12 +13,12 @@ import { Transaction } from "./transaction";
   ]
 })
 export class TransactionEvent extends Model {
-  @Required @PrimaryKey @Default(DataTypes.UUIDV4) @Column(DataTypes.UUID) id: string;
-  @Required @Column height: number;
-  @Required @Column({ type: DataTypes.UUID, field: "tx_id" }) txId: string;
-  @Required @Column index: number;
-  @Required @Column type: string;
+  @Required @PrimaryKey @Default(DataTypes.UUIDV4) @Column(DataTypes.UUID) id!: string;
+  @Required @Column height!: number;
+  @Required @Column({ type: DataTypes.UUID, field: "tx_id" }) txId!: string;
+  @Required @Column index!: number;
+  @Required @Column type!: string;
 
-  @BelongsTo(() => Transaction, "tx_id") transaction: Transaction;
+  @BelongsTo(() => Transaction, "tx_id") transaction!: Transaction;
   @HasMany(() => TransactionEventAttribute, "transaction_event_id") attributes?: TransactionEventAttribute[];
 }

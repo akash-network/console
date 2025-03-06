@@ -14,21 +14,21 @@ export class TemplateFavorite extends Model {
   /**
    * The database ID of the template favorite
    */
-  @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id: string;
+  @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id!: string;
   /**
    * The user ID of the template favorite
    */
-  @Required @Column userId: string;
+  @Required @Column userId!: string;
   /**
    * The template ID of the template favorite
    */
-  @Required @Column(DataTypes.UUID) templateId: string;
+  @Required @Column(DataTypes.UUID) templateId!: string;
   /**
    * The date when the template was added
    */
-  @Required @Column addedDate: Date;
+  @Required @Column addedDate!: Date;
   /**
    * The template that this template favorite belongs to
    */
-  @BelongsTo(() => Template, "templateId") template: Template;
+  @BelongsTo(() => Template, "templateId") template!: Template;
 }
