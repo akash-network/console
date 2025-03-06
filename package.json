@@ -42,6 +42,9 @@
     ],
     "./packages/network-store/**/*.ts": [
       "npm run validate:types -w packages/network-store"
+    ],
+    "./packages/http-sdk/**/*.ts": [
+      "npm run validate:types -w packages/http-sdk"
     ]
   },
   "dependencies": {
