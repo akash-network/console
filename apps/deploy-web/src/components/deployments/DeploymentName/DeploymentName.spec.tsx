@@ -11,6 +11,16 @@ describe(DeploymentName.name, () => {
     expect(container.textContent?.trim()).toBe("Unknown");
   });
 
+  it("renders 'Unknown' if service.uris is falsy", () => {
+    const deployment = { dseq: "123" };
+    const deploymentServices = {
+      api: { uris: null }
+    } as unknown as TestInput["deploymentServices"];
+    const { container } = setup({ deployment, deploymentServices });
+
+    expect(container.textContent?.trim()).toBe("Unknown");
+  });
+
   it("should render deployment name if provided", () => {
     const deployment = { dseq: "123", name: "test" };
     setup({ deployment });
