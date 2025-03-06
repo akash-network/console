@@ -33,6 +33,9 @@
     ],
     "package.json": [
       "node_modules/.bin/sort-package-json"
+    ],
+    "./packages/ui/**/*.ts": [
+      "npm run validate:types -w packages/ui"
     ]
   },
   "dependencies": {
