@@ -14,15 +14,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - uses: ./.github/actions/local-dependencies
+        id: local_deps
+        with:
+          app: deploy-web
+
       # Check for changes in deploy-web folder
       - uses: dorny/paths-filter@v2
         id: has_changes
         with:
           filters: |
+            local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
             deploy-web:
               - 'apps/deploy-web/**'
-              - 'packages/*/**'
-
+              - *local_deps
       - name: Decide whether to validate
         id: validation
         run: echo "enabled=${{ github.event_name == 'push' || steps.has_changes.outputs.deploy-web == 'true' }}" >> $GITHUB_OUTPUT

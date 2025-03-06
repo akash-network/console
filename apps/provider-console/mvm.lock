@@ -1,8 +1,0 @@
-{
-  "dependencies": {
-    "@akashnetwork/ui": "1.0.0"
-  },
-  "devDependencies": {
-    "@akashnetwork/dev-config": "1.0.0"
-  }
-}

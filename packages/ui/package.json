@@ -15,8 +15,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "update-apps-local-deps": "mvm-update"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "@mui/material": "^5.15.20",
@@ -58,7 +57,6 @@
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
-    "@b12k/mvm": "^0.0.10",
     "@tailwindcss/typography": "^0.5.13",
     "@types/react": "18.2.0",
     "@types/react-dom": "18.2.0",

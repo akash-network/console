@@ -1,0 +1,28 @@
+name: Detect dependencies on in-repo packages
+
+inputs:
+  app:
+    description: 'Application to check'
+    required: true
+
+outputs:
+  deps_json:
+    description: 'List of application in-repo dependencies in JSON format'
+    value: ${{ steps.deps.outputs.deps_json }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Find dependencies on in-repo packages
+      id: deps
+      shell: bash
+      run: |
+        package_json=apps/${{ inputs.app }}/package.json
+        deps_json=""
+        for dep in `grep -Eo '"@akashnetwork/([^"]+)":' $package_json | cut -d'/' -f2 | cut -d'"' -f1`; do
+          if [ -d "packages/$dep" ]; then
+            deps_json="'packages/$dep/**',$deps_json"
+          fi
+        done
+
+        echo "deps_json=[${deps_json%,}]" >> $GITHUB_OUTPUT
