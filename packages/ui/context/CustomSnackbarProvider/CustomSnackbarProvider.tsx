@@ -24,7 +24,7 @@ const StyledMaterialDesignContent = styled(MaterialDesignContent)(() => {
   };
 });
 
-export const CustomSnackbarProvider = ({ children }) => {
+export const CustomSnackbarProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const notistackRef = useRef<SnackbarProvider>(null);
   const onClickDismiss = (key: SnackbarKey) => () => {
     notistackRef.current?.closeSnackbar(key);
