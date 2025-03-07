@@ -146,7 +146,7 @@ jobs:
           In order **to merge this PR**, it is required to click on "Merge without waiting for requirements to be met (bypass rules)".
           If you do not have permission to bypass checks, just close and reopen the PR, it will trigger github actions on your behalf.'
 
-          gh pr create --base "main" \
-            --head "chore/release-pr-description2" \
+          gh pr create --base "${{ env.BASE_BRANCH }}" \
+            --head "${{ env.RELEASE_BRANCH }}" \
             --title "chore(release): update versions and changelogs" \
             --body "$pr_body"
