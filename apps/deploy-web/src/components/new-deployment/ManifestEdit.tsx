@@ -82,7 +82,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const wallet = useWallet();
   const managedDenom = useManagedWalletDenom();
   const { enqueueSnackbar } = useSnackbar();
-  const services = importSimpleSdl(editedManifest as string);
+  const services = editedManifest ? importSimpleSdl(editedManifest) : [];
 
   useWhen(
     wallet.isManaged && sdlDenom === "uakt" && editedManifest,
