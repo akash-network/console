@@ -1,5 +1,12 @@
 
 
+## [2.53.2](https://github.com/akash-network/console/compare/console-web/v2.53.1...console-web/v2.53.2) (2025-03-07)
+
+
+### Bug Fixes
+
+* ensure that sdl is truthy before passing it to `importSimpleDSL` ([#960](https://github.com/akash-network/console/issues/960)) ([08a00cd](https://github.com/akash-network/console/commit/08a00cd204f67c469da0ee607542cf6bcf0106a9))
+
 ## [2.53.1](https://github.com/akash-network/console/compare/console-web/v2.53.0...console-web/v2.53.1) (2025-03-06)
 
 
