@@ -12,7 +12,8 @@
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
     "lint": "eslint .",
-    "test": "jest"
+    "test": "jest",
+    "validate:types": "tsc --noEmit && echo"
   },
   "dependencies": {
     "@types/jest": "^29.5.14",
