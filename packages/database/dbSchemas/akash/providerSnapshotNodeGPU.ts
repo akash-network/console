@@ -16,36 +16,36 @@ export class ProviderSnapshotNodeGPU extends Model {
   /**
    * The ID of the snapshot node GPU
    */
-  @Required @PrimaryKey @Default(DataTypes.UUIDV4) @Column(DataTypes.UUID) id: string;
+  @Required @PrimaryKey @Default(DataTypes.UUIDV4) @Column(DataTypes.UUID) id!: string;
   /**
    * The ID of the snapshot node that this GPU belongs to
    */
-  @Required @Column(DataTypes.UUID) snapshotNodeId: string;
+  @Required @Column(DataTypes.UUID) snapshotNodeId!: string;
 
   // Stats
   /**
    * The vendor of the GPU
    * ex: nvidia
    */
-  @Column vendor: string;
+  @Column vendor!: string;
   /**
    * The name of the GPU
    * Model name (ex: rtx4090)
    */
-  @Column name: string;
+  @Column name!: string;
   /**
    * The model ID of the GPU
    * On the provider, this gets mapped to vendor, name, interface and memorySize based on this file https://github.com/akash-network/provider-configs/blob/main/devices/pcie/gpus.json
    */
-  @Column modelId: string;
+  @Column modelId!: string;
   /**
    * The interface of the GPU
    * ex: PCIe
    */
-  @Column interface: string;
+  @Column interface!: string;
   /**
    * The memory size of the GPU
    * ex: 24Gi
    */
-  @Column memorySize: string;
+  @Column memorySize!: string;
 }

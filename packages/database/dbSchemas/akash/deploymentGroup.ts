@@ -25,33 +25,33 @@ export class DeploymentGroup extends Model {
   /**
    * The unique identifier for the database deployment group
    */
-  @Required @PrimaryKey @Default(DataTypes.UUIDV4) @Column(DataTypes.UUID) id: string;
+  @Required @PrimaryKey @Default(DataTypes.UUIDV4) @Column(DataTypes.UUID) id!: string;
   /**
    * The unique identifier for the database deployment
    */
-  @Required @Column(DataTypes.UUID) deploymentId: string;
+  @Required @Column(DataTypes.UUID) deploymentId!: string;
   /**
    * The owner address of the deployment
    */
-  @Required @Column owner: string;
+  @Required @Column owner!: string;
   /**
    * The dseq of the deployment
    */
-  @Required @Column dseq: string;
+  @Required @Column dseq!: string;
   /**
    * The gseq of the deployment group (unique identifier for the deployment group on the blockchain)
    */
-  @Required @Column gseq: number;
+  @Required @Column gseq!: number;
   /**
    * The deployment associated with the deployment group
    */
-  @BelongsTo(() => Deployment, "deploymentId") deployment: Deployment;
+  @BelongsTo(() => Deployment, "deploymentId") deployment!: Deployment;
   /**
    * The leases associated with the deployment group
    */
-  @HasMany(() => Lease, "deploymentGroupId") leases: Lease[];
+  @HasMany(() => Lease, "deploymentGroupId") leases!: Lease[];
   /**
    * The resources associated with the deployment group
    */
-  @HasMany(() => DeploymentGroupResource, "deploymentGroupId") deploymentGroupResources: DeploymentGroupResource[];
+  @HasMany(() => DeploymentGroupResource, "deploymentGroupId") deploymentGroupResources!: DeploymentGroupResource[];
 }

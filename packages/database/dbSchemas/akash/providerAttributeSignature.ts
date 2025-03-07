@@ -17,17 +17,17 @@ export class ProviderAttributeSignature extends Model {
   /**
    * The provider address that the attribute belongs to
    */
-  @Required @Column provider: string;
+  @Required @Column provider!: string;
   /**
    * The auditor address that signed the attribute
    */
-  @Required @Column auditor: string;
+  @Required @Column auditor!: string;
   /**
    * The key of the attribute that was signed
    */
-  @Required @Column key: string;
+  @Required @Column key!: string;
   /**
    * The value of the attribute that was signed
    */
-  @Required @Column value: string;
+  @Required @Column value!: string;
 }

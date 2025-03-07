@@ -27,29 +27,29 @@ export class ProviderSnapshot extends Model {
   /**
    * The ID of the snapshot
    */
-  @Required @PrimaryKey @Default(DataTypes.UUIDV4) @Column(DataTypes.UUID) id: string;
+  @Required @PrimaryKey @Default(DataTypes.UUIDV4) @Column(DataTypes.UUID) id!: string;
   /**
    * The owner address of the provider
    */
-  @Required @Column owner: string;
+  @Required @Column owner!: string;
   /**
    * Whether this is the last snapshot of the day for the associated provider
    */
-  @Required @Default(false) @Column isLastOfDay: boolean;
+  @Required @Default(false) @Column isLastOfDay!: boolean;
   /**
    * Whether this is the last successful snapshot of the day for the associated provider
    */
-  @Required @Default(false) @Column isLastSuccessOfDay: boolean;
+  @Required @Default(false) @Column isLastSuccessOfDay!: boolean;
 
   // Stats
   /**
    * Whether the provider is online
    */
-  @Required @Column isOnline: boolean;
+  @Required @Column isOnline!: boolean;
   /**
    * The date & time of the snapshot
    */
-  @Required @Column checkDate: Date;
+  @Required @Column checkDate!: Date;
   /**
    * null if the uptime check was successful, otherwise this will contain the error message.
    */
@@ -128,9 +128,9 @@ export class ProviderSnapshot extends Model {
   /**
    * The nodes of the provider at the time of the snapshot
    */
-  @HasMany(() => ProviderSnapshotNode, "snapshotId") nodes: ProviderSnapshotNode[];
+  @HasMany(() => ProviderSnapshotNode, "snapshotId") nodes!: ProviderSnapshotNode[];
   /**
    * The storage of the provider at the time of the snapshot
    */
-  @HasMany(() => ProviderSnapshotStorage, "snapshotId") storage: ProviderSnapshotStorage[];
+  @HasMany(() => ProviderSnapshotStorage, "snapshotId") storage!: ProviderSnapshotStorage[];
 }

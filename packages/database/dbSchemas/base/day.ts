@@ -21,11 +21,11 @@ export class Day extends Model {
   /**
    * The database ID of the day
    */
-  @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id: string;
+  @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id!: string;
   /**
    * The date of the day
    */
-  @Required @Column date: Date;
+  @Required @Column date!: Date;
   /**
    * The price of AKT on this day
    */
@@ -33,7 +33,7 @@ export class Day extends Model {
   /**
    * The height of the first block in this day
    */
-  @Required @Column firstBlockHeight: number;
+  @Required @Column firstBlockHeight!: number;
   /**
    * The height of the last block in this day
    */
@@ -41,20 +41,20 @@ export class Day extends Model {
   /**
    * The height of the last block in this day that has been processed by the indexer yet
    */
-  @Required @Column lastBlockHeightYet: number;
+  @Required @Column lastBlockHeightYet!: number;
   /**
    * Whether the price of AKT has changed on this day
    */
-  @Required @Default(false) @Column aktPriceChanged: boolean;
+  @Required @Default(false) @Column aktPriceChanged!: boolean;
 
   /**
    * The blocks in this day
    */
-  @HasMany(() => Block, { foreignKey: "dayId", constraints: false }) blocks: Block[];
+  @HasMany(() => Block, { foreignKey: "dayId", constraints: false }) blocks!: Block[];
   /**
    * The first block in this day
    */
-  @BelongsTo(() => Block, { foreignKey: "firstBlockHeight", constraints: false }) firstBlock: Block;
+  @BelongsTo(() => Block, { foreignKey: "firstBlockHeight", constraints: false }) firstBlock!: Block;
   /**
    * The last block in this day
    */
@@ -62,5 +62,5 @@ export class Day extends Model {
   /**
    * The last block in this day that has been processed by the indexer
    */
-  @BelongsTo(() => Block, { foreignKey: "lastBlockHeightYet", constraints: false }) lastBlockYet: Block;
+  @BelongsTo(() => Block, { foreignKey: "lastBlockHeightYet", constraints: false }) lastBlockYet!: Block;
 }

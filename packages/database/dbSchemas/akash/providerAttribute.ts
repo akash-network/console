@@ -16,13 +16,13 @@ export class ProviderAttribute extends Model {
   /**
    * The provider address that the attribute belongs to
    */
-  @Required @Column provider: string;
+  @Required @Column provider!: string;
   /**
    * The key of the attribute
    */
-  @Required @Column key: string;
+  @Required @Column key!: string;
   /**
    * The value of the attribute
    */
-  @Required @Column value: string;
+  @Required @Column value!: string;
 }

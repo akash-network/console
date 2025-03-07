@@ -20,16 +20,16 @@ export class UserSetting extends Model {
   /**
    * The database ID of the user setting
    */
-  @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id: string;
+  @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id!: string;
   /**
    * The user ID of the user
    * This is the auth0 ID of the user
    */
-  @Column userId: string;
+  @Column userId!: string;
   /**
    * The username of the user
    */
-  @Column username: string;
+  @Column username!: string;
   /**
    * The email of the user
    */
@@ -37,7 +37,7 @@ export class UserSetting extends Model {
   /**
    * Whether the email of the user setting is verified
    */
-  @Required @Default(false) @Column emailVerified: boolean;
+  @Required @Default(false) @Column emailVerified!: boolean;
   /**
    * The Stripe customer ID of the user setting
    */
@@ -49,7 +49,7 @@ export class UserSetting extends Model {
   /**
    * Whether the user setting is subscribed to the newsletter
    */
-  @Required @Default(false) @Column subscribedToNewsletter: boolean;
+  @Required @Default(false) @Column subscribedToNewsletter!: boolean;
   /**
    * The YouTube username of the user setting
    */
@@ -77,5 +77,5 @@ export class UserSetting extends Model {
   /**
    * The templates of the user setting
    */
-  @HasMany(() => Template, { foreignKey: "userId", sourceKey: "userId" }) templates: Template[];
+  @HasMany(() => Template, { foreignKey: "userId", sourceKey: "userId" }) templates!: Template[];
 }

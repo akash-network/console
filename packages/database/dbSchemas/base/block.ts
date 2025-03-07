@@ -26,52 +26,52 @@ export class Block extends Model {
   /**
    * The height of the block
    */
-  @PrimaryKey @Column height: number;
+  @PrimaryKey @Column height!: number;
   /**
    * The datetime of the block
    */
-  @Required @Column datetime: Date;
+  @Required @Column datetime!: Date;
   /**
    * The hash of the block
    */
-  @Required @Column hash: string;
+  @Required @Column hash!: string;
   /**
    * The proposer of the block (validator)
    */
-  @Required @Column proposer: string;
+  @Required @Column proposer!: string;
   /**
    * The ID of the day that this block belongs to
    */
-  @Required @Column(DataTypes.UUID) dayId: string;
+  @Required @Column(DataTypes.UUID) dayId!: string;
   /**
    * The number of transactions in the block
    */
-  @Required @Column txCount: number;
+  @Required @Column txCount!: number;
 
   // Stats
   /**
    * Whether the block has been processed by the indexer
    */
-  @Required @Default(false) @Column isProcessed: boolean;
+  @Required @Default(false) @Column isProcessed!: boolean;
   /**
    * The total number of transactions in the block
    */
-  @Required @Column(DataTypes.BIGINT) totalTxCount: number;
+  @Required @Column(DataTypes.BIGINT) totalTxCount!: number;
 
   /**
    * The day that this block belongs to
    */
-  @BelongsTo(() => Day, { foreignKey: "dayId", constraints: false }) day: Day;
+  @BelongsTo(() => Day, { foreignKey: "dayId", constraints: false }) day!: Day;
   /**
    * The validator that proposed this block
    */
-  @BelongsTo(() => Validator, { foreignKey: "proposer", targetKey: "hexAddress", constraints: false }) proposerValidator: Validator;
+  @BelongsTo(() => Validator, { foreignKey: "proposer", targetKey: "hexAddress", constraints: false }) proposerValidator!: Validator;
   /**
    * The transactions in the block
    */
-  @HasMany(() => Transaction, "height") transactions: Transaction[];
+  @HasMany(() => Transaction, "height") transactions!: Transaction[];
   /**
    * The messages in the block
    */
-  @HasMany(() => Message, "height") messages: Message[];
+  @HasMany(() => Message, "height") messages!: Message[];
 }
