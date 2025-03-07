@@ -25,15 +25,15 @@ export class Validator extends Model {
   /**
    * The operator address of the validator
    */
-  @Required @Column operatorAddress: string;
+  @Required @Column operatorAddress!: string;
   /**
    * The account address of the validator
    */
-  @Required @Column accountAddress: string;
+  @Required @Column accountAddress!: string;
   /**
    * The hex address of the validator
    */
-  @Required @Column hexAddress: string;
+  @Required @Column hexAddress!: string;
   /**
    * The ID of the message that created this validator
    * Message which created the validator (MsgCreateValidator).
@@ -42,7 +42,7 @@ export class Validator extends Model {
   /**
    * The moniker of the validator
    */
-  @Required @Column moniker: string;
+  @Required @Column moniker!: string;
   /**
    * The identity of the validator
    */
@@ -62,19 +62,19 @@ export class Validator extends Model {
   /**
    * The rate of the validator
    */
-  @Required @Column(DataTypes.DOUBLE) rate: number;
+  @Required @Column(DataTypes.DOUBLE) rate!: number;
   /**
    * The maximum rate of the validator
    */
-  @Required @Column(DataTypes.DOUBLE) maxRate: number;
+  @Required @Column(DataTypes.DOUBLE) maxRate!: number;
   /**
    * The maximum change rate of the validator
    */
-  @Required @Column(DataTypes.DOUBLE) maxChangeRate: number;
+  @Required @Column(DataTypes.DOUBLE) maxChangeRate!: number;
   /**
    * The minimum self delegation of the validator
    */
-  @Required @Column(DataTypes.BIGINT) minSelfDelegation: number;
+  @Required @Column(DataTypes.BIGINT) minSelfDelegation!: number;
   /**
    * The keybase username of the validator
    */

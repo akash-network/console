@@ -21,7 +21,7 @@ export class AddressReference extends Model {
   /**
    * The ID of the database transaction that this address reference belongs to
    */
-  @Required @Column(DataTypes.UUID) transactionId: string;
+  @Required @Column(DataTypes.UUID) transactionId!: string;
   /**
    * The ID of the database message that this address reference belongs to
    */
@@ -29,12 +29,12 @@ export class AddressReference extends Model {
   /**
    * The address that this reference belongs to
    */
-  @Required @Column address: string;
+  @Required @Column address!: string;
   /**
    * The type of the reference
    * ex: Signer, Receiver, Sender.
    */
-  @Required @Column type: string;
+  @Required @Column type!: string;
 
   /**
    * The message that this address reference belongs to
@@ -43,5 +43,5 @@ export class AddressReference extends Model {
   /**
    * The transaction that this address reference belongs to
    */
-  @BelongsTo(() => Transaction, "transactionId") transaction: Transaction;
+  @BelongsTo(() => Transaction, "transactionId") transaction!: Transaction;
 }

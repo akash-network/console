@@ -15,47 +15,47 @@ export class DeploymentGroupResource extends Model {
   /**
    * The unique identifier for the database deployment group resource
    */
-  @Required @Column(DataTypes.UUID) deploymentGroupId: string;
+  @Required @Column(DataTypes.UUID) deploymentGroupId!: string;
   /**
    * The cpu units of the deployment group resource in thousandths of a CPU
    * 1000 CPU units = 1 CPU
    */
-  @Required @Column cpuUnits: number;
+  @Required @Column cpuUnits!: number;
   /**
    * The gpu units of the deployment group resource
    * 1 GPU unit = 1 GPU
    */
-  @Required @Column gpuUnits: number;
+  @Required @Column gpuUnits!: number;
   /**
    * The gpu vendor of the deployment group resource
    */
-  @Column gpuVendor: string;
+  @Column gpuVendor!: string;
   /**
    * The gpu model of the deployment group resource
    */
-  @Column gpuModel: string;
+  @Column gpuModel!: string;
   /**
    * The memory quantity of the deployment group resource in bytes
    */
-  @Required @Column(DataTypes.BIGINT) memoryQuantity: number;
+  @Required @Column(DataTypes.BIGINT) memoryQuantity!: number;
   /**
    * The ephemeral storage quantity of the deployment group resource in bytes
    */
-  @Required @Column(DataTypes.BIGINT) ephemeralStorageQuantity: number;
+  @Required @Column(DataTypes.BIGINT) ephemeralStorageQuantity!: number;
   /**
    * The persistent storage quantity of the deployment group resource in bytes
    */
-  @Required @Column(DataTypes.BIGINT) persistentStorageQuantity: number;
+  @Required @Column(DataTypes.BIGINT) persistentStorageQuantity!: number;
   /**
    * The count of the deployment group resource
    */
-  @Required @Column count: number;
+  @Required @Column count!: number;
   /**
    * The price of the deployment group resource in the denom specified in the denom column of the deployment
    */
-  @Required @Column(DataTypes.DOUBLE) price: number;
+  @Required @Column(DataTypes.DOUBLE) price!: number;
   /**
    * The deployment group associated with the deployment group resource
    */
-  @BelongsTo(() => DeploymentGroup, "deploymentGroupId") deploymentGroup: DeploymentGroup;
+  @BelongsTo(() => DeploymentGroup, "deploymentGroupId") deploymentGroup!: DeploymentGroup;
 }

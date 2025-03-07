@@ -16,15 +16,15 @@ export class MonitoredValue extends Model {
   /**
    * The database ID of the monitored value
    */
-  @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id: string;
+  @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id!: string;
   /**
    * The tracker of the monitored value
    */
-  @Required @Column tracker: string;
+  @Required @Column tracker!: string;
   /**
    * The target of the monitored value
    */
-  @Required @Column target: string;
+  @Required @Column target!: string;
   /**
    * The value of the monitored value
    */

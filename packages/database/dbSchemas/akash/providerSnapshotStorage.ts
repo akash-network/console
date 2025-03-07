@@ -16,23 +16,23 @@ export class ProviderSnapshotStorage extends Model {
   /**
    * The database ID of the snapshot storage
    */
-  @Required @PrimaryKey @Default(DataTypes.UUIDV4) @Column(DataTypes.UUID) id: string;
+  @Required @PrimaryKey @Default(DataTypes.UUIDV4) @Column(DataTypes.UUID) id!: string;
   /**
    * The ID of the snapshot that this storage belongs to
    */
-  @Required @Column(DataTypes.UUID) snapshotId: string;
+  @Required @Column(DataTypes.UUID) snapshotId!: string;
 
   /**
    * The class of the storage
    * ex: hdd, ssd, nvme
    */
-  @Required @Column class: string;
+  @Required @Column class!: string;
   /**
    * The amount of allocatable storage the provider has in bytes
    */
-  @Required @Column(DataTypes.BIGINT) allocatable: number;
+  @Required @Column(DataTypes.BIGINT) allocatable!: number;
   /**
    * The amount of allocated storage the provider has in bytes
    */
-  @Required @Column(DataTypes.BIGINT) allocated: number;
+  @Required @Column(DataTypes.BIGINT) allocated!: number;
 }

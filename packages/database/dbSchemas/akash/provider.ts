@@ -22,16 +22,16 @@ export class Provider extends Model {
   /**
    * The owner address of the provider
    */
-  @Required @PrimaryKey @Column owner: string;
+  @Required @PrimaryKey @Column owner!: string;
   /**
    * The hostUri of the provider
    * ex: https://provider.europlots.com:8443
    */
-  @Required @Column hostUri: string;
+  @Required @Column hostUri!: string;
   /**
    * The block height at which the provider was created (MsgCreateProvider)
    */
-  @Required @Column createdHeight: number;
+  @Required @Column createdHeight!: number;
   /**
    * The block height at which the provider was updated (MsgUpdateProvider)
    */
@@ -84,11 +84,11 @@ export class Provider extends Model {
   /**
    * Planned Date & Time of the next uptime check
    */
-  @Required @Default(DataTypes.NOW) @Column nextCheckDate: Date;
+  @Required @Default(DataTypes.NOW) @Column nextCheckDate!: Date;
   /**
    * Amount of consecutive failed checks, NULL if currently online.
    */
-  @Required @Default(0) @Column failedCheckCount: number;
+  @Required @Default(0) @Column failedCheckCount!: number;
   /**
    * NULL if the latest uptime check was successful, otherwise this will contain the error message.
    */
@@ -138,29 +138,29 @@ export class Provider extends Model {
   /**
    * The provider attributes associated with the provider
    */
-  @HasMany(() => ProviderAttribute, "provider") providerAttributes: ProviderAttribute[];
+  @HasMany(() => ProviderAttribute, "provider") providerAttributes!: ProviderAttribute[];
   /**
    * The provider attribute signatures associated with the provider
    */
-  @HasMany(() => ProviderAttributeSignature, "provider") providerAttributeSignatures: ProviderAttributeSignature[];
+  @HasMany(() => ProviderAttributeSignature, "provider") providerAttributeSignatures!: ProviderAttributeSignature[];
   /**
    * The provider snapshots associated with the provider
    */
-  @HasMany(() => ProviderSnapshot, "owner") providerSnapshots: ProviderSnapshot[];
+  @HasMany(() => ProviderSnapshot, "owner") providerSnapshots!: ProviderSnapshot[];
   /**
    * The block at which the provider was created
    */
-  @BelongsTo(() => AkashBlock, "createdHeight") createdBlock: AkashBlock;
+  @BelongsTo(() => AkashBlock, "createdHeight") createdBlock!: AkashBlock;
   /**
    * The last snapshot of the provider
    */
-  @BelongsTo(() => ProviderSnapshot, "lastSnapshotId") lastSnapshot: ProviderSnapshot;
+  @BelongsTo(() => ProviderSnapshot, "lastSnapshotId") lastSnapshot!: ProviderSnapshot;
   /**
    * The last successful snapshot of the provider
    */
-  @BelongsTo(() => ProviderSnapshot, "lastSuccessfulSnapshotId") lastSuccessfulSnapshot: ProviderSnapshot;
+  @BelongsTo(() => ProviderSnapshot, "lastSuccessfulSnapshotId") lastSuccessfulSnapshot!: ProviderSnapshot;
   /**
    * The first snapshot of the provider
    */
-  @BelongsTo(() => ProviderSnapshot, "downtimeFirstSnapshotId") downtimeFirstSnapshot: ProviderSnapshot;
+  @BelongsTo(() => ProviderSnapshot, "downtimeFirstSnapshotId") downtimeFirstSnapshot!: ProviderSnapshot;
 }

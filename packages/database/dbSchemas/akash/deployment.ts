@@ -28,11 +28,11 @@ export class Deployment extends Model {
   /**
    * The unique identifier for the database deployment
    */
-  @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id: string;
+  @Required @PrimaryKey @Default(UUIDV4) @Column(DataTypes.UUID) id!: string;
   /**
    * Address of the wallet that owns this deployment
    */
-  @Required @Column owner: string;
+  @Required @Column owner!: string;
   /**
    * The dseq of the deployment (unique identifier for the deployment on the blockchain)
    * It can be any string, but ususally it's the block height at which the deployment was created.
@@ -42,26 +42,26 @@ export class Deployment extends Model {
    * Lease Creation: When creating a lease with a provider on the Akash Network, DSEQ is a key parameter used to establish the terms of the lease and finalize the deployment process
    * Deployment Status: DSEQ allows users to check the status of their deployments, access application endpoints, and monitor the progress of container image pulling and container startup
    */
-  @Required @Column dseq: string;
+  @Required @Column dseq!: string;
   /**
    * The block height at which the deployment was created (MsgCreateDeployment)
    */
-  @Required @Column createdHeight: number;
+  @Required @Column createdHeight!: number;
   /**
    * The balance of the deployment in the denom specified in the denom column
    * Remaining balance based on deposits and MsgWithdrawLease
    */
-  @Required @Column(DataTypes.DOUBLE) balance: number;
+  @Required @Column(DataTypes.DOUBLE) balance!: number;
   /**
    * The deposit of the deployment in the denom specified in the denom column
    * Deposited amount based on MsgCreateDeployment and MsgDepositDeployment
    */
-  @Required @Column(DataTypes.BIGINT) deposit: number;
+  @Required @Column(DataTypes.BIGINT) deposit!: number;
   /**
    * The denom of the deployment
    * This can be uakt or uusdc
    */
-  @Required @Column denom: string;
+  @Required @Column denom!: string;
   /**
    * Last block height where an account settlement occurred. This happens on create, withdraw and close.
    * This is used to calculate the predicted closed height of the deployment and account settlement.
@@ -78,21 +78,21 @@ export class Deployment extends Model {
   /**
    * The block at which the deployment was created
    */
-  @BelongsTo(() => Block, "createdHeight") createdBlock: Block;
+  @BelongsTo(() => Block, "createdHeight") createdBlock!: Block;
   /**
    * The block at which the deployment was closed
    */
-  @BelongsTo(() => Block, "closedHeight") closedBlock: Block;
+  @BelongsTo(() => Block, "closedHeight") closedBlock!: Block;
   /**
    * The deployment groups associated with the deployment
    */
-  @HasMany(() => DeploymentGroup, "deploymentId") deploymentGroups: DeploymentGroup[];
+  @HasMany(() => DeploymentGroup, "deploymentId") deploymentGroups!: DeploymentGroup[];
   /**
    * The leases associated with the deployment
    */
-  @HasMany(() => Lease, "deploymentId") leases: Lease[];
+  @HasMany(() => Lease, "deploymentId") leases!: Lease[];
   /**
    * The messages associated with the deployment
    */
-  @HasMany(() => Message, { foreignKey: "relatedDeploymentId", constraints: false }) relatedMessages: Message[];
+  @HasMany(() => Message, { foreignKey: "relatedDeploymentId", constraints: false }) relatedMessages!: Message[];
 }
