@@ -2,14 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "noImplicitAny": true,
-    "paths": {
-      "@src/*": [
-        "./src/*"
-      ],
-      "@test/*": [
-        "./test/*"
-      ]
-    }
+    "strict": true
   },
   "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
 }

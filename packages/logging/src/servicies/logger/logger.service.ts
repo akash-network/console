@@ -29,7 +29,7 @@ export class LoggerService implements Logger {
     return new LoggerService().setContext(context);
   }
 
-  static mixin: (mergeObject: object) => object;
+  static mixin?: (mergeObject: object) => object;
 
   protected pino: pino.Logger;
 
@@ -51,7 +51,10 @@ export class LoggerService implements Logger {
       return pino(options, pretty);
     }
 
-    return pino(gcpLogOptions(options as any));
+    // pino-cloud-logging uses pino@8.x but we are using pino@9.x
+    const gcpOptions = gcpLogOptions(options as any);
+    // pino-cloud-logging uses pino@8.x but we are using pino@9.x
+    return pino(gcpOptions as any);
   }
 
   private getPrettyIfPresent(): PinoPretty.PrettyStream | undefined {
