@@ -74,14 +74,20 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const warningRequestsReached = numberOfRequests > WARNING_NUM_OF_BID_REQUESTS;
   const maxRequestsReached = numberOfRequests > MAX_NUM_OF_BID_REQUESTS;
   const { favoriteProviders } = useLocalNotes();
-  const { data: bids, isLoading: isLoadingBids } = useBidList(address, dseq, {
+  const {
+    data: bids,
+    isLoading: isLoadingBids,
+    isSuccess: successLoadingBids
+  } = useBidList(address, dseq, {
     initialData: [],
     refetchInterval: REFRESH_BIDS_INTERVAL,
-    onSuccess: () => {
-      setNumberOfRequests(prev => ++prev);
-    },
     enabled: !maxRequestsReached && !isSendingManifest
   });
+  useEffect(() => {
+    if (successLoadingBids) {
+      setNumberOfRequests(prev => ++prev);
+    }
+  }, [successLoadingBids]);
   const activeBid = useMemo(() => bids?.find(bid => bid.state === "active"), [bids]);
   const hasActiveBid = !!activeBid;
   const { data: deploymentDetail, refetch: getDeploymentDetail } = useDeploymentDetail(address, dseq, { refetchOnMount: false, enabled: false });

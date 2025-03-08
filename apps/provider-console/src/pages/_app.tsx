@@ -1,8 +1,8 @@
 import "@akashnetwork/ui/styles";
 import "../styles/index.css";
 
-import { QueryClientProvider } from "react-query";
 import { Toaster, TooltipProvider } from "@akashnetwork/ui/components";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { GeistSans } from "geist/font/sans";
 import { Provider } from "jotai";
 import type { AppProps } from "next/app";

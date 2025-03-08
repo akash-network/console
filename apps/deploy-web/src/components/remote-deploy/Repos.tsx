@@ -73,16 +73,29 @@ const Repos = ({
     subFolder: currentFolder?.value,
     setCpus: (cpus: number) => setValue("services.0.profile.cpu", +cpus > 2 ? +cpus : 2)
   });
-  const { isLoading: isGettingDirectory, isFetching: isGithubLoading } = useSrcFolders(setFolders, formatUrlWithoutInitialPath(currentRepoUrl));
-  const { isLoading: isGettingDirectoryBit, isFetching: isBitLoading } = useBitSrcFolders(
-    setFolders,
-    formatUrlWithoutInitialPath(currentRepoUrl),
-    currentBranchName
-  );
-  const { isLoading: isGettingDirectoryGitlab, isFetching: isGitlabLoading } = useGitlabSrcFolders(
-    setFolders,
-    currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.GITLAB_PROJECT_ID)?.value
-  );
+  const { isLoading: isGettingDirectory, isFetching: isGithubLoading, data: srcFolders } = useSrcFolders(formatUrlWithoutInitialPath(currentRepoUrl));
+  useEffect(() => {
+    setFolders(srcFolders);
+  }, [srcFolders]);
+
+  const {
+    isLoading: isGettingDirectoryBit,
+    isFetching: isBitLoading,
+    data: bitBucketSrcFolders
+  } = useBitSrcFolders(formatUrlWithoutInitialPath(currentRepoUrl), currentBranchName);
+  useEffect(() => {
+    setFolders(bitBucketSrcFolders.values);
+  }, [bitBucketSrcFolders]);
+
+  const {
+    isLoading: isGettingDirectoryGitlab,
+    isFetching: isGitlabLoading,
+    data: gitlabSrcFolders
+  } = useGitlabSrcFolders(currentServiceEnv?.find(e => e.key === protectedEnvironmentVariables.GITLAB_PROJECT_ID)?.value);
+  useEffect(() => {
+    setFolders(gitlabSrcFolders);
+  }, [gitlabSrcFolders]);
+
   const isLoadingDirectories = isGithubLoading || isGitlabLoading || isBitLoading || isGettingDirectory || isGettingDirectoryBit || isGettingDirectoryGitlab;
   const envVarUpdater = useMemo(() => new EnvVarUpdater(services), [services]);
 

@@ -1,10 +1,10 @@
-import { useMutation, useQuery } from "react-query";
+import { useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { useAtom } from "jotai";
 
 import { GitLabService } from "@src/services/remote-deploy/gitlab-http.service";
 import { tokens } from "@src/store/remoteDeployStore";
-import { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { QueryKeys } from "./queryKeys";
 
 const gitLabService = new GitLabService();
@@ -45,16 +45,18 @@ export const useGitLabUserProfile = () => {
   const [token] = useAtom(tokens);
   const { mutate } = useFetchRefreshToken();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: QueryKeys.getUserProfileKey(token?.accessToken),
-    queryFn: () => gitLabService.fetchUserProfile(token?.accessToken),
-    enabled: !!token?.accessToken && token.type === OAuthType,
-    onError: (error: AxiosError) => {
-      if (error.response?.status === 401) {
-        mutate();
-      }
-    }
+    queryFn: async () => gitLabService.fetchUserProfile(token?.accessToken),
+    enabled: !!token?.accessToken && token.type === OAuthType
   });
+  useEffect(() => {
+    if (query.isError && (query.error as unknown as AxiosError).response?.status === 401) {
+      mutate();
+    }
+  }, [query.isError, query.error, mutate]);
+
+  return query;
 };
 
 export const useGitLabGroups = () => {
@@ -93,31 +95,22 @@ export const useGitLabCommits = (repo?: string, branch?: string) => {
   });
 };
 
-export const useGitlabPackageJson = (onSettled: (data: PackageJson) => void, repo?: string, subFolder?: string) => {
+export const useGitlabPackageJson = (repo?: string, subFolder?: string) => {
   const [token] = useAtom(tokens);
 
   return useQuery({
     queryKey: QueryKeys.getPackageJsonKey(repo, OAuthType, subFolder),
     queryFn: () => gitLabService.fetchPackageJson(repo, subFolder, token?.accessToken),
-    enabled: !!token?.accessToken && token.type === OAuthType && !!repo,
-    onSettled: data => {
-      if (data?.content === undefined) return;
-      const content = atob(data.content);
-      const parsed = JSON.parse(content);
-      onSettled(parsed);
-    }
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo
   });
 };
 
-export const useGitlabSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void, repo?: string) => {
+export const useGitlabSrcFolders = (repo?: string) => {
   const [token] = useAtom(tokens);
 
   return useQuery({
     queryKey: QueryKeys.getSrcFoldersKey(repo, OAuthType),
     queryFn: () => gitLabService.fetchSrcFolders(repo, token?.accessToken),
-    enabled: !!token?.accessToken && token.type === OAuthType && !!repo,
-    onSettled: data => {
-      onSettled(data);
-    }
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo
   });
 };
