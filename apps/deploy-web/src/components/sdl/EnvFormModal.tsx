@@ -95,7 +95,7 @@ export const EnvFormModal: React.FunctionComponent<Props> = ({
       maxWidth="md"
       enableCloseOnBackdropClick
     >
-      <FormPaper contentClassName="bg-popover">
+      <FormPaper className="!bg-popover">
         {filteredEnvs?.map((env, envIndex) => {
           const currentEnvIndex = envs.findIndex(e => e.id === env.id);
           const isLastEnv = envIndex + 1 === filteredEnvs.length;
