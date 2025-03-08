@@ -26,6 +26,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBidList } from "@src/queries/useBidQuery";
+import { useBlock } from "@src/queries/useBlocksQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
@@ -33,6 +34,7 @@ import networkStore from "@src/store/networkStore";
 import { BidDto } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
+import { TRIAL_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -57,6 +59,7 @@ const REFRESH_BIDS_INTERVAL = 7000;
 const MAX_NUM_OF_BID_REQUESTS = Math.floor((5.5 * 60 * 1000) / REFRESH_BIDS_INTERVAL);
 // Show a warning after 1 minute
 const WARNING_NUM_OF_BID_REQUESTS = Math.round((60 * 1000) / REFRESH_BIDS_INTERVAL);
+const TRIAL_SIGNUP_WARNING_TIMEOUT = 33000;
 
 export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const [isSendingManifest, setIsSendingManifest] = useState(false);
@@ -236,6 +239,44 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     setSearch(value);
   };
 
+  const trialProviderCount = useMemo(() => {
+    if (providers) {
+      return providers.filter(provider => {
+        return provider.attributes.some(attribute => {
+          return attribute.key === TRIAL_ATTRIBUTE && attribute.value === "true";
+        });
+      }).length;
+    }
+
+    return 0;
+  }, [providers]);
+
+  const [zeroBidsForTrialWarningDisplayed, setZeroBidsForTrialWarningDisplayed] = useState(false);
+  const { data: block, refetch: getBlock } = useBlock(dseq, {
+    disabled: true
+  });
+
+  useEffect(() => {
+    getBlock();
+  }, [getBlock]);
+
+  useEffect(() => {
+    if (!isTrialing || numberOfRequests === 0 || bids?.length > 0) {
+      setZeroBidsForTrialWarningDisplayed(false);
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      const blockTime = new Date(block.block.header.time).getTime();
+      const now = new Date().getTime();
+
+      setZeroBidsForTrialWarningDisplayed(now - blockTime > TRIAL_SIGNUP_WARNING_TIMEOUT);
+      clearInterval(intervalId);
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [block, bids, isTrialing, numberOfRequests]);
+
   return (
     <>
       <CustomNextSeo title="Create Deployment - Create Lease" url={`${domainName}${UrlService.newDeployment({ step: RouteStep.createLeases })}`} />
@@ -315,7 +356,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
           </Button>
         )}
 
-        {warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
+        {!zeroBidsForTrialWarningDisplayed && warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
           <div className="pt-4">
             <Alert variant="warning">
               There should be bids by now... You can wait longer in case a bid shows up or close the deployment and try again with a different configuration.
@@ -330,7 +371,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
           </div>
         )}
 
-        {maxRequestsReached && (bids?.length || 0) === 0 && (
+        {!zeroBidsForTrialWarningDisplayed && maxRequestsReached && (bids?.length || 0) === 0 && (
           <div className="pt-4">
             <Alert variant="warning">
               There's no bid for the current deployment. You can close the deployment and try again with a different configuration.
@@ -425,8 +466,8 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
           {isTrialing && (
             <Alert variant="destructive">
-              <AlertTitle className="text-lg dark:text-white/90">Free Trial!</AlertTitle>
-              <AlertDescription className="space-y-1 dark:text-white/90">
+              <AlertTitle className="text-center text-lg dark:text-white/90">Free Trial!</AlertTitle>
+              <AlertDescription className="space-y-1 text-center dark:text-white/90">
                 <p>You are using a free trial and are limited to only a few providers on the network.</p>
                 <p>
                   <Link href={UrlService.login()} className="font-bold underline">
@@ -442,6 +483,25 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
             </Alert>
           )}
         </ViewPanel>
+      )}
+
+      {zeroBidsForTrialWarningDisplayed && (
+        <div className="pt-4">
+          <Alert variant="destructive">
+            <AlertDescription className="space-y-1 text-center dark:text-white/90">
+              <p>Looks like you are not getting any bids. This is likely because all trial providers are currently being used by others.</p>
+              <p>
+                Console has {trialProviderCount} providers for trial users but more available for non-trial users. To view all providers, we recommend signing
+                up.
+              </p>
+              <p className="pt-4">
+                <Button onClick={() => router.push(UrlService.signup())} color="secondary" variant="default" type="button" size="sm">
+                  Sign up
+                </Button>
+              </p>
+            </AlertDescription>
+          </Alert>
+        </div>
       )}
     </>
   );
