@@ -3,6 +3,25 @@ import yaml from "js-yaml";
 import { ExposeType, ProfileGpuModelType, ServiceType } from "@src/types";
 import { defaultHttpOptions } from "./data";
 
+export const buildCommand = (command: string) => {
+  if (command.trim() === "sh -c") {
+    return ["sh", "-c"];
+  }
+
+  const lines = command.split("\n");
+
+  if (lines.length > 1 || command.startsWith("sh -c")) {
+    const commandWithoutEmptyLines =
+      lines
+        .map(line => line.trim())
+        .filter(Boolean)
+        .join("\n") + "\n";
+    return ["sh", "-c", commandWithoutEmptyLines.replace(/^sh -c\s*/, "")];
+  }
+
+  return command;
+};
+
 export const generateSdl = (services: ServiceType[], region?: string) => {
   const sdl = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
 
@@ -61,8 +80,8 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
 
     // Command
     const trimmedCommand = service.command?.command?.trim();
-    if ((trimmedCommand?.length || 0) > 0) {
-      sdl.services[service.title].command = trimmedCommand?.split(" ").filter(x => x);
+    if (trimmedCommand) {
+      sdl.services[service.title].command = buildCommand(trimmedCommand);
       sdl.services[service.title].args = [service.command?.arg?.trim()];
     }
 

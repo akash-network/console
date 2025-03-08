@@ -3,7 +3,6 @@ import { ReactNode, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Form, FormField, FormItem, FormMessage, Snackbar, Spinner, Textarea } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormLabel } from "@mui/material";
 import axios from "axios";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
@@ -58,12 +57,12 @@ export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, descri
             name={`description`}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Description</FormLabel>
                 <Textarea
+                  label="Description"
                   aria-label="Description"
                   rows={10}
                   placeholder="Write your guide on how to use this template here!"
-                  className="mt-2 w-full px-4 py-2 text-sm"
+                  inputClassName="mt-2 w-full px-4 py-2 text-sm"
                   value={field.value}
                   spellCheck={false}
                   onChange={field.onChange}

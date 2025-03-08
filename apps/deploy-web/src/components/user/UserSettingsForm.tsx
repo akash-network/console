@@ -149,7 +149,7 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
                   </div>
                 }
               />
-              <LabelValue label="Bio" value={<Textarea disabled={isFormDisabled} rows={4} className="w-full" {...register("bio")} />} />
+              <LabelValue label="Bio" value={<Textarea disabled={isFormDisabled} rows={4} inputClassName="w-full" {...register("bio")} />} />
 
               <LabelValue
                 label="Youtube"
