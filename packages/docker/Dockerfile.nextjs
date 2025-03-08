@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7-labs
+
 FROM node:20-alpine AS base
 
 ARG WORKSPACE
@@ -16,12 +18,14 @@ ENV NODE_ENV development
 
 RUN apk add --no-cache libc6-compat
 
+COPY package*.json /app
+COPY /$WORKSPACE/package.json /app/$WORKSPACE/package.json
+COPY --parents /packages/*/package.json /app
+
+RUN npm ci
+
 COPY $WORKSPACE ./$WORKSPACE
 COPY /packages /app/packages
-COPY /$WORKSPACE/package*.json /app/$WORKSPACE
-COPY package*.json /app
-
-RUN npm install
 
 CMD ["npm", "run", "dev", "--workspace", "${WORKSPACE}"]
 
