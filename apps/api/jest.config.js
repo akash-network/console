@@ -29,7 +29,9 @@ module.exports = {
       ...common,
       testMatch: ["<rootDir>/test/functional/**/*.spec.ts"],
       setupFilesAfterEnv: ["./test/setup-functional-tests.ts"],
-      setupFiles: ["./test/setup-functional-env.ts"]
+      setupFiles: ["./test/setup-functional-env.ts"],
+      globalSetup: "./test/setup-global-functional.ts",
+      testEnvironment: "./test/custom-jest-environment.ts"
     }
   ]
 };

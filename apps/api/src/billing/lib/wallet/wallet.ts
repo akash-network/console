@@ -10,8 +10,12 @@ export class Wallet implements OfflineDirectSigner {
 
   private readonly instanceAsPromised: Promise<DirectSecp256k1HdWallet>;
 
-  constructor(mnemonic: string, index?: number) {
-    this.instanceAsPromised = DirectSecp256k1HdWallet.fromMnemonic(mnemonic, this.getInstanceOptions(index));
+  constructor(mnemonic?: string, index?: number) {
+    if (typeof mnemonic === "undefined") {
+      this.instanceAsPromised = DirectSecp256k1HdWallet.generate(24, this.getInstanceOptions(index));
+    } else {
+      this.instanceAsPromised = DirectSecp256k1HdWallet.fromMnemonic(mnemonic, this.getInstanceOptions(index));
+    }
   }
 
   private getInstanceOptions(index?: number): Partial<DirectSecp256k1HdWalletOptions> {
@@ -36,5 +40,9 @@ export class Wallet implements OfflineDirectSigner {
   async getFirstAddress() {
     const accounts = await this.getAccounts();
     return accounts[0].address;
+  }
+
+  async getMnemonic() {
+    return (await this.instanceAsPromised).mnemonic;
   }
 }
