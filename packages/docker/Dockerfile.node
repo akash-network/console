@@ -1,5 +1,6 @@
 FROM node:20-alpine AS base
 
+ARG GITHUB_PAT
 ARG WORKSPACE
 ENV WORKSPACE $WORKSPACE
 ENV HUSKY 0
@@ -19,7 +20,7 @@ CMD ["npm", "run", "dev", "--workspace", "${WORKSPACE}"]
 
 FROM development AS builder
 
-RUN npm run build --workspace $WORKSPACE
+RUN GITHUB_PAT=${GITHUB_PAT} npm run build --workspace $WORKSPACE
 
 FROM base AS production
 

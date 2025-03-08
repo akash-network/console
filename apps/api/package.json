@@ -10,7 +10,8 @@
   "author": "Akash Network",
   "main": "server.js",
   "scripts": {
-    "build": "npm run build:app && npm run build:console",
+    "build": "npm run build:app && npm run build:console && npm run build:akash-templates",
+    "build:akash-templates": "ts-node -r tsconfig-paths/register scripts/buildAkashTemplatesCache.ts",
     "build:app": "webpack --config webpack.prod.js",
     "build:console": "webpack --config webpack.prod.js --entry ./src/console.ts --output-filename console.js",
     "console": "npm run build:console && node dist/console.js",
@@ -83,6 +84,7 @@
     "memory-cache": "^0.2.0",
     "node-dependency-injection": "^3.1.2",
     "node-fetch": "^2.6.1",
+    "p-map": "^7.0.3",
     "pg": "^8.12.0",
     "pg-hstore": "^2.3.4",
     "postgres": "^3.4.4",
