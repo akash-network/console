@@ -10,7 +10,8 @@
   "author": "Akash Network",
   "main": "server.js",
   "scripts": {
-    "build": "npm run build:app && npm run build:console && npm run warmUpTemplatesCache",
+    "build": "npm run build:app && npm run build:console && npm run build:akash-templates",
+    "build:akash-templates": "ts-node -r tsconfig-paths/register scripts/buildAkashTemplates.ts",
     "build:app": "webpack --config webpack.prod.js",
     "build:console": "webpack --config webpack.prod.js --entry ./src/console.ts --output-filename console.js",
     "console": "npm run build:console && node dist/console.js",
@@ -30,8 +31,7 @@
     "test:unit": "jest --selectProjects unit",
     "test:unit:cov": "jest --selectProjects unit --coverage",
     "test:unit:watch": "jest --selectProjects unit --watch",
-    "test:watch": "jest --selectProjects unit functional --watch",
-    "warmUpTemplatesCache": "ts-node -r tsconfig-paths/register scripts/warmUpTemplatesCache.ts"
+    "test:watch": "jest --selectProjects unit functional --watch"
   },
   "dependencies": {
     "@akashnetwork/akash-api": "^1.3.0",
@@ -84,6 +84,7 @@
     "memory-cache": "^0.2.0",
     "node-dependency-injection": "^3.1.2",
     "node-fetch": "^2.6.1",
+    "p-map": "^7.0.3",
     "pg": "^8.12.0",
     "pg-hstore": "^2.3.4",
     "postgres": "^3.4.4",
