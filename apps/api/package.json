@@ -11,7 +11,7 @@
   "main": "server.js",
   "scripts": {
     "build": "npm run build:app && npm run build:console && npm run build:akash-templates",
-    "build:akash-templates": "ts-node -r tsconfig-paths/register scripts/buildAkashTemplates.ts",
+    "build:akash-templates": "ts-node -r tsconfig-paths/register scripts/buildAkashTemplatesCache.ts",
     "build:app": "webpack --config webpack.prod.js",
     "build:console": "webpack --config webpack.prod.js --entry ./src/console.ts --output-filename console.js",
     "console": "npm run build:console && node dist/console.js",

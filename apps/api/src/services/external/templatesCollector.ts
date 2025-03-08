@@ -6,7 +6,6 @@ import path from "path";
 
 import { GithubChainRegistryChainResponse } from "@src/types";
 import { GithubDirectoryItem } from "@src/types/github";
-import { dataFolderPath } from "@src/utils/constants";
 import { getLogoFromPath } from "@src/utils/templateReposLogos";
 import { isUrlAbsolute } from "@src/utils/urls";
 import { getOctokit } from "./githubService";
@@ -14,6 +13,7 @@ import { getOctokit } from "./githubService";
 const generatingTasks: { [key: string]: Promise<Category[]> } = {};
 let lastServedData: FinalCategory[] | null = null;
 let githubRequestsRemaining: string | null = null;
+
 const MAP_CONCURRENTLY_OPTIONS: MapConcurrentlyOptions = {
   concurrency: 30
 };
@@ -55,7 +55,8 @@ async function getTemplatesFromRepo(
   octokit: Octokit,
   repoOwner: string,
   repoName: string,
-  fetchTemplates: (ocktokit: Octokit, version: string) => Promise<Category[]>
+  fetchTemplates: (ocktokit: Octokit, version: string) => Promise<Category[]>,
+  dataFolderPath: string
 ) {
   const repoVersion = await fetchLatestCommitSha(octokit, repoOwner, repoName);
   const cacheFilePath = `${dataFolderPath}/templates/${repoOwner}-${repoName}-${repoVersion}.json`;
@@ -103,9 +104,9 @@ export const getTemplateGallery = async (input: GetTemplateGalleryInput) => {
     const octokit = getOctokit(input.githubPAT);
 
     const [awesomeAkashTemplates, omnibusTemplates, linuxServerTemplates] = await Promise.all([
-      getTemplatesFromRepo(octokit, "akash-network", "awesome-akash", fetchAwesomeAkashTemplates),
-      getTemplatesFromRepo(octokit, "akash-network", "cosmos-omnibus", fetchOmnibusTemplates),
-      getTemplatesFromRepo(octokit, "cryptoandcoffee", "akash-linuxserver", fetchLinuxServerTemplates)
+      getTemplatesFromRepo(octokit, "akash-network", "awesome-akash", fetchAwesomeAkashTemplates, input.dataFolderPath),
+      getTemplatesFromRepo(octokit, "akash-network", "cosmos-omnibus", fetchOmnibusTemplates, input.dataFolderPath),
+      getTemplatesFromRepo(octokit, "cryptoandcoffee", "akash-linuxserver", fetchLinuxServerTemplates, input.dataFolderPath)
     ]);
 
     const templateGallery = mergeTemplateCategories(omnibusTemplates, awesomeAkashTemplates, linuxServerTemplates).map(
@@ -130,6 +131,7 @@ export const getTemplateGallery = async (input: GetTemplateGalleryInput) => {
 
 interface GetTemplateGalleryInput {
   githubPAT: string;
+  dataFolderPath: string;
 }
 
 export const fetchLatestCommitSha = async (octokit: Octokit, owner: string, repo: string): Promise<string> => {
