@@ -22,7 +22,7 @@ export const CommandList: React.FunctionComponent<Props> = ({ currentService, se
         <CustomTooltip
           title={
             <>
-              Custom command use when executing container.
+              Custom command used when executing container.
               <br />
               <br />
               An example and popular use case is to run a bash script to install packages or run specific commands.

@@ -1,7 +1,7 @@
 "use client";
 import { ReactNode } from "react";
 import { Control } from "react-hook-form";
-import { FormField, FormInput, FormItem, FormLabel, Popup, Textarea } from "@akashnetwork/ui/components";
+import { FormField, Popup, Textarea } from "@akashnetwork/ui/components";
 
 import { SdlBuilderFormValuesType } from "@src/types";
 import { FormPaper } from "./FormPaper";
@@ -38,7 +38,7 @@ export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serv
           control={control}
           name={`services.${serviceIndex}.command.command`}
           render={({ field }) => (
-            <FormInput type="text" label="Command" value={field.value} placeholder="Example: bash -c" onChange={event => field.onChange(event.target.value)} />
+            <Textarea rows={4} label="Command" value={field.value} placeholder="Example: bash -c" onChange={event => field.onChange(event.target.value)} />
           )}
         />
 
@@ -46,18 +46,16 @@ export const CommandFormModal: React.FunctionComponent<Props> = ({ control, serv
           control={control}
           name={`services.${serviceIndex}.command.arg`}
           render={({ field }) => (
-            <FormItem className="mt-2">
-              <FormLabel>Arguments</FormLabel>
-              <Textarea
-                aria-label="Args"
-                placeholder="Example: apt-get update; apt-get install -y --no-install-recommends -- ssh;"
-                className="mt-2 w-full px-4 py-2 text-sm"
-                value={field.value}
-                rows={4}
-                spellCheck={false}
-                onChange={field.onChange}
-              />
-            </FormItem>
+            <Textarea
+              aria-label="Args"
+              placeholder="Example: apt-get update; apt-get install -y --no-install-recommends -- ssh;"
+              label="Arguments"
+              inputClassName="mt-2 w-full px-4 py-2 text-sm"
+              value={field.value}
+              rows={4}
+              spellCheck={false}
+              onChange={field.onChange}
+            />
           )}
         />
       </FormPaper>
