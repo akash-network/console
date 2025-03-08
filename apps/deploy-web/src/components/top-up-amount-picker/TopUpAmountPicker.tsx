@@ -47,7 +47,7 @@ export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ chil
               return (
                 <VerifiedLoginRequiredLink
                   key={price.unitAmount || "custom"}
-                  className={cn(buttonVariants({ variant: "default" }))}
+                  className={cn("mb-2", buttonVariants({ variant: "default" }))}
                   href={`/api/proxy/v1/checkout${price.isCustom ? "" : `?amount=${price.unitAmount}`}`}
                 >
                   {price.isCustom ? "Custom" : "$"}
