@@ -66,6 +66,8 @@ jobs:
 
       - name: Build the Docker image for API
         if: steps.filter.outputs.api == 'true'
+        env:
+          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: packages/docker/script/dc.sh build api
 
       - name: Upload Test Coverage

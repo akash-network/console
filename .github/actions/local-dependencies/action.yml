@@ -18,7 +18,7 @@ runs:
       shell: bash
       run: |
         package_json=apps/${{ inputs.app }}/package.json
-        deps_json=""
+        deps_json="packages/docker/**"
         for dep in `grep -Eo '"@akashnetwork/([^"]+)":' $package_json | cut -d'/' -f2 | cut -d'"' -f1`; do
           if [ -d "packages/$dep" ]; then
             deps_json="'packages/$dep/**',$deps_json"
