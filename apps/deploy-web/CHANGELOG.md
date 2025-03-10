@@ -1,5 +1,12 @@
 
 
+## [2.53.3](https://github.com/akash-network/console/compare/console-web/v2.53.2...console-web/v2.53.3) (2025-03-10)
+
+
+### Bug Fixes
+
+* fix border clipping on EnvFormModal ([e8b2d5f](https://github.com/akash-network/console/commit/e8b2d5f90c16d25330995a07bec436968111b318))
+
 ## [2.53.2](https://github.com/akash-network/console/compare/console-web/v2.53.1...console-web/v2.53.2) (2025-03-07)
 
 
