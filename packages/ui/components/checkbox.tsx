@@ -30,7 +30,7 @@ const CheckboxWithLabel = React.forwardRef<
     labelPosition?: "left" | "right";
     labelClassName?: string;
   }
->(({ className, label, labelPosition = "right", labelClassName = "", ...props }) => {
+>(({ className, label, labelPosition = "right", labelClassName = "", ...props }, ref) => {
   const id = React.useId();
   const _label = (
     <label htmlFor={id} className={cn("cursor-pointer text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70", labelClassName)}>
@@ -41,7 +41,7 @@ const CheckboxWithLabel = React.forwardRef<
   return (
     <div className="flex cursor-pointer items-center space-x-2">
       {labelPosition === "left" && _label}
-      <Checkbox {...props} id={id} />
+      <Checkbox {...props} id={id} ref={ref} />
       {labelPosition === "right" && _label}
     </div>
   );
