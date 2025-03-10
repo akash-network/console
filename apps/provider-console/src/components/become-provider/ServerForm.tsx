@@ -264,7 +264,7 @@ export const ServerForm: React.FC<ServerFormProps> = ({ currentServerNumber, onC
                         {currentServerNumber !== 0 && "Private IP"}
                       </FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter a valid IPv4 address (e.g. 192.168.1.1)" {...field} />
+                        <Input placeholder="Enter a valid IPv4 address" {...field} />
                       </FormControl>
                       <FormDescription>Must be a valid IPv4 address</FormDescription>
                       <FormMessage />
