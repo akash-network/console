@@ -8,8 +8,6 @@ import { BILLING_CONFIG, BillingConfig } from "@src/billing/providers";
 import { resolveWallet } from "@src/billing/providers/wallet.provider";
 import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 
-import { DbTestingService } from "@test/services/db-testing.service";
-
 jest.setTimeout(20000);
 
 describe("start trial", () => {
@@ -18,11 +16,6 @@ describe("start trial", () => {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsQuery = db.query.UserWallets;
   const authzHttpService = container.resolve(AuthzHttpService);
-  const dbService = container.resolve(DbTestingService);
-
-  afterEach(async () => {
-    await dbService.cleanAll();
-  });
 
   describe("POST /v1/start-trial", () => {
     it("should create a wallet for a user", async () => {

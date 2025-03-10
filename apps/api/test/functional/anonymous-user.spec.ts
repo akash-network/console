@@ -1,14 +1,9 @@
-import { container } from "tsyringe";
-
 import { app } from "@src/app";
 import { AnonymousUserResponseOutput } from "@src/user/schemas/user.schema";
-
-import { DbTestingService } from "@test/services/db-testing.service";
 
 describe("Users", () => {
   let user: AnonymousUserResponseOutput["data"];
   let token: AnonymousUserResponseOutput["token"];
-  const dbService = container.resolve(DbTestingService);
 
   beforeEach(async () => {
     const userResponse = await app.request("/v1/anonymous-users", {
@@ -18,10 +13,6 @@ describe("Users", () => {
     const body = await userResponse.json();
     user = body.data;
     token = body.token;
-  });
-
-  afterEach(async () => {
-    await dbService.cleanAll();
   });
 
   describe("POST /v1/anonymous-users", () => {
