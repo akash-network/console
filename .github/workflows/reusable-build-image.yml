@@ -89,5 +89,6 @@ jobs:
       - name: Build Docker image
         env:
           DEPLOYMENT_ENV: ${{ inputs.deployment-env }}
+          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }} # used by console-api to fetch Akash templates
         run: |
           ./packages/docker/script/build.sh -r ${{ env.registry }} -t ${{ env.tag }} -a ${{ env.app }} ${{ env.force_build }}
