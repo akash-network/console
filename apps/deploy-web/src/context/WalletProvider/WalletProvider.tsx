@@ -49,6 +49,7 @@ type ContextType = {
   isCustodial: boolean;
   isWalletLoading: boolean;
   isTrialing: boolean;
+  isOnboarding: boolean;
   creditAmount?: number;
   switchWalletType: () => void;
   hasManagedWallet: boolean;
@@ -314,6 +315,7 @@ export const WalletProvider = ({ children }) => {
         isCustodial: !isManaged,
         isWalletLoading: isLoading,
         isTrialing: isManaged && !!managedWallet?.isTrialing,
+        isOnboarding: isManaged && !managedWallet?.stripeCustomerId,
         creditAmount: isManaged ? managedWallet?.creditAmount : 0,
         hasManagedWallet: !!managedWallet,
         switchWalletType
