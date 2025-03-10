@@ -10,7 +10,6 @@ import { CoreConfigService } from "@src/core/services/core-config/core-config.se
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
-import { DbTestingService } from "@test/services/db-testing.service";
 import { stub } from "@test/services/stub";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
@@ -20,7 +19,6 @@ const FULL_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{64}$/;
 jest.setTimeout(20000);
 
 describe("API Keys", () => {
-  const dbService = container.resolve(DbTestingService);
   const walletService = new WalletTestingService(app);
   const apiKeyRepository = container.resolve(ApiKeyRepository);
   const userRepository = container.resolve(UserRepository);
@@ -63,7 +61,6 @@ describe("API Keys", () => {
     config = stub<CoreConfigService>({ get: jest.fn() });
     config.get.mockReturnValue("test");
     apiKeyGenerator = new ApiKeyGeneratorService(config);
-    await dbService.cleanAll();
   });
 
   describe("GET /v1/api-keys", () => {

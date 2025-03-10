@@ -5,7 +5,6 @@ import { container } from "tsyringe";
 import { app } from "@src/app";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 
-import { DbTestingService } from "@test/services/db-testing.service";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(30000);
@@ -13,11 +12,6 @@ jest.setTimeout(30000);
 describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const walletService = new WalletTestingService(app);
-  const dbService = container.resolve(DbTestingService);
-
-  afterEach(async () => {
-    await dbService.cleanAll();
-  });
 
   describe("POST /v1/tx", () => {
     it("should create a wallet for a user", async () => {

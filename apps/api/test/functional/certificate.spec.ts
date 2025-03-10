@@ -10,7 +10,6 @@ import { CreateCertificateResponse } from "@src/certificate/http-schemas/create-
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { UserRepository } from "@src/user/repositories";
 
-import { DbTestingService } from "@test/services/db-testing.service";
 import { stub } from "@test/services/stub";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
@@ -19,7 +18,6 @@ jest.setTimeout(30000);
 describe("Certificate API", () => {
   const userRepository = container.resolve(UserRepository);
   const apiKeyRepository = container.resolve(ApiKeyRepository);
-  const dbService = container.resolve(DbTestingService);
   const walletService = new WalletTestingService(app);
   const userWalletRepository = container.resolve(UserWalletRepository);
   let apiKeyGenerator: ApiKeyGeneratorService;
@@ -75,10 +73,6 @@ describe("Certificate API", () => {
 
     return { user: userWithId, token, apiKey, wallet };
   }
-
-  beforeEach(async () => {
-    await dbService.cleanAll();
-  });
 
   describe("POST /v1/certificate/create", () => {
     it("creates a certificate for the authenticated user", async () => {

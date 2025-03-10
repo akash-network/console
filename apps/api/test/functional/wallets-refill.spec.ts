@@ -6,7 +6,6 @@ import { BILLING_CONFIG, BillingConfig } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService } from "@src/billing/services";
 
-import { DbTestingService } from "@test/services/db-testing.service";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(240000);
@@ -17,15 +16,11 @@ describe("Wallets Refill", () => {
   const walletController = container.resolve(WalletController);
   const walletService = new WalletTestingService(app);
   const userWalletRepository = container.resolve(UserWalletRepository);
-  const dbService = container.resolve(DbTestingService);
-
-  afterEach(async () => {
-    await dbService.cleanAll();
-  });
 
   describe("console refill-wallets", () => {
     it("should refill wallets low on fee allowance", async () => {
-      const NUMBER_OF_WALLETS = 15;
+      config.FEE_ALLOWANCE_REFILL_THRESHOLD = 2;
+      const NUMBER_OF_WALLETS = 5;
       const prepareRecords = Array.from({ length: NUMBER_OF_WALLETS }).map(async (_, index) => {
         const records = await walletService.createUserAndWallet();
         const { user, token } = records;

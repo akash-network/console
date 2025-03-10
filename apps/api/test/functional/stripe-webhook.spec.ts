@@ -9,8 +9,6 @@ import { app } from "@src/app";
 import { CheckoutSessionRepository } from "@src/billing/repositories";
 import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 
-import { DbTestingService } from "@test/services/db-testing.service";
-
 jest.setTimeout(20000);
 
 describe("Stripe webhook", () => {
@@ -18,11 +16,6 @@ describe("Stripe webhook", () => {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsQuery = db.query.UserWallets;
   const checkoutSessionRepository = container.resolve(CheckoutSessionRepository);
-  const dbService = container.resolve(DbTestingService);
-
-  afterEach(async () => {
-    await dbService.cleanAll();
-  });
 
   const generatePayload = (sessionId: string, eventType: string) =>
     JSON.stringify({
