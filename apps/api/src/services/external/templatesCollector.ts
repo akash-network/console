@@ -1,4 +1,5 @@
 import { Octokit } from "@octokit/rest";
+import { PromisePool } from "@supercharge/promise-pool";
 import * as fs from "fs";
 import { markdownToTxt } from "markdown-to-txt";
 import fetch from "node-fetch";
@@ -594,9 +595,15 @@ function removeComments(markdown: string) {
 }
 
 async function mapConcurrently<T, U>(array: T[], callback: (item: T, index: number) => Promise<U>, options: MapConcurrentlyOptions) {
-  // p-map is ESM package which cannot be easily included in CommonJS files
-  const pMap = await import("p-map");
-  return pMap.default(array, callback, { concurrency: options.concurrency });
+  const { results, errors } = await PromisePool.withConcurrency(options.concurrency)
+    .for(array)
+    .process(async (item, index) => callback(item, index));
+
+  if (errors.length > 0) {
+    throw new Error(errors.map(e => e.message).join("\n"));
+  }
+
+  return results;
 }
 
 interface MapConcurrentlyOptions {
