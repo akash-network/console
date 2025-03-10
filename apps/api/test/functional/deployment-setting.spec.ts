@@ -6,13 +6,11 @@ import { DeploymentSettingRepository } from "@src/deployment/repositories/deploy
 import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
-import { DbTestingService } from "@test/services/db-testing.service";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(20000);
 
 describe("Deployment Settings", () => {
-  const dbService = container.resolve(DbTestingService);
   const walletService = new WalletTestingService(app);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
   const leaseRepository = container.resolve(LeaseRepository);
@@ -22,7 +20,6 @@ describe("Deployment Settings", () => {
   });
 
   afterEach(async () => {
-    await dbService.cleanAll();
     jest.restoreAllMocks();
   });
 

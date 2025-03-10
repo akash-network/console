@@ -4,60 +4,55 @@ import { calculateFee, GasPrice, SigningStargateClient } from "@cosmjs/stargate"
 import dotenv from "dotenv";
 import dotenvExpand from "dotenv-expand";
 import * as fs from "fs";
-import keyBy from "lodash/keyBy";
+import path from "path";
 import { setTimeout as delay } from "timers/promises";
 
 import { Wallet } from "../../src/billing/lib/wallet/wallet";
 
 const { parsed: config } = dotenvExpand.expand(dotenv.config({ path: "env/.env.functional.test" }));
 
-type TestWalletServiceOptions = {
-  testsDir: string;
-};
-
-type WalletConfig = {
-  path: string;
-  mnemonic: string;
-  message: EncodeObject;
-};
-
 const MIN_AMOUNTS: Record<string, number> = {
   "create-deployment.spec.ts": 5100000
 };
 
 export class TestWalletService {
-  static get instance() {
-    return global.testWalletService;
-  }
-
-  static async init(options: TestWalletServiceOptions) {
-    if (!global.testWalletService) {
-      global.testWalletService = new TestWalletService(options);
-      await global.testWalletService.init();
-    }
-    return global.testWalletService;
-  }
-
   private readonly balanceHttpService = new BalanceHttpService({
     baseURL: config.API_NODE_ENDPOINT
   });
 
-  private wallets: Record<string, WalletConfig>;
+  private mnemonics: Record<string, string>;
 
-  constructor(private readonly options: TestWalletServiceOptions) {}
+  constructor() {
+    this.restoreCache();
+  }
+
+  private restoreCache() {
+    if (fs.existsSync(".cache/test-wallets.json")) {
+      this.mnemonics = JSON.parse(fs.readFileSync(".cache/test-wallets.json", "utf8"));
+    }
+  }
+
+  private saveCache() {
+    if (!fs.existsSync(".cache")) {
+      fs.mkdirSync(".cache", { recursive: true });
+    }
+
+    fs.writeFileSync(".cache/test-wallets.json", JSON.stringify(this.mnemonics, null, 2));
+  }
 
   getMnemonic(path: string) {
     const fileName = this.getFileName(path);
-    return this.wallets[fileName].mnemonic;
+    return this.mnemonics[fileName];
   }
 
   async init() {
     const { wallet: faucetWallet, amount: faucetAmount } = await this.prepareFaucetWallet();
-    this.wallets = await this.prepareWallets(faucetWallet, faucetAmount);
+    this.mnemonics = await this.prepareWallets(faucetWallet, faucetAmount);
+    this.saveCache();
   }
 
   private async prepareWallets(faucetWallet: Wallet, totalDistibutionAmount: number) {
-    const specPaths = fs.readdirSync(this.options.testsDir).filter(spec => spec.endsWith(".spec.ts"));
+    const specPaths = fs.readdirSync(path.join(__dirname, "../functional")).filter(spec => spec.endsWith(".spec.ts"));
     const faucetAddress = await faucetWallet.getFirstAddress();
     const totalMinAmount = Object.values(MIN_AMOUNTS).reduce((acc, curr) => acc + curr, 0);
     const amount = (totalDistibutionAmount - totalMinAmount - totalDistibutionAmount * 0.01) / specPaths.length;
@@ -101,7 +96,13 @@ export class TestWalletService {
       })
     );
 
-    return keyBy(configs, "path");
+    return configs.reduce(
+      (acc, curr) => {
+        acc[curr.path] = curr.mnemonic;
+        return acc;
+      },
+      {} as Record<string, string>
+    );
   }
 
   private async prepareFaucetWallet() {

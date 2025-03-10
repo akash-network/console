@@ -8,13 +8,11 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { UserRepository } from "@src/user/repositories";
 
-import { DbTestingService } from "@test/services/db-testing.service";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
-jest.setTimeout(100000);
+jest.setTimeout(120000);
 
 describe("Users", () => {
-  const dbService = container.resolve(DbTestingService);
   const userRepository = container.resolve(UserRepository);
   const userWalletRepository = container.resolve(UserWalletRepository);
   const walletService = new WalletTestingService(app);
@@ -25,10 +23,6 @@ describe("Users", () => {
 
   beforeAll(async () => {
     masterAddress = await masterWalletService.getFirstAddress();
-  });
-
-  afterEach(async () => {
-    await dbService.cleanAll();
   });
 
   describe("stale anonymous users cleanup", () => {
