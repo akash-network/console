@@ -597,13 +597,14 @@ function removeComments(markdown: string) {
 async function mapConcurrently<T, U>(array: T[], callback: (item: T, index: number) => Promise<U>, options: MapConcurrentlyOptions) {
   const { results, errors } = await PromisePool.withConcurrency(options.concurrency)
     .for(array)
+    .useCorrespondingResults()
     .process(async (item, index) => callback(item, index));
 
   if (errors.length > 0) {
     throw new Error(errors.map(e => e.message).join("\n"));
   }
 
-  return results;
+  return results.filter((value): value is U => typeof value !== "symbol");
 }
 
 interface MapConcurrentlyOptions {
