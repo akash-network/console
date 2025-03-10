@@ -7,7 +7,6 @@ import { InjectBillingConfig } from "@src/billing/providers/config.provider";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput } from "@src/billing/repositories";
 import { ManagedSignerService, RpcMessageService, Wallet } from "@src/billing/services";
-import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 
@@ -19,7 +18,6 @@ export class DeploymentService {
     private readonly leaseHttpService: LeaseHttpService,
     private readonly signerService: ManagedSignerService,
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
-    private readonly billingConfigService: BillingConfigService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly sdlService: SdlService,
     @InjectBillingConfig() private readonly billingConfig: BillingConfig
@@ -65,7 +63,7 @@ export class DeploymentService {
       owner: wallet.address,
       dseq,
       groups,
-      denom: this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM"),
+      denom: this.billingConfig.DEPLOYMENT_GRANT_DENOM,
       amount: input.deposit,
       manifestVersion,
       depositor: await this.masterWallet.getFirstAddress()
