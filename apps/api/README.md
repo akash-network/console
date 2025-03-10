@@ -75,7 +75,7 @@ src/
 
 #### Functional Tests Wallet
 
-Functional tests rely on a sandbox akash wallet: *akash1fq8fhssjs0w8x9ysggrm4r8x26522elefm737l*. If your workflow starts failing, make sure the wallet is funded and has enough tokens to cover the costs. It can be refilled via https://faucet.sandbox-01.aksh.pw 
+Functional tests use the Akash sandbox environment and require wallet credentials. By default, `TestWalletService` generates a unique wallet for each test file, which increases startup time. To improve performance, you can configure a single shared wallet by setting `MASTER_WALLET_MNEMONIC` in `env/.env.functional.test.local`. Simply create a wallet, add its mnemonic to this file, and fund it via the Akash sandbox faucet (https://faucet.sandbox-01.aksh.pw).
 
 ## Changes from **beta** to **v1** (February 2024)
 
