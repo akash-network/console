@@ -1,3 +1,4 @@
+const { localConfig } = require("./test/services/local.config");
 const MAP_ALIASES = {
   "^@src(.*)$": "<rootDir>/src/$1",
   "^@test/(.*)$": "<rootDir>/test/$1"
@@ -14,7 +15,7 @@ const common = {
   setupFiles: ["./test/setup.ts"]
 };
 
-module.exports = {
+const config = {
   collectCoverageFrom: ["src/**/*.ts", "!src/**/*.spec.ts", "!src/**/*.d.ts", "!src/main.ts", "!src/console.ts", "!src/test/**/*", "!src/**/index.ts"],
   projects: [
     {
@@ -29,7 +30,15 @@ module.exports = {
       ...common,
       testMatch: ["<rootDir>/test/functional/**/*.spec.ts"],
       setupFilesAfterEnv: ["./test/setup-functional-tests.ts"],
-      setupFiles: ["./test/setup-functional-env.ts"]
+      setupFiles: ["./test/setup-functional-env.ts"],
+      globalSetup: "./test/setup-global-functional.ts",
+      testEnvironment: "./test/custom-jest-environment.ts"
     }
   ]
 };
+
+if (localConfig.MASTER_WALLET_MNEMONIC) {
+  config.maxWorkers = 1;
+}
+
+module.exports = config;
