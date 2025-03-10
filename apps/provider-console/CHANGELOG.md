@@ -1,5 +1,12 @@
 
 
+## [1.2.2](https://github.com/akash-network/console/compare/provider-console/v1.2.1...provider-console/v1.2.2) (2025-03-10)
+
+
+### Bug Fixes
+
+* **provider:** fixed provider pricing page where issue when no gpus ([#982](https://github.com/akash-network/console/issues/982)) ([5464ec0](https://github.com/akash-network/console/commit/5464ec058a5ea91c6d19e23cf35ff3b2d68943f3))
+
 ## [1.2.1](https://github.com/akash-network/console/compare/provider-console/v1.2.0...provider-console/v1.2.1) (2025-03-05)
 
 
