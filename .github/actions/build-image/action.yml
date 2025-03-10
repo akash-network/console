@@ -1,0 +1,48 @@
+name: 'Build app Docker Image'
+
+inputs:
+  app:
+    description: 'App to build'
+    required: true
+  tag:
+    description: 'Tag to build'
+    required: true
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  container-registry:
+    description: 'Container Registry URL'
+    required: true
+  force-build:
+    type: boolean
+    description: 'Force build'
+    required: false
+  deployment-env:
+    description: 'Deployment environment for FE apps only: "staging" or "production"'
+    required: false
+
+outputs:
+  version: ${{ steps.build.outputs.version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.github-token }}
+
+    - name: Build Docker image
+      id: build
+      shell: bash
+      env:
+        DEPLOYMENT_ENV: ${{ inputs.deployment-env }}
+      run: |
+        tag="${{ inputs.tag }}"
+        tag="${tag#*/v}"
+        # removes "-beta" suffix
+        echo "version=${tag%-*}" >> $GITHUB_OUTPUT
+
+        ./packages/docker/script/build.sh -r ${{ inputs.container-registry }} -t "$tag" -a ${{ inputs.app }} ${{ inputs.force_build && '-f' || '' }}

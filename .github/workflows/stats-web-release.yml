@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "apps/deploy-web/package.json"
+      - "apps/stats-web/package.json"
 
 jobs:
   release:
@@ -13,7 +13,7 @@ jobs:
     uses: ./.github/workflows/reusable-create-github-release.yml
     secrets: inherit
     with:
-      app: deploy-web
+      app: stats-web
 
   build-beta:
     needs: release
@@ -28,22 +28,11 @@ jobs:
       - uses: ./.github/actions/build-image
         id: build
         with:
-          app: deploy-web
-          container-registry: ${{ vars.WEB_REGISTRY }}
+          app: stats-web
+          container-registry: ${{ vars.STATS_WEB_REGISTRY }}
           tag: ${{ needs.release.outputs.git_tag }}-beta
           github-token: ${{ secrets.GITHUB_TOKEN }}
           deployment-env: staging
-          force_build: true
-
-  deploy-beta:
-    needs: build-beta
-    name: Deploy to beta sandbox
-    uses: ./.github/workflows/reusable-deploy-k8s.yml
-    secrets: inherit
-    with:
-      app: console-web
-      appVersion: ${{ needs.build-beta.outputs.base_image_tag }}
-      environment: staging
 
   build-prod:
     needs: release
@@ -55,9 +44,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/build-image
         with:
-          app: deploy-web
-          container-registry: ${{ vars.WEB_REGISTRY }}
+          app: stats-web
+          container-registry: ${{ vars.STATS_WEB_REGISTRY }}
           tag: ${{ needs.release.outputs.git_tag }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           deployment-env: production
-          force_build: true

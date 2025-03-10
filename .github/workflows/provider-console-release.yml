@@ -18,23 +18,34 @@ jobs:
   build-beta:
     needs: release
     name: Build Beta Docker image
-    uses: ./.github/workflows/reusable-build-image.yml
-    secrets: inherit
     permissions:
       contents: write
       packages: write
-    with:
-      tag: ${{ needs.release.outputs.git_tag }}-beta
-      deployment-env: staging
+    outputs:
+      base_image_tag: ${{ steps.build.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-image
+        id: build
+        with:
+          app: provider-console
+          container-registry: ${{ vars.PROVIDER_CONSOLE_REGISTRY }}
+          tag: ${{ needs.release.outputs.git_tag }}-beta
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deployment-env: staging
 
   build-prod:
     needs: release
     name: Build Prod Docker image
-    uses: ./.github/workflows/reusable-build-image.yml
-    secrets: inherit
     permissions:
       contents: write
       packages: write
-    with:
-      tag: ${{ needs.release.outputs.git_tag }}
-      deployment-env: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-image
+        with:
+          app: provider-console
+          container-registry: ${{ vars.PROVIDER_CONSOLE_REGISTRY }}
+          tag: ${{ needs.release.outputs.git_tag }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deployment-env: production

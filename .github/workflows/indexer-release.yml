@@ -1,4 +1,4 @@
-name: Release Provider proxy
+name: Release Indexer
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - "apps/provider-proxy/package.json"
+      - "apps/indexer/package.json"
 
 jobs:
   release:
@@ -14,11 +14,13 @@ jobs:
     uses: ./.github/workflows/reusable-create-github-release.yml
     secrets: inherit
     with:
-      app: provider-proxy
+      app: indexer
 
   build:
     needs: release
     name: Build Docker image
+    uses: ./.github/workflows/reusable-build-image.yml
+    secrets: inherit
     permissions:
       contents: write
       packages: write
@@ -29,17 +31,7 @@ jobs:
       - uses: ./.github/actions/build-image
         id: build
         with:
-          app: provider-proxy
-          container-registry: ${{ vars.PROVIDER_PROXY_REGISTRY }}
+          app: indexer
+          container-registry: ${{ vars.INDEXER_REGISTRY }}
           tag: ${{ needs.release.outputs.git_tag }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
-  deploy-beta:
-    needs: build
-    name: Deploy to beta
-    uses: ./.github/workflows/reusable-deploy-k8s.yml
-    secrets: inherit
-    with:
-      app: provider-proxy
-      appVersion: ${{ needs.build.outputs.image_tag }}
-      environment: staging
