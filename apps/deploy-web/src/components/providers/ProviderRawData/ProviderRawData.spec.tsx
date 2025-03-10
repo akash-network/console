@@ -1,15 +1,15 @@
 import { QueryClientProvider } from "react-query";
 import { AxiosStatic } from "axios";
 
-import { COMPONENTS, ProviderRawData } from "@src/components/providers/ProviderRawData";
+import { COMPONENTS, ProviderRawData } from "@src/components/providers/ProviderRawData/ProviderRawData";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 import { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import { ApiProviderDetail } from "@src/types/provider";
-import { buildProvider } from "../seeders/provider";
-import { MockComponents } from "./mocks";
 
 import { act, render } from "@testing-library/react";
+import { buildProvider } from "@tests/seeders/provider";
+import { MockComponents } from "@tests/unit/mocks";
 
 describe(ProviderRawData.name, () => {
   it("renders", async () => {

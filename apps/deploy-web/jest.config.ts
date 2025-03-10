@@ -9,7 +9,7 @@ const styleMockPath = "<rootDir>/../../node_modules/next/dist/build/jest/__mocks
 const getConfig = createJestConfig({
   testEnvironment: "jsdom",
   collectCoverageFrom: ["<rootDir>/src/**/*.{js,ts,tsx}"],
-  testMatch: ["<rootDir>/tests/unit/**/*.spec.{tsx,ts}", "<rootDir>/src/**/*.spec.{tsx,ts}"],
+  testMatch: ["<rootDir>/src/**/*.spec.{tsx,ts}"],
   transform: {
     "\\.tsx?$": ["ts-jest", { tsconfig: "<rootDir>/tsconfig.json" }]
   },

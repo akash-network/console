@@ -1,4 +1,4 @@
-import { ProviderRawData } from "@src/components/providers/ProviderRawData";
+import { ProviderRawData } from "@src/components/providers/ProviderRawData/ProviderRawData";
 
 type Props = {
   owner: string;
