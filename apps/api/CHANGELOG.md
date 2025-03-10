@@ -1,5 +1,12 @@
 
 
+## [2.69.1](https://github.com/akash-network/console/compare/console-api/v2.69.0...console-api/v2.69.1) (2025-03-10)
+
+
+### Code Refactoring
+
+* adds warmUpTemplatesCache script ([#962](https://github.com/akash-network/console/issues/962)) ([46b37eb](https://github.com/akash-network/console/commit/46b37eb632dc6da429da94b599160b2e587980c9))
+
 ## [2.69.0](https://github.com/akash-network/console/compare/console-api/v2.68.0...console-api/v2.69.0) (2025-03-07)
 
 
