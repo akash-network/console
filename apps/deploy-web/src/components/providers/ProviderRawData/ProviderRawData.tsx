@@ -7,9 +7,9 @@ import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
 import { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
 import { domainName, UrlService } from "@src/utils/urlUtils";
-import Layout from "../layout/Layout";
-import { CustomNextSeo } from "../shared/CustomNextSeo";
-import ProviderDetailLayout, { ProviderDetailTabs } from "./ProviderDetailLayout";
+import Layout from "../../layout/Layout";
+import { CustomNextSeo } from "../../shared/CustomNextSeo";
+import ProviderDetailLayout, { ProviderDetailTabs } from "../ProviderDetailLayout";
 
 export const COMPONENTS = {
   Layout,
