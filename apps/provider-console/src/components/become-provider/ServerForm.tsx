@@ -33,8 +33,13 @@ import { ControlMachineWithAddress } from "@src/types/controlMachine";
 import restClient from "@src/utils/restClient";
 import { ResetProviderForm } from "./ResetProviderProcess";
 
+// IPv4 validation regex pattern
+const ipv4Pattern = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+
 const baseSchema = z.object({
-  hostname: z.string().min(2, { message: "IP must be at least 2 characters." }).max(30, { message: "IP must not be longer than 30 characters." }),
+  hostname: z.string().refine(val => ipv4Pattern.test(val), {
+    message: "Please enter a valid IPv4 address"
+  }),
   port: z.number().optional(),
   username: z.string(),
   saveInformation: z.boolean().optional()
@@ -259,8 +264,9 @@ export const ServerForm: React.FC<ServerFormProps> = ({ currentServerNumber, onC
                         {currentServerNumber !== 0 && "Private IP"}
                       </FormLabel>
                       <FormControl>
-                        <Input placeholder="Input your IP" {...field} />
+                        <Input placeholder="Enter a valid IPv4 address (e.g. 192.168.1.1)" {...field} />
                       </FormControl>
+                      <FormDescription>Must be a valid IPv4 address</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -59,6 +59,14 @@ type ProviderPricingValues = z.infer<typeof providerPricingSchema>;
 
 const HOURS_PER_MONTH = 730.488;
 
+interface GpuInfo {
+  vendor?: string;
+  name?: string;
+  count: number;
+  memory_size?: string;
+  interface?: string;
+}
+
 export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, editMode = false, existingPricing, disabled = false, providerDetails }) => {
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const { activeControlMachine } = useControlMachine();
@@ -73,6 +81,13 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
   const [isLoading, setIsLoading] = useState(false);
   const { data: gpuPricesData } = useGpuPrices();
   const [gpuMarketPrice, setGpuMarketPrice] = useState<number | null>(null);
+  const [gpuMatchDetails, setGpuMatchDetails] = useState<
+    Array<{
+      gpu: GpuInfo;
+      matchType: string;
+      price: number;
+    }>
+  >([]);
 
   useEffect(() => {
     const calculateResources = () => {
@@ -138,24 +153,75 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
     // Calculate weighted average price based on matching GPUs
     let totalWeightedPrice = 0;
     let totalGpus = 0;
+    const matchDetails: Array<{
+      gpu: GpuInfo;
+      matchType: string;
+      price: number;
+    }> = [];
 
     gpuConfigs.forEach(gpu => {
-      const matchingModel = gpuPricesData.models.find(
+      if (!gpu || !gpu.count) return; // Skip if gpu is undefined or count is 0
+
+      // Try exact match first (vendor + model + ram + interface)
+      let matchingModel = gpuPricesData.models.find(
         model =>
-          model.vendor.toLowerCase() === gpu.vendor.toLowerCase() &&
-          model.model.toLowerCase() === gpu.name.toLowerCase() &&
-          model.ram.toLowerCase() === gpu.memory_size.toLowerCase() &&
-          model.interface.toLowerCase() === gpu.interface.toLowerCase()
+          model.vendor?.toLowerCase() === gpu.vendor?.toLowerCase() &&
+          model.model?.toLowerCase() === gpu.name?.toLowerCase() &&
+          model.ram?.toLowerCase() === gpu.memory_size?.toLowerCase() &&
+          model.interface?.toLowerCase() === gpu.interface?.toLowerCase()
       );
+
+      let matchType = "exact";
+
+      // If no exact match, try vendor + model + ram
+      if (!matchingModel) {
+        matchingModel = gpuPricesData.models.find(
+          model =>
+            model.vendor?.toLowerCase() === gpu.vendor?.toLowerCase() &&
+            model.model?.toLowerCase() === gpu.name?.toLowerCase() &&
+            model.ram?.toLowerCase() === gpu.memory_size?.toLowerCase()
+        );
+        matchType = "vendor+model+ram";
+      }
+
+      // If still no match, try vendor + model
+      if (!matchingModel) {
+        matchingModel = gpuPricesData.models.find(
+          model => model.vendor?.toLowerCase() === gpu.vendor?.toLowerCase() && model.model?.toLowerCase() === gpu.name?.toLowerCase()
+        );
+        matchType = "vendor+model";
+      }
+
+      // Default GPU price per hour
+      const defaultGpuPrice = 0.55;
 
       if (matchingModel) {
         totalWeightedPrice += matchingModel.price.weightedAverage * gpu.count;
         totalGpus += gpu.count;
+
+        matchDetails.push({
+          gpu,
+          matchType,
+          price: matchingModel.price.weightedAverage
+        });
+      } else {
+        // Use default price for unmatched GPUs
+        totalWeightedPrice += defaultGpuPrice * gpu.count;
+        totalGpus += gpu.count;
+
+        matchDetails.push({
+          gpu,
+          matchType: "default",
+          price: defaultGpuPrice
+        });
       }
     });
 
-    const averageMarketPrice = totalGpus > 0 ? totalWeightedPrice / totalGpus : null;
+    const averageMarketPrice = totalGpus > 0 ? totalWeightedPrice / totalGpus : 0.55; // Default to 0.55 if no GPUs
     setGpuMarketPrice(averageMarketPrice);
+
+    // Store match details for display
+    setGpuMatchDetails(matchDetails);
   }, [gpuPricesData, providerProcess.machines]);
 
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -197,6 +263,12 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
       form.reset(hourlyPricing);
     }
   }, [editMode, existingPricing, form]);
+
+  useEffect(() => {
+    if (!editMode && gpuMarketPrice !== null) {
+      form.setValue("gpu", Number(gpuMarketPrice.toFixed(3)));
+    }
+  }, [gpuMarketPrice, editMode, form]);
 
   const watchValues = form.watch();
 
@@ -586,8 +658,34 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
                   <div>
                     <span className="text-sm">Benchmark Price</span>
                     <div className="text-2xl font-bold">${competitiveEarnings.toFixed(2)}/month</div>
-                    {gpuMarketPrice && (
+                    {gpuMarketPrice && resources.gpu > 0 && (
                       <p className="text-muted-foreground mt-2 text-sm">Current market rate for your GPU configuration: ${gpuMarketPrice.toFixed(2)}/hour</p>
+                    )}
+
+                    {/* GPU Match Details */}
+                    {gpuMatchDetails.length > 0 && gpuMatchDetails.some(detail => detail.gpu.count > 0) && (
+                      <div className="mt-4 text-xs">
+                        <p className="mb-1 font-semibold">GPU Pricing Details:</p>
+                        <ul className="space-y-1">
+                          {gpuMatchDetails
+                            .filter(detail => detail.gpu.count > 0)
+                            .map((detail, index) => (
+                              <li key={index} className="text-muted-foreground">
+                                {detail.gpu.vendor} {detail.gpu.name} ({detail.gpu.count}x):
+                                {detail.matchType === "exact" ? (
+                                  <span className="text-green-500">Same GPU Model</span>
+                                ) : detail.matchType === "vendor+model+ram" ? (
+                                  <span className="text-yellow-500"> Matched vendor, model, and RAM</span>
+                                ) : detail.matchType === "vendor+model" ? (
+                                  <span className="text-yellow-500"> Matched vendor and model</span>
+                                ) : (
+                                  <span className="text-red-500"> No match, using default price</span>
+                                )}{" "}
+                                - ${detail.price.toFixed(2)}/hour
+                              </li>
+                            ))}
+                        </ul>
+                      </div>
                     )}
                   </div>
                 </div>
