@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "outDir": "build",
-    "target": "es2022"
+    "target": "es2022",
+    "strict": true,
   },
   "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
 }
