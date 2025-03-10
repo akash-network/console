@@ -254,7 +254,7 @@ export const useGpuPrices = () => {
     queryKey: ["gpuPrices"],
     queryFn: async () => {
       try {
-        return await consoleClient.get("/internal/gpu-prices");
+        return await consoleClient.get("/v1/gpu-prices");
       } catch (error: unknown) {
         return handleQueryError(error as AxiosError, toast, "Failed to fetch GPU prices");
       }
