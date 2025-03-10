@@ -46,11 +46,15 @@ export class DeploymentService {
   }
 
   public async create(wallet: UserWalletOutput, input: CreateDeploymentRequest["data"]): Promise<CreateDeploymentResponse["data"]> {
-    if (!this.sdlService.validateSdl(input.sdl)) {
+    let sdl: string = input.sdl;
+
+    if (!this.sdlService.validateSdl(sdl)) {
       throw new BadRequest("Invalid SDL");
     }
 
-    const sdl = input.sdl.replace(/uakt/g, this.billingConfig.DEPLOYMENT_GRANT_DENOM);
+    if (this.billingConfig.DEPLOYMENT_GRANT_DENOM !== "uakt") {
+      sdl = sdl.replace(/uakt/g, this.billingConfig.DEPLOYMENT_GRANT_DENOM);
+    }
 
     const dseq = await this.blockHttpService.getCurrentHeight();
     const groups = this.sdlService.getDeploymentGroups(sdl, "beta3");

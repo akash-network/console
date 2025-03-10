@@ -75,7 +75,7 @@ describe("Bids API", () => {
 
     knownUsers[userId] = user;
     knownApiKeys[userApiKeySecret] = apiKey;
-    knownWallets[userId] = wallets;
+    knownWallets[user.id] = wallets;
 
     nock(apiNodeUrl)
       .get(`/akash/market/v1beta4/bids/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`)
@@ -136,7 +136,7 @@ describe("Bids API", () => {
       const dseq = "1234";
       const { user, userApiKeySecret } = await mockUser(dseq);
 
-      const response = await app.request(`/v1/bids?dseq=${dseq}&userId=${user.userId}`, {
+      const response = await app.request(`/v1/bids?dseq=${dseq}&userId=${user.id}`, {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
@@ -156,7 +156,7 @@ describe("Bids API", () => {
       const { user } = await mockUser(dseq);
       const { adminApiKeySecret } = await mockAdmin();
 
-      const response = await app.request(`/v1/bids?dseq=${dseq}&userId=${user.userId}`, {
+      const response = await app.request(`/v1/bids?dseq=${dseq}&userId=${user.id}`, {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": adminApiKeySecret })
       });
