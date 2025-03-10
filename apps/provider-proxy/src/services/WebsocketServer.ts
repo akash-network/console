@@ -27,7 +27,7 @@ export class WebsocketServer {
     private readonly appServer: http.Server,
     private readonly certificateValidator: CertificateValidator,
     private readonly wsStats: WebsocketStats,
-    private readonly createLogger: LoggerService["setContext"]
+    private readonly createLogger?: LoggerService["setContext"]
   ) {}
 
   close(): void {
@@ -35,11 +35,12 @@ export class WebsocketServer {
   }
 
   listen(): this {
-    this.wss = new WebSocket.Server({ noServer: true });
+    const wss = new WebSocket.Server({ noServer: true });
+    this.wss = wss;
 
     this.appServer.on("upgrade", (request, socket, head) => {
-      this.wss.handleUpgrade(request, socket, head, socket => {
-        this.wss.emit("connection", socket, request);
+      wss.handleUpgrade(request, socket, head, socket => {
+        wss.emit("connection", socket, request);
       });
     });
 
@@ -273,8 +274,8 @@ export class WebsocketServer {
 
 interface CreateProviderSocketOptions {
   wsId: string;
-  cert: string;
-  key: string;
+  cert?: string;
+  key?: string;
   chainNetwork?: SupportedChainNetworks;
   providerAddress?: string;
   logger?: LoggerService;
