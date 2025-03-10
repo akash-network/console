@@ -1,5 +1,12 @@
 
 
+## [2.69.2](https://github.com/akash-network/console/compare/console-api/v2.69.1...console-api/v2.69.2) (2025-03-10)
+
+
+### Bug Fixes
+
+* **template:** eliminates eternal loop when query if failing  ([ca93b51](https://github.com/akash-network/console/commit/ca93b5123725394094aada5149811de548717d94))
+
 ## [2.69.1](https://github.com/akash-network/console/compare/console-api/v2.69.0...console-api/v2.69.1) (2025-03-10)
 
 
