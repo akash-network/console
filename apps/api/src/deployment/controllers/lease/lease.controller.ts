@@ -18,7 +18,7 @@ export class LeaseController {
   async createLeasesAndSendManifest(input: CreateLeaseRequest): Promise<GetDeploymentResponse> {
     const { currentUser, ability } = this.authService;
 
-    const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(currentUser.userId);
+    const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(currentUser.id);
     const result = await this.leaseService.createLeasesAndSendManifest(wallets[0], input);
 
     return { data: result };

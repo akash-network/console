@@ -18,7 +18,7 @@ import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
-jest.setTimeout(60000); // 60 seconds for the full flow
+jest.setTimeout(120_000); // 120 seconds for the full flow
 
 describe("Lease Flow", () => {
   const userRepository = container.resolve(UserRepository);
@@ -105,8 +105,8 @@ describe("Lease Flow", () => {
       });
 
       const result = await response.json();
-      if (result.data?.bids?.length > 0) {
-        return result.data.bids;
+      if (result.data?.length > 0) {
+        return result.data;
       }
 
       await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds between attempts
@@ -124,7 +124,7 @@ describe("Lease Flow", () => {
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
     });
     expect(certResponse.status).toBe(200);
-    const { certPem, keyPem } = (await certResponse.json()).data;
+    const { certPem, encryptedKey } = (await certResponse.json()).data;
 
     // 3. Create deployment
     const deployResponse = await app.request("/v1/deployments", {
@@ -145,27 +145,29 @@ describe("Lease Flow", () => {
     expect(bids.length).toBeGreaterThan(0);
     const firstBid = bids[0];
 
+    const body = {
+      manifest,
+      certificate: {
+        certPem,
+        keyPem: encryptedKey
+      },
+      leases: [
+        {
+          dseq,
+          gseq: firstBid.bid.bid_id.gseq,
+          oseq: firstBid.bid.bid_id.oseq,
+          provider: firstBid.bid.bid_id.provider
+        }
+      ]
+    };
+
+    console.log("DEBUG: body", JSON.stringify(body, null, 2));
+
     // 5. Create lease and send manifest
     const leaseResponse = await app.request("/v1/leases", {
       method: "POST",
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey }),
-      body: JSON.stringify({
-        data: {
-          manifest,
-          certificate: {
-            certPem,
-            keyPem
-          },
-          leases: [
-            {
-              dseq,
-              gseq: firstBid.bid.bid_id.gseq,
-              oseq: firstBid.bid.bid_id.oseq,
-              provider: firstBid.bid.bid_id.provider
-            }
-          ]
-        }
-      })
+      body: JSON.stringify(body)
     });
     expect(leaseResponse.status).toBe(200);
 

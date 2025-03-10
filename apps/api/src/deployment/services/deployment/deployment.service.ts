@@ -2,6 +2,8 @@ import { BlockHttpService, DeploymentHttpService, LeaseHttpService } from "@akas
 import { BadRequest, InternalServerError, NotFound } from "http-errors";
 import { singleton } from "tsyringe";
 
+import { BillingConfig } from "@src/billing/providers/config.provider";
+import { InjectBillingConfig } from "@src/billing/providers/config.provider";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput } from "@src/billing/repositories";
 import { ManagedSignerService, RpcMessageService, Wallet } from "@src/billing/services";
@@ -19,7 +21,8 @@ export class DeploymentService {
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
     private readonly billingConfigService: BillingConfigService,
     private readonly rpcMessageService: RpcMessageService,
-    private readonly sdlService: SdlService
+    private readonly sdlService: SdlService,
+    @InjectBillingConfig() private readonly billingConfig: BillingConfig
   ) {}
 
   public async findByOwnerAndDseq(owner: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
@@ -47,10 +50,12 @@ export class DeploymentService {
       throw new BadRequest("Invalid SDL");
     }
 
+    const sdl = input.sdl.replace(/uakt/g, this.billingConfig.DEPLOYMENT_GRANT_DENOM);
+
     const dseq = await this.blockHttpService.getCurrentHeight();
-    const groups = this.sdlService.getDeploymentGroups(input.sdl, "beta3", "sandbox");
-    const manifestVersion = await this.sdlService.getManifestVersion(input.sdl, "beta3", "sandbox");
-    const manifest = this.sdlService.getManifest(input.sdl, "beta3", "sandbox", true) as string;
+    const groups = this.sdlService.getDeploymentGroups(sdl, "beta3");
+    const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");
+    const manifest = this.sdlService.getManifest(sdl, "beta3", true) as string;
 
     const message = this.rpcMessageService.getCreateDeploymentMsg({
       owner: wallet.address,

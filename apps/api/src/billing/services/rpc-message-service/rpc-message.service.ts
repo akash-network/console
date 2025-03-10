@@ -141,12 +141,12 @@ export class RpcMessageService {
   getCloseDeploymentMsg(address: string, dseq: number | string) {
     return {
       typeUrl: `/${MsgCloseDeployment.$type}`,
-      value: {
+      value: MsgCloseDeployment.fromPartial({
         id: {
           owner: address,
           dseq: Long.fromString(dseq.toString(), true)
         }
-      }
+      })
     };
   }
 
