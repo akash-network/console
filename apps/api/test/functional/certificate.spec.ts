@@ -33,7 +33,7 @@ describe("Certificate API", () => {
     const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
 
     jest.spyOn(userRepository, "findById").mockImplementation(async id => {
-      if (id === userWithId.userId) {
+      if (id === userWithId.id) {
         return {
           ...userWithId,
           trial: false,
