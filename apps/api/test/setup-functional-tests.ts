@@ -1,11 +1,14 @@
 import "reflect-metadata";
 
-import { closeConnections, migratePG } from "@src/core";
+import { TestDatabaseService } from "./services/test-database.service";
+
+const testPath = expect.getState().testPath;
+const dbService = new TestDatabaseService(testPath);
 
 beforeAll(async () => {
-  await migratePG();
-});
+  await dbService.setup();
+}, 10000);
 
 afterAll(async () => {
-  await closeConnections();
-});
+  await dbService.teardown();
+}, 10000);

@@ -20,7 +20,6 @@ import { apiNodeUrl, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/c
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
-import { DbTestingService } from "@test/services/db-testing.service";
 
 jest.setTimeout(20000);
 
@@ -28,7 +27,6 @@ describe("Deployments API", () => {
   const userRepository = container.resolve(UserRepository);
   const apiKeyAuthService = container.resolve(ApiKeyAuthService);
   const userWalletRepository = container.resolve(UserWalletRepository);
-  const dbService = container.resolve(DbTestingService);
   const abilityService = container.resolve(AbilityService);
   const blockHttpService = container.resolve(BlockHttpService);
   const signerService = container.resolve(ManagedSignerService);
@@ -82,7 +80,6 @@ describe("Deployments API", () => {
   });
 
   afterEach(async () => {
-    await dbService.cleanAll();
     jest.restoreAllMocks();
     nock.cleanAll();
   });

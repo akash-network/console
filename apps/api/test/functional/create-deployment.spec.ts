@@ -12,7 +12,6 @@ import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { MANAGED_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import { Wallet } from "@src/billing/services";
 
-import { DbTestingService } from "@test/services/db-testing.service";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 jest.setTimeout(30000);
@@ -24,11 +23,6 @@ describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const walletService = new WalletTestingService(app);
   const masterWallet = container.resolve<Wallet>(MANAGED_MASTER_WALLET);
-  const dbService = container.resolve(DbTestingService);
-
-  afterEach(async () => {
-    await dbService.cleanAll();
-  });
 
   describe("POST /v1/tx", () => {
     it("should create a deployment for a user", async () => {
