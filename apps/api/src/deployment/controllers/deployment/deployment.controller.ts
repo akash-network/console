@@ -22,7 +22,7 @@ export class DeploymentController {
   async findByDseqAndUserId(dseq: string, userId?: string): Promise<GetDeploymentResponse> {
     const { currentUser, ability } = this.authService;
 
-    const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(userId ?? currentUser.userId);
+    const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(userId ?? currentUser.id);
     const deployment = await this.deploymentService.findByOwnerAndDseq(wallets[0].address, dseq);
 
     return {
@@ -34,7 +34,7 @@ export class DeploymentController {
   async create(input: CreateDeploymentRequest["data"]): Promise<CreateDeploymentResponse> {
     const { currentUser, ability } = this.authService;
 
-    const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(currentUser.userId);
+    const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(currentUser.id);
     const result = await this.deploymentService.create(wallets[0], input);
 
     return {
@@ -46,7 +46,7 @@ export class DeploymentController {
   async close(dseq: string): Promise<CloseDeploymentResponse> {
     const { currentUser, ability } = this.authService;
 
-    const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(currentUser.userId);
+    const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(currentUser.id);
     const result = await this.deploymentService.close(wallets[0], dseq);
 
     return { data: result };

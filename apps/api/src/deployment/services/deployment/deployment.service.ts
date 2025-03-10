@@ -1,13 +1,15 @@
-import { SDL } from "@akashnetwork/akashjs/build/sdl";
 import { BlockHttpService, DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { BadRequest, InternalServerError, NotFound } from "http-errors";
 import { singleton } from "tsyringe";
 
+import { BillingConfig } from "@src/billing/providers/config.provider";
+import { InjectBillingConfig } from "@src/billing/providers/config.provider";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput } from "@src/billing/repositories";
 import { ManagedSignerService, RpcMessageService, Wallet } from "@src/billing/services";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 
 @singleton()
 export class DeploymentService {
@@ -18,7 +20,9 @@ export class DeploymentService {
     private readonly signerService: ManagedSignerService,
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
     private readonly billingConfigService: BillingConfigService,
-    private readonly rpcMessageService: RpcMessageService
+    private readonly rpcMessageService: RpcMessageService,
+    private readonly sdlService: SdlService,
+    @InjectBillingConfig() private readonly billingConfig: BillingConfig
   ) {}
 
   public async findByOwnerAndDseq(owner: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
@@ -42,31 +46,35 @@ export class DeploymentService {
   }
 
   public async create(wallet: UserWalletOutput, input: CreateDeploymentRequest["data"]): Promise<CreateDeploymentResponse["data"]> {
-    let sdl: SDL;
-    try {
-      sdl = SDL.fromString(input.sdl, "beta3");
-    } catch (error) {
-      if (error.name === "SdlValidationError") {
-        throw new BadRequest(error.message);
-      }
+    let sdl: string = input.sdl;
 
+    if (!this.sdlService.validateSdl(sdl)) {
       throw new BadRequest("Invalid SDL");
     }
 
+    if (this.billingConfig.DEPLOYMENT_GRANT_DENOM !== "uakt") {
+      sdl = sdl.replace(/uakt/g, this.billingConfig.DEPLOYMENT_GRANT_DENOM);
+    }
+
     const dseq = await this.blockHttpService.getCurrentHeight();
+    const groups = this.sdlService.getDeploymentGroups(sdl, "beta3");
+    const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");
+    const manifest = this.sdlService.getManifest(sdl, "beta3", true) as string;
+
     const message = this.rpcMessageService.getCreateDeploymentMsg({
       owner: wallet.address,
       dseq,
-      groups: sdl.groups(),
+      groups,
       denom: this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM"),
       amount: input.deposit,
-      manifestVersion: await sdl.manifestVersion(),
+      manifestVersion,
       depositor: await this.masterWallet.getFirstAddress()
     });
 
     const result = await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
     return {
       dseq: dseq.toString(),
+      manifest,
       signTx: result
     };
   }
