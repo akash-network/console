@@ -1,6 +1,7 @@
 import type { EnvironmentContext, JestEnvironmentConfig } from "@jest/environment";
 import NodeEnvironment from "jest-environment-node";
 
+import { localConfig } from "./services/local.config";
 import { TestWalletService } from "./services/test-wallet.service";
 
 export default class CustomJestEnvironment extends NodeEnvironment {
@@ -13,7 +14,11 @@ export default class CustomJestEnvironment extends NodeEnvironment {
 
   async setup() {
     await super.setup();
-    const mnemonic = TestWalletService.instance.getMnemonic(this.path);
-    this.global.process.env.MASTER_WALLET_MNEMONIC = mnemonic;
+    if (localConfig.MASTER_WALLET_MNEMONIC) {
+      this.global.process.env.MASTER_WALLET_MNEMONIC = localConfig.MASTER_WALLET_MNEMONIC;
+    } else {
+      const mnemonic = TestWalletService.instance.getMnemonic(this.path);
+      this.global.process.env.MASTER_WALLET_MNEMONIC = mnemonic;
+    }
   }
 }
