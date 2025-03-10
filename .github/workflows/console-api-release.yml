@@ -18,13 +18,22 @@ jobs:
   build:
     needs: release
     name: Build Docker image
-    uses: ./.github/workflows/reusable-build-image.yml
-    secrets: inherit
     permissions:
       contents: write
       packages: write
-    with:
-      tag: ${{ needs.release.outputs.git_tag }}
+    outputs:
+      image_tag: ${{ steps.build.outputs.version }}
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-image
+        id: build
+        with:
+          app: api
+          container-registry: ${{ vars.API_REGISTRY }}
+          tag: ${{ needs.release.outputs.git_tag }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-beta-mainnet:
     needs: build
