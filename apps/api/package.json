@@ -22,7 +22,7 @@
     "migration:gen": "drizzle-kit generate",
     "prod": "doppler run -- node dist/server.js",
     "release": "release-it",
-    "script:lease-flow": "ts-node script/lease-flow.ts",
+    "scripts:lease-flow": "ts-node scripts/lease-flow.ts",
     "start": "webpack --config webpack.dev.js --watch",
     "test": "jest --selectProjects unit functional",
     "test:cov": "jest --selectProjects unit functional --coverage",

@@ -12,7 +12,6 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { UserRepository } from "@src/user/repositories";
 
-import { DbTestingService } from "@test/services/db-testing.service";
 import { stub } from "@test/services/stub";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
@@ -24,7 +23,6 @@ describe("Lease Flow", () => {
   const userRepository = container.resolve(UserRepository);
   const apiKeyRepository = container.resolve(ApiKeyRepository);
   const blockHttpService = container.resolve(BlockHttpService);
-  const dbService = container.resolve(DbTestingService);
   const walletService = new WalletTestingService(app);
   const userWalletRepository = container.resolve(UserWalletRepository);
   let apiKeyGenerator: ApiKeyGeneratorService;
@@ -90,7 +88,6 @@ describe("Lease Flow", () => {
   });
 
   afterEach(async () => {
-    await dbService.cleanAll();
     jest.restoreAllMocks();
   });
 
