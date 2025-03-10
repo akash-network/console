@@ -8,6 +8,8 @@ services:
       args:
         WORKSPACE: apps/api
         GITHUB_PAT: ${GITHUB_PAT}
+    environment:
+        GITHUB_PAT: ${GITHUB_PAT}
 
   indexer:
     image: ${INDEXER_REPO:-console-indexer}:${INDEXER_TAG:-latest}

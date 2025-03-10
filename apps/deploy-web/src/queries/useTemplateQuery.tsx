@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions } from "react-query";
 import type { TemplateCategory, TemplateOutputSummary } from "@akashnetwork/http-sdk";
 import { Snackbar } from "@akashnetwork/ui/components";
@@ -153,9 +154,12 @@ export function useTemplates(options = {}): CategoriesAndTemplatesResult {
     refetchOnReconnect: false
   });
 
-  return {
-    isLoading: query.isFetching,
-    categories: query.data?.categories || [],
-    templates: query.data?.templates || []
-  };
+  return useMemo(
+    () => ({
+      isLoading: query.isFetching,
+      categories: query.data?.categories || [],
+      templates: query.data?.templates || []
+    }),
+    [query.isFetching, query.data]
+  );
 }
