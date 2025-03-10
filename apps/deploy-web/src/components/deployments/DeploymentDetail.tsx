@@ -43,21 +43,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const isRemoteDeploy: boolean = !!editedManifest && !!isCiCdImageInYaml(editedManifest);
   const repo: string | null = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
 
-  const {
-    data: deployment,
-    isFetching: isLoadingDeployment,
-    refetch: getDeploymentDetail,
-    error: deploymentError
-  } = useDeploymentDetail(address, dseq, {
-    onSuccess: _deploymentDetail => {
-      if (_deploymentDetail) {
-        getLeases();
-        getProviders();
-        const deploymentData = getDeploymentLocalData(dseq);
-        setDeploymentManifest(deploymentData?.manifest || "");
-      }
-    }
-  });
+  const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = useDeploymentDetail(address, dseq);
   const {
     data: leases,
     isLoading: isLoadingLeases,
@@ -65,26 +51,26 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     remove: removeLeases
   } = useDeploymentLeaseList(address, deployment, {
     enabled: !!deployment,
-    refetchOnWindowFocus: false,
-    onSuccess: _leases => {
-      if (_leases) {
-        // Redirect to select bids if has no lease
-        if (deployment?.state === "active" && _leases.length === 0) {
-          router.replace(UrlService.newDeployment({ dseq, step: RouteStep.createLeases }));
-        }
+    refetchOnWindowFocus: false
+  });
+  useEffect(() => {
+    if (leases) {
+      // Redirect to select bids if has no lease
+      if (deployment?.state === "active" && leases.length === 0) {
+        router.replace(UrlService.newDeployment({ dseq, step: RouteStep.createLeases }));
+      }
 
-        // Set the array of refs for lease rows
-        // To be able to refresh lease status when refreshing deployment detail
-        if (_leases.length > 0 && _leases.length !== leaseRefs.length) {
-          setLeaseRefs(elRefs =>
-            Array(_leases.length)
-              .fill(null)
-              .map((_, i) => elRefs[i] || createRef())
-          );
-        }
+      // Set the array of refs for lease rows
+      // To be able to refresh lease status when refreshing deployment detail
+      if (leases.length > 0 && leases.length !== leaseRefs.length) {
+        setLeaseRefs(elRefs =>
+          Array(leases.length)
+            .fill(null)
+            .map((_, i) => elRefs[i] || createRef())
+        );
       }
     }
-  });
+  }, [deployment?.state, dseq, leaseRefs.length, leases, router]);
 
   const isDeploymentNotFound = deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
   const hasLeases = leases && leases.length > 0;
@@ -95,6 +81,15 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const searchParams = useSearchParams();
   const tabQuery = searchParams?.get("tab");
   const logsModeQuery = searchParams?.get("logsMode");
+
+  useEffect(() => {
+    if (deployment) {
+      getLeases();
+      getProviders();
+      const deploymentData = getDeploymentLocalData(dseq);
+      setDeploymentManifest(deploymentData?.manifest || "");
+    }
+  }, [deployment, dseq, getLeases, getProviders]);
 
   useEffect(() => {
     if (isWalletLoaded && isSettingsInit) {
