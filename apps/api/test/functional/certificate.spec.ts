@@ -47,7 +47,7 @@ describe("Certificate API", () => {
       return [
         {
           id: faker.string.uuid(),
-          userId: userWithId.userId,
+          userId: userWithId.id,
           key: apiKey,
           hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
           keyFormat: "sk",

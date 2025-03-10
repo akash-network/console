@@ -53,7 +53,7 @@ describe("Lease Flow", () => {
       return [
         {
           id: faker.string.uuid(),
-          userId: userWithId.userId,
+          userId: userWithId.id,
           key: apiKey,
           hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
           keyFormat: "sk",
@@ -68,7 +68,7 @@ describe("Lease Flow", () => {
 
     // Mock the wallet repository chain
     const findByUserIdMock = jest.fn().mockImplementation(async (id: string) => {
-      if (id === userWithId.userId) {
+      if (id === userWithId.id) {
         return [wallet];
       }
       return [];
