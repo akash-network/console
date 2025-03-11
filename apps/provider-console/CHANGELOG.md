@@ -1,5 +1,12 @@
 
 
+## [1.3.0](https://github.com/akash-network/console/compare/provider-console/v1.2.2...provider-console/v1.3.0) (2025-03-11)
+
+
+### Features
+
+* **provider:** added disconnect button for control machines ([#996](https://github.com/akash-network/console/issues/996)) ([dd1bc74](https://github.com/akash-network/console/commit/dd1bc74832ae889298ea0cfa6f7234cb935ae33c))
+
 ## [1.2.2](https://github.com/akash-network/console/compare/provider-console/v1.2.1...provider-console/v1.2.2) (2025-03-10)
 
 
