@@ -7,14 +7,15 @@ import { cn } from "@akashnetwork/ui/utils";
 import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 import { millisecondsInMinute } from "date-fns/constants";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
-import { CreditCardBanner } from "./CreditCardBanner";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
+import { CreditCardBanner, MaintenanceBanner } from "./TopBanner";
 
 type Props = {
   isLoading?: boolean;
@@ -24,6 +25,8 @@ type Props = {
   containerClassName?: string;
   children?: ReactNode;
 };
+
+const withMaintenanceBanner = browserEnvConfig.NEXT_PUBLIC_MAINTENANCE_BANNER_ENABLED;
 
 const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName }) => {
   const [locale, setLocale] = useState("en-US");
@@ -53,10 +56,12 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   const muiTheme = useMuiTheme();
   const [isNavOpen, setIsNavOpen] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useState(withMaintenanceBanner);
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
-  const hasCreditCardBanner = useHasCreditCardBanner();
+  const hasCreditCardBanner = useHasCreditCardBanner(isMaintenanceBannerOpen);
+  const hasBanner = hasCreditCardBanner || isMaintenanceBannerOpen;
 
   useEffect(() => {
     const _isNavOpen = localStorage.getItem("isNavOpen");
@@ -90,10 +95,11 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   return (
     <div className="flex h-full">
       {hasCreditCardBanner && <CreditCardBanner />}
+      {isMaintenanceBannerOpen && <MaintenanceBanner onClose={() => setIsMaintenanceBannerOpen(false)} />}
 
-      <div className="w-full flex-1" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT + (hasCreditCardBanner ? 40 : 0)}px` }}>
+      <div className="w-full flex-1" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT + (hasBanner ? 40 : 0)}px` }}>
         <div className="h-full">
-          <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} className={{ "top-[40px]": hasCreditCardBanner }} />
+          <Nav isMobileOpen={isMobileOpen} handleDrawerToggle={handleDrawerToggle} className={{ "top-[40px]": hasBanner }} />
 
           <div className="block h-full w-full flex-grow rounded-none md:flex">
             <Sidebar
@@ -101,7 +107,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
               isNavOpen={isNavOpen}
               handleDrawerToggle={handleDrawerToggle}
               isMobileOpen={isMobileOpen}
-              mdDrawerClassName={{ ["h-[calc(100%-40px)] mt-[97px]"]: hasCreditCardBanner }}
+              mdDrawerClassName={{ ["h-[calc(100%-40px)] mt-[97px]"]: hasBanner }}
             />
 
             <div
