@@ -20,6 +20,7 @@ type ContextType = {
   setControlMachine: (controlMachine: ControlMachineWithAddress) => void;
   openControlMachineDrawer: () => void;
   controlMachineLoading: boolean;
+  disconnectControlMachine: () => void;
 };
 
 const ControlMachineContext = React.createContext<ContextType>({} as ContextType);
@@ -84,8 +85,23 @@ export function ControlMachineProvider({ children }: Props) {
     setControlMachineDrawerOpen(true);
   }
 
+  function disconnectControlMachine() {
+    if (activeControlMachine && address) {
+      setControlMachines(prev => prev.filter(machine => machine.address !== address));
+    }
+    setActiveControlMachine(null);
+  }
+
   return (
-    <ControlMachineContext.Provider value={{ activeControlMachine, setControlMachine, openControlMachineDrawer, controlMachineLoading }}>
+    <ControlMachineContext.Provider
+      value={{
+        activeControlMachine,
+        setControlMachine,
+        openControlMachineDrawer,
+        controlMachineLoading,
+        disconnectControlMachine
+      }}
+    >
       <>
         {children}
         <Drawer open={controlMachineDrawerOpen} onOpenChange={setControlMachineDrawerOpen}>
