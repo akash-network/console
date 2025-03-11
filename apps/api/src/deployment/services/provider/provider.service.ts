@@ -1,4 +1,4 @@
-import { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import { ProviderHttpService } from "@akashnetwork/http-sdk";
 import { SupportedChainNetworks } from "@akashnetwork/net";
 import { singleton } from "tsyringe";
 
@@ -13,22 +13,23 @@ export class ProviderService {
 
   constructor(
     private readonly providerProxy: ProviderProxyService,
+    private readonly providerHttpService: ProviderHttpService,
     @InjectBillingConfig() private readonly config: BillingConfig
   ) {
     this.chainNetwork = this.config.NETWORK as SupportedChainNetworks;
   }
 
-  async sendManifest(provider: string, dseq: string, gseq: number, oseq: number, manifest: string, options: { certPem: string; keyPem: string }) {
+  async sendManifest(provider: string, dseq: string, manifest: string, options: { certPem: string; keyPem: string }) {
     const jsonStr = manifest.replace(/"quantity":{"val/g, '"size":{"val').replace(/\\/g, "");
 
-    const dbProvider = await Provider.findByPk(provider);
-    if (!dbProvider) {
+    const providerResponse = await this.providerHttpService.getProvider(provider);
+    if (!providerResponse) {
       throw new Error(`Provider ${provider} not found`);
     }
 
     const providerIdentity: ProviderIdentity = {
       owner: provider,
-      hostUri: dbProvider.hostUri
+      hostUri: providerResponse.provider.host_uri
     };
 
     // Send manifest

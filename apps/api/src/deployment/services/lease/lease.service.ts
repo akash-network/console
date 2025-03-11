@@ -1,8 +1,7 @@
 import { singleton } from "tsyringe";
 
-import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput } from "@src/billing/repositories";
-import { ManagedSignerService, RpcMessageService, Wallet } from "@src/billing/services";
+import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderService } from "@src/deployment/services/provider/provider.service";
@@ -12,7 +11,6 @@ import { DeploymentService } from "../deployment/deployment.service";
 export class LeaseService {
   constructor(
     private readonly signerService: ManagedSignerService,
-    @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
     private readonly rpcMessageService: RpcMessageService,
     private readonly providerService: ProviderService,
     private readonly deploymentService: DeploymentService
@@ -32,7 +30,7 @@ export class LeaseService {
     await this.signerService.executeDecodedTxByUserId(wallet.userId, leaseMessages);
 
     for (const lease of input.leases) {
-      await this.providerService.sendManifest(lease.provider, lease.dseq, lease.gseq, lease.oseq, input.manifest, {
+      await this.providerService.sendManifest(lease.provider, lease.dseq, input.manifest, {
         certPem: input.certificate.certPem,
         keyPem: input.certificate.keyPem
       });

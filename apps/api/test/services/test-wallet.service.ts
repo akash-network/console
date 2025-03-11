@@ -142,7 +142,7 @@ export class TestWalletService {
   }
 
   private getFileName(path: string) {
-    return path.split("/").pop();
+    return path.split(/[/\\]/).pop();
   }
 
   private log(message: string) {
