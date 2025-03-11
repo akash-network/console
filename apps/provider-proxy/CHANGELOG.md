@@ -1,5 +1,12 @@
 
 
+## [1.4.4](https://github.com/akash-network/console/compare/provider-proxy/v1.4.3...provider-proxy/v1.4.4) (2025-03-11)
+
+
+### Code Refactoring
+
+* enables strict types on provider-proxy ([#981](https://github.com/akash-network/console/issues/981)) ([ac39c74](https://github.com/akash-network/console/commit/ac39c74929c72b5f6689bc758e79fb452e6af8e5))
+
 ## [1.4.3](https://github.com/akash-network/console/compare/provider-proxy/v1.4.2...provider-proxy/v1.4.3) (2025-02-11)
 
 
