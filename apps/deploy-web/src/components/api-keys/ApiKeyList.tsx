@@ -56,7 +56,7 @@ export function ApiKeyList({ apiKeys, onDeleteApiKey, onDeleteClose, isDeleting,
         </Popup>
       )}
 
-      <div className="container mx-auto py-6">
+      <div className="py-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">API Keys</h1>
