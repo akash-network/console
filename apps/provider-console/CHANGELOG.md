@@ -1,5 +1,12 @@
 
 
+## [1.3.1](https://github.com/akash-network/console/compare/provider-console/v1.3.0...provider-console/v1.3.1) (2025-03-11)
+
+
+### Bug Fixes
+
+* **provider:** updated provider pricing decimals before sending ([#998](https://github.com/akash-network/console/issues/998)) ([22d25f7](https://github.com/akash-network/console/commit/22d25f7f660a7d256a13012ad582772892f4219e))
+
 ## [1.3.0](https://github.com/akash-network/console/compare/provider-console/v1.2.2...provider-console/v1.3.0) (2025-03-11)
 
 
