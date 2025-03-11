@@ -16,16 +16,12 @@ const config = path => {
     files.push(path);
   }
 };
-config("env/.env.local");
-config("env/.env");
 
-const deploymentEnv = process.env.DEPLOYMENT_ENV;
-
-if (deploymentEnv && deploymentEnv !== "local") {
-  config(`env/.env.${deploymentEnv}`);
+if (!process.env.DEPLOYMENT_ENV) {
+  config("../../.env.local");
 }
-
-const network = process.env.NETWORK;
-config(`env/.env.${network}`);
+config(`env/.env.${process.env.DEPLOYMENT_ENV}`);
+config(`env/.env.${process.env.NETWORK}`);
+config("env/.env");
 
 logger.info(`Loaded env files: ${files.join(", ")}`);
