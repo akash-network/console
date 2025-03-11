@@ -156,8 +156,6 @@ describe("Lease Flow", () => {
       ]
     };
 
-    console.log("DEBUG: body", JSON.stringify(body, null, 2));
-
     // 5. Create lease and send manifest
     const leaseResponse = await app.request("/v1/leases", {
       method: "POST",
