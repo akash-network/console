@@ -1,5 +1,12 @@
 
 
+## [2.55.0](https://github.com/akash-network/console/compare/console-web/v2.54.0...console-web/v2.55.0) (2025-03-11)
+
+
+### Features
+
+* **deployment:** re-add banner vars ([#992](https://github.com/akash-network/console/issues/992)) ([8575352](https://github.com/akash-network/console/commit/85753529636e238323f542db1c068304b60406de))
+
 ## [2.54.0](https://github.com/akash-network/console/compare/console-web/v2.53.4...console-web/v2.54.0) (2025-03-11)
 
 
