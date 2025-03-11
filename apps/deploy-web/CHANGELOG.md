@@ -1,5 +1,17 @@
 
 
+## [2.54.0](https://github.com/akash-network/console/compare/console-web/v2.53.4...console-web/v2.54.0) (2025-03-11)
+
+
+### Features
+
+* **deployment:** add maintenant banner component ([#991](https://github.com/akash-network/console/issues/991)) ([d939e25](https://github.com/akash-network/console/commit/d939e25a9d03ad3876e6fdef624105a70a60c45d))
+
+
+### Code Refactoring
+
+* moves ProviderRawData and its unit tests under a single folder ([#978](https://github.com/akash-network/console/issues/978)) ([962fe7e](https://github.com/akash-network/console/commit/962fe7ea106ce9f62bb772358508d94cacb6fd38))
+
 ## [2.53.4](https://github.com/akash-network/console/compare/console-web/v2.53.3...console-web/v2.53.4) (2025-03-10)
 
 
