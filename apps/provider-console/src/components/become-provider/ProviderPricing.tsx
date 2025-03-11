@@ -230,7 +230,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
     defaultValues:
       editMode && existingPricing
         ? {
-            gpu: Number((existingPricing.gpu / HOURS_PER_MONTH).toFixed(3)),
+            gpu: Number((existingPricing.gpu / HOURS_PER_MONTH).toFixed(4)),
             cpu: Number((existingPricing.cpu / HOURS_PER_MONTH).toFixed(4)),
             memory: Number((existingPricing.memory / HOURS_PER_MONTH).toFixed(4)),
             storage: Number((existingPricing.storage / HOURS_PER_MONTH).toFixed(6)),
@@ -252,7 +252,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
   useEffect(() => {
     if (editMode && existingPricing) {
       const hourlyPricing = {
-        gpu: Number((existingPricing.gpu / HOURS_PER_MONTH).toFixed(3)),
+        gpu: Number((existingPricing.gpu / HOURS_PER_MONTH).toFixed(4)),
         cpu: Number((existingPricing.cpu / HOURS_PER_MONTH).toFixed(4)),
         memory: Number((existingPricing.memory / HOURS_PER_MONTH).toFixed(4)),
         storage: Number((existingPricing.storage / HOURS_PER_MONTH).toFixed(6)),
@@ -266,7 +266,7 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
 
   useEffect(() => {
     if (!editMode && gpuMarketPrice !== null) {
-      form.setValue("gpu", Number(gpuMarketPrice.toFixed(3)));
+      form.setValue("gpu", Number(gpuMarketPrice.toFixed(4)));
     }
   }, [gpuMarketPrice, editMode, form]);
 
@@ -339,13 +339,13 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
     setIsLoading(true);
     // Convert hourly prices to monthly prices
     const monthlyPricing = {
-      gpu: data.gpu * HOURS_PER_MONTH,
-      cpu: data.cpu * HOURS_PER_MONTH,
-      memory: data.memory * HOURS_PER_MONTH,
-      storage: data.storage * HOURS_PER_MONTH,
-      persistentStorage: data.persistentStorage * HOURS_PER_MONTH,
-      ipScalePrice: data.ipScalePrice * HOURS_PER_MONTH,
-      endpointBidPrice: data.endpointBidPrice * HOURS_PER_MONTH
+      gpu: Number((data.gpu * HOURS_PER_MONTH).toFixed(4)),
+      cpu: Number((data.cpu * HOURS_PER_MONTH).toFixed(4)),
+      memory: Number((data.memory * HOURS_PER_MONTH).toFixed(4)),
+      storage: Number((data.storage * HOURS_PER_MONTH).toFixed(4)),
+      persistentStorage: Number((data.persistentStorage * HOURS_PER_MONTH).toFixed(4)),
+      ipScalePrice: Number((data.ipScalePrice * HOURS_PER_MONTH).toFixed(4)),
+      endpointBidPrice: Number((data.endpointBidPrice * HOURS_PER_MONTH).toFixed(4))
     };
 
     if (!editMode) {
