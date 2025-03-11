@@ -32,7 +32,10 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_GITHUB_CLIENT_ID: z.string().optional(),
   NEXT_PUBLIC_CI_CD_IMAGE_NAME: z.string(),
   NEXT_PUBLIC_TURNSTILE_ENABLED: coercedBoolean(),
-  NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string()
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string(),
+  NEXT_PUBLIC_MAINTENANCE_BANNER_ENABLED: coercedBoolean().optional().default("false"),
+  NEXT_PUBLIC_MAINTENANCE_BANNER_MESSAGE: z.string().optional(),
+  NEXT_PUBLIC_MAINTENANCE_BANNER_MESSAGE_DATE: z.string().optional()
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({
