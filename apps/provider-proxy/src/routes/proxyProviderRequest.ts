@@ -91,12 +91,12 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
     const value = proxyResult.response.headers[header];
     if (Array.isArray(value)) {
       value.forEach(v => headers.set(header, v));
-    } else {
+    } else if (value) {
       headers.set(header, value);
     }
   });
 
-  return new Response(Readable.toWeb(proxyResult.response), {
+  return new Response(Readable.toWeb(proxyResult.response) as BodyInit, {
     status: proxyResult.response.statusCode,
     statusText: proxyResult.response.statusMessage,
     headers

@@ -7,7 +7,7 @@ import { LRUCache } from "lru-cache";
 import { ProviderService } from "./ProviderService";
 
 export class CertificateValidator {
-  private readonly knownCertificatesCache = new LRUCache<string, X509Certificate | null>({
+  private readonly knownCertificatesCache = new LRUCache<string, X509Certificate>({
     max: 100_000,
     ttl: 30 * 60 * 1000
   });
@@ -48,13 +48,13 @@ export class CertificateValidator {
     const key = `${network}.${providerAddress}.${cert.serialNumber}`;
 
     if (this.knownCertificatesCache.has(key)) {
-      return this.knownCertificatesCache.get(key);
+      return this.knownCertificatesCache.get(key)!;
     }
 
     try {
       this.inflightCertificates[key] ??= this.providerService.getCertificate(network, providerAddress, cert.serialNumber);
       const certificate = await this.inflightCertificates[key];
-      this.knownCertificatesCache.set(key, certificate);
+      if (certificate) this.knownCertificatesCache.set(key, certificate);
 
       return certificate;
     } finally {

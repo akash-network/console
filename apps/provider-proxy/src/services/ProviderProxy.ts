@@ -99,7 +99,7 @@ export class ProviderProxy {
       return agent;
     }
 
-    return this.agentsCache.get(key);
+    return this.agentsCache.get(key)!;
   }
 }
 
