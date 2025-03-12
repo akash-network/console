@@ -48,7 +48,7 @@ export class SdlService {
     try {
       SDL.fromString(yamlJson, "beta3");
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import dotenvExpand from "dotenv-expand";
 import * as fs from "fs";
 import path from "path";
+import { sep as FOLDER_SEP } from "path";
 import { setTimeout as delay } from "timers/promises";
 
 import { Wallet } from "../../src/billing/lib/wallet/wallet";
@@ -142,7 +143,7 @@ export class TestWalletService {
   }
 
   private getFileName(path: string) {
-    return path.split(/[/\\]/).pop();
+    return path.split(FOLDER_SEP).pop();
   }
 
   private log(message: string) {

@@ -1,12 +1,28 @@
+/**
+ * This script demonstrates how to create a deployment with a lease using the API and an API key.
+ *
+ * The script follows these steps:
+ * 1. Creates a certificate for secure communication
+ * 2. Creates a deployment using the provided SDL file
+ * 3. Waits for and collects bids from providers
+ * 4. Creates a lease using the first received bid
+ * 5. Closes the deployment when finished
+ *
+ * Requirements:
+ * - API_KEY environment variable must be set
+ * - .env.local file in the script directory (optional)
+ * - SDL file at ../test/mocks/hello-world-sdl.yml
+ */
+
+import { config } from "@dotenvx/dotenvx";
 import axios from "axios";
-import * as dotenv from "dotenv";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
 // Load environment variables from .env.local in the script directory
 const envPath = path.resolve(__dirname, ".env.local");
 if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
+  config({ path: envPath });
 } else {
   console.warn(".env.local file not found in script directory, using existing environment variables");
 }

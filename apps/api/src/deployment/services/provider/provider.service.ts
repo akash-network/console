@@ -1,5 +1,6 @@
 import { ProviderHttpService } from "@akashnetwork/http-sdk";
 import { SupportedChainNetworks } from "@akashnetwork/net";
+import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
@@ -54,7 +55,7 @@ export class ProviderService {
         if (result) return result;
       } catch (err) {
         if (err.message?.includes("no lease for deployment") && i < this.MANIFEST_SEND_MAX_RETRIES) {
-          await new Promise(resolve => setTimeout(resolve, this.MANIFEST_SEND_RETRY_DELAY));
+          await delay(this.MANIFEST_SEND_RETRY_DELAY);
           continue;
         }
         throw new Error(err?.response?.data || err);
