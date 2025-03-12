@@ -265,7 +265,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
           {services.map(service => {
             return (
               <Alert key={service.title} className="mb-1">
-                <div className="mb-2 text-sm">
+                <div className="mb-2 break-all text-sm">
                   <span className="font-bold">{service.title}</span>:{service.image}
                 </div>
                 <div className="flex items-center space-x-4 whitespace-nowrap">
