@@ -29,16 +29,14 @@ export const defaultService: ServiceType = {
     hasGpu: false,
     ram: 512,
     ramUnit: "Mi",
-    storage: 1,
-    storageUnit: "Gi",
-    hasPersistentStorage: false,
-    persistentStorage: 10,
-    persistentStorageUnit: "Gi",
-    persistentStorageParam: {
-      name: "data",
-      type: "beta2",
-      mount: ""
-    }
+    storage: [
+      {
+        size: 1,
+        unit: "Gi",
+        isPersistent: false,
+        type: "beta2"
+      }
+    ]
   },
   expose: [
     {
@@ -77,6 +75,16 @@ export const defaultService: ServiceType = {
   count: 1
 };
 
+export const defaultMountedStorage = {
+  size: 10,
+  unit: "Gi",
+  isPersistent: true,
+  type: "beta2",
+  name: "data",
+  mount: "",
+  isReadOnly: false
+};
+
 export const SSH_VM_IMAGES = {
   "Ubuntu 24.04": "ghcr.io/akash-network/ubuntu-2404-ssh:2",
   "CentOS Stream 9": "ghcr.io/akash-network/centos-stream9-ssh:2",
@@ -109,16 +117,13 @@ export const defaultRentGpuService: ServiceType = {
     hasGpu: true,
     ram: 512,
     ramUnit: "Mi",
-    storage: 1,
-    storageUnit: "Gi",
-    hasPersistentStorage: false,
-    persistentStorage: 10,
-    persistentStorageUnit: "Gi",
-    persistentStorageParam: {
-      name: "data",
-      type: "beta2",
-      mount: ""
-    }
+    storage: [
+      {
+        size: 1,
+        unit: "Gi",
+        isPersistent: false
+      }
+    ]
   },
   expose: [
     {
