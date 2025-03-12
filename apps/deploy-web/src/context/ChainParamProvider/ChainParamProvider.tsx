@@ -20,7 +20,7 @@ type ContextType = {
 
 const ChainParamContext = React.createContext<ContextType>({} as ContextType);
 
-export const ChainParamProvider = ({ children }) => {
+export const ChainParamProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isSettingsInit } = useSettings();
   const { data: depositParams, refetch: getDepositParams } = useDepositParams({ enabled: false });
   const usdcDenom = useUsdcDenom();

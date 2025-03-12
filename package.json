@@ -51,6 +51,9 @@
     ],
     "./packages/database/**/*.ts": [
       "npm run validate:types -w packages/database"
+    ],
+    "./apps/deploy-web/src/utils/**/*.ts": [
+      "npm run validate:types-strict -w apps/deploy-web"
     ]
   },
   "dependencies": {

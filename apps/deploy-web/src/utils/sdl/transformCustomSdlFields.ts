@@ -84,7 +84,7 @@ function ensureServiceCount(input: ServiceType) {
 }
 
 function mapImage(input: ServiceType) {
-  const image = SSH_VM_IMAGES[input.image];
+  const image = SSH_VM_IMAGES[input.image as keyof typeof SSH_VM_IMAGES];
 
   if (!image) {
     return input;

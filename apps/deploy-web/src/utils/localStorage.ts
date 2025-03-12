@@ -5,7 +5,7 @@ import { gt, neq } from "semver";
 
 const { publicRuntimeConfig } = getConfig();
 
-const migrations = {
+const migrations: Record<string, () => void> = {
   "0.14.0": () => {}
 };
 

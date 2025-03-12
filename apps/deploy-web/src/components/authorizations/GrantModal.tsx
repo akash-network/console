@@ -71,7 +71,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
   const denom = token === "akt" ? UAKT_DENOM : usdcDenom;
   const denomData = useDenomData(denom);
 
-  const onDepositClick = event => {
+  const onDepositClick = (event: React.MouseEvent) => {
     event.preventDefault();
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };

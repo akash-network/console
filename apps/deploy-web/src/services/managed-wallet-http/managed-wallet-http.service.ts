@@ -1,4 +1,4 @@
-import { ApiWalletOutput, ManagedWalletHttpService as ManagedWalletHttpServiceOriginal } from "@akashnetwork/http-sdk";
+import { ApiManagedWalletOutput, ApiWalletOutput, ManagedWalletHttpService as ManagedWalletHttpServiceOriginal } from "@akashnetwork/http-sdk";
 import { AxiosRequestConfig } from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -31,7 +31,7 @@ class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
     }
   }
 
-  async getWallet(userId: string) {
+  async getWallet(userId: string): Promise<ApiManagedWalletOutput> {
     const [wallet] = this.extractApiData(await this.get<ApiWalletOutput[]>("v1/wallets", { params: this.getWalletListParams(userId) }));
 
     this.clearSessionResults();

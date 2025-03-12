@@ -83,7 +83,7 @@ export const CreateApiKeyModal = ({ isOpen, onClose }: Props) => {
     enqueueSnackbar(<Snackbar title="Copied to clipboard!" iconVariant="success" />, { variant: "success", autoHideDuration: 1500 });
   };
 
-  const createApiKeyTracked = async ({ name }) => {
+  const createApiKeyTracked = async ({ name }: { name: string }) => {
     analyticsService.track("create_api_key", {
       category: "settings",
       label: "Create API key"

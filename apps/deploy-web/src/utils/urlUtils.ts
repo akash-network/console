@@ -96,7 +96,7 @@ export function removeEmptyFilters(obj: { [key: string]: string }) {
   return copy;
 }
 
-export function handleDocClick(ev, url) {
+export function handleDocClick(ev: React.MouseEvent<any>, url: string): void {
   ev.preventDefault();
 
   window.open(url, "_blank");

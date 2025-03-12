@@ -1,5 +1,5 @@
 export const Timer = (ms: number) => {
-  let id;
+  let id: ReturnType<typeof setTimeout> | number;
 
   const start = () =>
     new Promise(resolve => {
