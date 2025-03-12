@@ -1,7 +1,7 @@
 import yaml from "js-yaml";
 import { nanoid } from "nanoid";
 
-import { ExposeType, ProfileGpuModelType,ServiceType } from "@src/types";
+import { ExposeType, ProfileGpuModelType, ServiceType } from "@src/types";
 import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
@@ -20,15 +20,11 @@ export const importSimpleSdl = (yamlStr: string) => {
         title: svcName,
         image: svc.image,
         hasCredentials: !!svc.credentials,
-        credentials: svc.credentials,
+        credentials: svc.credentials
       };
 
       const compute = yamlJson.profiles.compute[svcName];
       const storages = compute.resources.storage.map ? compute.resources.storage : [compute.resources.storage];
-      const persistentStorage = storages.find(s => s.attributes?.persistent === true);
-      const hasPersistentStorage = !!persistentStorage;
-      const ephStorage = storages.find(s => !s.attributes);
-      const persistentStorageName = hasPersistentStorage ? persistentStorage.name : "data";
 
       // TODO validation
       // Service compute profile
@@ -39,17 +35,17 @@ export const importSimpleSdl = (yamlStr: string) => {
         hasGpu: !!compute.resources.gpu,
         ram: getResourceDigit(compute.resources.memory.size),
         ramUnit: getResourceUnit(compute.resources.memory.size),
-        storage: getResourceDigit(ephStorage?.size || "1Gi"),
-        storageUnit: getResourceUnit(ephStorage?.size || "1Gi"),
-        hasPersistentStorage,
-        persistentStorage: hasPersistentStorage ? getResourceDigit(persistentStorage?.size) : 10,
-        persistentStorageUnit: hasPersistentStorage ? getResourceUnit(persistentStorage?.size) : "Gi",
-        persistentStorageParam: {
-          name: persistentStorageName,
-          type: hasPersistentStorage ? persistentStorage?.attributes?.class : "beta2",
-          mount: hasPersistentStorage ? svc.params?.storage[persistentStorageName]?.mount : "",
-          readOnly: hasPersistentStorage ? svc.params?.storage[persistentStorageName]?.readOnly : false
-        }
+        storage: storages.map(storage => {
+          return {
+            size: getResourceDigit(storage.size || "1Gi"),
+            unit: getResourceUnit(storage.size || "1Gi"),
+            isPersistent: storage.attributes?.persistent || false,
+            type: storage.attributes?.class || "beta2",
+            name: storage.name,
+            mount: svc.params?.storage[storage.name]?.mount || "",
+            isReadOnly: svc.params?.storage[storage.name]?.readOnly || false
+          };
+        })
       };
 
       // Command
