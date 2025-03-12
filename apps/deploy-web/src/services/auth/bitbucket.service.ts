@@ -36,7 +36,7 @@ class BitbucketAuth {
         accessToken: access_token,
         refreshToken: refresh_token
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(error);
     }
   }
@@ -58,7 +58,7 @@ class BitbucketAuth {
         accessToken: access_token,
         refreshToken: refresh_token
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(error);
     }
   }
