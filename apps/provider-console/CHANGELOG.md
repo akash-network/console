@@ -1,5 +1,12 @@
 
 
+## [1.4.0](https://github.com/akash-network/console/compare/provider-console/v1.3.1...provider-console/v1.4.0) (2025-03-12)
+
+
+### Features
+
+* **provider:** added node upgrade button in settings ([#1007](https://github.com/akash-network/console/issues/1007)) ([98fa7fb](https://github.com/akash-network/console/commit/98fa7fb87a2f36ff4cc7846c01f99f5be5ed04e3))
+
 ## [1.3.1](https://github.com/akash-network/console/compare/provider-console/v1.3.0...provider-console/v1.3.1) (2025-03-11)
 
 
