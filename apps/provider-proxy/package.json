@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/provider-proxy",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "Proxy that allows communication between the Web UI and providers",
   "license": "Apache-2.0",
   "author": "Akash Network",
