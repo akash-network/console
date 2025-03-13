@@ -29,7 +29,7 @@ export function useGranteeGrants(address?: string, options: { enabled?: boolean;
 
   // TODO: ensure app is not loaded till settings are fetched
   //   Issue: https://github.com/akash-network/console/issues/600
-  options.enabled = !!options.enabled && !!address && !!settings.apiEndpoint;
+  options.enabled = !!address && !!settings.apiEndpoint;
 
   return useQuery(
     QueryKeys.getGranteeGrants(address || "UNDEFINED"),
