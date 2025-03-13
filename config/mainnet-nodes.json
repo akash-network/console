@@ -1,8 +1,8 @@
 [
   {
     "id": "akashnet.net",
-    "api": "https://api.akashnet.net:443",
-    "rpc": "https://rpc.akashnet.net:443"
+    "api": "https://consoleapi.akashnet.net:443",
+    "rpc": "https://consolerpc.akashnet.net:443"
   },
   {
     "id": "polkachu.com",
