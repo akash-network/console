@@ -1,5 +1,18 @@
 
 
+## [2.57.0](https://github.com/akash-network/console/compare/console-web/v2.56.0...console-web/v2.57.0) (2025-03-13)
+
+
+### Features
+
+* **analytics:** adds more user onboarding events ([4e87ad4](https://github.com/akash-network/console/commit/4e87ad445d6e233dc1986e757b850082f65c172d))
+
+
+### Code Refactoring
+
+* refactors part of deploy-web to strict typescript types ([#1003](https://github.com/akash-network/console/issues/1003)) ([6ac6bb2](https://github.com/akash-network/console/commit/6ac6bb2ba919c933b923d40c56ea26f9788caed7))
+* refactors services in console-web to strict types ([#1004](https://github.com/akash-network/console/issues/1004)) ([fd85685](https://github.com/akash-network/console/commit/fd85685858b64ead49a946955fe8da48ea9cc49b))
+
 ## [2.56.0](https://github.com/akash-network/console/compare/console-web/v2.55.0...console-web/v2.56.0) (2025-03-13)
 
 
