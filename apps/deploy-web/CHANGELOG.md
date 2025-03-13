@@ -1,5 +1,13 @@
 
 
+## [2.56.0](https://github.com/akash-network/console/compare/console-web/v2.55.0...console-web/v2.56.0) (2025-03-13)
+
+
+### Features
+
+* **analytics:** add pixels scripts ([#1005](https://github.com/akash-network/console/issues/1005)) ([010210b](https://github.com/akash-network/console/commit/010210b957f9cc53d867f26b635a6a0993bf5da6))
+* **deployment:** remove maintenance banner ([#1006](https://github.com/akash-network/console/issues/1006)) ([705952e](https://github.com/akash-network/console/commit/705952e5d5f29429e98399878b32b24f557b618e))
+
 ## [2.55.0](https://github.com/akash-network/console/compare/console-web/v2.54.0...console-web/v2.55.0) (2025-03-11)
 
 
