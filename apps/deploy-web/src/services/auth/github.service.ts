@@ -25,7 +25,7 @@ class GitHubAuth {
       const params = new URLSearchParams(response.data);
       const accessToken = params.get("access_token");
       return accessToken as string;
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(error);
     }
   }

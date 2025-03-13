@@ -6,6 +6,7 @@
   "license": "Apache-2.0",
   "author": "",
   "main": "src/index.js",
+  "types": "index.d.ts",
   "bin": {
     "detect-env-files": "src/detect-files-stdout.js"
   },

@@ -15,7 +15,7 @@ type ContextType = {
 
 const LocalNoteProviderContext = React.createContext<ContextType>({} as ContextType);
 
-export const LocalNoteProvider = ({ children }) => {
+export const LocalNoteProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [dseq, setDseq] = useState<number | string | null>(null);
   const [favoriteProviders, setFavoriteProviders] = useState<string[]>([]);
 
@@ -31,14 +31,9 @@ export const LocalNoteProvider = ({ children }) => {
     setFavoriteProviders(newFavorites);
   };
 
-  const getDeploymentName = (dseq: string | number) => {
+  const getDeploymentName = (dseq: string | number | null) => {
     const localData = getDeploymentLocalData(dseq);
-
-    if (localData) {
-      return localData.name;
-    }
-
-    return null;
+    return localData?.name ?? null;
   };
 
   const getDeploymentData = (dseq: string | number) => {

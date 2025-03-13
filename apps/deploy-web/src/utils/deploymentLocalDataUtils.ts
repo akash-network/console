@@ -8,7 +8,8 @@ export type LocalDeploymentData = {
   manifestVersion?: Uint8Array;
 };
 
-export function getDeploymentLocalData(dseq: string | number): LocalDeploymentData | null {
+export function getDeploymentLocalData(dseq: string | number | null): LocalDeploymentData | null {
+  if (!dseq) return null;
   const selectedWallet = getSelectedStorageWallet();
 
   if (!selectedWallet) return null;

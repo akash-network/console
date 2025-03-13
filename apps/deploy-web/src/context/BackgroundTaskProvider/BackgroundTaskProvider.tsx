@@ -30,7 +30,7 @@ type ContextType = {
 
 const BackgroundTaskContext = React.createContext<ContextType>({} as ContextType);
 
-export const BackgroundTaskProvider = ({ children }) => {
+export const BackgroundTaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { localCert } = useCertificate();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const chainNetwork = networkStore.useSelectedNetworkId();
