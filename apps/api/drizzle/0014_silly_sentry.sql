@@ -1,0 +1,1 @@
+ALTER TABLE "api_keys" DROP CONSTRAINT "api_keys_key_format_unique";

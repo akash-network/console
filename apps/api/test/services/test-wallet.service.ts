@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import dotenvExpand from "dotenv-expand";
 import * as fs from "fs";
 import path from "path";
+import { sep as FOLDER_SEP } from "path";
 import { setTimeout as delay } from "timers/promises";
 
 import { Wallet } from "../../src/billing/lib/wallet/wallet";
@@ -12,7 +13,8 @@ import { Wallet } from "../../src/billing/lib/wallet/wallet";
 const { parsed: config } = dotenvExpand.expand(dotenv.config({ path: "env/.env.functional.test" }));
 
 const MIN_AMOUNTS: Record<string, number> = {
-  "create-deployment.spec.ts": 5100000
+  "create-deployment.spec.ts": 5100000,
+  "lease-flow.spec.ts": 5100000
 };
 
 export class TestWalletService {
@@ -141,7 +143,7 @@ export class TestWalletService {
   }
 
   private getFileName(path: string) {
-    return path.split("/").pop();
+    return path.split(FOLDER_SEP).pop();
   }
 
   private log(message: string) {

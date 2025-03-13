@@ -17,6 +17,7 @@
     "console": "npm run build:console && node dist/console.js",
     "dev": "npm run start",
     "dev-nodc": "npm run start",
+    "examples:lease-flow": "ts-node examples/lease-flow.ts",
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
     "migration:gen": "drizzle-kit generate",

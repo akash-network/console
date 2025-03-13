@@ -1,3 +1,4 @@
+import { compare } from "bcryptjs";
 import isAfter from "date-fns/isAfter";
 import parseISO from "date-fns/parseISO";
 import assert from "http-assert";
@@ -19,14 +20,20 @@ export class ApiKeyAuthService {
     private readonly config: CoreConfigService
   ) {}
 
+  private async findMatchingKey(apiKey: string, apiKeys: ApiKeyOutput[]): Promise<ApiKeyOutput | undefined> {
+    const comparisons = await Promise.all(apiKeys.map(k => compare(apiKey, k.hashedKey)));
+    return apiKeys[comparisons.findIndex(result => result)];
+  }
+
   async getAndValidateApiKeyFromHeader(apiKey: string | undefined): Promise<ApiKeyOutput> {
     assert(apiKey, 401, "Invalid API key");
 
     const [prefix, type, env] = apiKey.split(".");
     assert(prefix === this.API_KEY_PREFIX && type === this.API_KEY_TYPE && env === this.DEPLOYMENT_ENV, 401, "Invalid API key format");
 
-    const obfuscatedKey = this.apiKeyGenerator.obfuscateApiKey(apiKey);
-    const key = await this.apiKeyRepository.findOneBy({ keyFormat: obfuscatedKey });
+    const apiKeys = await this.apiKeyRepository.find();
+    const key = await this.findMatchingKey(apiKey, apiKeys);
+
     assert(key && (await this.apiKeyGenerator.validateApiKey(apiKey, key.hashedKey)), 401, "API key not found");
 
     if (key.expiresAt) {
