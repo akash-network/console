@@ -161,16 +161,31 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <CustomDropdownLinkItem onClick={() => onChangeName()} icon={<Edit fontSize="small" />}>
+                <CustomDropdownLinkItem
+                  onClick={() => {
+                    onChangeName();
+                    analyticsService.track("edit_name_btn_clk", "Amplitude");
+                  }}
+                  icon={<Edit fontSize="small" />}
+                >
                   Edit Name
                 </CustomDropdownLinkItem>
                 {storageDeploymentData?.manifest && (
-                  <CustomDropdownLinkItem onClick={() => redeploy()} icon={<Upload fontSize="small" />}>
+                  <CustomDropdownLinkItem
+                    onClick={() => {
+                      redeploy();
+                      analyticsService.track("redeploy_btn_clk", "Amplitude");
+                    }}
+                    icon={<Upload fontSize="small" />}
+                  >
                     Redeploy
                   </CustomDropdownLinkItem>
                 )}
                 <CustomDropdownLinkItem
-                  onClick={() => onCloseDeployment()}
+                  onClick={() => {
+                    onCloseDeployment();
+                    analyticsService.track("close_deployment_btn_clk", "Amplitude");
+                  }}
                   icon={<XmarkSquare fontSize="small" />}
                   data-testid="deployment-detail-close-button"
                 >
@@ -178,7 +193,15 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
                 </CustomDropdownLinkItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="default" className="ml-2 whitespace-nowrap" onClick={() => setIsDepositingDeployment(true)} size="sm">
+            <Button
+              variant="default"
+              className="ml-2 whitespace-nowrap"
+              onClick={() => {
+                setIsDepositingDeployment(true);
+                analyticsService.track("deposit_deployment_btn_clk", "Amplitude");
+              }}
+              size="sm"
+            >
               Add funds
             </Button>
 
@@ -211,13 +234,31 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
 
         {deployment?.state === "closed" && (
           <div className="flex items-center space-x-2">
-            <Button onClick={() => onChangeName()} variant="default" className="whitespace-nowrap" color="secondary" size="sm">
+            <Button
+              onClick={() => {
+                onChangeName();
+                analyticsService.track("edit_name_btn_clk", "Amplitude");
+              }}
+              variant="default"
+              className="whitespace-nowrap"
+              color="secondary"
+              size="sm"
+            >
               <Edit fontSize="small" />
               &nbsp;Edit Name
             </Button>
 
             {storageDeploymentData?.manifest && (
-              <Button onClick={() => redeploy()} variant="default" className="whitespace-nowrap" color="secondary" size="sm">
+              <Button
+                onClick={() => {
+                  redeploy();
+                  analyticsService.track("redeploy_btn_clk", "Amplitude");
+                }}
+                variant="default"
+                className="whitespace-nowrap"
+                color="secondary"
+                size="sm"
+              >
                 <Upload fontSize="small" />
                 &nbsp;Redeploy
               </Button>

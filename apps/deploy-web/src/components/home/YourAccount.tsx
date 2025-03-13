@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 
 import { TopUpAmountPicker } from "@src/components/top-up-amount-picker/TopUpAmountPicker";
-import { VerifiedLoginRequiredLink } from "@src/components/user/VerifiedLoginRequiredLink";
+import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { usePricing } from "@src/context/PricingProvider";
@@ -232,10 +232,10 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
               {isManagedWallet && (
                 <>
                   <TopUpAmountPicker className="mt-4 inline-flex flex-col" mdMode="hover">
-                    <VerifiedLoginRequiredLink className={cn(buttonVariants({ variant: "default" }))} href="/api/proxy/v1/checkout">
+                    <AddFundsLink className={cn(buttonVariants({ variant: "default" }))} href="/api/proxy/v1/checkout">
                       Add Funds
                       <HandCard className="ml-4 rotate-45 text-sm" />
-                    </VerifiedLoginRequiredLink>
+                    </AddFundsLink>
                   </TopUpAmountPicker>
                 </>
               )}

@@ -20,6 +20,7 @@ export interface UserSettings {
   githubUsername?: string;
   planCode?: PlanCode;
   plan?: IPlan;
+  isJustRegistered: boolean;
 }
 
 export type CustomUserProfile = UserProfile & UserSettings;

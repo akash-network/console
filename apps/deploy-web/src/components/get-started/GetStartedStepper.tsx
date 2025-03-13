@@ -12,7 +12,7 @@ import { useAtom } from "jotai";
 import Link from "next/link";
 
 import { TopUpAmountPicker } from "@src/components/top-up-amount-picker/TopUpAmountPicker";
-import { VerifiedLoginRequiredLink } from "@src/components/user/VerifiedLoginRequiredLink";
+import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useChainParam } from "@src/context/ChainParamProvider";
@@ -106,13 +106,13 @@ export const GetStartedStepper: React.FunctionComponent = () => {
             {isManagedWallet && (
               <div className="flex flex-col items-start space-y-2">
                 <TopUpAmountPicker popoverClassName="absolute md:min-w-max" mdMode="hover">
-                  <VerifiedLoginRequiredLink
+                  <AddFundsLink
                     className={cn("hover:no-underline", buttonVariants({ variant: "outline", className: "mr-2 border-primary" }))}
                     href="/api/proxy/v1/checkout"
                   >
                     <HandCard className="text-xs text-accent-foreground" />
                     <span className="m-2 whitespace-nowrap text-accent-foreground">Add Funds</span>
-                  </VerifiedLoginRequiredLink>
+                  </AddFundsLink>
                 </TopUpAmountPicker>
               </div>
             )}

@@ -14,7 +14,6 @@ import { useChain } from "@cosmos-kit/react";
 import { useAtom } from "jotai";
 
 import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
 import { customRegistry } from "@src/utils/customRegistry";
@@ -79,17 +78,6 @@ const ModalWrapper = (props: WalletModalProps) => {
 
     if (isWalletModalOpen && !props.isOpen && isWalletConnected) {
       setSelectedWalletType("custodial");
-
-      analyticsService.track(
-        "connect_wallet",
-        {
-          category: "wallet",
-          label: "Connect wallet"
-        },
-        "GA"
-      );
-
-      analyticsService.trackSwitch("connect_wallet", "custodial", "Amplitude");
     }
   }, [isWalletModalOpen, props.isOpen, isWalletConnected]);
 

@@ -217,6 +217,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   }
 
   async function handleCloseDeployment() {
+    analyticsService.track("close_deployment_btn_clk", "Amplitude");
     const isConfirmed = await closeDeploymentConfirm([dseq]);
 
     if (!isConfirmed) {
@@ -342,7 +343,14 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
           <div className="my-1 flex flex-col items-center justify-between md:flex-row">
             <div className="flex w-full items-center md:w-auto">
               <div className="flex items-center space-x-2">
-                <Checkbox checked={isFilteringFavorites} onCheckedChange={value => setIsFilteringFavorites(value as boolean)} id="provider-favorites" />
+                <Checkbox
+                  checked={isFilteringFavorites}
+                  onCheckedChange={value => {
+                    setIsFilteringFavorites(value as boolean);
+                    analyticsService.track("filtered_by_favorite_providers", { value }, "Amplitude");
+                  }}
+                  id="provider-favorites"
+                />
                 <label
                   htmlFor="provider-favorites"
                   className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -354,7 +362,10 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
               <div className="ml-4 flex items-center space-x-2">
                 <Checkbox
                   checked={isFilteringAudited}
-                  onCheckedChange={value => setIsFilteringAudited(value as boolean)}
+                  onCheckedChange={value => {
+                    setIsFilteringAudited(value as boolean);
+                    analyticsService.track("filtered_by_audited_providers", { value }, "Amplitude");
+                  }}
                   id="provider-audited"
                   data-testid="create-lease-filter-audited"
                 />

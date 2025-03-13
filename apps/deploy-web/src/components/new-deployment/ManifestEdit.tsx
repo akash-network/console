@@ -138,6 +138,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
       });
       setEditedManifest(event.target?.result as string);
       setSelectedSdlEditMode("yaml");
+      analyticsService.track("sdl_uploaded", "Amplitude");
     };
 
     reader.readAsText(file);
@@ -177,6 +178,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   }
 
   const handleCreateDeployment = async () => {
+    analyticsService.track("create_deployment_btn_clk", "Amplitude");
+
     if (isGitProviderTemplate && !isRepoInputValid) {
       enqueueSnackbar(<Snackbar title={"Please Fill All Required Fields"} subTitle="You need fill repo url and branch to deploy" iconVariant="error" />, {
         variant: "error"
@@ -362,7 +365,10 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
             <div className="flex items-center">
               <Button
                 variant={selectedSdlEditMode === "builder" ? "default" : "outline"}
-                onClick={() => changeMode("builder")}
+                onClick={() => {
+                  changeMode("builder");
+                  analyticsService.track("builder_mode_btn_clk", "Amplitude");
+                }}
                 size="sm"
                 className={cn("flex-grow sm:flex-grow-0", { "rounded-e-none": hasComponent("yml-editor") })}
                 disabled={!!parsingError && selectedSdlEditMode === "yaml"}
@@ -372,7 +378,10 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
               <Button
                 variant={selectedSdlEditMode === "yaml" ? "default" : "outline"}
                 color={selectedSdlEditMode === "yaml" ? "secondary" : "primary"}
-                onClick={() => changeMode("yaml")}
+                onClick={() => {
+                  changeMode("yaml");
+                  analyticsService.track("yml_mode_btn_clk", "Amplitude");
+                }}
                 size="sm"
                 className="flex-grow rounded-s-none sm:flex-grow-0"
               >

@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { BidDto } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
@@ -61,6 +62,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ testIndex, bid, selecte
   };
 
   const onRowClick = (event: React.MouseEvent) => {
+    analyticsService.track("bid_selected", "Amplitude");
     if (bid.state === "open" && !disabled && !isSendingManifest && hasSomeParentTheClass(event.target as HTMLElement, "bid-list-row")) {
       handleBidSelected(bid);
     }
