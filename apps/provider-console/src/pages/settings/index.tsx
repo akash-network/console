@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Input } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
+import { useRouter } from "next/router";
 import { z } from "zod";
 
 import { Layout } from "@src/components/layout/Layout";
@@ -35,6 +36,7 @@ const SettingsPage: React.FC = () => {
   const { providerDetails } = useProvider();
   const { activeControlMachine } = useControlMachine();
   const [url, setUrl] = useState(() => stripProviderPrefixAndPort(providerDetails?.hostUri ?? "") || "");
+  const router = useRouter();
 
   const isDisabled = !activeControlMachine;
 
@@ -120,10 +122,17 @@ const SettingsPage: React.FC = () => {
       };
       const response: { message: string; action_id: string } = await restClient.post("/network/upgrade", request);
 
-      if (response && response) {
+      if (response) {
         setUpgradeMessage(response.message);
         setNodeUpgradeSuccess(true);
-        setTimeout(() => setNodeUpgradeSuccess(false), 20000);
+
+        if (response.action_id) {
+          // Navigate to activity logs page with the action ID
+          router.push(`/activity-logs/${response.action_id}`);
+        } else {
+          // If no action_id, just show success message temporarily
+          setTimeout(() => setNodeUpgradeSuccess(false), 20000);
+        }
 
         // Refresh upgrade status after a delay
         setTimeout(() => fetchUpgradeStatus(), 5000);
