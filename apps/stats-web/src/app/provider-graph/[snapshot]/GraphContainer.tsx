@@ -64,7 +64,7 @@ export default function GraphContainer({ snapshot }: IGraphProps) {
 
   return (
     <>
-      {!snapshotData && status === "loading" && (
+      {!snapshotData && status === "pending" && (
         <div className="mb-4 mt-16 flex items-center justify-center">
           <Spinner size="large" />
         </div>
