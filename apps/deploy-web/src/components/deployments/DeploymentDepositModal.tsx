@@ -106,6 +106,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   const whenLoggedInAndVerified = useAddFundsVerifiedLoginRequiredEventHandler();
 
   const closePopupAndGoToCheckoutIfPossible = (event: React.MouseEvent) => {
+    analyticsService.track("buy_credits_btn_clk", "Amplitude");
     handleCancel();
 
     whenLoggedInAndVerified(goToCheckout)(event);
@@ -176,6 +177,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   }
 
   const onClose = () => {
+    analyticsService.track("close_deposit_modal", "Amplitude");
     handleCancel();
   };
 

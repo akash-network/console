@@ -91,6 +91,24 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useWhen(walletAddress, loadWallet);
 
+  useWhen(isWalletConnected && selectedWalletType, () => {
+    if (selectedWalletType === "custodial") {
+      analyticsService.track(
+        "connect_wallet",
+        {
+          category: "wallet",
+          label: "Connect wallet"
+        },
+        "GA"
+      );
+      analyticsService.identify({ custodialWallet: true });
+      analyticsService.trackSwitch("connect_wallet", "custodial", "Amplitude");
+    } else if (selectedWalletType === "managed") {
+      analyticsService.identify({ managedWallet: true });
+      analyticsService.trackSwitch("connect_wallet", "managed", "Amplitude");
+    }
+  });
+
   useEffect(() => {
     if (!settings.apiEndpoint || !settings.rpcEndpoint) return;
 
@@ -116,18 +134,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ...managedWallet,
         selected: false
       });
-    }
-
-    if (selectedWalletType === "managed" && userWallet.isWalletConnected) {
-      analyticsService.track(
-        "connect_wallet",
-        {
-          category: "wallet",
-          label: "Connect wallet"
-        },
-        "GA"
-      );
-      analyticsService.trackSwitch("connect_wallet", "custodial", "Amplitude");
     }
 
     setSelectedWalletType(prev => (prev === "custodial" ? "managed" : "custodial"));

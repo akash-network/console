@@ -5,9 +5,11 @@ import nextGa from "nextjs-google-analytics";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 
 export type AnalyticsUser = {
-  id: string;
+  id?: string;
   anonymous?: boolean;
   emailVerified?: boolean;
+  custodialWallet?: boolean;
+  managedWallet?: boolean;
 };
 
 export type AnalyticsOptions = {
@@ -66,9 +68,30 @@ export type AnalyticsEvent =
   | "user_profile_template_tab"
   | "user_settings_save"
   | "anonymous_user_created"
+  | "user_registered"
   | "trial_started"
   | "create_api_key"
-  | "delete_api_key";
+  | "delete_api_key"
+  | "close_deposit_modal"
+  | "buy_credits_btn_clk"
+  | "resend_verification_email_btn_clk"
+  | "builder_mode_btn_clk"
+  | "yml_mode_btn_clk"
+  | "bid_selected"
+  | "filtered_by_favorite_providers"
+  | "filtered_by_audited_providers"
+  | "close_deployment_btn_clk"
+  | "build_n_deploy_btn_clk"
+  | "launch_container_vm_btn_clk"
+  | "run_custom_container_btn_clk"
+  | "sdl_uploaded"
+  | "deposit_deployment_btn_clk"
+  | "add_funds_btn_clk"
+  | "redeploy_btn_clk"
+  | "edit_name_btn_clk"
+  | "payment_cancelled"
+  | "payment_success"
+  | "create_deployment_btn_clk";
 
 export type AnalyticsCategory = "user" | "billing" | "deployments" | "wallet" | "sdl_builder" | "transactions" | "certificates" | "profile" | "settings";
 
@@ -86,7 +109,9 @@ const GA_EVENTS = {
 const AMPLITUDE_USER_PROPERTIES_MAP = {
   id: "user_id",
   anonymous: "is_anonymous",
-  emailVerified: "is_email_verified"
+  emailVerified: "is_email_verified",
+  custodialWallet: "custodial_wallet",
+  managedWallet: "managed_wallet"
 };
 
 const isBrowser = typeof window !== "undefined";
@@ -128,11 +153,11 @@ export class AnalyticsService {
   }
 
   identify(user: AnalyticsUser): void {
-    if (!isBrowser) {
+    if (!isBrowser || !Object.keys(user).length) {
       return;
     }
 
-    if (this.options.ga.enabled && this.gtag) {
+    if (this.options.ga.enabled && this.gtag && user.id) {
       this.gtag("config", this.options.ga.measurementId, { user_id: user.id });
     }
 
@@ -190,16 +215,21 @@ export class AnalyticsService {
     this.storage?.setItem(this.STORAGE_KEY, JSON.stringify(obj));
   }
 
-  track(eventName: AnalyticsEvent, eventProperties: EventProperties, target?: AnalyticsTarget): void {
+  track(eventName: AnalyticsEvent, target?: AnalyticsTarget): void;
+  track(eventName: AnalyticsEvent, eventProperties: EventProperties, target?: AnalyticsTarget): void;
+  track(eventName: AnalyticsEvent, eventPropertiesOrTarget?: EventProperties | AnalyticsTarget, target?: AnalyticsTarget): void {
     if (!isBrowser) {
       return;
     }
 
-    if (this.isAmplitudeEnabled && (!target || target === "Amplitude")) {
+    const analyticsTarget = typeof eventPropertiesOrTarget === "string" ? eventPropertiesOrTarget : target;
+    const eventProperties = typeof eventPropertiesOrTarget === "object" ? eventPropertiesOrTarget : {};
+
+    if (this.isAmplitudeEnabled && (!analyticsTarget || analyticsTarget === "Amplitude")) {
       this.amplitude.track(eventName, eventProperties);
     }
 
-    if (this.options.ga.enabled && (!target || target === "GA")) {
+    if (this.options.ga.enabled && (!analyticsTarget || analyticsTarget === "GA")) {
       this.ga?.event(...this.transformGaEvent(eventName, eventProperties));
     }
   }
@@ -227,7 +257,7 @@ export const analyticsService = new AnalyticsService(
     amplitude: {
       enabled: browserEnvConfig.NEXT_PUBLIC_AMPLITUDE_ENABLED,
       apiKey: browserEnvConfig.NEXT_PUBLIC_AMPLITUDE_API_KEY,
-      samplingRate: 0.25
+      samplingRate: browserEnvConfig.NEXT_PUBLIC_AMPLITUDE_SAMPLING
     },
     ga: {
       measurementId: browserEnvConfig.NEXT_PUBLIC_GA_MEASUREMENT_ID,

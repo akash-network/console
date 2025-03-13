@@ -9,6 +9,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
 import { WalletBalance } from "@src/hooks/useWalletBalance";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { LinkTo } from "../shared/LinkTo";
 
 interface ManagedWalletPopupProps extends React.PropsWithChildren {
@@ -74,7 +75,14 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
         <TopUpAmountPicker mdMode="click" className="w-full">
-          <Button onClick={whenLoggedInAndVerified(goToCheckout)} variant="outline" className="w-full space-x-2">
+          <Button
+            onClick={event => {
+              whenLoggedInAndVerified(goToCheckout)(event);
+              analyticsService.track("add_funds_btn_clk");
+            }}
+            variant="outline"
+            className="w-full space-x-2"
+          >
             <HandCard />
             <span>Add Funds</span>
           </Button>
