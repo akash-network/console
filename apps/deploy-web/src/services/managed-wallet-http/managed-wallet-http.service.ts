@@ -23,10 +23,12 @@ class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
     }
 
     if (query.get("payment-canceled") === "true") {
+      analyticsService.track("payment_cancelled", "Amplitude");
       this.clearSessionResults();
     }
 
     if (query.get("payment-success") === "true") {
+      analyticsService.track("payment_success", "Amplitude");
       this.checkoutSessionId = query.get("session_id");
     }
   }

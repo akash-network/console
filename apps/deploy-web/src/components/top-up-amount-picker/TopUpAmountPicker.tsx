@@ -5,7 +5,7 @@ import { useMediaQuery } from "@mui/material";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import { MoreHoriz } from "iconoir-react";
 
-import { VerifiedLoginRequiredLink } from "@src/components/user/VerifiedLoginRequiredLink";
+import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { useUser } from "@src/hooks/useUser";
 import { useStripePricesQuery } from "@src/queries/useStripePricesQuery";
 import { FCWithChildren } from "@src/types/component";
@@ -45,14 +45,14 @@ export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ chil
           >
             {data.map(price => {
               return (
-                <VerifiedLoginRequiredLink
+                <AddFundsLink
                   key={price.unitAmount || "custom"}
                   className={cn(buttonVariants({ variant: "default" }))}
                   href={`/api/proxy/v1/checkout${price.isCustom ? "" : `?amount=${price.unitAmount}`}`}
                 >
                   {price.isCustom ? "Custom" : "$"}
                   {price.unitAmount}
-                </VerifiedLoginRequiredLink>
+                </AddFundsLink>
               );
             })}
           </div>

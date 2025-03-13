@@ -5,7 +5,6 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useUser } from "@src/hooks/useUser";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import walletStore from "@src/store/walletStore";
 import { deleteManagedWalletFromStorage, ensureUserManagedWalletOwnership, getSelectedStorageWallet, updateStorageManagedWallet } from "@src/utils/walletUtils";
 import { useCustomUser } from "./useCustomUser";
@@ -28,17 +27,6 @@ export const useManagedWallet = () => {
       if (selectedWalletType === "custodial" && wallet && !userWallet.isWalletConnected && !userWallet.isWalletConnecting) {
         setSelectedWalletType("managed");
       }
-
-      analyticsService.track(
-        "connect_managed_wallet",
-        {
-          category: "wallet",
-          label: "Connect managed wallet"
-        },
-        "GA"
-      );
-
-      analyticsService.trackSwitch("connect_wallet", "managed", "Amplitude");
     }
   });
   const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();

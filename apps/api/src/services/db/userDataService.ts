@@ -89,6 +89,7 @@ export async function getSettingsOrInit({
 }: UserInput) {
   let userSettings: UserSetting;
   let isAnonymous = false;
+  let isJustRegistered = false;
 
   if (anonymousUserId) {
     try {
@@ -111,6 +112,7 @@ export async function getSettingsOrInit({
       isAnonymous = !!userSettings;
 
       if (isAnonymous) {
+        isJustRegistered = true;
         logger.info({ event: "ANONYMOUS_USER_REGISTERED", id: anonymousUserId, userId });
       }
     } catch (error) {
@@ -146,6 +148,7 @@ export async function getSettingsOrInit({
       lastUserAgent: userAgent,
       lastFingerprint: fingerprint
     });
+    isJustRegistered = true;
     logger.info({ event: "USER_REGISTERED", userId });
   }
 
@@ -164,19 +167,22 @@ export async function getSettingsOrInit({
     await userSettings.save();
   }
 
-  return pick(userSettings, [
-    "id",
-    "userId",
-    "username",
-    "email",
-    "emailVerified",
-    "stripeCustomerId",
-    "bio",
-    "subscribedToNewsletter",
-    "youtubeUsername",
-    "twitterUsername",
-    "githubUsername"
-  ]);
+  return {
+    ...pick(userSettings, [
+      "id",
+      "userId",
+      "username",
+      "email",
+      "emailVerified",
+      "stripeCustomerId",
+      "bio",
+      "subscribedToNewsletter",
+      "youtubeUsername",
+      "twitterUsername",
+      "githubUsername"
+    ]),
+    isJustRegistered
+  };
 }
 
 async function tryToTransferWallet(prevUserId: string, nextUserId: string) {

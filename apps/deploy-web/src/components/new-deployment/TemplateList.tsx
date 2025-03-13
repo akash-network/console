@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
 import { TemplateOutputSummaryWithCategory, useTemplates } from "@src/queries/useTemplateQuery";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import { TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
@@ -47,6 +48,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
   const [, setSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
 
   const handleGithubTemplate = async () => {
+    analyticsService.track("build_n_deploy_btn_clk", "Amplitude");
     onChangeGitProvider(true);
     router.push(UrlService.newDeployment({ step: RouteStep.editDeployment, gitProvider: "github", templateId: CI_CD_TEMPLATE_ID }));
   };
@@ -61,6 +63,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
   }, [templates]);
 
   function onSDLBuilderClick(page: NewDeploymentParams["page"] = "new-deployment") {
+    analyticsService.track(page === "deploy-linux" ? "launch_container_vm_btn_clk" : "run_custom_container_btn_clk", "Amplitude");
     setEditedManifest("");
     onTemplateSelected(null);
     setSdlEditMode("builder");

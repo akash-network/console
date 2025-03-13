@@ -3,9 +3,10 @@ import { Button } from "@akashnetwork/ui/components";
 import Link, { LinkProps } from "next/link";
 
 import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { FCWithChildren } from "@src/types/component";
 
-export const VerifiedLoginRequiredLink: FCWithChildren<
+export const AddFundsLink: FCWithChildren<
   Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof LinkProps> &
     LinkProps & {
       children?: React.ReactNode;
@@ -19,6 +20,12 @@ export const VerifiedLoginRequiredLink: FCWithChildren<
       {props.children}
     </Button>
   ) : (
-    <Link {...props} onClick={whenLoggedInAndVerified(props.onClick || (() => {}))} />
+    <Link
+      {...props}
+      onClick={event => {
+        analyticsService.track("add_funds_btn_clk");
+        whenLoggedInAndVerified(props.onClick || (() => {}))(event);
+      }}
+    />
   );
 };

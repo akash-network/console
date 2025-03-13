@@ -4,6 +4,7 @@ import { usePopup } from "@akashnetwork/ui/context";
 import { useSnackbar } from "notistack";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { services } from "@src/services/http/http-browser.service";
 
 export const useEmailVerificationRequiredEventHandler = (): ((messageOtherwise: string) => (callback: MouseEventHandler) => MouseEventHandler) => {
@@ -23,6 +24,7 @@ export const useEmailVerificationRequiredEventHandler = (): ((messageOtherwise: 
               side: "left",
               size: "lg",
               onClick: () => {
+                analyticsService.track("resend_verification_email_btn_clk", "Amplitude");
                 if (!user?.id) {
                   return;
                 }

@@ -4,6 +4,7 @@ import { usePopup } from "@akashnetwork/ui/context";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
+
 export const usePayingCustomerRequiredEventHandler = (): ((messageOtherwise: string) => (callback: MouseEventHandler) => MouseEventHandler) => {
   const { requireAction } = usePopup();
   const user = useUser();
