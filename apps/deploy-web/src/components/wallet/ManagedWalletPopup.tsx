@@ -74,19 +74,19 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
       )}
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
-        <TopUpAmountPicker mdMode="click" className="w-full">
-          <Button
-            onClick={event => {
-              whenLoggedInAndVerified(goToCheckout)(event);
-              analyticsService.track("add_funds_btn_clk");
-            }}
-            variant="outline"
-            className="w-full space-x-2"
-          >
-            <HandCard />
-            <span>Add Funds</span>
-          </Button>
-        </TopUpAmountPicker>
+        <Button
+          onClick={event => {
+            whenLoggedInAndVerified(goToCheckout)(event);
+            analyticsService.track("add_funds_btn_clk");
+          }}
+          variant="outline"
+          className="w-full space-x-2"
+        >
+          <HandCard />
+          <span>Add Funds</span>
+        </Button>
+        <TopUpAmountPicker className="w-full" />
+        <Separator className="my-2 bg-secondary/90 dark:bg-white/10" />
         <Button onClick={isWalletConnected ? switchWalletType : connect} variant="outline" className="w-full space-x-2">
           <CoinsSwap />
           <span>Switch to Wallet Payments</span>
