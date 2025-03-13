@@ -49,7 +49,7 @@ type ContextType = {
   validCertificates: Array<ChainCertificate>;
   setValidCertificates: React.Dispatch<React.SetStateAction<ChainCertificate[]>>;
   localCerts: Array<LocalCert> | null;
-  setLocalCerts: React.Dispatch<React.SetStateAction<LocalCert[]>>;
+  setLocalCerts: React.Dispatch<React.SetStateAction<LocalCert[] | null>>;
   createCertificate: () => Promise<void>;
   isCreatingCert: boolean;
   regenerateCertificate: () => Promise<void>;
@@ -59,7 +59,7 @@ type ContextType = {
 
 const CertificateProviderContext = React.createContext<ContextType>({} as ContextType);
 
-export const CertificateProvider = ({ children }) => {
+export const CertificateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isCreatingCert, setIsCreatingCert] = useState(false);
   const [validCertificates, setValidCertificates] = useState<Array<ChainCertificate>>([]);
   const [selectedCertificate, setSelectedCertificate] = useState<ChainCertificate | null>(null);

@@ -20,7 +20,7 @@ type ContextType = {
 
 const PricingProviderContext = React.createContext<ContextType>({} as ContextType);
 
-export const PricingProvider = ({ children }) => {
+export const PricingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { data: marketData, isLoading } = useMarketData({ refetchInterval: 60_000 });
   const usdcIbcDenom = useUsdcDenom();
 

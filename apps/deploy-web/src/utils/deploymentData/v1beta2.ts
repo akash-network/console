@@ -1,4 +1,5 @@
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
+import { Attribute, v2Sdl } from "@akashnetwork/akashjs/build/sdl/types";
 import { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import yaml from "js-yaml";
 import path from "path";
@@ -8,16 +9,16 @@ import networkStore from "@src/store/networkStore";
 import { stringToBoolean } from "../stringUtils";
 import { CustomValidationError, DeploymentGroups, getCurrentHeight, getSdl, Manifest, ManifestVersion, parseSizeStr } from "./helpers";
 
-function validate(yamlStr: string, yamlJson, networkId: NetworkId) {
+function validate(yamlStr: string, yamlJson: v2Sdl, networkId: NetworkId) {
   let sdl: SDL;
   try {
     sdl = getSdl(yamlJson, "beta3", networkId);
-  } catch (e) {
+  } catch (e: any) {
     throw new CustomValidationError(e.message);
   }
 
-  const endpointsUsed = {};
-  const portsUsed = {};
+  const endpointsUsed: Record<string, any> = {};
+  const portsUsed: Record<string, any> = {};
   Object.keys(yamlJson.services).forEach(svcName => {
     const svc = yamlJson.services[svcName];
     const depl = yamlJson.deployment[svcName];
@@ -75,10 +76,17 @@ function validate(yamlStr: string, yamlJson, networkId: NetworkId) {
       });
 
       // STORAGE VALIDATION
-      const storages = compute.resources.storage.map ? compute.resources.storage : [compute.resources.storage];
-      const volumes = {};
-      const attr = {};
-      const mounts = {};
+      const storages = Array.isArray(compute.resources.storage) ? compute.resources.storage : [compute.resources.storage];
+      const volumes: Record<
+        string,
+        {
+          name: string;
+          quantity: { val: number | string };
+          attributes: Attribute[];
+        }
+      > = {};
+      const attr: Record<string, any> = {};
+      const mounts: Record<string, any> = {};
 
       storages?.forEach(storage => {
         const name = storage.name || "default";
@@ -104,18 +112,18 @@ function validate(yamlStr: string, yamlJson, networkId: NetworkId) {
 
       if (svc.params) {
         (Object.keys(svc.params?.storage || {}) || []).forEach(name => {
-          const params = svc.params.storage[name];
+          const params = svc.params?.storage?.[name];
           if (!volumes[name]) {
             throw new CustomValidationError(`Service "${svcName}" references to no-existing compute volume names "${name}".`);
           }
 
-          if (!path.isAbsolute(params.mount)) {
+          if (params && !path.isAbsolute(params.mount)) {
             throw new CustomValidationError(`Invalid value for "service.${svcName}.params.${name}.mount" parameter. expected absolute path.`);
           }
 
           // merge the service params attributes
-          attr["mount"] = params.mount;
-          attr["readOnly"] = params.readOnly || false;
+          attr["mount"] = params?.mount;
+          attr["readOnly"] = params?.readOnly || false;
           const mount = attr["mount"];
           const vlname = mounts[mount];
 
@@ -158,11 +166,11 @@ function validate(yamlStr: string, yamlJson, networkId: NetworkId) {
   }
 }
 
-export function getManifest(yamlJson, asString = false) {
+export function getManifest(yamlJson: string | v2Sdl, asString = false) {
   return Manifest(yamlJson, "beta2", networkStore.selectedNetworkId, asString);
 }
 
-export async function getManifestVersion(yamlJson, asString = false) {
+export async function getManifestVersion(yamlJson: string | v2Sdl, asString = false) {
   const version = await ManifestVersion(yamlJson, "beta2", networkStore.selectedNetworkId);
 
   if (asString) {

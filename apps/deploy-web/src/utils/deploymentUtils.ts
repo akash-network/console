@@ -2,6 +2,7 @@ import { AxiosResponse } from "axios";
 
 import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { services } from "@src/services/http/http-browser.service";
+import { ExposeType, TemplateCreation } from "@src/types";
 import { ApiProviderList } from "@src/types/provider";
 import { wait } from "./timer";
 
@@ -38,11 +39,11 @@ export const sendManifestToProvider = async (providerInfo: ApiProviderList | und
         });
       }
     } catch (err) {
-      if (err.includes && err.includes("no lease for deployment") && i < 3) {
+      if (typeof err === "string" && err.includes && err.includes("no lease for deployment") && i < 3) {
         console.log("Lease not found, retrying...");
         await wait(6000);
       } else {
-        throw new Error(err?.response?.data || err);
+        throw new Error((err as any)?.response?.data || err);
       }
     }
   }
@@ -56,15 +57,15 @@ export const sendManifestToProvider = async (providerInfo: ApiProviderList | und
 /**
  * Validate values to change in the template
  */
-export function validateDeploymentData(deploymentData, selectedTemplate?) {
+export function validateDeploymentData(deploymentData: Record<string, any>, selectedTemplate?: TemplateCreation | null) {
   if (selectedTemplate?.valuesToChange) {
     for (const valueToChange of selectedTemplate.valuesToChange) {
       if (valueToChange.field === "accept" || valueToChange.field === "env") {
         const serviceNames = Object.keys(deploymentData.sdl.services);
         for (const serviceName of serviceNames) {
           if (
-            deploymentData.sdl.services[serviceName].expose?.some(e => e.accept?.includes(valueToChange.initialValue)) ||
-            deploymentData.sdl.services[serviceName].env?.some(e => e?.includes(valueToChange.initialValue))
+            deploymentData.sdl.services[serviceName].expose?.some((e: ExposeType) => e.accept?.includes(valueToChange.initialValue)) ||
+            deploymentData.sdl.services[serviceName].env?.some((e: string) => e?.includes(valueToChange.initialValue))
           ) {
             const error = new Error(`Template value of "${valueToChange.initialValue}" needs to be changed`);
             error.name = "TemplateValidation";

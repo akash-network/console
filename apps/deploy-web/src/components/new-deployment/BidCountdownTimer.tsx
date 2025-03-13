@@ -17,7 +17,7 @@ const time = 5 * 60;
 export const BidCountdownTimer: React.FunctionComponent<Props> = ({ height }) => {
   const [timeLeft, setTimeLeft] = useState(time); // Set the initial time in seconds
   const [isTimerInit, setIsTimerInit] = useState(false);
-  const { data: block, refetch: getBlock } = useBlock(height, {
+  const { data: block, refetch: getBlock } = useBlock(height || "", {
     disabled: true,
     onSuccess: block => {
       const date = new Date(block.block.header.time);

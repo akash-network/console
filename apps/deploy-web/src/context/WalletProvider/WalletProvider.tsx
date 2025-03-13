@@ -64,7 +64,7 @@ const MESSAGE_STATES: Record<string, LoadingState> = {
   "/akash.deployment.v1beta3.MsgDepositDeployment": "depositingDeployment"
 };
 
-export const WalletProvider = ({ children }) => {
+export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
   const [loadingState, setLoadingState] = useState<LoadingState | undefined>(undefined);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
@@ -225,7 +225,7 @@ export const WalletProvider = ({ children }) => {
       });
 
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
 
       if (axios.isAxiosError(err) && err.response?.status !== 500) {
@@ -248,7 +248,7 @@ export const WalletProvider = ({ children }) => {
               const codeSpace = match[2];
 
               if (codeSpace === "sdk" && code in ERROR_MESSAGES) {
-                errorMsg = ERROR_MESSAGES[code];
+                errorMsg = ERROR_MESSAGES[code as keyof typeof ERROR_MESSAGES];
               }
             }
 
@@ -331,7 +331,7 @@ export function useWallet() {
   return { ...React.useContext(WalletProviderContext) };
 }
 
-const TransactionSnackbarContent = ({ snackMessage, transactionHash }) => {
+const TransactionSnackbarContent: React.FC<{ snackMessage: string; transactionHash: string }> = ({ snackMessage, transactionHash }) => {
   const selectedNetworkId = networkStore.useSelectedNetworkId();
   const txUrl = transactionHash && `${browserEnvConfig.NEXT_PUBLIC_STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetworkId}`;
 

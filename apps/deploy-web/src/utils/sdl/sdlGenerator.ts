@@ -4,7 +4,7 @@ import { ExposeType, ProfileGpuModelType, ServiceType } from "@src/types";
 import { defaultHttpOptions } from "./data";
 
 export const generateSdl = (services: ServiceType[], region?: string) => {
-  const sdl = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
+  const sdl: Record<string, any> = { version: "2.0", services: {}, profiles: { compute: {}, placement: {} }, deployment: {} };
 
   services.forEach(service => {
     sdl.services[service.title] = {
@@ -15,7 +15,7 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
       // Expose
       expose: service.expose.map(e => {
         // Port
-        const _expose = { port: e.port };
+        const _expose: Record<string, any> = { port: e.port };
 
         // As
         if (e.as) {
@@ -98,12 +98,13 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
       };
 
       // Group models by vendor
-      const vendors = service.profile.gpuModels?.reduce((group, model) => {
-        const { vendor } = model;
-        group[vendor] = group[vendor] ?? [];
-        group[vendor].push(model);
-        return group;
-      }, {}) as { [key: string]: ProfileGpuModelType[] };
+      const vendors =
+        service.profile.gpuModels?.reduce<Record<string, ProfileGpuModelType[]>>((group, model) => {
+          const { vendor } = model;
+          group[vendor] = group[vendor] ?? [];
+          group[vendor].push(model);
+          return group;
+        }, {}) || {};
 
       for (const [vendor, models] of Object.entries(vendors)) {
         const mappedModels = models
@@ -175,7 +176,10 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
 
     // Attributes
     if ((service.placement.attributes?.length || 0) > 0) {
-      sdl.profiles.placement[service.placement.name].attributes = service.placement.attributes?.reduce((acc, curr) => ((acc[curr.key] = curr.value), acc), {});
+      sdl.profiles.placement[service.placement.name].attributes = service.placement.attributes?.reduce<Record<string, string>>(
+        (acc, curr) => ((acc[curr.key] = curr.value), acc),
+        {}
+      );
     }
 
     // Regions
@@ -191,7 +195,7 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
       sdl["endpoints"] = {};
 
       service.expose
-        .filter(exp => exp.ipName)
+        .filter((exp): exp is ExposeType & { ipName: string } => !!exp.ipName)
         .forEach(exp => {
           sdl["endpoints"][exp.ipName] = {
             kind: "ip"

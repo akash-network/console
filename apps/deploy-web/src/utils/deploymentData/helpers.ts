@@ -4,7 +4,7 @@ import { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import axios from "axios";
 
 export class CustomValidationError extends Error {
-  constructor(message) {
+  constructor(message: string) {
     super(message);
     this.name = "CustomValidationError";
   }
@@ -46,7 +46,7 @@ export function parseSizeStr(str: string) {
     if (suffix) {
       const suffixPos = str.length - suffix.length;
       const numberStr = str.substring(0, suffixPos);
-      return (parseFloat(numberStr) * specSuffixes[suffix]).toString();
+      return (parseFloat(numberStr) * specSuffixes[suffix as keyof typeof specSuffixes]).toString();
     } else {
       return parseFloat(str);
     }

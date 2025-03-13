@@ -146,7 +146,7 @@ export class AnalyticsService {
 
     for (const key in user) {
       if (key !== "id") {
-        event.set(AMPLITUDE_USER_PROPERTIES_MAP[key] || AMPLITUDE_USER_PROPERTIES_MAP, user[key]);
+        event.set(AMPLITUDE_USER_PROPERTIES_MAP[key as keyof AnalyticsUser] || key, String(user[key as keyof typeof user]));
       }
     }
 
@@ -169,7 +169,7 @@ export class AnalyticsService {
     }
   }
 
-  trackSwitch(eventName: "connect_wallet", value: "managed" | "custodial", target?: AnalyticsTarget);
+  trackSwitch(eventName: "connect_wallet", value: "managed" | "custodial", target?: AnalyticsTarget): void;
   trackSwitch(eventName: any, value: any, target?: AnalyticsTarget) {
     if (!isBrowser) {
       return;
@@ -209,7 +209,7 @@ export class AnalyticsService {
       return [`${eventName}_${eventProperties.tab}`, eventProperties];
     }
 
-    return [GA_EVENTS[eventName] || eventName, eventProperties];
+    return [GA_EVENTS[eventName as keyof typeof GA_EVENTS] || eventName, eventProperties];
   }
 
   private shouldSampleUser(userId: string): boolean {

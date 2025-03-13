@@ -1,16 +1,19 @@
-import { DeploymentDto, LeaseDto, RpcDeployment, RpcLease } from "@src/types/deployment";
+import type { DeploymentDto, DeploymentGroup, DeploymentResource_V2, DeploymentResource_V3, LeaseDto, RpcDeployment, RpcLease } from "@src/types/deployment";
 import { coinToUDenom } from "./priceUtils";
 
-export function deploymentResourceSum(deployment: RpcDeployment, resourceSelector) {
+export function deploymentResourceSum(deployment: RpcDeployment, resourceMapper: (resource: DeploymentResource_V2 | DeploymentResource_V3) => number): number {
   return deployment.groups
-    .map(g => g.group_spec.resources.map(r => r.count * resourceSelector(r.resources ?? r.resource)).reduce((a, b) => a + b))
+    .map(g => g.group_spec.resources.map(r => r.count * resourceMapper("resources" in r ? r.resources : r.resource)).reduce((a, b) => a + b))
     .reduce((a, b) => a + b);
 }
 
-export function deploymentGroupResourceSum(group, resourceSelector) {
+export function deploymentGroupResourceSum(
+  group: DeploymentGroup,
+  resourceMapper: (resource: DeploymentResource_V2 | DeploymentResource_V3) => number
+): number {
   if (!group || !group.group_spec || !group.group_spec) return 0;
 
-  return group.group_spec.resources.map(r => r.count * resourceSelector(r.resources ?? r.resource)).reduce((a, b) => a + b);
+  return group.group_spec.resources.map(r => r.count * resourceMapper("resources" in r ? r.resources : r.resource)).reduce((a, b) => a + b);
 }
 
 export function deploymentToDto(d: RpcDeployment): DeploymentDto {
@@ -28,7 +31,7 @@ export function deploymentToDto(d: RpcDeployment): DeploymentDto {
     escrowBalance: escrowBalanceUAkt,
     transferred: d.escrow_account.transferred,
     cpuAmount: deploymentResourceSum(d, r => parseInt(r.cpu.units.val) / 1000),
-    gpuAmount: deploymentResourceSum(d, r => parseInt(r.gpu?.units?.val || 0)),
+    gpuAmount: deploymentResourceSum(d, r => parseInt(r.gpu?.units?.val || "0")),
     memoryAmount: deploymentResourceSum(d, r => parseInt(r.memory.quantity.val)),
     storageAmount: deploymentResourceSum(d, r =>
       convertToArrayIfNeeded(r.storage)
@@ -44,13 +47,13 @@ export function convertToArrayIfNeeded<T>(arrayOrItem: T | T[]) {
   return Array.isArray(arrayOrItem) ? arrayOrItem : [arrayOrItem];
 }
 
-export const getStorageAmount = resource => {
-  let storage;
+export const getStorageAmount = (resource: DeploymentResource_V2 | DeploymentResource_V3): number => {
+  let storage: number;
 
   if (Array.isArray(resource.storage)) {
     storage = resource.storage.map(x => parseInt(x.quantity.val)).reduce((a, b) => a + b, 0);
   } else {
-    storage = parseInt(resource.storage.quantity.val);
+    storage = parseInt((resource.storage as any)?.quantity?.val || "0");
   }
 
   return storage;
@@ -68,7 +71,7 @@ export function leaseToDto(lease: RpcLease, deployment: RpcDeployment): LeaseDto
     state: lease.lease.state,
     price: lease.lease.price,
     cpuAmount: deployment ? deploymentGroupResourceSum(group, r => parseInt(r.cpu.units.val) / 1000) : undefined,
-    gpuAmount: deployment ? deploymentGroupResourceSum(group, r => parseInt(r.gpu?.units?.val || 0)) : undefined,
+    gpuAmount: deployment ? deploymentGroupResourceSum(group, r => parseInt(r.gpu?.units?.val || "0")) : undefined,
     memoryAmount: deployment ? deploymentGroupResourceSum(group, r => parseInt(r.memory.quantity.val)) : undefined,
     storageAmount: deployment
       ? deploymentGroupResourceSum(group, r =>
@@ -78,5 +81,5 @@ export function leaseToDto(lease: RpcLease, deployment: RpcDeployment): LeaseDto
         )
       : undefined,
     group
-  };
+  } as LeaseDto;
 }

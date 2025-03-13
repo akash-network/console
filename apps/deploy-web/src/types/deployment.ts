@@ -56,9 +56,9 @@ export interface RpcDeployment {
   escrow_account: EscrowAccount;
 }
 
-type DeploymentGroup = DeploymentGroup_v2 | DeploymentGroup_v3;
+export type DeploymentGroup = DeploymentGroup_v2 | DeploymentGroup_v3;
 
-interface DeploymentResource_V2 {
+export interface DeploymentResource_V2 {
   cpu: {
     units: {
       val: string;
@@ -89,7 +89,7 @@ interface DeploymentResource_V2 {
     sequence_number: number;
   }>;
 }
-interface DeploymentResource_V3 extends DeploymentResource_V2 {}
+export interface DeploymentResource_V3 extends DeploymentResource_V2 {}
 
 interface DeploymentGroup_v2 {
   group_id: {
