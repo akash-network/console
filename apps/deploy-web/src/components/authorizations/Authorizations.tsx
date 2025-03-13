@@ -54,8 +54,7 @@ export const Authorizations: React.FunctionComponent = () => {
     select: selectNonMaster
   });
   const { data: granteeGrants, isLoading: isLoadingGranteeGrants } = useGranteeGrants(address, {
-    refetchInterval: isRefreshing === "granteeGrants" ? refreshingInterval : defaultRefetchInterval,
-    enabled: true
+    refetchInterval: isRefreshing === "granteeGrants" ? refreshingInterval : defaultRefetchInterval
   });
   const { data: allowancesIssued, isLoading: isLoadingAllowancesIssued } = useAllowancesIssued(address, {
     refetchInterval: isRefreshing === "allowancesIssued" ? refreshingInterval : defaultRefetchInterval,
