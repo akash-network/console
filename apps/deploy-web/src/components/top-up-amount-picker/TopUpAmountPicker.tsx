@@ -3,6 +3,7 @@ import { Button, ButtonProps, buttonVariants, Spinner } from "@akashnetwork/ui/c
 import { usePopup } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
 import { Cash } from "iconoir-react";
+import Link from "next/link";
 
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { useUser } from "@src/hooks/useUser";
@@ -52,6 +53,14 @@ export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ clas
               );
             })}
           </div>
+
+          <Link
+            className="text-xs text-muted-foreground"
+            href="https://docs.google.com/forms/d/e/1FAIpQLScSIE6H4zWCJn6DcW8uyLRVSJK1G7RnBqqlJR9Txpv_mxX9YQ/viewform?usp=header"
+            target="_blank"
+          >
+            First time user? Click here to request a coupon
+          </Link>
         </>
       )
     });
