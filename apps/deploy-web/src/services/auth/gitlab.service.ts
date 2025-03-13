@@ -34,7 +34,7 @@ class GitlabAuth {
         accessToken: access_token,
         refreshToken: refresh_token
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(error);
     }
   }
@@ -53,7 +53,7 @@ class GitlabAuth {
         accessToken: access_token,
         refreshToken: refresh_token
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(error);
     }
   }

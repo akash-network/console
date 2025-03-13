@@ -12,7 +12,14 @@ const formSchema = z.object({
   name: z.string()
 });
 
-export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName }) => {
+type Props = {
+  dseq: string | number | null | undefined;
+  onClose: () => void;
+  onSaved: () => void;
+  getDeploymentName: (dseq: string | number | null) => string | null;
+};
+
+export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, getDeploymentName }) => {
   const formRef = useRef<HTMLFormElement | null>(null);
   const { enqueueSnackbar } = useSnackbar();
   const form = useForm<z.infer<typeof formSchema>>({
@@ -31,13 +38,13 @@ export const DeploymentNameModal = ({ dseq, onClose, onSaved, getDeploymentName 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dseq, getDeploymentName]);
 
-  const onSaveClick = event => {
+  const onSaveClick = (event: React.MouseEvent) => {
     event.preventDefault();
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
 
-  function onSubmit({ name }) {
-    updateDeploymentLocalData(dseq, { name: name });
+  function onSubmit({ name }: z.infer<typeof formSchema>) {
+    updateDeploymentLocalData(String(dseq), { name: name });
 
     enqueueSnackbar(<Snackbar title="Success!" iconVariant="success" />, { variant: "success", autoHideDuration: 1000 });
 

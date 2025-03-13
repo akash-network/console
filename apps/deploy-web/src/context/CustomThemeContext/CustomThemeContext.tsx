@@ -137,7 +137,7 @@ const getDesignTokens = (mode: PaletteMode): ThemeOptions => ({
 const darkTheme = createTheme(getDesignTokens("dark"));
 const lightTheme = createTheme(getDesignTokens("light"));
 
-export const CustomThemeProvider = ({ children }) => {
+export const CustomThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isMounted, setIsMounted] = useState(false);
   const { resolvedTheme: nextTheme } = useTheme();
   const darkModeActive = nextTheme === "dark";
