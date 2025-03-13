@@ -1,5 +1,12 @@
 
 
+## [2.69.3](https://github.com/akash-network/console/compare/console-api/v2.69.2...console-api/v2.69.3) (2025-03-13)
+
+
+### Bug Fixes
+
+* ensure that akash prebuilt templates exist in the final docker image ([#1020](https://github.com/akash-network/console/issues/1020)) ([2a940a3](https://github.com/akash-network/console/commit/2a940a349a85182f88fb8a83990bf3a78b0bab3f))
+
 ## [2.69.2](https://github.com/akash-network/console/compare/console-api/v2.69.1...console-api/v2.69.2) (2025-03-10)
 
 
