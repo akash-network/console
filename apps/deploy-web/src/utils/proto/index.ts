@@ -8,7 +8,7 @@ const commonTypes = { ...v1beta3, ...v1beta4 };
 const mainnetTypes = commonTypes;
 const sandboxTypes = commonTypes;
 
-export let protoTypes;
+export let protoTypes: typeof commonTypes | typeof mainnetTypes | typeof sandboxTypes;
 
 export function initProtoTypes() {
   switch (networkStore.selectedNetworkId) {

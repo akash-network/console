@@ -1,7 +1,7 @@
 import yaml from "js-yaml";
 import { nanoid } from "nanoid";
 
-import { ExposeType, ProfileGpuModelType,ServiceType } from "@src/types";
+import { ExposeType, ProfileGpuModelType, ServiceType } from "@src/types";
 import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
@@ -10,6 +10,7 @@ export const importSimpleSdl = (yamlStr: string) => {
   try {
     const yamlJson = yaml.load(yamlStr) as any;
     const services: ServiceType[] = [];
+    if (!yamlJson.services) return services;
 
     const sortedServicesNames = Object.keys(yamlJson.services).sort();
     sortedServicesNames.forEach(svcName => {
@@ -20,14 +21,14 @@ export const importSimpleSdl = (yamlStr: string) => {
         title: svcName,
         image: svc.image,
         hasCredentials: !!svc.credentials,
-        credentials: svc.credentials,
+        credentials: svc.credentials
       };
 
       const compute = yamlJson.profiles.compute[svcName];
       const storages = compute.resources.storage.map ? compute.resources.storage : [compute.resources.storage];
-      const persistentStorage = storages.find(s => s.attributes?.persistent === true);
+      const persistentStorage = storages.find((s: any) => s.attributes?.persistent === true);
       const hasPersistentStorage = !!persistentStorage;
-      const ephStorage = storages.find(s => !s.attributes);
+      const ephStorage = storages.find((s: any) => !s.attributes);
       const persistentStorageName = hasPersistentStorage ? persistentStorage.name : "data";
 
       // TODO validation
@@ -59,12 +60,12 @@ export const importSimpleSdl = (yamlStr: string) => {
       };
 
       // Env
-      service.env = svc.env?.map(e => ({ id: nanoid(), key: e.split("=")[0], value: e.split("=")[1] })) || [];
+      service.env = svc.env?.map((e: any) => ({ id: nanoid(), key: e.split("=")[0], value: e.split("=")[1] })) || [];
 
       // Expose
       service.expose = [];
-      svc.expose?.forEach(expose => {
-        const isGlobal = expose.to.find(t => t.global);
+      svc.expose?.forEach((expose: any) => {
+        const isGlobal = expose.to.find((t: any) => t.global);
 
         const _expose: ExposeType = {
           id: nanoid(),
@@ -72,8 +73,8 @@ export const importSimpleSdl = (yamlStr: string) => {
           as: expose.as || 80,
           proto: expose.proto === "tcp" ? expose.proto : "http",
           global: !!isGlobal,
-          to: expose.to.filter(t => t.global === undefined).map(t => ({ id: nanoid(), value: t.service })),
-          accept: expose.accept?.map(a => ({ id: nanoid(), value: a })) || [],
+          to: expose.to.filter((t: any) => t.global === undefined).map((t: any) => ({ id: nanoid(), value: t.service })),
+          accept: expose.accept?.map((a: string) => ({ id: nanoid(), value: a })) || [],
           ipName: isGlobal?.ip ? isGlobal.ip : "",
           hasCustomHttpOptions: !!expose.http_options,
           httpOptions: {
@@ -110,8 +111,8 @@ export const importSimpleSdl = (yamlStr: string) => {
           denom: placementPricing.denom
         },
         signedBy: {
-          anyOf: placement.signedBy && placement.signedBy?.anyOf ? placement.signedBy.anyOf.map(x => ({ id: nanoid(), value: x })) : [],
-          allOf: placement.signedBy && placement.signedBy?.allOf ? placement.signedBy.allOf.map(x => ({ id: nanoid(), value: x })) : []
+          anyOf: placement.signedBy && placement.signedBy?.anyOf ? placement.signedBy.anyOf.map((x: string) => ({ id: nanoid(), value: x })) : [],
+          allOf: placement.signedBy && placement.signedBy?.allOf ? placement.signedBy.allOf.map((x: string) => ({ id: nanoid(), value: x })) : []
         },
         attributes: placement.attributes
           ? Object.keys(placement.attributes).map(attKey => {

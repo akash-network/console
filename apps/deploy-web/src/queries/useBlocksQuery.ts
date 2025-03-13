@@ -7,13 +7,13 @@ import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
 // Block
-async function getBlock(apiEndpoint, id) {
+async function getBlock(apiEndpoint: string, id: string) {
   const response = await axios.get(ApiUrlService.block(apiEndpoint, id));
 
   return response.data;
 }
 
-export function useBlock(id, options = {}) {
+export function useBlock(id: string, options = {}) {
   const { settings } = useSettings();
   return useQuery(QueryKeys.getBlockKey(id), () => getBlock(settings.apiEndpoint, id), {
     refetchInterval: false,

@@ -85,7 +85,7 @@ export class TransactionMessageData {
     return message;
   }
 
-  static getCreateDeploymentMsg(deploymentData) {
+  static getCreateDeploymentMsg(deploymentData: Record<string, any>) {
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_CREATE_DEPLOYMENT,
       value: {
@@ -100,7 +100,7 @@ export class TransactionMessageData {
     return message;
   }
 
-  static getUpdateDeploymentMsg(deploymentData) {
+  static getUpdateDeploymentMsg(deploymentData: Record<string, any>) {
     const message = {
       typeUrl: TransactionMessageData.Types.MSG_UPDATE_DEPLOYMENT,
       value: {

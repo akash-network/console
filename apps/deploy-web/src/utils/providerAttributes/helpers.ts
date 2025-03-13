@@ -18,8 +18,8 @@ export const mapFormValuesToAttributes = (data: z.infer<typeof providerAttribute
   const attributes: { key: string; value: string }[] = [];
 
   Object.keys(data).forEach(key => {
-    const value = data[key];
-    const attribute = providerAttributesSchema[key] as ProviderAttributeSchemaDetail;
+    const value = data[key as keyof typeof data];
+    const attribute = providerAttributesSchema[key as keyof ProviderAttributesSchema] as ProviderAttributeSchemaDetail;
     if (attribute && value) {
       switch (attribute.type) {
         case "string":
@@ -29,7 +29,9 @@ export const mapFormValuesToAttributes = (data: z.infer<typeof providerAttribute
           break;
         case "option":
           // eslint-disable-next-line no-case-declarations
-          const attributeValue = attribute.values?.find(v => v.key === value.key);
+          const detailValue = value as unknown as ProviderAttributeSchemaDetailValue;
+          // eslint-disable-next-line no-case-declarations
+          const attributeValue = attribute.values?.find(v => v.key === detailValue.key);
           attributes.push({ key: attribute.key, value: `${attributeValue?.key}` });
           break;
         case "multiple-option":

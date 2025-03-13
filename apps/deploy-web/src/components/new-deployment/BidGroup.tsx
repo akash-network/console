@@ -53,7 +53,7 @@ export const BidGroup: React.FunctionComponent<Props> = ({
     if (currentGroup) {
       const resourcesSum = {
         cpuAmount: deploymentGroupResourceSum(currentGroup, r => parseInt(r.cpu.units.val) / 1000),
-        gpuAmount: deploymentGroupResourceSum(currentGroup, r => parseInt(r.gpu?.units?.val || 0)),
+        gpuAmount: deploymentGroupResourceSum(currentGroup, r => parseInt(r.gpu?.units?.val || "0")),
         memoryAmount: deploymentGroupResourceSum(currentGroup, r => parseInt(r.memory.quantity.val)),
         storageAmount: deploymentGroupResourceSum(currentGroup, r => getStorageAmount(r))
       };

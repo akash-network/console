@@ -35,7 +35,8 @@ export function useCreateApiKey() {
       }),
     {
       onSuccess: _response => {
-        queryClient.setQueryData(QueryKeys.getApiKeysKey(user?.userId ?? ""), (oldData: ApiKeyResponse[]) => {
+        queryClient.setQueryData(QueryKeys.getApiKeysKey(user?.userId ?? ""), (oldData: ApiKeyResponse[] | undefined) => {
+          if (!oldData) return [_response];
           return [...oldData, _response];
         });
       }

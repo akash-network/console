@@ -22,7 +22,7 @@ export type ISidebarGroupMenu = {
 
 export type ISidebarRoute = {
   title: string;
-  icon: any;
+  icon?: (props: Record<string, unknown>) => React.ReactNode;
   url: string;
   activeRoutes: string[];
   isNew?: boolean;

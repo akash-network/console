@@ -47,7 +47,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
   const { amount, granteeAddress, expiration } = watch();
   const denomData = useDenomData(UAKT_DENOM);
 
-  const onDepositClick = event => {
+  const onDepositClick = (event: React.MouseEvent) => {
     event.preventDefault();
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };
@@ -76,7 +76,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
     }
   };
 
-  function handleDocClick(ev, url: string) {
+  function handleDocClick(ev: React.MouseEvent<object>, url: string) {
     ev.preventDefault();
 
     window.open(url, "_blank");

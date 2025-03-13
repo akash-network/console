@@ -15,7 +15,7 @@ import Link from "next/link";
 
 import { useWallet } from "@src/context/WalletProvider";
 import sdlStore from "@src/store/sdlStore";
-import { ISidebarGroupMenu } from "@src/types";
+import { ISidebarGroupMenu, ISidebarRoute } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import { MobileSidebarUser } from "./MobileSidebarUser";
 import { ModeToggle } from "./ModeToggle";
@@ -45,7 +45,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const wallet = useWallet();
 
   const mainRoutes = useMemo(() => {
-    const routes = [
+    const routes: ISidebarRoute[] = [
       {
         title: "Home",
         icon: props => <Home {...props} />,
@@ -107,7 +107,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
     [mainRoutes]
   );
 
-  const extraRoutes = [
+  const extraRoutes: ISidebarGroupMenu[] = [
     {
       hasDivider: false,
       routes: [

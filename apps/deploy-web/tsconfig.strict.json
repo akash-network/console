@@ -1,0 +1,32 @@
+{
+  "extends": "./tsconfig.build.json",
+  "include": [
+    "next-env.d.ts",
+    "**/*.d.ts",
+    "./src/types/**/*.ts",
+    "./src/utils/**/*.ts",
+    "./src/store/**/*.ts",
+    "src/context/CertificateProvider/CertificateProviderContext.tsx",
+    "src/context/SettingsProvider/SettingsProviderContext.tsx",
+    "src/context/PricingProvider/PricingProvider.tsx",
+    "src/context/SettingsProvider/SettingsProviderContext.tsx",
+    "src/context/WalletProvider/WalletProvider.tsx",
+    "src/hooks/useDenom.ts",
+    "src/queries/useAnonymousUserQuery.ts",
+    "src/queries/useApiKeysQuery.ts",
+    "src/queries/useBalancesQuery.ts",
+    "src/queries/useBlocksQuery.ts",
+    "src/queries/useManagedWalletQuery.ts",
+    "src/services/managed-wallet-http/managed-wallet-http.service.ts",
+    "src/services/analytics/analytics.service.ts",
+    "src/components/layout/Sidebar.tsx",
+    "src/components/api-keys/CreateApiKeyModal.tsx",
+    "src/components/authorizations/AllowanceModal.tsx",
+    "src/components/authorizations/GrantModal.tsx",
+  ],
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+  }
+}
