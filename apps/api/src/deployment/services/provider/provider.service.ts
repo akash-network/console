@@ -33,7 +33,6 @@ export class ProviderService {
       hostUri: providerResponse.provider.host_uri
     };
 
-    // Send manifest
     const response = await this.sendManifestToProvider(dseq, jsonStr, options, providerIdentity);
 
     return response;

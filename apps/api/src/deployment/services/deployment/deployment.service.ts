@@ -2,11 +2,10 @@ import { BlockHttpService, DeploymentHttpService, LeaseHttpService } from "@akas
 import { BadRequest, InternalServerError, NotFound } from "http-errors";
 import { singleton } from "tsyringe";
 
-import { BillingConfig } from "@src/billing/providers/config.provider";
-import { InjectBillingConfig } from "@src/billing/providers/config.provider";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput } from "@src/billing/repositories";
 import { ManagedSignerService, RpcMessageService, Wallet } from "@src/billing/services";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 
@@ -20,7 +19,7 @@ export class DeploymentService {
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
     private readonly rpcMessageService: RpcMessageService,
     private readonly sdlService: SdlService,
-    @InjectBillingConfig() private readonly billingConfig: BillingConfig
+    private readonly billingConfig: BillingConfigService
   ) {}
 
   public async findByOwnerAndDseq(owner: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
@@ -45,13 +44,14 @@ export class DeploymentService {
 
   public async create(wallet: UserWalletOutput, input: CreateDeploymentRequest["data"]): Promise<CreateDeploymentResponse["data"]> {
     let sdl: string = input.sdl;
+    const deploymentGrantDenom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
 
     if (!this.sdlService.validateSdl(sdl)) {
       throw new BadRequest("Invalid SDL");
     }
 
-    if (this.billingConfig.DEPLOYMENT_GRANT_DENOM !== "uakt") {
-      sdl = sdl.replace(/uakt/g, this.billingConfig.DEPLOYMENT_GRANT_DENOM);
+    if (deploymentGrantDenom !== "uakt") {
+      sdl = sdl.replace(/uakt/g, deploymentGrantDenom);
     }
 
     const dseq = await this.blockHttpService.getCurrentHeight();
@@ -63,7 +63,7 @@ export class DeploymentService {
       owner: wallet.address,
       dseq,
       groups,
-      denom: this.billingConfig.DEPLOYMENT_GRANT_DENOM,
+      denom: deploymentGrantDenom,
       amount: input.deposit,
       manifestVersion,
       depositor: await this.masterWallet.getFirstAddress()
