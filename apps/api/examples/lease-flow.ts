@@ -14,7 +14,7 @@
  * - SDL file at ../test/mocks/hello-world-sdl.yml
  *
  * How to run (at the root of the project):
- * - npm run scripts:lease-flow -w @akashnetwork/console-api
+ * - npm run examples:lease-flow -w @akashnetwork/console-api
  */
 
 import { config } from "@dotenvx/dotenvx";
