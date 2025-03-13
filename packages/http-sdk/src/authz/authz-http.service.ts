@@ -43,7 +43,7 @@ interface FeeAllowanceResponse {
 
 interface DepositDeploymentGrantResponse<T extends ExactDepositDeploymentGrant = DepositDeploymentGrant> {
   grants: T[];
-  pagination: {
+  pagination?: {
     next_key: string | null;
   };
 }
@@ -137,7 +137,7 @@ export class AuthzHttpService extends HttpService {
           params: { "pagination.key": nextPageKey, "pagination.limit": options.limit }
         })
       );
-      nextPageKey = response?.pagination?.next_key;
+      nextPageKey = response.pagination?.next_key;
 
       await cb(response.grants.filter(grant => this.isValidDepositDeploymentGrant(grant)));
     } while (nextPageKey);
