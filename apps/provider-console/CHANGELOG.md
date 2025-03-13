@@ -1,5 +1,12 @@
 
 
+## [1.4.1](https://github.com/akash-network/console/compare/provider-console/v1.4.0...provider-console/v1.4.1) (2025-03-13)
+
+
+### Bug Fixes
+
+* **provider:** added redirect once we have a success on network upgrade ([#1016](https://github.com/akash-network/console/issues/1016)) ([09c276a](https://github.com/akash-network/console/commit/09c276a27f841dd6f43a1c4bf5dcb1b31a448b63))
+
 ## [1.4.0](https://github.com/akash-network/console/compare/provider-console/v1.3.1...provider-console/v1.4.0) (2025-03-12)
 
 
