@@ -12,6 +12,9 @@
  * - API_KEY environment variable must be set
  * - .env.local file in the script directory (optional)
  * - SDL file at ../test/mocks/hello-world-sdl.yml
+ *
+ * How to run (at the root of the project):
+ * - npm run scripts:lease-flow -w @akashnetwork/console-api
  */
 
 import { config } from "@dotenvx/dotenvx";
