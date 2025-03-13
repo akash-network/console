@@ -1,4 +1,4 @@
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -15,5 +15,9 @@ async function getDepositParams(apiEndpoint: string) {
 }
 
 export function useDepositParams(options = {}) {
-  return useQuery(QueryKeys.getDepositParamsKey(), () => getDepositParams(browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL), options);
+  return useQuery({
+    queryKey: QueryKeys.getDepositParamsKey(),
+    queryFn: () => getDepositParams(browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL),
+    ...options
+  });
 }
