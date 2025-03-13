@@ -9,7 +9,7 @@ if (!githubPAT) {
   process.exit(1);
 }
 
-getTemplateGallery({ githubPAT, dataFolderPath: "./data" }).catch(err => {
+getTemplateGallery({ githubPAT, dataFolderPath: "./dist/.data" }).catch(err => {
   console.error("Encountered an error trying to warm up Akash templates cache");
   console.error(err);
   process.exit(1);

@@ -6,7 +6,7 @@ export const averageHoursInAMonth = averageDaysInMonth * 24;
 export const averageBlockCountInAMonth = (averageDaysInMonth * 24 * 60 * 60) / averageBlockTime;
 export const averageBlockCountInAnHour = (60 * 60) / averageBlockTime;
 
-export const dataFolderPath = "./data";
+export const dataFolderPath = "./dist/.data";
 
 // Open API examples
 export const openApiExampleAddress = "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm";
