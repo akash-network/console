@@ -33,7 +33,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
           <p className="text-center">Free Trial</p>
         </div>
       )}
-      <div className="rounded-md border border-primary/10 bg-primary/10 p-2 text-primary dark:bg-primary dark:text-foreground">
+      <div className="rounded-md border border-primary/50 bg-primary/10 p-2 text-primary dark:bg-primary dark:text-foreground">
         <div className="flex items-center justify-between space-x-2">
           <span className="text-xs">Credits Remaining:</span>
           <span>
@@ -46,7 +46,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
           </span>
         </div>
 
-        <Separator className="my-2 bg-primary/10 dark:bg-white/20" />
+        <Separator className="my-2 bg-primary/50 dark:bg-white/20" />
 
         <div className="flex items-center justify-between space-x-2">
           <span className="text-xs">Deposits:</span>
