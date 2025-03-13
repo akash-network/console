@@ -1,5 +1,12 @@
 
 
+## [2.70.0](https://github.com/akash-network/console/compare/console-api/v2.69.3...console-api/v2.70.0) (2025-03-13)
+
+
+### Features
+
+* **analytics:** adds more user onboarding events ([4e87ad4](https://github.com/akash-network/console/commit/4e87ad445d6e233dc1986e757b850082f65c172d))
+
 ## [2.69.3](https://github.com/akash-network/console/compare/console-api/v2.69.2...console-api/v2.69.3) (2025-03-13)
 
 
