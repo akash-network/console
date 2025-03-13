@@ -19,7 +19,7 @@ describe("ApiKeyAuthService", () => {
     config = stub<CoreConfigService>({ get: jest.fn() });
     config.get.mockReturnValue("test");
     apiKeyGenerator = new ApiKeyGeneratorService(config);
-    apiKeyRepository = stub<ApiKeyRepository>({ findOneBy: jest.fn() });
+    apiKeyRepository = stub<ApiKeyRepository>({ findOneBy: jest.fn(), find: jest.fn() });
 
     service = new ApiKeyAuthService(apiKeyGenerator, apiKeyRepository, config);
   });
@@ -58,7 +58,7 @@ describe("ApiKeyAuthService", () => {
 
     it("should throw when key not found in database", async () => {
       const key = apiKeyGenerator.generateApiKey();
-      apiKeyRepository.findOneBy.mockResolvedValue(null);
+      apiKeyRepository.find.mockResolvedValue([]);
 
       await expect(service.getAndValidateApiKeyFromHeader(key)).rejects.toThrow(new Unauthorized("API key not found"));
     });
@@ -74,7 +74,7 @@ describe("ApiKeyAuthService", () => {
         keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
       });
 
-      apiKeyRepository.findOneBy.mockResolvedValue(data);
+      apiKeyRepository.find.mockResolvedValue([data]);
 
       await expect(service.getAndValidateApiKeyFromHeader(apiKey)).rejects.toThrow(new Unauthorized("API key has expired"));
     });
@@ -90,7 +90,7 @@ describe("ApiKeyAuthService", () => {
         keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
       });
 
-      apiKeyRepository.findOneBy.mockResolvedValue(data);
+      apiKeyRepository.find.mockResolvedValue([data]);
 
       const result = await service.getAndValidateApiKeyFromHeader(apiKey);
       expect(result).toBe(data);
@@ -102,7 +102,7 @@ describe("ApiKeyAuthService", () => {
         hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
         keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey)
       });
-      apiKeyRepository.findOneBy.mockResolvedValue(data);
+      apiKeyRepository.find.mockResolvedValue([data]);
 
       const result = await service.getAndValidateApiKeyFromHeader(apiKey);
       expect(result).toBe(data);

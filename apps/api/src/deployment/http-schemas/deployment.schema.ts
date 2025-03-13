@@ -73,6 +73,7 @@ export const CreateDeploymentRequestSchema = z.object({
 export const CreateDeploymentResponseSchema = z.object({
   data: z.object({
     dseq: z.string(),
+    manifest: z.string(),
     signTx: SignTxResponseOutputSchema.shape.data
   })
 });

@@ -1,4 +1,4 @@
-import { ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
+import { Provider, ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
 import { singleton } from "tsyringe";
 
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
@@ -17,5 +17,9 @@ export class ProviderRepository {
     });
 
     return trialProviders.map(provider => provider.provider);
+  }
+
+  async getProvider(address: string): Promise<Provider> {
+    return await Provider.findByPk(address);
   }
 }

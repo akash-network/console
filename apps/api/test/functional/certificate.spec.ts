@@ -30,10 +30,9 @@ describe("Certificate API", () => {
     config.get.mockReturnValue("test");
     apiKeyGenerator = new ApiKeyGeneratorService(config);
     const apiKey = apiKeyGenerator.generateApiKey();
-    const obfuscatedKey = apiKeyGenerator.obfuscateApiKey(apiKey);
 
     jest.spyOn(userRepository, "findById").mockImplementation(async id => {
-      if (id === userWithId.userId) {
+      if (id === userWithId.id) {
         return {
           ...userWithId,
           trial: false,
@@ -43,12 +42,12 @@ describe("Certificate API", () => {
       return undefined;
     });
 
-    jest.spyOn(apiKeyRepository, "findOneBy").mockImplementation(async key => {
-      if (key.keyFormat === obfuscatedKey) {
-        const now = new Date().toISOString();
-        return {
+    jest.spyOn(apiKeyRepository, "find").mockImplementation(async () => {
+      const now = new Date().toISOString();
+      return [
+        {
           id: faker.string.uuid(),
-          userId: userWithId.userId,
+          userId: userWithId.id,
           key: apiKey,
           hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
           keyFormat: "sk",
@@ -57,9 +56,8 @@ describe("Certificate API", () => {
           updatedAt: now,
           expiresAt: null,
           lastUsedAt: null
-        };
-      }
-      return undefined;
+        }
+      ];
     });
 
     jest.spyOn(userWalletRepository, "findOneByUserId").mockImplementation(async id => {
