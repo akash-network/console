@@ -1,0 +1,72 @@
+name: Validate and Build Notifications
+
+on:
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-n-build-notifications:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Detect Local Deps Changes
+        uses: ./.github/actions/local-dependencies
+        id: local_deps
+        with:
+          app: notifications
+
+      - name: Check for changes
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
+            notifications:
+              - 'apps/notifications/**'
+              - *local_deps
+      - name: Setup Node.js
+        if: steps.filter.outputs.notifications == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.14.0
+
+      - name: Restore root node_modules cache
+        if: steps.filter.outputs.notifications == 'true'
+        uses: actions/cache@v4
+        id: cache
+        with:
+          path: |
+            node_modules
+            apps/notifications/node_modules
+            packages/*/node_modules
+          key: notifications-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.filter.outputs.notifications == 'true' && steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Run static code analysis
+        if: steps.filter.outputs.notifications == 'true'
+        run: npm run lint -w apps/notifications
+
+      - name: Run tests
+        if: steps.filter.outputs.notifications == 'true'
+        env:
+          POSTGRES_SKIP_IMPORT: true
+        run: |
+          npm run test:cov --workspace=apps/notifications
+
+      - name: Upload Test Coverage
+        if: steps.filter.outputs.notifications == 'true'
+        uses: codecov/codecov-action@v5
+        with:
+          directory: ./apps/notifications/coverage
+          flags: notifications
+          token: ${{ secrets.CODECOV_TOKEN }}

@@ -11,7 +11,7 @@ interface Bindings extends pino.Bindings {
   context?: string;
 }
 
-interface LoggerOptions extends pino.LoggerOptions {
+export interface LoggerOptions extends pino.LoggerOptions {
   base?: Bindings | null;
 }
 
