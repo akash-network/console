@@ -299,9 +299,8 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
                     name="seedPhrase"
                     render={({ field }) => (
                       <FormItem className="flex flex-col space-y-2">
-                        <FormLabel>Seed Phrase</FormLabel>
                         <FormControl>
-                          <Textarea placeholder="Enter your seed phrase" {...field} rows={4} />
+                          <Textarea label="Seed Phrase" placeholder="Enter your seed phrase" rows={4} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

@@ -6,6 +6,22 @@ import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
 
+export const parseSvcCommand = (command?: string | string[]) => {
+  if (!command) {
+    return "";
+  }
+
+  if (typeof command === "string") {
+    return parseSvcCommand([command]);
+  }
+
+  if (command[0] === "sh" && command[1] === "-c") {
+    return command.slice(2).filter(Boolean).join("\n");
+  }
+
+  return command.filter(Boolean).join("\n");
+};
+
 export const importSimpleSdl = (yamlStr: string) => {
   try {
     const yamlJson = yaml.load(yamlStr) as any;
@@ -55,7 +71,7 @@ export const importSimpleSdl = (yamlStr: string) => {
 
       // Command
       service.command = {
-        command: svc.command?.length > 0 ? svc.command.join(" ") : "",
+        command: parseSvcCommand(svc.command),
         arg: svc.args ? svc.args[0] : ""
       };
 
