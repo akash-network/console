@@ -1,13 +1,14 @@
 "use client";
-import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
-import { Alert, Button, CustomTooltip, FileButton, Input, Snackbar, Spinner } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, Button, CustomTooltip, FileButton, Input, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { ArrowRight, InfoCircle, Upload } from "iconoir-react";
 import { useAtom } from "jotai";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
 
@@ -17,6 +18,7 @@ import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvide
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
+import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useDepositParams } from "@src/queries/useSettings";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
@@ -41,6 +43,8 @@ import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import ViewPanel from "../shared/ViewPanel";
 import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
+
+const TRIAL_DEPLOYMENT_LIMIT = 5;
 
 type Props = {
   onTemplateSelected: Dispatch<TemplateCreation | null>;
@@ -310,9 +314,34 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     setSelectedSdlEditMode(mode);
   };
 
+  const { data: deployments } = useDeploymentList(address, {});
+  const trialDeploymentLimitReached = useMemo(() => {
+    return isTrialing && (deployments?.length || 0) >= TRIAL_DEPLOYMENT_LIMIT;
+  }, [deployments?.length, isTrialing]);
+
   return (
     <>
       <CustomNextSeo title="Create Deployment - Manifest Edit" url={`${domainName}${UrlService.newDeployment({ step: RouteStep.editDeployment })}`} />
+
+      {trialDeploymentLimitReached && (
+        <div className="pb-4 pt-4">
+          <Alert variant="warning" className="backdrop-blur-md md:mb-0">
+            <AlertDescription className="space-y-1 dark:text-white/90">
+              <p>
+                You have reached the limit of {TRIAL_DEPLOYMENT_LIMIT} trial deployments.{" "}
+                <Link href={UrlService.login()} className="font-bold underline">
+                  Sign in
+                </Link>{" "}
+                or{" "}
+                <Link href={UrlService.signup()} className="font-bold underline">
+                  Sign up
+                </Link>{" "}
+                to add funds and continue deploying.
+              </p>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
 
       <div className="mb-2 pt-4">
         <div className="mb-2 flex flex-col items-end justify-between md:flex-row">
@@ -338,7 +367,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
             <div className="flex-grow">
               <Button
                 variant="default"
-                disabled={isCreatingDeployment || !!parsingError || !editedManifest}
+                disabled={trialDeploymentLimitReached || isCreatingDeployment || !!parsingError || !editedManifest}
                 onClick={() => handleCreateDeployment()}
                 className="w-full whitespace-nowrap sm:w-auto"
                 data-testid="create-deployment-btn"

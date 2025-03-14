@@ -8,6 +8,7 @@ import { Op } from "sequelize";
 
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { getTransactionByAddress } from "@src/services/db/transactionsService";
+import { ProviderList } from "@src/types/provider";
 import {
   CosmosGovProposalResponse,
   CosmosGovProposalsResponse,
@@ -482,7 +483,7 @@ export async function getAddressDeployments(owner: string, skip: number, limit: 
       "filters.state": "active"
     }
   });
-  const providers = await getProviderList();
+  const providers = response.data.deployments.length ? await getProviderList() : ([] as ProviderList[]);
 
   return {
     count: parseInt(response.data.pagination.total),
