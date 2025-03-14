@@ -1,5 +1,5 @@
-**/node_modules
-**/data
+**/node_modules/**
+**/data/**
 **/npm-debug.log
 **/.git
 
@@ -8,11 +8,6 @@
 **/.env.test
 **/.env.*.local
 **/.env.*.test
-
-apps/indexer/.env*
-apps/landing/.env*
-apps/provider-console/.env*
-apps/provider-proxy/.env*
 
 **/.next
 *.md

@@ -9,16 +9,22 @@ ENV HUSKY 0
 
 WORKDIR /app
 
+FROM base AS prepare
+
+COPY package*.json /app/
+COPY $WORKSPACE/package.json /app/$WORKSPACE/
+COPY --parents packages/*/package.json /app
+# reset app version to 1.0.0 to avoid cache busting after every release
+RUN npm version --allow-same-version 1.0.0 -w $WORKSPACE --no-workspaces-update && \
+    npm install --package-lock-only
+
 FROM base AS development
 
-COPY package*.json /app
-COPY /$WORKSPACE/package.json /app/$WORKSPACE/package.json
-COPY --parents /packages/*/package.json /app
+COPY --from=prepare /app .
 
-RUN npm ci
-
-COPY /$WORKSPACE /app/$WORKSPACE
-COPY /packages /app/packages
+RUN npm ci && npm cache clean --force
+COPY $WORKSPACE ./$WORKSPACE
+COPY packages ./packages
 
 CMD ["npm", "run", "dev", "--workspace", "${WORKSPACE}"]
 
@@ -37,14 +43,9 @@ RUN addgroup --system --gid $APP_GROUP_ID $APP_GROUP \
     && adduser --system --uid $APP_GROUP_ID --ingroup $APP_GROUP $APP_USER
 
 COPY --from=builder /app/package*.json /app/
-COPY --from=builder /app/$WORKSPACE/package.json /app/$WORKSPACE/package.json
-COPY --from=builder --parents /app/packages/*/package.json /app
-
-RUN npm ci --workspace $WORKSPACE --omit=dev
-
+COPY --from=builder /app/$WORKSPACE/package.json /app/$WORKSPACE/
 COPY --from=builder /app/$WORKSPACE/dist /app/$WORKSPACE/dist
-COPY --from=builder /app/$WORKSPACE/env/* /app/$WORKSPACE/env/
-COPY --from=builder /app/packages /app/packages
+COPY --from=builder /app/$WORKSPACE/env /app/$WORKSPACE/env
 
 RUN find /app -name node_modules -prune -o -type f -exec chown $APP_USER:$APP_GROUP '{}' \;
 RUN apk add --no-cache libcap; \
