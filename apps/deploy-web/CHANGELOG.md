@@ -1,5 +1,13 @@
 
 
+## [2.57.1](https://github.com/akash-network/console/compare/console-web/v2.57.0...console-web/v2.57.1) (2025-03-14)
+
+
+### Bug Fixes
+
+* **wallet:** fix fetching of authz ([#1017](https://github.com/akash-network/console/issues/1017)) ([37a0b2d](https://github.com/akash-network/console/commit/37a0b2d0f29ed11e4aa0b11c1d4fd919094373fb))
+* **wallet:** fix top-up amount button spacing ([#964](https://github.com/akash-network/console/issues/964)) ([15ab5a2](https://github.com/akash-network/console/commit/15ab5a240db371ec19f16cd52a3723243c3a0ece)), closes [#668](https://github.com/akash-network/console/issues/668)
+
 ## [2.57.0](https://github.com/akash-network/console/compare/console-web/v2.56.0...console-web/v2.57.0) (2025-03-13)
 
 
