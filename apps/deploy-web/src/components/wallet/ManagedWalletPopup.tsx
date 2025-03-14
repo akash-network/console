@@ -33,7 +33,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
           <p className="text-center">Free Trial</p>
         </div>
       )}
-      <div className="rounded-md border border-primary/10 bg-primary/10 p-2 text-primary dark:bg-primary dark:text-foreground">
+      <div className="rounded-md border border-primary/50 bg-primary/10 p-2 text-primary dark:bg-primary dark:text-foreground">
         <div className="flex items-center justify-between space-x-2">
           <span className="text-xs">Credits Remaining:</span>
           <span>
@@ -46,7 +46,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
           </span>
         </div>
 
-        <Separator className="my-2 bg-primary/10 dark:bg-white/20" />
+        <Separator className="my-2 bg-primary/50 dark:bg-white/20" />
 
         <div className="flex items-center justify-between space-x-2">
           <span className="text-xs">Deposits:</span>
@@ -74,19 +74,19 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
       )}
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
-        <TopUpAmountPicker mdMode="click" className="w-full">
-          <Button
-            onClick={event => {
-              whenLoggedInAndVerified(goToCheckout)(event);
-              analyticsService.track("add_funds_btn_clk");
-            }}
-            variant="outline"
-            className="w-full space-x-2"
-          >
-            <HandCard />
-            <span>Add Funds</span>
-          </Button>
-        </TopUpAmountPicker>
+        <Button
+          onClick={event => {
+            whenLoggedInAndVerified(goToCheckout)(event);
+            analyticsService.track("add_funds_btn_clk");
+          }}
+          variant="outline"
+          className="w-full space-x-2"
+        >
+          <HandCard />
+          <span>Add Funds</span>
+        </Button>
+        <TopUpAmountPicker className="w-full" />
+        <Separator className="my-2 bg-secondary/90 dark:bg-white/10" />
         <Button onClick={isWalletConnected ? switchWalletType : connect} variant="outline" className="w-full space-x-2">
           <CoinsSwap />
           <span>Switch to Wallet Payments</span>

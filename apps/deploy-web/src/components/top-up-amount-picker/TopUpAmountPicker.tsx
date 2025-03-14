@@ -1,54 +1,59 @@
 import React from "react";
-import { Button, buttonVariants } from "@akashnetwork/ui/components";
+import { Button, ButtonProps, buttonVariants, Spinner } from "@akashnetwork/ui/components";
+import { usePopup } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
-import { useMediaQuery } from "@mui/material";
-import { useTheme as useMuiTheme } from "@mui/material/styles";
-import { MoreHoriz } from "iconoir-react";
+import { Cash } from "iconoir-react";
+import Link from "next/link";
 
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
+import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
 import { useUser } from "@src/hooks/useUser";
 import { useStripePricesQuery } from "@src/queries/useStripePricesQuery";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { FCWithChildren } from "@src/types/component";
 
-interface TopUpAmountPickerProps {
-  popoverClassName?: string;
+interface TopUpAmountPickerProps extends ButtonProps {
   className?: string;
-  mdMode: "hover" | "click";
 }
 
-export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ children, popoverClassName, className, mdMode }) => {
+export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ className, variant = "outline" }) => {
   const user = useUser();
-  const [isOpened, setIsOpened] = React.useState(false);
-  const { data = [] } = useStripePricesQuery({ enabled: !!user?.userId });
-  const muiTheme = useMuiTheme();
-  const isSmallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
-  const isOnClick = mdMode === "click" || isSmallScreen;
+  const { data, isLoading } = useStripePricesQuery({ enabled: !!user?.userId });
+  const isInitializing = isLoading && !data;
+  const whenLoggedInAndVerified = useAddFundsVerifiedLoginRequiredEventHandler();
+  const { createCustom } = usePopup();
 
-  return (
-    <div className={cn("group relative", className)}>
-      {data.length > 1 ? (
+  const handleClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    createCustom({
+      title: "Select Coupon",
+      actions: ({ close }) => [
+        {
+          label: "Close",
+          color: "primary",
+          variant: "text",
+          side: "right",
+          onClick: close
+        }
+      ],
+      message: (
         <>
-          <div className="flex space-x-2">
-            {children}
-            {isOnClick && (
-              <Button size="icon" variant="ghost" className="min-w-max flex-shrink-0 rounded-full" onClick={() => setIsOpened(prev => !prev)}>
-                <MoreHoriz />
-              </Button>
-            )}
-          </div>
-          <div
-            className={cn(
-              "opacity-1 invisible my-2 max-h-0 flex-wrap space-x-2 overflow-hidden rounded transition-all duration-200 ease-out hover:opacity-100",
-              { "visible max-h-24": isOpened && isOnClick, "group-hover:visible group-hover:max-h-24": !isOnClick },
-              popoverClassName
-            )}
-          >
-            {data.map(price => {
+          <p className="text-sm text-muted-foreground">Select the coupon with the amount you want to redeem.</p>
+
+          <div className={cn("my-2 grid grid-cols-2 gap-2 sm:grid-cols-4")}>
+            {data?.map(price => {
               return (
                 <AddFundsLink
                   key={price.unitAmount || "custom"}
-                  className={cn("mb-2", buttonVariants({ variant: "default" }))}
+                  className={cn(buttonVariants({ variant: "outline", className: "text-foreground" }))}
                   href={`/api/proxy/v1/checkout${price.isCustom ? "" : `?amount=${price.unitAmount}`}`}
+                  onClick={() => {
+                    analyticsService.track("add_funds_coupon_claim_amount_btn_clk", {
+                      coupon: price.isCustom ? "custom" : price.unitAmount
+                    });
+                  }}
                 >
                   {price.isCustom ? "Custom" : "$"}
                   {price.unitAmount}
@@ -56,10 +61,32 @@ export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ chil
               );
             })}
           </div>
+
+          <Link
+            className="text-xs text-muted-foreground"
+            href="https://docs.google.com/forms/d/e/1FAIpQLScSIE6H4zWCJn6DcW8uyLRVSJK1G7RnBqqlJR9Txpv_mxX9YQ/viewform?usp=header"
+            target="_blank"
+          >
+            First time user? Click here to request a coupon
+          </Link>
         </>
-      ) : (
-        <>{children}</>
-      )}
-    </div>
+      )
+    });
+  };
+
+  return (
+    <Button
+      variant={variant}
+      className={cn(className, "space-x-2")}
+      disabled={isInitializing}
+      onClick={event => {
+        whenLoggedInAndVerified(handleClick)(event);
+        analyticsService.track("add_funds_coupon_btn_clk");
+      }}
+    >
+      <Cash />
+      <span>I have a coupon</span>
+      {isInitializing && <Spinner size="small" />}
+    </Button>
   );
 };
