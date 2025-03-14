@@ -26,8 +26,8 @@ const SettingsPage: React.FC = () => {
   const [nodeUpgradeSuccess, setNodeUpgradeSuccess] = useState(false);
   const [upgradeStatus, setUpgradeStatus] = useState<{
     needsUpgrade: boolean;
-    currentNetworkVersion: string;
-    systemVersion: string;
+    appVersion: { current: string; desired: string };
+    chartVersion: { current: string; desired: string };
   } | null>(null);
   const [isUpgradeStatusLoading, setIsUpgradeStatusLoading] = useState(false);
   const [isNodeUpgrading, setIsNodeUpgrading] = useState(false);
@@ -48,16 +48,20 @@ const SettingsPage: React.FC = () => {
       const request = {
         control_machine: sanitizeMachineAccess(activeControlMachine)
       };
-      const response: { needs_upgrade: boolean; current_network_version: string; system_version: string } = await restClient.post(
-        "/network/upgrade-status",
-        request
-      );
-      console.log(response);
+      const response: { needs_upgrade: boolean; app_version: { current: string; desired: string }; chart_version: { current: string; desired: string } } =
+        await restClient.post("/network/upgrade-status", request);
+
       if (response) {
         setUpgradeStatus({
           needsUpgrade: response.needs_upgrade,
-          currentNetworkVersion: response.current_network_version,
-          systemVersion: response.system_version
+          appVersion: {
+            current: response.app_version.current,
+            desired: response.app_version.desired
+          },
+          chartVersion: {
+            current: response.chart_version.current,
+            desired: response.chart_version.desired
+          }
         });
       }
     } catch (error) {
@@ -144,6 +148,23 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  // Helper function to determine upgrade reason
+  const getUpgradeReason = () => {
+    if (!upgradeStatus?.needsUpgrade) return null;
+
+    const reasons: string[] = [];
+
+    if (upgradeStatus.appVersion.current !== upgradeStatus.appVersion.desired) {
+      reasons.push(`application version (${upgradeStatus.appVersion.current} → ${upgradeStatus.appVersion.desired})`);
+    }
+
+    if (upgradeStatus.chartVersion.current !== upgradeStatus.chartVersion.desired) {
+      reasons.push(`chart version (${upgradeStatus.chartVersion.current} → ${upgradeStatus.chartVersion.desired})`);
+    }
+
+    return reasons.length > 0 ? `Update available for ${reasons.join(" and ")}` : null;
+  };
+
   return (
     <Layout>
       <ControlMachineError className="mb-4" />
@@ -167,28 +188,144 @@ const SettingsPage: React.FC = () => {
         </div>
 
         <div className="rounded-lg border p-6">
-          <h2 className="text-xl font-semibold">Upgrade Akash Node</h2>
+          <h2 className="text-xl font-semibold">Akash Node Status</h2>
           <p className="text-muted-foreground mt-2">Check and upgrade your Akash Node to the latest version.</p>
 
           {isUpgradeStatusLoading ? (
-            <p className="mt-2">Checking for upgrades...</p>
+            <div className="mt-4 flex items-center">
+              <div className="border-primary mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"></div>
+              <span>Checking for upgrades...</span>
+            </div>
           ) : upgradeStatus ? (
-            <>
-              <div className="mt-2">
-                <p>Network version: {upgradeStatus.currentNetworkVersion}</p>
-                <p>System version: {upgradeStatus.systemVersion}</p>
+            <div className="mt-4">
+              <div className="mb-4 flex gap-4">
+                <div className="flex-1 rounded-md border p-3">
+                  <h3 className="text-muted-foreground text-sm font-medium">Akash Node Version</h3>
+                  <div className="mt-1 flex items-center">
+                    <span className="text-base font-semibold">{upgradeStatus.appVersion.current}</span>
+                    {upgradeStatus.appVersion.current !== upgradeStatus.appVersion.desired && (
+                      <span className="ml-2 flex items-center text-xs text-amber-500">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="mr-1"
+                        >
+                          <path d="m6 9 6-6 6 6"></path>
+                          <path d="M12 3v18"></path>
+                        </svg>
+                        {upgradeStatus.appVersion.desired}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1 rounded-md border p-3">
+                  <h3 className="text-muted-foreground text-sm font-medium">Chart Version</h3>
+                  <div className="mt-1 flex items-center">
+                    <span className="text-base font-semibold">{upgradeStatus.chartVersion.current}</span>
+                    {upgradeStatus.chartVersion.current !== upgradeStatus.chartVersion.desired && (
+                      <span className="ml-2 flex items-center text-xs text-amber-500">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="mr-1"
+                        >
+                          <path d="m6 9 6-6 6 6"></path>
+                          <path d="M12 3v18"></path>
+                        </svg>
+                        {upgradeStatus.chartVersion.desired}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
+
               {upgradeStatus.needsUpgrade ? (
-                <Button onClick={upgradeAkashNode} className="mt-4" disabled={isDisabled || isNodeUpgrading}>
-                  {isNodeUpgrading ? "Upgrading..." : `Upgrade to ${upgradeStatus.currentNetworkVersion}`}
-                </Button>
+                <>
+                  <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <div className="flex items-start">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-2 mt-0.5 text-amber-500"
+                      >
+                        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                      </svg>
+                      <div>
+                        <p className="font-medium text-amber-800">{getUpgradeReason()}</p>
+                        {/* <p className="text-sm text-amber-700 mt-1">Upgarding may cause temporary service interruption for bid engine.</p> */}
+                      </div>
+                    </div>
+                  </div>
+                  <Button onClick={upgradeAkashNode} className="mt-2" disabled={isDisabled || isNodeUpgrading}>
+                    {isNodeUpgrading ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        Upgrading...
+                      </>
+                    ) : (
+                      "Upgrade Akash Node"
+                    )}
+                  </Button>
+                </>
               ) : (
-                <p className="mt-2 text-green-500">Your Akash Node is up to date.</p>
+                <div className="mb-4 rounded-md border p-3">
+                  <div className="flex items-start">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mr-2 mt-0.5 text-green-500"
+                    >
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <div>
+                      <p className="font-medium text-green-800">Your Akash Node is up to date</p>
+                      <p className="mt-1 text-sm text-green-700">The upgrade button will be enabled when a new version is available.</p>
+                    </div>
+                  </div>
+                </div>
               )}
-              {nodeUpgradeSuccess && <div className="mt-4 text-green-500">{upgradeMessage || "Akash Node upgrade started successfully"}</div>}
-            </>
+
+              {nodeUpgradeSuccess && (
+                <div className="mt-4 rounded-md border border-green-200 bg-green-50 p-3">
+                  <p className="text-green-800">{upgradeMessage || "Akash Node upgrade started successfully"}</p>
+                </div>
+              )}
+            </div>
           ) : (
-            <p className="mt-2 text-yellow-500">Unable to check upgrade status.</p>
+            <div className="mt-4 rounded-md border border-yellow-200 bg-yellow-50 p-3">
+              <p className="text-yellow-800">Unable to check upgrade status. Please ensure your control machine is connected.</p>
+            </div>
           )}
         </div>
 
