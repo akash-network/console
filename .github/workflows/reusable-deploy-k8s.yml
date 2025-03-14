@@ -9,7 +9,7 @@ on:
         type: choice
         options:
           - staging
-          - production
+          - prod
       app:
         description: "The app to deploy"
         required: true
