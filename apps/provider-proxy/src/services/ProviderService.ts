@@ -17,7 +17,12 @@ export class ProviderService {
       "pagination.limit": "1"
     });
 
-    const response = await httpRetry(() => this.fetch(`${this.getChainBaseUrl(network)}/akash/cert/v1beta3/certificates/list?${queryParams}`), {
+    const baseUrl = this.getChainBaseUrl(network);
+    if (!baseUrl) {
+      throw new Error(`No API URL provided for network ${network}`);
+    }
+
+    const response = await httpRetry(() => this.fetch(`${baseUrl}/akash/cert/v1beta3/certificates/list?${queryParams}`), {
       retryIf: response => response.status > 500
     });
 

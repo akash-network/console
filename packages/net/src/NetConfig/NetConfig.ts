@@ -1,10 +1,11 @@
-import { netConfigData } from "./generated/netConfigData";
+import { netConfigData } from "../generated/netConfigData";
 
 export type SupportedChainNetworks = keyof typeof netConfigData;
 
 export class NetConfig {
   getBaseAPIUrl(network: SupportedChainNetworks): string {
-    return netConfigData[network].apiUrls[1];
+    const apiUrls = netConfigData[network].apiUrls;
+    return apiUrls.length > 1 ? apiUrls[1] : apiUrls[0];
   }
 
   getSupportedNetworks(): SupportedChainNetworks[] {
