@@ -152,7 +152,7 @@ const SettingsPage: React.FC = () => {
   const getUpgradeReason = () => {
     if (!upgradeStatus?.needsUpgrade) return null;
 
-    const reasons = [];
+    const reasons: string[] = [];
 
     if (upgradeStatus.appVersion.current !== upgradeStatus.appVersion.desired) {
       reasons.push(`application version (${upgradeStatus.appVersion.current} → ${upgradeStatus.appVersion.desired})`);
