@@ -87,6 +87,8 @@ export type AnalyticsEvent =
   | "sdl_uploaded"
   | "deposit_deployment_btn_clk"
   | "add_funds_btn_clk"
+  | "add_funds_coupon_btn_clk"
+  | "add_funds_coupon_claim_amount_btn_clk"
   | "redeploy_btn_clk"
   | "edit_name_btn_clk"
   | "payment_cancelled"

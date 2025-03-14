@@ -6,8 +6,10 @@ import { Cash } from "iconoir-react";
 import Link from "next/link";
 
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
+import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
 import { useUser } from "@src/hooks/useUser";
 import { useStripePricesQuery } from "@src/queries/useStripePricesQuery";
+import { analyticsService } from "@src/services/analytics/analytics.service";
 import { FCWithChildren } from "@src/types/component";
 
 interface TopUpAmountPickerProps extends ButtonProps {
@@ -18,6 +20,7 @@ export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ clas
   const user = useUser();
   const { data, isLoading } = useStripePricesQuery({ enabled: !!user?.userId });
   const isInitializing = isLoading && !data;
+  const whenLoggedInAndVerified = useAddFundsVerifiedLoginRequiredEventHandler();
   const { createCustom } = usePopup();
 
   const handleClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -46,6 +49,11 @@ export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ clas
                   key={price.unitAmount || "custom"}
                   className={cn(buttonVariants({ variant: "outline", className: "text-foreground" }))}
                   href={`/api/proxy/v1/checkout${price.isCustom ? "" : `?amount=${price.unitAmount}`}`}
+                  onClick={() => {
+                    analyticsService.track("add_funds_coupon_claim_amount_btn_clk", {
+                      coupon: price.isCustom ? "custom" : price.unitAmount
+                    });
+                  }}
                 >
                   {price.isCustom ? "Custom" : "$"}
                   {price.unitAmount}
@@ -67,7 +75,15 @@ export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ clas
   };
 
   return (
-    <Button variant={variant} className={cn(className, "space-x-2")} disabled={isInitializing} onClick={handleClick}>
+    <Button
+      variant={variant}
+      className={cn(className, "space-x-2")}
+      disabled={isInitializing}
+      onClick={event => {
+        whenLoggedInAndVerified(handleClick)(event);
+        analyticsService.track("add_funds_coupon_btn_clk");
+      }}
+    >
       <Cash />
       <span>I have a coupon</span>
       {isInitializing && <Spinner size="small" />}
