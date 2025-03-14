@@ -20,7 +20,7 @@ const config = path => {
 if (!process.env.DEPLOYMENT_ENV) {
   config("../../.env.local");
 }
-config(`env/.env.${process.env.DEPLOYMENT_ENV}`);
+config(`env/.env.${process.env.DEPLOYMENT_ENV || "local"}`);
 config(`env/.env.${process.env.NETWORK}`);
 config("env/.env");
 
