@@ -191,10 +191,10 @@ export class WebsocketServer {
         .catch(error => {
           options.logger?.error({
             message: "Could not validate SSL certificate",
-            error,
             chainNetwork: options.chainNetwork,
             providerAddress: options.providerAddress
           });
+          options.logger?.error(error);
           return {
             ok: false,
             code: "serverError"

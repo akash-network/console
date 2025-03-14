@@ -9,6 +9,11 @@
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
     "generate": "ts-node scripts/generate.ts",
     "lint": "eslint .",
+    "test": "npm run generate && jest",
+    "test:cov": "npm run test -- --coverage",
     "validate:types": "tsc --noEmit && echo"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }
