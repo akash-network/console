@@ -7,7 +7,8 @@ import type { DepositParams } from "@src/types/deployment";
 import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVersion } from "./helpers";
 
 export const ENDPOINT_NAME_VALIDATION_REGEX = /^[a-z]+[-_\da-z]+$/;
-const TRIAL_ATTRIBUTE = "console/trials";
+export const TRIAL_ATTRIBUTE = "console/trials";
+export const TRIAL_REGISTERED_ATTRIBUTE = "console/trials-registered";
 const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
 export function getManifest(yamlJson: any, asString: boolean) {
@@ -27,7 +28,7 @@ const getDenomFromSdl = (groups: any[]): string => {
   return denoms[0];
 };
 
-export function appendTrialAttribute(yamlStr: string) {
+export function appendTrialAttribute(yamlStr: string, attributeKey: string) {
   const sdl = getSdl(yamlStr, "beta3", networkStore.selectedNetworkId);
   const placementData = sdl.data?.profiles?.placement || {};
 
@@ -38,9 +39,9 @@ export function appendTrialAttribute(yamlStr: string) {
       value.attributes = Object.entries(value.attributes).map(([key, value]) => ({ key, value: value as string }));
     }
 
-    const hasTrialAttribute = value.attributes.find(attr => attr.key === TRIAL_ATTRIBUTE);
+    const hasTrialAttribute = value.attributes.find(attr => attr.key === attributeKey);
     if (!hasTrialAttribute) {
-      value.attributes.push({ key: TRIAL_ATTRIBUTE, value: "true" });
+      value.attributes.push({ key: attributeKey, value: "true" });
     }
 
     if (!value.signedBy?.anyOf || !value.signedBy?.allOf) {
@@ -62,7 +63,7 @@ export function appendTrialAttribute(yamlStr: string) {
       "!!null": "empty" // dump null as empty value
     },
     replacer: (key, value) => {
-      const isCurrentKeyProviderAttributes = key === "attributes" && Array.isArray(value) && value.some(attr => attr.key === TRIAL_ATTRIBUTE);
+      const isCurrentKeyProviderAttributes = key === "attributes" && Array.isArray(value) && value.some(attr => attr.key === attributeKey);
       if (isCurrentKeyProviderAttributes) {
         return mapProviderAttributes(value);
       }

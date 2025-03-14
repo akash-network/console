@@ -5,6 +5,8 @@ import {
   AlertDescription,
   AlertTitle,
   Button,
+  Card,
+  CardContent,
   Checkbox,
   CustomTooltip,
   DropdownMenu,
@@ -26,6 +28,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBidList } from "@src/queries/useBidQuery";
+import { useBlock } from "@src/queries/useBlocksQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
@@ -33,6 +36,7 @@ import networkStore from "@src/store/networkStore";
 import { BidDto } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
+import { TRIAL_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -57,6 +61,7 @@ const REFRESH_BIDS_INTERVAL = 7000;
 const MAX_NUM_OF_BID_REQUESTS = Math.floor((5.5 * 60 * 1000) / REFRESH_BIDS_INTERVAL);
 // Show a warning after 1 minute
 const WARNING_NUM_OF_BID_REQUESTS = Math.round((60 * 1000) / REFRESH_BIDS_INTERVAL);
+const TRIAL_SIGNUP_WARNING_TIMEOUT = 33000;
 
 export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const [isSendingManifest, setIsSendingManifest] = useState(false);
@@ -184,6 +189,32 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, bids, providers, isFilteringFavorites, isFilteringAudited, favoriteProviders]);
 
+  const [zeroBidsForTrialWarningDisplayed, setZeroBidsForTrialWarningDisplayed] = useState(false);
+  const { data: block, refetch: getBlock } = useBlock(dseq, {
+    disabled: true
+  });
+
+  useEffect(() => {
+    getBlock();
+  }, [getBlock]);
+
+  useEffect(() => {
+    if (!isTrialing || numberOfRequests === 0 || bids?.length > 0) {
+      setZeroBidsForTrialWarningDisplayed(false);
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      const blockTime = new Date(block.block.header.time).getTime();
+      const now = new Date().getTime();
+
+      setZeroBidsForTrialWarningDisplayed(now - blockTime > TRIAL_SIGNUP_WARNING_TIMEOUT);
+      clearInterval(intervalId);
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [block, bids, isTrialing, numberOfRequests]);
+
   const selectBid = bid => {
     setSelectedBids(prev => ({ ...prev, [bid.gseq]: bid }));
   };
@@ -236,6 +267,18 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     const value = event.target.value;
     setSearch(value);
   };
+
+  const trialProviderCount = useMemo(() => {
+    if (providers) {
+      return providers.filter(provider => {
+        return provider.attributes.some(attribute => {
+          return attribute.key === TRIAL_ATTRIBUTE && attribute.value === "true";
+        });
+      }).length;
+    }
+
+    return 0;
+  }, [providers]);
 
   return (
     <>
@@ -310,13 +353,13 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
           </div>
         )}
 
-        {!isLoadingBids && (allClosed || bids?.length === 0) && (
+        {!isLoadingBids && allClosed && (
           <Button variant="default" color="secondary" onClick={handleCloseDeployment} size="sm">
             Close Deployment
           </Button>
         )}
 
-        {warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
+        {!zeroBidsForTrialWarningDisplayed && warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
           <div className="pt-4">
             <Alert variant="warning">
               There should be bids by now... You can wait longer in case a bid shows up or close the deployment and try again with a different configuration.
@@ -324,14 +367,14 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
           </div>
         )}
 
-        {(isLoadingBids || (bids?.length || 0) === 0) && !maxRequestsReached && !isSendingManifest && (
+        {(isLoadingBids || (bids?.length || 0) === 0) && !maxRequestsReached && !isSendingManifest && !zeroBidsForTrialWarningDisplayed && (
           <div className="flex flex-col items-center justify-center pt-4 text-center">
             <Spinner size="large" />
             <div className="pt-4">Waiting for bids...</div>
           </div>
         )}
 
-        {maxRequestsReached && (bids?.length || 0) === 0 && (
+        {!zeroBidsForTrialWarningDisplayed && maxRequestsReached && (bids?.length || 0) === 0 && (
           <div className="pt-4">
             <Alert variant="warning">
               There's no bid for the current deployment. You can close the deployment and try again with a different configuration.
@@ -436,8 +479,8 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
 
           {isTrialing && (
             <Alert variant="destructive">
-              <AlertTitle className="text-lg dark:text-white/90">Free Trial!</AlertTitle>
-              <AlertDescription className="space-y-1 dark:text-white/90">
+              <AlertTitle className="text-center text-lg dark:text-white/90">Free Trial!</AlertTitle>
+              <AlertDescription className="space-y-1 text-center dark:text-white/90">
                 <p>You are using a free trial and are limited to only a few providers on the network.</p>
                 <p>
                   <Link href={UrlService.login()} className="font-bold underline">
@@ -453,6 +496,30 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
             </Alert>
           )}
         </ViewPanel>
+      )}
+
+      {zeroBidsForTrialWarningDisplayed && (
+        <div className="pt-4">
+          <Card>
+            <CardContent>
+              <div className="px-16 pb-4 pt-6 text-center">
+                <h3 className="mb-4 text-xl font-bold">Waiting for bids</h3>
+                <p className="mb-8">
+                  Looks like you are not getting any bids. This is likely because all trial providers are currently being used by others. Console has{" "}
+                  {trialProviderCount} providers for trial users but more available for non-trial users. To view all providers, we recommend signing up.
+                </p>
+                <p>
+                  <Button onClick={() => handleCloseDeployment()} variant="outline" type="button" size="sm" className="mr-4">
+                    Close Deployment
+                  </Button>
+                  <Button onClick={() => router.push(UrlService.signup())} color="secondary" variant="default" type="button" size="sm">
+                    Sign Up
+                  </Button>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </>
   );
