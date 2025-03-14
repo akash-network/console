@@ -32,6 +32,17 @@ services:
       - /app/apps/deploy-web/.next
       - ../../packages:/app/packages
 
+  provider-proxy:
+    build:
+      target: development
+    volumes:
+      - ../../apps/provider-proxy:/app/apps/provider-proxy
+      - ../../package.json:/app/package.json
+      - ../../package-lock.json:/app/package-lock.json
+      - /app/node_modules
+      - /app/apps/provider-proxy/node_modules
+      - ../../packages:/app/packages
+
   stats-web:
     build:
       target: development
