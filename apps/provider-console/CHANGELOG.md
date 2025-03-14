@@ -1,5 +1,12 @@
 
 
+## [1.4.2](https://github.com/akash-network/console/compare/provider-console/v1.4.1...provider-console/v1.4.2) (2025-03-14)
+
+
+### Bug Fixes
+
+* **provider:** added chart upgrade button for helm chart version update ([#1035](https://github.com/akash-network/console/issues/1035)) ([a7e3931](https://github.com/akash-network/console/commit/a7e39311e32563efd64a9b6b1e8657b789139ff8))
+
 ## [1.4.1](https://github.com/akash-network/console/compare/provider-console/v1.4.0...provider-console/v1.4.1) (2025-03-13)
 
 
