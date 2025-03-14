@@ -180,56 +180,56 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
                 </p>
               </div>
 
+              {activeDeployments.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <div className="mt-8">
+                    <p className="mb-4 text-sm text-muted-foreground">Total resources leased</p>
+
+                    <div className="flex flex-col items-start">
+                      <LeaseSpecDetail type="cpu" value={totalCpu} />
+                      {!!totalGpu && <LeaseSpecDetail type="gpu" value={totalGpu} />}
+                      <LeaseSpecDetail type="ram" value={`${roundDecimal(_ram.value, 1)} ${_ram.unit}`} />
+                      <LeaseSpecDetail type="storage" value={`${roundDecimal(_storage.value, 1)} ${_storage.unit}`} />
+                    </div>
+                  </div>
+
+                  <div className="mt-8">
+                    <p className="mb-4 text-sm text-muted-foreground">Total cost</p>
+
+                    <div className="flex items-center">
+                      <p>
+                        <strong>
+                          <FormattedNumber
+                            value={costPerMonth || 0}
+                            // eslint-disable-next-line react/style-prop-object
+                            style="currency"
+                            currency="USD"
+                          />
+                        </strong>{" "}
+                        / month
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-8">
+                    <p className="mb-4 text-sm text-muted-foreground">Providers</p>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {userProviders?.map(p => (
+                        <Link key={p.owner} href={UrlService.providerDetailLeases(p.owner)}>
+                          <Badge>{p.name}</Badge>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-4 flex gap-2">
-                {activeDeployments.length > 0 ? (
-                  <>
-                    <div className="mt-8">
-                      <p className="mb-4 text-sm text-muted-foreground">Total resources leased</p>
-
-                      <div className="flex flex-col items-start">
-                        <LeaseSpecDetail type="cpu" value={totalCpu} />
-                        {!!totalGpu && <LeaseSpecDetail type="gpu" value={totalGpu} />}
-                        <LeaseSpecDetail type="ram" value={`${roundDecimal(_ram.value, 1)} ${_ram.unit}`} />
-                        <LeaseSpecDetail type="storage" value={`${roundDecimal(_storage.value, 1)} ${_storage.unit}`} />
-                      </div>
-                    </div>
-
-                    <div className="mt-8">
-                      <p className="mb-4 text-sm text-muted-foreground">Total cost</p>
-
-                      <div className="flex items-center">
-                        <p>
-                          <strong>
-                            <FormattedNumber
-                              value={costPerMonth || 0}
-                              // eslint-disable-next-line react/style-prop-object
-                              style="currency"
-                              currency="USD"
-                            />
-                          </strong>{" "}
-                          / month
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-8">
-                      <p className="mb-4 text-sm text-muted-foreground">Providers</p>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        {userProviders?.map(p => (
-                          <Link key={p.owner} href={UrlService.providerDetailLeases(p.owner)}>
-                            <Badge>{p.name}</Badge>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <Link href={UrlService.newDeployment()} className={cn(buttonVariants({ variant: "default" }))} onClick={onDeployClick}>
-                    Deploy
-                    <Rocket className="ml-4rotate-45 text-sm" />
-                  </Link>
-                )}
+                <Link href={UrlService.newDeployment()} className={cn(buttonVariants({ variant: "default" }))} onClick={onDeployClick}>
+                  Deploy
+                  <Rocket className="ml-4rotate-45 text-sm" />
+                </Link>
                 {isManagedWallet && (
                   <>
                     <AddFundsLink className={cn(buttonVariants({ variant: "default" }))} href="/api/proxy/v1/checkout">
