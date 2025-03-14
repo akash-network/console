@@ -1,5 +1,12 @@
 
 
+## [2.71.0](https://github.com/akash-network/console/compare/console-api/v2.70.0...console-api/v2.71.0) (2025-03-14)
+
+
+### Features
+
+* **deployment:** managed api create leases ([#969](https://github.com/akash-network/console/issues/969)) ([1193b0c](https://github.com/akash-network/console/commit/1193b0cc4015778f0363958e296db2462be11273))
+
 ## [2.70.0](https://github.com/akash-network/console/compare/console-api/v2.69.3...console-api/v2.70.0) (2025-03-13)
 
 
