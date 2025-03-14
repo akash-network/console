@@ -22,6 +22,7 @@ import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
 import { leasesRouter } from "./deployment/routes/leases/leases.router";
+import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
 import { apiRouter } from "./routers/apiRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
@@ -35,7 +36,6 @@ import { sendVerificationEmailRouter } from "./auth";
 import { checkoutRouter, getWalletListRouter, signAndBroadcastTxRouter, startTrialRouter, stripePricesRouter, stripeWebhook } from "./billing";
 import { Scheduler } from "./scheduler";
 import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
-
 const appHono = new Hono();
 appHono.use(
   "/*",
@@ -95,6 +95,8 @@ appHono.route("/", leasesRouter);
 appHono.route("/", apiKeysRouter);
 appHono.route("/", bidsRouter);
 appHono.route("/", certificateRouter);
+
+appHono.route("/", healthzRouter);
 
 appHono.get("/status", c => {
   const version = packageJson.version;
