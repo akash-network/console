@@ -180,8 +180,8 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
                 </p>
               </div>
 
-              {activeDeployments.length > 0 ? (
-                <>
+              {activeDeployments.length > 0 && (
+                <div className="flex flex-col gap-2">
                   <div className="mt-8">
                     <p className="mb-4 text-sm text-muted-foreground">Total resources leased</p>
 
@@ -222,23 +222,25 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
                       ))}
                     </div>
                   </div>
-                </>
-              ) : (
-                <Link href={UrlService.newDeployment()} className={cn("mr-2 mt-4", buttonVariants({ variant: "default" }))} onClick={onDeployClick}>
+                </div>
+              )}
+
+              <div className="mt-4 flex gap-2">
+                <Link href={UrlService.newDeployment()} className={cn(buttonVariants({ variant: "default" }))} onClick={onDeployClick}>
                   Deploy
                   <Rocket className="ml-4rotate-45 text-sm" />
                 </Link>
-              )}
-              {isManagedWallet && (
-                <>
-                  <TopUpAmountPicker className="mt-4 inline-flex flex-col" mdMode="hover">
+                {isManagedWallet && (
+                  <>
                     <AddFundsLink className={cn(buttonVariants({ variant: "default" }))} href="/api/proxy/v1/checkout">
                       Add Funds
                       <HandCard className="ml-4 rotate-45 text-sm" />
                     </AddFundsLink>
-                  </TopUpAmountPicker>
-                </>
-              )}
+
+                    <TopUpAmountPicker variant="default" />
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="mt-4 flex basis-3/5 flex-col items-center md:mt-0 md:flex-row">
