@@ -21,6 +21,7 @@
     "@cosmos-kit/leap-extension": "^2.12.2",
     "@cosmos-kit/react": "^2.18.0",
     "@hookform/resolvers": "^3.9.0",
+    "@interchain-ui/react": "1.23.31",
     "@melloware/react-logviewer": "^6.1.2",
     "@mui/icons-material": "^5.11.11",
     "@mui/material": "^5.4.4",
