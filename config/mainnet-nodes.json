@@ -3,10 +3,5 @@
     "id": "akashnet.net",
     "api": "https://consoleapi.akashnet.net:443",
     "rpc": "https://consolerpc.akashnet.net:443"
-  },
-  {
-    "id": "polkachu.com",
-    "api": "https://akash-api.polkachu.com:443",
-    "rpc": "https://akash-rpc.polkachu.com:443"
   }
 ]
