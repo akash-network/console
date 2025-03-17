@@ -1,11 +1,11 @@
 import React from "react";
-import { documentGetInitialProps, DocumentHeadTags } from "@mui/material-nextjs/v14-pagesRouter";
-import { Head, Html, Main, NextScript } from "next/document";
+import { documentGetInitialProps, DocumentHeadTags, DocumentHeadTagsProps } from "@mui/material-nextjs/v14-pagesRouter";
+import { DocumentContext, Head, Html, Main, NextScript } from "next/document";
 import Script from "next/script";
 
 import { customColors } from "@src/utils/colors";
 
-export default function MyDocument(props) {
+export default function MyDocument(props: DocumentHeadTagsProps) {
   return (
     <Html suppressHydrationWarning>
       <Head>
@@ -34,7 +34,7 @@ export default function MyDocument(props) {
   );
 }
 
-MyDocument.getInitialProps = async ctx => {
+MyDocument.getInitialProps = async (ctx: DocumentContext) => {
   const finalProps = await documentGetInitialProps(ctx);
   return finalProps;
 };

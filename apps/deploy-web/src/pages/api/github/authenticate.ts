@@ -20,7 +20,7 @@ export default async function exchangeGitHubCodeForTokenHandler(req: NextApiRequ
   try {
     const accessToken = await gitHubAuth.exchangeAuthorizationCodeForToken(code);
     res.status(200).json({ accessToken });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).send({
       error: "Something went wrong",
       message: error

@@ -1,5 +1,6 @@
-import { LeaseListContainer } from "@src/components/providers/LeaseListContainer";
+import type { GetServerSideProps } from "next";
 
+import { LeaseListContainer } from "@src/components/providers/LeaseListContainer";
 type Props = {
   owner: string;
 };
@@ -10,10 +11,10 @@ const ProviderLeasesPage: React.FunctionComponent<Props> = ({ owner }) => {
 
 export default ProviderLeasesPage;
 
-export async function getServerSideProps({ params }) {
+export const getServerSideProps: GetServerSideProps<Props, Pick<Props, "owner">> = async ({ params }) => {
   return {
     props: {
-      owner: params?.owner
+      owner: params!.owner
     }
   };
-}
+};

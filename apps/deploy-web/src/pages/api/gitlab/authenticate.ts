@@ -20,7 +20,7 @@ export default async function exchangeGitLabCodeForTokensHandler(req: NextApiReq
   try {
     const tokens = await gitlabAuth.exchangeAuthorizationCodeForTokens(code);
     res.status(200).json(tokens);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).send({
       error: error.response?.data?.error,
       message: error.response?.data?.error_description
