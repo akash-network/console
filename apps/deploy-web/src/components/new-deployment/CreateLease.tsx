@@ -35,6 +35,7 @@ import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { sendManifestToProvider } from "@src/utils/deploymentUtils";
+import { addScriptToHead } from "@src/utils/domUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import { useCertificate } from "../../context/CertificateProvider";
@@ -143,6 +144,10 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         }
         await sendManifestToProvider(provider, mani, { dseq, localCert, chainNetwork });
       }
+
+      // Ad tracking script
+      addScriptToHead("https://pxl.growth-channel.net/s/76250b26-c260-4776-874b-471ed290230d");
+
       router.replace(UrlService.deploymentDetails(dseq, "EVENTS", "events"));
     } catch (err) {
       enqueueSnackbar(<ManifestErrorSnackbar err={err} />, { variant: "error", autoHideDuration: null });
