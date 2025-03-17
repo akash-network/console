@@ -48,8 +48,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
     const endBlockHeight = await this.blockHttpService.getCurrentHeight();
     this.summarizer.set("endBlockHeight", endBlockHeight);
 
-    const summary = this.summarizer.summarize();
-    this.logger.info({ event: "TOP_UP_DEPLOYMENTS_SUMMARY", summary, dryRun: options.dryRun });
+    this.logSummary(options);
   }
 
   private async collectMessages(deployments: DrainingDeployment[], options: TopUpDeploymentsOptions): Promise<CollectedMessage[]> {
@@ -147,6 +146,18 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
       });
       this.summarizer.inc("deploymentTopUpErrorCount", ownerInputs.length);
       this.summarizer.trackFailedWallet(owner);
+    }
+  }
+
+  private logSummary(options: TopUpDeploymentsOptions) {
+    const summary = this.summarizer.summarize();
+    const log = { event: "TOP_UP_DEPLOYMENTS_SUMMARY", summary, dryRun: options.dryRun };
+    const hasErrors = summary.deploymentTopUpErrorCount - summary.insufficientBalanceCount > 0;
+
+    if (hasErrors) {
+      this.logger.error(log);
+    } else {
+      this.logger.info(log);
     }
   }
 }
