@@ -39,7 +39,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
     enabled: false,
     retry: false,
     onSuccess: _providerDetail => {
-      setProvider(provider => (provider ? { ...provider, ..._providerDetail } : _providerDetail));
+      setProvider(provider => ({ ...provider, ..._providerDetail }));
     }
   });
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
