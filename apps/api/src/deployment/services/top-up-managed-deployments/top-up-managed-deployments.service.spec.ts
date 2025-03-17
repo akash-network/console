@@ -327,7 +327,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
           stack: expect.any(String)
         })
       );
-      expect(logger.info).toHaveBeenCalledWith(
+      expect(logger.error).toHaveBeenCalledWith(
         expect.objectContaining({
           event: "TOP_UP_DEPLOYMENTS_SUMMARY",
           summary: expect.objectContaining({
