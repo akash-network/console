@@ -1,5 +1,12 @@
 
 
+## [2.59.0](https://github.com/akash-network/console/compare/console-web/v2.58.0...console-web/v2.59.0) (2025-03-17)
+
+
+### Features
+
+* **analytics:** move lease created script ([#1051](https://github.com/akash-network/console/issues/1051)) ([65ac516](https://github.com/akash-network/console/commit/65ac5163e2760ca25e71a9c8f686313304774413))
+
 ## [2.58.0](https://github.com/akash-network/console/compare/console-web/v2.57.1...console-web/v2.58.0) (2025-03-17)
 
 
