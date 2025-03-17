@@ -52,7 +52,7 @@ export const ImportSdlModal: React.FunctionComponent<Props> = ({ onClose, setVal
       setParsingError(null);
 
       return services;
-    } catch (err) {
+    } catch (err: any) {
       if (err.name === "YAMLException" || err.name === "CustomValidationError") {
         setParsingError(err.message);
       } else if (err.name === "TemplateValidation") {

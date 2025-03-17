@@ -151,7 +151,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     providerInfo
   ]);
 
-  function onLogReceived(event) {
+  function onLogReceived(event: MessageEvent) {
     const message = JSON.parse(event.data).message;
 
     setIsLoadingLogs(true);
@@ -194,7 +194,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     }
   }, [logText, stickToBottom]);
 
-  function handleLeaseChange(id) {
+  function handleLeaseChange(id: string) {
     setSelectedLease(leases?.find(x => x.id === id) || null);
 
     if (id !== selectedLease?.id) {
@@ -207,7 +207,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     }
   }
 
-  const onSelectedServicesChange = selected => {
+  const onSelectedServicesChange = (selected: string[]) => {
     setSelectedServices(selected);
 
     setLogText("");
@@ -238,7 +238,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
             <>
               <div className="flex h-[56px] items-center space-x-4 p-2">
                 <div className="flex items-center">
-                  {(leases?.length || 0) > 1 && <LeaseSelect leases={leases} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
+                  {(leases?.length || 0) > 1 && <LeaseSelect leases={leases || []} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
 
                   {services?.length > 0 && canSetConnection && (
                     <div className={cn({ ["ml-2"]: (leases?.length || 0) > 1 })}>

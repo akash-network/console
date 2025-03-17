@@ -127,8 +127,9 @@ export const AutoTopUpSetting: FC<AutoTopUpSettingProps> = ({ onSubmit, expirati
   }, [expiration]);
 
   const execSubmitterRoleAction: SubmitHandler<FormValues> = useCallback(
-    async (next: FormValues, event: React.BaseSyntheticEvent<SubmitEvent>) => {
-      const role = event.nativeEvent.submitter?.getAttribute("data-role");
+    async (next, event) => {
+      const nativeEvent = (event as React.BaseSyntheticEvent<SubmitEvent> | undefined)?.nativeEvent;
+      const role = nativeEvent?.submitter?.getAttribute("data-role");
       await onSubmit(role as "revoke-all" | "update", convertToUakt(next));
       reset(next);
     },

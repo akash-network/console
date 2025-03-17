@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { MouseEventHandler, ReactNode, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActionButton,
@@ -133,7 +133,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useDepositor]);
 
-  async function checkDepositor(depositAmount) {
+  async function checkDepositor(depositAmount: number) {
     setIsCheckingDepositor(true);
 
     try {
@@ -141,7 +141,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
       const data = await response.json();
 
       const grant = data.grants?.find(
-        x =>
+        (x: any) =>
           x.authorization["@type"] === "/akash.deployment.v1beta2.DepositDeploymentAuthorization" ||
           x.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
       );
@@ -167,7 +167,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
       }
 
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       enqueueSnackbar(<Snackbar title={err.message} iconVariant="error" />, { variant: "error" });
       return false;
@@ -186,7 +186,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
     setValue("amount", depositData?.max || 0);
   };
 
-  const onDepositClick = event => {
+  const onDepositClick: MouseEventHandler = event => {
     event.preventDefault();
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };

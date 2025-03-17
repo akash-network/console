@@ -57,7 +57,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const { price, isLoaded } = usePricing();
 
-  const colors = {
+  const colors: Record<string, string> = {
     balance_akt: customColors.akashRed,
     balance_usdc: customColors.akashRed,
     deployment_akt: tw.theme.colors.green[600],
@@ -140,8 +140,8 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
     }
   }, [leases, providers, price, isLoaded]);
 
-  const _getColor = bar => getColor(bar.id, selectedDataId);
-  const getColor = (id, selectedId) => {
+  const _getColor = (bar: any) => getColor(bar.id, selectedDataId);
+  const getColor = (id: string, selectedId: string | null) => {
     if (!selectedId || id === selectedId) {
       return colors[id];
     } else {

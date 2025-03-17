@@ -74,13 +74,13 @@ export const AdvancedConfig: React.FunctionComponent<Props> = ({ control, curren
               </div>
 
               <div className="mb-4">
-                <ExposeList currentService={currentService} setIsEditingExpose={setIsEditingExpose} />
+                <ExposeList currentService={currentService} setIsEditingExpose={() => setIsEditingExpose(true)} />
               </div>
               <div className="mb-4">
-                <EnvVarList currentService={currentService} setIsEditingEnv={setIsEditingEnv} />
+                <EnvVarList currentService={currentService} setIsEditingEnv={() => setIsEditingEnv(true)} />
               </div>
               <div className="mb-4">
-                <CommandList currentService={currentService} setIsEditingCommands={setIsEditingCommands} />
+                <CommandList currentService={currentService} setIsEditingCommands={() => setIsEditingCommands(true)} />
               </div>
             </div>
           </CollapsibleContent>

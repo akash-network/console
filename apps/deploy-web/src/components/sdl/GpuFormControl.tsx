@@ -55,14 +55,11 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
   }, [gpuModels]);
 
   const gpuModelsByName: Record<string, GpuModel> = useMemo(() => {
-    return flow([
-      flatMap('models'),
-      keyBy('name')
-    ])(gpuModels || []);
+    return flow([flatMap("models"), keyBy("name")])(gpuModels || []);
   }, [gpuModels]);
 
   const theOnlyForModelOrEmpty = useCallback(
-    (name: string, attribute: string) => {
+    (name: string, attribute: keyof GpuModel) => {
       return gpuModelsByName[name][attribute].length === 1 ? gpuModelsByName[name][attribute][0] : "";
     },
     [gpuModelsByName]

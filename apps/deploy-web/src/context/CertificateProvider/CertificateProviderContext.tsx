@@ -18,7 +18,7 @@ export type LocalCert = {
   address: string;
 };
 
-type ChainCertificate = {
+export type ChainCertificate = {
   serial: string;
   parsed: string;
   pem: {
@@ -38,9 +38,9 @@ type ChainCertificate = {
 };
 
 type ContextType = {
-  loadValidCertificates: (showSnackbar?: boolean) => Promise<any>;
+  loadValidCertificates: (showSnackbar?: boolean) => Promise<ChainCertificate[]>;
   selectedCertificate: ChainCertificate | null;
-  setSelectedCertificate: React.Dispatch<ChainCertificate>;
+  setSelectedCertificate: React.Dispatch<ChainCertificate | null>;
   isLoadingCertificates: boolean;
   loadLocalCert: () => Promise<void>;
   localCert: LocalCert | null;
@@ -73,7 +73,7 @@ export const CertificateProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const { apiEndpoint } = settings;
 
   const loadValidCertificates = useCallback(
-    async (showSnackbar?: boolean) => {
+    async (showSnackbar?: boolean): Promise<ChainCertificate[]> => {
       setIsLoadingCertificates(true);
 
       try {
@@ -186,8 +186,8 @@ export const CertificateProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
         const validCerts = await loadValidCertificates();
         loadLocalCert();
-        const currentCert = validCerts.find(({ parsed }) => parsed === crtpem);
-        setSelectedCertificate(currentCert as ChainCertificate);
+        const currentCert = validCerts.find(({ parsed }) => parsed === crtpem) || null;
+        setSelectedCertificate(currentCert);
 
         analyticsService.track("create_certificate", {
           category: "certificates",

@@ -96,21 +96,21 @@ export const DeploymentList: React.FunctionComponent = () => {
     }
   }, [deployments, search, getDeploymentName, isFilteringActive]);
 
-  const handleChangePage = newPage => {
+  const handleChangePage = (newPage: number) => {
     setPageIndex(newPage);
   };
 
-  const onIsFilteringActiveClick = value => {
+  const onIsFilteringActiveClick = (value: boolean) => {
     setPageIndex(0);
     setIsFilteringActive(value);
   };
 
-  const onSearchChange = event => {
+  const onSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
     setSearch(value);
   };
 
-  const onSelectDeployment = (checked, dseq) => {
+  const onSelectDeployment = (checked: boolean, dseq: string) => {
     setSelectedDeploymentDseqs(prev => {
       return checked ? prev.concat([dseq]) : prev.filter(x => x !== dseq);
     });

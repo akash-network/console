@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { ChangeEventHandler, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   AlertDescription,
@@ -106,7 +106,11 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useWhen(hasActiveBid, () => selectBid(activeBid));
+  useWhen(hasActiveBid, () => {
+    if (activeBid) {
+      selectBid(activeBid);
+    }
+  });
 
   const chainNetwork = networkStore.useSelectedNetworkId();
   const sendManifest = useCallback(async () => {
@@ -193,7 +197,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, bids, providers, isFilteringFavorites, isFilteringAudited, favoriteProviders]);
 
-  const selectBid = bid => {
+  const selectBid = (bid: BidDto) => {
     setSelectedBids(prev => ({ ...prev, [bid.gseq]: bid }));
   };
 
@@ -241,7 +245,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
     }
   }
 
-  const onSearchChange = event => {
+  const onSearchChange: ChangeEventHandler<HTMLInputElement> = event => {
     const value = event.target.value;
     setSearch(value);
   };

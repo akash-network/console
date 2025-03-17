@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { ChangeEventHandler, useEffect, useState } from "react";
 import {
   Button,
   CheckboxWithLabel,
@@ -159,13 +159,13 @@ export const ProviderList: React.FunctionComponent = () => {
     setIsFilteringAudited(value);
   };
 
-  const onSearchChange = event => {
+  const onSearchChange: ChangeEventHandler<HTMLInputElement> = event => {
     const value = event.target.value;
     setSearch(value);
     setPageIndex(0);
   };
 
-  const handleSortChange = value => {
+  const handleSortChange = (value: string) => {
     router.replace(UrlService.providers(value), { scroll: false });
   };
 

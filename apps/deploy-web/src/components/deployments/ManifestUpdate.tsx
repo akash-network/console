@@ -86,7 +86,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
         await deploymentData.NewDeploymentData(settings.apiEndpoint, yamlStr, dseq, address);
 
         setParsingError(null);
-      } catch (err) {
+      } catch (err: any) {
         if (err.name === "YAMLException" || err.name === "CustomValidationError") {
           setParsingError(err.message);
         } else {
@@ -107,15 +107,15 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     };
   }, [editedManifest, deployment.dseq, settings.apiEndpoint, address]);
 
-  function handleTextChange(value) {
-    onManifestChange(value);
+  function handleTextChange(value: string | undefined) {
+    onManifestChange(value || "");
 
     if (deploymentVersion) {
       setDeploymentVersion(null);
     }
   }
 
-  function handleUpdateDocClick(ev) {
+  function handleUpdateDocClick(ev: React.MouseEvent) {
     ev.preventDefault();
 
     window.open("https://akash.network/docs/deployments/akash-cli/installation/#update-the-deployment", "_blank");

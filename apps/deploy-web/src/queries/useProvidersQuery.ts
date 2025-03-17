@@ -3,7 +3,7 @@ import axios from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
-import { ApiProviderDetail, ApiProviderList, ApiProviderRegion, Auditor, ProviderStatus, ProviderVersion } from "@src/types/provider";
+import { ApiProviderDetail, ApiProviderList, ApiProviderRegion, Auditor, ProviderStatus, ProviderStatusDto, ProviderVersion } from "@src/types/provider";
 import { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { getNetworkCapacityDto, providerStatusToDto } from "@src/utils/providerUtils";
@@ -22,10 +22,13 @@ export function useProviderDetail(owner: string, options: UseQueryOptions<ApiPro
   );
 }
 
-export function useProviderStatus(provider: ApiProviderList | undefined | null, options = {}) {
+export function useProviderStatus(
+  provider: ApiProviderList | undefined | null,
+  options: UseQueryOptions<ProviderStatusDto> = {}
+): UseQueryResult<ProviderStatusDto> {
   const fetchProviderUrl = useScopedFetchProviderUrl(provider);
   return useQuery(
-    QueryKeys.getProviderStatusKey(provider?.hostUri || ""),
+    QueryKeys.getProviderStatusKey(provider?.hostUri || "") as QueryKey,
     async () => {
       try {
         const [statusResponse, versionResponse] = await Promise.all([

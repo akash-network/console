@@ -1,4 +1,5 @@
 "use client";
+import { MouseEventHandler } from "react";
 import { Address, Card, CardContent } from "@akashnetwork/ui/components";
 
 import { AuditorButton } from "@src/components/providers/AuditorButton";
@@ -18,7 +19,7 @@ export const ProviderSummary: React.FunctionComponent<Props> = ({ provider }) =>
   const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
   const isFavorite = favoriteProviders.some(x => provider.owner === x);
 
-  const onStarClick = event => {
+  const onStarClick: MouseEventHandler = event => {
     event.preventDefault();
     event.stopPropagation();
 

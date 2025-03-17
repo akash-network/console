@@ -7,7 +7,7 @@ import { Xmark } from "iconoir-react";
 
 import { EnhancedTemplateCategory, TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 
-type Props = {
+export type Props = {
   children?: ReactNode;
   isOpen: boolean;
   handleDrawerToggle: () => void;

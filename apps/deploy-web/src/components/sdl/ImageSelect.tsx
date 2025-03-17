@@ -29,7 +29,8 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
   const [hoveredTemplate, setHoveredTemplate] = useState<TemplateOutputSummaryWithCategory | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateOutputSummaryWithCategory | null>(null);
   const [popperWidth, setPopperWidth] = useState<number | null>(null);
-  const eleRefs = useRef(null);
+  // TODO: https://github.com/akash-network/console/issues/1045
+  const eleRefs = useRef(null) as any;
   const textFieldRef = useRef<HTMLInputElement>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const filteredGpuTemplates = gpuTemplates.filter(x => x.name?.toLowerCase().includes(currentService.image));

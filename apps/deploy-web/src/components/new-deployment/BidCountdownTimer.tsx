@@ -19,7 +19,7 @@ export const BidCountdownTimer: React.FunctionComponent<Props> = ({ height }) =>
   const [isTimerInit, setIsTimerInit] = useState(false);
   const { data: block, refetch: getBlock } = useBlock(height || "", {
     disabled: true,
-    onSuccess: block => {
+    onSuccess: (block: any) => {
       const date = new Date(block.block.header.time);
       const now = new Date();
       // add 20 seconds for the delay between deployment creation and bid creation
