@@ -1,5 +1,17 @@
 
 
+## [2.58.0](https://github.com/akash-network/console/compare/console-web/v2.57.1...console-web/v2.58.0) (2025-03-17)
+
+
+### Features
+
+* **wallet:** improve coupon codes ux ([#1028](https://github.com/akash-network/console/issues/1028)) ([b4a81c7](https://github.com/akash-network/console/commit/b4a81c79b97213ae72d37efe4771129f5b69b5ef))
+
+
+### Code Refactoring
+
+* refactors queries and hooks to strict types ([#1044](https://github.com/akash-network/console/issues/1044)) ([6f520ba](https://github.com/akash-network/console/commit/6f520ba6e0fe4b38b39a61841141513b1c6c8980))
+
 ## [2.57.1](https://github.com/akash-network/console/compare/console-web/v2.57.0...console-web/v2.57.1) (2025-03-14)
 
 
