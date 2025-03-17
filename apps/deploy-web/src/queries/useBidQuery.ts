@@ -25,10 +25,10 @@ async function getBidList(apiEndpoint: string, address: string, dseq: string): P
   }));
 }
 
-export function useBidList(address: string, dseq: string, options?: Omit<UseQueryOptions<BidDto[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
+export function useBidList(address: string, dseq: string, options?: Omit<UseQueryOptions<BidDto[] | null>, "queryKey" | "queryFn">) {
   const { settings } = useSettings();
 
-  return useQuery(QueryKeys.getBidListKey(address, dseq), () => getBidList(settings.apiEndpoint, address, dseq), options);
+  return useQuery(QueryKeys.getBidListKey(address, dseq) as QueryKey, () => getBidList(settings.apiEndpoint, address, dseq), options);
 }
 
 async function getBidInfo(apiEndpoint: string, address: string, dseq: string, gseq: number, oseq: number, provider: string): Promise<RpcBid | null> {

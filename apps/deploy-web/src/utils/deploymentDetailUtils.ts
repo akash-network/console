@@ -59,7 +59,7 @@ export const getStorageAmount = (resource: DeploymentResource_V2 | DeploymentRes
   return storage;
 };
 
-export function leaseToDto(lease: RpcLease, deployment: RpcDeployment): LeaseDto {
+export function leaseToDto(lease: RpcLease, deployment: Pick<RpcDeployment, "groups">): LeaseDto {
   const group = deployment ? deployment.groups.filter(g => g.group_id.gseq === lease.lease.lease_id.gseq)[0] : ({} as any);
   return {
     id: lease.lease.lease_id.dseq + lease.lease.lease_id.gseq + lease.lease.lease_id.oseq,

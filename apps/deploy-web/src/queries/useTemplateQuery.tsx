@@ -61,7 +61,7 @@ export function useSaveUserTemplate(isNew: boolean = false) {
       }),
     {
       onSuccess: (_response, newTemplate) => {
-        queryClient.setQueryData(QueryKeys.getTemplateKey(_response.data), (oldData: ITemplate) => {
+        queryClient.setQueryData<Partial<ITemplate>>(QueryKeys.getTemplateKey(_response.data), oldData => {
           return { ...oldData, ...newTemplate };
         });
 
