@@ -51,6 +51,10 @@ All services are Node.js applications written in TypeScript and deployed using D
 - [Indexer](./apps/indexer/): Fetches the latest blocks from RPC nodes and saves blocks & stats to our Indexer Database. For details on how the indexer works, see the [Indexer README](./indexer/README.md).
 - [Provider Proxy](./apps/provider-proxy/): Used in the deploy website to proxy requests to providers. This is necessary since it's not possible to use the cert authentication system from the browser.
 
+## Managed wallet API
+
+- Refer to the [wiki](https://github.com/akash-network/console/wiki/Managed-wallet-API) to manage deployments with the Akash Console API.
+
 ## Running the Application
 
 This document provides instructions on how to set up and run the application, including steps for manual database restoration and using Docker Compose for ease of setup.
