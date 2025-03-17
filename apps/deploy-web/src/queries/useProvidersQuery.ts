@@ -1,4 +1,4 @@
-import { useQuery, UseQueryResult } from "react-query";
+import { QueryKey, useQuery, UseQueryOptions, UseQueryResult } from "react-query";
 import axios from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -9,10 +9,10 @@ import { ApiUrlService } from "@src/utils/apiUtils";
 import { getNetworkCapacityDto, providerStatusToDto } from "@src/utils/providerUtils";
 import { QueryKeys } from "./queryKeys";
 
-export function useProviderDetail(owner: string, options): UseQueryResult<ApiProviderDetail | null> {
+export function useProviderDetail(owner: string, options: UseQueryOptions<ApiProviderDetail | null>): UseQueryResult<ApiProviderDetail | null> {
   const services = useServices();
   return useQuery(
-    QueryKeys.getProviderDetailKey(owner),
+    QueryKeys.getProviderDetailKey(owner) as QueryKey,
     async () => {
       if (!owner) return null;
       const response = await services.axios.get(ApiUrlService.providerDetail(owner));

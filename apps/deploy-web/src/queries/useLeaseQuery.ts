@@ -1,9 +1,9 @@
-import { useQuery } from "react-query";
+import { QueryKey, useQuery, UseQueryOptions } from "react-query";
 import { AxiosStatic } from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
-import { LeaseDto, RpcLease } from "@src/types/deployment";
+import { DeploymentDto, LeaseDto, RpcLease } from "@src/types/deployment";
 import { ApiProviderList } from "@src/types/provider";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
@@ -12,7 +12,7 @@ import { useSettings } from "../context/SettingsProvider";
 import { QueryKeys } from "./queryKeys";
 
 // Leases
-async function getDeploymentLeases(apiEndpoint: string, address: string, deployment) {
+async function getDeploymentLeases(apiEndpoint: string, address: string, deployment: Pick<DeploymentDto, "dseq" | "groups">) {
   if (!address) {
     return null;
   }
@@ -24,10 +24,21 @@ async function getDeploymentLeases(apiEndpoint: string, address: string, deploym
   return leases;
 }
 
-export function useDeploymentLeaseList(address: string, deployment, options) {
+export function useDeploymentLeaseList(
+  address: string,
+  deployment: Pick<DeploymentDto, "dseq" | "groups"> | null | undefined,
+  options: UseQueryOptions<LeaseDto[] | null>
+) {
   const { settings } = useSettings();
 
-  return useQuery(QueryKeys.getLeasesKey(address, deployment?.dseq), () => getDeploymentLeases(settings.apiEndpoint, address, deployment), options);
+  return useQuery(
+    QueryKeys.getLeasesKey(address, deployment?.dseq || "") as QueryKey,
+    async () => {
+      if (!deployment) return null;
+      return getDeploymentLeases(settings.apiEndpoint, address, deployment);
+    },
+    options
+  );
 }
 
 async function getAllLeases(apiEndpoint: string, address: string, deployment?: any, httpClient?: AxiosStatic) {
@@ -48,12 +59,12 @@ export function useAllLeases(address: string, options = {}) {
   return useQuery(QueryKeys.getAllLeasesKey(address), () => getAllLeases(settings.apiEndpoint, address, undefined, axios), options);
 }
 
-export function useLeaseStatus(provider: ApiProviderList | undefined, lease: LeaseDto | undefined, options) {
+export function useLeaseStatus(provider: ApiProviderList | undefined, lease: LeaseDto | undefined, options: UseQueryOptions<LeaseStatusDto | null>) {
   const { localCert } = useCertificate();
   const fetchProviderUrl = useScopedFetchProviderUrl(provider);
 
   return useQuery(
-    QueryKeys.getLeaseStatusKey(lease?.dseq || "", lease?.gseq || NaN, lease?.oseq || NaN),
+    QueryKeys.getLeaseStatusKey(lease?.dseq || "", lease?.gseq || NaN, lease?.oseq || NaN) as QueryKey,
     async () => {
       if (!lease) return null;
 
