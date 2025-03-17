@@ -13,7 +13,6 @@ export const PageHead: React.FunctionComponent<{ pageSeo?: NextSeoProps }> = ({ 
 
         <script async src="https://pxl.growth-channel.net/s/8d425860-cf3c-49cf-a459-069a7dc7b1f8"></script>
         <script async src="https://pxl.growth-channel.net/s/e94b4a7a-8431-4b9b-a679-290a1dbbab1b"></script>
-        <script async src="https://pxl.growth-channel.net/s/76250b26-c260-4776-874b-471ed290230d"></script>
       </Head>
 
       <DefaultSeo
