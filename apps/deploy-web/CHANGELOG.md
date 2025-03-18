@@ -1,5 +1,12 @@
 
 
+## [2.60.0](https://github.com/akash-network/console/compare/console-web/v2.59.0...console-web/v2.60.0) (2025-03-18)
+
+
+### Features
+
+* **deployment:** limit number of deployments for trials ([#923](https://github.com/akash-network/console/issues/923)) ([d681d51](https://github.com/akash-network/console/commit/d681d51c02501f61b81742fb4fd36aea6f536cea)), closes [#827](https://github.com/akash-network/console/issues/827)
+
 ## [2.59.0](https://github.com/akash-network/console/compare/console-web/v2.58.0...console-web/v2.59.0) (2025-03-17)
 
 
