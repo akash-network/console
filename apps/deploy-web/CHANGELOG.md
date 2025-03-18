@@ -1,5 +1,12 @@
 
 
+## [2.61.0](https://github.com/akash-network/console/compare/console-web/v2.60.0...console-web/v2.61.0) (2025-03-18)
+
+
+### Features
+
+* **deployment:** managed api deposit ([#1055](https://github.com/akash-network/console/issues/1055)) ([f407320](https://github.com/akash-network/console/commit/f40732079f79c39cceb533c82ac6d48f058dd388))
+
 ## [2.60.0](https://github.com/akash-network/console/compare/console-web/v2.59.0...console-web/v2.60.0) (2025-03-18)
 
 
