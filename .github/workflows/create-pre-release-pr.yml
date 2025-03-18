@@ -31,7 +31,7 @@ jobs:
         id: check-commit
         run: |
           last_commit=$(git log -1 --pretty=%B)
-          if [[ $last_commit == "chore(release): update versions and changelogs" ]]; then
+          if [[ $last_commit =~ ^"chore(release): update versions and changelogs" ]]; then
             echo "is-releasable=false" >> $GITHUB_OUTPUT
           else
             echo "is-releasable=true" >> $GITHUB_OUTPUT
