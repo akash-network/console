@@ -460,4 +460,121 @@ describe("Deployments API", () => {
       });
     });
   });
+
+  describe("POST /v1/deployments/deposits/{dseq}", () => {
+    it("should deposit into a deployment successfully", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const dseq = "1234";
+      setupDeploymentInfoMock(wallets, dseq);
+
+      const mockTxResult = {
+        code: 0,
+        hash: "test-hash",
+        rawLog: "success"
+      };
+
+      jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+
+      const response = await app.request(`/v1/deployments/${dseq}/deposit`, {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            deposit: 5000000
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result).toEqual({
+        data: {
+          success: true,
+          signTx: mockTxResult
+        }
+      });
+    });
+
+    it("should return 404 if deployment does not exist", async () => {
+      const { userApiKeySecret } = await mockUser();
+      const dseq = "1234";
+
+      jest.spyOn(deploymentService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+
+      const response = await app.request(`/v1/deployments/${dseq}/deposit`, {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            deposit: 5000000
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(404);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "NotFoundError",
+        message: "Deployment not found"
+      });
+    });
+
+    it("should return 500 if transaction fails", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const dseq = "1234";
+      setupDeploymentInfoMock(wallets, dseq);
+
+      jest.spyOn(signerService, "executeDecodedTxByUserId").mockRejectedValueOnce(new Error("Failed to sign and broadcast tx"));
+
+      const response = await app.request(`/v1/deployments/${dseq}/deposit`, {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            deposit: 5000000
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(500);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "InternalServerError"
+      });
+    });
+
+    it("should return 401 for an unauthenticated request", async () => {
+      const response = await app.request("/v1/deployments/1234/deposit", {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            deposit: 5000000
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json" })
+      });
+
+      expect(response.status).toBe(401);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "UnauthorizedError",
+        message: "Unauthorized"
+      });
+    });
+
+    it("should return 400 if deposit amount is not provided", async () => {
+      const { userApiKeySecret } = await mockUser();
+      const dseq = "1234";
+
+      const response = await app.request(`/v1/deployments/${dseq}/deposit`, {
+        method: "POST",
+        body: JSON.stringify({
+          data: {}
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+    });
+  });
 });

@@ -164,7 +164,15 @@ describe("Lease Flow", () => {
     });
     expect(leaseResponse.status).toBe(200);
 
-    // 6. Close deployment
+    // 6. Deposit into deployment
+    const depositResponse = await app.request(`/v1/deployments/${dseq}/deposit`, {
+      method: "POST",
+      headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey }),
+      body: JSON.stringify({ data: { deposit: 500000 } })
+    });
+    expect(depositResponse.status).toBe(200);
+
+    // 7. Close deployment
     const closeResponse = await app.request(`/v1/deployments/${dseq}`, {
       method: "DELETE",
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })

@@ -6,6 +6,8 @@ import {
   CloseDeploymentResponse,
   CreateDeploymentRequest,
   CreateDeploymentResponse,
+  DepositDeploymentRequest,
+  DepositDeploymentResponse,
   GetDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentService } from "@src/deployment/services/deployment/deployment.service";
@@ -48,6 +50,16 @@ export class DeploymentController {
 
     const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(currentUser.id);
     const result = await this.deploymentService.close(wallets[0], dseq);
+
+    return { data: result };
+  }
+
+  @Protected([{ action: "sign", subject: "UserWallet" }])
+  async deposit(dseq: string, input: DepositDeploymentRequest["data"]): Promise<DepositDeploymentResponse> {
+    const { currentUser, ability } = this.authService;
+
+    const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(currentUser.id);
+    const result = await this.deploymentService.deposit(wallets[0], dseq, input.deposit);
 
     return { data: result };
   }

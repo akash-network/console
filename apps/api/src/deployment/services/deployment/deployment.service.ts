@@ -84,4 +84,22 @@ export class DeploymentService {
 
     return { success: true };
   }
+
+  public async deposit(wallet: UserWalletOutput, dseq: string, amount: number): Promise<GetDeploymentResponse["data"]> {
+    const deployment = await this.findByOwnerAndDseq(wallet.address, dseq);
+    const deploymentGrantDenom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
+    const depositor = await this.masterWallet.getFirstAddress();
+
+    const message = this.rpcMessageService.getDepositDeploymentMsg({
+      owner: wallet.address,
+      dseq: deployment.deployment.deployment_id.dseq,
+      amount,
+      denom: deploymentGrantDenom,
+      depositor
+    });
+
+    await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
+
+    return await this.findByOwnerAndDseq(wallet.address, dseq);
+  }
 }

@@ -14,7 +14,7 @@ const { parsed: config } = dotenvExpand.expand(dotenv.config({ path: "env/.env.f
 
 const MIN_AMOUNTS: Record<string, number> = {
   "create-deployment.spec.ts": 5100000,
-  "lease-flow.spec.ts": 5100000
+  "lease-flow.spec.ts": 6100000
 };
 
 export class TestWalletService {
