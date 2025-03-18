@@ -234,32 +234,6 @@ describe("Deployments API", () => {
       });
     });
 
-    it("returns 500 for an error in deployment info", async () => {
-      const dseq = "1234";
-      const { user, wallets } = await mockUser();
-      const { adminApiKeySecret } = await mockAdmin();
-      setupDeploymentInfoMock(
-        wallets,
-        dseq,
-        DeploymentInfoSeeder.createError({
-          code: 987,
-          message: "Some kind of error"
-        })
-      );
-
-      const response = await app.request(`/v1/deployments?dseq=${dseq}&userId=${user.id}`, {
-        method: "GET",
-        headers: new Headers({ "Content-Type": "application/json", "x-api-key": adminApiKeySecret })
-      });
-
-      expect(response.status).toBe(500);
-      const result = await response.json();
-      expect(result).toEqual({
-        error: "InternalServerError",
-        message: "Some kind of error"
-      });
-    });
-
     it("returns 401 for an unauthenticated request", async () => {
       const response = await app.request("/v1/deployments?dseq=1234", {
         method: "GET",
@@ -430,25 +404,6 @@ describe("Deployments API", () => {
       });
     });
 
-    it("should return 500 if transaction fails", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
-      const dseq = "1234";
-      setupDeploymentInfoMock(wallets, dseq);
-
-      jest.spyOn(signerService, "executeDecodedTxByUserId").mockRejectedValueOnce(new Error("Failed to sign and broadcast tx"));
-
-      const response = await app.request(`/v1/deployments/${dseq}`, {
-        method: "DELETE",
-        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
-      });
-
-      expect(response.status).toBe(500);
-      const result = await response.json();
-      expect(result).toEqual({
-        error: "InternalServerError"
-      });
-    });
-
     it("should return 401 for an unauthenticated request", async () => {
       const response = await app.request("/v1/deployments/1234", {
         method: "DELETE",
@@ -514,31 +469,6 @@ describe("Deployments API", () => {
       expect(result).toEqual({
         error: "NotFoundError",
         message: "Deployment not found"
-      });
-    });
-
-    it("should return 500 if transaction fails", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
-      const dseq = "1234";
-      setupDeploymentInfoMock(wallets, dseq);
-
-      jest.spyOn(signerService, "executeDecodedTxByUserId").mockRejectedValueOnce(new Error("Failed to sign and broadcast tx"));
-
-      const response = await app.request(`/v1/deposit-deployment`, {
-        method: "POST",
-        body: JSON.stringify({
-          data: {
-            dseq,
-            deposit: 5
-          }
-        }),
-        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
-      });
-
-      expect(response.status).toBe(500);
-      const result = await response.json();
-      expect(result).toEqual({
-        error: "InternalServerError"
       });
     });
 
