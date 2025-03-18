@@ -97,7 +97,7 @@ async function main() {
       {
         data: {
           sdl: yml,
-          deposit: 5000000
+          deposit: 5
         }
       },
       {
@@ -151,7 +151,7 @@ async function main() {
       `/v1/deployments/${dseq}/deposit`,
       {
         data: {
-          deposit: 500000
+          deposit: 0.5
         }
       },
       {

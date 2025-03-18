@@ -128,7 +128,7 @@ describe("Lease Flow", () => {
       body: JSON.stringify({
         data: {
           sdl: yml,
-          deposit: 5000000
+          deposit: 5
         }
       })
     });
@@ -168,7 +168,7 @@ describe("Lease Flow", () => {
     const depositResponse = await app.request(`/v1/deployments/${dseq}/deposit`, {
       method: "POST",
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey }),
-      body: JSON.stringify({ data: { deposit: 500000 } })
+      body: JSON.stringify({ data: { deposit: 0.5 } })
     });
     expect(depositResponse.status).toBe(200);
 

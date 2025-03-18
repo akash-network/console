@@ -8,6 +8,7 @@ import { ManagedSignerService, RpcMessageService, Wallet } from "@src/billing/se
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import { denomToUdenom } from "@src/utils/math";
 
 @singleton()
 export class DeploymentService {
@@ -64,7 +65,7 @@ export class DeploymentService {
       dseq,
       groups,
       denom: deploymentGrantDenom,
-      amount: input.deposit,
+      amount: denomToUdenom(input.deposit),
       manifestVersion,
       depositor: await this.masterWallet.getFirstAddress()
     });
@@ -93,7 +94,7 @@ export class DeploymentService {
     const message = this.rpcMessageService.getDepositDeploymentMsg({
       owner: wallet.address,
       dseq: deployment.deployment.deployment_id.dseq,
-      amount,
+      amount: denomToUdenom(amount),
       denom: deploymentGrantDenom,
       depositor
     });

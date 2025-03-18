@@ -66,7 +66,7 @@ export const GetDeploymentResponseSchema = z.object({
 export const CreateDeploymentRequestSchema = z.object({
   data: z.object({
     sdl: z.string(),
-    deposit: z.number()
+    deposit: z.number().describe("Amount to deposit in dollars (e.g. 5.5)")
   })
 });
 
@@ -94,7 +94,7 @@ export const DepositDeploymentParamsSchema = z.object({
 
 export const DepositDeploymentRequestSchema = z.object({
   data: z.object({
-    deposit: z.number().describe("Amount to deposit")
+    deposit: z.number().describe("Amount to deposit in dollars (e.g. 5.5)")
   })
 });
 
