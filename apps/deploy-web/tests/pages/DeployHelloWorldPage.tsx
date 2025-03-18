@@ -1,6 +1,8 @@
-import { DeployBasePage } from "./DeployBasePage";
+import { DeployBasePage, type FeeType } from "./DeployBasePage";
 
 export class DeployHelloWorldPage extends DeployBasePage {
+  protected readonly feeType: FeeType = "medium";
+
   async createDeploymentAndSign() {
     await this.createDeployment();
     await this.signTransaction();

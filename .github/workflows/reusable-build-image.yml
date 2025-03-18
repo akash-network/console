@@ -31,7 +31,7 @@ on:
         value: ${{ jobs.build.outputs.base_image_tag }}
 
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ inputs.tag }}
 
 permissions:
   contents: write

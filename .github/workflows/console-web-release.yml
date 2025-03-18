@@ -37,6 +37,41 @@ jobs:
       appVersion: ${{ needs.build-beta.outputs.base_image_tag }}
       environment: staging
 
+  test-beta:
+    runs-on: ubuntu-latest
+    needs: deploy-beta
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup-app-deps
+        with:
+          app: deploy-web
+      - name: Install Playwright Dependencies
+        run: npx playwright install-deps chromium
+      - name: Cache Playwright browsers
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: deploy-web-playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+      - name: Install Playwright Browsers
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+      - name: Run e2e tests
+        env:
+          TEST_WALLET_MNEMONIC: ${{ secrets.CONSOLE_WEB_E2E_TEST_WALLET_MNEMONIC }}
+          BASE_URL: ${{ vars.CONSOLE_WEB_BETA_URL }}
+        run: npm run test:e2e --workspace=apps/deploy-web
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: apps/deploy-web/playwright-report/
+          retention-days: 1
+      - name: Show Test Summary
+        run: |
+          echo "### 📝 E2E Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "📄 [Download Playwright Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+
   build-prod:
     needs: release
     name: Build Prod Docker image

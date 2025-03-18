@@ -1,58 +1,114 @@
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { type BrowserContext, type Page, selectors } from "@playwright/test";
 
+import { restoreExtensionStorage } from "./context-with-extension";
 import { testEnvConfig } from "./test-env.config";
 
 const WALLET_PASSWORD = "12345678";
 
-export const setupLeap = async (context: BrowserContext, page: Page) => {
-  page.waitForLoadState("domcontentloaded");
-  selectors.setTestIdAttribute("data-testing-id");
+export async function setupWallet(context: BrowserContext, page: Page) {
+  const wallet = await importWalletToLeap(context, page);
+  await restoreExtensionStorage(page);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await topUpWallet(wallet);
+}
 
-  await page.getByTestId("import-seed-phrase").click();
+export async function connectWalletViaLeap(context: BrowserContext, page: Page) {
+  await page.getByTestId("connect-wallet-btn").click();
+  const [, popupPage] = await Promise.all([
+    page.getByRole("button", { name: "Leap Leap" }).click(),
+    context.waitForEvent("page", { timeout: 1000 }).catch(() => null)
+  ]);
 
+  if (popupPage) {
+    const buttonsSelector = ['button:has-text("Approve")', 'button:has-text("Unlock wallet")', 'button:has-text("Connect")'].join(",");
+
+    await popupPage.waitForSelector(buttonsSelector, { state: "visible" });
+    // sometimes wallet extension is flikering and "Unlock wallet" button is visible for a split second
+    // so we need to wait again after a bit
+    await popupPage.waitForTimeout(500);
+    const visibleButton = await popupPage.waitForSelector(buttonsSelector, { state: "visible" });
+
+    const buttonText = await visibleButton.textContent();
+    switch (buttonText?.trim()) {
+      case "Approve":
+        await visibleButton.click();
+        break;
+      case "Unlock wallet":
+        await popupPage.locator("input").fill(WALLET_PASSWORD);
+        await visibleButton.click();
+        break;
+      case "Connect":
+        await visibleButton.click();
+        break;
+      default:
+        throw new Error("Unexpected state in wallet popup");
+    }
+  }
+
+  await page.getByLabel("Connected wallet name and balance").waitFor({ state: "visible" });
+}
+
+async function importWalletToLeap(context: BrowserContext, page: Page) {
   const mnemonic = testEnvConfig.TEST_WALLET_MNEMONIC;
   if (!mnemonic) {
     throw new Error("TEST_WALLET_MNEMONIC is not set");
   }
-  const mnemonicArray = mnemonic.split(" ");
+  const mnemonicArray = mnemonic.trim().split(" ");
 
-  for (let i = 0; i < mnemonicArray.length; i++) {
-    await page.locator(`//*[@id="root"]/div/div[2]/div/div[1]/div[1]/div/div[2]/div[${i + 1}]`).click();
-    await page.locator("input").last().fill(mnemonicArray[i]);
+  if (mnemonicArray.length !== 12) {
+    throw new Error("TEST_WALLET_MNEMONIC should have 12 words");
   }
 
-  await page.getByTestId("btn-import-wallet").click();
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByText(/recovery phrase/i).click();
 
-  // Select wallet
-  await page.getByTestId("wallet-1").click();
-  await page.getByTestId("btn-select-wallet-proceed").click();
+  try {
+    selectors.setTestIdAttribute("data-testing-id");
 
-  // Set password
-  await page.getByTestId("input-password").fill(WALLET_PASSWORD);
-  await page.getByTestId("input-confirm-password").fill(WALLET_PASSWORD);
-  await page.getByTestId("btn-password-proceed").click();
+    for (const word of mnemonicArray) {
+      await page.locator("*:focus").fill(word);
+      await page.keyboard.press("Tab");
+    }
 
-  await page.waitForLoadState("domcontentloaded");
+    await page.getByRole("button", { name: /Import/i }).click();
 
-  // Reset test id attribute for console
-  selectors.setTestIdAttribute("data-testid");
+    // Select wallet
+    await page.getByTestId("wallet-1").click();
+    await page.getByTestId("btn-select-wallet-proceed").click();
 
-  await page.goto("http://localhost:3000");
+    // Set password
+    await page.getByTestId("input-password").fill(WALLET_PASSWORD);
+    await page.getByTestId("input-confirm-password").fill(WALLET_PASSWORD);
+    await page.getByTestId("btn-password-proceed").click();
 
-  await page.getByTestId("connect-wallet-btn").click();
+    await page.waitForLoadState("domcontentloaded");
 
-  await page.getByRole("button", { name: "Leap Leap" }).click();
-
-  // Connect to Leap
-  const popupPage = await context.waitForEvent("page");
-  await popupPage.waitForLoadState("domcontentloaded");
-
-  if (await popupPage.isVisible("text=Unlock wallet", { timeout: 5000 })) {
-    await page.locator("input").fill(WALLET_PASSWORD);
-    await popupPage.getByRole("button", { name: "Unlock wallet" }).click();
+    return await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
+      prefix: "akash"
+    });
+  } finally {
+    // Reset test id attribute for console
+    selectors.setTestIdAttribute("data-testid");
   }
+}
 
-  await popupPage.getByRole("button", { name: "Connect" }).click();
-
-  // await page.pause();
-};
+async function topUpWallet(wallet: DirectSecp256k1HdWallet) {
+  try {
+    const accounts = await wallet.getAccounts();
+    const response = await fetch("https://faucet.sandbox-01.aksh.pw/faucet", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: `address=${encodeURIComponent(accounts[0].address)}`
+    });
+    if (response.status >= 300) {
+      console.error(`Unexpected faucet response status: ${response.status}`);
+      console.error("Faucet response:", await response.text());
+    }
+  } catch (error) {
+    console.error("Unable to top up wallet");
+    console.error(error);
+  }
+}
