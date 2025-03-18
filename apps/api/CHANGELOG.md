@@ -1,5 +1,12 @@
 
 
+## [2.72.0](https://github.com/akash-network/console/compare/console-api/v2.71.0...console-api/v2.72.0) (2025-03-18)
+
+
+### Features
+
+* **deployment:** limit number of deployments for trials ([#923](https://github.com/akash-network/console/issues/923)) ([d681d51](https://github.com/akash-network/console/commit/d681d51c02501f61b81742fb4fd36aea6f536cea)), closes [#827](https://github.com/akash-network/console/issues/827)
+
 ## [2.71.0](https://github.com/akash-network/console/compare/console-api/v2.70.0...console-api/v2.71.0) (2025-03-14)
 
 
