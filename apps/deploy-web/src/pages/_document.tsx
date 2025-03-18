@@ -1,6 +1,7 @@
 import React from "react";
 import { documentGetInitialProps, DocumentHeadTags } from "@mui/material-nextjs/v14-pagesRouter";
 import { Head, Html, Main, NextScript } from "next/document";
+import Script from "next/script";
 
 import { customColors } from "@src/utils/colors";
 
@@ -26,6 +27,9 @@ export default function MyDocument(props) {
         <Main />
         <NextScript />
       </body>
+
+      <Script async src="https://pxl.growth-channel.net/s/8d425860-cf3c-49cf-a459-069a7dc7b1f8"></Script>
+      <Script async src="https://pxl.growth-channel.net/s/e94b4a7a-8431-4b9b-a679-290a1dbbab1b"></Script>
     </Html>
   );
 }
