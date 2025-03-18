@@ -146,7 +146,11 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
       }
 
       // Ad tracking script
-      addScriptToHead("https://pxl.growth-channel.net/s/76250b26-c260-4776-874b-471ed290230d");
+      addScriptToHead({
+        src: "https://pxl.growth-channel.net/s/76250b26-c260-4776-874b-471ed290230d",
+        async: true,
+        defer: true
+      });
 
       router.replace(UrlService.deploymentDetails(dseq, "EVENTS", "events"));
     } catch (err) {

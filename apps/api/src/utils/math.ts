@@ -43,3 +43,7 @@ export function weightedAverage(values: { value: number; weight: number }[]): nu
 
   return values.map(x => x.value * x.weight).reduce((acc, x) => acc + x, 0) / totalWeight;
 }
+
+export function denomToUdenom(amount: number, precision = 6) {
+  return Math.round(amount * Math.pow(10, precision));
+}

@@ -66,7 +66,7 @@ export const GetDeploymentResponseSchema = z.object({
 export const CreateDeploymentRequestSchema = z.object({
   data: z.object({
     sdl: z.string(),
-    deposit: z.number()
+    deposit: z.number().describe("Amount to deposit in dollars (e.g. 5.5)")
   })
 });
 
@@ -88,8 +88,21 @@ export const CloseDeploymentResponseSchema = z.object({
   })
 });
 
+export const DepositDeploymentRequestSchema = z.object({
+  data: z.object({
+    dseq: z.string().describe("Deployment sequence number"),
+    deposit: z.number().describe("Amount to deposit in dollars (e.g. 5.5)")
+  })
+});
+
+export const DepositDeploymentResponseSchema = z.object({
+  data: DeploymentResponseSchema
+});
+
 export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
 export type CreateDeploymentRequest = z.infer<typeof CreateDeploymentRequestSchema>;
 export type CreateDeploymentResponse = z.infer<typeof CreateDeploymentResponseSchema>;
 export type CloseDeploymentParams = z.infer<typeof CloseDeploymentParamsSchema>;
 export type CloseDeploymentResponse = z.infer<typeof CloseDeploymentResponseSchema>;
+export type DepositDeploymentRequest = z.infer<typeof DepositDeploymentRequestSchema>;
+export type DepositDeploymentResponse = z.infer<typeof DepositDeploymentResponseSchema>;
