@@ -67,7 +67,7 @@ describe("Deployments API", () => {
         return Promise.resolve(knownWallets[id]);
       },
       findOneByUserId: async (id: string) => {
-        return Promise.resolve(knownWallets[id]);
+        return Promise.resolve(knownWallets[id][0]);
       }
     } as unknown as UserWalletRepository;
 
@@ -478,10 +478,11 @@ describe("Deployments API", () => {
 
       jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
 
-      const response = await app.request(`/v1/deployments/${dseq}/deposit`, {
+      const response = await app.request(`/v1/deposit-deployment`, {
         method: "POST",
         body: JSON.stringify({
           data: {
+            dseq,
             deposit: 5
           }
         }),
@@ -497,10 +498,11 @@ describe("Deployments API", () => {
 
       jest.spyOn(deploymentService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
-      const response = await app.request(`/v1/deployments/${dseq}/deposit`, {
+      const response = await app.request(`/v1/deposit-deployment`, {
         method: "POST",
         body: JSON.stringify({
           data: {
+            dseq,
             deposit: 5
           }
         }),
@@ -522,10 +524,11 @@ describe("Deployments API", () => {
 
       jest.spyOn(signerService, "executeDecodedTxByUserId").mockRejectedValueOnce(new Error("Failed to sign and broadcast tx"));
 
-      const response = await app.request(`/v1/deployments/${dseq}/deposit`, {
+      const response = await app.request(`/v1/deposit-deployment`, {
         method: "POST",
         body: JSON.stringify({
           data: {
+            dseq,
             deposit: 5
           }
         }),
@@ -540,10 +543,11 @@ describe("Deployments API", () => {
     });
 
     it("should return 401 for an unauthenticated request", async () => {
-      const response = await app.request("/v1/deployments/1234/deposit", {
+      const response = await app.request("/v1/deposit-deployment", {
         method: "POST",
         body: JSON.stringify({
           data: {
+            dseq: "1234",
             deposit: 5
           }
         }),
@@ -562,10 +566,12 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      const response = await app.request(`/v1/deployments/${dseq}/deposit`, {
+      const response = await app.request(`/v1/deposit-deployment`, {
         method: "POST",
         body: JSON.stringify({
-          data: {}
+          data: {
+            dseq
+          }
         }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });

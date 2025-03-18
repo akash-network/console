@@ -148,9 +148,10 @@ async function main() {
     // 6. Deposit into deployment
     console.log("Depositing into deployment...");
     const depositResponse = await api.post(
-      `/v1/deployments/${dseq}/deposit`,
+      `/v1/deposit-deployment`,
       {
         data: {
+          dseq,
           deposit: 0.5
         }
       },

@@ -67,15 +67,15 @@ describe("Lease Flow", () => {
     });
 
     // Mock the wallet repository chain
-    const findByUserIdMock = jest.fn().mockImplementation(async (id: string) => {
+    const findOneByUserIdMock = jest.fn().mockImplementation(async (id: string) => {
       if (id === userWithId.id) {
-        return [wallet];
+        return wallet;
       }
-      return [];
+      return undefined;
     });
 
     jest.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(userWalletRepository);
-    jest.spyOn(userWalletRepository, "findByUserId").mockImplementation(findByUserIdMock);
+    jest.spyOn(userWalletRepository, "findOneByUserId").mockImplementation(findOneByUserIdMock);
 
     return { user: userWithId, apiKey, wallet };
   }
@@ -165,10 +165,10 @@ describe("Lease Flow", () => {
     expect(leaseResponse.status).toBe(200);
 
     // 6. Deposit into deployment
-    const depositResponse = await app.request(`/v1/deployments/${dseq}/deposit`, {
+    const depositResponse = await app.request(`/v1/deposit-deployment`, {
       method: "POST",
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey }),
-      body: JSON.stringify({ data: { deposit: 0.5 } })
+      body: JSON.stringify({ data: { dseq, deposit: 0.5 } })
     });
     expect(depositResponse.status).toBe(200);
 

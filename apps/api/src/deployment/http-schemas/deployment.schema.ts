@@ -88,12 +88,9 @@ export const CloseDeploymentResponseSchema = z.object({
   })
 });
 
-export const DepositDeploymentParamsSchema = z.object({
-  dseq: z.string().describe("Deployment sequence number")
-});
-
 export const DepositDeploymentRequestSchema = z.object({
   data: z.object({
+    dseq: z.string().describe("Deployment sequence number"),
     deposit: z.number().describe("Amount to deposit in dollars (e.g. 5.5)")
   })
 });

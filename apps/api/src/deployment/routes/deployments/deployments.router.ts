@@ -8,7 +8,6 @@ import {
   CloseDeploymentResponseSchema,
   CreateDeploymentRequestSchema,
   CreateDeploymentResponseSchema,
-  DepositDeploymentParamsSchema,
   DepositDeploymentRequestSchema,
   DepositDeploymentResponseSchema,
   GetDeploymentQuerySchema,
@@ -83,11 +82,10 @@ const deleteRoute = createRoute({
 
 const depositRoute = createRoute({
   method: "post",
-  path: "/v1/deployments/{dseq}/deposit",
+  path: "/v1/deposit-deployment",
   summary: "Deposit into a deployment",
   tags: ["Deployments"],
   request: {
-    params: DepositDeploymentParamsSchema,
     body: {
       content: {
         "application/json": {
@@ -129,8 +127,7 @@ deploymentsRouter.openapi(deleteRoute, async function routeCloseDeployment(c) {
 });
 
 deploymentsRouter.openapi(depositRoute, async function routeDepositDeployment(c) {
-  const { dseq } = c.req.valid("param");
   const { data } = c.req.valid("json");
-  const result = await container.resolve(DeploymentController).deposit(dseq, data);
+  const result = await container.resolve(DeploymentController).deposit(data);
   return c.json(result, 200);
 });
