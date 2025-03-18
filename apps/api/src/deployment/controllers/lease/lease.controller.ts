@@ -1,3 +1,4 @@
+import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
@@ -18,8 +19,10 @@ export class LeaseController {
   async createLeasesAndSendManifest(input: CreateLeaseRequest): Promise<GetDeploymentResponse> {
     const { currentUser, ability } = this.authService;
 
-    const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(currentUser.id);
-    const result = await this.leaseService.createLeasesAndSendManifest(wallets[0], input);
+    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
+    assert(userWallet, 404, "UserWallet Not Found");
+
+    const result = await this.leaseService.createLeasesAndSendManifest(userWallet, input);
 
     return { data: result };
   }

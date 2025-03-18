@@ -97,7 +97,7 @@ async function main() {
       {
         data: {
           sdl: yml,
-          deposit: 5000000
+          deposit: 5
         }
       },
       {
@@ -145,7 +145,25 @@ async function main() {
     }
     console.log("Lease created successfully");
 
-    // 6. Close deployment
+    // 6. Deposit into deployment
+    console.log("Depositing into deployment...");
+    const depositResponse = await api.post(
+      `/v1/deposit-deployment`,
+      {
+        data: {
+          dseq,
+          deposit: 0.5
+        }
+      },
+      {
+        headers: {
+          "x-api-key": apiKey
+        }
+      }
+    );
+    console.log("Deposit successful: ", depositResponse.data.data.escrow_account);
+
+    // 7. Close deployment
     console.log("Closing deployment...");
     const closeResponse = await api.delete(`/v1/deployments/${dseq}`, {
       headers: {

@@ -16,7 +16,7 @@ export interface SpendingAuthorizationMsgOptions {
 }
 
 interface DepositDeploymentMsgOptionsBase {
-  dseq: number;
+  dseq: number | string;
   amount: number;
   denom: string;
   owner: string;

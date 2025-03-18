@@ -48,8 +48,8 @@ describe("Bids API", () => {
     });
 
     const fakeWalletRepository = {
-      findByUserId: async (id: string) => {
-        return Promise.resolve(knownWallets[id]);
+      findOneByUserId: async (id: string) => {
+        return Promise.resolve(knownWallets[id][0]);
       }
     } as unknown as UserWalletRepository;
 

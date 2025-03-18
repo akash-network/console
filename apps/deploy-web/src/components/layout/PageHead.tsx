@@ -10,9 +10,6 @@ export const PageHead: React.FunctionComponent<{ pageSeo?: NextSeoProps }> = ({ 
         <meta charSet="utf-8" />
         <meta name="viewport" content="minimum-scale=1, initial-scale=1, width=device-width, shrink-to-fit=no" />
         <link rel="icon" href="/favicon.ico" />
-
-        <script async src="https://pxl.growth-channel.net/s/8d425860-cf3c-49cf-a459-069a7dc7b1f8"></script>
-        <script async src="https://pxl.growth-channel.net/s/e94b4a7a-8431-4b9b-a679-290a1dbbab1b"></script>
       </Head>
 
       <DefaultSeo

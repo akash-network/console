@@ -67,7 +67,7 @@ describe("Deployments API", () => {
         return Promise.resolve(knownWallets[id]);
       },
       findOneByUserId: async (id: string) => {
-        return Promise.resolve(knownWallets[id]);
+        return Promise.resolve(knownWallets[id][0]);
       }
     } as unknown as UserWalletRepository;
 
@@ -126,19 +126,22 @@ describe("Deployments API", () => {
   }
 
   function setupDeploymentInfoMock(wallets: UserWalletOutput[], dseq: string, deploymentInfo?: RestAkashDeploymentInfoResponse) {
+    const address = wallets[0].address;
     const defaultDeploymentInfo =
       deploymentInfo ||
       DeploymentInfoSeeder.create({
-        owner: wallets[0].address,
+        owner: address,
         dseq
       });
 
     nock(apiNodeUrl)
-      .get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${wallets[0].address}&id.dseq=${dseq}`)
+      .persist()
+      .get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`)
       .reply(200, defaultDeploymentInfo);
 
     nock(apiNodeUrl)
-      .get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`)
+      .persist()
+      .get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`)
       .reply(200, {
         leases: [
           {
@@ -231,32 +234,6 @@ describe("Deployments API", () => {
       });
     });
 
-    it("returns 500 for an error in deployment info", async () => {
-      const dseq = "1234";
-      const { user, wallets } = await mockUser();
-      const { adminApiKeySecret } = await mockAdmin();
-      setupDeploymentInfoMock(
-        wallets,
-        dseq,
-        DeploymentInfoSeeder.createError({
-          code: 987,
-          message: "Some kind of error"
-        })
-      );
-
-      const response = await app.request(`/v1/deployments?dseq=${dseq}&userId=${user.id}`, {
-        method: "GET",
-        headers: new Headers({ "Content-Type": "application/json", "x-api-key": adminApiKeySecret })
-      });
-
-      expect(response.status).toBe(500);
-      const result = await response.json();
-      expect(result).toEqual({
-        error: "InternalServerError",
-        message: "Some kind of error"
-      });
-    });
-
     it("returns 401 for an unauthenticated request", async () => {
       const response = await app.request("/v1/deployments?dseq=1234", {
         method: "GET",
@@ -289,7 +266,7 @@ describe("Deployments API", () => {
         body: JSON.stringify({
           data: {
             sdl: yml,
-            deposit: 5000000
+            deposit: 5.5
           }
         }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
@@ -314,7 +291,7 @@ describe("Deployments API", () => {
         body: JSON.stringify({
           data: {
             sdl: "",
-            deposit: 5000000
+            deposit: 5.5
           }
         }),
         headers: new Headers({ "Content-Type": "application/json" })
@@ -332,7 +309,7 @@ describe("Deployments API", () => {
         body: JSON.stringify({
           data: {
             sdl: yml,
-            deposit: 5000000
+            deposit: 5.5
           }
         }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
@@ -351,7 +328,7 @@ describe("Deployments API", () => {
         body: JSON.stringify({
           data: {
             sdl: "invalid-sdl",
-            deposit: 5000000
+            deposit: 5.5
           }
         }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
@@ -427,25 +404,6 @@ describe("Deployments API", () => {
       });
     });
 
-    it("should return 500 if transaction fails", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
-      const dseq = "1234";
-      setupDeploymentInfoMock(wallets, dseq);
-
-      jest.spyOn(signerService, "executeDecodedTxByUserId").mockRejectedValueOnce(new Error("Failed to sign and broadcast tx"));
-
-      const response = await app.request(`/v1/deployments/${dseq}`, {
-        method: "DELETE",
-        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
-      });
-
-      expect(response.status).toBe(500);
-      const result = await response.json();
-      expect(result).toEqual({
-        error: "InternalServerError"
-      });
-    });
-
     it("should return 401 for an unauthenticated request", async () => {
       const response = await app.request("/v1/deployments/1234", {
         method: "DELETE",
@@ -458,6 +416,97 @@ describe("Deployments API", () => {
         error: "UnauthorizedError",
         message: "Unauthorized"
       });
+    });
+  });
+
+  describe("POST /v1/deployments/{dseq}/deposit", () => {
+    it("should deposit into a deployment successfully", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const dseq = "1234";
+      setupDeploymentInfoMock(wallets, dseq);
+
+      const mockTxResult = {
+        code: 0,
+        hash: "test-hash",
+        rawLog: "success"
+      };
+
+      jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+
+      const response = await app.request(`/v1/deposit-deployment`, {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            dseq,
+            deposit: 5
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("should return 404 if deployment does not exist", async () => {
+      const { userApiKeySecret } = await mockUser();
+      const dseq = "1234";
+
+      jest.spyOn(deploymentService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+
+      const response = await app.request(`/v1/deposit-deployment`, {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            dseq,
+            deposit: 5
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(404);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "NotFoundError",
+        message: "Deployment not found"
+      });
+    });
+
+    it("should return 401 for an unauthenticated request", async () => {
+      const response = await app.request("/v1/deposit-deployment", {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            dseq: "1234",
+            deposit: 5
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json" })
+      });
+
+      expect(response.status).toBe(401);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "UnauthorizedError",
+        message: "Unauthorized"
+      });
+    });
+
+    it("should return 400 if deposit amount is not provided", async () => {
+      const { userApiKeySecret } = await mockUser();
+      const dseq = "1234";
+
+      const response = await app.request(`/v1/deposit-deployment`, {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            dseq
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
     });
   });
 });

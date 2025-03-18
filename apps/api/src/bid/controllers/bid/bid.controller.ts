@@ -1,4 +1,5 @@
 import { BidHttpService } from "@akashnetwork/http-sdk";
+import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
@@ -17,8 +18,10 @@ export class BidController {
   async list(dseq: string, userId?: string): Promise<ListBidsResponse> {
     const { currentUser, ability } = this.authService;
 
-    const wallets = await this.userWalletRepository.accessibleBy(ability, "sign").findByUserId(userId ?? currentUser.id);
-    const bids = await this.bidHttpService.list(wallets[0].address, dseq);
+    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(userId ?? currentUser.id);
+    assert(userWallet, 404, "UserWallet Not Found");
+
+    const bids = await this.bidHttpService.list(userWallet.address, dseq);
 
     return { data: bids };
   }
