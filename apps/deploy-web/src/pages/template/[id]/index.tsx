@@ -1,5 +1,6 @@
 import { getSession } from "@auth0/nextjs-auth0";
 import axios from "axios";
+import type { GetServerSideProps } from "next";
 
 import { UserTemplate } from "@src/components/templates/UserTemplate";
 import { serverEnvConfig } from "@src/config/server-env.config";
@@ -16,7 +17,7 @@ const TemplatePage: React.FunctionComponent<Props> = ({ id, template }) => {
 
 export default TemplatePage;
 
-export const getServerSideProps = async function getServerSideProps({ params, req, res }) {
+export const getServerSideProps: GetServerSideProps<Props, Pick<Props, "id">> = async ({ params, req, res }) => {
   try {
     const session = await getSession(req, res);
     let config = {};
@@ -33,11 +34,11 @@ export const getServerSideProps = async function getServerSideProps({ params, re
 
     return {
       props: {
-        id: params?.id,
+        id: params!.id,
         template: response.data
       }
     };
-  } catch (error) {
+  } catch (error: any) {
     if (error.response?.status === 404 || error.response?.status === 400) {
       return {
         notFound: true

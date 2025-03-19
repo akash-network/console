@@ -12,7 +12,7 @@ export default async function signup(req: NextApiRequest, res: NextApiResponse) 
         action: "signup" // <== Classic Universal Login
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(error.status || 400).end(error.message);
   }
 }

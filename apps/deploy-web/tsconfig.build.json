@@ -12,7 +12,7 @@
         "name": "next"
       }
     ],
-    "strictNullChecks": true
+    "strict": true
   },
   "extends": "@akashnetwork/dev-config/tsconfig.base-next.json"
 }
