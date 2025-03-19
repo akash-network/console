@@ -78,6 +78,9 @@ jobs:
           npm run release -w apps/provider-proxy -- --verbose --ci
           npm run release -w apps/provider-console -- --verbose --ci
 
+          # update package-lock.json with new versions
+          npm install --package-lock-only
+
       - name: Get Base Branch SHA
         id: get-base-sha
         run: |
