@@ -1,5 +1,5 @@
 "use client";
-import { Dispatch, ReactNode, SetStateAction } from "react";
+import { ReactNode } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { InfoCircle } from "iconoir-react";
@@ -12,7 +12,7 @@ type Props = {
   currentService: ServiceType;
   serviceIndex?: number;
   children?: ReactNode;
-  setIsEditingExpose: Dispatch<SetStateAction<boolean | number>>;
+  setIsEditingExpose: (value: boolean | number) => void;
 };
 
 export const ExposeList: React.FunctionComponent<Props> = ({ currentService, setIsEditingExpose, serviceIndex }) => {

@@ -6,7 +6,11 @@ import { cn } from "@akashnetwork/ui/utils";
 
 import networkStore from "@src/store/networkStore";
 
-export const SelectNetworkModal = ({ onClose }) => {
+export type SelectNetworkModalProps = {
+  onClose: () => void;
+};
+
+export const SelectNetworkModal = ({ onClose }: SelectNetworkModalProps) => {
   const [selectedNetworkId, setSelectedNetworkId] = networkStore.useSelectedNetworkIdStore({ reloadOnChange: true });
   const [formSelectedNetworkId, setFormSelectedNetworkId] = useState(selectedNetworkId);
 

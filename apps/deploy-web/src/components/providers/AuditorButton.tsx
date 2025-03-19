@@ -13,7 +13,7 @@ type Props = {
 export const AuditorButton: React.FunctionComponent<Props> = ({ provider }) => {
   const [isViewingAuditors, setIsViewingAuditors] = useState(false);
 
-  const onAuditorClick = event => {
+  const onAuditorClick = (event: MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
 

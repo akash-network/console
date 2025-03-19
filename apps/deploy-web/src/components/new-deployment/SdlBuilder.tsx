@@ -126,7 +126,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
         setError(null);
 
         return services;
-      } catch (err) {
+      } catch (err: any) {
         if (err.name === "YAMLException" || err.name === "CustomValidationError") {
           setError(err.message);
         } else if (err.name === "TemplateValidation") {

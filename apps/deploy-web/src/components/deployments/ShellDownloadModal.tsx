@@ -6,7 +6,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
+import { ProviderInfo } from "@src/hooks/useProviderWebsocket";
 import { analyticsService } from "@src/services/analytics/analytics.service";
+import { LeaseDto } from "@src/types/deployment";
+
+type Props = {
+  selectedLease: LeaseDto;
+  onCloseClick: () => void;
+  selectedService: string;
+  providerInfo: ProviderInfo;
+};
 
 const formSchema = z.object({
   filePath: z
@@ -19,10 +28,12 @@ const formSchema = z.object({
     })
 });
 
-export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedService, providerInfo }) => {
+type FormData = z.infer<typeof formSchema>;
+
+export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedService, providerInfo }: Props) => {
   const formRef = useRef<HTMLFormElement | null>(null);
   const { downloadFileFromShell } = useBackgroundTask();
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormData>({
     defaultValues: {
       filePath: ""
     },
@@ -34,7 +45,7 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
     formState: { errors }
   } = form;
 
-  const onSubmit = async ({ filePath }) => {
+  const onSubmit = async ({ filePath }: FormData) => {
     downloadFileFromShell(providerInfo, selectedLease.dseq, selectedLease.gseq, selectedLease.oseq, selectedService, filePath);
 
     analyticsService.track("downloaded_shell_file", {
@@ -45,7 +56,7 @@ export const ShellDownloadModal = ({ selectedLease, onCloseClick, selectedServic
     onCloseClick();
   };
 
-  const onDownloadClick = event => {
+  const onDownloadClick = (event: React.MouseEvent) => {
     event.preventDefault();
     formRef.current?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
   };

@@ -23,8 +23,8 @@ type Props = {
 export const SettingsLayout: React.FunctionComponent<Props> = ({ children, page, title, headerActions }) => {
   const router = useRouter();
 
-  const handleTabChange = (newValue: SettingsTabs) => {
-    switch (newValue) {
+  const handleTabChange = (newValue: string) => {
+    switch (newValue as SettingsTabs) {
       case SettingsTabs.AUTHORIZATIONS:
         router.push(UrlService.settingsAuthorizations());
         break;

@@ -1,6 +1,6 @@
 "use client";
 import { HTMLInputTypeAttribute, useEffect, useRef, useState } from "react";
-import { Control, FieldPath, useFieldArray, useForm } from "react-hook-form";
+import { Control, useFieldArray, useForm } from "react-hook-form";
 import {
   Alert,
   Button,
@@ -68,14 +68,14 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
       return provider?.attributes?.find(x => x.key === key)?.value || "";
     };
 
-    const getAttributeOptionValue = (key: string) => {
+    const getAttributeOptionValue = (key: keyof ProviderAttributesSchema) => {
       const _key = providerAttributesSchema[key].key as string;
       const possibleValues = providerAttributesSchema[key].values as ProviderAttributeSchemaDetailValue[];
       const attributeValue = provider?.attributes?.find(x => x.key === _key);
       return possibleValues.find(x => x.key === attributeValue?.value);
     };
 
-    const getAttributeMultipleOptionValue = (key: string) => {
+    const getAttributeMultipleOptionValue = (key: keyof ProviderAttributesSchema) => {
       const possibleValues = providerAttributesSchema[key].values as ProviderAttributeSchemaDetailValue[];
 
       return possibleValues.filter(x => provider?.attributes?.some(y => x.key === y.key));
@@ -149,7 +149,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
         website: data.website || ""
       });
       await signAndBroadcastTx([message]);
-    } catch (error) {
+    } catch (error: any) {
       setError(error.message);
     }
   };
@@ -470,7 +470,7 @@ export const EditProviderForm: React.FunctionComponent<Props> = ({ provider, pro
 type ProviderTextFieldProps = {
   control: Control<z.infer<typeof providerAttributesFormValuesSchema>, any>;
   providerAttributesSchema: ProviderAttributesSchema;
-  name: keyof z.infer<typeof providerAttributesFormValuesSchema>;
+  name: keyof ProviderAttributesSchema;
   className?: string;
   label: string;
   type?: HTMLInputTypeAttribute;
@@ -518,7 +518,7 @@ const ProviderTextField: React.FunctionComponent<ProviderTextFieldProps> = ({
 type ProviderCheckboxProps = {
   control: Control<z.infer<typeof providerAttributesFormValuesSchema>, any>;
   providerAttributesSchema: ProviderAttributesSchema;
-  name: keyof z.infer<typeof providerAttributesFormValuesSchema>;
+  name: keyof ProviderAttributesSchema;
   className?: string;
   label: string;
 };
@@ -555,7 +555,7 @@ const ProviderCheckbox: React.FunctionComponent<ProviderCheckboxProps> = ({ cont
 type ProviderSelectProps = {
   control: Control<z.infer<typeof providerAttributesFormValuesSchema>, any>;
   providerAttributesSchema: ProviderAttributesSchema;
-  name: keyof z.infer<typeof providerAttributesFormValuesSchema>;
+  name: keyof ProviderAttributesSchema;
   className?: string;
   label: string;
   placeholder?: string;
@@ -614,7 +614,7 @@ type ProviderMultiSelectProps = {
   control: Control<any, any>;
   providerAttributesSchema: ProviderAttributesSchema;
   optionName: keyof ProviderAttributesSchema;
-  name: FieldPath<z.infer<typeof providerAttributesFormValuesSchema>>;
+  name: keyof ProviderAttributesSchema;
   className?: string;
   label: string;
   disabled?: boolean;

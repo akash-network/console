@@ -125,7 +125,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     loadDeploymentDetail();
   }
 
-  const onChangeTab = value => {
+  const onChangeTab = (value: string) => {
     setActiveTab(value);
 
     // clear tab mode

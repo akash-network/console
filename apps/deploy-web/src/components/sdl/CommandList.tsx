@@ -1,5 +1,5 @@
 "use client";
-import { Dispatch, ReactNode, SetStateAction } from "react";
+import { ReactNode } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
@@ -10,7 +10,7 @@ type Props = {
   currentService: ServiceType;
   serviceIndex?: number;
   children?: ReactNode;
-  setIsEditingCommands: Dispatch<SetStateAction<boolean | number>>;
+  setIsEditingCommands: (value: boolean | number) => void;
 };
 
 export const CommandList: React.FunctionComponent<Props> = ({ currentService, setIsEditingCommands, serviceIndex }) => {

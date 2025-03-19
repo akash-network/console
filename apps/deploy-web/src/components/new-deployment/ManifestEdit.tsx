@@ -148,8 +148,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     reader.readAsText(file);
   };
 
-  async function handleTextChange(value) {
-    setEditedManifest(value);
+  async function handleTextChange(value: string | undefined) {
+    setEditedManifest(value || "");
   }
 
   async function createAndValidateDeploymentData(
@@ -169,7 +169,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
       setParsingError(null);
 
       return dd;
-    } catch (err) {
+    } catch (err: any) {
       if (err.name === "YAMLException" || err.name === "CustomValidationError") {
         setParsingError(err.message);
       } else if (err.name === "TemplateValidation") {
@@ -274,7 +274,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
           });
           const validCerts = await loadValidCertificates();
           loadLocalCert();
-          const currentCert = validCerts.find(x => x.parsed === _crtpem);
+          const currentCert = validCerts.find(x => x.parsed === _crtpem) || null;
           setSelectedCertificate(currentCert);
         }
 

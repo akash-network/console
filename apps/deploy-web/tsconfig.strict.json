@@ -17,6 +17,8 @@
     "./src/hooks/**/*.tsx",
     "./src/queries/**/*.ts",
     "./src/queries/**/*.tsx",
+    "./src/components/**/*.ts",
+    "./src/components/**/*.tsx",
     "src/*.ts",
     "src/context/CertificateProvider/CertificateProviderContext.tsx",
     "src/context/SettingsProvider/SettingsProviderContext.tsx",
@@ -35,6 +37,7 @@
     "src/components/api-keys/CreateApiKeyModal.tsx",
     "src/components/authorizations/AllowanceModal.tsx",
     "src/components/authorizations/GrantModal.tsx",
+    "./tests/unit/setup.ts"
   ],
   "compilerOptions": {
     "strict": true,

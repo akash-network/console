@@ -53,7 +53,7 @@ export class UrlService {
   // Deploy
   static deploymentList = () => `/deployments`;
   static deploymentDetails = (dseq: string, tab?: string, logsMode?: string) => `/deployments/${dseq}${appendSearchParams({ tab, logsMode })}`;
-  static templates = (category?: string, search?: string) => `/templates${appendSearchParams({ category, search })}`;
+  static templates = (category?: string | null, search?: string) => `/templates${appendSearchParams({ category, search })}`;
   static templateDetails = (templateId: string) => `/templates/${templateId}`;
   static providers = (sort?: string) => `/providers${appendSearchParams({ sort })}`;
   static providerDetail = (owner: string) => `/providers/${owner}${appendSearchParams({ network: networkStore.selectedNetworkId })}`;

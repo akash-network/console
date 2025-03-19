@@ -144,7 +144,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
         category: "sdl_builder",
         label: "Deploy SDL from create page"
       });
-    } catch (error) {
+    } catch (error: any) {
       setError(error.message);
     }
   };
@@ -169,7 +169,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
         category: "sdl_builder",
         label: "Preview SDL from create page"
       });
-    } catch (error) {
+    } catch (error: any) {
       setError(error.message);
     }
   };

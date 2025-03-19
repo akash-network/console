@@ -1,5 +1,5 @@
 "use client";
-import { MouseEventHandler } from "react";
+import { MouseEvent, MouseEventHandler } from "react";
 import { Address, Badge, CustomTooltip, Popup, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 
 import { useAuditors } from "@src/queries/useProvidersQuery";
@@ -13,7 +13,7 @@ type Props = {
 export const AuditorsModal: React.FunctionComponent<Props> = ({ attributes, onClose }) => {
   const { data: auditors } = useAuditors();
 
-  const onWebsiteClick = (event, website) => {
+  const onWebsiteClick = (event: MouseEvent<unknown>, website: string) => {
     event.preventDefault();
     event.stopPropagation();
 
@@ -60,12 +60,13 @@ export const AuditorsModal: React.FunctionComponent<Props> = ({ attributes, onCl
                       .filter(x => auditors?.some(y => y.address === x))
                       .map(x => {
                         const auditor = auditors?.find(y => y.address === x);
+                        if (!auditor) return null;
                         return (
                           <div key={x}>
                             <CustomTooltip
                               title={
                                 <div className="flex flex-col items-center space-y-2">
-                                  <LinkTo onClick={event => onWebsiteClick(event, auditor?.website)}>{auditor?.website}</LinkTo>
+                                  <LinkTo onClick={event => onWebsiteClick(event, auditor.website)}>{auditor?.website}</LinkTo>
                                   <Address address={auditor?.address || ""} isCopyable disableTooltip />
                                 </div>
                               }

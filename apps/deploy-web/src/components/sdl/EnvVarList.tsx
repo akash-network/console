@@ -1,5 +1,5 @@
 "use client";
-import { Dispatch, ReactNode, SetStateAction } from "react";
+import { ReactNode } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { InfoCircle } from "iconoir-react";
@@ -13,7 +13,7 @@ type Props = {
   currentService: ServiceType;
   serviceIndex?: number;
   children?: ReactNode;
-  setIsEditingEnv: Dispatch<SetStateAction<boolean | number>>;
+  setIsEditingEnv: (value: boolean | number) => void;
   isRemoteDeployEnvHidden?: boolean;
 };
 

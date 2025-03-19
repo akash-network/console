@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { ChangeEventHandler, useEffect, useState } from "react";
 import { MdSearchOff } from "react-icons/md";
 import { Button, buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -14,7 +14,7 @@ import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { Title } from "../shared/Title";
-import { MobileTemplatesFilter } from "./MobileTemplatesFilter";
+import { MobileTemplatesFilter, Props as MobileTemplatesFilterProps } from "./MobileTemplatesFilter";
 import { TemplateBox } from "./TemplateBox";
 
 let timeoutId: NodeJS.Timeout | null = null;
@@ -67,7 +67,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, templates]);
 
-  const onSearchChange = event => {
+  const onSearchChange: ChangeEventHandler<HTMLInputElement> = event => {
     const searchValue = event.target.value;
     setSearchTerms(searchValue);
 
@@ -81,7 +81,7 @@ export const TemplateGallery: React.FunctionComponent = () => {
     }
   };
 
-  const onCategoryClick = categoryTitle => {
+  const onCategoryClick: MobileTemplatesFilterProps["onCategoryClick"] = categoryTitle => {
     setSelectedCategoryTitle(categoryTitle);
 
     if (isMobileSearchOpen) {
