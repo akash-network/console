@@ -42,10 +42,15 @@ ENV APP_USER app
 RUN addgroup --system --gid $APP_GROUP_ID $APP_GROUP \
     && adduser --system --uid $APP_GROUP_ID --ingroup $APP_GROUP $APP_USER
 
+COPY --from=prepare /app .
+# webpack built apps are not fully bundled, so we need to install dependencies separately
+RUN npm ci --workspace $WORKSPACE --omit=dev && npm cache clean --force
+
 COPY --from=builder /app/package*.json /app/
 COPY --from=builder /app/$WORKSPACE/package.json /app/$WORKSPACE/
 COPY --from=builder /app/$WORKSPACE/dist /app/$WORKSPACE/dist
 COPY --from=builder /app/$WORKSPACE/env /app/$WORKSPACE/env
+COPY --from=builder /app/packages /app/packages
 
 RUN find /app -name node_modules -prune -o -type f -exec chown $APP_USER:$APP_GROUP '{}' \;
 RUN apk add --no-cache libcap; \
