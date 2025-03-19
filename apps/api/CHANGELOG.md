@@ -1,5 +1,12 @@
 
 
+## [2.74.0](https://github.com/akash-network/console/compare/console-api/v2.73.0...console-api/v2.74.0) (2025-03-19)
+
+
+### Features
+
+* adds support for logging error cause ([#1064](https://github.com/akash-network/console/issues/1064)) ([#1066](https://github.com/akash-network/console/issues/1066)) ([ef8d604](https://github.com/akash-network/console/commit/ef8d60447f98e699189c852b8d18f173458386ec))
+
 ## [2.73.0](https://github.com/akash-network/console/compare/console-api/v2.72.0...console-api/v2.73.0) (2025-03-18)
 
 

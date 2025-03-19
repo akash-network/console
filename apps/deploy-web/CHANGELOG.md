@@ -1,5 +1,13 @@
 
 
+## [2.61.1](https://github.com/akash-network/console/compare/console-web/v2.61.0...console-web/v2.61.1) (2025-03-19)
+
+
+### Code Refactoring
+
+* migrates console-web components to strict types ([#1050](https://github.com/akash-network/console/issues/1050)) ([bd1e3e7](https://github.com/akash-network/console/commit/bd1e3e734d249d36189d49e3fabad7d22d43fd99))
+* refactors console-web pages to strict types ([#1052](https://github.com/akash-network/console/issues/1052)) ([68c0ef0](https://github.com/akash-network/console/commit/68c0ef07ab35ce2a2bc5e94b8d47ce1740c98236))
+
 ## [2.61.0](https://github.com/akash-network/console/compare/console-web/v2.60.0...console-web/v2.61.0) (2025-03-18)
 
 
