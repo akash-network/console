@@ -50,7 +50,7 @@ const RemoteDeployUpdate = ({ sdlString, onManifestChange }: { sdlString: string
   const createAndValidateSdl = (yamlStr: string) => {
     try {
       return yamlStr ? importSimpleSdl(yamlStr) : [];
-    } catch (err) {
+    } catch (err: any) {
       if (err.name === "YAMLException" || err.name === "CustomValidationError") {
         enqueueSnackbar(<Snackbar title={err.message} />, { variant: "error" });
       } else if (err.name === "TemplateValidation") {

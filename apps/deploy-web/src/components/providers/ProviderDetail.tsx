@@ -48,7 +48,7 @@ export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provide
     enabled: true,
     retry: false,
     onSuccess: _providerStatus => {
-      setProvider(provider => (provider ? { ...provider, ..._providerStatus } : _providerStatus));
+      setProvider(provider => ({ ...provider, ..._providerStatus }));
     }
   });
   const isLoading = isLoadingProvider || isLoadingStatus || isLoadingLeases || isLoadingSchema;

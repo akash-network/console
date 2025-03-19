@@ -207,7 +207,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
     }
   }
 
-  const onSelectedServiceChange = value => {
+  const onSelectedServiceChange = (value: string) => {
     setSelectedService(value);
 
     if (value !== selectedService) {
@@ -230,7 +230,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
 
   return (
     <div>
-      {isShowingDownloadModal && (
+      {isShowingDownloadModal && selectedLease && providerInfo && selectedService && (
         <ShellDownloadModal onCloseClick={onCloseDownloadClick} selectedLease={selectedLease} providerInfo={providerInfo} selectedService={selectedService} />
       )}
 
@@ -240,7 +240,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
             <>
               <div className="flex h-[56px] items-center space-x-4 p-2">
                 <div className="flex items-center">
-                  {(leases?.length || 0) > 1 && <LeaseSelect leases={leases} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
+                  {(leases?.length || 0) > 1 && <LeaseSelect leases={leases || []} defaultValue={selectedLease.id} onSelectedChange={handleLeaseChange} />}
 
                   {services?.length > 0 && selectedService && (
                     <div className={cn({ ["ml-2"]: (leases?.length || 0) > 1 })}>

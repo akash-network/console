@@ -6,7 +6,7 @@ import InputLabel from "@mui/material/InputLabel";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
+import Select, { SelectProps } from "@mui/material/Select";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -68,8 +68,8 @@ export const SelectCheckbox = ({ defaultValue, options, onSelectedChange, label,
   const [selected, setSelected] = useState(defaultValue);
   const isAllSelected = options.length > 0 && selected.length === options.length;
 
-  const handleChange = event => {
-    const value = event.target.value;
+  const handleChange: SelectProps<string[]>["onChange"] = event => {
+    const value = event.target.value as string[];
     let newValue = value;
     if (value[value.length - 1] === "all") {
       newValue = selected.length === options.length ? [] : options;

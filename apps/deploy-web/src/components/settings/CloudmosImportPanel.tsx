@@ -3,6 +3,8 @@ import { Button, Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/
 import { Import } from "iconoir-react";
 import { z } from "zod";
 
+import { LocalWallet } from "@src/utils/walletUtils";
+
 const autoImportOrigin = "https://deploy.cloudmos.io";
 
 export default function CloudmosImportPanel() {
@@ -42,8 +44,8 @@ export default function CloudmosImportPanel() {
     // Merge wallet certificates
     const existingNetworkWalletKeys = Object.keys(parsedData.data).filter(key => existingKeys.includes(key) && key.endsWith("/wallets"));
     for (const networkWalletsKey of existingNetworkWalletKeys) {
-      const existingWallets = JSON.parse(localStorage.getItem(networkWalletsKey)!);
-      const importedWallets = JSON.parse(parsedData.data[networkWalletsKey]);
+      const existingWallets = JSON.parse(localStorage.getItem(networkWalletsKey)!) as LocalWallet[];
+      const importedWallets = JSON.parse(parsedData.data[networkWalletsKey]) as LocalWallet[];
       const importedWalletsWithCert = importedWallets.filter(x => x.cert);
 
       for (const importedWallet of importedWalletsWithCert) {

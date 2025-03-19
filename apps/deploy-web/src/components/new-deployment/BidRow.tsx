@@ -52,7 +52,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ testIndex, bid, selecte
     }
   }, [provider, fetchProviderStatus]);
 
-  const onStarClick = (event: React.MouseEvent<HTMLDivElement>) => {
+  const onStarClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
 

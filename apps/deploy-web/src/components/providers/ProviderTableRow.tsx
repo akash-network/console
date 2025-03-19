@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { MouseEventHandler } from "react";
 import { Badge, CustomNoDivTooltip, CustomTooltip, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { WarningCircle } from "iconoir-react";
@@ -40,7 +40,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
     : null;
   const gpuModels = provider.gpuModels.map(x => x.model).filter(createFilterUnique());
 
-  const onStarClick = event => {
+  const onStarClick: MouseEventHandler = event => {
     event.preventDefault();
     event.stopPropagation();
 

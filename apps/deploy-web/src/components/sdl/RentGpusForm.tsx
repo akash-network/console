@@ -154,7 +154,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
       setError(null);
 
       return services;
-    } catch (err) {
+    } catch (err: any) {
       if (err.name === "YAMLException" || err.name === "CustomValidationError") {
         setError(err.message);
       } else if (err.name === "TemplateValidation") {
@@ -255,7 +255,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
           });
           const validCerts = await loadValidCertificates();
           loadLocalCert();
-          const currentCert = validCerts.find(x => x.parsed === _crtpem);
+          const currentCert = validCerts.find(x => x.parsed === _crtpem) || null;
           setSelectedCertificate(currentCert);
         }
 
@@ -272,7 +272,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
       } else {
         setIsCreatingDeployment(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       setIsCreatingDeployment(false);
       setError(error.message);
     }

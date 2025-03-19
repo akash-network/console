@@ -27,8 +27,8 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
   const graphTheme = getTheme(resolvedTheme);
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("sm"));
-  const minValue = rangedData && snapshotMetadata.unitFn(rangedData.map(x => x.value).reduce((a: number, b: number) => (a < b ? a : b))).value;
-  const maxValue = snapshotData && snapshotMetadata.unitFn(rangedData.map(x => x.value).reduce((a: number, b: number) => (a > b ? a : b))).value;
+  const minValue = rangedData && snapshotMetadata.unitFn(rangedData.map(x => x.value || 0).reduce((a, b) => (a < b ? a : b))).value;
+  const maxValue = snapshotData && snapshotMetadata.unitFn(rangedData.map(x => x.value || 0).reduce((a, b) => (a > b ? a : b))).value;
   const graphData = snapshotData
     ? [
         {

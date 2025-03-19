@@ -1,5 +1,5 @@
 "use client";
-import { Dispatch, ReactNode, SetStateAction, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Alert, Form, FormField, FormInput, Label, Popup, RadioGroup, RadioGroupItem, Snackbar } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,7 +17,7 @@ type Props = {
   services: ServiceType[];
   templateMetadata: ITemplate;
   getTemplateData: () => Partial<ITemplate>;
-  setTemplateMetadata: Dispatch<SetStateAction<ITemplate>>;
+  setTemplateMetadata: (value: ITemplate) => void;
   onClose: () => void;
   children?: ReactNode;
 };

@@ -20,7 +20,7 @@ import { StatusPill } from "@src/components/shared/StatusPill";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useBidInfo } from "@src/queries/useBidQuery";
-import { useLeaseStatus } from "@src/queries/useLeaseQuery";
+import { LeaseStatusDto, useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
 import networkStore from "@src/store/networkStore";
 import { LeaseDto } from "@src/types/deployment";
@@ -96,7 +96,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
 
     const parsedManifest = useMemo(() => yaml.load(deploymentManifest), [deploymentManifest]);
 
-    const checkIfServicesAreAvailable = leaseStatus => {
+    const checkIfServicesAreAvailable = (leaseStatus: LeaseStatusDto) => {
       const servicesNames = leaseStatus ? Object.keys(leaseStatus.services) : [];
       const isServicesAvailable =
         servicesNames.length > 0
@@ -113,7 +113,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
       loadLeaseStatus();
     }, [lease, provider, localCert, loadLeaseStatus]);
 
-    function handleEditManifestClick(ev) {
+    function handleEditManifestClick(ev: React.MouseEvent) {
       ev.preventDefault();
       setActiveTab("EDIT");
     }
@@ -135,7 +135,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
       setIsSendingManifest(false);
     }
 
-    const onStarClick = event => {
+    const onStarClick = (event: React.MouseEvent) => {
       event.preventDefault();
       event.stopPropagation();
 
@@ -153,6 +153,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
         }
 
         const exposes = leaseStatus?.forwarded_ports?.[serviceName];
+        if (!exposes) return acc;
 
         return exposes?.reduce((exposesAcc, expose) => {
           if (expose.port !== 22) {

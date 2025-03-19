@@ -80,7 +80,15 @@ export function useLeaseStatus(provider: ApiProviderList | undefined, lease: Lea
 }
 
 export interface LeaseStatusDto {
-  forwarded_ports: any;
+  forwarded_ports: Record<
+    string,
+    {
+      host: string;
+      externalPort: number;
+      port: number;
+      available: number;
+    }[]
+  >;
   ips: any;
   services: Record<string, LeaseServiceStatus>;
 }

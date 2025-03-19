@@ -6,7 +6,15 @@ import LinearProgress from "@mui/material/LinearProgress";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
 
-export function SpecDetailList({ cpuAmount, memoryAmount, storageAmount, gpuAmount = 0, isActive }) {
+export type SpecDetailListProps = {
+  cpuAmount: number;
+  memoryAmount: number;
+  storageAmount: number;
+  gpuAmount?: number;
+  isActive: boolean;
+};
+
+export function SpecDetailList({ cpuAmount, memoryAmount, storageAmount, gpuAmount = 0, isActive }: SpecDetailListProps) {
   const memory = bytesToShrink(memoryAmount);
   const storage = bytesToShrink(storageAmount);
 

@@ -33,8 +33,8 @@ const ProviderDetailLayout: React.FunctionComponent<Props> = ({ children, page, 
   const { address: walletAddress } = useWallet();
   const previousRoute = usePreviousRoute();
 
-  const handleTabChange = (newValue: ProviderDetailTabs) => {
-    switch (newValue) {
+  const handleTabChange = (newValue: string) => {
+    switch (newValue as ProviderDetailTabs) {
       case ProviderDetailTabs.LEASES:
         router.push(UrlService.providerDetailLeases(address));
         break;
