@@ -1,5 +1,12 @@
 
 
+## [2.74.1](https://github.com/akash-network/console/compare/console-api/v2.74.0...console-api/v2.74.1) (2025-03-19)
+
+
+### Bug Fixes
+
+* updates dockerfile for node apps ([#1068](https://github.com/akash-network/console/issues/1068)) ([54194a0](https://github.com/akash-network/console/commit/54194a08ca514f1be623a20e7a01cfbbf2e2244a))
+
 ## [2.74.0](https://github.com/akash-network/console/compare/console-api/v2.73.0...console-api/v2.74.0) (2025-03-19)
 
 
