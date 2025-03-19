@@ -57,6 +57,7 @@
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
+    "@akashnetwork/docker": "*",
     "@types/async": "^3.2.15",
     "@types/express": "^4.17.13",
     "@types/lodash": "^4.17.1",

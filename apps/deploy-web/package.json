@@ -125,6 +125,8 @@
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
+    "@akashnetwork/docker": "*",
+    "@akashnetwork/releaser": "*",
     "@chain-registry/types": "^0.50.12",
     "@faker-js/faker": "^9.4.0",
     "@keplr-wallet/types": "^0.12.111",

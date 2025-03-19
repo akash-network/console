@@ -1,4 +1,5 @@
 const { addBangNotes } = require("conventional-changelog-conventionalcommits/utils");
+const findLocalPackageDependencies = require("./find-local-package-dependencies");
 
 const version = "${version}";
 const packageName = process.env.npm_package_name;
@@ -14,6 +15,9 @@ const COMMIT_TYPES = [
   { type: "style", hidden: true }
 ];
 
+/**
+ * @type {import('release-it').Config}
+ */
 module.exports = {
   plugins: {
     "@release-it/conventional-changelog": {
@@ -24,7 +28,7 @@ module.exports = {
         types: COMMIT_TYPES
       },
       gitRawCommitsOpts: {
-        path: "."
+        path: [".", ...findLocalPackageDependencies(".")]
       },
       tagPrefix: `${scope}/v`,
       whatBump(commits) {

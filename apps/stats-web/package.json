@@ -49,6 +49,7 @@
   "devDependencies": {
     "@akashnetwork/akashjs": "@akashnetwork/akashjs",
     "@akashnetwork/dev-config": "*",
+    "@akashnetwork/docker": "*",
     "@types/json2csv": "^5.0.7",
     "@types/node": "20.14.0",
     "@types/react": "18.2.0",

@@ -17,12 +17,9 @@ runs:
       id: deps
       shell: bash
       run: |
-        package_json=apps/${{ inputs.app }}/package.json
-        deps_json="packages/docker/**"
-        for dep in `grep -Eo '"@akashnetwork/([^"]+)":' $package_json | cut -d'/' -f2 | cut -d'"' -f1`; do
-          if [ -d "packages/$dep" ]; then
-            deps_json="'packages/$dep/**',$deps_json"
-          fi
-        done
-
-        echo "deps_json=[${deps_json%,}]" >> $GITHUB_OUTPUT
+        node -e '
+          const findLocalPackageDependencies = require("./packages/releaser/find-local-package-dependencies");
+          const localDependencies = findLocalPackageDependencies("./apps/${{ inputs.app }}")
+            .map(path => `${path}/**`);
+          console.log(JSON.stringify(localDependencies));
+        ' | xargs -I "{}" -0 echo "deps_json={}" >> $GITHUB_OUTPUT
