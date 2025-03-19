@@ -1,18 +1,17 @@
 import { Provider } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Client } from 'pg';
 import PgBoss from 'pg-boss';
 
-import type { BrokerModuleConfig } from '@src/broker/types/module-config.type';
+import {
+  BrokerModuleConfig,
+  MODULE_OPTIONS_TOKEN,
+} from '@src/broker/broker-module.definition';
 
 export const createPgBossFactory =
   (Broker: typeof PgBoss) =>
-  async (
-    config: ConfigService<BrokerModuleConfig>,
-    client: Client,
-  ): Promise<PgBoss> => {
+  async (config: BrokerModuleConfig, client: Client): Promise<PgBoss> => {
     // TODO: find out why custom db fails for migrations
-    const migrator = new Broker(config.getOrThrow('postgresUri'));
+    const migrator = new Broker(config.postgresUri);
     await migrator.start();
     await migrator.stop();
 
@@ -27,6 +26,6 @@ export const createPgBossFactory =
 
 export const PgBossProvider: Provider<PgBoss> = {
   provide: PgBoss,
-  inject: [ConfigService, Client],
+  inject: [MODULE_OPTIONS_TOKEN, Client],
   useFactory: createPgBossFactory(PgBoss),
 };

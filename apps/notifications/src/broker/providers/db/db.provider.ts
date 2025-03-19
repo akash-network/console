@@ -1,13 +1,15 @@
 import { Provider } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Client as PgClient } from 'pg';
 
-import { BrokerModuleConfig } from '@src/broker/types/module-config.type';
+import {
+  BrokerModuleConfig,
+  MODULE_OPTIONS_TOKEN,
+} from '@src/broker/broker-module.definition';
 
 export const createPgClientFactory =
   (Client: typeof PgClient) =>
-  async (config: ConfigService<BrokerModuleConfig>): Promise<PgClient> => {
-    const client = new Client(config.getOrThrow('postgresUri'));
+  async (config: BrokerModuleConfig): Promise<PgClient> => {
+    const client = new Client(config.postgresUri);
     await client.connect();
 
     return client;
@@ -15,6 +17,6 @@ export const createPgClientFactory =
 
 export const DbProvider: Provider<PgClient> = {
   provide: PgClient,
-  inject: [ConfigService],
+  inject: [MODULE_OPTIONS_TOKEN],
   useFactory: createPgClientFactory(PgClient),
 };

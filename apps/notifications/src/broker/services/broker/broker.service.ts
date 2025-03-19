@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Inject, Injectable } from '@nestjs/common';
 import { Client } from 'pg';
 import PgBoss from 'pg-boss';
 
-import type { BrokerModuleConfig } from '@src/broker/types/module-config.type';
+import {
+  BrokerModuleConfig,
+  MODULE_OPTIONS_TOKEN,
+} from '@src/broker/broker-module.definition';
 import { LoggerService } from '@src/common/services/logger.service';
 
 type EventPayload = object;
@@ -18,7 +20,8 @@ export class BrokerService {
   constructor(
     private readonly boss: PgBoss,
     private readonly pg: Client,
-    private readonly configService: ConfigService<BrokerModuleConfig>,
+    @Inject(MODULE_OPTIONS_TOKEN)
+    private readonly brokerModuleConfig: BrokerModuleConfig,
     private readonly logger: LoggerService,
   ) {
     this.logger.setContext(BrokerService.name);
@@ -62,6 +65,6 @@ export class BrokerService {
   }
 
   private toQueueName(eventName: string) {
-    return `${this.configService.get('appName')}.${eventName}`;
+    return `${this.brokerModuleConfig.appName}.${eventName}`;
   }
 }
