@@ -12,17 +12,24 @@ ENV NEXT_TELEMETRY_DISABLED 1
 
 WORKDIR /app
 
+FROM base as prepare
+
+COPY package*.json /app
+COPY /$WORKSPACE/package.json /app/$WORKSPACE/package.json
+COPY --parents /packages/*/package.json /app
+# reset app version to 1.0.0 to avoid cache busting after every release
+RUN npm version --allow-same-version 1.0.0 -w $WORKSPACE --no-workspaces-update && \
+    npm install --package-lock-only
+
 FROM base AS development
 
 ENV NODE_ENV development
 
 RUN apk add --no-cache libc6-compat
 
-COPY package*.json /app
-COPY /$WORKSPACE/package.json /app/$WORKSPACE/package.json
-COPY --parents /packages/*/package.json /app
+COPY --from=prepare /app .
 
-RUN npm ci
+RUN npm ci && npm cache clean --force
 
 COPY $WORKSPACE ./$WORKSPACE
 COPY /packages /app/packages
@@ -45,6 +52,8 @@ ENV APP_USER app
 RUN addgroup --system --gid $APP_GROUP_ID $APP_GROUP \
     && adduser --system --uid $APP_GROUP_ID $APP_USER
 
+COPY --from=builder /app/$WORKSPACE/package.json ./$WORKSPACE/package.json
+COPY --from=builder /app/package*.json .
 COPY --from=builder /app/$WORKSPACE/env ./$WORKSPACE/env
 COPY --from=builder /app/$WORKSPACE/public ./$WORKSPACE/public
 COPY --from=builder /app/$WORKSPACE/.next/standalone ./
