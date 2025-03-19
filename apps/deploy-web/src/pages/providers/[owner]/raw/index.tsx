@@ -1,5 +1,6 @@
-import { ProviderRawData } from "@src/components/providers/ProviderRawData/ProviderRawData";
+import type { GetServerSideProps } from "next";
 
+import { ProviderRawData } from "@src/components/providers/ProviderRawData/ProviderRawData";
 type Props = {
   owner: string;
 };
@@ -10,10 +11,10 @@ const ProviderRawPage: React.FunctionComponent<Props> = ({ owner }) => {
 
 export default ProviderRawPage;
 
-export async function getServerSideProps({ params }) {
+export const getServerSideProps: GetServerSideProps<Props, Pick<Props, "owner">> = async ({ params }) => {
   return {
     props: {
-      owner: params?.owner
+      owner: params!.owner
     }
   };
-}
+};

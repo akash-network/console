@@ -1,3 +1,5 @@
+import { GetServerSideProps } from "next";
+
 import { EditProviderContainer } from "@src/components/providers/EditProviderContainer";
 
 type Props = {
@@ -10,10 +12,10 @@ const ProviderEditPage: React.FunctionComponent<Props> = ({ owner }) => {
 
 export default ProviderEditPage;
 
-export async function getServerSideProps({ params }) {
+export const getServerSideProps: GetServerSideProps<Props, Pick<Props, "owner">> = async ({ params }) => {
   return {
     props: {
-      owner: params?.owner
+      owner: params!.owner
     }
   };
-}
+};

@@ -27,7 +27,7 @@ export const getServerSideProps = getValidatedServerSideProps<NewDeploymentConta
     if (template && query.templateId) {
       return { props: { template, templateId: query.templateId } };
     }
-  } catch (error) {
+  } catch (error: any) {
     if (error?.response?.status === 404) {
       logger.info(`Template not found: ${query.templateId}`);
     } else {
