@@ -115,6 +115,26 @@ describe("LoggerService", () => {
           message: "Not found",
           stack: "stack trace",
           data: { key: "value" },
+          originalError: new Error("Original error"),
+          cause: new Error("Cause error")
+        });
+
+        const loggable = loggerService["toLoggableInput"](httpError);
+        expect(loggable).toEqual({
+          status: 404,
+          message: "Not found",
+          stack: expect.stringContaining("stack trace\n\nCaused by:\nError: Cause error"),
+          data: { key: "value" },
+          originalError: expect.stringContaining("Error: Original error")
+        });
+      });
+
+      it("should return cause for HttpError", () => {
+        const httpError = createHttpError(404, {
+          status: 404,
+          message: "Not found",
+          stack: "stack trace",
+          data: { key: "value" },
           originalError: new Error("Original error")
         });
 
@@ -124,8 +144,17 @@ describe("LoggerService", () => {
           message: "Not found",
           stack: "stack trace",
           data: { key: "value" },
-          originalError: "stack trace"
+          originalError: expect.stringContaining("Error: Original error")
         });
+      });
+
+      it("should include error cause in stack trace for Error instance", () => {
+        const error = new Error("Test error");
+        Object.assign(error, { cause: new Error("Cause error") });
+        const loggable = loggerService["toLoggableInput"](error);
+
+        expect(loggable).toContain("Cause error");
+        expect(loggable).toContain("Test error");
       });
 
       it("should return stack for general Error instance", () => {
@@ -138,6 +167,19 @@ describe("LoggerService", () => {
         const message = "Test message";
         const loggable = loggerService["toLoggableInput"](message);
         expect(loggable).toBe(message);
+      });
+
+      it('should return stack trace for "error" and "err" property in object', () => {
+        const error = new Error("Test error");
+        Object.assign(error, { cause: new Error("Cause error") });
+
+        let loggable = loggerService["toLoggableInput"]({ error });
+        expect(loggable.error).toContain("Test error");
+        expect(loggable.error).toContain("Cause error");
+
+        loggable = loggerService["toLoggableInput"]({ err: error });
+        expect(loggable.err).toContain("Test error");
+        expect(loggable.err).toContain("Cause error");
       });
     });
   });
