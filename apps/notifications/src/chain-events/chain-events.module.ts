@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { BrokerModule } from '@src/broker/broker.module';
 import { RegistryProvider } from '@src/chain-events/providers/registry.provider';
 import { CosmjsDecodingService } from '@src/chain-events/services/cosmjs-decoding/cosmjs-decoding.service';
 import { CommonModule } from '@src/common/common.module';
-import { configService, ConfigServiceProvider } from './config/env.config';
+import envConfig from './config/env.config';
 import { StargateClientProvider } from './providers/stargate-client/stargate-client.provider';
 import { BlockMessageService } from './services/block-message/block-message.service';
 import { BlockMessageParserService } from './services/block-message-parser/block-message-parser.service';
@@ -15,9 +16,13 @@ import { MessageDecoderService } from './services/message-decoder/message-decode
 @Module({
   imports: [
     CommonModule,
-    BrokerModule.forRoot({
-      appName: 'chain-events',
-      postgresUri: configService.getOrThrow('EVENT_BROKER_POSTGRES_URI'),
+    ConfigModule.forFeature(envConfig),
+    BrokerModule.registerAsync({
+      useFactory: async (configService: ConfigService) => ({
+        appName: 'chain-events',
+        postgresUri: configService.getOrThrow('EVENT_BROKER_POSTGRES_URI'),
+      }),
+      inject: [ConfigService],
     }),
   ],
   providers: [
@@ -29,7 +34,6 @@ import { MessageDecoderService } from './services/message-decoder/message-decode
     StargateClientProvider,
     CosmjsDecodingService,
     RegistryProvider,
-    ConfigServiceProvider,
   ],
   exports: [BlockMessageService, MessageDecoderService],
 })

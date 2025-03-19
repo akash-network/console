@@ -1,17 +1,15 @@
-import { ConfigService } from '@nestjs/config';
 import { mock } from 'jest-mock-extended';
 import { Client, QueryResult } from 'pg';
 import PgBoss from 'pg-boss';
 
 import { createPgBossFactory } from './pg-boss.provider';
 
+import { generateBrokerConfig } from '@test/seeders/broker-config.seeder';
+
 describe('createPgBoss', () => {
   it('should create and start a PgBoss instance', async () => {
-    const config = mock<ConfigService>();
+    const config = generateBrokerConfig();
     const client = mock<Client>();
-    const postgresUri = 'postgres://user:password@localhost:5432/db';
-
-    config.getOrThrow.mockReturnValue(postgresUri);
 
     const mockInstance = mock<PgBoss>();
 
@@ -27,7 +25,7 @@ describe('createPgBoss', () => {
     )(config, client);
 
     expect(MockPgBoss).toHaveBeenCalledTimes(2);
-    expect(MockPgBoss.mock.calls[0][0]).toBe(postgresUri);
+    expect(MockPgBoss.mock.calls[0][0]).toEqual(config.postgresUri);
     expect(MockPgBoss.mock.calls[1][0]).toEqual({
       db: {
         executeSql: expect.any(Function),
@@ -39,11 +37,8 @@ describe('createPgBoss', () => {
   });
 
   it('should use client.query for executeSql', async () => {
-    const config = mock<ConfigService>();
+    const config = generateBrokerConfig();
     const client = mock<Client>();
-    const postgresUri = 'postgres://user:password@localhost:5432/db';
-
-    config.getOrThrow.mockReturnValue(postgresUri);
 
     const mockQueryResult: QueryResult = {
       command: 'SELECT',

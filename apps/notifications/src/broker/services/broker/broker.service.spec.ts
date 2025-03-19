@@ -5,10 +5,15 @@ import { MockProxy } from 'jest-mock-extended';
 import { Client } from 'pg';
 import PgBoss from 'pg-boss';
 
+import {
+  BrokerModuleConfig,
+  MODULE_OPTIONS_TOKEN,
+} from '@src/broker/broker-module.definition';
 import { LoggerService } from '@src/common/services/logger.service';
 import { BrokerService } from './broker.service';
 
 import { MockProvider } from '@test/mocks/provider.mock';
+import { generateBrokerConfig } from '@test/seeders/broker-config.seeder';
 
 describe(BrokerService.name, () => {
   it('should be defined', async () => {
@@ -32,19 +37,15 @@ describe(BrokerService.name, () => {
 
   describe('subscribe', () => {
     it('should create a queue, subscribe to it, and start workers', async () => {
-      const { service, pgBoss, configService } = await setup();
+      const { service, pgBoss, config } = await setup();
 
       const eventName = faker.string.alphanumeric(10);
-      const appName = faker.company.name();
-      const queueName = `${appName}.${eventName}`;
+      const queueName = `${config.appName}.${eventName}`;
       const options = { prefetchCount: faker.number.int({ min: 1, max: 5 }) };
       const handler = jest.fn();
 
-      configService.get.mockReturnValue(appName);
-
       await service.subscribe(eventName, options, handler);
 
-      expect(configService.get).toHaveBeenCalledWith('appName');
       expect(pgBoss.createQueue).toHaveBeenCalledWith(queueName);
       expect(pgBoss.subscribe).toHaveBeenCalledWith(eventName, queueName);
       expect(pgBoss.work).toHaveBeenCalledTimes(options.prefetchCount);
@@ -104,10 +105,15 @@ describe(BrokerService.name, () => {
     service: BrokerService;
     pgBoss: MockProxy<PgBoss>;
     pgClient: MockProxy<Client>;
-    configService: MockProxy<ConfigService>;
+    config: BrokerModuleConfig;
   }> {
+    const config: BrokerModuleConfig = generateBrokerConfig();
     const module = await Test.createTestingModule({
       providers: [
+        {
+          provide: MODULE_OPTIONS_TOKEN,
+          useValue: config,
+        },
         BrokerService,
         MockProvider(PgBoss),
         MockProvider(Client),
@@ -121,7 +127,7 @@ describe(BrokerService.name, () => {
       service: module.get<BrokerService>(BrokerService),
       pgBoss: module.get<MockProxy<PgBoss>>(PgBoss),
       pgClient: module.get<MockProxy<Client>>(Client),
-      configService: module.get<MockProxy<ConfigService>>(ConfigService),
+      config,
     };
   }
 });

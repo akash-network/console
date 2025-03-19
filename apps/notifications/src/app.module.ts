@@ -1,10 +1,21 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 
-import { ChainEventsModule } from '@src/chain-events/chain-events.module';
-import { EventRoutingModule } from '@src/event-routing/event-routing.module';
-import { NotificationsModule } from '@src/notifications/notifications.module';
+import { ChainEventsModule } from './chain-events/chain-events.module';
+import { globalEnvSchema } from './config/env.config';
+import { EventRoutingModule } from './event-routing/event-routing.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
-  imports: [EventRoutingModule, ChainEventsModule, NotificationsModule],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      skipProcessEnv: true,
+      validate: (config) => globalEnvSchema.parse(config),
+    }),
+    ChainEventsModule,
+    EventRoutingModule,
+    NotificationsModule,
+  ],
 })
 export class AppModule {}
