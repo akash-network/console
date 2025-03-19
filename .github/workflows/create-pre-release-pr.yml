@@ -113,9 +113,13 @@ jobs:
           done
           TREE_ITEMS="${TREE_ITEMS}]"
 
+          echo "{\"base_tree\":\"${{ env.base_sha }}\",\"tree\":${TREE_ITEMS}}" > tree_payload.json
+
           TREE_SHA=$(curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -d "{\"base_tree\":\"${{ env.base_sha }}\",\"tree\":${TREE_ITEMS}}" \
+            -d @tree_payload.json \
             "https://api.github.com/repos/${{ github.repository }}/git/trees" | jq -r .sha)
+
+          rm tree_payload.json
 
           COMMIT_SHA=$(curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -d "{\"message\":\"chore(release): update versions and changelogs\",\"tree\":\"${TREE_SHA}\",\"parents\":[\"${{ env.base_sha }}\"]}" \
