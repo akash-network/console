@@ -69,50 +69,91 @@ export class LoggerService implements Logger {
     }
   }
 
-  setContext(context: string) {
+  setContext(context: string): this {
     this.bind({ context });
 
     return this;
   }
 
-  bind(bindings: pino.Bindings) {
+  bind(bindings: pino.Bindings): this {
     this.pino = this.pino.child(bindings);
 
     return this;
   }
 
-  info(message: any) {
-    message = this.toLoggableInput(message);
-    return this.pino.info(message);
+  info(message: any): void {
+    return this.pino.info(this.toLoggableInput(message));
   }
 
-  error(message: any) {
+  error(message: any): void {
     this.pino.error(this.toLoggableInput(message));
   }
 
-  warn(message: any) {
+  warn(message: any): void {
     return this.pino.warn(this.toLoggableInput(message));
   }
 
-  debug(message: any) {
+  debug(message: any): void {
     return this.pino.debug(this.toLoggableInput(message));
   }
 
-  protected toLoggableInput(message: any) {
+  protected toLoggableInput(message: unknown): any {
+    if (!message) return;
+
     if (isHttpError(message)) {
-      const loggableInput = { status: message.status, message: message.message, stack: message.stack, data: message.data };
+      const loggableInput: Record<string, unknown> = {
+        // keep new line
+        status: message.status,
+        message: message.message,
+        stack: collectFullErrorStack(message),
+        data: message.data
+      };
+
       return "originalError" in message
         ? {
             ...loggableInput,
-            originalError: message.stack
+            originalError: collectFullErrorStack(message.originalError)
           }
         : loggableInput;
     }
 
     if (message instanceof Error) {
-      return message.stack;
+      return collectFullErrorStack(message);
+    }
+
+    if (typeof message === "object") {
+      if (hasOwn(message, "error") && message.error && message.error instanceof Error) {
+        return {
+          ...message,
+          error: collectFullErrorStack(message.error)
+        };
+      }
+      if (hasOwn(message, "err") && message.err && message.err instanceof Error) {
+        return {
+          ...message,
+          err: collectFullErrorStack(message.err)
+        };
+      }
+      return message;
     }
 
     return message;
   }
+}
+
+function hasOwn<T extends object, U extends PropertyKey>(obj: T, key: U): obj is T & { [k in U]: unknown } {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function collectFullErrorStack(error: Error) {
+  let currentError = error;
+  const stack: string[] = [];
+  while (currentError) {
+    stack.push(currentError.stack!);
+    currentError = (currentError as unknown as { cause: Error }).cause;
+    if (currentError) {
+      stack.push("\nCaused by:");
+    }
+  }
+  return stack.join("\n");
 }
