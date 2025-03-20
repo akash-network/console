@@ -6,7 +6,7 @@ import { CustomValidationError } from "../deploymentData";
 import { capitalizeFirstLetter } from "../stringUtils";
 import { defaultHttpOptions } from "./data";
 
-export const parseSvcCommand = (command?: string | string[]) => {
+export const parseSvcCommand = (command?: string | string[]): string => {
   if (!command) {
     return "";
   }

@@ -16,8 +16,7 @@
     "start": "next start",
     "test:cov": "NODE_ENV=test DEPLOYMENT_ENV=staging jest --coverage",
     "test:unit": "NODE_ENV=test DEPLOYMENT_ENV=staging jest",
-    "type-check": "tsc",
-    "validate:types-strict": "tsc -p tsconfig.strict.json && echo"
+    "type-check": "tsc"
   },
   "dependencies": {
     "@akashnetwork/akash-api": "^1.3.0",
