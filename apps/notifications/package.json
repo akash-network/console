@@ -41,6 +41,7 @@
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
+    "@akashnetwork/docker": "*",
     "@anatine/zod-mock": "^3.13.5",
     "@faker-js/faker": "^9.6.0",
     "@nestjs/cli": "^11.0.0",
