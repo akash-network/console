@@ -1,5 +1,12 @@
 
 
+## [2.75.1](https://github.com/akash-network/console/compare/console-api/v2.75.0...console-api/v2.75.1) (2025-03-20)
+
+
+### Bug Fixes
+
+* **deployment:** ignore ssl verification for api to proxy ([#1071](https://github.com/akash-network/console/issues/1071)) ([d7bcf05](https://github.com/akash-network/console/commit/d7bcf0511443b823c0392629f784c61b67e69fe7))
+
 ## [2.75.0](https://github.com/akash-network/console/compare/console-api/v2.74.1...console-api/v2.75.0) (2025-03-20)
 
 
