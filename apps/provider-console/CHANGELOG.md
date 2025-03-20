@@ -1,5 +1,25 @@
 
 
+## [1.5.0](https://github.com/akash-network/console/compare/provider-console/v1.4.2...provider-console/v1.5.0) (2025-03-20)
+
+
+### Features
+
+* introduce multi-line commands ([e58349b](https://github.com/akash-network/console/commit/e58349b7eeb5f28adc80dbedd4cf3b5ca304b72f)), closes [#175](https://github.com/akash-network/console/issues/175)
+* **notifications:** adds basic alerts service ([5d4d6fc](https://github.com/akash-network/console/commit/5d4d6fcf23ceb2b317453a001d4043855df5c5d1))
+* **wallet:** improve coupon codes ux ([#1028](https://github.com/akash-network/console/issues/1028)) ([b4a81c7](https://github.com/akash-network/console/commit/b4a81c79b97213ae72d37efe4771129f5b69b5ef))
+
+
+### Bug Fixes
+
+* ensure release can detect changes for apps based on local packages ([#1070](https://github.com/akash-network/console/issues/1070)) ([e1053c4](https://github.com/akash-network/console/commit/e1053c456ba718fc58a93799e550e9338d9aea45))
+* updates dockerfile for node apps ([#1068](https://github.com/akash-network/console/issues/1068)) ([54194a0](https://github.com/akash-network/console/commit/54194a08ca514f1be623a20e7a01cfbbf2e2244a))
+
+
+### Code Refactoring
+
+* update react-query in provider-console ([#1002](https://github.com/akash-network/console/issues/1002)) ([cd5b64a](https://github.com/akash-network/console/commit/cd5b64adeac4d8774f44ef90b4802e69fea69cfe))
+
 ## [1.4.2](https://github.com/akash-network/console/compare/provider-console/v1.4.1...provider-console/v1.4.2) (2025-03-14)
 
 
