@@ -109,7 +109,24 @@ describe("LoggerService", () => {
     });
 
     describe("prototype.toLoggableInput", () => {
-      it("should return status, message, stack, and data for HttpError", () => {
+      it("should return detailed information about HttpError", () => {
+        const httpError = createHttpError(404, {
+          status: 404,
+          message: "Not found",
+          stack: "stack trace",
+          data: { key: "value" }
+        });
+
+        const loggable = loggerService["toLoggableInput"](httpError);
+        expect(loggable).toEqual({
+          status: 404,
+          message: "Not found",
+          stack: "stack trace",
+          data: { key: "value" }
+        });
+      });
+
+      it("should return detailed stack trace information about cause, errors, and original error for HttpError", () => {
         const httpError = createHttpError(404, {
           status: 404,
           message: "Not found",
@@ -123,7 +140,7 @@ describe("LoggerService", () => {
         expect(loggable).toEqual({
           status: 404,
           message: "Not found",
-          stack: expect.stringContaining("stack trace\n\nCaused by:\nError: Cause error"),
+          stack: expect.stringContaining("stack trace\n\nCaused by:\n  Error: Cause error"),
           data: { key: "value" },
           originalError: expect.stringContaining("Error: Original error")
         });

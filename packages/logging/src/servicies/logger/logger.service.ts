@@ -4,6 +4,7 @@ import { gcpLogOptions } from "pino-cloud-logging";
 import type { PinoPretty } from "pino-pretty";
 
 import { Config, config as envConfig } from "../../config";
+import { collectFullErrorStack } from "../../utils/collect-full-error-stack/collect-full-error-stack";
 
 export type Logger = Pick<pino.Logger, "info" | "error" | "warn" | "debug">;
 
@@ -143,17 +144,4 @@ export class LoggerService implements Logger {
 
 function hasOwn<T extends object, U extends PropertyKey>(obj: T, key: U): obj is T & { [k in U]: unknown } {
   return Object.prototype.hasOwnProperty.call(obj, key);
-}
-
-function collectFullErrorStack(error: Error) {
-  let currentError = error;
-  const stack: string[] = [];
-  while (currentError) {
-    stack.push(currentError.stack!);
-    currentError = (currentError as unknown as { cause: Error }).cause;
-    if (currentError) {
-      stack.push("\nCaused by:");
-    }
-  }
-  return stack.join("\n");
 }
