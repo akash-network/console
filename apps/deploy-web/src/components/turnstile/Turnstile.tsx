@@ -58,6 +58,7 @@ export const Turnstile: FC<TurnstileProps> = ({
         let response = await originalFetch(...args);
 
         if (typeof args[0] === "string" && args[0].startsWith("/") && response.status > 400 && turnstileRef.current) {
+          turnstileRef.current?.remove();
           turnstileRef.current?.render();
           turnstileRef.current?.execute();
 
