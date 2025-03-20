@@ -45,7 +45,7 @@ export const SettingsContainer: React.FunctionComponent = () => {
                 <div className="inline-flex items-center">
                   <strong>{selectedNetwork.title}</strong>
 
-                  <Button onClick={() => setIsSelectingNetwork(true)} size="icon" className="ml-4" variant="outline">
+                  <Button onClick={() => setIsSelectingNetwork(true)} size="icon" className="ml-4" variant="outline" aria-label="Select Network">
                     <Edit className="text-sm" />
                   </Button>
                 </div>

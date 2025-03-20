@@ -1,7 +1,10 @@
 import { type BrowserContext as Context, expect, type Page } from "@playwright/test";
 import { testEnvConfig } from "tests/fixture/test-env.config";
 
+export type FeeType = "low" | "medium" | "high";
 export class DeployBasePage {
+  protected readonly feeType: FeeType = "low";
+
   constructor(
     readonly context: Context = context,
     readonly page: Page,
@@ -39,7 +42,6 @@ export class DeployBasePage {
   }
 
   async createLease() {
-    await this.page.getByTestId("create-lease-filter-audited").click();
     await this.page.getByTestId("bid-list-row-radio-0").click();
     await this.page.getByTestId("create-lease-button").click();
   }
@@ -57,9 +59,10 @@ export class DeployBasePage {
     await this.page.getByTestId("deployment-detail-close-button").click();
   }
 
-  async signTransaction() {
+  async signTransaction(feeType: FeeType = this.feeType) {
     const popupPage = await this.context.waitForEvent("page");
     await popupPage.waitForLoadState("domcontentloaded");
+    await popupPage.locator(`input[name="fee"][type="radio"][value="${feeType}"]`).click();
     await popupPage.getByRole("button", { name: "Approve" }).click();
   }
 }

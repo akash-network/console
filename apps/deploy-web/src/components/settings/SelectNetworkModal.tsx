@@ -60,11 +60,17 @@ export const SelectNetworkModal = ({ onClose }: SelectNetworkModalProps) => {
                 )}
               >
                 <div className="basis-[40px]">
-                  <RadioGroupItem value={network.id} id={network.id} checked={formSelectedNetworkId === network.id} disabled={!network.enabled} />
+                  <RadioGroupItem
+                    value={network.id}
+                    id={network.id}
+                    checked={formSelectedNetworkId === network.id}
+                    disabled={!network.enabled}
+                    aria-labelledby={`network-${network.id}-label`}
+                  />
                 </div>
                 <div>
                   <div className="flex items-center justify-between text-lg">
-                    <span>
+                    <span id={`network-${network.id}-label`}>
                       <strong>{network.title}</strong>
                       {" - "}
                       <span className="text-xs text-muted-foreground">{network.version}</span>
