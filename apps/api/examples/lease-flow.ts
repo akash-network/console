@@ -31,7 +31,7 @@ if (fs.existsSync(envPath)) {
 }
 
 // Load the SDL file
-const yml = fs.readFileSync(path.resolve(__dirname, "../test/mocks/hello-world-sdl.yml"), "utf8");
+const yml = fs.readFileSync(path.resolve(__dirname, "./hello-world-sdl.yml"), "utf8");
 
 // Configure axios
 const API_URL = process.env.API_URL || "http://localhost:3080";
@@ -55,10 +55,11 @@ async function waitForBids(dseq: string, apiKey: string, maxAttempts = 10): Prom
         return response.data.data;
       }
     } catch (error) {
-      console.log(`Attempt ${i + 1}/${maxAttempts} failed to get bids. Retrying...`);
+      console.error("Error waiting for bids:", error);
     }
 
-    await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds between attempts
+    await new Promise(resolve => setTimeout(resolve, 6000)); // Wait 6 seconds between attempts
+    console.log(`Attempt ${i + 1}/${maxAttempts} failed to get bids. Retrying...`);
   }
   throw new Error("No bids received after maximum attempts");
 }
@@ -114,7 +115,14 @@ async function main() {
     console.log("Waiting for bids...");
     const bids = await waitForBids(dseq, apiKey);
     console.log(`Received ${bids.length} bids`);
-    const firstBid = bids[0];
+
+    // Select a bid from a specific provider
+    const targetProvider = "akash175llqyjvxfle9qwt740vm46772dzaznpzgm576";
+    const selectedBid = bids.find(bid => bid.bid.bid_id.provider === targetProvider);
+
+    if (!selectedBid) {
+      throw new Error(`No bid found from provider ${targetProvider}`);
+    }
 
     const body = {
       manifest,
@@ -125,9 +133,9 @@ async function main() {
       leases: [
         {
           dseq,
-          gseq: firstBid.bid.bid_id.gseq,
-          oseq: firstBid.bid.bid_id.oseq,
-          provider: firstBid.bid.bid_id.provider
+          gseq: selectedBid.bid.bid_id.gseq,
+          oseq: selectedBid.bid.bid_id.oseq,
+          provider: selectedBid.bid.bid_id.provider
         }
       ]
     };
