@@ -1,5 +1,5 @@
 import React from "react";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { ProviderAttributes } from "@src/components/become-provider/ProviderAttributes";
 import { Layout } from "@src/components/layout/Layout";
@@ -10,14 +10,12 @@ import consoleClient from "@src/utils/consoleClient";
 
 const Attributes: React.FunctionComponent = () => {
   const { address } = useSelectedChain();
-  const { data: providerDetails, isLoading: isLoadingProviderDetails }: { data; isLoading: boolean } = useQuery(
-    "providerDetails",
-    () => consoleClient.get(`/v1/providers/${address}`),
-    {
-      refetchOnWindowFocus: false,
-      retry: 3
-    }
-  );
+  const { data: providerDetails, isLoading: isLoadingProviderDetails }: { data; isLoading: boolean } = useQuery({
+    queryKey: ["providerDetails"],
+    queryFn: () => consoleClient.get(`/v1/providers/${address}`),
+    refetchOnWindowFocus: false,
+    retry: 3
+  });
 
   return (
     <Layout>
