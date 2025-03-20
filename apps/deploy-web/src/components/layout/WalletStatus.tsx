@@ -43,7 +43,7 @@ export function WalletStatus() {
                       })}
                       onMouseOver={() => setOpen(true)}
                     >
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2" aria-label="Connected wallet name and balance">
                         {isManaged && isTrialing && <span className="text-xs">Trial</span>}
                         {!isManaged && (
                           <>

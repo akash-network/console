@@ -6,10 +6,15 @@ on:
   push:
     branches: ["main"]
 
+
 jobs:
   build-deploy-web:
     runs-on: ubuntu-latest
-
+    env:
+      DOCKER_IMAGE_CACHE_KEY: deploy-web-${{ github.sha }}
+    outputs:
+      deploy-web-image: ${{ env.DOCKER_IMAGE_CACHE_KEY }}
+      skipped: ${{ steps.validation.outputs.enabled != 'true' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -28,30 +33,15 @@ jobs:
             deploy-web:
               - 'apps/deploy-web/**'
               - *local_deps
+
       - name: Decide whether to validate
         id: validation
         run: echo "enabled=${{ github.event_name == 'push' || steps.has_changes.outputs.deploy-web == 'true' }}" >> $GITHUB_OUTPUT
 
-      - name: Setup Node.js
+      - uses: ./.github/actions/setup-app-deps
         if: steps.validation.outputs.enabled == 'true'
-        uses: actions/setup-node@v4
         with:
-          node-version: 20.14.0
-
-      - name: Restore root node_modules cache
-        if: steps.validation.outputs.enabled == 'true'
-        uses: actions/cache@v4
-        id: cache
-        with:
-          path: |
-            node_modules
-            apps/deploy-web/node_modules
-            packages/*/node_modules
-          key: deploy-web-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
-      - name: Install dependencies
-        if: steps.validation.outputs.enabled == 'true' && steps.cache.outputs.cache-hit != 'true'
-        run: npm ci
+          app: deploy-web
 
       - name: Run static code analysis
         if: steps.validation.outputs.enabled == 'true'

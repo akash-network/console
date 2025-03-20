@@ -1,10 +1,17 @@
-import { test } from "./fixture/fixture";
-import { setupLeap } from "./fixture/wallet-setup";
+import { selectChainNetwork } from "./actions/selectChainNetwork";
+import { test } from "./fixture/context-with-extension";
+import { testEnvConfig } from "./fixture/test-env.config";
+import { connectWalletViaLeap, setupWallet } from "./fixture/wallet-setup";
 import { DeployHelloWorldPage } from "./pages/DeployHelloWorldPage";
 
-test("deploy hello world", async ({ extPage: page, context }) => {
+test("deploy hello world", async ({ context, extPage: page }) => {
   test.setTimeout(300_000);
-  await setupLeap(context, page);
+
+  await setupWallet(context, page);
+  await page.goto(testEnvConfig.BASE_URL);
+  await connectWalletViaLeap(context, page);
+  await selectChainNetwork(page, "sandbox");
+  await connectWalletViaLeap(context, page);
 
   const helloWorldPage = new DeployHelloWorldPage(context, page, "new-deployment", "hello-world-card");
 

@@ -1,0 +1,30 @@
+name: 'Setup app dependencies'
+description: 'Sets up Node.js and installs dependencies with caching'
+
+inputs:
+  app:
+    description: 'App name for cache key and workspace'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.14.0
+
+    - name: Restore root node_modules cache
+      uses: actions/cache@v4
+      id: cache
+      with:
+        path: |
+          node_modules
+          apps/${{ inputs.app }}/node_modules
+          packages/*/node_modules
+        key: ${{ inputs.app }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+    - name: Install dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: npm ci
