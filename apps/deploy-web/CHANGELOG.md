@@ -1,5 +1,17 @@
 
 
+## [2.62.1](https://github.com/akash-network/console/compare/console-web/v2.62.0...console-web/v2.62.1) (2025-03-20)
+
+
+### Bug Fixes
+
+* **auth:** removes a turnstile widget before rendering ([69bb2b0](https://github.com/akash-network/console/commit/69bb2b06c1c68fe96a16faf0f7e292c7d9a5aa9b))
+
+
+### Code Refactoring
+
+* enable eslint rules which restricts what dependencies can be used ([#1074](https://github.com/akash-network/console/issues/1074)) ([509fcd3](https://github.com/akash-network/console/commit/509fcd39831311950afdfb51c189ef46b02c855f))
+
 ## [2.62.0](https://github.com/akash-network/console/compare/console-web/v2.61.1...console-web/v2.62.0) (2025-03-20)
 
 
