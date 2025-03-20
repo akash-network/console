@@ -61,6 +61,8 @@
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
+    "@akashnetwork/docker": "*",
+    "@akashnetwork/releaser": "*",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
