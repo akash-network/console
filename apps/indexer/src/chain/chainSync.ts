@@ -11,6 +11,7 @@ import * as uuid from "uuid";
 
 import { sequelize } from "@src/db/dbConnection";
 import { ExecutionMode, executionMode, isProd, lastBlockToSync } from "@src/shared/constants";
+import { BlockResultType } from "@src/shared/types";
 import { env } from "@src/shared/utils/env";
 import * as benchmark from "../shared/utils/benchmark";
 import {
@@ -24,7 +25,6 @@ import {
 } from "./dataStore";
 import { nodeAccessor } from "./nodeAccessor";
 import { statsProcessor } from "./statsProcessor";
-import { BlockResultType } from "@src/shared/types";
 
 export const setMissingBlock = (height: number) => (missingBlock = height);
 let missingBlock: number;

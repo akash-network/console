@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { Card, CardContent, DataTable } from "@akashnetwork/ui/components";
-import { ColumnFiltersState, SortingState } from "@tanstack/table-core";
+import type { ColumnFiltersState, SortingState } from "@tanstack/react-table";
 import { SearchX } from "lucide-react";
 
 import { columns } from "./columns";

@@ -32,6 +32,7 @@
     "@cosmjs/math": "^0.32.4",
     "@cosmjs/proto-signing": "^0.32.4",
     "@cosmjs/stargate": "^0.32.4",
+    "@grpc/grpc-js": "^1.10.6",
     "@sentry/node": "^7.52.0",
     "async": "^3.2.4",
     "axios": "^1.7.2",

@@ -1,8 +1,16 @@
 "use client";
 import React, { useState } from "react";
-import { Avatar, AvatarFallback, Button, DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, Spinner } from "@akashnetwork/ui/components";
+import {
+  Avatar,
+  AvatarFallback,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Spinner
+} from "@akashnetwork/ui/components";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
-import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { Key, User } from "iconoir-react";
 import { Bell, LogOut, MultiplePages, Settings, Star } from "iconoir-react";
 import { useRouter } from "next/navigation";
