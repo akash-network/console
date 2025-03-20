@@ -1,5 +1,17 @@
 
 
+## [2.75.0](https://github.com/akash-network/console/compare/console-api/v2.74.1...console-api/v2.75.0) (2025-03-20)
+
+
+### Features
+
+* improves error logging for AggregateError ([#1072](https://github.com/akash-network/console/issues/1072)) ([c0ca85c](https://github.com/akash-network/console/commit/c0ca85c13b608457e65b8e90dad2d6cc310dd643))
+
+
+### Bug Fixes
+
+* ensure release can detect changes for apps based on local packages ([#1070](https://github.com/akash-network/console/issues/1070)) ([e1053c4](https://github.com/akash-network/console/commit/e1053c456ba718fc58a93799e550e9338d9aea45))
+
 ## [2.74.1](https://github.com/akash-network/console/compare/console-api/v2.74.0...console-api/v2.74.1) (2025-03-19)
 
 

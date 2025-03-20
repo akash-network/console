@@ -1,5 +1,19 @@
 
 
+## [2.62.0](https://github.com/akash-network/console/compare/console-web/v2.61.1...console-web/v2.62.0) (2025-03-20)
+
+
+### Features
+
+* improves error logging for AggregateError ([#1072](https://github.com/akash-network/console/issues/1072)) ([c0ca85c](https://github.com/akash-network/console/commit/c0ca85c13b608457e65b8e90dad2d6cc310dd643))
+* introduce multi-line commands ([e58349b](https://github.com/akash-network/console/commit/e58349b7eeb5f28adc80dbedd4cf3b5ca304b72f)), closes [#175](https://github.com/akash-network/console/issues/175)
+
+
+### Bug Fixes
+
+* ensure release can detect changes for apps based on local packages ([#1070](https://github.com/akash-network/console/issues/1070)) ([e1053c4](https://github.com/akash-network/console/commit/e1053c456ba718fc58a93799e550e9338d9aea45))
+* updates dockerfile for node apps ([#1068](https://github.com/akash-network/console/issues/1068)) ([54194a0](https://github.com/akash-network/console/commit/54194a08ca514f1be623a20e7a01cfbbf2e2244a))
+
 ## [2.61.1](https://github.com/akash-network/console/compare/console-web/v2.61.0...console-web/v2.61.1) (2025-03-19)
 
 
