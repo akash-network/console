@@ -18,6 +18,8 @@ import {
   ProviderSnapshotStorage
 } from "@akashnetwork/database/dbSchemas/akash";
 import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
+import { Transaction, TransactionEvent } from "@akashnetwork/database/dbSchemas/base";
+import { DecodedTxRaw } from "@cosmjs/proto-signing";
 import { Op, Transaction as DbTransaction } from "sequelize";
 import * as uuid from "uuid";
 
@@ -26,8 +28,6 @@ import { getAmountFromCoin } from "@src/shared/utils/coin";
 import { uint8arrayToString } from "@src/shared/utils/protobuf";
 import * as benchmark from "../shared/utils/benchmark";
 import { Indexer } from "./indexer";
-import { Transaction, TransactionEvent } from "@akashnetwork/database/dbSchemas/base";
-import { DecodedTxRaw } from "@cosmjs/proto-signing";
 
 class IActiveLeases {
   predictedClosedHeights: number[];

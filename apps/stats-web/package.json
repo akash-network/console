@@ -12,6 +12,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@akashnetwork/env-loader": "*",
     "@akashnetwork/logging": "*",
     "@akashnetwork/network-store": "*",
     "@akashnetwork/ui": "*",

@@ -1,8 +1,7 @@
 "use client";
 import { Dispatch, ReactNode, SetStateAction, useCallback, useState } from "react";
-import { Button, CustomTooltip, DropdownMenu, DropdownMenuContent, Spinner, Switch } from "@akashnetwork/ui/components";
+import { Button, CustomTooltip, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner, Switch } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
-import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import addHours from "date-fns/addHours";
 import differenceInSeconds from "date-fns/differenceInSeconds";
 import formatDuration from "date-fns/formatDuration";
