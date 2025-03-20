@@ -1,4 +1,4 @@
-import { QueryKey, useQuery, UseQueryOptions, UseQueryResult } from "react-query";
+import { QueryKey, useQuery, UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
 import axios from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -9,27 +9,30 @@ import { ApiUrlService } from "@src/utils/apiUtils";
 import { getNetworkCapacityDto, providerStatusToDto } from "@src/utils/providerUtils";
 import { QueryKeys } from "./queryKeys";
 
-export function useProviderDetail(owner: string, options: UseQueryOptions<ApiProviderDetail | null>): UseQueryResult<ApiProviderDetail | null> {
+export function useProviderDetail(
+  owner: string,
+  options: Omit<UseQueryOptions<ApiProviderDetail | null>, "queryKey" | "queryFn">
+): UseQueryResult<ApiProviderDetail | null> {
   const services = useServices();
-  return useQuery(
-    QueryKeys.getProviderDetailKey(owner) as QueryKey,
-    async () => {
+  return useQuery({
+    queryKey: QueryKeys.getProviderDetailKey(owner) as QueryKey,
+    queryFn: async () => {
       if (!owner) return null;
       const response = await services.axios.get(ApiUrlService.providerDetail(owner));
       return response.data;
     },
-    options
-  );
+    ...options
+  });
 }
 
 export function useProviderStatus(
   provider: ApiProviderList | undefined | null,
-  options: UseQueryOptions<ProviderStatusDto> = {}
+  options: Omit<UseQueryOptions<ProviderStatusDto>, "queryKey" | "queryFn"> = {}
 ): UseQueryResult<ProviderStatusDto> {
   const fetchProviderUrl = useScopedFetchProviderUrl(provider);
-  return useQuery(
-    QueryKeys.getProviderStatusKey(provider?.hostUri || "") as QueryKey,
-    async () => {
+  return useQuery({
+    queryKey: QueryKeys.getProviderStatusKey(provider?.hostUri || ""),
+    queryFn: async () => {
       try {
         const [statusResponse, versionResponse] = await Promise.all([
           fetchProviderUrl<ProviderStatus>("/status"),
@@ -41,8 +44,8 @@ export function useProviderStatus(
         throw error;
       }
     },
-    options
-  );
+    ...options
+  });
 }
 
 async function getNetworkCapacity() {
@@ -52,7 +55,11 @@ async function getNetworkCapacity() {
 }
 
 export function useNetworkCapacity(options = {}) {
-  return useQuery(QueryKeys.getNetworkCapacity(), () => getNetworkCapacity(), options);
+  return useQuery({
+    queryKey: QueryKeys.getNetworkCapacity(),
+    queryFn: () => getNetworkCapacity(),
+    ...options
+  });
 }
 
 async function getAuditors() {
@@ -62,7 +69,9 @@ async function getAuditors() {
 }
 
 export function useAuditors(options = {}) {
-  return useQuery<Array<Auditor>>(QueryKeys.getAuditorsKey(), () => getAuditors(), {
+  return useQuery<Array<Auditor>>({
+    queryKey: QueryKeys.getAuditorsKey(),
+    queryFn: () => getAuditors(),
     ...options,
     refetchInterval: false,
     refetchIntervalInBackground: false,
@@ -78,7 +87,11 @@ async function getProviderActiveLeasesGraph(providerAddress: string) {
 }
 
 export function useProviderActiveLeasesGraph(providerAddress: string, options = {}) {
-  return useQuery(QueryKeys.getProviderActiveLeasesGraph(providerAddress), () => getProviderActiveLeasesGraph(providerAddress), options);
+  return useQuery({
+    queryKey: QueryKeys.getProviderActiveLeasesGraph(providerAddress),
+    queryFn: () => getProviderActiveLeasesGraph(providerAddress),
+    ...options
+  });
 }
 
 async function getProviderAttributesSchema() {
@@ -88,7 +101,9 @@ async function getProviderAttributesSchema() {
 }
 
 export function useProviderAttributesSchema(options = {}) {
-  return useQuery(QueryKeys.getProviderAttributesSchema(), () => getProviderAttributesSchema(), {
+  return useQuery({
+    queryKey: QueryKeys.getProviderAttributesSchema(),
+    queryFn: () => getProviderAttributesSchema(),
     ...options,
     refetchInterval: false,
     refetchIntervalInBackground: false,
@@ -104,7 +119,11 @@ async function getProviderList(): Promise<Array<ApiProviderList>> {
 }
 
 export function useProviderList(options = {}) {
-  return useQuery(QueryKeys.getProviderListKey(), () => getProviderList(), options);
+  return useQuery({
+    queryKey: QueryKeys.getProviderListKey(),
+    queryFn: () => getProviderList(),
+    ...options
+  });
 }
 
 async function getProviderRegions(): Promise<Array<ApiProviderRegion>> {
@@ -114,5 +133,9 @@ async function getProviderRegions(): Promise<Array<ApiProviderRegion>> {
 }
 
 export function useProviderRegions(options = {}) {
-  return useQuery(QueryKeys.getProviderRegionsKey(), () => getProviderRegions(), options);
+  return useQuery({
+    queryKey: QueryKeys.getProviderRegionsKey(),
+    queryFn: () => getProviderRegions(),
+    ...options
+  });
 }
