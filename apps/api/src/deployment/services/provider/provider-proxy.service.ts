@@ -1,4 +1,5 @@
 import axios from "axios";
+import https from "https";
 import { singleton } from "tsyringe";
 
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
@@ -42,7 +43,12 @@ export class ProviderProxyService {
         providerAddress: providerIdentity.owner,
         network: chainNetwork
       },
-      { timeout }
+      {
+        timeout,
+        httpsAgent: new https.Agent({
+          rejectUnauthorized: false
+        })
+      }
     );
     return response.data;
   }
