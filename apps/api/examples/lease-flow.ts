@@ -31,7 +31,7 @@ if (fs.existsSync(envPath)) {
 }
 
 // Load the SDL file
-const yml = fs.readFileSync(path.resolve(__dirname, "../test/mocks/hello-world-sdl.yml"), "utf8");
+const yml = fs.readFileSync(path.resolve(__dirname, "./hello-world-sdl.yml"), "utf8");
 
 // Configure axios
 const API_URL = process.env.API_URL || "http://localhost:3080";
