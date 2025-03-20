@@ -1,5 +1,12 @@
 
 
+## [2.75.2](https://github.com/akash-network/console/compare/console-api/v2.75.1...console-api/v2.75.2) (2025-03-20)
+
+
+### Code Refactoring
+
+* enable eslint rules which restricts what dependencies can be used ([#1074](https://github.com/akash-network/console/issues/1074)) ([509fcd3](https://github.com/akash-network/console/commit/509fcd39831311950afdfb51c189ef46b02c855f))
+
 ## [2.75.1](https://github.com/akash-network/console/compare/console-api/v2.75.0...console-api/v2.75.1) (2025-03-20)
 
 
