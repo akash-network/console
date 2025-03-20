@@ -26,8 +26,8 @@ const SettingsPage: React.FC = () => {
   const [nodeUpgradeSuccess, setNodeUpgradeSuccess] = useState(false);
   const [upgradeStatus, setUpgradeStatus] = useState<{
     needsUpgrade: boolean;
-    appVersion: { current: string; desired: string };
-    chartVersion: { current: string; desired: string };
+    appVersion: { current: string; desired: string; needsUpgrade: boolean };
+    chartVersion: { current: string; desired: string; needsUpgrade: boolean };
   } | null>(null);
   const [isUpgradeStatusLoading, setIsUpgradeStatusLoading] = useState(false);
   const [isNodeUpgrading, setIsNodeUpgrading] = useState(false);
@@ -48,19 +48,24 @@ const SettingsPage: React.FC = () => {
       const request = {
         control_machine: sanitizeMachineAccess(activeControlMachine)
       };
-      const response: { needs_upgrade: boolean; app_version: { current: string; desired: string }; chart_version: { current: string; desired: string } } =
-        await restClient.post("/network/upgrade-status", request);
+      const response: {
+        needs_upgrade: boolean;
+        app_version: { current: string; desired: string; needs_upgrade: boolean };
+        chart_version: { current: string; desired: string; needs_upgrade: boolean };
+      } = await restClient.post("/network/upgrade-status", request);
 
       if (response) {
         setUpgradeStatus({
           needsUpgrade: response.needs_upgrade,
           appVersion: {
             current: response.app_version.current,
-            desired: response.app_version.desired
+            desired: response.app_version.desired,
+            needsUpgrade: response.app_version.needs_upgrade
           },
           chartVersion: {
             current: response.chart_version.current,
-            desired: response.chart_version.desired
+            desired: response.chart_version.desired,
+            needsUpgrade: response.chart_version.needs_upgrade
           }
         });
       }
@@ -154,11 +159,11 @@ const SettingsPage: React.FC = () => {
 
     const reasons: string[] = [];
 
-    if (upgradeStatus.appVersion.current !== upgradeStatus.appVersion.desired) {
+    if (upgradeStatus.appVersion.needsUpgrade) {
       reasons.push(`application version (${upgradeStatus.appVersion.current} → ${upgradeStatus.appVersion.desired})`);
     }
 
-    if (upgradeStatus.chartVersion.current !== upgradeStatus.chartVersion.desired) {
+    if (upgradeStatus.chartVersion.needsUpgrade) {
       reasons.push(`chart version (${upgradeStatus.chartVersion.current} → ${upgradeStatus.chartVersion.desired})`);
     }
 
@@ -203,7 +208,7 @@ const SettingsPage: React.FC = () => {
                   <h3 className="text-muted-foreground text-sm font-medium">Akash Node Version</h3>
                   <div className="mt-1 flex items-center">
                     <span className="text-base font-semibold">{upgradeStatus.appVersion.current}</span>
-                    {upgradeStatus.appVersion.current !== upgradeStatus.appVersion.desired && (
+                    {upgradeStatus.appVersion.needsUpgrade && (
                       <span className="ml-2 flex items-center text-xs text-amber-500">
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -229,7 +234,7 @@ const SettingsPage: React.FC = () => {
                   <h3 className="text-muted-foreground text-sm font-medium">Chart Version</h3>
                   <div className="mt-1 flex items-center">
                     <span className="text-base font-semibold">{upgradeStatus.chartVersion.current}</span>
-                    {upgradeStatus.chartVersion.current !== upgradeStatus.chartVersion.desired && (
+                    {upgradeStatus.chartVersion.needsUpgrade && (
                       <span className="ml-2 flex items-center text-xs text-amber-500">
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
