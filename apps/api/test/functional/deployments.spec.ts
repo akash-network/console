@@ -509,4 +509,145 @@ describe("Deployments API", () => {
       expect(response.status).toBe(400);
     });
   });
+
+  describe("PUT /v1/deployments/{dseq}", () => {
+    it("should update a deployment successfully", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const dseq = "1234";
+      setupDeploymentInfoMock(wallets, dseq);
+
+      const mockTxResult = {
+        code: 0,
+        hash: "test-hash",
+        rawLog: "success"
+      };
+
+      jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          data: {
+            sdl: yml,
+            certificate: {
+              certPem: "test-cert-pem",
+              keyPem: "test-key-pem"
+            }
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data).toEqual({
+        deployment: expect.any(Object),
+        leases: expect.any(Array),
+        escrow_account: expect.any(Object)
+      });
+    });
+
+    it("should return 404 if deployment does not exist", async () => {
+      const { userApiKeySecret } = await mockUser();
+      const dseq = "1234";
+
+      jest.spyOn(deploymentService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          data: {
+            sdl: yml,
+            certificate: {
+              certPem: "test-cert-pem",
+              keyPem: "test-key-pem"
+            }
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(404);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "NotFoundError",
+        message: "Deployment not found"
+      });
+    });
+
+    it("should return 401 for an unauthenticated request", async () => {
+      const response = await app.request("/v1/deployments/1234", {
+        method: "PUT",
+        body: JSON.stringify({
+          data: {
+            sdl: "test-sdl",
+            certificate: {
+              certPem: "test-cert-pem",
+              keyPem: "test-key-pem"
+            }
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json" })
+      });
+
+      expect(response.status).toBe(401);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "UnauthorizedError",
+        message: "Unauthorized"
+      });
+    });
+
+    it("should return 400 if SDL is invalid", async () => {
+      const { userApiKeySecret } = await mockUser();
+      const dseq = "1234";
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          data: {
+            sdl: "invalid-sdl",
+            certificate: {
+              certPem: "test-cert-pem",
+              keyPem: "test-key-pem"
+            }
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = await response.json();
+      expect(result.message).toContain("Invalid SDL");
+    });
+
+    it("should return 400 if certificate is missing required fields", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const dseq = "1234";
+      setupDeploymentInfoMock(wallets, dseq);
+
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          data: {
+            sdl: yml,
+            certificate: {
+              certPem: "test-cert-pem"
+            }
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = await response.json();
+      expect(result.message).toContain("Certificate must include both certPem and keyPem");
+    });
+  });
 });

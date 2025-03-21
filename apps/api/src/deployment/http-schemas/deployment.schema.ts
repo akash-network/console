@@ -99,6 +99,21 @@ export const DepositDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
 });
 
+export const UpdateDeploymentRequestSchema = z.object({
+  data: z.object({
+    dseq: z.string().describe("Deployment sequence number"),
+    sdl: z.string(),
+    certificate: z.object({
+      certPem: z.string(),
+      keyPem: z.string()
+    })
+  })
+});
+
+export const UpdateDeploymentResponseSchema = z.object({
+  data: DeploymentResponseSchema
+});
+
 export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
 export type CreateDeploymentRequest = z.infer<typeof CreateDeploymentRequestSchema>;
 export type CreateDeploymentResponse = z.infer<typeof CreateDeploymentResponseSchema>;
@@ -106,3 +121,5 @@ export type CloseDeploymentParams = z.infer<typeof CloseDeploymentParamsSchema>;
 export type CloseDeploymentResponse = z.infer<typeof CloseDeploymentResponseSchema>;
 export type DepositDeploymentRequest = z.infer<typeof DepositDeploymentRequestSchema>;
 export type DepositDeploymentResponse = z.infer<typeof DepositDeploymentResponseSchema>;
+export type UpdateDeploymentRequest = z.infer<typeof UpdateDeploymentRequestSchema>;
+export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSchema>;

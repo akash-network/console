@@ -9,7 +9,9 @@ import {
   CreateDeploymentResponse,
   DepositDeploymentRequest,
   DepositDeploymentResponse,
-  GetDeploymentResponse
+  GetDeploymentResponse,
+  UpdateDeploymentRequest,
+  UpdateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentService } from "@src/deployment/services/deployment/deployment.service";
 
@@ -69,6 +71,18 @@ export class DeploymentController {
     assert(userWallet, 404, "UserWallet Not Found");
 
     const result = await this.deploymentService.deposit(userWallet, input.dseq, input.deposit);
+
+    return { data: result };
+  }
+
+  @Protected([{ action: "sign", subject: "UserWallet" }])
+  async update(input: UpdateDeploymentRequest["data"]): Promise<UpdateDeploymentResponse> {
+    const { currentUser, ability } = this.authService;
+
+    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
+    assert(userWallet, 404, "UserWallet Not Found");
+
+    const result = await this.deploymentService.update(userWallet, input);
 
     return { data: result };
   }

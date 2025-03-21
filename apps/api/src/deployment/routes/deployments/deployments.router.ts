@@ -11,7 +11,9 @@ import {
   DepositDeploymentRequestSchema,
   DepositDeploymentResponseSchema,
   GetDeploymentQuerySchema,
-  GetDeploymentResponseSchema
+  GetDeploymentResponseSchema,
+  UpdateDeploymentRequestSchema,
+  UpdateDeploymentResponseSchema
 } from "@src/deployment/http-schemas/deployment.schema";
 
 const getRoute = createRoute({
@@ -106,6 +108,33 @@ const depositRoute = createRoute({
   }
 });
 
+const updateRoute = createRoute({
+  method: "put",
+  path: "/v1/deployments/{dseq}",
+  summary: "Update a deployment",
+  tags: ["Deployments"],
+  request: {
+    params: CloseDeploymentParamsSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: UpdateDeploymentRequestSchema
+        }
+      }
+    }
+  },
+  responses: {
+    200: {
+      description: "Deployment updated successfully",
+      content: {
+        "application/json": {
+          schema: UpdateDeploymentResponseSchema
+        }
+      }
+    }
+  }
+});
+
 export const deploymentsRouter = new OpenApiHonoHandler();
 
 deploymentsRouter.openapi(getRoute, async function routeGetDeployment(c) {
@@ -129,5 +158,12 @@ deploymentsRouter.openapi(deleteRoute, async function routeCloseDeployment(c) {
 deploymentsRouter.openapi(depositRoute, async function routeDepositDeployment(c) {
   const { data } = c.req.valid("json");
   const result = await container.resolve(DeploymentController).deposit(data);
+  return c.json(result, 200);
+});
+
+deploymentsRouter.openapi(updateRoute, async function routeUpdateDeployment(c) {
+  const { dseq } = c.req.valid("param");
+  const { data } = c.req.valid("json");
+  const result = await container.resolve(DeploymentController).update({ ...data, dseq });
   return c.json(result, 200);
 });

@@ -6,7 +6,13 @@ import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput } from "@src/billing/repositories";
 import { ManagedSignerService, RpcMessageService, Wallet } from "@src/billing/services";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import {
+  CreateDeploymentRequest,
+  CreateDeploymentResponse,
+  GetDeploymentResponse,
+  UpdateDeploymentRequest
+} from "@src/deployment/http-schemas/deployment.schema";
+import { ProviderService } from "@src/deployment/services/provider/provider.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { denomToUdenom } from "@src/utils/math";
 
@@ -20,7 +26,8 @@ export class DeploymentService {
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
     private readonly rpcMessageService: RpcMessageService,
     private readonly sdlService: SdlService,
-    private readonly billingConfig: BillingConfigService
+    private readonly billingConfig: BillingConfigService,
+    private readonly providerService: ProviderService
   ) {}
 
   public async findByOwnerAndDseq(owner: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
@@ -100,6 +107,43 @@ export class DeploymentService {
     });
 
     await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
+
+    return await this.findByOwnerAndDseq(wallet.address, dseq);
+  }
+
+  public async update(wallet: UserWalletOutput, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
+    const { sdl, dseq, certificate } = input;
+
+    if (!this.sdlService.validateSdl(sdl)) {
+      throw new BadRequest("Invalid SDL");
+    }
+
+    const deployment = await this.findByOwnerAndDseq(wallet.address, dseq);
+    const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");
+    const manifest = this.sdlService.getManifest(sdl, "beta3", true) as string;
+
+    // If manifest version has changed, send update transaction
+    if (Buffer.from(manifestVersion).toString("base64") !== deployment.deployment.version) {
+      const message = this.rpcMessageService.getUpdateDeploymentMsg({
+        owner: wallet.address,
+        dseq,
+        version: manifestVersion
+      });
+
+      await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
+    }
+
+    // Send manifest to all providers
+    const leaseProviders = deployment.leases.map(lease => lease.lease_id.provider).filter((v, i, s) => s.indexOf(v) === i);
+    for (const provider of leaseProviders) {
+      if (!certificate.certPem || !certificate.keyPem) {
+        throw new BadRequest("Certificate must include both certPem and keyPem");
+      }
+      await this.providerService.sendManifest(provider, dseq, manifest, {
+        certPem: certificate.certPem,
+        keyPem: certificate.keyPem
+      });
+    }
 
     return await this.findByOwnerAndDseq(wallet.address, dseq);
   }
