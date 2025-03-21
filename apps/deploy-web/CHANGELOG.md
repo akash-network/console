@@ -1,5 +1,12 @@
 
 
+## [2.62.3](https://github.com/akash-network/console/compare/console-web/v2.62.2...console-web/v2.62.3) (2025-03-21)
+
+
+### Bug Fixes
+
+* **auth:** removes turnstile widget before rendering ([bd32f01](https://github.com/akash-network/console/commit/bd32f0132e6151ebb46f6b03903cb0cbd82cbd4f))
+
 ## [2.62.2](https://github.com/akash-network/console/compare/console-web/v2.62.1...console-web/v2.62.2) (2025-03-21)
 
 
