@@ -64,12 +64,22 @@ export class BatchSigningClientService {
   }
 
   private async initClient() {
-    return SyncSigningStargateClient.connectWithSigner(this.config.get("RPC_NODE_ENDPOINT"), this.wallet, {
-      registry: this.registry
-    }).then(async client => {
-      this.chainId = await client.getChainId();
-      return client;
-    });
+    return await backOff(
+      () =>
+        SyncSigningStargateClient.connectWithSigner(this.config.get("RPC_NODE_ENDPOINT"), this.wallet, {
+          registry: this.registry
+        }).then(async client => {
+          this.chainId = await client.getChainId();
+          return client;
+        }),
+      {
+        maxDelay: 15000,
+        startingDelay: 500,
+        timeMultiple: 2,
+        numOfAttempts: 7,
+        jitter: "full"
+      }
+    );
   }
 
   async executeTx(messages: readonly EncodeObject[], options?: ExecuteTxOptions) {
