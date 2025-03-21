@@ -1,5 +1,12 @@
 
 
+## [1.5.2](https://github.com/akash-network/console/compare/provider-console/v1.5.1...provider-console/v1.5.2) (2025-03-21)
+
+
+### Bug Fixes
+
+* **provider:** changed upgrade status api to fix upgrade checks ([#1082](https://github.com/akash-network/console/issues/1082)) ([0978a09](https://github.com/akash-network/console/commit/0978a09805eed45af4dca7757d3d917883fe7874))
+
 ## [1.5.1](https://github.com/akash-network/console/compare/provider-console/v1.5.0...provider-console/v1.5.1) (2025-03-20)
 
 
