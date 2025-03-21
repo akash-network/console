@@ -16,7 +16,7 @@ interface TopUpAmountPickerProps extends ButtonProps {
   className?: string;
 }
 
-export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ className, variant = "outline" }) => {
+export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ className, variant = "outline", onClick }) => {
   const user = useUser();
   const { data, isLoading } = useStripePricesQuery({ enabled: !!user?.userId });
   const isInitializing = isLoading && !data;
@@ -82,6 +82,7 @@ export const TopUpAmountPicker: FCWithChildren<TopUpAmountPickerProps> = ({ clas
       onClick={event => {
         whenLoggedInAndVerified(handleClick)(event);
         analyticsService.track("add_funds_coupon_btn_clk");
+        onClick?.(event);
       }}
     >
       <Cash />

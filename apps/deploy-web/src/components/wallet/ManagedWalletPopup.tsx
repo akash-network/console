@@ -14,9 +14,10 @@ import { LinkTo } from "../shared/LinkTo";
 
 interface ManagedWalletPopupProps extends React.PropsWithChildren {
   walletBalance: WalletBalance;
+  onClose: () => void;
 }
 
-export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance }) => {
+export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance, onClose }) => {
   const { isManaged, isTrialing, switchWalletType } = useWallet();
   const whenLoggedInAndVerified = useAddFundsVerifiedLoginRequiredEventHandler();
   const { showManagedEscrowFaqModal } = useManagedEscrowFaqModal();
@@ -85,7 +86,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
           <HandCard />
           <span>Add Funds</span>
         </Button>
-        <TopUpAmountPicker className="w-full" />
+        <TopUpAmountPicker className="w-full" onClick={onClose} />
         <Separator className="my-2 bg-secondary/90 dark:bg-white/10" />
         <Button onClick={isWalletConnected ? switchWalletType : connect} variant="outline" className="w-full space-x-2">
           <CoinsSwap />

@@ -293,7 +293,8 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         }}
         sx={{
           display: { xs: "block", sm: "block", md: "none" },
-          "& .MuiDrawer-paper": { boxSizing: "border-box", width: DRAWER_WIDTH, overflow: "hidden" }
+          "& .MuiDrawer-paper": { boxSizing: "border-box", width: DRAWER_WIDTH, overflow: "hidden" },
+          zIndex: 990
         }}
         PaperProps={{
           sx: {
