@@ -41,7 +41,7 @@ export const ActiveLeasesGraph: React.FunctionComponent<IProps> = ({ provider })
         </Title>
       </div>
 
-      {!snapshotData && status === "loading" && (
+      {!snapshotData && status === "pending" && (
         <div className="flex items-center justify-center">
           <Spinner size="large" />
         </div>

@@ -25,13 +25,20 @@ type Props = {
 
 export const ProviderRawData: React.FunctionComponent<Props> = ({ owner, components: c = COMPONENTS }) => {
   const [provider, setProvider] = useState<Partial<ClientProviderDetailWithStatus> | null>(null);
-  const { isLoading: isLoadingProvider, refetch: getProviderDetail } = useProviderDetail(owner, {
+  const {
+    data: providerDetail,
+    isLoading: isLoadingProvider,
+    refetch: getProviderDetail
+  } = useProviderDetail(owner, {
     enabled: false,
-    retry: false,
-    onSuccess: _providerDetail => {
-      setProvider(provider => (provider ? { ...provider, ..._providerDetail } : _providerDetail));
-    }
+    retry: false
   });
+  useEffect(() => {
+    if (providerDetail) {
+      setProvider(provider => (provider ? { ...provider, ...providerDetail } : providerDetail));
+    }
+  }, [providerDetail]);
+
   const { address } = useWallet();
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
   const {
@@ -40,11 +47,13 @@ export const ProviderRawData: React.FunctionComponent<Props> = ({ owner, compone
     refetch: getProviderStatus
   } = useProviderStatus(provider as ApiProviderList, {
     enabled: false,
-    retry: false,
-    onSuccess: () => {
+    retry: false
+  });
+  useEffect(() => {
+    if (providerStatus) {
       setProvider(provider => (provider ? { ...provider, ...providerStatus } : (providerStatus as ClientProviderDetailWithStatus)));
     }
-  });
+  }, [providerStatus]);
 
   useEffect(() => {
     refresh();

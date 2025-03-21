@@ -1,6 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "react-query";
-import { QueryKey, UseQueryOptions } from "react-query";
 import { ApiKeyResponse } from "@akashnetwork/http-sdk";
+import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -12,7 +11,9 @@ export function useUserApiKeys(options: Omit<UseQueryOptions<ApiKeyResponse[], E
   const { isTrialing } = useWallet();
   const { apiKey } = useServices();
 
-  return useQuery<ApiKeyResponse[], Error>(QueryKeys.getApiKeysKey(user?.userId ?? ""), async () => await apiKey.getApiKeys(), {
+  return useQuery<ApiKeyResponse[], Error>({
+    queryKey: QueryKeys.getApiKeysKey(user?.userId ?? ""),
+    queryFn: async () => await apiKey.getApiKeys(),
     enabled: !!user?.userId && !isTrialing,
     refetchInterval: 10_000,
     retry: failureCount => failureCount < 5,
@@ -26,22 +27,20 @@ export function useCreateApiKey() {
   const queryClient = useQueryClient();
   const { apiKey } = useServices();
 
-  return useMutation<ApiKeyResponse, Error, string>(
-    (name: string) =>
+  return useMutation<ApiKeyResponse, Error, string>({
+    mutationFn: (name: string) =>
       apiKey.createApiKey({
         data: {
           name: name
         }
       }),
-    {
-      onSuccess: _response => {
-        queryClient.setQueryData(QueryKeys.getApiKeysKey(user?.userId ?? ""), (oldData: ApiKeyResponse[] | undefined) => {
-          if (!oldData) return [_response];
-          return [...oldData, _response];
-        });
-      }
+    onSuccess: _response => {
+      queryClient.setQueryData(QueryKeys.getApiKeysKey(user?.userId ?? ""), (oldData: ApiKeyResponse[] | undefined) => {
+        if (!oldData) return [_response];
+        return [...oldData, _response];
+      });
     }
-  );
+  });
 }
 
 export function useDeleteApiKey(id: string, onSuccess?: () => void) {
@@ -49,7 +48,8 @@ export function useDeleteApiKey(id: string, onSuccess?: () => void) {
   const queryClient = useQueryClient();
   const { apiKey } = useServices();
 
-  return useMutation(() => apiKey.deleteApiKey(id), {
+  return useMutation({
+    mutationFn: () => apiKey.deleteApiKey(id),
     onSuccess: () => {
       queryClient.setQueryData(QueryKeys.getApiKeysKey(user?.userId ?? ""), (oldData: ApiKeyResponse[] = []) => {
         return oldData.filter(t => t.id !== id);

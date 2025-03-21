@@ -35,22 +35,36 @@ type Props = {
 export const ProviderDetail: React.FunctionComponent<Props> = ({ owner, _provider }) => {
   const [provider, setProvider] = useState<ClientProviderDetailWithStatus>(_provider as ClientProviderDetailWithStatus);
   const { address } = useWallet();
-  const { isLoading: isLoadingProvider, refetch: getProviderDetail } = useProviderDetail(owner, {
+  const {
+    data: providerDetail,
+    isLoading: isLoadingProvider,
+    refetch: getProviderDetail
+  } = useProviderDetail(owner, {
     enabled: false,
-    retry: false,
-    onSuccess: _providerDetail => {
-      setProvider(provider => ({ ...provider, ..._providerDetail }));
-    }
+    retry: false
   });
+  useEffect(() => {
+    if (providerDetail) {
+      setProvider(provider => ({ ...provider, ...providerDetail }));
+    }
+  }, [providerDetail]);
+
   const { data: leases, isFetching: isLoadingLeases, refetch: getLeases } = useAllLeases(address, { enabled: false });
   const { data: providerAttributesSchema, isFetching: isLoadingSchema } = useProviderAttributesSchema();
-  const { isLoading: isLoadingStatus, refetch: getProviderStatus } = useProviderStatus(provider, {
+  const {
+    data: providerStatus,
+    isLoading: isLoadingStatus,
+    refetch: getProviderStatus
+  } = useProviderStatus(provider, {
     enabled: true,
-    retry: false,
-    onSuccess: _providerStatus => {
-      setProvider(provider => ({ ...provider, ..._providerStatus }));
-    }
+    retry: false
   });
+  useEffect(() => {
+    if (providerStatus) {
+      setProvider(provider => ({ ...provider, ...providerStatus }));
+    }
+  }, [providerStatus]);
+
   const isLoading = isLoadingProvider || isLoadingStatus || isLoadingLeases || isLoadingSchema;
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("lg"));

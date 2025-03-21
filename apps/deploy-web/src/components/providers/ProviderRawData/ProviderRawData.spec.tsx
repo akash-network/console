@@ -1,9 +1,10 @@
-import { QueryClientProvider } from "react-query";
+import { QueryClientProvider as LegacyQueryClientProvider } from "react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { AxiosStatic } from "axios";
 
 import { COMPONENTS, ProviderRawData } from "@src/components/providers/ProviderRawData/ProviderRawData";
 import { ServicesProvider } from "@src/context/ServicesProvider";
-import { queryClient } from "@src/queries";
+import { legacyQueryClient, queryClient } from "@src/queries";
 import { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import { ApiProviderDetail } from "@src/types/provider";
 
@@ -42,9 +43,11 @@ describe(ProviderRawData.name, () => {
     } as unknown as ProviderProxyService;
     const result = render(
       <ServicesProvider services={{ axios, providerProxy }}>
-        <QueryClientProvider client={queryClient}>
-          <ProviderRawData owner={props?.provider?.owner || "test"} components={MockComponents(COMPONENTS, props?.components)} />
-        </QueryClientProvider>
+        <LegacyQueryClientProvider client={legacyQueryClient}>
+          <QueryClientProvider client={queryClient}>
+            <ProviderRawData owner={props?.provider?.owner || "test"} components={MockComponents(COMPONENTS, props?.components)} />
+          </QueryClientProvider>
+        </LegacyQueryClientProvider>
       </ServicesProvider>
     );
 
