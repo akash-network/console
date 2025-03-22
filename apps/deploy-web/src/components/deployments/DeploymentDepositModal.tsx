@@ -274,7 +274,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
                   <LeaseSpecDetail type="cpu" className="flex-shrink-0" value={service.profile?.cpu} />
                   {!!service.profile?.gpu && <LeaseSpecDetail type="gpu" className="flex-shrink-0" value={service.profile?.gpu} />}
                   <LeaseSpecDetail type="ram" className="flex-shrink-0" value={`${service.profile?.ram} ${service.profile?.ramUnit}`} />
-                  <LeaseSpecDetail type="storage" className="flex-shrink-0" value={`${service.profile?.storage} ${service.profile?.storageUnit}`} />
+                  <LeaseSpecDetail type="storage" className="flex-shrink-0" value={`${service.profile?.storage[0].size} ${service.profile?.storage[0].unit}`} />
                 </div>
               </Alert>
             );

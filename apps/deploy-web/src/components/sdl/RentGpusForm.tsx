@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { Alert, Button, Form, Spinner } from "@akashnetwork/ui/components";
 import { EncodeObject } from "@cosmjs/proto-signing";
@@ -37,6 +37,7 @@ import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import { AdvancedConfig } from "./AdvancedConfig";
+import { BaseStorageFormControl } from "./BaseStorageFormControl";
 import { CpuFormControl } from "./CpuFormControl";
 import { DeploymentMinimumEscrowAlertText } from "./DeploymentMinimumEscrowAlertText";
 import { FormPaper } from "./FormPaper";
@@ -44,7 +45,6 @@ import { GpuFormControl } from "./GpuFormControl";
 import { ImageSelect } from "./ImageSelect";
 import { MemoryFormControl } from "./MemoryFormControl";
 import { RegionSelect } from "./RegionSelect";
-import { StorageFormControl } from "./StorageFormControl";
 import { TokenFormControl } from "./TokenFormControl";
 
 export const RentGpusForm: React.FunctionComponent = () => {
@@ -278,6 +278,17 @@ export const RentGpusForm: React.FunctionComponent = () => {
     }
   }
 
+  const serviceIndex = 0;
+  const {
+    append: appendStorage,
+    remove: removeStorage,
+    fields: storages
+  } = useFieldArray({
+    control,
+    name: `services.${serviceIndex}.profile.storage` as any,
+    keyName: "id"
+  });
+
   return (
     <>
       {isDepositingDeployment && (
@@ -327,7 +338,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
             </div>
 
             <div className="mt-4">
-              <StorageFormControl control={control as any} serviceIndex={0} />
+              <BaseStorageFormControl services={_services} control={control as any} serviceIndex={0} appendStorage={appendStorage} />
             </div>
 
             <div className="grid-col-2 mt-4 grid gap-2">
@@ -342,7 +353,14 @@ export const RentGpusForm: React.FunctionComponent = () => {
             </div>
           </FormPaper>
 
-          <AdvancedConfig control={control} currentService={currentService} />
+          <AdvancedConfig
+            control={control}
+            currentService={currentService}
+            storages={storages}
+            setValue={setValue}
+            appendStorage={appendStorage}
+            removeStorage={removeStorage}
+          />
 
           {error && (
             <Alert variant="destructive" className="mt-4">
