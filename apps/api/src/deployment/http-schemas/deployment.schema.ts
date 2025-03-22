@@ -101,7 +101,6 @@ export const DepositDeploymentResponseSchema = z.object({
 
 export const UpdateDeploymentRequestSchema = z.object({
   data: z.object({
-    dseq: z.string().describe("Deployment sequence number"),
     sdl: z.string(),
     certificate: z.object({
       certPem: z.string(),

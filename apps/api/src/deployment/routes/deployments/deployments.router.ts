@@ -164,6 +164,6 @@ deploymentsRouter.openapi(depositRoute, async function routeDepositDeployment(c)
 deploymentsRouter.openapi(updateRoute, async function routeUpdateDeployment(c) {
   const { dseq } = c.req.valid("param");
   const { data } = c.req.valid("json");
-  const result = await container.resolve(DeploymentController).update({ ...data, dseq });
+  const result = await container.resolve(DeploymentController).update(dseq, data);
   return c.json(result, 200);
 });

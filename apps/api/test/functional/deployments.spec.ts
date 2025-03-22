@@ -13,12 +13,14 @@ import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.servi
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
 import { DeploymentService } from "@src/deployment/services/deployment/deployment.service";
+import { ProviderService } from "@src/deployment/services/provider/provider.service";
 import { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { apiNodeUrl, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/constants";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
+import { LeaseSeeder } from "@test/seeders/lease.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
@@ -29,6 +31,7 @@ describe("Deployments API", () => {
   const apiKeyAuthService = container.resolve(ApiKeyAuthService);
   const userWalletRepository = container.resolve(UserWalletRepository);
   const abilityService = container.resolve(AbilityService);
+  const providerService = container.resolve(ProviderService);
   const blockHttpService = container.resolve(BlockHttpService);
   const signerService = container.resolve(ManagedSignerService);
   const deploymentService = container.resolve(DeploymentService);
@@ -78,6 +81,8 @@ describe("Deployments API", () => {
       transactionHash: "fake-transaction-hash",
       rawLog: "fake-raw-log"
     });
+
+    jest.spyOn(providerService, "sendManifest").mockResolvedValue(true);
   });
 
   afterEach(async () => {
@@ -139,19 +144,15 @@ describe("Deployments API", () => {
       .get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`)
       .reply(200, defaultDeploymentInfo);
 
-    nock(apiNodeUrl)
-      .persist()
-      .get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`)
-      .reply(200, {
-        leases: [
-          {
-            lease: "fake-lease-1"
-          },
-          {
-            lease: "fake-lease-2"
-          }
-        ]
-      });
+    const leases = LeaseSeeder.createMany(2, {
+      owner: address,
+      dseq,
+      state: "active"
+    });
+
+    nock(apiNodeUrl).persist().get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, {
+      leases
+    });
 
     return defaultDeploymentInfo;
   }
@@ -171,8 +172,8 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result.data).toEqual({
         deployment: expect.any(Object),
-        leases: ["fake-lease-1", "fake-lease-2"],
-        escrow_account: expect.any(Object)
+        escrow_account: expect.any(Object),
+        leases: expect.arrayContaining([expect.any(Object)])
       });
     });
 
@@ -190,8 +191,8 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result.data).toEqual({
         deployment: expect.any(Object),
-        leases: ["fake-lease-1", "fake-lease-2"],
-        escrow_account: expect.any(Object)
+        escrow_account: expect.any(Object),
+        leases: expect.arrayContaining([expect.any(Object)])
       });
     });
 
@@ -210,8 +211,8 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result.data).toEqual({
         deployment: expect.any(Object),
-        leases: ["fake-lease-1", "fake-lease-2"],
-        escrow_account: expect.any(Object)
+        escrow_account: expect.any(Object),
+        leases: expect.arrayContaining([expect.any(Object)])
       });
     });
 
@@ -544,8 +545,8 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result.data).toEqual({
         deployment: expect.any(Object),
-        leases: expect.any(Array),
-        escrow_account: expect.any(Object)
+        escrow_account: expect.any(Object),
+        leases: expect.arrayContaining([expect.any(Object)])
       });
     });
 
@@ -647,7 +648,18 @@ describe("Deployments API", () => {
 
       expect(response.status).toBe(400);
       const result = await response.json();
-      expect(result.message).toContain("Certificate must include both certPem and keyPem");
+      expect(result).toEqual({
+        data: [
+          {
+            code: "invalid_type",
+            expected: "string",
+            message: "Required",
+            path: ["data", "certificate", "keyPem"],
+            received: "undefined"
+          }
+        ],
+        error: "BadRequestError"
+      });
     });
   });
 });
