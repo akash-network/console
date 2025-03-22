@@ -87,7 +87,7 @@ export function WalletStatus() {
                   >
                     <div>
                       {!isManaged && walletBalance && <CustodialWalletPopup walletBalance={walletBalance} />}
-                      {withBilling && isManaged && walletBalance && <ManagedWalletPopup walletBalance={walletBalance} />}
+                      {withBilling && isManaged && walletBalance && <ManagedWalletPopup walletBalance={walletBalance} onClose={() => setOpen(false)} />}
                     </div>
                   </ClickAwayListener>
                 </DropdownMenuContent>

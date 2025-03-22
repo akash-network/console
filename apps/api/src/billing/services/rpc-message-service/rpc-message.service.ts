@@ -1,5 +1,12 @@
 import { GroupSpec } from "@akashnetwork/akash-api/akash/deployment/v1beta3";
-import { DepositDeploymentAuthorization, MsgCloseDeployment, MsgCreateDeployment, MsgCreateLease, MsgDepositDeployment } from "@akashnetwork/akash-api/v1beta3";
+import {
+  DepositDeploymentAuthorization,
+  MsgCloseDeployment,
+  MsgCreateDeployment,
+  MsgCreateLease,
+  MsgDepositDeployment,
+  MsgUpdateDeployment
+} from "@akashnetwork/akash-api/v1beta3";
 import { MsgExec, MsgRevoke } from "cosmjs-types/cosmos/authz/v1beta1/tx";
 import { BasicAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/feegrant";
 import { MsgGrantAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/tx";
@@ -42,6 +49,12 @@ export interface CreateLeaseMsgOptions {
   gseq: number;
   oseq: number;
   provider: string;
+}
+
+export interface UpdateDeploymentMsgOptions {
+  owner: string;
+  dseq: string;
+  version: Uint8Array;
 }
 
 export interface DepositDeploymentMsg {
@@ -236,6 +249,19 @@ export class RpcMessageService {
         cert: Buffer.from(crtpem).toString("base64"),
         pubkey: Buffer.from(pubpem).toString("base64")
       }
+    };
+  }
+
+  getUpdateDeploymentMsg({ owner, dseq, version }: UpdateDeploymentMsgOptions) {
+    return {
+      typeUrl: `/akash.deployment.v1beta3.MsgUpdateDeployment`,
+      value: MsgUpdateDeployment.fromPartial({
+        id: {
+          owner,
+          dseq
+        },
+        version
+      })
     };
   }
 }

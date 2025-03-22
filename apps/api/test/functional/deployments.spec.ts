@@ -13,12 +13,14 @@ import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.servi
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
 import { DeploymentService } from "@src/deployment/services/deployment/deployment.service";
+import { ProviderService } from "@src/deployment/services/provider/provider.service";
 import { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { apiNodeUrl, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/constants";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
+import { LeaseSeeder } from "@test/seeders/lease.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
@@ -29,6 +31,7 @@ describe("Deployments API", () => {
   const apiKeyAuthService = container.resolve(ApiKeyAuthService);
   const userWalletRepository = container.resolve(UserWalletRepository);
   const abilityService = container.resolve(AbilityService);
+  const providerService = container.resolve(ProviderService);
   const blockHttpService = container.resolve(BlockHttpService);
   const signerService = container.resolve(ManagedSignerService);
   const deploymentService = container.resolve(DeploymentService);
@@ -78,6 +81,8 @@ describe("Deployments API", () => {
       transactionHash: "fake-transaction-hash",
       rawLog: "fake-raw-log"
     });
+
+    jest.spyOn(providerService, "sendManifest").mockResolvedValue(true);
   });
 
   afterEach(async () => {
@@ -139,19 +144,15 @@ describe("Deployments API", () => {
       .get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`)
       .reply(200, defaultDeploymentInfo);
 
-    nock(apiNodeUrl)
-      .persist()
-      .get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`)
-      .reply(200, {
-        leases: [
-          {
-            lease: "fake-lease-1"
-          },
-          {
-            lease: "fake-lease-2"
-          }
-        ]
-      });
+    const leases = LeaseSeeder.createMany(2, {
+      owner: address,
+      dseq,
+      state: "active"
+    });
+
+    nock(apiNodeUrl).persist().get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, {
+      leases
+    });
 
     return defaultDeploymentInfo;
   }
@@ -171,8 +172,8 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result.data).toEqual({
         deployment: expect.any(Object),
-        leases: ["fake-lease-1", "fake-lease-2"],
-        escrow_account: expect.any(Object)
+        escrow_account: expect.any(Object),
+        leases: expect.arrayContaining([expect.any(Object)])
       });
     });
 
@@ -190,8 +191,8 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result.data).toEqual({
         deployment: expect.any(Object),
-        leases: ["fake-lease-1", "fake-lease-2"],
-        escrow_account: expect.any(Object)
+        escrow_account: expect.any(Object),
+        leases: expect.arrayContaining([expect.any(Object)])
       });
     });
 
@@ -210,8 +211,8 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result.data).toEqual({
         deployment: expect.any(Object),
-        leases: ["fake-lease-1", "fake-lease-2"],
-        escrow_account: expect.any(Object)
+        escrow_account: expect.any(Object),
+        leases: expect.arrayContaining([expect.any(Object)])
       });
     });
 
@@ -507,6 +508,158 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(400);
+    });
+  });
+
+  describe("PUT /v1/deployments/{dseq}", () => {
+    it("should update a deployment successfully", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const dseq = "1234";
+      setupDeploymentInfoMock(wallets, dseq);
+
+      const mockTxResult = {
+        code: 0,
+        hash: "test-hash",
+        rawLog: "success"
+      };
+
+      jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          data: {
+            sdl: yml,
+            certificate: {
+              certPem: "test-cert-pem",
+              keyPem: "test-key-pem"
+            }
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data).toEqual({
+        deployment: expect.any(Object),
+        escrow_account: expect.any(Object),
+        leases: expect.arrayContaining([expect.any(Object)])
+      });
+    });
+
+    it("should return 404 if deployment does not exist", async () => {
+      const { userApiKeySecret } = await mockUser();
+      const dseq = "1234";
+
+      jest.spyOn(deploymentService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          data: {
+            sdl: yml,
+            certificate: {
+              certPem: "test-cert-pem",
+              keyPem: "test-key-pem"
+            }
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(404);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "NotFoundError",
+        message: "Deployment not found"
+      });
+    });
+
+    it("should return 401 for an unauthenticated request", async () => {
+      const response = await app.request("/v1/deployments/1234", {
+        method: "PUT",
+        body: JSON.stringify({
+          data: {
+            sdl: "test-sdl",
+            certificate: {
+              certPem: "test-cert-pem",
+              keyPem: "test-key-pem"
+            }
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json" })
+      });
+
+      expect(response.status).toBe(401);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "UnauthorizedError",
+        message: "Unauthorized"
+      });
+    });
+
+    it("should return 400 if SDL is invalid", async () => {
+      const { userApiKeySecret } = await mockUser();
+      const dseq = "1234";
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          data: {
+            sdl: "invalid-sdl",
+            certificate: {
+              certPem: "test-cert-pem",
+              keyPem: "test-key-pem"
+            }
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = await response.json();
+      expect(result.message).toContain("Invalid SDL");
+    });
+
+    it("should return 400 if certificate is missing required fields", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const dseq = "1234";
+      setupDeploymentInfoMock(wallets, dseq);
+
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          data: {
+            sdl: yml,
+            certificate: {
+              certPem: "test-cert-pem"
+            }
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      const result = await response.json();
+      expect(result).toEqual({
+        data: [
+          {
+            code: "invalid_type",
+            expected: "string",
+            message: "Required",
+            path: ["data", "certificate", "keyPem"],
+            received: "undefined"
+          }
+        ],
+        error: "BadRequestError"
+      });
     });
   });
 });

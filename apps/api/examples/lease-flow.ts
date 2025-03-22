@@ -6,7 +6,9 @@
  * 2. Creates a deployment using the provided SDL file
  * 3. Waits for and collects bids from providers
  * 4. Creates a lease using the first received bid
- * 5. Closes the deployment when finished
+ * 5. Deposits into the deployment
+ * 6. Updates the deployment
+ * 7. Closes the deployment when finished
  *
  * Requirements:
  * - API_KEY environment variable must be set
@@ -170,6 +172,34 @@ async function main() {
       }
     );
     console.log("Deposit successful: ", depositResponse.data.data.escrow_account);
+
+    // Load the updated SDL file
+    const updatedYml = fs.readFileSync(path.resolve(__dirname, "./hello-world-sdl-update.yml"), "utf8");
+
+    // Update deployment
+    console.log("Updating deployment...");
+    const updateResponse = await api.put(
+      `/v1/deployments/${dseq}`,
+      {
+        data: {
+          sdl: updatedYml,
+          certificate: {
+            certPem,
+            keyPem: encryptedKey
+          }
+        }
+      },
+      {
+        headers: {
+          "x-api-key": apiKey
+        }
+      }
+    );
+
+    if (updateResponse.status !== 200) {
+      throw new Error(`Failed to update deployment: ${updateResponse.statusText}`);
+    }
+    console.log("Deployment updated successfully");
 
     // 7. Close deployment
     console.log("Closing deployment...");
