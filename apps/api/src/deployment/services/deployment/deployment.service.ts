@@ -111,8 +111,8 @@ export class DeploymentService {
     return await this.findByOwnerAndDseq(wallet.address, dseq);
   }
 
-  public async update(wallet: UserWalletOutput, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
-    const { sdl, dseq, certificate } = input;
+  public async update(wallet: UserWalletOutput, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
+    const { sdl, certificate } = input;
 
     if (!this.sdlService.validateSdl(sdl)) {
       throw new BadRequest("Invalid SDL");

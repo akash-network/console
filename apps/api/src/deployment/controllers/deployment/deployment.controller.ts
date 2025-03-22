@@ -76,13 +76,13 @@ export class DeploymentController {
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
-  async update(input: UpdateDeploymentRequest["data"]): Promise<UpdateDeploymentResponse> {
+  async update(dseq: string, input: UpdateDeploymentRequest["data"]): Promise<UpdateDeploymentResponse> {
     const { currentUser, ability } = this.authService;
 
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    const result = await this.deploymentService.update(userWallet, input);
+    const result = await this.deploymentService.update(userWallet, dseq, input);
 
     return { data: result };
   }
