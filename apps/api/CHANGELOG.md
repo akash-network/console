@@ -1,5 +1,12 @@
 
 
+## [2.75.3](https://github.com/akash-network/console/compare/console-api/v2.75.2...console-api/v2.75.3) (2025-03-24)
+
+
+### Bug Fixes
+
+* **deployment:** sign up for trial ([#1098](https://github.com/akash-network/console/issues/1098)) ([777340d](https://github.com/akash-network/console/commit/777340da91505a3dd1754ee5aea4e9d9f47f8108))
+
 ## [2.75.2](https://github.com/akash-network/console/compare/console-api/v2.75.1...console-api/v2.75.2) (2025-03-20)
 
 
