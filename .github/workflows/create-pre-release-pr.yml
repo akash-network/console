@@ -14,7 +14,7 @@ permissions:
   pull-requests: write
 
 env:
-  NODE_VERSION: 20.14.0
+  NODE_VERSION: 22.14.0
   RELEASE_BRANCH: release/bumps
   BASE_BRANCH: main
 

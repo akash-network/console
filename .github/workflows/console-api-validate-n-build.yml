@@ -30,26 +30,11 @@ jobs:
             api:
               - 'apps/api/**'
               - *local_deps
-      - name: Setup Node.js
-        if: steps.filter.outputs.api == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.14.0
 
-      - name: Restore root node_modules cache
+      - uses: ./.github/actions/setup-app-deps
         if: steps.filter.outputs.api == 'true'
-        uses: actions/cache@v4
-        id: cache
         with:
-          path: |
-            node_modules
-            apps/api/node_modules
-            packages/*/node_modules
-          key: api-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
-      - name: Install dependencies
-        if: steps.filter.outputs.api == 'true' && steps.cache.outputs.cache-hit != 'true'
-        run: npm ci
+          app: api
 
       - name: Run static code analysis
         if: steps.filter.outputs.api == 'true'
