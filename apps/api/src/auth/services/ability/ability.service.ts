@@ -11,7 +11,7 @@ export class AbilityService {
 
   private readonly RULES: Record<Role, RawRule[]> = {
     REGULAR_ANONYMOUS_USER: [
-      { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
+      { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
       { action: "read", subject: "User", conditions: { id: "${user.id}" } },
       { action: "manage", subject: "DeploymentSetting", conditions: { userId: "${user.id}" } }
     ],
