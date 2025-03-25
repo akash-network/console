@@ -31,17 +31,18 @@ const SettingsPage: React.FC = () => {
   const [upgradeMessage, setUpgradeMessage] = useState("");
   const [providerUpgradeMessage, setProviderUpgradeMessage] = useState("");
   const [upgradeStatus, setUpgradeStatus] = useState<{
-    needsUpgrade: boolean;
-    appVersion: { current: string; desired: string; needsUpgrade: boolean };
-    chartVersion: { current: string; desired: string; needsUpgrade: boolean };
-  } | null>(null);
-  const [providerUpgradeStatus, setProviderUpgradeStatus] = useState<{
-    needsUpgrade: boolean;
-    currentVersion: string;
-    desiredVersion: string;
+    node: {
+      needsUpgrade: boolean;
+      appVersion: { current: string; desired: string; needsUpgrade: boolean };
+      chartVersion: { current: string; desired: string; needsUpgrade: boolean };
+    };
+    provider: {
+      needsUpgrade: boolean;
+      appVersion: { current: string; desired: string; needsUpgrade: boolean };
+      chartVersion: { current: string; desired: string; needsUpgrade: boolean };
+    };
   } | null>(null);
   const [isUpgradeStatusLoading, setIsUpgradeStatusLoading] = useState(false);
-  const [isProviderUpgradeStatusLoading, setIsProviderUpgradeStatusLoading] = useState(false);
 
   const { providerDetails } = useProvider();
   const { activeControlMachine } = useControlMachine();
@@ -50,7 +51,7 @@ const SettingsPage: React.FC = () => {
 
   const isDisabled = !activeControlMachine;
 
-  const fetchNodeUpgradeStatus = async () => {
+  const fetchUpgradeStatus = async () => {
     if (!activeControlMachine) return;
 
     try {
@@ -59,23 +60,45 @@ const SettingsPage: React.FC = () => {
         control_machine: sanitizeMachineAccess(activeControlMachine)
       };
       const response: {
-        needs_upgrade: boolean;
-        app_version: { current: string; desired: string; needs_upgrade: boolean };
-        chart_version: { current: string; desired: string; needs_upgrade: boolean };
-      } = await restClient.post("/network/upgrade-status", request);
+        node: {
+          needs_upgrade: boolean;
+          app_version: { current: string; desired: string; needs_upgrade: boolean };
+          chart_version: { current: string; desired: string; needs_upgrade: boolean };
+        };
+        provider: {
+          needs_upgrade: boolean;
+          app_version: { current: string; desired: string; needs_upgrade: boolean };
+          chart_version: { current: string; desired: string; needs_upgrade: boolean };
+        };
+      } = await restClient.post("/upgrade-status", request);
 
       if (response) {
         setUpgradeStatus({
-          needsUpgrade: response.needs_upgrade,
-          appVersion: {
-            current: response.app_version.current,
-            desired: response.app_version.desired,
-            needsUpgrade: response.app_version.needs_upgrade
+          node: {
+            needsUpgrade: response.node.needs_upgrade,
+            appVersion: {
+              current: response.node.app_version.current,
+              desired: response.node.app_version.desired,
+              needsUpgrade: response.node.app_version.needs_upgrade
+            },
+            chartVersion: {
+              current: response.node.chart_version.current,
+              desired: response.node.chart_version.desired,
+              needsUpgrade: response.node.chart_version.needs_upgrade
+            }
           },
-          chartVersion: {
-            current: response.chart_version.current,
-            desired: response.chart_version.desired,
-            needsUpgrade: response.chart_version.needs_upgrade
+          provider: {
+            needsUpgrade: response.provider.needs_upgrade,
+            appVersion: {
+              current: response.provider.app_version.current,
+              desired: response.provider.app_version.desired,
+              needsUpgrade: response.provider.app_version.needs_upgrade
+            },
+            chartVersion: {
+              current: response.provider.chart_version.current,
+              desired: response.provider.chart_version.desired,
+              needsUpgrade: response.provider.chart_version.needs_upgrade
+            }
           }
         });
       }
@@ -86,37 +109,8 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const fetchProviderUpgradeStatus = async () => {
-    if (!activeControlMachine) return;
-
-    try {
-      setIsProviderUpgradeStatusLoading(true);
-      const request = {
-        control_machine: sanitizeMachineAccess(activeControlMachine)
-      };
-      const response: {
-        needs_upgrade: boolean;
-        current_version: string;
-        desired_version: string;
-      } = await restClient.post("/provider/upgrade-status", request);
-
-      if (response) {
-        setProviderUpgradeStatus({
-          needsUpgrade: response.needs_upgrade,
-          currentVersion: response.current_version,
-          desiredVersion: response.desired_version
-        });
-      }
-    } catch (error) {
-      console.error("Failed to fetch provider upgrade status:", error);
-    } finally {
-      setIsProviderUpgradeStatusLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchNodeUpgradeStatus();
-    fetchProviderUpgradeStatus();
+    fetchUpgradeStatus();
   }, [activeControlMachine]);
 
   const handleUrlUpdate = async () => {
@@ -155,40 +149,8 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const upgradeProvider = async () => {
-    if (!activeControlMachine || !providerUpgradeStatus?.needsUpgrade) return;
-
-    try {
-      setIsProviderUpgrading(true);
-      const request = {
-        control_machine: sanitizeMachineAccess(activeControlMachine)
-      };
-      const response: { message: string; action_id: string } = await restClient.post("/provider/upgrade", request);
-
-      if (response) {
-        setProviderUpgradeMessage(response.message);
-        setProviderUpgradeSuccess(true);
-
-        if (response.action_id) {
-          // Navigate to activity logs page with the action ID
-          router.push(`/activity-logs/${response.action_id}`);
-        } else {
-          // If no action_id, just show success message temporarily
-          setTimeout(() => setProviderUpgradeSuccess(false), 20000);
-        }
-
-        // Refresh upgrade status after a delay
-        setTimeout(() => fetchProviderUpgradeStatus(), 5000);
-      }
-    } catch (error) {
-      console.error("Failed to upgrade provider:", error);
-    } finally {
-      setIsProviderUpgrading(false);
-    }
-  };
-
   const upgradeAkashNode = async () => {
-    if (!activeControlMachine || !upgradeStatus?.needsUpgrade) return;
+    if (!activeControlMachine || !upgradeStatus?.node.needsUpgrade) return;
 
     try {
       setIsNodeUpgrading(true);
@@ -210,7 +172,7 @@ const SettingsPage: React.FC = () => {
         }
 
         // Refresh upgrade status after a delay
-        setTimeout(() => fetchNodeUpgradeStatus(), 5000);
+        setTimeout(() => fetchUpgradeStatus(), 5000);
       }
     } catch (error) {
       console.error("Failed to upgrade Akash node:", error);
@@ -219,18 +181,65 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  // Helper function to determine upgrade reason
-  const getUpgradeReason = () => {
-    if (!upgradeStatus?.needsUpgrade) return null;
+  const upgradeProvider = async () => {
+    if (!activeControlMachine || !upgradeStatus?.provider.needsUpgrade) return;
+
+    try {
+      setIsProviderUpgrading(true);
+      const request = {
+        control_machine: sanitizeMachineAccess(activeControlMachine)
+      };
+      const response: { message: string; action_id: string } = await restClient.post("/provider/upgrade", request);
+
+      if (response) {
+        setProviderUpgradeMessage(response.message);
+        setProviderUpgradeSuccess(true);
+
+        if (response.action_id) {
+          // Navigate to activity logs page with the action ID
+          router.push(`/activity-logs/${response.action_id}`);
+        } else {
+          // If no action_id, just show success message temporarily
+          setTimeout(() => setProviderUpgradeSuccess(false), 20000);
+        }
+
+        // Refresh upgrade status after a delay
+        setTimeout(() => fetchUpgradeStatus(), 5000);
+      }
+    } catch (error) {
+      console.error("Failed to upgrade provider:", error);
+    } finally {
+      setIsProviderUpgrading(false);
+    }
+  };
+
+  const getNodeUpgradeReason = () => {
+    if (!upgradeStatus?.node.needsUpgrade) return null;
 
     const reasons: string[] = [];
 
-    if (upgradeStatus.appVersion.needsUpgrade) {
-      reasons.push(`application version (${upgradeStatus.appVersion.current} → ${upgradeStatus.appVersion.desired})`);
+    if (upgradeStatus.node.appVersion.needsUpgrade) {
+      reasons.push(`application version (${upgradeStatus.node.appVersion.current} → ${upgradeStatus.node.appVersion.desired})`);
     }
 
-    if (upgradeStatus.chartVersion.needsUpgrade) {
-      reasons.push(`chart version (${upgradeStatus.chartVersion.current} → ${upgradeStatus.chartVersion.desired})`);
+    if (upgradeStatus.node.chartVersion.needsUpgrade) {
+      reasons.push(`chart version (${upgradeStatus.node.chartVersion.current} → ${upgradeStatus.node.chartVersion.desired})`);
+    }
+
+    return reasons.length > 0 ? `Update available for ${reasons.join(" and ")}` : null;
+  };
+
+  const getProviderUpgradeReason = () => {
+    if (!upgradeStatus?.provider.needsUpgrade) return null;
+
+    const reasons: string[] = [];
+
+    if (upgradeStatus.provider.appVersion.needsUpgrade) {
+      reasons.push(`application version (${upgradeStatus.provider.appVersion.current} → ${upgradeStatus.provider.appVersion.desired})`);
+    }
+
+    if (upgradeStatus.provider.chartVersion.needsUpgrade) {
+      reasons.push(`chart version (${upgradeStatus.provider.chartVersion.current} → ${upgradeStatus.provider.chartVersion.desired})`);
     }
 
     return reasons.length > 0 ? `Update available for ${reasons.join(" and ")}` : null;
@@ -273,11 +282,11 @@ const SettingsPage: React.FC = () => {
                 <div className="flex-1 rounded-md border p-3">
                   <h3 className="text-muted-foreground text-sm font-medium">Akash Node Version</h3>
                   <div className="mt-1 flex items-center">
-                    <span className="text-base font-semibold">{upgradeStatus.appVersion.current}</span>
-                    {upgradeStatus.appVersion.needsUpgrade && (
+                    <span className="text-base font-semibold">{upgradeStatus.node.appVersion.current}</span>
+                    {upgradeStatus.node.appVersion.needsUpgrade && (
                       <span className="ml-2 flex items-center text-xs text-amber-500">
                         <ArrowUp className="mr-1 h-3 w-3" />
-                        {upgradeStatus.appVersion.desired}
+                        {upgradeStatus.node.appVersion.desired}
                       </span>
                     )}
                   </div>
@@ -285,24 +294,24 @@ const SettingsPage: React.FC = () => {
                 <div className="flex-1 rounded-md border p-3">
                   <h3 className="text-muted-foreground text-sm font-medium">Chart Version</h3>
                   <div className="mt-1 flex items-center">
-                    <span className="text-base font-semibold">{upgradeStatus.chartVersion.current}</span>
-                    {upgradeStatus.chartVersion.needsUpgrade && (
+                    <span className="text-base font-semibold">{upgradeStatus.node.chartVersion.current}</span>
+                    {upgradeStatus.node.chartVersion.needsUpgrade && (
                       <span className="ml-2 flex items-center text-xs text-amber-500">
                         <ArrowUp className="mr-1 h-3 w-3" />
-                        {upgradeStatus.chartVersion.desired}
+                        {upgradeStatus.node.chartVersion.desired}
                       </span>
                     )}
                   </div>
                 </div>
               </div>
 
-              {upgradeStatus.needsUpgrade ? (
+              {upgradeStatus.node.needsUpgrade ? (
                 <>
                   <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-start">
                       <WarningTriangle className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
                       <div>
-                        <p className="font-medium text-amber-800">{getUpgradeReason()}</p>
+                        <p className="font-medium text-amber-800">{getNodeUpgradeReason()}</p>
                         {/* <p className="text-sm text-amber-700 mt-1">Upgarding may cause temporary service interruption for bid engine.</p> */}
                       </div>
                     </div>
@@ -347,37 +356,47 @@ const SettingsPage: React.FC = () => {
           <h2 className="text-xl font-semibold">Upgrade Provider</h2>
           <p className="text-muted-foreground mt-2">Upgrade your provider to the latest version.</p>
 
-          {isProviderUpgradeStatusLoading ? (
+          {isUpgradeStatusLoading ? (
             <div className="mt-4 flex items-center">
               <div className="border-primary mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"></div>
               <span>Checking for upgrades...</span>
             </div>
-          ) : providerUpgradeStatus ? (
+          ) : upgradeStatus ? (
             <div className="mt-4">
               <div className="mb-4 flex gap-4">
                 <div className="flex-1 rounded-md border p-3">
                   <h3 className="text-muted-foreground text-sm font-medium">Provider Version</h3>
                   <div className="mt-1 flex items-center">
-                    <span className="text-base font-semibold">{providerUpgradeStatus.currentVersion}</span>
-                    {providerUpgradeStatus.needsUpgrade && (
+                    <span className="text-base font-semibold">{upgradeStatus.provider.appVersion.current}</span>
+                    {upgradeStatus.provider.appVersion.needsUpgrade && (
                       <span className="ml-2 flex items-center text-xs text-amber-500">
                         <ArrowUp className="mr-1 h-3 w-3" />
-                        {providerUpgradeStatus.desiredVersion}
+                        {upgradeStatus.provider.appVersion.desired}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1 rounded-md border p-3">
+                  <h3 className="text-muted-foreground text-sm font-medium">Chart Version</h3>
+                  <div className="mt-1 flex items-center">
+                    <span className="text-base font-semibold">{upgradeStatus.provider.chartVersion.current}</span>
+                    {upgradeStatus.provider.chartVersion.needsUpgrade && (
+                      <span className="ml-2 flex items-center text-xs text-amber-500">
+                        <ArrowUp className="mr-1 h-3 w-3" />
+                        {upgradeStatus.provider.chartVersion.desired}
                       </span>
                     )}
                   </div>
                 </div>
               </div>
 
-              {providerUpgradeStatus.needsUpgrade ? (
+              {upgradeStatus.provider.needsUpgrade ? (
                 <>
                   <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-start">
                       <WarningTriangle className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
                       <div>
-                        <p className="font-medium text-amber-800">
-                          Update available for provider version ({providerUpgradeStatus.currentVersion} → {providerUpgradeStatus.desiredVersion})
-                        </p>
+                        <p className="font-medium text-amber-800">{getProviderUpgradeReason()}</p>
                       </div>
                     </div>
                   </div>
