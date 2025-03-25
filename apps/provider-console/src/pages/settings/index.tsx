@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Input } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
+import { ArrowUp, CheckCircle, Refresh, WarningTriangle } from "iconoir-react";
 import { useRouter } from "next/router";
 import { z } from "zod";
 
@@ -24,14 +25,23 @@ const SettingsPage: React.FC = () => {
   const [isRestartLoading, setIsRestartLoading] = useState(false);
   const [restartSuccess, setRestartSuccess] = useState(false);
   const [nodeUpgradeSuccess, setNodeUpgradeSuccess] = useState(false);
+  const [providerUpgradeSuccess, setProviderUpgradeSuccess] = useState(false);
+  const [isNodeUpgrading, setIsNodeUpgrading] = useState(false);
+  const [isProviderUpgrading, setIsProviderUpgrading] = useState(false);
+  const [upgradeMessage, setUpgradeMessage] = useState("");
+  const [providerUpgradeMessage, setProviderUpgradeMessage] = useState("");
   const [upgradeStatus, setUpgradeStatus] = useState<{
     needsUpgrade: boolean;
     appVersion: { current: string; desired: string; needsUpgrade: boolean };
     chartVersion: { current: string; desired: string; needsUpgrade: boolean };
   } | null>(null);
+  const [providerUpgradeStatus, setProviderUpgradeStatus] = useState<{
+    needsUpgrade: boolean;
+    currentVersion: string;
+    desiredVersion: string;
+  } | null>(null);
   const [isUpgradeStatusLoading, setIsUpgradeStatusLoading] = useState(false);
-  const [isNodeUpgrading, setIsNodeUpgrading] = useState(false);
-  const [upgradeMessage, setUpgradeMessage] = useState("");
+  const [isProviderUpgradeStatusLoading, setIsProviderUpgradeStatusLoading] = useState(false);
 
   const { providerDetails } = useProvider();
   const { activeControlMachine } = useControlMachine();
@@ -40,7 +50,7 @@ const SettingsPage: React.FC = () => {
 
   const isDisabled = !activeControlMachine;
 
-  const fetchUpgradeStatus = async () => {
+  const fetchNodeUpgradeStatus = async () => {
     if (!activeControlMachine) return;
 
     try {
@@ -76,8 +86,37 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  const fetchProviderUpgradeStatus = async () => {
+    if (!activeControlMachine) return;
+
+    try {
+      setIsProviderUpgradeStatusLoading(true);
+      const request = {
+        control_machine: sanitizeMachineAccess(activeControlMachine)
+      };
+      const response: {
+        needs_upgrade: boolean;
+        current_version: string;
+        desired_version: string;
+      } = await restClient.post("/provider/upgrade-status", request);
+
+      if (response) {
+        setProviderUpgradeStatus({
+          needsUpgrade: response.needs_upgrade,
+          currentVersion: response.current_version,
+          desiredVersion: response.desired_version
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch provider upgrade status:", error);
+    } finally {
+      setIsProviderUpgradeStatusLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchUpgradeStatus();
+    fetchNodeUpgradeStatus();
+    fetchProviderUpgradeStatus();
   }, [activeControlMachine]);
 
   const handleUrlUpdate = async () => {
@@ -116,9 +155,36 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const upgradeProvider = () => {
-    // Original upgrade provider function
-    // TODO: call upgrade provider api here
+  const upgradeProvider = async () => {
+    if (!activeControlMachine || !providerUpgradeStatus?.needsUpgrade) return;
+
+    try {
+      setIsProviderUpgrading(true);
+      const request = {
+        control_machine: sanitizeMachineAccess(activeControlMachine)
+      };
+      const response: { message: string; action_id: string } = await restClient.post("/provider/upgrade", request);
+
+      if (response) {
+        setProviderUpgradeMessage(response.message);
+        setProviderUpgradeSuccess(true);
+
+        if (response.action_id) {
+          // Navigate to activity logs page with the action ID
+          router.push(`/activity-logs/${response.action_id}`);
+        } else {
+          // If no action_id, just show success message temporarily
+          setTimeout(() => setProviderUpgradeSuccess(false), 20000);
+        }
+
+        // Refresh upgrade status after a delay
+        setTimeout(() => fetchProviderUpgradeStatus(), 5000);
+      }
+    } catch (error) {
+      console.error("Failed to upgrade provider:", error);
+    } finally {
+      setIsProviderUpgrading(false);
+    }
   };
 
   const upgradeAkashNode = async () => {
@@ -144,7 +210,7 @@ const SettingsPage: React.FC = () => {
         }
 
         // Refresh upgrade status after a delay
-        setTimeout(() => fetchUpgradeStatus(), 5000);
+        setTimeout(() => fetchNodeUpgradeStatus(), 5000);
       }
     } catch (error) {
       console.error("Failed to upgrade Akash node:", error);
@@ -210,21 +276,7 @@ const SettingsPage: React.FC = () => {
                     <span className="text-base font-semibold">{upgradeStatus.appVersion.current}</span>
                     {upgradeStatus.appVersion.needsUpgrade && (
                       <span className="ml-2 flex items-center text-xs text-amber-500">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="mr-1"
-                        >
-                          <path d="m6 9 6-6 6 6"></path>
-                          <path d="M12 3v18"></path>
-                        </svg>
+                        <ArrowUp className="mr-1 h-3 w-3" />
                         {upgradeStatus.appVersion.desired}
                       </span>
                     )}
@@ -236,21 +288,7 @@ const SettingsPage: React.FC = () => {
                     <span className="text-base font-semibold">{upgradeStatus.chartVersion.current}</span>
                     {upgradeStatus.chartVersion.needsUpgrade && (
                       <span className="ml-2 flex items-center text-xs text-amber-500">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="mr-1"
-                        >
-                          <path d="m6 9 6-6 6 6"></path>
-                          <path d="M12 3v18"></path>
-                        </svg>
+                        <ArrowUp className="mr-1 h-3 w-3" />
                         {upgradeStatus.chartVersion.desired}
                       </span>
                     )}
@@ -262,22 +300,7 @@ const SettingsPage: React.FC = () => {
                 <>
                   <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-start">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="mr-2 mt-0.5 text-amber-500"
-                      >
-                        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                      </svg>
+                      <WarningTriangle className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
                       <div>
                         <p className="font-medium text-amber-800">{getUpgradeReason()}</p>
                         {/* <p className="text-sm text-amber-700 mt-1">Upgarding may cause temporary service interruption for bid engine.</p> */}
@@ -287,7 +310,7 @@ const SettingsPage: React.FC = () => {
                   <Button onClick={upgradeAkashNode} className="mt-2" disabled={isDisabled || isNodeUpgrading}>
                     {isNodeUpgrading ? (
                       <>
-                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        <Refresh className="mr-2 h-4 w-4 animate-spin" />
                         Upgrading...
                       </>
                     ) : (
@@ -298,21 +321,7 @@ const SettingsPage: React.FC = () => {
               ) : (
                 <div className="mb-4 rounded-md border p-3">
                   <div className="flex items-start">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="mr-2 mt-0.5 text-green-500"
-                    >
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
+                    <CheckCircle className="mr-2 mt-0.5 h-5 w-5 text-green-500" />
                     <div>
                       <p className="font-medium text-green-800">Your Akash Node is up to date</p>
                       <p className="mt-1 text-sm text-green-700">The upgrade button will be enabled when a new version is available.</p>
@@ -337,9 +346,75 @@ const SettingsPage: React.FC = () => {
         <div className="rounded-lg border p-6">
           <h2 className="text-xl font-semibold">Upgrade Provider</h2>
           <p className="text-muted-foreground mt-2">Upgrade your provider to the latest version.</p>
-          <Button onClick={() => upgradeProvider()} className="mt-4" variant="outline" disabled={isDisabled}>
-            Upgrade Provider
-          </Button>
+
+          {isProviderUpgradeStatusLoading ? (
+            <div className="mt-4 flex items-center">
+              <div className="border-primary mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"></div>
+              <span>Checking for upgrades...</span>
+            </div>
+          ) : providerUpgradeStatus ? (
+            <div className="mt-4">
+              <div className="mb-4 flex gap-4">
+                <div className="flex-1 rounded-md border p-3">
+                  <h3 className="text-muted-foreground text-sm font-medium">Provider Version</h3>
+                  <div className="mt-1 flex items-center">
+                    <span className="text-base font-semibold">{providerUpgradeStatus.currentVersion}</span>
+                    {providerUpgradeStatus.needsUpgrade && (
+                      <span className="ml-2 flex items-center text-xs text-amber-500">
+                        <ArrowUp className="mr-1 h-3 w-3" />
+                        {providerUpgradeStatus.desiredVersion}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {providerUpgradeStatus.needsUpgrade ? (
+                <>
+                  <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <div className="flex items-start">
+                      <WarningTriangle className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
+                      <div>
+                        <p className="font-medium text-amber-800">
+                          Update available for provider version ({providerUpgradeStatus.currentVersion} → {providerUpgradeStatus.desiredVersion})
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <Button onClick={upgradeProvider} className="mt-2" disabled={isDisabled || isProviderUpgrading}>
+                    {isProviderUpgrading ? (
+                      <>
+                        <Refresh className="mr-2 h-4 w-4 animate-spin" />
+                        Upgrading...
+                      </>
+                    ) : (
+                      "Upgrade Provider"
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <div className="mb-4 rounded-md border p-3">
+                  <div className="flex items-start">
+                    <CheckCircle className="mr-2 mt-0.5 h-5 w-5 text-green-500" />
+                    <div>
+                      <p className="font-medium text-green-800">Your Provider is up to date</p>
+                      <p className="mt-1 text-sm text-green-700">The upgrade button will be enabled when a new version is available.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {providerUpgradeSuccess && (
+                <div className="mt-4 rounded-md border border-green-200 bg-green-50 p-3">
+                  <p className="text-green-800">{providerUpgradeMessage || "Provider upgrade started successfully"}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="mt-4 rounded-md border border-yellow-200 bg-yellow-50 p-3">
+              <p className="text-yellow-800">Unable to check upgrade status. Please ensure your control machine is connected.</p>
+            </div>
+          )}
         </div>
 
         <div className="rounded-lg border p-6">
