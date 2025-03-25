@@ -54,6 +54,12 @@ jobs:
           fetch-depth: 0
           ref: ${{ env.BASE_BRANCH }}
 
+      - name: Get Base Branch SHA
+        id: get-base-sha
+        run: |
+          echo "Getting base branch SHA..."
+          echo "base_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -78,31 +84,30 @@ jobs:
           npm run release -w apps/deploy-web -- --verbose --ci
           npm run release -w apps/provider-proxy -- --verbose --ci
           npm run release -w apps/provider-console -- --verbose --ci
+          npm run release -w apps/stats-web -- --verbose --ci
 
           # update package-lock.json with new versions
           npm install --package-lock-only
 
-      - name: Get Base Branch SHA
-        id: get-base-sha
-        run: |
-          echo "Getting base branch SHA..."
-          SHA=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/git/refs/heads/${{ env.BASE_BRANCH }}" | \
-            jq -r .object.sha)
-          echo "base_sha=$SHA" >> $GITHUB_ENV
-
       - name: Check Existing PR
         id: check-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Checking for existing PR..."
-          PR_NUMBER=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:${{ env.RELEASE_BRANCH }}&state=open" | \
-            jq '.[0].number')
+          PR_NUMBER=$(gh pr list \
+            --base "${{ env.BASE_BRANCH }}" \
+            --head "${{ github.repository_owner }}:${{ env.RELEASE_BRANCH }}" \
+            --state open \
+            --limit 1 \
+            --json id \
+            --jq ".[0].number")
           echo "pr_number=$PR_NUMBER" >> $GITHUB_ENV
 
       - name: Commit Changes
         run: |
           echo "Creating release commit..."
+          BASE_SHA="${{ steps.get-base-sha.outputs.base_sha }}"
           FILES_CHANGED=$(git status --porcelain | awk '{print $2}')
           TREE_ITEMS="["
           COMMA=""
@@ -114,16 +119,13 @@ jobs:
           done
           TREE_ITEMS="${TREE_ITEMS}]"
 
-          echo "{\"base_tree\":\"${{ env.base_sha }}\",\"tree\":${TREE_ITEMS}}" > tree_payload.json
-
-          TREE_SHA=$(curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -d @tree_payload.json \
+          TREE_SHA=$(echo "{\"base_tree\":\"${BASE_SHA}\",\"tree\":${TREE_ITEMS}}" | \
+            curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -d @- \
             "https://api.github.com/repos/${{ github.repository }}/git/trees" | jq -r .sha)
 
-          rm tree_payload.json
-
           COMMIT_SHA=$(curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -d "{\"message\":\"chore(release): update versions and changelogs\",\"tree\":\"${TREE_SHA}\",\"parents\":[\"${{ env.base_sha }}\"]}" \
+            -d "{\"message\":\"chore(release): update versions and changelogs\",\"tree\":\"${TREE_SHA}\",\"parents\":[\"${BASE_SHA}\"]}" \
             "https://api.github.com/repos/${{ github.repository }}/git/commits" | jq -r .sha)
 
           BRANCH_RESPONSE=$(curl -s -X PATCH -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
