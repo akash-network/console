@@ -88,7 +88,7 @@
     "monaco-editor": "^0.52.2",
     "murmurhash": "^2.0.1",
     "nanoid": "^3.3.4",
-    "next": "^14.2.18",
+    "next": "^14.2.25",
     "next-nprogress-bar": "^2.1.2",
     "next-pwa": "^5.6.0",
     "next-qrcode": "^2.1.0",
