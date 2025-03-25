@@ -1,16 +1,18 @@
-import "nprogress/nprogress.css";
 import "@akashnetwork/ui/styles";
+import "nprogress/nprogress.css";
 import "../styles/index.css";
 
 import React from "react";
-import { QueryClientProvider as LegacyQueryClientProvider } from "react-query";
+import { dehydrate, Hydrate, QueryClient as LegacyQueryClient, QueryClientProvider as LegacyQueryClientProvider } from "react-query";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
 import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
 import { QueryClientProvider } from "@tanstack/react-query";
+import axios from "axios";
 import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
+import { GetServerSideProps } from "next";
 import { AppProps } from "next/app";
 import Router from "next/router";
 import { NextSeoProps } from "next-seo/lib/types";
@@ -33,6 +35,8 @@ import { ServicesProvider } from "@src/context/ServicesProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
 import { legacyQueryClient, queryClient } from "@src/queries";
+import { prefetchFeatureFlags } from "@src/queries/featureFlags";
+import { serverApiUrlService } from "@src/services/api-url/server-api-url.service";
 import { store } from "@src/store/global-store";
 
 interface Props extends AppProps {
@@ -61,40 +65,42 @@ const App: React.FunctionComponent<Props> = props => {
           <CustomIntlProvider>
             <LegacyQueryClientProvider client={legacyQueryClient}>
               <QueryClientProvider client={queryClient}>
-                <JotaiProvider store={store}>
-                  <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
-                    <ColorModeProvider>
-                      <CustomSnackbarProvider>
-                        <GoogleAnalytics />
-                        <UserProviders>
-                          <PricingProvider>
-                            <TooltipProvider>
-                              <SettingsProvider>
-                                <CustomChainProvider>
-                                  <PopupProvider>
-                                    <WalletProvider>
-                                      <ChainParamProvider>
-                                        <CertificateProvider>
-                                          <BackgroundTaskProvider>
-                                            <LocalNoteProvider>
-                                              <ServicesProvider>
-                                                <Component {...pageProps} />
-                                              </ServicesProvider>
-                                            </LocalNoteProvider>
-                                          </BackgroundTaskProvider>
-                                        </CertificateProvider>
-                                      </ChainParamProvider>
-                                    </WalletProvider>
-                                  </PopupProvider>
-                                </CustomChainProvider>
-                              </SettingsProvider>
-                            </TooltipProvider>
-                          </PricingProvider>
-                        </UserProviders>
-                      </CustomSnackbarProvider>
-                    </ColorModeProvider>
-                  </ThemeProvider>
-                </JotaiProvider>
+                <Hydrate state={pageProps.dehydratedState}>
+                  <JotaiProvider store={store}>
+                    <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
+                      <ColorModeProvider>
+                        <CustomSnackbarProvider>
+                          <GoogleAnalytics />
+                          <UserProviders>
+                            <PricingProvider>
+                              <TooltipProvider>
+                                <SettingsProvider>
+                                  <CustomChainProvider>
+                                    <PopupProvider>
+                                      <WalletProvider>
+                                        <ChainParamProvider>
+                                          <CertificateProvider>
+                                            <BackgroundTaskProvider>
+                                              <LocalNoteProvider>
+                                                <ServicesProvider>
+                                                  <Component {...pageProps} />
+                                                </ServicesProvider>
+                                              </LocalNoteProvider>
+                                            </BackgroundTaskProvider>
+                                          </CertificateProvider>
+                                        </ChainParamProvider>
+                                      </WalletProvider>
+                                    </PopupProvider>
+                                  </CustomChainProvider>
+                                </SettingsProvider>
+                              </TooltipProvider>
+                            </PricingProvider>
+                          </UserProviders>
+                        </CustomSnackbarProvider>
+                      </ColorModeProvider>
+                    </ThemeProvider>
+                  </JotaiProvider>
+                </Hydrate>
               </QueryClientProvider>
             </LegacyQueryClientProvider>
           </CustomIntlProvider>
@@ -105,3 +111,18 @@ const App: React.FunctionComponent<Props> = props => {
 };
 
 export default App;
+
+export const getServerSideProps: GetServerSideProps = async () => {
+  const queryClient = new LegacyQueryClient();
+  try {
+    await prefetchFeatureFlags(queryClient, axios, serverApiUrlService);
+  } catch (error) {
+    console.error(error);
+  }
+
+  return {
+    props: {
+      dehydratedState: dehydrate(queryClient)
+    }
+  };
+};
