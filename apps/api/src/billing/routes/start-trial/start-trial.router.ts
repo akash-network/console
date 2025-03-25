@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { WalletResponseOutputSchema } from "@src/billing/http-schemas/wallet.schema";
+import { clientIdentity, rateLimit } from "@src/core/middlewares/rate-limit.middleware";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
 export const StartTrialRequestInputSchema = z.object({
@@ -37,10 +38,13 @@ const route = createRoute({
         }
       }
     }
-  }
+  },
+  middleware: rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 1,
+    generateKey: clientIdentity.byIp
+  })
 });
-export const startTrialRouter = new OpenApiHonoHandler();
-
-startTrialRouter.openapi(route, async function routeStartTrial(c) {
+export const startTrialRouter = new OpenApiHonoHandler().openapi(route, async function routeStartTrial(c) {
   return c.json(await container.resolve(WalletController).create(c.req.valid("json")), 200);
 });

@@ -1,6 +1,7 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
+import { clientIdentity, rateLimit } from "@src/core/middlewares/rate-limit.middleware";
 import { ClientInfoContextVariables } from "@src/middlewares/clientInfoMiddleware";
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { AnonymousUserResponseOutputSchema } from "@src/user/schemas/user.schema";
@@ -22,10 +23,13 @@ const route = createRoute({
         }
       }
     }
-  }
+  },
+  middleware: rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 100,
+    generateKey: clientIdentity.byIp
+  })
 });
-export const createAnonymousUserRouter = new OpenAPIHono<{ Variables: ClientInfoContextVariables }>();
-
-createAnonymousUserRouter.openapi(route, async function routeCreateUser(c) {
+export const createAnonymousUserRouter = new OpenAPIHono<{ Variables: ClientInfoContextVariables }>().openapi(route, async function routeCreateUser(c) {
   return c.json(await container.resolve(UserController).create(), 200);
 });
