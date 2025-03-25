@@ -41,6 +41,7 @@ export class UserController {
 
   @Protected([{ action: "read", subject: "User" }])
   async getById({ id }: GetUserParams): Promise<AnonymousUserResponseOutput> {
+    console.log("getById", id);
     const user = await this.userRepository.accessibleBy(this.authService.ability, "read").findById(id);
 
     assert(user, 404);
