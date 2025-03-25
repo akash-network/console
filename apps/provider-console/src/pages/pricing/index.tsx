@@ -54,8 +54,17 @@ const Pricing: React.FunctionComponent = () => {
         )}
 
         <div className={isLoading ? "pointer-events-none" : ""}>
-          <ControlMachineError customMessage={!existingPricing ? "Please try again later." : undefined} onRetry={!existingPricing ? fetchPricing : undefined} />
-          <ProviderPricing existingPricing={existingPricing} editMode={true} disabled={activeControlMachine && existingPricing ? false : true} providerDetails={providerDetails ?? undefined} />
+          <ControlMachineError
+            customMessage={!existingPricing ? "Please try again later." : undefined}
+            onRetry={!existingPricing ? fetchPricing : undefined}
+            activity="pricing"
+          />
+          <ProviderPricing
+            existingPricing={existingPricing}
+            editMode={true}
+            disabled={activeControlMachine && existingPricing ? false : true}
+            providerDetails={providerDetails ?? undefined}
+          />
         </div>
       </div>
     </Layout>
