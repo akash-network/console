@@ -1,5 +1,17 @@
 
 
+## [1.6.0](https://github.com/akash-network/console/compare/provider-console/v1.5.2...provider-console/v1.6.0) (2025-03-26)
+
+
+### Features
+
+* **provider:** added upgrade button for provider ([#1110](https://github.com/akash-network/console/issues/1110)) ([c2d7512](https://github.com/akash-network/console/commit/c2d751233e4b4779e584761392bf0175e8c8ee1c))
+
+
+### Bug Fixes
+
+* update nextjs version ([#1105](https://github.com/akash-network/console/issues/1105)) ([5d24cd8](https://github.com/akash-network/console/commit/5d24cd851eac88a0fbf04899ffdda689994c2b8b))
+
 ## [1.5.2](https://github.com/akash-network/console/compare/provider-console/v1.5.1...provider-console/v1.5.2) (2025-03-21)
 
 
