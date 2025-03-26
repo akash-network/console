@@ -1,5 +1,12 @@
 
 
+## [2.62.4](https://github.com/akash-network/console/compare/console-web/v2.62.3...console-web/v2.62.4) (2025-03-24)
+
+
+### Bug Fixes
+
+* **deployment:** sign up for trial ([#1098](https://github.com/akash-network/console/issues/1098)) ([777340d](https://github.com/akash-network/console/commit/777340da91505a3dd1754ee5aea4e9d9f47f8108))
+
 ## [2.62.3](https://github.com/akash-network/console/compare/console-web/v2.62.2...console-web/v2.62.3) (2025-03-21)
 
 

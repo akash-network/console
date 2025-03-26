@@ -57,20 +57,32 @@ jobs:
         if: steps.cache-playwright.outputs.cache-hit != 'true'
         run: npx playwright install chromium
       - name: Run e2e tests
+        id: e2e-tests
         env:
           TEST_WALLET_MNEMONIC: ${{ secrets.CONSOLE_WEB_E2E_TEST_WALLET_MNEMONIC }}
           BASE_URL: ${{ vars.CONSOLE_WEB_BETA_URL }}
-        run: npm run test:e2e --workspace=apps/deploy-web
+        run: |
+          npm run test:e2e --workspace=apps/deploy-web
+          echo "e2e-tests-passed=$?" >> $GITHUB_OUTPUT
       - uses: actions/upload-artifact@v4
+        id: playwright-report
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
           path: apps/deploy-web/playwright-report/
-          retention-days: 1
-      - name: Show Test Summary
+          retention-days: 5
+      - name: Summarize Test Results
         run: |
           echo "### 📝 E2E Test Summary" >> $GITHUB_STEP_SUMMARY
-          echo "📄 [Download Playwright Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          prefix=":white_check_mark: Passed"
+          if [ "${{ steps.e2e-tests.outputs.e2e-tests-passed }}" != "0" ]; then
+            prefix=":x: Failed"
+          fi
+          echo "${prefix}, [download tests report](${{ steps.playwright-report.outputs.artifact-url }})" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.e2e-tests.outputs.e2e-tests-passed }}" != '0' ]; then
+            exit 1;
+          fi
 
   build-prod:
     needs: release

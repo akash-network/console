@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useRef } from "react";
 import { useIntl } from "react-intl";
+import { UTCDateMini } from "@date-fns/utc";
 import { format } from "date-fns";
 import { createChart } from "lightweight-charts";
 import { useTheme } from "next-themes";
@@ -22,35 +23,8 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
   const { resolvedTheme } = useTheme();
   const intl = useIntl();
   const graphTheme = getTheme(resolvedTheme);
-  const initialData = useMemo(
-    () =>
-      snapshotData
-        ? rangedData
-            .map(_snapshot => ({
-              time: format(_snapshot.date, "yyyy-MM-dd"),
-              value: roundDecimal(snapshotMetadata.unitFn(_snapshot.value).value)
-            }))
-            .sort(function (a, b) {
-              return Number(new Date(a.time)) - Number(new Date(b.time));
-            })
-        : [],
-    [rangedData]
-  );
-
-  const totalGraphData = useMemo(
-    () =>
-      snapshotData
-        ? snapshotData.snapshots
-            .map(_snapshot => ({
-              time: format(_snapshot.date, "yyyy-MM-dd"),
-              value: roundDecimal(snapshotMetadata.unitFn(_snapshot.value).value)
-            }))
-            .sort(function (a, b) {
-              return Number(new Date(a.time)) - Number(new Date(b.time));
-            })
-        : [],
-    [rangedData]
-  );
+  const initialData = useMemo(() => mapSnapshotsToLineSeriesData(rangedData, snapshotMetadata), [rangedData]);
+  const totalGraphData = useMemo(() => mapSnapshotsToLineSeriesData(snapshotData?.snapshots, snapshotMetadata), [rangedData]);
 
   const chartContainerRef = useRef(null);
   const tooltipRef = useRef(null);
@@ -204,6 +178,23 @@ const Graph: React.FunctionComponent<IGraphProps> = ({ rangedData, snapshotMetad
     </div>
   );
 };
+
+function mapSnapshotsToLineSeriesData(snapshots: SnapshotValue[] | undefined | null, snapshotMetadata: IGraphProps["snapshotMetadata"]) {
+  if (!snapshots) return [];
+
+  return snapshots
+    .map(_snapshot => {
+      const datetime = new UTCDateMini(_snapshot.date);
+      return {
+        datetime,
+        time: format(datetime, "yyyy-MM-dd"),
+        value: roundDecimal(snapshotMetadata.unitFn(_snapshot.value).value)
+      };
+    })
+    .sort((row, anotherRow) => {
+      return row.datetime.getTime() - anotherRow.datetime.getTime();
+    });
+}
 
 const getTheme = (theme: string | undefined) => {
   // TODO Use the same colors as the theme
