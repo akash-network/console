@@ -22,6 +22,7 @@ import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
 import { leasesRouter } from "./deployment/routes/leases/leases.router";
+import { featuresRouter } from "./features/routes/features/features.router";
 import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
 import { apiRouter } from "./routers/apiRouter";
@@ -95,6 +96,7 @@ appHono.route("/", leasesRouter);
 appHono.route("/", apiKeysRouter);
 appHono.route("/", bidsRouter);
 appHono.route("/", certificateRouter);
+appHono.route("/", featuresRouter);
 
 appHono.route("/", healthzRouter);
 
