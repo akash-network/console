@@ -1,5 +1,18 @@
 
 
+## [2.63.0](https://github.com/akash-network/console/compare/console-web/v2.62.4...console-web/v2.63.0) (2025-03-26)
+
+
+### Features
+
+* adds basic feature flags support to api and deploy-web ([#1113](https://github.com/akash-network/console/issues/1113)) ([130407c](https://github.com/akash-network/console/commit/130407ce8632cde4cea49394ba01267a1962d158))
+
+
+### Bug Fixes
+
+* update nextjs version ([#1105](https://github.com/akash-network/console/issues/1105)) ([5d24cd8](https://github.com/akash-network/console/commit/5d24cd851eac88a0fbf04899ffdda689994c2b8b))
+* update react-query in a few places ([#1084](https://github.com/akash-network/console/issues/1084)) ([7473929](https://github.com/akash-network/console/commit/7473929504ad9d3527688082084e521a64741a25)), closes [#337](https://github.com/akash-network/console/issues/337)
+
 ## [2.62.4](https://github.com/akash-network/console/compare/console-web/v2.62.3...console-web/v2.62.4) (2025-03-24)
 
 
