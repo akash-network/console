@@ -3,11 +3,12 @@ import "@akashnetwork/ui/styles";
 import "../styles/index.css";
 
 import React from "react";
-import { QueryClientProvider } from "react-query";
+import { QueryClientProvider as LegacyQueryClientProvider } from "react-query";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
 import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
 import { AppProps } from "next/app";
@@ -31,7 +32,7 @@ import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
-import { queryClient } from "@src/queries";
+import { legacyQueryClient, queryClient } from "@src/queries";
 import { store } from "@src/store/global-store";
 
 interface Props extends AppProps {
@@ -58,42 +59,44 @@ const App: React.FunctionComponent<Props> = props => {
 
         <AppCacheProvider {...props}>
           <CustomIntlProvider>
-            <QueryClientProvider client={queryClient}>
-              <JotaiProvider store={store}>
-                <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
-                  <ColorModeProvider>
-                    <CustomSnackbarProvider>
-                      <GoogleAnalytics />
-                      <UserProviders>
-                        <PricingProvider>
-                          <TooltipProvider>
-                            <SettingsProvider>
-                              <CustomChainProvider>
-                                <PopupProvider>
-                                  <WalletProvider>
-                                    <ChainParamProvider>
-                                      <CertificateProvider>
-                                        <BackgroundTaskProvider>
-                                          <LocalNoteProvider>
-                                            <ServicesProvider>
-                                              <Component {...pageProps} />
-                                            </ServicesProvider>
-                                          </LocalNoteProvider>
-                                        </BackgroundTaskProvider>
-                                      </CertificateProvider>
-                                    </ChainParamProvider>
-                                  </WalletProvider>
-                                </PopupProvider>
-                              </CustomChainProvider>
-                            </SettingsProvider>
-                          </TooltipProvider>
-                        </PricingProvider>
-                      </UserProviders>
-                    </CustomSnackbarProvider>
-                  </ColorModeProvider>
-                </ThemeProvider>
-              </JotaiProvider>
-            </QueryClientProvider>
+            <LegacyQueryClientProvider client={legacyQueryClient}>
+              <QueryClientProvider client={queryClient}>
+                <JotaiProvider store={store}>
+                  <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
+                    <ColorModeProvider>
+                      <CustomSnackbarProvider>
+                        <GoogleAnalytics />
+                        <UserProviders>
+                          <PricingProvider>
+                            <TooltipProvider>
+                              <SettingsProvider>
+                                <CustomChainProvider>
+                                  <PopupProvider>
+                                    <WalletProvider>
+                                      <ChainParamProvider>
+                                        <CertificateProvider>
+                                          <BackgroundTaskProvider>
+                                            <LocalNoteProvider>
+                                              <ServicesProvider>
+                                                <Component {...pageProps} />
+                                              </ServicesProvider>
+                                            </LocalNoteProvider>
+                                          </BackgroundTaskProvider>
+                                        </CertificateProvider>
+                                      </ChainParamProvider>
+                                    </WalletProvider>
+                                  </PopupProvider>
+                                </CustomChainProvider>
+                              </SettingsProvider>
+                            </TooltipProvider>
+                          </PricingProvider>
+                        </UserProviders>
+                      </CustomSnackbarProvider>
+                    </ColorModeProvider>
+                  </ThemeProvider>
+                </JotaiProvider>
+              </QueryClientProvider>
+            </LegacyQueryClientProvider>
           </CustomIntlProvider>
         </AppCacheProvider>
       </main>
