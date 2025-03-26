@@ -15,7 +15,12 @@ export const envSchema = z.object({
   SENTRY_TRACES_RATE: z.number({ coerce: true }).optional().default(0.01),
   SENTRY_ENABLED: z.enum(["true", "false"]).optional().default("false"),
   SENTRY_SERVER_NAME: z.string().optional(),
-  SENTRY_DSN: z.string().optional()
+  SENTRY_DSN: z.string().optional(),
+  ENABLE_RATE_LIMITER: z
+    .enum(["true", "false"])
+    .optional()
+    .default("false")
+    .transform(v => v === "true")
 });
 
 export const envConfig = envSchema.parse(process.env);
