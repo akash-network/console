@@ -1,5 +1,18 @@
 
 
+## [2.76.0](https://github.com/akash-network/console/compare/console-api/v2.75.3...console-api/v2.76.0) (2025-03-26)
+
+
+### Features
+
+* adds basic feature flags support to api and deploy-web ([#1113](https://github.com/akash-network/console/issues/1113)) ([130407c](https://github.com/akash-network/console/commit/130407ce8632cde4cea49394ba01267a1962d158))
+* **wallet:** adds exponential backoff to the signer instantiation ([#1088](https://github.com/akash-network/console/issues/1088)) ([dbd35df](https://github.com/akash-network/console/commit/dbd35df56c3cde2bc2a9fa18967f97f33faaeac0))
+
+
+### Bug Fixes
+
+* update react-query in a few places ([#1084](https://github.com/akash-network/console/issues/1084)) ([7473929](https://github.com/akash-network/console/commit/7473929504ad9d3527688082084e521a64741a25)), closes [#337](https://github.com/akash-network/console/issues/337)
+
 ## [2.75.3](https://github.com/akash-network/console/compare/console-api/v2.75.2...console-api/v2.75.3) (2025-03-24)
 
 
