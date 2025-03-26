@@ -12,7 +12,7 @@ import { analyticsService } from "@src/services/analytics/analytics.service";
 export default function ApiKeysPage() {
   const [apiKeyToDelete, setApiKeyToDelete] = useState<ApiKeyResponse | null>(null);
   const { data: apiKeys, isLoading: isLoadingApiKeys } = useUserApiKeys();
-  const { mutate: deleteApiKey, isLoading: isDeleting } = useDeleteApiKey(apiKeyToDelete?.id ?? "", () => {
+  const { mutate: deleteApiKey, isPending: isDeleting } = useDeleteApiKey(apiKeyToDelete?.id ?? "", () => {
     setApiKeyToDelete(null);
     enqueueSnackbar("API Key deleted successfully", {
       variant: "success"
