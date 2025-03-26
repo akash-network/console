@@ -35,7 +35,7 @@ export class DeploymentService {
     const deploymentResponse = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
 
     if ("code" in deploymentResponse) {
-      assert(deploymentResponse.message?.toLowerCase().includes("deployment not found"), 404, "Deployment not found");
+      assert(!deploymentResponse.message?.toLowerCase().includes("deployment not found"), 404, "Deployment not found");
 
       throw new InternalServerError(deploymentResponse.message);
     }
