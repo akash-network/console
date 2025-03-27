@@ -25,6 +25,46 @@ services:
       timeout: 5s
       retries: 20
 
+  mock-oauth2-server:
+    image: ghcr.io/navikt/mock-oauth2-server:2.1.10
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./oauth/login.html:/app/config/login.html:ro
+    environment:
+      JSON_CONFIG: |
+        {
+          "interactiveLogin": true,
+          "loginPagePath": "/app/config/login.html",
+          "tokenCallbacks": [
+            {
+              "issuerId": "default",
+              "tokenExpiry": 3600,
+              "requestMappings": [
+                {
+                  "requestParam": "code",
+                  "match": "debug",
+                  "claims": {
+                    "sub": "user123",
+                    "aud": ["my-audience"],
+                    "email": "dev@example.com",
+                    "nickname": "dev"
+                  }
+                },
+                {
+                  "requestParam": "client_id",
+                  "match": "m2m-client",
+                  "claims": {
+                    "sub": "m2m-client",
+                    "aud": ["my-audience"],
+                    "scope": "read write"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+
 volumes:
   postgres_data:
     driver: local

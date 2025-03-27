@@ -4,6 +4,8 @@ services:
     environment:
       PORT: 3000
       DB_HOST: db
+    env_file:
+      - .env.sandbox.docker-compose-dev
     ports:
       - '3080:3000'
 
