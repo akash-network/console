@@ -49,6 +49,7 @@ type ContextType = {
   isCustodial: boolean;
   isWalletLoading: boolean;
   isTrialing: boolean;
+  isOnboarding: boolean;
   creditAmount?: number;
   switchWalletType: () => void;
   hasManagedWallet: boolean;
@@ -320,6 +321,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isCustodial: !isManaged,
         isWalletLoading: isLoading,
         isTrialing: isManaged && !!managedWallet?.isTrialing,
+        isOnboarding: !!user?.userId && isManaged && !!managedWallet?.isTrialing,
         creditAmount: isManaged ? managedWallet?.creditAmount : 0,
         hasManagedWallet: !!managedWallet,
         switchWalletType
