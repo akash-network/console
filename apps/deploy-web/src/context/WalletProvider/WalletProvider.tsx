@@ -321,7 +321,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isCustodial: !isManaged,
         isWalletLoading: isLoading,
         isTrialing: isManaged && !!managedWallet?.isTrialing,
-        isOnboarding: !user?.userId,
+        isOnboarding: !!user?.userId && isManaged && !!managedWallet?.isTrialing,
         creditAmount: isManaged ? managedWallet?.creditAmount : 0,
         hasManagedWallet: !!managedWallet,
         switchWalletType
