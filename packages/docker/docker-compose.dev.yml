@@ -5,8 +5,6 @@ services:
     volumes:
       - ../../apps/api:/app/apps/api
       - ../../packages:/app/packages
-      - ../../package.json:/app/package.json
-      - ../../package-lock.json:/app/package-lock.json
       - /app/node_modules
       - /app/apps/api/node_modules
 
@@ -15,8 +13,6 @@ services:
       target: development
     volumes:
       - ../../apps/indexer:/app/apps/indexer
-      - ../../package.json:/app/package.json
-      - ../../package-lock.json:/app/package-lock.json
       - /app/node_modules
       - /app/apps/indexer/node_modules
 
@@ -25,8 +21,6 @@ services:
       target: development
     volumes:
       - ../../apps/deploy-web:/app/apps/deploy-web
-      - ../../package.json:/app/package.json
-      - ../../package-lock.json:/app/package-lock.json
       - /app/node_modules
       - /app/apps/deploy-web/node_modules
       - /app/apps/deploy-web/.next
@@ -37,8 +31,6 @@ services:
       target: development
     volumes:
       - ../../apps/provider-proxy:/app/apps/provider-proxy
-      - ../../package.json:/app/package.json
-      - ../../package-lock.json:/app/package-lock.json
       - /app/node_modules
       - /app/apps/provider-proxy/node_modules
       - ../../packages:/app/packages
@@ -48,8 +40,6 @@ services:
       target: development
     volumes:
       - ../../apps/stats-web:/app/apps/stats-web
-      - ../../package.json:/app/package.json
-      - ../../package-lock.json:/app/package-lock.json
       - /app/node_modules
       - /app/apps/stats-web/node_modules
       - /app/apps/stats-web/.next
@@ -59,8 +49,6 @@ services:
       target: development
     volumes:
       - ../../apps/provider-console:/app/apps/provider-console
-      - ../../package.json:/app/package.json
-      - ../../package-lock.json:/app/package-lock.json
       - /app/node_modules
       - /app/apps/provider-console/node_modules
       - /app/apps/provider-console/.next
