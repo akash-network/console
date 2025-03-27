@@ -16,6 +16,7 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useImportSimpleSdl } from "@src/hooks/useImportSimpleSdl";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
@@ -29,7 +30,6 @@ import { deploymentData } from "@src/utils/deploymentData";
 import { appendTrialAttribute } from "@src/utils/deploymentData/v1beta3";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
-import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { Timer } from "@src/utils/timer";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, handleDocClick, UrlService } from "@src/utils/urlUtils";
@@ -86,7 +86,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const wallet = useWallet();
   const managedDenom = useManagedWalletDenom();
   const { enqueueSnackbar } = useSnackbar();
-  const services = editedManifest ? importSimpleSdl(editedManifest) : [];
+  const services = useImportSimpleSdl(editedManifest);
 
   useWhen(
     wallet.isManaged && sdlDenom === "uakt" && editedManifest,
@@ -197,7 +197,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     }
 
     if (isManaged) {
-      if (!services) {
+      if (!services || services?.length === 0) {
         setParsingError("Error while parsing SDL file");
         return;
       }
