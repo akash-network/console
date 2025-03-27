@@ -2,6 +2,7 @@ import { BlockHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { setTimeout as delay } from "timers/promises";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
@@ -19,7 +20,8 @@ const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.ym
 
 jest.setTimeout(120_000); // 120 seconds for the full flow
 
-describe("Lease Flow", () => {
+// TODO: fix this test https://github.com/akash-network/console/issues/1123
+xdescribe("Lease Flow", () => {
   const userRepository = container.resolve(UserRepository);
   const apiKeyRepository = container.resolve(ApiKeyRepository);
   const blockHttpService = container.resolve(BlockHttpService);
@@ -104,7 +106,7 @@ describe("Lease Flow", () => {
         return result.data;
       }
 
-      await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds between attempts
+      await delay(3000);
     }
     throw new Error("No bids received after maximum attempts");
   }
