@@ -31,7 +31,7 @@ type Props = {
   appendStorage: UseFieldArrayAppend<SdlBuilderFormValuesType | RentGpusFormValuesType, `services.${number}.profile.storage`>;
 };
 
-export const BaseStorageFormControl: React.FunctionComponent<Props> = ({ control, services, serviceIndex, appendStorage }) => {
+export const EphemeralStorageFormControl: React.FunctionComponent<Props> = ({ control, services, serviceIndex, appendStorage }) => {
   return (
     <FormField
       control={control}

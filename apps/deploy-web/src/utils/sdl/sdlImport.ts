@@ -53,14 +53,28 @@ export const importSimpleSdl = (yamlStr: string) => {
         ram: getResourceDigit(compute.resources.memory.size),
         ramUnit: getResourceUnit(compute.resources.memory.size),
         storage: storages.map((storage: any) => {
+          const type = storage.attributes?.class || "beta3";
+          const isPersistent = storage.attributes?.persistent || false;
+          const isReadOnly = svc.params?.storage[storage.name]?.readOnly || false;
+
+          if (type === "ram") {
+            if (isPersistent) {
+              throw new CustomValidationError(`A storage of class "ram" cannot be persistent.`);
+            }
+
+            if (isReadOnly) {
+              throw new CustomValidationError(`A storage of class "ram" cannot be read-only.`);
+            }
+          }
+
           return {
             size: getResourceDigit(storage.size || "1Gi"),
             unit: getResourceUnit(storage.size || "1Gi"),
-            isPersistent: storage.attributes?.persistent || false,
-            type: storage.attributes?.class || "beta2",
+            isPersistent,
+            type,
             name: storage.name,
             mount: svc.params?.storage[storage.name]?.mount || "",
-            isReadOnly: svc.params?.storage[storage.name]?.readOnly || false
+            isReadOnly
           };
         })
       };

@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode } from "react";
+import { ReactNode, useMemo } from "react";
 import { Control, Controller, UseFieldArrayAppend, UseFieldArrayRemove, UseFormSetValue } from "react-hook-form";
 import { MdStorage } from "react-icons/md";
 import {
@@ -47,17 +47,12 @@ export const MountedStorageFormControl: React.FunctionComponent<Props> = ({
   serviceIndex,
   control,
   storageIndex,
-  setValue,
   appendStorage,
   removeStorage
 }) => {
-  const setIsPersistent = (onChange: (...event: any[]) => void) => (checked: boolean | "indeterminate") => {
-    if (currentService.profile.storage[storageIndex].type === "ram") {
-      setValue(`services.${serviceIndex}.profile.storage.${storageIndex}.type`, "");
-    }
-
-    onChange(checked);
-  };
+  const isRam = useMemo(() => {
+    return currentService.profile.storage[storageIndex].type === "ram";
+  }, [currentService.profile.storage, storageIndex]);
 
   return (
     <FormPaper>
@@ -70,7 +65,27 @@ export const MountedStorageFormControl: React.FunctionComponent<Props> = ({
               <div className="flex items-center">
                 <div className="flex items-center">
                   <MdStorage className="mr-2 text-2xl text-muted-foreground" />
-                  <strong className="text-sm">Storage</strong>
+                  <strong className="text-sm">{isRam ? "RAM Storage" : "Persistent Storage"}</strong>
+
+                  {!isRam && (
+                    <CustomTooltip
+                      title={
+                        <>
+                          The amount of persistent storage required for this workload.
+                          <br />
+                          <br />
+                          This storage is mounted on a persistent volume and persistent through the lifetime of the deployment
+                          <br />
+                          <br />
+                          <a href="https://akash.network/docs/network-features/persistent-storage/" target="_blank" rel="noopener">
+                            View official documentation.
+                          </a>
+                        </>
+                      }
+                    >
+                      <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                    </CustomTooltip>
+                  )}
                 </div>
               </div>
 
@@ -134,20 +149,43 @@ export const MountedStorageFormControl: React.FunctionComponent<Props> = ({
               <FormInput
                 type="text"
                 label={
-                  <div className="inline-flex items-center">
-                    Name
-                    <CustomTooltip
-                      title={
-                        <>
-                          The name of the volume.
-                          <br />
-                          <br />
-                          Multiple services can gain access to the same volume by name.
-                        </>
-                      }
-                    >
-                      <InfoCircle className="ml-2 text-xs text-muted-foreground" />
-                    </CustomTooltip>
+                  <div className="mb-[6px] flex justify-between">
+                    <div className="inline-flex items-center">
+                      Name
+                      <CustomTooltip
+                        title={
+                          <>
+                            The name of the volume.
+                            <br />
+                            <br />
+                            Multiple services can gain access to the same volume by name.
+                          </>
+                        }
+                      >
+                        <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+                      </CustomTooltip>
+                    </div>
+                    <div className="inline-flex items-center">
+                      {!isRam && (
+                        <Controller
+                          control={control}
+                          name={`services.${serviceIndex}.profile.storage.${storageIndex}.isReadOnly`}
+                          render={({ field }) => (
+                            <>
+                              <Checkbox
+                                id={`isReadonly-${serviceIndex}-${storageIndex}`}
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                className="ml-2"
+                              />
+                              <Label htmlFor={`isReadonly-${serviceIndex}-${storageIndex}`} className="ml-2 whitespace-nowrap">
+                                Read only
+                              </Label>
+                            </>
+                          )}
+                        />
+                      )}
+                    </div>
                   </div>
                 }
                 value={field.value}
@@ -156,56 +194,6 @@ export const MountedStorageFormControl: React.FunctionComponent<Props> = ({
               />
             )}
           />
-          <div className="ml-4 mt-5">
-            <div className="mb-4 flex items-center">
-              <Controller
-                control={control}
-                name={`services.${serviceIndex}.profile.storage.${storageIndex}.isPersistent`}
-                render={({ field }) => (
-                  <>
-                    <Checkbox
-                      id={`isPersistent-${serviceIndex}-${storageIndex}`}
-                      checked={field.value}
-                      onCheckedChange={setIsPersistent(field.onChange)}
-                      className="ml-2"
-                    />
-                    <Label htmlFor={`isPersistent-${serviceIndex}-${storageIndex}`} className="ml-2 whitespace-nowrap">
-                      Persistent
-                    </Label>
-
-                    <CustomTooltip
-                      title={
-                        <>
-                          This storage is mounted on a persistent volume and persistent through the lifetime of the deployment.
-                          <br />
-                          <br />
-                          <a href="https://akash.network/docs/network-features/persistent-storage/" target="_blank" rel="noopener">
-                            View official documentation.
-                          </a>
-                        </>
-                      }
-                    >
-                      <InfoCircle className="ml-2 text-xs text-muted-foreground" />
-                    </CustomTooltip>
-                  </>
-                )}
-              />
-            </div>
-            <div className="flex items-center">
-              <Controller
-                control={control}
-                name={`services.${serviceIndex}.profile.storage.${storageIndex}.isReadOnly`}
-                render={({ field }) => (
-                  <>
-                    <Checkbox id={`isReadonly-${serviceIndex}-${storageIndex}`} checked={field.value} onCheckedChange={field.onChange} className="ml-2" />
-                    <Label htmlFor={`isReadonly-${serviceIndex}-${storageIndex}`} className="ml-2 whitespace-nowrap">
-                      Read only
-                    </Label>
-                  </>
-                )}
-              />
-            </div>
-          </div>
         </div>
         <div className="mt-4 flex items-start">
           <FormField
@@ -214,7 +202,7 @@ export const MountedStorageFormControl: React.FunctionComponent<Props> = ({
             render={({ field }) => (
               <FormItem className="w-full basis-[40%]">
                 <FormLabel htmlFor={`persistent-storage-type-${currentService.id}`}>Type</FormLabel>
-                <Select value={field.value || ""} onValueChange={field.onChange}>
+                <Select value={field.value || ""} onValueChange={field.onChange} disabled={isRam}>
                   <SelectTrigger id={`persistent-storage-type-${currentService.id}`}>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>

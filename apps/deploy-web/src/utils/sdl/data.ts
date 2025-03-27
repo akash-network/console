@@ -75,13 +75,23 @@ export const defaultService: ServiceType = {
   count: 1
 };
 
-export const defaultMountedStorage = {
+export const defaultPersistentStorage = {
   size: 10,
   unit: "Gi",
   isPersistent: true,
-  type: "beta2",
+  type: "beta3",
   name: "data",
-  mount: "",
+  mount: "/mnt/data",
+  isReadOnly: false
+};
+
+export const defaultRamStorage = {
+  size: 10,
+  unit: "Gi",
+  isPersistent: false,
+  type: "ram",
+  name: "shm",
+  mount: "/dev/shm",
   isReadOnly: false
 };
 

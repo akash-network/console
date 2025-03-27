@@ -36,12 +36,12 @@ import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
-import { BaseStorageFormControl } from "./BaseStorageFormControl";
 import { CommandFormModal } from "./CommandFormModal";
 import { CommandList } from "./CommandList";
 import { CpuFormControl } from "./CpuFormControl";
 import { EnvFormModal } from "./EnvFormModal";
 import { EnvVarList } from "./EnvVarList";
+import { EphemeralStorageFormControl } from "./EphemeralStorageFormControl";
 import { ExposeFormModal } from "./ExposeFormModal";
 import { ExposeList } from "./ExposeList";
 import { FormPaper } from "./FormPaper";
@@ -310,7 +310,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                     </div>
 
                     <div>
-                      <BaseStorageFormControl services={_services} control={control as any} serviceIndex={serviceIndex} appendStorage={appendStorage} />
+                      <EphemeralStorageFormControl services={_services} control={control as any} serviceIndex={serviceIndex} appendStorage={appendStorage} />
                     </div>
 
                     {currentService.profile.storage.length > 1 &&

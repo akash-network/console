@@ -37,9 +37,9 @@ import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import { AdvancedConfig } from "./AdvancedConfig";
-import { BaseStorageFormControl } from "./BaseStorageFormControl";
 import { CpuFormControl } from "./CpuFormControl";
 import { DeploymentMinimumEscrowAlertText } from "./DeploymentMinimumEscrowAlertText";
+import { EphemeralStorageFormControl } from "./EphemeralStorageFormControl";
 import { FormPaper } from "./FormPaper";
 import { GpuFormControl } from "./GpuFormControl";
 import { ImageSelect } from "./ImageSelect";
@@ -338,7 +338,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
             </div>
 
             <div className="mt-4">
-              <BaseStorageFormControl services={_services} control={control as any} serviceIndex={0} appendStorage={appendStorage} />
+              <EphemeralStorageFormControl services={_services} control={control as any} serviceIndex={0} appendStorage={appendStorage} />
             </div>
 
             <div className="grid-col-2 mt-4 grid gap-2">
