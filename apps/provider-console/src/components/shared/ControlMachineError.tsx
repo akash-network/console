@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, AlertDescription, AlertTitle, Spinner } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, AlertTitle, Button, Spinner } from "@akashnetwork/ui/components";
 
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 
@@ -7,10 +7,11 @@ interface ControlMachineErrorProps {
   onRetry?: () => void;
   customMessage?: string;
   className?: string;
+  activity?: string;
 }
 
-export const ControlMachineError: React.FC<ControlMachineErrorProps> = ({ onRetry, customMessage, className }) => {
-  const { activeControlMachine, controlMachineLoading } = useControlMachine();
+export const ControlMachineError: React.FC<ControlMachineErrorProps> = ({ onRetry, customMessage, className, activity = "settings" }) => {
+  const { activeControlMachine, controlMachineLoading, openControlMachineDrawer } = useControlMachine();
 
   if (controlMachineLoading) {
     return (
@@ -29,9 +30,13 @@ export const ControlMachineError: React.FC<ControlMachineErrorProps> = ({ onRetr
   if (!activeControlMachine) {
     return (
       <Alert variant="destructive" className={className}>
-        <AlertTitle className="text-red-600 dark:text-red-100">Control Machine Required</AlertTitle>
+        <AlertTitle className="text-red-600 dark:text-red-100">Control Machine Connection Required</AlertTitle>
         <AlertDescription className="text-red-500 dark:text-red-200">
-          Please connect your control machine first to start updating pricing settings.
+          Please
+          <Button onClick={openControlMachineDrawer} variant="link" className="pl-1 pr-0">
+            Connect
+          </Button>{" "}
+          your control machine first to start updating {activity}.
         </AlertDescription>
       </Alert>
     );
