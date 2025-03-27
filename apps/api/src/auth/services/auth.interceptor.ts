@@ -81,6 +81,10 @@ export class AuthInterceptor implements HonoInterceptor {
     };
   }
 
+  clearLastUserActivityCache(): void {
+    this.lastUserActivityCache.clear();
+  }
+
   private async auth(user?: UserOutput) {
     this.authService.currentUser = user;
     if (user) {
