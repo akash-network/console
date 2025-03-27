@@ -22,7 +22,7 @@ FROM base AS development
 
 COPY --from=prepare /app .
 
-RUN npm ci && npm cache clean --force
+RUN npm ci --workspace $WORKSPACE && npm cache clean --force
 COPY $WORKSPACE ./$WORKSPACE
 COPY packages ./packages
 
