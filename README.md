@@ -6,18 +6,20 @@
   
   # Akash Console
 
-  **Akash Console** is a powerful application that allows you to deploy any [Docker container](https://www.docker.com/) on the [Akash Network](https://akash.network) with just a few clicks. 🚀
+**Akash Console** is a powerful application that allows you to deploy any [Docker container](https://www.docker.com/) on the [Akash Network](https://akash.network) with just a few clicks. 🚀
 
 [![version](https://img.shields.io/github/stars/akash-network/console)](https://github.com/akash-network/console/stargazers)
-  [![license](https://img.shields.io/github/license/akash-network/console)](https://github.com/akash-network/console/blob/main/LICENSE)
-  [![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/akashnet_)](https://x.com/akashnet_)
-  [![Discord](https://img.shields.io/badge/discord-join-7289DA.svg?logo=discord&longCache=true&style=flat)](https://discord.gg/akash)
+[![license](https://img.shields.io/github/license/akash-network/console)](https://github.com/akash-network/console/blob/main/LICENSE)
+[![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/akashnet_)](https://x.com/akashnet_)
+[![Discord](https://img.shields.io/badge/discord-join-7289DA.svg?logo=discord&longCache=true&style=flat)](https://discord.gg/akash)
+
 </div>
 
 ## Table of Contents
 
 - [Quick Start](#quick-start)
 - [Apps Configuration](./doc/apps-configuration.md)
+- [Auth](./doc/auth.md)
 - [Services](#services)
 - [Running the Application](#running-the-application)
 - [Manual Database Restoration](#manual-database-restoration)
@@ -33,7 +35,7 @@ To get started with Akash Console, follow these steps:
 ```bash
 git clone git@github.com:akash-network/console.git ./akash-console
 cd akash-console
-npm run dc:up:dev -- deploy-web 
+npm run dc:up:dev -- deploy-web
 ```
 
 This will start the deploy-web service in development mode with all the necessary dependencies (API, indexer, PostgreSQL). It will also import a backup of the sandbox database by default to speed up the process.
@@ -60,10 +62,12 @@ All services are Node.js applications written in TypeScript and deployed using D
 This document provides instructions on how to set up and run the application, including steps for manual database restoration and using Docker Compose for ease of setup.
 
 ### Using Docker and Docker Compose
+
 This project's service are deployed using Docker and Docker Compose. The following sections provide instructions for setting up and running the application using Docker Compose.
-All the Dockerfiles are using multi-stage builds to optimize the image build processes. Same files are used to build both development and production images. 
+All the Dockerfiles are using multi-stage builds to optimize the image build processes. Same files are used to build both development and production images.
 
 There are 3 docker-compose files:
+
 - **docker-compose.build.yml:** Base file solely building production images for the services. It can be used to verify the same build process as in CICD.
 - **docker-compose.prod.yml:** This file is used to run the services in production mode. It also includes the database service which would fetch a remote backup and import it on init.
 - **docker-compose.yml:** The default file to run all the services in development mode with features like hot-reload.
@@ -78,12 +82,17 @@ npm run dc:down # Stop the services referencing any possible service
 ```
 
 Note: you may pass any `docker compose` related arguments to the above commands. E.g. to only start `deploy-web` service in development mode:
+
 ```shell
 npm run dc:up:dev -- deploy-web
 ```
+
 This would also properly spin up all the dependencies like the `api`.
+
 ### Using Turbo Repo
+
 Another way to run apps in dev mode is using turbo repo setup. Some available commands are:
+
 ```shell
 npm run console:dev # run console ui in dev mode with dependencies
 npm run stats:dev # run stats ui in dev mode with dependencies
@@ -92,6 +101,7 @@ npm run indexer:dev # run indexer in dev mode with dependencies
 ```
 
 Note the above commands still depend on docker to run postgres database. If you need to run them without db you can use the following commands:
+
 ```shell
 npm run console:dev:no-db # run console ui in dev mode with dependencies but without postgres in docker
 npm run stats:dev:no-db # run stats ui in dev mode with dependencies but without postgres in docker
@@ -114,9 +124,11 @@ Due to the extensive time required to index Akash from block #1, it's recommende
 2. Restore the database using `psql`. Ensure PostgreSQL tools are installed on your system.
 
 For a .sql.gz file:
+
 ```sh
 gunzip -c /path/to/console-akash-sandbox.sql.gz | psql --host "localhost" --port "5432" --username "postgres" --dbname "console-akash"
 ```
+
 After restoring the database, you can proceed with the specific project's README instructions for further setup and running the application.
 
 ## Services
