@@ -1,5 +1,17 @@
 
 
+## [2.64.0](https://github.com/akash-network/console/compare/console-web/v2.63.0...console-web/v2.64.0) (2025-03-28)
+
+
+### Features
+
+* **deployment:** show banner for trial users with no bids ([#922](https://github.com/akash-network/console/issues/922)) ([344af36](https://github.com/akash-network/console/commit/344af36c7c9172f22e4bcfdc2ea3fe62284a49a8)), closes [#887](https://github.com/akash-network/console/issues/887)
+
+
+### Bug Fixes
+
+* change the link to "learn more" during tx sign ([#1122](https://github.com/akash-network/console/issues/1122)) ([e77d95a](https://github.com/akash-network/console/commit/e77d95ab4525fbae02bcca856040ae677f61fbf5))
+
 ## [2.63.0](https://github.com/akash-network/console/compare/console-web/v2.62.4...console-web/v2.63.0) (2025-03-26)
 
 

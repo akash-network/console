@@ -1,5 +1,17 @@
 
 
+## [2.77.0](https://github.com/akash-network/console/compare/console-api/v2.76.0...console-api/v2.77.0) (2025-03-28)
+
+
+### Features
+
+* **deployment:** show banner for trial users with no bids ([#922](https://github.com/akash-network/console/issues/922)) ([344af36](https://github.com/akash-network/console/commit/344af36c7c9172f22e4bcfdc2ea3fe62284a49a8)), closes [#887](https://github.com/akash-network/console/issues/887)
+
+
+### Code Refactoring
+
+* updates last_used_at once in 30 minutes ([#1108](https://github.com/akash-network/console/issues/1108)) ([4c90cee](https://github.com/akash-network/console/commit/4c90ceecc51fbe8874547e6aada0316f6d0ca7d9))
+
 ## [2.76.0](https://github.com/akash-network/console/compare/console-api/v2.75.3...console-api/v2.76.0) (2025-03-26)
 
 
