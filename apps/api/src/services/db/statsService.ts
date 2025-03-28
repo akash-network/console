@@ -1,6 +1,6 @@
 import { AkashBlock as Block } from "@akashnetwork/database/dbSchemas/akash";
 import { Day } from "@akashnetwork/database/dbSchemas/base";
-import { subHours } from "date-fns";
+import { format, subHours } from "date-fns";
 import { Op, QueryTypes } from "sequelize";
 
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
@@ -206,16 +206,17 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
     60 * 5, // 5 minutes
     cacheKeys.getProviderGraphData,
     async () => {
-      return await chainDb.query<ProviderStats>(
-        `SELECT d."date", (SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU")) AS "cpu", (SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU")) AS "gpu", (SUM("activeMemory") + SUM("pendingMemory") + SUM("availableMemory")) AS memory, (SUM("activeStorage") + SUM("pendingStorage") + SUM("availableStorage")) as storage, COUNT(*) as count
-         FROM "day" d
-         INNER JOIN (
-            SELECT DISTINCT ON("hostUri",DATE("checkDate")) 
-              DATE("checkDate") AS date, 
-              ps."activeCPU", ps."pendingCPU", ps."availableCPU", 
-              ps."activeGPU", ps."pendingGPU", ps."availableGPU", 
-              ps."activeMemory", ps."pendingMemory", ps."availableMemory", 
-              ps."activeEphemeralStorage" + COALESCE(ps."activePersistentStorage", 0) AS "activeStorage", ps."pendingEphemeralStorage" + COALESCE(ps."pendingPersistentStorage", 0) AS "pendingStorage", ps."availableEphemeralStorage" + COALESCE(ps."availablePersistentStorage", 0) AS "availableStorage", 
+      return removeLastAroundMidnight(
+        await chainDb.query<ProviderStats>(
+          `SELECT d."date", (SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU")) AS "cpu", (SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU")) AS "gpu", (SUM("activeMemory") + SUM("pendingMemory") + SUM("availableMemory")) AS memory, (SUM("activeStorage") + SUM("pendingStorage") + SUM("availableStorage")) as storage, COUNT(*) as count
+            FROM "day" d
+            INNER JOIN (
+            SELECT DISTINCT ON("hostUri",DATE("checkDate"))
+              DATE("checkDate") AS date,
+              ps."activeCPU", ps."pendingCPU", ps."availableCPU",
+              ps."activeGPU", ps."pendingGPU", ps."availableGPU",
+              ps."activeMemory", ps."pendingMemory", ps."availableMemory",
+              ps."activeEphemeralStorage" + COALESCE(ps."activePersistentStorage", 0) AS "activeStorage", ps."pendingEphemeralStorage" + COALESCE(ps."pendingPersistentStorage", 0) AS "pendingStorage", ps."availableEphemeralStorage" + COALESCE(ps."availablePersistentStorage", 0) AS "availableStorage",
               ps."isOnline"
             FROM "providerSnapshot" ps
             INNER JOIN "day" d ON d."date" = DATE(ps."checkDate")
@@ -223,16 +224,17 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
             INNER JOIN "provider" ON "provider"."owner"=ps."owner"
             WHERE ps."isLastSuccessOfDay" = TRUE AND ps."checkDate" >= b."datetime" - (:grace_duration * INTERVAL '1 minutes')
             ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
-         ) "dailyProviderStats"
-         ON DATE(d."date")="dailyProviderStats"."date"
-         GROUP BY d."date"
-         ORDER BY d."date" ASC`,
-        {
-          type: QueryTypes.SELECT,
-          replacements: {
-            grace_duration: env.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES
+          ) "dailyProviderStats"
+          ON DATE(d."date")="dailyProviderStats"."date"
+          GROUP BY d."date"
+          ORDER BY d."date" ASC`,
+          {
+            type: QueryTypes.SELECT,
+            replacements: {
+              grace_duration: env.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES
+            }
           }
-        }
+        )
       );
     },
     true
@@ -280,13 +282,25 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
   };
 };
 
+const removeLastAroundMidnight = (stats: ProviderStats[]) => {
+  const now = new Date();
+  const isFirstFifteenMinuesOfDay = now.getHours() === 0 && now.getMinutes() <= 15;
+  const dateToday = format(now, "yyyy-MM-dd");
+  const lastItemIsForToday = stats.length > 0 && stats[stats.length - 1].date.startsWith(dateToday);
+  if (isFirstFifteenMinuesOfDay && lastItemIsForToday) {
+    return stats.slice(0, stats.length - 1);
+  }
+
+  return stats;
+};
+
 export const getProviderActiveLeasesGraphData = async (providerAddress: string) => {
   console.log("getProviderActiveLeasesGraphData");
 
   const result = await chainDb.query<ProviderActiveLeasesStats>(
     `SELECT "date" AS date, COUNT(l."id") AS count
     FROM "day" d
-    LEFT JOIN "lease" l 
+    LEFT JOIN "lease" l
         ON l."providerAddress" = :providerAddress
         AND l."createdHeight" <= d."lastBlockHeightYet"
         AND COALESCE(l."closedHeight", l."predictedClosedHeight") > d."lastBlockHeightYet"
@@ -370,7 +384,7 @@ export async function getProviderActiveResourcesAtHeight(provider: string, heigh
         SUM("persistentStorageQuantity") AS "persistentStorage",
         SUM("gpuUnits") AS "gpu"
     FROM lease
-    WHERE 
+    WHERE
         "providerAddress"=:provider
         AND "createdHeight" <= :height
         AND COALESCE("closedHeight", "predictedClosedHeight") > :height`,
@@ -394,18 +408,18 @@ export async function getProviderEarningsAtHeight(provider: string, providerCrea
       FROM lease
       WHERE "providerAddress"=:provider
     )
-    SELECT 
+    SELECT
       d.date, d."aktPrice",s."totalUAkt",s."totalUUsdc"
     FROM day d
     LEFT JOIN LATERAL (
       WITH active_leases AS (
-        SELECT 
+        SELECT
           l.dseq,
           l.price,
           l.denom,
           (LEAST(d."lastBlockHeightYet", COALESCE(l."closedHeight", l."predictedClosedHeight"), :height) - GREATEST(d."firstBlockHeight", l."createdHeight", :providerCreatedHeight)) AS duration
         FROM provider_leases l
-        WHERE 
+        WHERE
           l."createdHeight" <= LEAST(d."lastBlockHeightYet", :height)
           AND COALESCE(l."closedHeight", l."predictedClosedHeight") >= GREATEST(d."firstBlockHeight", :providerCreatedHeight)
       ),
@@ -415,7 +429,7 @@ export async function getProviderEarningsAtHeight(provider: string, providerCrea
           (CASE WHEN l.denom='uusdc' THEN l.price*l.duration ELSE 0 END) AS "uusdc_earned"
         FROM active_leases l
       )
-      SELECT 
+      SELECT
         SUM(l.uakt_earned) AS "totalUAkt",
         SUM(l.uusdc_earned) AS "totalUUsdc"
       FROM billed_leases l
