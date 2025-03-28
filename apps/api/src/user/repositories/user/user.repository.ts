@@ -43,11 +43,17 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     return await this.cursor.query.Users.findFirst({ where: this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.userId))) });
   }
 
-  async markAsActive(id: UserOutput["id"]) {
+  async markAsActive(id: UserOutput["id"], throttleTimeSeconds: number) {
     await this.cursor
       .update(this.table)
       .set({ lastActiveAt: sql`now()` })
-      .where(eq(this.table.id, id));
+      .where(
+        and(
+          // keep new line
+          eq(this.table.id, id),
+          lt(this.table.lastActiveAt, sql`now() - make_interval(secs => ${throttleTimeSeconds})`)
+        )
+      );
   }
 
   async paginateStaleAnonymousUsers(

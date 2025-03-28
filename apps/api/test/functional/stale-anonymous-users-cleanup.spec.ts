@@ -3,6 +3,7 @@ import subDays from "date-fns/subDays";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
+import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
 import { resolveWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { UserController } from "@src/user/controllers/user/user.controller";
@@ -37,6 +38,7 @@ describe("Users", () => {
       ]);
 
       const staleParams = { lastActiveAt: subDays(new Date(), 91) };
+      container.resolve(AuthInterceptor).clearLastUserActivityCache();
       await Promise.all([
         ...staleUsers.map(user => userRepository.updateById(user.user.id, staleParams)),
         userRepository.updateById(staleNoWallet.user.id, staleParams),
