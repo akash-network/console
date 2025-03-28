@@ -1,5 +1,18 @@
 
 
+## [2.78.0](https://github.com/akash-network/console/compare/console-api/v2.77.0...console-api/v2.78.0) (2025-03-28)
+
+
+### Features
+
+* **deployment:** managed wallet api update deployment ([#1093](https://github.com/akash-network/console/issues/1093)) ([6998834](https://github.com/akash-network/console/commit/699883436cc1763a20f65cce17390403107b179a))
+* upgrade nodejs version to 22.14 (latest lts) ([#1095](https://github.com/akash-network/console/issues/1095)) ([8533b35](https://github.com/akash-network/console/commit/8533b355762016829c4435fd67c7885df79b251e))
+
+
+### Bug Fixes
+
+* ignore zero provider stats data for last day ([#1094](https://github.com/akash-network/console/issues/1094)) ([ddfac90](https://github.com/akash-network/console/commit/ddfac90e1a58f279840c44864975456c9882076e)), closes [#721](https://github.com/akash-network/console/issues/721)
+
 ## [2.77.0](https://github.com/akash-network/console/compare/console-api/v2.76.0...console-api/v2.77.0) (2025-03-28)
 
 
