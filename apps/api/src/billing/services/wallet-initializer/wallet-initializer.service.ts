@@ -14,10 +14,11 @@ export class WalletInitializerService {
 
   async initializeAndGrantTrialLimits(userId: UserWalletInput["userId"]): Promise<UserWalletPublicOutput> {
     let userWallet = await this.userWalletRepository.findOneByUserId(userId);
+    if (userWallet) return this.userWalletRepository.toPublic(userWallet);
 
-    if (!userWallet) {
-      userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "create").create({ userId });
+    userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "create").create({ userId });
 
+    try {
       const wallet = await this.walletManager.createAndAuthorizeTrialSpending({ addressIndex: userWallet.id });
       userWallet = await this.userWalletRepository.updateById(
         userWallet.id,
@@ -28,6 +29,9 @@ export class WalletInitializerService {
         },
         { returning: true }
       );
+    } catch (error) {
+      await this.userWalletRepository.deleteById(userWallet.id);
+      throw error;
     }
 
     return this.userWalletRepository.toPublic(userWallet);
