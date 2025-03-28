@@ -1,12 +1,19 @@
 import { BlockHttpService, DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
-import { BadRequest, InternalServerError, NotFound } from "http-errors";
+import assert from "http-assert";
+import { InternalServerError } from "http-errors";
 import { singleton } from "tsyringe";
 
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput } from "@src/billing/repositories";
 import { ManagedSignerService, RpcMessageService, Wallet } from "@src/billing/services";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { CreateDeploymentRequest, CreateDeploymentResponse, GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import {
+  CreateDeploymentRequest,
+  CreateDeploymentResponse,
+  GetDeploymentResponse,
+  UpdateDeploymentRequest
+} from "@src/deployment/http-schemas/deployment.schema";
+import { ProviderService } from "@src/deployment/services/provider/provider.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { denomToUdenom } from "@src/utils/math";
 
@@ -20,16 +27,15 @@ export class DeploymentService {
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
     private readonly rpcMessageService: RpcMessageService,
     private readonly sdlService: SdlService,
-    private readonly billingConfig: BillingConfigService
+    private readonly billingConfig: BillingConfigService,
+    private readonly providerService: ProviderService
   ) {}
 
   public async findByOwnerAndDseq(owner: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
     const deploymentResponse = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
 
     if ("code" in deploymentResponse) {
-      if (deploymentResponse.message?.toLowerCase().includes("deployment not found")) {
-        throw new NotFound("Deployment not found");
-      }
+      assert(!deploymentResponse.message?.toLowerCase().includes("deployment not found"), 404, "Deployment not found");
 
       throw new InternalServerError(deploymentResponse.message);
     }
@@ -47,9 +53,7 @@ export class DeploymentService {
     let sdl: string = input.sdl;
     const deploymentGrantDenom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
 
-    if (!this.sdlService.validateSdl(sdl)) {
-      throw new BadRequest("Invalid SDL");
-    }
+    assert(this.sdlService.validateSdl(sdl), 400, "Invalid SDL");
 
     if (deploymentGrantDenom !== "uakt") {
       sdl = sdl.replace(/uakt/g, deploymentGrantDenom);
@@ -102,5 +106,54 @@ export class DeploymentService {
     await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
 
     return await this.findByOwnerAndDseq(wallet.address, dseq);
+  }
+
+  public async update(wallet: UserWalletOutput, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
+    const { sdl, certificate } = input;
+
+    assert(this.sdlService.validateSdl(sdl), 400, "Invalid SDL");
+
+    const deployment = await this.findByOwnerAndDseq(wallet.address, dseq);
+    const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");
+    const manifest = this.sdlService.getManifest(sdl, "beta3", true) as string;
+
+    await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
+    await this.sendManifestToProviders(dseq, manifest, certificate as { certPem: string; keyPem: string }, deployment.leases);
+
+    return await this.findByOwnerAndDseq(wallet.address, dseq);
+  }
+
+  private async ensureDeploymentIsUpToDate(
+    wallet: UserWalletOutput,
+    dseq: string,
+    manifestVersion: Uint8Array,
+    deployment: GetDeploymentResponse["data"]
+  ): Promise<void> {
+    if (Buffer.from(manifestVersion).toString("base64") !== deployment.deployment.version) {
+      const message = this.rpcMessageService.getUpdateDeploymentMsg({
+        owner: wallet.address,
+        dseq,
+        version: manifestVersion
+      });
+
+      await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
+    }
+  }
+
+  private async sendManifestToProviders(
+    dseq: string,
+    manifest: string,
+    certificate: { certPem: string; keyPem: string },
+    leases: GetDeploymentResponse["data"]["leases"]
+  ): Promise<void> {
+    assert(certificate.certPem && certificate.keyPem, 400, "Certificate must include both certPem and keyPem");
+
+    const leaseProviders = leases.map(lease => lease.lease_id.provider).filter((v, i, s) => s.indexOf(v) === i);
+    for (const provider of leaseProviders) {
+      await this.providerService.sendManifest(provider, dseq, manifest, {
+        certPem: certificate.certPem,
+        keyPem: certificate.keyPem
+      });
+    }
   }
 }
