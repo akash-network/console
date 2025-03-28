@@ -1,6 +1,6 @@
 "use client";
 import { Dispatch, SetStateAction, useState } from "react";
-import { Control, UseFormSetValue, UseFormTrigger } from "react-hook-form";
+import { Control, useFieldArray, UseFormSetValue, UseFormTrigger } from "react-hook-form";
 import {
   Button,
   Card,
@@ -41,6 +41,7 @@ import { CommandList } from "./CommandList";
 import { CpuFormControl } from "./CpuFormControl";
 import { EnvFormModal } from "./EnvFormModal";
 import { EnvVarList } from "./EnvVarList";
+import { EphemeralStorageFormControl } from "./EphemeralStorageFormControl";
 import { ExposeFormModal } from "./ExposeFormModal";
 import { ExposeList } from "./ExposeList";
 import { FormPaper } from "./FormPaper";
@@ -50,9 +51,8 @@ import { ImageCredentialsPassword } from "./ImageCredentialsPassword";
 import { ImageCredentialsUsername } from "./ImageCredentialsUsername";
 import { ImageInput } from "./ImageInput";
 import { MemoryFormControl } from "./MemoryFormControl";
-import { PersistentStorage } from "./PersistentStorage";
+import { MountedStorageFormControl } from "./MountedStorageFormControl";
 import { PlacementFormModal } from "./PlacementFormModal";
-import { StorageFormControl } from "./StorageFormControl";
 import { TokenFormControl } from "./TokenFormControl";
 
 type Props = {
@@ -80,7 +80,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   setValue,
   gpuModels,
   hasSecretOption,
-  isGitProviderTemplate,
+  isGitProviderTemplate
 }) => {
   const [isEditingCommands, setIsEditingCommands] = useState<number | boolean | null>(null);
   const [isEditingEnv, setIsEditingEnv] = useState<number | boolean | null>(null);
@@ -95,7 +95,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   const _isEditingExpose = serviceIndex === isEditingExpose;
   const _isEditingPlacement = serviceIndex === isEditingPlacement;
   const _credentials = _services[serviceIndex]?.credentials;
-  const _isGhcr = _credentials?.host === 'ghcr.io';
+  const _isGhcr = _credentials?.host === "ghcr.io";
   const { imageList, hasComponent, toggleCmp } = useSdlBuilder();
   const wallet = useWallet();
   const onExpandClick = () => {
@@ -107,6 +107,16 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
       }
     });
   };
+
+  const {
+    append: appendStorage,
+    remove: removeStorage,
+    fields: storages
+  } = useFieldArray({
+    control,
+    name: `services.${serviceIndex}.profile.storage` as any,
+    keyName: "id"
+  });
 
   if (!currentService) return null;
 
@@ -197,7 +207,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                   <LeaseSpecDetail
                     type="storage"
                     className="ml-4 flex-shrink-0"
-                    value={`${currentService.profile.storage} ${currentService.profile.storageUnit}`}
+                    value={`${currentService.profile.storage[0].size} ${currentService.profile.storage[0].unit}`}
                   />
                 </div>
               )}
@@ -220,7 +230,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <div className="grid gap-4">
-                    {!isGitProviderTemplate && (
+                    {!isGitProviderTemplate &&
                       (imageList?.length ? (
                         <div className="flex items-end">
                           <FormField
@@ -268,14 +278,17 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                                   <ImageCredentialsUsername control={control} serviceIndex={serviceIndex} />
                                 </div>
                                 <div>
-                                  <ImageCredentialsPassword control={control} serviceIndex={serviceIndex} label={_isGhcr ? 'Personal Access Token' : 'Password'} />
+                                  <ImageCredentialsPassword
+                                    control={control}
+                                    serviceIndex={serviceIndex}
+                                    label={_isGhcr ? "Personal Access Token" : "Password"}
+                                  />
                                 </div>
                               </div>
                             </>
                           )}
                         </FormPaper>
-                      ))
-                    )}
+                      ))}
 
                     <div>
                       <CpuFormControl control={control as any} currentService={currentService} serviceIndex={serviceIndex} />
@@ -297,12 +310,24 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                     </div>
 
                     <div>
-                      <StorageFormControl control={control as any} serviceIndex={serviceIndex} />
+                      <EphemeralStorageFormControl services={_services} control={control as any} serviceIndex={serviceIndex} appendStorage={appendStorage} />
                     </div>
 
-                    <div>
-                      <PersistentStorage control={control as any} currentService={currentService} serviceIndex={serviceIndex} />
-                    </div>
+                    {currentService.profile.storage.length > 1 &&
+                      (storages || []).slice(1).map((storage, storageIndex) => (
+                        <div key={`storage-${storage.id}`}>
+                          <MountedStorageFormControl
+                            services={_services}
+                            control={control as any}
+                            currentService={currentService}
+                            serviceIndex={serviceIndex}
+                            storageIndex={storageIndex + 1}
+                            appendStorage={appendStorage}
+                            removeStorage={removeStorage}
+                            setValue={setValue}
+                          />
+                        </div>
+                      ))}
                   </div>
                 </div>
 
