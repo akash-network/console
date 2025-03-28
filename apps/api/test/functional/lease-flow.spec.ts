@@ -17,6 +17,7 @@ import { stub } from "@test/services/stub";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
 const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+const ymlUpdate = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl-update.yml"), "utf8");
 
 jest.setTimeout(120_000); // 120 seconds for the full flow
 
@@ -174,7 +175,15 @@ xdescribe("Lease Flow", () => {
     });
     expect(depositResponse.status).toBe(200);
 
-    // 7. Close deployment
+    // 7. Update deployment
+    const updateResponse = await app.request(`/v1/deployments/${dseq}`, {
+      method: "PUT",
+      headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey }),
+      body: JSON.stringify({ data: { sdl: ymlUpdate, certificate: { certPem, keyPem: encryptedKey } } })
+    });
+    expect(updateResponse.status).toBe(200);
+
+    // 8. Close deployment
     const closeResponse = await app.request(`/v1/deployments/${dseq}`, {
       method: "DELETE",
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
