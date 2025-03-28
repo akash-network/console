@@ -1,5 +1,12 @@
 
 
+## [1.6.0](https://github.com/akash-network/console/compare/provider-proxy/v1.5.2...provider-proxy/v1.6.0) (2025-03-28)
+
+
+### Features
+
+* upgrade nodejs version to 22.14 (latest lts) ([#1095](https://github.com/akash-network/console/issues/1095)) ([8533b35](https://github.com/akash-network/console/commit/8533b355762016829c4435fd67c7885df79b251e))
+
 ## [1.5.2](https://github.com/akash-network/console/compare/provider-proxy/v1.5.1...provider-proxy/v1.5.2) (2025-03-26)
 
 
