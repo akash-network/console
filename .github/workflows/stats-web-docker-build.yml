@@ -30,7 +30,7 @@ jobs:
 
       - name: Decide whether to validate
         id: validation
-        run: echo "enabled=${{ github.event_name == 'push' || steps.has_changes.outputs.app == 'true' }}" >> $GITHUB_OUTPUT
+        run: echo "enabled=${{ steps.has_changes.outputs.app == 'true' }}" >> $GITHUB_OUTPUT
 
       - uses: ./.github/actions/setup-app-deps
         if: steps.validation.outputs.enabled == 'true'

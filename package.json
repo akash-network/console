@@ -71,13 +71,13 @@
     "sort-package-json": "^2.14.0",
     "turbo": "^2.3.3"
   },
-  "packageManager": "npm@10.7.0",
+  "packageManager": "npm@11.2.0",
   "engines": {
-    "node": "20.14.0",
-    "npm": "10.7.0"
+    "node": "22.14.0",
+    "npm": "11.2.0"
   },
   "volta": {
-    "node": "20.14.0",
-    "npm": "10.7.0"
+    "node": "22.14.0",
+    "npm": "11.2.0"
   }
 }
