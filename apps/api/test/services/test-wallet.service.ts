@@ -86,7 +86,7 @@ export class TestWalletService {
     const gasEstimation = await client.simulate(faucetAddress, messages, undefined);
     const estimatedGas = Math.round(gasEstimation * 1.5);
 
-    const fee = calculateFee(estimatedGas, GasPrice.fromString("0.0025uakt"));
+    const fee = calculateFee(estimatedGas, GasPrice.fromString("0.025uakt"));
 
     await client.signAndBroadcast(faucetAddress, messages, fee);
 

@@ -61,7 +61,7 @@ export class GpuBidsCreatorService {
   private async signAndBroadcast(address: string, client: SigningStargateClient, messages: readonly EncodeObject[]) {
     const simulation = await client.simulate(address, messages, "");
 
-    const fee = calculateFee(Math.round(simulation * 1.35), `${this.config.get("AVERAGE_GAS_PRICE")}uakt`);
+    const fee = calculateFee(Math.round(simulation * 1.35), `${this.config.get("HIGH_GAS_PRICE")}uakt`);
 
     const txRaw = await client.sign(address, messages, fee, "");
 
