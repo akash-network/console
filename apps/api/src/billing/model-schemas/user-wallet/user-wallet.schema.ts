@@ -8,7 +8,6 @@ export const UserWallets = pgTable("user_wallets", {
     .references(() => Users.id, { onDelete: "cascade" })
     .unique(),
   address: varchar("address").unique(),
-  stripeCustomerId: varchar("stripe_customer_id"),
   deploymentAllowance: allowance("deployment_allowance"),
   feeAllowance: allowance("fee_allowance"),
   isTrialing: boolean("trial").default(true),
