@@ -1,5 +1,12 @@
 
 
+## [2.79.1](https://github.com/akash-network/console/compare/console-api/v2.79.0...console-api/v2.79.1) (2025-03-31)
+
+
+### Bug Fixes
+
+* ensures that stats.date is a string ([#1145](https://github.com/akash-network/console/issues/1145)) ([38b2382](https://github.com/akash-network/console/commit/38b23820f1d6a4f2850fa645b62ea2637fe3fea3))
+
 ## [2.79.0](https://github.com/akash-network/console/compare/console-api/v2.78.0...console-api/v2.79.0) (2025-03-31)
 
 
