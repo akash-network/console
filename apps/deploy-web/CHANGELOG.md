@@ -1,5 +1,24 @@
 
 
+## [2.65.0](https://github.com/akash-network/console/compare/console-web/v2.64.0...console-web/v2.65.0) (2025-03-31)
+
+
+### Features
+
+* **deployment:** managed wallet api update deployment ([#1093](https://github.com/akash-network/console/issues/1093)) ([6998834](https://github.com/akash-network/console/commit/699883436cc1763a20f65cce17390403107b179a))
+* show a popup on start trial ([#1116](https://github.com/akash-network/console/issues/1116)) ([fdee6e6](https://github.com/akash-network/console/commit/fdee6e6148a4b14d857aeb91f1612a634e72f5e0)), closes [#826](https://github.com/akash-network/console/issues/826)
+* upgrade nodejs version to 22.14 (latest lts) ([#1095](https://github.com/akash-network/console/issues/1095)) ([8533b35](https://github.com/akash-network/console/commit/8533b355762016829c4435fd67c7885df79b251e))
+
+
+### Bug Fixes
+
+* **deployment:** fix import sdl in render ([#1127](https://github.com/akash-network/console/issues/1127)) ([7e34b7c](https://github.com/akash-network/console/commit/7e34b7c1703ae76d77bdb76269b7cd7e9626ea04))
+
+
+### Code Refactoring
+
+* moves trial authorization spending out of db transaction ([#1129](https://github.com/akash-network/console/issues/1129)) ([8c8e372](https://github.com/akash-network/console/commit/8c8e3729ce7c1f7ad2c387b471b326f1fbc0d353))
+
 ## [2.64.0](https://github.com/akash-network/console/compare/console-web/v2.63.0...console-web/v2.64.0) (2025-03-28)
 
 
