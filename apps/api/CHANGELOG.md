@@ -1,5 +1,12 @@
 
 
+## [2.79.0](https://github.com/akash-network/console/compare/console-api/v2.78.0...console-api/v2.79.0) (2025-03-31)
+
+
+### Features
+
+* **deployment:** properly validate user trial deployments ([#1143](https://github.com/akash-network/console/issues/1143)) ([88741b5](https://github.com/akash-network/console/commit/88741b5cfc349b55956880375c06a8c779c9d6bd))
+
 ## [2.78.0](https://github.com/akash-network/console/compare/console-api/v2.77.0...console-api/v2.78.0) (2025-03-31)
 
 
