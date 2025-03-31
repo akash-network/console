@@ -286,7 +286,11 @@ const removeLastAroundMidnight = (stats: ProviderStats[]) => {
   const now = new Date();
   const isFirstFifteenMinuesOfDay = now.getHours() === 0 && now.getMinutes() <= 15;
   const dateToday = format(now, "yyyy-MM-dd");
-  const lastItemIsForToday = stats.length > 0 && stats[stats.length - 1].date.startsWith(dateToday);
+  const lastItem = stats.length > 0 ? stats[stats.length - 1] : null;
+  const lastItemIsForToday = typeof lastItem?.date === "string" && lastItem.date.startsWith(dateToday);
+  if (lastItem && typeof lastItem.date !== "string") {
+    console.error(`removeLastAroundMidnight: lastItem.date is not a string: ${JSON.stringify(lastItem, null, 2)}`);
+  }
   if (isFirstFifteenMinuesOfDay && lastItemIsForToday) {
     return stats.slice(0, stats.length - 1);
   }
