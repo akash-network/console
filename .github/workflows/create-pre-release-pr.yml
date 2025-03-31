@@ -14,7 +14,7 @@ permissions:
   pull-requests: write
 
 env:
-  NODE_VERSION: 20.14.0
+  NODE_VERSION: 22.14.0
   RELEASE_BRANCH: release/bumps
   BASE_BRANCH: main
 
@@ -97,10 +97,10 @@ jobs:
           echo "Checking for existing PR..."
           PR_NUMBER=$(gh pr list \
             --base "${{ env.BASE_BRANCH }}" \
-            --head "${{ github.repository_owner }}:${{ env.RELEASE_BRANCH }}" \
+            --head "${{ env.RELEASE_BRANCH }}" \
             --state open \
             --limit 1 \
-            --json id \
+            --json number \
             --jq ".[0].number")
           echo "pr_number=$PR_NUMBER" >> $GITHUB_ENV
 
@@ -144,7 +144,7 @@ jobs:
           echo "commit_sha=$COMMIT_SHA" >> $GITHUB_ENV
 
       - name: Create Pull Request
-        if: env.pr_number == 'null'
+        if: env.pr_number == ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

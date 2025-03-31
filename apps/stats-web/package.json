@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/stats-web",
-  "version": "0.20.1",
+  "version": "0.22.0",
   "private": true,
   "scripts": {
     "build": "npm run build-env-schemas && next build",
@@ -9,6 +9,7 @@
     "dev:inspect": "cross-env NODE_OPTIONS=\"--inspect\" ../../node_modules/.bin/next start -p 3001",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",
     "lint": "eslint .",
+    "release": "release-it",
     "start": "next start"
   },
   "dependencies": {
@@ -52,6 +53,7 @@
     "@akashnetwork/akashjs": "@akashnetwork/akashjs",
     "@akashnetwork/dev-config": "*",
     "@akashnetwork/docker": "*",
+    "@akashnetwork/releaser": "*",
     "@types/json2csv": "^5.0.7",
     "@types/node": "20.14.0",
     "@types/react": "18.2.0",

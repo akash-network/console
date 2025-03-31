@@ -1,5 +1,24 @@
 
 
+## [1.6.0](https://github.com/akash-network/console/compare/provider-proxy/v1.5.2...provider-proxy/v1.6.0) (2025-03-31)
+
+
+### Features
+
+* upgrade nodejs version to 22.14 (latest lts) ([#1095](https://github.com/akash-network/console/issues/1095)) ([8533b35](https://github.com/akash-network/console/commit/8533b355762016829c4435fd67c7885df79b251e))
+
+
+### Code Refactoring
+
+* moves trial authorization spending out of db transaction ([#1129](https://github.com/akash-network/console/issues/1129)) ([8c8e372](https://github.com/akash-network/console/commit/8c8e3729ce7c1f7ad2c387b471b326f1fbc0d353))
+
+## [1.5.2](https://github.com/akash-network/console/compare/provider-proxy/v1.5.1...provider-proxy/v1.5.2) (2025-03-26)
+
+
+### Bug Fixes
+
+* update react-query in a few places ([#1084](https://github.com/akash-network/console/issues/1084)) ([7473929](https://github.com/akash-network/console/commit/7473929504ad9d3527688082084e521a64741a25)), closes [#337](https://github.com/akash-network/console/issues/337)
+
 ## [1.5.1](https://github.com/akash-network/console/compare/provider-proxy/v1.5.0...provider-proxy/v1.5.1) (2025-03-20)
 
 
