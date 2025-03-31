@@ -8,9 +8,9 @@ import { singleton } from "tsyringe";
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
-import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
-import { RpcMessageService, SpendingAuthorizationMsgOptions } from "@src/billing/services/rpc-message-service/rpc-message.service";
-import { DryRunOptions } from "@src/core/types/console";
+import type { DryRunOptions } from "@src/core/types/console";
+import { ManagedSignerService } from "../managed-signer/managed-signer.service";
+import { RpcMessageService, SpendingAuthorizationMsgOptions } from "../rpc-message-service/rpc-message.service";
 
 interface SpendingAuthorizationOptions {
   address: string;
@@ -105,7 +105,7 @@ export class ManagedUserWalletService {
     return await this.managedSignerService.executeRootTx(messages);
   }
 
-  private async authorizeDeploymentSpending(options: SpendingAuthorizationMsgOptions) {
+  private async authorizeDeploymentSpending(options: any) {
     const deploymentAllowanceMsg = this.rpcMessageService.getDepositDeploymentGrantMsg(options);
     return await this.managedSignerService.executeRootTx([deploymentAllowanceMsg]);
   }
