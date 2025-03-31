@@ -1,5 +1,49 @@
 
 
+## [2.65.0](https://github.com/akash-network/console/compare/console-web/v2.64.0...console-web/v2.65.0) (2025-03-31)
+
+
+### Features
+
+* **deployment:** managed wallet api update deployment ([#1093](https://github.com/akash-network/console/issues/1093)) ([6998834](https://github.com/akash-network/console/commit/699883436cc1763a20f65cce17390403107b179a))
+* show a popup on start trial ([#1116](https://github.com/akash-network/console/issues/1116)) ([fdee6e6](https://github.com/akash-network/console/commit/fdee6e6148a4b14d857aeb91f1612a634e72f5e0)), closes [#826](https://github.com/akash-network/console/issues/826)
+* upgrade nodejs version to 22.14 (latest lts) ([#1095](https://github.com/akash-network/console/issues/1095)) ([8533b35](https://github.com/akash-network/console/commit/8533b355762016829c4435fd67c7885df79b251e))
+
+
+### Bug Fixes
+
+* **deployment:** fix import sdl in render ([#1127](https://github.com/akash-network/console/issues/1127)) ([7e34b7c](https://github.com/akash-network/console/commit/7e34b7c1703ae76d77bdb76269b7cd7e9626ea04))
+
+
+### Code Refactoring
+
+* moves trial authorization spending out of db transaction ([#1129](https://github.com/akash-network/console/issues/1129)) ([8c8e372](https://github.com/akash-network/console/commit/8c8e3729ce7c1f7ad2c387b471b326f1fbc0d353))
+
+## [2.64.0](https://github.com/akash-network/console/compare/console-web/v2.63.0...console-web/v2.64.0) (2025-03-28)
+
+
+### Features
+
+* **deployment:** show banner for trial users with no bids ([#922](https://github.com/akash-network/console/issues/922)) ([344af36](https://github.com/akash-network/console/commit/344af36c7c9172f22e4bcfdc2ea3fe62284a49a8)), closes [#887](https://github.com/akash-network/console/issues/887)
+
+
+### Bug Fixes
+
+* change the link to "learn more" during tx sign ([#1122](https://github.com/akash-network/console/issues/1122)) ([e77d95a](https://github.com/akash-network/console/commit/e77d95ab4525fbae02bcca856040ae677f61fbf5))
+
+## [2.63.0](https://github.com/akash-network/console/compare/console-web/v2.62.4...console-web/v2.63.0) (2025-03-26)
+
+
+### Features
+
+* adds basic feature flags support to api and deploy-web ([#1113](https://github.com/akash-network/console/issues/1113)) ([130407c](https://github.com/akash-network/console/commit/130407ce8632cde4cea49394ba01267a1962d158))
+
+
+### Bug Fixes
+
+* update nextjs version ([#1105](https://github.com/akash-network/console/issues/1105)) ([5d24cd8](https://github.com/akash-network/console/commit/5d24cd851eac88a0fbf04899ffdda689994c2b8b))
+* update react-query in a few places ([#1084](https://github.com/akash-network/console/issues/1084)) ([7473929](https://github.com/akash-network/console/commit/7473929504ad9d3527688082084e521a64741a25)), closes [#337](https://github.com/akash-network/console/issues/337)
+
 ## [2.62.4](https://github.com/akash-network/console/compare/console-web/v2.62.3...console-web/v2.62.4) (2025-03-24)
 
 

@@ -1,3 +1,5 @@
+import { eq, lt, sql } from "drizzle-orm";
+import { and } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { ApiPgDatabase, ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -27,6 +29,13 @@ export class ApiKeyRepository extends BaseRepository<Table, ApiKeyInput, ApiKeyO
 
   accessibleBy(...abilityParams: AbilityParams) {
     return new ApiKeyRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
+  }
+
+  async markAsUsed(id: ApiKeyOutput["id"], throttleTimeSeconds: number) {
+    await this.cursor
+      .update(this.table)
+      .set({ lastUsedAt: sql`now()` })
+      .where(and(eq(this.table.id, id), lt(this.table.lastUsedAt, sql`now() - make_interval(secs => ${throttleTimeSeconds})`)));
   }
 
   protected toOutput(payload: ApiKeyDbOutput): ApiKeyOutput {

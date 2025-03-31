@@ -1,10 +1,10 @@
 import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
+import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletInput, UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
-import { Wallet } from "@src/billing/services";
 
 @singleton()
 export class BalancesService {

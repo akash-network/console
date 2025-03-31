@@ -1,5 +1,30 @@
 
 
+## [1.7.0](https://github.com/akash-network/console/compare/provider-console/v1.6.0...provider-console/v1.7.0) (2025-03-31)
+
+
+### Features
+
+* **deployment:** managed wallet api update deployment ([#1093](https://github.com/akash-network/console/issues/1093)) ([6998834](https://github.com/akash-network/console/commit/699883436cc1763a20f65cce17390403107b179a))
+* upgrade nodejs version to 22.14 (latest lts) ([#1095](https://github.com/akash-network/console/issues/1095)) ([8533b35](https://github.com/akash-network/console/commit/8533b355762016829c4435fd67c7885df79b251e))
+
+
+### Code Refactoring
+
+* moves trial authorization spending out of db transaction ([#1129](https://github.com/akash-network/console/issues/1129)) ([8c8e372](https://github.com/akash-network/console/commit/8c8e3729ce7c1f7ad2c387b471b326f1fbc0d353))
+
+## [1.6.0](https://github.com/akash-network/console/compare/provider-console/v1.5.2...provider-console/v1.6.0) (2025-03-26)
+
+
+### Features
+
+* **provider:** added upgrade button for provider ([#1110](https://github.com/akash-network/console/issues/1110)) ([c2d7512](https://github.com/akash-network/console/commit/c2d751233e4b4779e584761392bf0175e8c8ee1c))
+
+
+### Bug Fixes
+
+* update nextjs version ([#1105](https://github.com/akash-network/console/issues/1105)) ([5d24cd8](https://github.com/akash-network/console/commit/5d24cd851eac88a0fbf04899ffdda689994c2b8b))
+
 ## [1.5.2](https://github.com/akash-network/console/compare/provider-console/v1.5.1...provider-console/v1.5.2) (2025-03-21)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/console-api",
-  "version": "2.75.3",
+  "version": "2.78.0",
   "description": "Api providing data to the deploy tool",
   "repository": {
     "type": "git",
@@ -88,6 +88,7 @@
     "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.21",
     "long": "^5.3.1",
+    "lru-cache": "^11.1.0",
     "markdown-to-txt": "^2.0.1",
     "memory-cache": "^0.2.0",
     "node-dependency-injection": "^3.1.2",

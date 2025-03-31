@@ -9,10 +9,10 @@ import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { InjectSigningClient } from "@src/billing/providers/signing-client.provider";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
-import { BalancesService } from "@src/billing/services/balances/balances.service";
-import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { DedupeSigningClientService } from "@src/billing/services/dedupe-signing-client/dedupe-signing-client.service";
+import { BalancesService } from "../balances/balances.service";
+import { BillingConfigService } from "../billing-config/billing-config.service";
 import { ChainErrorService } from "../chain-error/chain-error.service";
+import { DedupeSigningClientService } from "../dedupe-signing-client/dedupe-signing-client.service";
 import { TrialValidationService } from "../trial-validation/trial-validation.service";
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };

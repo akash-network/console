@@ -1,6 +1,6 @@
 export const netConfigData = {
   mainnet: {
-    version: "0.36.0",
+    version: "0.38.0",
     apiUrls: [
       "https://api.akashnet.net:443",
       "https://akash-api.polkachu.com:443",
@@ -16,7 +16,7 @@ export const netConfigData = {
     ]
   },
   sandbox: {
-    version: "0.36.0",
+    version: "0.38.0",
     apiUrls: ["https://api.sandbox-01.aksh.pw:443"],
     rpcUrls: ["https://rpc.sandbox-01.aksh.pw:443"]
   },

@@ -1,5 +1,48 @@
 
 
+## [2.78.0](https://github.com/akash-network/console/compare/console-api/v2.77.0...console-api/v2.78.0) (2025-03-31)
+
+
+### Features
+
+* **deployment:** managed wallet api update deployment ([#1093](https://github.com/akash-network/console/issues/1093)) ([6998834](https://github.com/akash-network/console/commit/699883436cc1763a20f65cce17390403107b179a))
+* upgrade nodejs version to 22.14 (latest lts) ([#1095](https://github.com/akash-network/console/issues/1095)) ([8533b35](https://github.com/akash-network/console/commit/8533b355762016829c4435fd67c7885df79b251e))
+
+
+### Bug Fixes
+
+* ignore zero provider stats data for last day ([#1094](https://github.com/akash-network/console/issues/1094)) ([ddfac90](https://github.com/akash-network/console/commit/ddfac90e1a58f279840c44864975456c9882076e)), closes [#721](https://github.com/akash-network/console/issues/721)
+
+
+### Code Refactoring
+
+* moves trial authorization spending out of db transaction ([#1129](https://github.com/akash-network/console/issues/1129)) ([8c8e372](https://github.com/akash-network/console/commit/8c8e3729ce7c1f7ad2c387b471b326f1fbc0d353))
+
+## [2.77.0](https://github.com/akash-network/console/compare/console-api/v2.76.0...console-api/v2.77.0) (2025-03-28)
+
+
+### Features
+
+* **deployment:** show banner for trial users with no bids ([#922](https://github.com/akash-network/console/issues/922)) ([344af36](https://github.com/akash-network/console/commit/344af36c7c9172f22e4bcfdc2ea3fe62284a49a8)), closes [#887](https://github.com/akash-network/console/issues/887)
+
+
+### Code Refactoring
+
+* updates last_used_at once in 30 minutes ([#1108](https://github.com/akash-network/console/issues/1108)) ([4c90cee](https://github.com/akash-network/console/commit/4c90ceecc51fbe8874547e6aada0316f6d0ca7d9))
+
+## [2.76.0](https://github.com/akash-network/console/compare/console-api/v2.75.3...console-api/v2.76.0) (2025-03-26)
+
+
+### Features
+
+* adds basic feature flags support to api and deploy-web ([#1113](https://github.com/akash-network/console/issues/1113)) ([130407c](https://github.com/akash-network/console/commit/130407ce8632cde4cea49394ba01267a1962d158))
+* **wallet:** adds exponential backoff to the signer instantiation ([#1088](https://github.com/akash-network/console/issues/1088)) ([dbd35df](https://github.com/akash-network/console/commit/dbd35df56c3cde2bc2a9fa18967f97f33faaeac0))
+
+
+### Bug Fixes
+
+* update react-query in a few places ([#1084](https://github.com/akash-network/console/issues/1084)) ([7473929](https://github.com/akash-network/console/commit/7473929504ad9d3527688082084e521a64741a25)), closes [#337](https://github.com/akash-network/console/issues/337)
+
 ## [2.75.3](https://github.com/akash-network/console/compare/console-api/v2.75.2...console-api/v2.75.3) (2025-03-24)
 
 
