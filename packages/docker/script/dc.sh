@@ -84,11 +84,11 @@ case "$COMMAND" in
     ;;
   up:dev)
     echo "Running: docker compose -p console $DOCKER_COMPOSE_FILES up $*"
-    docker compose -p console $DOCKER_COMPOSE_FILES up "$@" --renew-anon-volumes || { echo "Docker up:dev failed"; exit 1; }
+    docker compose -p console $DOCKER_COMPOSE_FILES up --renew-anon-volumes "$@" || { echo "Docker up:dev failed"; exit 1; }
     ;;
   up:prod)
     echo "Running: docker compose -p console $DOCKER_COMPOSE_FILES up $*"
-    docker compose -p console $DOCKER_COMPOSE_FILES up "$@" --renew-anon-volumes || { echo "Docker up:prod failed"; exit 1; }
+    docker compose -p console $DOCKER_COMPOSE_FILES up --renew-anon-volumes "$@" || { echo "Docker up:prod failed"; exit 1; }
     ;;
   *)
     echo "Unknown command: $COMMAND"
