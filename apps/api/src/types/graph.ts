@@ -1,7 +1,7 @@
 export type ProviderStatsKey = keyof Omit<ProviderStats, "date">;
 
 export type ProviderStats = {
-  date: string;
+  date: Date;
   count: number;
   cpu: string;
   gpu: string;
