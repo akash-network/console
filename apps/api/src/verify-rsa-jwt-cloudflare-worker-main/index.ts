@@ -1,4 +1,4 @@
-import { GeneralKeyValueStore, KVNamespaceOrKeyValueStore, KVStore } from "./use-kv-store";
+import type { GeneralKeyValueStore, KVNamespaceOrKeyValueStore, KVStore } from "./use-kv-store";
 
 export { getJwks } from "./get-jwks";
 export type { Jwks } from "./get-jwks";

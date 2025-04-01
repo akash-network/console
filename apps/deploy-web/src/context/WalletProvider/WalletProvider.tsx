@@ -13,7 +13,7 @@ import { SnackbarKey, useSnackbar } from "notistack";
 
 import { LoadingState, TransactionModal } from "@src/components/layout/TransactionModal";
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { useAllowance } from "@src/hooks/useAllowance";
+import { useAllowance } from "@src/hooks/useAllowance"; // eslint-disable-line import-x/no-cycle
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";

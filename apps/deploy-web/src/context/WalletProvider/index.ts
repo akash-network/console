@@ -1,1 +1,1 @@
-export { useWallet, WalletProvider } from "./WalletProvider";
+export { useWallet, WalletProvider } from "./WalletProvider"; // eslint-disable-line import-x/no-cycle
