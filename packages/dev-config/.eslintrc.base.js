@@ -4,7 +4,16 @@ module.exports = {
     es2021: true
   },
   extends: ["eslint:recommended"],
-  plugins: ["simple-import-sort", "import"],
+  plugins: ["simple-import-sort", "import-x"],
+  settings: {
+    "import-x/resolver": {
+      typescript: {
+        alwaysTryTypes: true,
+        project: ["./tsconfig.json"]
+      }
+    },
+    "import-x/external-module-folders": ["node_modules", "dist", "build", "public", "Leap"]
+  },
   ignorePatterns: ["node_modules", "dist", "build", "public", "Leap"],
   rules: {
     "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true, argsIgnorePattern: "^_" }],
@@ -21,7 +30,10 @@ module.exports = {
     ],
     "space-infix-ops": ["error", { int32Hint: false }],
     "object-curly-spacing": ["error", "always"],
-    "import/no-extraneous-dependencies": ["error"]
+    "import-x/no-extraneous-dependencies": ["error"],
+    "import-x/no-cycle": ["error", { ignoreExternal: true }],
+    "import-x/no-self-import": ["error"],
+    "import-x/no-useless-path-segments": ["error"]
   },
   overrides: [
     {

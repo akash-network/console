@@ -1,4 +1,4 @@
-import { useWallet } from "@src/context/WalletProvider";
+import { useWallet } from "@src/context/WalletProvider"; // eslint-disable-line import-x/no-cycle
 import networkStore from "@src/store/networkStore";
 
 export const useLocalStorage = () => {

@@ -1,7 +1,8 @@
 import type { Context, MiddlewareHandler } from "hono";
 
-import type { GeneralKeyValueStore, VerificationResult } from ".";
-import { getJwks, useKVStore, verify } from ".";
+import { getJwks } from "./get-jwks";
+import { type GeneralKeyValueStore, useKVStore } from "./use-kv-store";
+import { type VerificationResult, verify } from "./verify";
 
 export type VerifyRsaJwtConfig = {
   jwksUri?: string;

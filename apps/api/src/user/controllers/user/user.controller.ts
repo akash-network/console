@@ -6,7 +6,7 @@ import { AuthService, Protected } from "@src/auth/services/auth.service";
 import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { UserRepository } from "@src/user/repositories";
-import { GetUserParams } from "@src/user/routes/get-anonymous-user/get-anonymous-user.router";
+import type { GetUserParams } from "@src/user/routes/get-anonymous-user/get-anonymous-user.router";
 import { AnonymousUserResponseOutput } from "@src/user/schemas/user.schema";
 import {
   StaleAnonymousUsersCleanerOptions,
