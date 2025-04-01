@@ -1,5 +1,12 @@
 
 
+## [2.79.3](https://github.com/akash-network/console/compare/console-api/v2.79.2...console-api/v2.79.3) (2025-04-01)
+
+
+### Bug Fixes
+
+* **deployment:** append trial attribute for anon only ([#1155](https://github.com/akash-network/console/issues/1155)) ([814e154](https://github.com/akash-network/console/commit/814e154a4bcaaea74507a87a3af3c9a628154835))
+
 ## [2.79.2](https://github.com/akash-network/console/compare/console-api/v2.79.1...console-api/v2.79.2) (2025-04-01)
 
 
