@@ -233,7 +233,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         return;
       }
 
-      if (isTrialing) {
+      if (isTrialing && !isOnboarding) {
         sdl = appendTrialAttribute(sdl, TRIAL_ATTRIBUTE);
       } else if (isOnboarding) {
         sdl = appendTrialAttribute(sdl, TRIAL_REGISTERED_ATTRIBUTE);
