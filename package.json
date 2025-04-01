@@ -65,6 +65,7 @@
     "@commitlint/config-conventional": "^19.5.0",
     "@release-it/conventional-changelog": "github:akash-network/conventional-changelog#feature/pre-release",
     "cross-env": "^7.0.3",
+    "eslint-plugin-import-x": "^4.10.0",
     "husky": "^9.1.6",
     "lint-staged": "^15.4.0",
     "release-it": "^17.6.0",
