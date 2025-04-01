@@ -21,7 +21,7 @@ export class ProviderService {
   }
 
   async sendManifest(provider: string, dseq: string, manifest: string, options: { certPem: string; keyPem: string }) {
-    const jsonStr = manifest.replace(/"quantity":{"val/g, '"size":{"val').replace(/\\/g, "");
+    const jsonStr = manifest.replace(/"quantity":{"val/g, '"size":{"val');
 
     const providerResponse = await this.providerHttpService.getProvider(provider);
     if (!providerResponse) {
