@@ -1,5 +1,12 @@
 
 
+## [2.65.1](https://github.com/akash-network/console/compare/console-web/v2.65.0...console-web/v2.65.1) (2025-04-01)
+
+
+### Bug Fixes
+
+* **deployment:** append trial attribute for anon only ([#1155](https://github.com/akash-network/console/issues/1155)) ([814e154](https://github.com/akash-network/console/commit/814e154a4bcaaea74507a87a3af3c9a628154835))
+
 ## [2.65.0](https://github.com/akash-network/console/compare/console-web/v2.64.0...console-web/v2.65.0) (2025-03-31)
 
 
