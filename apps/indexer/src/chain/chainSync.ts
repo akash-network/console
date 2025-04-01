@@ -24,7 +24,7 @@ import {
   getLatestHeightInCache
 } from "./dataStore";
 import { nodeAccessor } from "./nodeAccessor";
-import { statsProcessor } from "./statsProcessor";
+import { statsProcessor } from "./statsProcessor"; // eslint-disable-line import-x/no-cycle
 
 export const setMissingBlock = (height: number) => (missingBlock = height);
 let missingBlock: number;

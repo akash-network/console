@@ -1,7 +1,7 @@
 import { singleton } from "tsyringe";
 
 import { Protected } from "@src/auth/services/auth.service";
-import { StripePricesOutputResponse } from "@src/billing";
+import type { StripePricesOutputResponse } from "@src/billing";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 
 @singleton()
