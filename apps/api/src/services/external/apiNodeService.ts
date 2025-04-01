@@ -141,7 +141,7 @@ export async function getAddressBalance(address: string) {
         avatarUrl: validator?.keybaseAvatarUrl
       },
       amount: parseInt(x.balance.amount),
-      reward: null
+      reward: null as number | null
     };
   });
 
