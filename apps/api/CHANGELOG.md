@@ -1,5 +1,13 @@
 
 
+## [2.79.2](https://github.com/akash-network/console/compare/console-api/v2.79.1...console-api/v2.79.2) (2025-04-01)
+
+
+### Bug Fixes
+
+* **deployment:** remove back slash replace ([#1154](https://github.com/akash-network/console/issues/1154)) ([94c9e51](https://github.com/akash-network/console/commit/94c9e51b2cb7f1383628e7e358c33eeaf36ac244))
+* improves logging of dashboard data date field and changes it to … ([#1148](https://github.com/akash-network/console/issues/1148)) ([1f83727](https://github.com/akash-network/console/commit/1f83727d88cbd233832d43957979d38eeb128deb))
+
 ## [2.79.1](https://github.com/akash-network/console/compare/console-api/v2.79.0...console-api/v2.79.1) (2025-03-31)
 
 
