@@ -1,10 +1,10 @@
 "use client";
-import { ReactNode, useState } from "react";
-import { Control } from "react-hook-form";
+import { ReactNode, useEffect, useState } from "react";
+import { Control, UseFieldArrayAppend, UseFieldArrayRemove, UseFormSetValue } from "react-hook-form";
 import { Button, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 
-import { RentGpusFormValuesType, ServiceType } from "@src/types";
+import { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { ExpandMore } from "../shared/ExpandMore";
 import { CommandFormModal } from "./CommandFormModal";
 import { CommandList } from "./CommandList";
@@ -12,19 +12,27 @@ import { EnvFormModal } from "./EnvFormModal";
 import { EnvVarList } from "./EnvVarList";
 import { ExposeFormModal } from "./ExposeFormModal";
 import { ExposeList } from "./ExposeList";
-import { PersistentStorage } from "./PersistentStorage";
+import { MountedStorageFormControl } from "./MountedStorageFormControl";
 
 type Props = {
   currentService: ServiceType;
   control: Control<RentGpusFormValuesType, any>;
   children?: ReactNode;
+  storages: any[];
+  setValue: UseFormSetValue<RentGpusFormValuesType>;
+  appendStorage: UseFieldArrayAppend<SdlBuilderFormValuesType, `services.${number}.profile.storage`>;
+  removeStorage: UseFieldArrayRemove;
 };
 
-export const AdvancedConfig: React.FunctionComponent<Props> = ({ control, currentService }) => {
+export const AdvancedConfig: React.FunctionComponent<Props> = ({ control, currentService, storages, setValue, appendStorage, removeStorage }) => {
   const [expanded, setIsAdvancedOpen] = useState(false);
   const [isEditingCommands, setIsEditingCommands] = useState(false);
   const [isEditingEnv, setIsEditingEnv] = useState(false);
   const [isEditingExpose, setIsEditingExpose] = useState(false);
+
+  useEffect(() => {
+    currentService.profile.storage.length > 1 && setIsAdvancedOpen(true);
+  }, [currentService.profile.storage]);
 
   return (
     <Card className="mt-4">
@@ -69,9 +77,23 @@ export const AdvancedConfig: React.FunctionComponent<Props> = ({ control, curren
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="p-4">
-              <div className="mb-4">
-                <PersistentStorage control={control as any} currentService={currentService} serviceIndex={0} />
-              </div>
+              {currentService.profile.storage.length > 1 &&
+                (storages || []).slice(1).map((storage, storageIndex) => (
+                  <div key={`storage-${storage.id}`}>
+                    <div className="mb-4">
+                      <MountedStorageFormControl
+                        services={[currentService]}
+                        control={control as any}
+                        currentService={currentService}
+                        serviceIndex={0}
+                        storageIndex={storageIndex + 1}
+                        appendStorage={appendStorage}
+                        removeStorage={removeStorage}
+                        setValue={setValue}
+                      />
+                    </div>
+                  </div>
+                ))}
 
               <div className="mb-4">
                 <ExposeList currentService={currentService} setIsEditingExpose={() => setIsEditingExpose(true)} />
