@@ -94,7 +94,7 @@ const Dashboard: React.FC = () => {
 
       {/* Add health check warnings for ports and DNS */}
       {/* Port checks only need provider details, DNS checks need both provider details and control machine */}
-      {(providerDetails || controlMachineIp) && <ProviderHealthCheck providerIp={controlMachineIp} domain={domain} isProviderOnline={isOnline} />}
+      {(providerDetails || controlMachineIp) && <ProviderHealthCheck providerIp={controlMachineIp} domain={domain} />}
 
       <div className="flex items-center">
         <div className="w-10 flex-1">
