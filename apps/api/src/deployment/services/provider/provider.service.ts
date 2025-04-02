@@ -4,6 +4,7 @@ import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderIdentity, ProviderProxyService } from "./provider-proxy.service";
 
 @singleton()
@@ -60,5 +61,28 @@ export class ProviderService {
         throw new Error(err?.response?.data || err);
       }
     }
+  }
+
+  async getLeaseStatus(provider: string, dseq: string, gseq: number, oseq: number, options: { certPem: string; keyPem: string }): Promise<LeaseStatusResponse> {
+    const providerResponse = await this.providerHttpService.getProvider(provider);
+    if (!providerResponse) {
+      throw new Error(`Provider ${provider} not found`);
+    }
+
+    const providerIdentity: ProviderIdentity = {
+      owner: provider,
+      hostUri: providerResponse.provider.host_uri
+    };
+
+    const response = await this.providerProxy.fetchProviderUrl<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
+      method: "GET",
+      certPem: options.certPem,
+      keyPem: options.keyPem,
+      chainNetwork: this.chainNetwork,
+      providerIdentity,
+      timeout: 30000
+    });
+
+    return response;
   }
 }

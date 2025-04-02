@@ -36,6 +36,8 @@ export class LeaseService {
       });
     }
 
-    return await this.deploymentService.findByOwnerAndDseq(wallet.address, input.leases[0].dseq);
+    return await this.deploymentService.findByOwnerAndDseq(wallet.address, input.leases[0].dseq, {
+      certificate: { certPem: input.certificate.certPem, keyPem: input.certificate.keyPem }
+    });
   }
 }

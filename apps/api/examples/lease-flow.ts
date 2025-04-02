@@ -153,7 +153,7 @@ async function main() {
     if (leaseResponse.status !== 200) {
       throw new Error(`Failed to create lease: ${leaseResponse.statusText}`);
     }
-    console.log("Lease created successfully");
+    console.log("Lease created successfully", JSON.stringify(leaseResponse.data.data, null, 2));
 
     // 6. Deposit into deployment
     console.log("Depositing into deployment...");
@@ -201,7 +201,21 @@ async function main() {
     }
     console.log("Deployment updated successfully");
 
-    // 7. Close deployment
+    // 7. Get the deployment details
+    console.log("Getting deployment details...");
+    const deploymentResponse = await api.get(`/v1/deployments/${dseq}`, {
+      headers: {
+        "x-api-key": apiKey
+      },
+      params: {
+        certPem,
+        keyPem: encryptedKey
+      }
+    });
+
+    console.log("Deployment details:", JSON.stringify(deploymentResponse.data.data, null, 2));
+
+    // 8. Close deployment
     console.log("Closing deployment...");
     const closeResponse = await api.delete(`/v1/deployments/${dseq}`, {
       headers: {
