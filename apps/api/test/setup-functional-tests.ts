@@ -7,6 +7,7 @@ const dbService = new TestDatabaseService(testPath);
 
 beforeAll(async () => {
   await dbService.setup();
+  expect.setState({ dbService });
 }, 10000);
 
 afterAll(async () => {
