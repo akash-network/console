@@ -5,7 +5,7 @@ module.exports = {
   overrides: [
     {
       files: ["*.ts", "*.tsx"],
-      extends: ["plugin:@typescript-eslint/recommended"],
+      extends: ["plugin:@typescript-eslint/recommended", "plugin:import-x/typescript"],
       parser: "@typescript-eslint/parser",
       parserOptions: {
         ecmaVersion: "latest",

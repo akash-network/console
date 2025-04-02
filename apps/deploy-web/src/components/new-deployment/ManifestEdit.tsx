@@ -16,6 +16,7 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useImportSimpleSdl } from "@src/hooks/useImportSimpleSdl";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
@@ -26,10 +27,9 @@ import { TemplateCreation } from "@src/types";
 import type { DepositParams } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
-import { appendTrialAttribute } from "@src/utils/deploymentData/v1beta3";
+import { appendTrialAttribute, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
-import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { Timer } from "@src/utils/timer";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, handleDocClick, UrlService } from "@src/utils/urlUtils";
@@ -71,7 +71,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [sdlDenom, setSdlDenom] = useState("uakt");
 
   const { settings } = useSettings();
-  const { address, signAndBroadcastTx, isManaged, isTrialing } = useWallet();
+  const { address, signAndBroadcastTx, isManaged, isTrialing, isOnboarding } = useWallet();
   const router = useRouter();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
@@ -86,7 +86,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const wallet = useWallet();
   const managedDenom = useManagedWalletDenom();
   const { enqueueSnackbar } = useSnackbar();
-  const services = editedManifest ? importSimpleSdl(editedManifest) : [];
+  const services = useImportSimpleSdl(editedManifest);
 
   useWhen(
     wallet.isManaged && sdlDenom === "uakt" && editedManifest,
@@ -197,7 +197,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     }
 
     if (isManaged) {
-      if (!services) {
+      if (!services || services?.length === 0) {
         setParsingError("Error while parsing SDL file");
         return;
       }
@@ -233,8 +233,10 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         return;
       }
 
-      if (isTrialing) {
-        sdl = appendTrialAttribute(sdl);
+      if (isTrialing && !isOnboarding) {
+        sdl = appendTrialAttribute(sdl, TRIAL_ATTRIBUTE);
+      } else if (isOnboarding) {
+        sdl = appendTrialAttribute(sdl, TRIAL_REGISTERED_ATTRIBUTE);
       }
 
       const dd = await createAndValidateDeploymentData(sdl, null, deposit, depositorAddress);
@@ -463,7 +465,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
           infoText={
             <Alert className="mb-4 text-xs" variant="default">
               <DeploymentMinimumEscrowAlertText />
-              <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/other-resources/payments/")}>
+              <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/getting-started/intro-to-akash/payments/#escrow-accounts")}>
                 <strong>Learn more.</strong>
               </LinkTo>
             </Alert>

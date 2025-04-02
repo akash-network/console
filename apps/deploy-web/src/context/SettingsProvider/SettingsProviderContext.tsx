@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 
-import { useLocalStorage } from "@src/hooks/useLocalStorage";
+import { useLocalStorage } from "@src/hooks/useLocalStorage"; // eslint-disable-line import-x/no-cycle
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { queryClient } from "@src/queries";
 import networkStore from "@src/store/networkStore";

@@ -1,6 +1,6 @@
 import { boolean, numeric, pgTable, serial, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
-import { Users } from "@src/user/model-schemas";
+import { Users } from "@src/user/model-schemas"; // eslint-disable-line import-x/no-cycle
 
 export const UserWallets = pgTable("user_wallets", {
   id: serial("id").primaryKey(),
@@ -8,7 +8,6 @@ export const UserWallets = pgTable("user_wallets", {
     .references(() => Users.id, { onDelete: "cascade" })
     .unique(),
   address: varchar("address").unique(),
-  stripeCustomerId: varchar("stripe_customer_id"),
   deploymentAllowance: allowance("deployment_allowance"),
   feeAllowance: allowance("fee_allowance"),
   isTrialing: boolean("trial").default(true),

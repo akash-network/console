@@ -1,11 +1,12 @@
 "use client";
-import React, { ReactNode } from "react";
+import React, { ReactNode, useCallback } from "react";
 import { Button, ButtonProps, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Rocket } from "iconoir-react";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
+import { useFeatureFlags } from "@src/queries/featureFlags";
 
 interface Props extends ButtonProps {
   children?: ReactNode;
@@ -14,12 +15,23 @@ interface Props extends ButtonProps {
 
 export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ className = "", ...rest }) => {
   const { connectManagedWallet, hasManagedWallet, isWalletLoading } = useWallet();
+  const { data: features } = useFeatureFlags();
   const whenLoggedIn = useLoginRequiredEventHandler();
+  const startTrial: React.MouseEventHandler = useCallback(
+    event => {
+      if (features?.allowAnonymousUserTrial) {
+        connectManagedWallet();
+      } else {
+        whenLoggedIn("Sign In or Sign Up to start trial")(connectManagedWallet)(event);
+      }
+    },
+    [connectManagedWallet, features?.allowAnonymousUserTrial, whenLoggedIn]
+  );
 
   return (
     <Button
       variant="outline"
-      onClick={whenLoggedIn("Sign In or Sign Up to start trial")(connectManagedWallet)}
+      onClick={startTrial}
       className={cn("border-primary bg-primary/10 dark:bg-primary", className)}
       {...rest}
       disabled={isWalletLoading}

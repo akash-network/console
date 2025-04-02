@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Input } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
+import { ArrowUp, CheckCircle, Refresh, WarningTriangle } from "iconoir-react";
 import { useRouter } from "next/router";
 import { z } from "zod";
 
@@ -24,14 +25,24 @@ const SettingsPage: React.FC = () => {
   const [isRestartLoading, setIsRestartLoading] = useState(false);
   const [restartSuccess, setRestartSuccess] = useState(false);
   const [nodeUpgradeSuccess, setNodeUpgradeSuccess] = useState(false);
+  const [providerUpgradeSuccess, setProviderUpgradeSuccess] = useState(false);
+  const [isNodeUpgrading, setIsNodeUpgrading] = useState(false);
+  const [isProviderUpgrading, setIsProviderUpgrading] = useState(false);
+  const [upgradeMessage, setUpgradeMessage] = useState("");
+  const [providerUpgradeMessage, setProviderUpgradeMessage] = useState("");
   const [upgradeStatus, setUpgradeStatus] = useState<{
-    needsUpgrade: boolean;
-    appVersion: { current: string; desired: string; needsUpgrade: boolean };
-    chartVersion: { current: string; desired: string; needsUpgrade: boolean };
+    node: {
+      needsUpgrade: boolean;
+      appVersion: { current: string; desired: string; needsUpgrade: boolean };
+      chartVersion: { current: string; desired: string; needsUpgrade: boolean };
+    };
+    provider: {
+      needsUpgrade: boolean;
+      appVersion: { current: string; desired: string; needsUpgrade: boolean };
+      chartVersion: { current: string; desired: string; needsUpgrade: boolean };
+    };
   } | null>(null);
   const [isUpgradeStatusLoading, setIsUpgradeStatusLoading] = useState(false);
-  const [isNodeUpgrading, setIsNodeUpgrading] = useState(false);
-  const [upgradeMessage, setUpgradeMessage] = useState("");
 
   const { providerDetails } = useProvider();
   const { activeControlMachine } = useControlMachine();
@@ -49,23 +60,45 @@ const SettingsPage: React.FC = () => {
         control_machine: sanitizeMachineAccess(activeControlMachine)
       };
       const response: {
-        needs_upgrade: boolean;
-        app_version: { current: string; desired: string; needs_upgrade: boolean };
-        chart_version: { current: string; desired: string; needs_upgrade: boolean };
-      } = await restClient.post("/network/upgrade-status", request);
+        node: {
+          needs_upgrade: boolean;
+          app_version: { current: string; desired: string; needs_upgrade: boolean };
+          chart_version: { current: string; desired: string; needs_upgrade: boolean };
+        };
+        provider: {
+          needs_upgrade: boolean;
+          app_version: { current: string; desired: string; needs_upgrade: boolean };
+          chart_version: { current: string; desired: string; needs_upgrade: boolean };
+        };
+      } = await restClient.post("/upgrade-status", request);
 
       if (response) {
         setUpgradeStatus({
-          needsUpgrade: response.needs_upgrade,
-          appVersion: {
-            current: response.app_version.current,
-            desired: response.app_version.desired,
-            needsUpgrade: response.app_version.needs_upgrade
+          node: {
+            needsUpgrade: response.node.needs_upgrade,
+            appVersion: {
+              current: response.node.app_version.current,
+              desired: response.node.app_version.desired,
+              needsUpgrade: response.node.app_version.needs_upgrade
+            },
+            chartVersion: {
+              current: response.node.chart_version.current,
+              desired: response.node.chart_version.desired,
+              needsUpgrade: response.node.chart_version.needs_upgrade
+            }
           },
-          chartVersion: {
-            current: response.chart_version.current,
-            desired: response.chart_version.desired,
-            needsUpgrade: response.chart_version.needs_upgrade
+          provider: {
+            needsUpgrade: response.provider.needs_upgrade,
+            appVersion: {
+              current: response.provider.app_version.current,
+              desired: response.provider.app_version.desired,
+              needsUpgrade: response.provider.app_version.needs_upgrade
+            },
+            chartVersion: {
+              current: response.provider.chart_version.current,
+              desired: response.provider.chart_version.desired,
+              needsUpgrade: response.provider.chart_version.needs_upgrade
+            }
           }
         });
       }
@@ -116,13 +149,8 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const upgradeProvider = () => {
-    // Original upgrade provider function
-    // TODO: call upgrade provider api here
-  };
-
   const upgradeAkashNode = async () => {
-    if (!activeControlMachine || !upgradeStatus?.needsUpgrade) return;
+    if (!activeControlMachine || !upgradeStatus?.node.needsUpgrade) return;
 
     try {
       setIsNodeUpgrading(true);
@@ -153,18 +181,65 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  // Helper function to determine upgrade reason
-  const getUpgradeReason = () => {
-    if (!upgradeStatus?.needsUpgrade) return null;
+  const upgradeProvider = async () => {
+    if (!activeControlMachine || !upgradeStatus?.provider.needsUpgrade) return;
+
+    try {
+      setIsProviderUpgrading(true);
+      const request = {
+        control_machine: sanitizeMachineAccess(activeControlMachine)
+      };
+      const response: { message: string; action_id: string } = await restClient.post("/provider/upgrade", request);
+
+      if (response) {
+        setProviderUpgradeMessage(response.message);
+        setProviderUpgradeSuccess(true);
+
+        if (response.action_id) {
+          // Navigate to activity logs page with the action ID
+          router.push(`/activity-logs/${response.action_id}`);
+        } else {
+          // If no action_id, just show success message temporarily
+          setTimeout(() => setProviderUpgradeSuccess(false), 20000);
+        }
+
+        // Refresh upgrade status after a delay
+        setTimeout(() => fetchUpgradeStatus(), 5000);
+      }
+    } catch (error) {
+      console.error("Failed to upgrade provider:", error);
+    } finally {
+      setIsProviderUpgrading(false);
+    }
+  };
+
+  const getNodeUpgradeReason = () => {
+    if (!upgradeStatus?.node.needsUpgrade) return null;
 
     const reasons: string[] = [];
 
-    if (upgradeStatus.appVersion.needsUpgrade) {
-      reasons.push(`application version (${upgradeStatus.appVersion.current} → ${upgradeStatus.appVersion.desired})`);
+    if (upgradeStatus.node.appVersion.needsUpgrade) {
+      reasons.push(`application version (${upgradeStatus.node.appVersion.current} → ${upgradeStatus.node.appVersion.desired})`);
     }
 
-    if (upgradeStatus.chartVersion.needsUpgrade) {
-      reasons.push(`chart version (${upgradeStatus.chartVersion.current} → ${upgradeStatus.chartVersion.desired})`);
+    if (upgradeStatus.node.chartVersion.needsUpgrade) {
+      reasons.push(`chart version (${upgradeStatus.node.chartVersion.current} → ${upgradeStatus.node.chartVersion.desired})`);
+    }
+
+    return reasons.length > 0 ? `Update available for ${reasons.join(" and ")}` : null;
+  };
+
+  const getProviderUpgradeReason = () => {
+    if (!upgradeStatus?.provider.needsUpgrade) return null;
+
+    const reasons: string[] = [];
+
+    if (upgradeStatus.provider.appVersion.needsUpgrade) {
+      reasons.push(`application version (${upgradeStatus.provider.appVersion.current} → ${upgradeStatus.provider.appVersion.desired})`);
+    }
+
+    if (upgradeStatus.provider.chartVersion.needsUpgrade) {
+      reasons.push(`chart version (${upgradeStatus.provider.chartVersion.current} → ${upgradeStatus.provider.chartVersion.desired})`);
     }
 
     return reasons.length > 0 ? `Update available for ${reasons.join(" and ")}` : null;
@@ -207,25 +282,11 @@ const SettingsPage: React.FC = () => {
                 <div className="flex-1 rounded-md border p-3">
                   <h3 className="text-muted-foreground text-sm font-medium">Akash Node Version</h3>
                   <div className="mt-1 flex items-center">
-                    <span className="text-base font-semibold">{upgradeStatus.appVersion.current}</span>
-                    {upgradeStatus.appVersion.needsUpgrade && (
+                    <span className="text-base font-semibold">{upgradeStatus.node.appVersion.current}</span>
+                    {upgradeStatus.node.appVersion.needsUpgrade && (
                       <span className="ml-2 flex items-center text-xs text-amber-500">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="mr-1"
-                        >
-                          <path d="m6 9 6-6 6 6"></path>
-                          <path d="M12 3v18"></path>
-                        </svg>
-                        {upgradeStatus.appVersion.desired}
+                        <ArrowUp className="mr-1 h-3 w-3" />
+                        {upgradeStatus.node.appVersion.desired}
                       </span>
                     )}
                   </div>
@@ -233,53 +294,24 @@ const SettingsPage: React.FC = () => {
                 <div className="flex-1 rounded-md border p-3">
                   <h3 className="text-muted-foreground text-sm font-medium">Chart Version</h3>
                   <div className="mt-1 flex items-center">
-                    <span className="text-base font-semibold">{upgradeStatus.chartVersion.current}</span>
-                    {upgradeStatus.chartVersion.needsUpgrade && (
+                    <span className="text-base font-semibold">{upgradeStatus.node.chartVersion.current}</span>
+                    {upgradeStatus.node.chartVersion.needsUpgrade && (
                       <span className="ml-2 flex items-center text-xs text-amber-500">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="mr-1"
-                        >
-                          <path d="m6 9 6-6 6 6"></path>
-                          <path d="M12 3v18"></path>
-                        </svg>
-                        {upgradeStatus.chartVersion.desired}
+                        <ArrowUp className="mr-1 h-3 w-3" />
+                        {upgradeStatus.node.chartVersion.desired}
                       </span>
                     )}
                   </div>
                 </div>
               </div>
 
-              {upgradeStatus.needsUpgrade ? (
+              {upgradeStatus.node.needsUpgrade ? (
                 <>
                   <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-start">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="mr-2 mt-0.5 text-amber-500"
-                      >
-                        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                      </svg>
+                      <WarningTriangle className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
                       <div>
-                        <p className="font-medium text-amber-800">{getUpgradeReason()}</p>
+                        <p className="font-medium text-amber-800">{getNodeUpgradeReason()}</p>
                         {/* <p className="text-sm text-amber-700 mt-1">Upgarding may cause temporary service interruption for bid engine.</p> */}
                       </div>
                     </div>
@@ -287,7 +319,7 @@ const SettingsPage: React.FC = () => {
                   <Button onClick={upgradeAkashNode} className="mt-2" disabled={isDisabled || isNodeUpgrading}>
                     {isNodeUpgrading ? (
                       <>
-                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        <Refresh className="mr-2 h-4 w-4 animate-spin" />
                         Upgrading...
                       </>
                     ) : (
@@ -298,21 +330,7 @@ const SettingsPage: React.FC = () => {
               ) : (
                 <div className="mb-4 rounded-md border p-3">
                   <div className="flex items-start">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="mr-2 mt-0.5 text-green-500"
-                    >
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
+                    <CheckCircle className="mr-2 mt-0.5 h-5 w-5 text-green-500" />
                     <div>
                       <p className="font-medium text-green-800">Your Akash Node is up to date</p>
                       <p className="mt-1 text-sm text-green-700">The upgrade button will be enabled when a new version is available.</p>
@@ -337,9 +355,85 @@ const SettingsPage: React.FC = () => {
         <div className="rounded-lg border p-6">
           <h2 className="text-xl font-semibold">Upgrade Provider</h2>
           <p className="text-muted-foreground mt-2">Upgrade your provider to the latest version.</p>
-          <Button onClick={() => upgradeProvider()} className="mt-4" variant="outline" disabled={isDisabled}>
-            Upgrade Provider
-          </Button>
+
+          {isUpgradeStatusLoading ? (
+            <div className="mt-4 flex items-center">
+              <div className="border-primary mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"></div>
+              <span>Checking for upgrades...</span>
+            </div>
+          ) : upgradeStatus ? (
+            <div className="mt-4">
+              <div className="mb-4 flex gap-4">
+                <div className="flex-1 rounded-md border p-3">
+                  <h3 className="text-muted-foreground text-sm font-medium">Provider Version</h3>
+                  <div className="mt-1 flex items-center">
+                    <span className="text-base font-semibold">{upgradeStatus.provider.appVersion.current}</span>
+                    {upgradeStatus.provider.appVersion.needsUpgrade && (
+                      <span className="ml-2 flex items-center text-xs text-amber-500">
+                        <ArrowUp className="mr-1 h-3 w-3" />
+                        {upgradeStatus.provider.appVersion.desired}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1 rounded-md border p-3">
+                  <h3 className="text-muted-foreground text-sm font-medium">Chart Version</h3>
+                  <div className="mt-1 flex items-center">
+                    <span className="text-base font-semibold">{upgradeStatus.provider.chartVersion.current}</span>
+                    {upgradeStatus.provider.chartVersion.needsUpgrade && (
+                      <span className="ml-2 flex items-center text-xs text-amber-500">
+                        <ArrowUp className="mr-1 h-3 w-3" />
+                        {upgradeStatus.provider.chartVersion.desired}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {upgradeStatus.provider.needsUpgrade ? (
+                <>
+                  <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <div className="flex items-start">
+                      <WarningTriangle className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
+                      <div>
+                        <p className="font-medium text-amber-800">{getProviderUpgradeReason()}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <Button onClick={upgradeProvider} className="mt-2" disabled={isDisabled || isProviderUpgrading}>
+                    {isProviderUpgrading ? (
+                      <>
+                        <Refresh className="mr-2 h-4 w-4 animate-spin" />
+                        Upgrading...
+                      </>
+                    ) : (
+                      "Upgrade Provider"
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <div className="mb-4 rounded-md border p-3">
+                  <div className="flex items-start">
+                    <CheckCircle className="mr-2 mt-0.5 h-5 w-5 text-green-500" />
+                    <div>
+                      <p className="font-medium text-green-800">Your Provider is up to date</p>
+                      <p className="mt-1 text-sm text-green-700">The upgrade button will be enabled when a new version is available.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {providerUpgradeSuccess && (
+                <div className="mt-4 rounded-md border border-green-200 bg-green-50 p-3">
+                  <p className="text-green-800">{providerUpgradeMessage || "Provider upgrade started successfully"}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="mt-4 rounded-md border border-yellow-200 bg-yellow-50 p-3">
+              <p className="text-yellow-800">Unable to check upgrade status. Please ensure your control machine is connected.</p>
+            </div>
+          )}
         </div>
 
         <div className="rounded-lg border p-6">

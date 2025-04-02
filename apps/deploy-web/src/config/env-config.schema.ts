@@ -48,6 +48,8 @@ export const serverEnvSchema = browserEnvSchema.extend({
   AUTH0_CLIENT_SECRET: z.string(),
   AUTH0_AUDIENCE: z.string(),
   AUTH0_SCOPE: z.string(),
+  AUTH0_LOCAL_ENABLED: coercedBoolean().optional(),
+  AUTH0_REDIRECT_BASE_URL: z.string().url().optional(),
   BASE_API_MAINNET_URL: z.string().url(),
   BASE_API_TESTNET_URL: z.string().url(),
   BASE_API_SANDBOX_URL: z.string().url(),

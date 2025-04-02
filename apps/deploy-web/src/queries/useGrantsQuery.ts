@@ -1,6 +1,6 @@
 import { QueryObserverResult, useQuery } from "react-query";
 
-import { useSettings } from "@src/context/SettingsProvider";
+import { useSettings } from "@src/context/SettingsProvider"; // eslint-disable-line import-x/no-cycle
 import { useAuthZService } from "@src/hooks/useAuthZService";
 import { AllowanceType, GrantType } from "@src/types/grant";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";

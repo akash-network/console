@@ -4,12 +4,11 @@ import { Lifecycle, scoped } from "tsyringe";
 import { Protected } from "@src/auth/services/auth.service";
 import type { WalletListOutputResponse, WalletOutputResponse } from "@src/billing/http-schemas/wallet.schema";
 import type { SignTxRequestInput, SignTxResponseOutput, StartTrialRequestInput } from "@src/billing/routes";
-import { GetWalletQuery } from "@src/billing/routes/get-wallet-list/get-wallet-list.router";
+import type { GetWalletQuery } from "@src/billing/routes/get-wallet-list/get-wallet-list.router";
 import { WalletInitializerService } from "@src/billing/services";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import { WithTransaction } from "@src/core";
 import { Semaphore } from "@src/core/lib/semaphore.decorator";
 
 @scoped(Lifecycle.ResolutionScoped)
@@ -22,7 +21,6 @@ export class WalletController {
   ) {}
 
   @Semaphore()
-  @WithTransaction()
   @Protected([{ action: "create", subject: "UserWallet" }])
   async create({ data: { userId } }: StartTrialRequestInput): Promise<WalletOutputResponse> {
     return {

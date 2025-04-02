@@ -13,7 +13,7 @@ import { SnackbarKey, useSnackbar } from "notistack";
 
 import { LoadingState, TransactionModal } from "@src/components/layout/TransactionModal";
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { useAllowance } from "@src/hooks/useAllowance";
+import { useAllowance } from "@src/hooks/useAllowance"; // eslint-disable-line import-x/no-cycle
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
@@ -49,6 +49,7 @@ type ContextType = {
   isCustodial: boolean;
   isWalletLoading: boolean;
   isTrialing: boolean;
+  isOnboarding: boolean;
   creditAmount?: number;
   switchWalletType: () => void;
   hasManagedWallet: boolean;
@@ -320,6 +321,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isCustodial: !isManaged,
         isWalletLoading: isLoading,
         isTrialing: isManaged && !!managedWallet?.isTrialing,
+        isOnboarding: !!user?.userId && isManaged && !!managedWallet?.isTrialing,
         creditAmount: isManaged ? managedWallet?.creditAmount : 0,
         hasManagedWallet: !!managedWallet,
         switchWalletType

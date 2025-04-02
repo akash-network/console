@@ -13,7 +13,7 @@ import { activeIndexers, indexersMsgTypes } from "@src/indexers";
 import { lastBlockToSync } from "@src/shared/constants";
 import * as benchmark from "@src/shared/utils/benchmark";
 import { decodeMsg } from "@src/shared/utils/protobuf";
-import { setMissingBlock } from "./chainSync";
+import { setMissingBlock } from "./chainSync"; // eslint-disable-line import-x/no-cycle
 import { getGenesis } from "./genesisImporter";
 
 class StatsProcessor {

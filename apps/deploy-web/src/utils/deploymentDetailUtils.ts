@@ -1,5 +1,5 @@
 import type { DeploymentDto, DeploymentGroup, DeploymentResource_V2, DeploymentResource_V3, LeaseDto, RpcDeployment, RpcLease } from "@src/types/deployment";
-import { coinToUDenom } from "./priceUtils";
+import { coinToUDenom } from "./priceUtils"; // eslint-disable-line import-x/no-cycle
 
 export function deploymentResourceSum(deployment: RpcDeployment, resourceMapper: (resource: DeploymentResource_V2 | DeploymentResource_V3) => number): number {
   return deployment.groups

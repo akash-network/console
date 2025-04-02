@@ -9,7 +9,7 @@ import { Balances } from "@src/types";
 import { RestApiBalancesResponseType } from "@src/types";
 import { RpcDeployment } from "@src/types/deployment";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
-import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
+import { deploymentToDto } from "@src/utils/deploymentDetailUtils"; // eslint-disable-line import-x/no-cycle
 import { useSettings } from "../context/SettingsProvider";
 import { QueryKeys } from "./queryKeys";
 

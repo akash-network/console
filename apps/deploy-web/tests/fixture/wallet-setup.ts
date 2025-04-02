@@ -1,5 +1,6 @@
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
-import { type BrowserContext, type Page, selectors } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
+import { selectors } from "@playwright/test";
 
 import { restoreExtensionStorage } from "./context-with-extension";
 import { testEnvConfig } from "./test-env.config";

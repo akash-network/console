@@ -1,7 +1,7 @@
 import { QueryKey, useQuery, UseQueryOptions } from "@tanstack/react-query";
 import axios from "axios";
 
-import { QueryKeys } from "./queryKeys";
+import { QueryKeys } from "./queryKeys"; // eslint-disable-line import-x/no-cycle
 
 import { ApiUrlService } from "@/lib/apiUtils";
 import { Block } from "@/types";

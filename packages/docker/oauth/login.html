@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>Mock OAuth2 Server Example Sign-in</title>
+
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+      integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+      crossorigin="anonymous"
+    />
+    <script type="module">
+      import { faker } from "https://cdn.skypack.dev/@faker-js/faker";
+
+      const username = document.getElementById("username");
+      const claims = document.getElementById("claims");
+
+      const firstName = faker.person.firstName();
+      const lastName = faker.person.lastName();
+      const email = faker.internet.email({ firstName, lastName });
+      const fullName = faker.person.fullName({ firstName, lastName });
+
+      username.value = fullName;
+      claims.value = JSON.stringify(
+        {
+          sub: faker.string.uuid(),
+          email: email,
+          email_verified: true,
+          name: fullName,
+          nickname: firstName,
+          picture: faker.image.avatar(),
+          updated_at: faker.date.recent().toISOString()
+        },
+        null,
+        2
+      );
+    </script>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="row justify-content-md-center mt-5">
+        <div class="col-md-5">
+          <form method="post">
+            <div></div>
+            <h4>Akash Network Local oAuth</h4>
+            <p> This is a local oAuth server for the Akash Network. It is used to test the Akash Network oAuth implementation and for local development. </p>
+            <hr class="divisor" />
+            <div class="form-group">
+              <input id="username" class="form-control" name="username" autofocus="on" placeholder="Enter any user/subject!" />
+            </div>
+            <div class="form-group">
+              <textarea
+                id="claims"
+                class="form-control"
+                name="claims"
+                rows="15"
+                placeholder='Optional claims JSON value, example:
+{
+  "acr": "reference"
+}'
+              >
+              </textarea>
+            </div>
+            <button type="submit" class="btn btn-primary topBtn"><i class="fa fa-sign-in"></i>Sign-in</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

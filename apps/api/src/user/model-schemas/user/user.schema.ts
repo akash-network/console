@@ -1,7 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import { boolean, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
-import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema";
+import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema"; // eslint-disable-line import-x/no-cycle
 
 export const Users = pgTable("userSetting", {
   id: uuid("id")
