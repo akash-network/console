@@ -19,7 +19,7 @@ const Attributes: React.FunctionComponent = () => {
 
   return (
     <Layout>
-      <ControlMachineError />
+      <ControlMachineError activity="attributes" />
       {isLoadingProviderDetails ? (
         <div>Loading...</div>
       ) : (

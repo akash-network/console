@@ -3,6 +3,7 @@ import { Button, Checkbox, Spinner, Table, TableBody, TableCell, TableHead, Tabl
 import { useRouter } from "next/router";
 
 import { Layout } from "@src/components/layout/Layout";
+import { ControlMachineError } from "@src/components/shared/ControlMachineError";
 import { Title } from "@src/components/shared/Title";
 import { withAuth } from "@src/components/shared/withAuth";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
@@ -102,7 +103,8 @@ const PersistentStoragePage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="flex items-center">
+      <ControlMachineError activity="persistent storage" />
+      <div className="flex items-center pt-5">
         <div className="w-10 flex-1">
           <Title>Persistent Storage</Title>
           <p className="text-muted-foreground text-sm">Enable persistent storage to start accepting deployments with persistent storage.</p>

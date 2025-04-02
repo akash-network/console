@@ -247,7 +247,7 @@ const SettingsPage: React.FC = () => {
 
   return (
     <Layout>
-      <ControlMachineError className="mb-4" />
+      <ControlMachineError activity="settings" className="mb-4" />
       <div className="flex items-center">
         <div className="w-10 flex-1">
           <Title>Settings</Title>
