@@ -21,7 +21,7 @@ interface ProviderHealthCheckProps {
   domain: string;
 }
 
-const REQUIRED_PORTS = [80, 443, 8443, 8444, 6443];
+const REQUIRED_PORTS = [80, 443, 8443, 8444];
 
 export const ProviderHealthCheck: React.FC<ProviderHealthCheckProps> = ({ providerIp, domain }) => {
   const [portStatuses, setPortStatuses] = useState<PortStatus[]>(REQUIRED_PORTS.map(port => ({ port, isOpen: null })));

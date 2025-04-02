@@ -21,7 +21,6 @@ const REQUIRED_PORTS: PortInfo[] = [
   { port: 443, description: "HTTPS traffic" },
   { port: 8443, description: "Kubernetes API server" },
   { port: 8444, description: "Provider services" },
-  { port: 6443, description: "Kubernetes control plane" },
   { port: "30000-32676", description: "Kubernetes NodePort services" }
 ];
 

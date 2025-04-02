@@ -156,9 +156,6 @@ const Remedies: React.FC = () => {
                   <li>
                     <strong>Port 8444</strong>: Provider services
                   </li>
-                  <li>
-                    <strong>Port 6443</strong>: Kubernetes control plane
-                  </li>
                 </ul>
                 <p className="text-muted-foreground mt-2">Check your firewall settings and cloud provider security groups to ensure these ports are open.</p>
               </div>
