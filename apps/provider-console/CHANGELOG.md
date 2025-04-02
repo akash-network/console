@@ -1,5 +1,13 @@
 
 
+## [1.8.0](https://github.com/akash-network/console/compare/provider-console/v1.7.0...provider-console/v1.8.0) (2025-04-02)
+
+
+### Features
+
+* **provider:** added port and DNS checker screen ([#1112](https://github.com/akash-network/console/issues/1112)) ([8e97e08](https://github.com/akash-network/console/commit/8e97e08863aebaafdcd2f9e525f76ce3d144947b))
+* **provider:** test and audit instruction for non-audited providers ([#1111](https://github.com/akash-network/console/issues/1111)) ([5ac9fe4](https://github.com/akash-network/console/commit/5ac9fe48211683a71953d76b4768be26620f163e))
+
 ## [1.7.0](https://github.com/akash-network/console/compare/provider-console/v1.6.0...provider-console/v1.7.0) (2025-03-31)
 
 
