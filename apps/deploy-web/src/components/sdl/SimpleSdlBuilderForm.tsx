@@ -189,12 +189,10 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
         .reduce((a, b) => a + b, 0),
       storage: _services
         ?.map(s => {
-          const ephemeralStorageUnit = storageUnits.find(x => x.suffix === s.profile?.ramUnit);
-          const peristentStorageUnit = storageUnits.find(x => x.suffix === s.profile?.persistentStorageUnit);
-          const ephemeralStorage = (s.profile?.storage || 0) + (ephemeralStorageUnit?.value || 0);
-          const persistentStorage = s.profile?.hasPersistentStorage ? (s.profile?.persistentStorage || 0) + (peristentStorageUnit?.value || 0) : 0;
-
-          return ephemeralStorage + persistentStorage;
+          return s.profile?.storage.reduce((memo, storage) => {
+            const storageUnit = storageUnits.find(x => x.suffix === storage.unit);
+            return memo + (storage.size || 0) * (storageUnit?.value || 0);
+          }, 0);
         })
         .reduce((a, b) => a + b, 0)
     };
