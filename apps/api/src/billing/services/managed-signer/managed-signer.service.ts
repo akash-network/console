@@ -9,10 +9,11 @@ import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { InjectSigningClient } from "@src/billing/providers/signing-client.provider";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
-import { BalancesService } from "@src/billing/services/balances/balances.service";
-import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { DedupeSigningClientService } from "@src/billing/services/dedupe-signing-client/dedupe-signing-client.service";
+import { UserRepository } from "@src/user/repositories";
+import { BalancesService } from "../balances/balances.service";
+import { BillingConfigService } from "../billing-config/billing-config.service";
 import { ChainErrorService } from "../chain-error/chain-error.service";
+import { DedupeSigningClientService } from "../dedupe-signing-client/dedupe-signing-client.service";
 import { TrialValidationService } from "../trial-validation/trial-validation.service";
 
 type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
@@ -25,6 +26,7 @@ export class ManagedSignerService {
     private readonly config: BillingConfigService,
     @InjectTypeRegistry() private readonly registry: Registry,
     private readonly userWalletRepository: UserWalletRepository,
+    private readonly userRepository: UserRepository,
     private readonly balancesService: BalancesService,
     private readonly authService: AuthService,
     private readonly chainErrorService: ChainErrorService,
@@ -51,11 +53,12 @@ export class ManagedSignerService {
   async executeDecodedTxByUserId(userId: UserWalletOutput["userId"], messages: EncodeObject[]) {
     const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findOneByUserId(userId);
     assert(userWallet, 404, "UserWallet Not Found");
+    const user = this.authService.currentUser.userId === userId ? this.authService.currentUser : await this.userRepository.findById(userId);
 
     await Promise.all(
       messages.map(message =>
         Promise.all([
-          this.anonymousValidateService.validateLeaseProviders(message, userWallet),
+          this.anonymousValidateService.validateLeaseProviders(message, userWallet, user),
           this.anonymousValidateService.validateTrialLimit(message, userWallet)
         ])
       )

@@ -1,6 +1,5 @@
 import { generateMock } from '@anatine/zod-mock';
-import { TestingModule } from '@nestjs/testing';
-import { Test } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { MockProxy } from 'jest-mock-extended';
 
 import { LoggerService } from '@src/common/services/logger.service';

@@ -1,6 +1,6 @@
 import { singleton } from "tsyringe";
 
-import { SendVerificationEmailRequestInput } from "@src/auth";
+import type { SendVerificationEmailRequestInput } from "@src/auth";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 

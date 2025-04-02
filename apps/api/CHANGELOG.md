@@ -1,5 +1,52 @@
 
 
+## [2.79.3](https://github.com/akash-network/console/compare/console-api/v2.79.2...console-api/v2.79.3) (2025-04-01)
+
+
+### Bug Fixes
+
+* **deployment:** append trial attribute for anon only ([#1155](https://github.com/akash-network/console/issues/1155)) ([814e154](https://github.com/akash-network/console/commit/814e154a4bcaaea74507a87a3af3c9a628154835))
+
+## [2.79.2](https://github.com/akash-network/console/compare/console-api/v2.79.1...console-api/v2.79.2) (2025-04-01)
+
+
+### Bug Fixes
+
+* **deployment:** remove back slash replace ([#1154](https://github.com/akash-network/console/issues/1154)) ([94c9e51](https://github.com/akash-network/console/commit/94c9e51b2cb7f1383628e7e358c33eeaf36ac244))
+* improves logging of dashboard data date field and changes it to … ([#1148](https://github.com/akash-network/console/issues/1148)) ([1f83727](https://github.com/akash-network/console/commit/1f83727d88cbd233832d43957979d38eeb128deb))
+
+## [2.79.1](https://github.com/akash-network/console/compare/console-api/v2.79.0...console-api/v2.79.1) (2025-03-31)
+
+
+### Bug Fixes
+
+* ensures that stats.date is a string ([#1145](https://github.com/akash-network/console/issues/1145)) ([38b2382](https://github.com/akash-network/console/commit/38b23820f1d6a4f2850fa645b62ea2637fe3fea3))
+
+## [2.79.0](https://github.com/akash-network/console/compare/console-api/v2.78.0...console-api/v2.79.0) (2025-03-31)
+
+
+### Features
+
+* **deployment:** properly validate user trial deployments ([#1143](https://github.com/akash-network/console/issues/1143)) ([88741b5](https://github.com/akash-network/console/commit/88741b5cfc349b55956880375c06a8c779c9d6bd))
+
+## [2.78.0](https://github.com/akash-network/console/compare/console-api/v2.77.0...console-api/v2.78.0) (2025-03-31)
+
+
+### Features
+
+* **deployment:** managed wallet api update deployment ([#1093](https://github.com/akash-network/console/issues/1093)) ([6998834](https://github.com/akash-network/console/commit/699883436cc1763a20f65cce17390403107b179a))
+* upgrade nodejs version to 22.14 (latest lts) ([#1095](https://github.com/akash-network/console/issues/1095)) ([8533b35](https://github.com/akash-network/console/commit/8533b355762016829c4435fd67c7885df79b251e))
+
+
+### Bug Fixes
+
+* ignore zero provider stats data for last day ([#1094](https://github.com/akash-network/console/issues/1094)) ([ddfac90](https://github.com/akash-network/console/commit/ddfac90e1a58f279840c44864975456c9882076e)), closes [#721](https://github.com/akash-network/console/issues/721)
+
+
+### Code Refactoring
+
+* moves trial authorization spending out of db transaction ([#1129](https://github.com/akash-network/console/issues/1129)) ([8c8e372](https://github.com/akash-network/console/commit/8c8e3729ce7c1f7ad2c387b471b326f1fbc0d353))
+
 ## [2.77.0](https://github.com/akash-network/console/compare/console-api/v2.76.0...console-api/v2.77.0) (2025-03-28)
 
 

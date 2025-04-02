@@ -1,4 +1,5 @@
-import { DeployBasePage, type FeeType } from "./DeployBasePage";
+import type { FeeType } from "./DeployBasePage";
+import { DeployBasePage } from "./DeployBasePage";
 
 export class DeployHelloWorldPage extends DeployBasePage {
   protected readonly feeType: FeeType = "medium";

@@ -11,8 +11,8 @@ import { ZodError } from "zod";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { InjectSentry, Sentry } from "@src/core/providers/sentry.provider";
-import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
-import { ClientInfoContextVariables } from "@src/middlewares/clientInfoMiddleware";
+import type { AppContext } from "../../types/app-context";
+import { SentryEventService } from "../sentry-event/sentry-event.service";
 
 @singleton()
 export class HonoErrorHandlerService {
@@ -26,7 +26,7 @@ export class HonoErrorHandlerService {
     this.handle = this.handle.bind(this);
   }
 
-  async handle<E extends Env = any>(error: Error, c: Context<E>): Promise<Response> {
+  async handle(error: Error, c: AppContext): Promise<Response> {
     this.logger.error(this.sequelizeErrorToObj(error));
 
     if (isHttpError(error)) {
@@ -47,7 +47,7 @@ export class HonoErrorHandlerService {
     return c.json({ error: "InternalServerError" }, { status: 500 });
   }
 
-  private async reportError<E extends Env = any>(error: Error, c: Context<E>): Promise<void> {
+  private async reportError(error: Error, c: AppContext): Promise<void> {
     try {
       const id = this.sentry.captureEvent(await this.getSentryEvent(error, c));
       this.logger.info({ event: "SENTRY_EVENT_REPORTED", id });
@@ -56,11 +56,7 @@ export class HonoErrorHandlerService {
     }
   }
 
-  private async getSentryEvent<
-    E extends {
-      Variables: ClientInfoContextVariables;
-    } = any
-  >(error: Error, c: Context<E>): Promise<Event> {
+  private async getSentryEvent(error: Error, c: AppContext): Promise<Event> {
     const event = this.sentry.addRequestDataToEvent(this.sentryEventService.toEvent(error), {
       method: c.req.method,
       url: c.req.url,

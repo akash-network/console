@@ -97,10 +97,10 @@ jobs:
           echo "Checking for existing PR..."
           PR_NUMBER=$(gh pr list \
             --base "${{ env.BASE_BRANCH }}" \
-            --head "${{ github.repository_owner }}:${{ env.RELEASE_BRANCH }}" \
+            --head "${{ env.RELEASE_BRANCH }}" \
             --state open \
             --limit 1 \
-            --json id \
+            --json number \
             --jq ".[0].number")
           echo "pr_number=$PR_NUMBER" >> $GITHUB_ENV
 

@@ -2,7 +2,7 @@ import "@akashnetwork/ui/styles";
 import "../styles/index.css";
 
 import { cn } from "@akashnetwork/ui/utils";
-import { GeistSans } from "geist/font/sans";
+import { GeistSans } from "geist/font/sans"; // eslint-disable-line import-x/no-unresolved
 import type { Metadata, Viewport } from "next";
 import getConfig from "next/config";
 import { cookies } from "next/headers";
