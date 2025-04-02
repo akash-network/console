@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/console-web",
-  "version": "2.65.0",
+  "version": "2.65.1",
   "private": true,
   "description": "Web UI to deploy on the Akash Network and view statistic about network usage.",
   "license": "Apache-2.0",
@@ -148,7 +148,7 @@
     "@types/js-yaml": "^4.0.5",
     "@types/json2csv": "^5.0.3",
     "@types/lodash": "^4.14.197",
-    "@types/node": "20.14.0",
+    "@types/node": "^22.13.11",
     "@types/node-forge": "^1.3.11",
     "@types/nprogress": "^0.2.0",
     "@types/react": "18.2.0",
@@ -166,7 +166,7 @@
     "prettier": "^3.3.0",
     "prettier-plugin-tailwindcss": "^0.6.1",
     "tailwindcss": "^3.4.3",
-    "typescript": "5.1.3"
+    "typescript": "~5.8.2"
   },
   "overrides": {
     "@radix-ui/react-dismissable-layer": "^1.0.5",

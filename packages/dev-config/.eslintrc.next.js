@@ -17,6 +17,7 @@ module.exports = {
   settings: {
     next: {
       rootDir: "."
-    }
+    },
+    "import-x/ignore": ["react"]
   }
 };

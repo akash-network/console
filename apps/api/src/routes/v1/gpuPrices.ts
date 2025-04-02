@@ -193,7 +193,7 @@ async function getGpuPrices(debug: boolean) {
     .filter(x => x)
     .filter(x => x.deployment.gpus.length === 1); // Ignore bids for deployments with more than 1 GPU
 
-  const gpuModels: GpuWithPricesType[] = gpus.map(x => ({ ...x, prices: [] }));
+  const gpuModels: GpuWithPricesType[] = gpus.map(x => ({ ...x, prices: [] as GpuBidType[] }));
 
   // Add bids to their corresponding GPU models
   for (const bid of gpuBids) {
@@ -219,7 +219,7 @@ async function getGpuPrices(debug: boolean) {
       available: totalAllocatable - totalAllocated
     },
     models: gpuModels.map(x => {
-      /* 
+      /*
         For each providers get their most relevent bid based on this order of priority:
             1- Most recent bid from the pricing bot (those deployment have tiny cpu/ram/storage specs to improve gpu price accuracy)
             2- Cheapest bid with matching ram and interface
@@ -354,9 +354,9 @@ async function getGpus() {
   }>(
     `
       WITH snapshots AS (
-        SELECT DISTINCT ON("hostUri") 
+        SELECT DISTINCT ON("hostUri")
         ps.id AS id,
-        "hostUri", 
+        "hostUri",
         p."owner"
         FROM provider p
         INNER JOIN "providerSnapshot" ps ON ps.id=p."lastSuccessfulSnapshotId"

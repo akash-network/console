@@ -1,5 +1,12 @@
 
 
+## [0.22.1](https://github.com/akash-network/console/compare/stats-web/v0.22.0...stats-web/v0.22.1) (2025-04-01)
+
+
+### Bug Fixes
+
+* adds google tag manger id to stats-web config ([#1150](https://github.com/akash-network/console/issues/1150)) ([49bb3d8](https://github.com/akash-network/console/commit/49bb3d8e6aa76f638f4909a3215e196f97296585))
+
 ## [0.22.0](https://github.com/akash-network/console/compare/stats-web/v0.21.0...stats-web/v0.22.0) (2025-03-31)
 
 

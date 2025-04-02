@@ -1,5 +1,4 @@
-import { TestingModule } from '@nestjs/testing';
-import { Test } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { Novu } from '@novu/node';
 import { MockProxy } from 'jest-mock-extended';
 

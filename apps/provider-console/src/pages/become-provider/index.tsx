@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAtom } from "jotai";
 
+import { PortsAndDNS } from "@src/components/become-provider/PortsAndDNS";
 import { ProviderAttributes } from "@src/components/become-provider/ProviderAttributes";
 import { ProviderConfig } from "@src/components/become-provider/ProviderConfig";
 import { ProviderPricing } from "@src/components/become-provider/ProviderPricing";
@@ -18,11 +19,12 @@ const BecomeProvider: React.FC = () => {
 
   const providerSteps = useMemo(
     () => [
-      { key: "serverAccess", component: ServerAccess, label: "Server Access" },
-      { key: "providerConfig", component: ProviderConfig, label: "Provider Configuration" },
-      { key: "providerAttribute", component: ProviderAttributes, label: "Provider Attributes" },
-      { key: "providerPricing", component: ProviderPricing, label: "Pricing" },
-      { key: "walletImport", component: WalletImport, label: "Wallet Import" }
+      { key: "serverAccess", component: ServerAccess, label: "Server Access", visualStep: 0 },
+      { key: "providerConfig", component: ProviderConfig, label: "Provider Configuration", visualStep: 1 },
+      { key: "providerAttribute", component: ProviderAttributes, label: "Provider Attributes", visualStep: 2 },
+      { key: "providerPricing", component: ProviderPricing, label: "Pricing", visualStep: 3 },
+      { key: "portsAndDNS", component: PortsAndDNS, label: "Ports & DNS", visualStep: 3 },
+      { key: "walletImport", component: WalletImport, label: "Wallet Import", visualStep: 4 }
     ],
     []
   );

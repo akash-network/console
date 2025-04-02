@@ -1,4 +1,4 @@
-import { FaqAnchorType } from "@src/pages/faq";
+import type { FaqAnchorType } from "@src/pages/faq";
 import networkStore from "@src/store/networkStore";
 
 export type NewDeploymentParams = {

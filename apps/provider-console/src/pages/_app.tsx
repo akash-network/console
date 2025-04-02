@@ -3,7 +3,7 @@ import "../styles/index.css";
 
 import { Toaster, TooltipProvider } from "@akashnetwork/ui/components";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { GeistSans } from "geist/font/sans";
+import { GeistSans } from "geist/font/sans"; // eslint-disable-line import-x/no-unresolved
 import { Provider } from "jotai";
 import type { AppProps } from "next/app";
 import { ThemeProvider } from "next-themes";
