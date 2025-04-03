@@ -1,5 +1,5 @@
 "use client";
-import { MouseEventHandler } from "react";
+import type { MouseEventHandler } from "react";
 import { Address, Card, CardContent } from "@akashnetwork/ui/components";
 
 import { AuditorButton } from "@src/components/providers/AuditorButton";
@@ -8,7 +8,7 @@ import { FavoriteButton } from "@src/components/shared/FavoriteButton";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
+import type { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
 import { ProviderMap } from "./ProviderMap";
 
 type Props = {

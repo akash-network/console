@@ -1,10 +1,10 @@
-import { LoggerService } from "@akashnetwork/logging";
-import { SupportedChainNetworks } from "@akashnetwork/net";
+import type { LoggerService } from "@akashnetwork/logging";
+import type { SupportedChainNetworks } from "@akashnetwork/net";
 import { bech32 } from "bech32";
-import { X509Certificate } from "crypto";
+import type { X509Certificate } from "crypto";
 import { LRUCache } from "lru-cache";
 
-import { ProviderService } from "./ProviderService";
+import type { ProviderService } from "./ProviderService";
 
 export class CertificateValidator {
   private readonly knownCertificatesCache = new LRUCache<string, X509Certificate>({

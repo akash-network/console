@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { ExactDepositDeploymentGrant, FeeAllowance } from "@akashnetwork/http-sdk";
+import type { ExactDepositDeploymentGrant, FeeAllowance } from "@akashnetwork/http-sdk";
 import { isFuture } from "date-fns";
 import invokeMap from "lodash/invokeMap";
 

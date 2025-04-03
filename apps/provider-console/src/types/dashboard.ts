@@ -1,5 +1,5 @@
-import { Block } from "./block";
-import { TransactionDetail } from "./transaction";
+import type { Block } from "./block";
+import type { TransactionDetail } from "./transaction";
 
 export interface RevenueAmount {
   akt: number;

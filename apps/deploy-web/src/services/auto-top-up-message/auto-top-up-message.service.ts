@@ -1,4 +1,4 @@
-import { EncodeObject } from "@cosmjs/proto-signing";
+import type { EncodeObject } from "@cosmjs/proto-signing";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";

@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 
-import { AutoTopUpDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { AutoTopUpDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { AkashAddressSeeder } from "./akash-address.seeder";
 
 export class AutoTopUpDeploymentSeeder {

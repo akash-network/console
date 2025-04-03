@@ -1,4 +1,4 @@
-import { SupportedChainNetworks } from "@akashnetwork/net";
+import type { SupportedChainNetworks } from "@akashnetwork/net";
 import { setTimeout } from "timers/promises";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";

@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@akashnetwork/ui/components";
 
 import { SELECTED_RANGE_VALUES } from "@/config/date.config";

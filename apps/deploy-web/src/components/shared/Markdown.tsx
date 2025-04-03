@@ -2,7 +2,7 @@
 import "highlight.js/styles/vs2015.css";
 
 import ReactMarkdown from "react-markdown";
-import { PluggableList } from "react-markdown/lib/react-markdown";
+import type { PluggableList } from "react-markdown/lib/react-markdown";
 import { cn } from "@akashnetwork/ui/utils";
 import { useTheme } from "next-themes";
 import rehypeHighlight from "rehype-highlight";

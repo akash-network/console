@@ -1,11 +1,12 @@
 "use client";
-import React, { ReactNode } from "react";
+import type { ReactNode } from "react";
+import React from "react";
 import { FormattedTime } from "react-intl";
 import { Address, TableCell, TableRow } from "@akashnetwork/ui/components";
 
 import { AKTAmount } from "@src/components/shared/AKTAmount";
 import { useDenomData } from "@src/hooks/useWalletBalance";
-import { GrantType } from "@src/types/grant";
+import type { GrantType } from "@src/types/grant";
 import { coinToUDenom } from "@src/utils/priceUtils";
 
 type Props = {

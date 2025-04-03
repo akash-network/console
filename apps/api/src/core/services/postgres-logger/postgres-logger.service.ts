@@ -1,5 +1,5 @@
 import { LoggerService } from "@akashnetwork/logging";
-import { LogWriter } from "drizzle-orm/logger";
+import type { LogWriter } from "drizzle-orm/logger";
 import { format } from "sql-formatter";
 
 interface PostgresLoggerServiceOptions {

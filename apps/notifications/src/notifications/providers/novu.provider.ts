@@ -1,4 +1,4 @@
-import { Provider } from '@nestjs/common';
+import type { Provider } from '@nestjs/common';
 import { Novu } from '@novu/node';
 
 import { LoggerService } from '@src/common/services/logger.service';

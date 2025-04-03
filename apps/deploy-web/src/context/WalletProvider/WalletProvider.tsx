@@ -2,16 +2,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { TxOutput } from "@akashnetwork/http-sdk";
 import { Snackbar } from "@akashnetwork/ui/components";
-import { EncodeObject } from "@cosmjs/proto-signing";
+import type { EncodeObject } from "@cosmjs/proto-signing";
 import { useManager } from "@cosmos-kit/react";
 import axios from "axios";
 import { OpenNewWindow } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { SnackbarKey, useSnackbar } from "notistack";
+import type { SnackbarKey } from "notistack";
+import { useSnackbar } from "notistack";
 
-import { LoadingState, TransactionModal } from "@src/components/layout/TransactionModal";
+import type { LoadingState } from "@src/components/layout/TransactionModal";
+import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useAllowance } from "@src/hooks/useAllowance"; // eslint-disable-line import-x/no-cycle
 import { useManagedWallet } from "@src/hooks/useManagedWallet";

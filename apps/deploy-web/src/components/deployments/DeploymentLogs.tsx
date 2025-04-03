@@ -2,11 +2,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Checkbox, CheckboxWithLabel, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Monaco } from "@monaco-editor/react";
+import type { Monaco } from "@monaco-editor/react";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { Download, MoreHoriz } from "iconoir-react";
-import { editor } from "monaco-editor";
+import type { editor } from "monaco-editor";
 
 import { CustomDropdownLinkItem } from "@src/components/shared/CustomDropdownLinkItem";
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
@@ -20,7 +20,7 @@ import { useThrottledCallback } from "@src/hooks/useThrottle";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { LeaseDto } from "@src/types/deployment";
+import type { LeaseDto } from "@src/types/deployment";
 import { LeaseSelect } from "./LeaseSelect";
 
 export type LOGS_MODE = "logs" | "events";

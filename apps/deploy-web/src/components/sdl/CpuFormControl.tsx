@@ -1,12 +1,12 @@
 "use client";
-import { ReactNode } from "react";
-import { Control } from "react-hook-form";
+import type { ReactNode } from "react";
+import type { Control } from "react-hook-form";
 import { MdSpeed } from "react-icons/md";
 import { CustomTooltip, FormField, FormItem, FormMessage, Input, Slider } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { InfoCircle } from "iconoir-react";
 
-import { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { validationConfig } from "@src/utils/akash/units";
 import { FormPaper } from "./FormPaper";
 

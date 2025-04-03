@@ -8,8 +8,8 @@ import { Op } from "sequelize";
 
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { getTransactionByAddress } from "@src/services/db/transactionsService";
-import { ProviderList } from "@src/types/provider";
-import {
+import type { ProviderList } from "@src/types/provider";
+import type {
   CosmosGovProposalResponse,
   CosmosGovProposalsResponse,
   RestAkashDeploymentInfoResponse,
@@ -22,12 +22,12 @@ import {
   RestCosmosStakingValidatorsResponse,
   RestGovProposalsTallyResponse
 } from "@src/types/rest";
-import { CosmosBankSupplyResponse } from "@src/types/rest/cosmosBankSupplyResponse";
-import { CosmosDistributionCommunityPoolResponse } from "@src/types/rest/cosmosDistributionCommunityPoolResponse";
-import { CosmosDistributionParamsResponse } from "@src/types/rest/cosmosDistributionParamsResponse";
-import { CosmosDistributionValidatorsCommissionResponse } from "@src/types/rest/cosmosDistributionValidatorsCommissionResponse";
-import { CosmosMintInflationResponse } from "@src/types/rest/cosmosMintInflationResponse";
-import { CosmosStakingPoolResponse } from "@src/types/rest/cosmosStakingPoolResponse";
+import type { CosmosBankSupplyResponse } from "@src/types/rest/cosmosBankSupplyResponse";
+import type { CosmosDistributionCommunityPoolResponse } from "@src/types/rest/cosmosDistributionCommunityPoolResponse";
+import type { CosmosDistributionParamsResponse } from "@src/types/rest/cosmosDistributionParamsResponse";
+import type { CosmosDistributionValidatorsCommissionResponse } from "@src/types/rest/cosmosDistributionValidatorsCommissionResponse";
+import type { CosmosMintInflationResponse } from "@src/types/rest/cosmosMintInflationResponse";
+import type { CosmosStakingPoolResponse } from "@src/types/rest/cosmosStakingPoolResponse";
 import { coinToAsset } from "@src/utils/coin";
 import { apiNodeUrl, averageBlockCountInAMonth, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/constants";
 import { createLoggingExecutor } from "@src/utils/logging";

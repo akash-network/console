@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import { LabelValue } from "@/components/LabelValue";
 import { UrlService } from "@/lib/urlUtils";
-import { BlockDetail } from "@/types";
+import type { BlockDetail } from "@/types";
 
 interface IProps {
   block: BlockDetail;

@@ -1,6 +1,7 @@
-import { QueryKey, useQuery, UseQueryOptions } from "@tanstack/react-query";
+import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
-import { MarketData } from "@src/types";
+import type { MarketData } from "@src/types";
 import { QueryKeys } from "./queryKeys";
 
 async function getMarketData(): Promise<any> {

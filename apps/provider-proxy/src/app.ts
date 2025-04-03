@@ -1,16 +1,17 @@
 import { serve } from "@hono/node-server";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { Hono } from "hono";
+import type { Hono } from "hono";
 import { cors } from "hono/cors";
 import { RegExpRouter } from "hono/router/reg-exp-router";
-import http from "http";
-import { AddressInfo } from "net";
+import type http from "http";
+import type { AddressInfo } from "net";
 
 import { getAppStatus, statusRoute } from "./routes/getAppStatus";
 import { proxyProviderRequest, proxyRoute } from "./routes/proxyProviderRequest";
 import { WebsocketServer } from "./services/WebsocketServer";
-import { AppEnv } from "./types/AppContext";
-import { Container, createContainer } from "./container";
+import type { AppEnv } from "./types/AppContext";
+import type { Container } from "./container";
+import { createContainer } from "./container";
 
 export function createApp(container: Container): Hono<AppEnv> {
   const app = new OpenAPIHono<AppEnv>({ router: new RegExpRouter() });

@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 
-import { ProviderRegionValueType, ServiceType } from "@src/types";
+import type { ProviderRegionValueType, ServiceType } from "@src/types";
 
 export const protoTypes = [
   { id: 1, name: "http" },

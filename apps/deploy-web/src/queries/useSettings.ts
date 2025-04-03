@@ -1,11 +1,12 @@
 import { useMutation, useQuery } from "react-query";
-import axios, { AxiosResponse } from "axios";
+import type { AxiosResponse } from "axios";
+import axios from "axios";
 import { useSnackbar } from "notistack";
 
 import { useSettings } from "@src/context/SettingsProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { DepositParams, RpcDepositParams } from "@src/types/deployment";
-import { UserSettings } from "@src/types/user";
+import type { DepositParams, RpcDepositParams } from "@src/types/deployment";
+import type { UserSettings } from "@src/types/user";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 

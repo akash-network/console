@@ -102,7 +102,7 @@ import { MsgWithdrawDelegatorReward } from "./generic/MsgWithdrawDelegatorReward
 import { MsgWithdrawValidatorCommission } from "./generic/MsgWithdrawValidatorCommission";
 
 import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
-import { TransactionMessage } from "@/types";
+import type { TransactionMessage } from "@/types";
 
 type Props = {
   message: TransactionMessage;

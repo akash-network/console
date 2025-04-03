@@ -1,8 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TypedResponse } from "hono";
+import type { TypedResponse } from "hono";
 
 import packageJson from "../../package.json";
-import { AppContext } from "../types/AppContext";
+import type { AppContext } from "../types/AppContext";
 import { humanFileSize } from "../utils/sizeUtils";
 
 const AppStatus = z.object({

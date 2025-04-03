@@ -1,5 +1,6 @@
 "use client";
-import React, { ReactNode } from "react";
+import type { ReactNode } from "react";
+import React from "react";
 
 import { WalletStatus } from "../layout/WalletStatus";
 import { Title } from "./Title";

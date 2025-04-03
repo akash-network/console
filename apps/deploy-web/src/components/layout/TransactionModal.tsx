@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Popup, Spinner } from "@akashnetwork/ui/components";
 
 export type LoadingState =

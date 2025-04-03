@@ -1,11 +1,13 @@
 "use client";
 import "xterm/css/xterm.css";
 
-import { Ref, useEffect, useRef } from "react";
+import type { Ref } from "react";
+import { useEffect, useRef } from "react";
 import React from "react";
 import { cn } from "@akashnetwork/ui/utils";
 import { useTheme } from "next-themes";
-import { ITerminalAddon, ITerminalOptions, Terminal } from "xterm";
+import type { ITerminalAddon, ITerminalOptions } from "xterm";
+import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 
 import { copyTextToClipboard } from "@src/utils/copyClipboard";

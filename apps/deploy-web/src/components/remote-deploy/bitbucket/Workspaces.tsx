@@ -1,4 +1,5 @@
-import { Dispatch, useState } from "react";
+import type { Dispatch } from "react";
+import { useState } from "react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Spinner } from "@akashnetwork/ui/components";
 import { Bitbucket } from "iconoir-react";
 

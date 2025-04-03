@@ -1,4 +1,5 @@
-import React, { ReactNode } from "react";
+import type { ReactNode } from "react";
+import React from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useRouter } from "next/router";

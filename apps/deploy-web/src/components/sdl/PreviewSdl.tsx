@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Button, Popup, Snackbar } from "@akashnetwork/ui/components";
 import Editor from "@monaco-editor/react";
 import { Copy } from "iconoir-react";

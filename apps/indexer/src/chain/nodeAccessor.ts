@@ -3,7 +3,8 @@ import fs from "fs";
 
 import { concurrentNodeQuery, dataFolderPath } from "@src/shared/constants";
 import { sleep } from "@src/shared/utils/delay";
-import { NodeInfo, NodeStatus, SavedNodeInfo } from "./nodeInfo";
+import type { SavedNodeInfo } from "./nodeInfo";
+import { NodeInfo, NodeStatus } from "./nodeInfo";
 
 interface NodeAccessorSettings {
   maxConcurrentQueryPerNode: number;

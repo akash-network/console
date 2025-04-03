@@ -1,5 +1,5 @@
-import { MachineInformation } from "./machineAccess";
+import type { MachineInformation } from "./machineAccess";
 
 export interface ControlMachineWithAddress extends MachineInformation {
-    address: string;
+  address: string;
 }

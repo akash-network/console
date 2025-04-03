@@ -3,11 +3,12 @@ import "@test/mocks/logger-service.mock";
 import { LoggerService } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
 
-import { RpcMessageService, Wallet } from "@src/billing/services";
-import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
-import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
-import { CachedBalanceService } from "../cached-balance/cached-balance.service";
+import type { Wallet } from "@src/billing/services";
+import { RpcMessageService } from "@src/billing/services";
+import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
+import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
+import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import type { CachedBalanceService } from "../cached-balance/cached-balance.service";
 import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.service";
 
 import { MockConfigService } from "@test/mocks/config-service.mock";

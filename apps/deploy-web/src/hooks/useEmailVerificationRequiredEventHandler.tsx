@@ -1,4 +1,5 @@
-import { MouseEventHandler, useCallback } from "react";
+import type { MouseEventHandler } from "react";
+import { useCallback } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { useSnackbar } from "notistack";

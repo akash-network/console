@@ -6,7 +6,7 @@ import Link from "next/link";
 import { getShortText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";
 import { cn } from "@/lib/utils";
-import { Block } from "@/types";
+import type { Block } from "@/types";
 
 type Props = {
   errors?: string;

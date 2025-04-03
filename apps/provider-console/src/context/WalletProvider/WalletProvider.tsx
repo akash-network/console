@@ -2,12 +2,13 @@
 import React, { useCallback, useRef } from "react";
 import { useEffect, useState } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
-import { EncodeObject } from "@cosmjs/proto-signing";
+import type { EncodeObject } from "@cosmjs/proto-signing";
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { useManager } from "@cosmos-kit/react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { SnackbarKey, useSnackbar } from "notistack";
+import type { SnackbarKey } from "notistack";
+import { useSnackbar } from "notistack";
 
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -16,7 +17,7 @@ import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import authClient from "@src/utils/authClient";
 import { uAktDenom } from "@src/utils/constants";
 import { UrlService } from "@src/utils/urlUtils";
-import { LocalWalletDataType } from "@src/utils/walletUtils";
+import type { LocalWalletDataType } from "@src/utils/walletUtils";
 import { getNonceMessage } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 

@@ -1,10 +1,11 @@
-import { AnyAbility } from "@casl/ability";
-import { and, DBQueryConfig, eq, inArray, sql } from "drizzle-orm";
-import { PgTableWithColumns } from "drizzle-orm/pg-core";
-import { SQL } from "drizzle-orm/sql/sql";
+import type { AnyAbility } from "@casl/ability";
+import type { DBQueryConfig } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import type { PgTableWithColumns } from "drizzle-orm/pg-core";
+import type { SQL } from "drizzle-orm/sql/sql";
 import first from "lodash/first";
 
-import { ApiPgDatabase, ApiPgTables, TxService } from "@src/core";
+import type { ApiPgDatabase, ApiPgTables, TxService } from "@src/core";
 import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
 
 export type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];

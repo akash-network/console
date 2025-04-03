@@ -1,4 +1,5 @@
-import React, { FC, useCallback, useMemo, useState } from "react";
+import type { FC } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 
 import type { FCWithChildren } from "@src/types/component";
 import { sshVmDistros } from "@src/utils/sdl/data";

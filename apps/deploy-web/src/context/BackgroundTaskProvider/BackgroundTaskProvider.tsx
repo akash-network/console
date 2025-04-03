@@ -5,7 +5,7 @@ import FileSaver from "file-saver";
 import { useSnackbar } from "notistack";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { ProviderInfo } from "@src/hooks/useProviderWebsocket";
+import type { ProviderInfo } from "@src/hooks/useProviderWebsocket";
 import networkStore from "@src/store/networkStore";
 import { useCertificate } from "../CertificateProvider";
 

@@ -9,7 +9,7 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllowance } from "@src/hooks/useAllowance";
 import { useAllowancesIssued, useGranteeGrants, useGranterGrants } from "@src/queries/useGrantsQuery";
-import { AllowanceType, GrantType } from "@src/types/grant";
+import type { AllowanceType, GrantType } from "@src/types/grant";
 import { averageBlockTime } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import Layout from "../layout/Layout";

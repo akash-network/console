@@ -1,4 +1,5 @@
-import { COMPONENTS, DeploymentName, Props } from "./DeploymentName";
+import type { Props } from "./DeploymentName";
+import { COMPONENTS, DeploymentName } from "./DeploymentName";
 
 import { render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";

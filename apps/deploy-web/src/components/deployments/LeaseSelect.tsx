@@ -3,9 +3,10 @@ import { useState } from "react";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-import Select, { SelectChangeEvent } from "@mui/material/Select";
+import type { SelectChangeEvent } from "@mui/material/Select";
+import Select from "@mui/material/Select";
 
-import { LeaseDto } from "@src/types/deployment";
+import type { LeaseDto } from "@src/types/deployment";
 
 type Props = {
   defaultValue: string;
