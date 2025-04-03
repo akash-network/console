@@ -138,10 +138,8 @@ const updateRoute = createRoute({
 export const deploymentsRouter = new OpenApiHonoHandler();
 
 deploymentsRouter.openapi(getRoute, async function routeGetDeployment(c) {
-  const { dseq, userId, certPem, keyPem } = c.req.valid("query");
-  const result = await container
-    .resolve(DeploymentController)
-    .findByDseqAndUserId(dseq, userId, certPem && keyPem ? { certificate: { certPem, keyPem } } : undefined);
+  const { dseq, userId } = c.req.valid("query");
+  const result = await container.resolve(DeploymentController).findByDseqAndUserId(dseq, userId);
   return c.json(result, 200);
 });
 
