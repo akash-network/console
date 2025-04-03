@@ -73,7 +73,7 @@ export class BatchSigningClientService {
           return client;
         }),
       {
-        maxDelay: 15000,
+        maxDelay: 10_000,
         startingDelay: 500,
         timeMultiple: 2,
         numOfAttempts: 7,
@@ -94,8 +94,8 @@ export class BatchSigningClientService {
     await this.semaphore.acquire();
     try {
       return await backOff(() => this.executeTxBatch(inputs), {
-        maxDelay: 10000,
-        startingDelay: 1000,
+        maxDelay: 5_000,
+        startingDelay: 500,
         timeMultiple: 2,
         numOfAttempts: 5,
         jitter: "none",
