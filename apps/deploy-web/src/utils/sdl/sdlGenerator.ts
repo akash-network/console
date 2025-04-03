@@ -1,6 +1,6 @@
 import yaml from "js-yaml";
 
-import { ExposeType, ProfileGpuModelType, ServiceType } from "@src/types";
+import type { ExposeType, ProfileGpuModelType, ServiceType } from "@src/types";
 import { defaultHttpOptions } from "./data";
 
 export const buildCommand = (command: string) => {

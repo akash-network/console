@@ -1,10 +1,10 @@
 import { type ToasterToast, useToast } from "@akashnetwork/ui/hooks";
 import { useQuery } from "@tanstack/react-query";
-import { AxiosError } from "axios";
+import type { AxiosError } from "axios";
 
-import { ControlMachineWithAddress } from "@src/types/controlMachine";
-import { DeploymentDetail, ProviderDeployments } from "@src/types/deployment";
-import {
+import type { ControlMachineWithAddress } from "@src/types/controlMachine";
+import type { DeploymentDetail, ProviderDeployments } from "@src/types/deployment";
+import type {
   ActionList,
   ActionStatus,
   PersistentStorageResponse,
@@ -13,7 +13,7 @@ import {
   ProviderOnChainStatus,
   ProviderStatus
 } from "@src/types/provider";
-import { GpuPricesResponse } from "@src/types/providerPricing";
+import type { GpuPricesResponse } from "@src/types/providerPricing";
 import consoleClient from "@src/utils/consoleClient";
 import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
 import restClient from "@src/utils/restClient";

@@ -1,5 +1,6 @@
 "use client";
-import React, { ReactNode, useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import React, { useEffect, useState } from "react";
 import { IntlProvider } from "react-intl";
 import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 

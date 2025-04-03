@@ -1,4 +1,4 @@
-import { Coin } from "cosmjs-types/cosmos/base/v1beta1/coin";
+import type { Coin } from "cosmjs-types/cosmos/base/v1beta1/coin";
 
 export function getAmountFromCoinArray(coins: Coin[], denom: string): string {
   const coin = coins.find(coin => coin.denom === denom);

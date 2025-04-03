@@ -1,7 +1,7 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
-import { ClientInfoContextVariables } from "@src/middlewares/clientInfoMiddleware";
+import type { ClientInfoContextVariables } from "@src/middlewares/clientInfoMiddleware";
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { AnonymousUserResponseOutputSchema } from "@src/user/schemas/user.schema";
 

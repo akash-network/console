@@ -29,7 +29,7 @@ import { z } from "zod";
 import { useControlMachine } from "@src/context/ControlMachineProvider"; // eslint-disable-line import-x/no-cycle
 import { useWallet } from "@src/context/WalletProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
-import { ControlMachineWithAddress } from "@src/types/controlMachine";
+import type { ControlMachineWithAddress } from "@src/types/controlMachine";
 import restClient from "@src/utils/restClient";
 import { ResetProviderForm } from "./ResetProviderProcess";
 

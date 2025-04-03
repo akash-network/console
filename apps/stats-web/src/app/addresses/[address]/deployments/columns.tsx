@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge, DataTableColumnHeader } from "@akashnetwork/ui/components";
-import { AccessorColumnDef } from "@tanstack/react-table";
+import type { AccessorColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 
 import { statuses } from "./data";
@@ -10,7 +10,7 @@ import { LeaseSpecDetail } from "@/components/LeaseSpecDetail";
 import { roundDecimal } from "@/lib/mathHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";
 import { UrlService } from "@/lib/urlUtils";
-import { DeploymentRowType } from "@/lib/zod/deploymentRow";
+import type { DeploymentRowType } from "@/lib/zod/deploymentRow";
 
 export const columns: AccessorColumnDef<DeploymentRowType>[] = [
   {

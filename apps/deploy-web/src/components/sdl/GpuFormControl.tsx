@@ -1,6 +1,8 @@
 "use client";
-import { ReactNode, useCallback, useMemo } from "react";
-import { Control, Controller, useFieldArray, UseFormSetValue } from "react-hook-form";
+import type { ReactNode } from "react";
+import { useCallback, useMemo } from "react";
+import type { Control, UseFormSetValue } from "react-hook-form";
+import { Controller, useFieldArray } from "react-hook-form";
 import { MdSpeed } from "react-icons/md";
 import { Button, Checkbox, CustomTooltip, FormField, FormItem, FormMessage, Input, Slider, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -14,8 +16,8 @@ import flow from "lodash/flow";
 import flatMap from "lodash/fp/flatMap";
 import keyBy from "lodash/fp/keyBy";
 
-import { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { GpuModel, GpuVendor } from "@src/types/gpu";
+import type { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { GpuModel, GpuVendor } from "@src/types/gpu";
 import { gpuVendors as hardCodedGpuVendors } from "@src/utils/akash/gpu";
 import { validationConfig } from "@src/utils/akash/units";
 import { FormPaper } from "./FormPaper";

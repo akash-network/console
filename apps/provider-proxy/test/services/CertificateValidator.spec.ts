@@ -1,8 +1,9 @@
-import { X509Certificate } from "crypto";
+import type { X509Certificate } from "crypto";
 import { setTimeout } from "timers/promises";
 
-import { CertificateValidator, CertificateValidatorIntrumentation, CertValidationResultError } from "../../src/services/CertificateValidator";
-import { ProviderService } from "../../src/services/ProviderService";
+import type { CertificateValidatorIntrumentation, CertValidationResultError } from "../../src/services/CertificateValidator";
+import { CertificateValidator } from "../../src/services/CertificateValidator";
+import type { ProviderService } from "../../src/services/ProviderService";
 import { createX509CertPair } from "../seeders/createX509CertPair";
 
 describe(CertificateValidator.name, () => {

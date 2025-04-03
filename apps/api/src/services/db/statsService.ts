@@ -5,7 +5,7 @@ import { Op, QueryTypes } from "sequelize";
 
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
-import { ProviderActiveLeasesStats, ProviderStats, ProviderStatsKey } from "@src/types/graph";
+import type { ProviderActiveLeasesStats, ProviderStats, ProviderStatsKey } from "@src/types/graph";
 import { env } from "@src/utils/env";
 import { getGpuUtilization } from "./gpuBreakdownService";
 

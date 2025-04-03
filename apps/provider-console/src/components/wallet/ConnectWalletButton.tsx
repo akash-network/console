@@ -1,6 +1,8 @@
 "use client";
-import React, { ReactNode } from "react";
-import { Button, ButtonProps } from "@akashnetwork/ui/components";
+import type { ReactNode } from "react";
+import React from "react";
+import type { ButtonProps } from "@akashnetwork/ui/components";
+import { Button } from "@akashnetwork/ui/components";
 import { Wallet } from "iconoir-react";
 
 import { useWallet } from "@src/context/WalletProvider";

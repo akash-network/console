@@ -1,7 +1,7 @@
-import { MockProxy } from "jest-mock-extended";
+import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
 
-import { HealthzService } from "@src/healthz/services/healthz/healthz.service";
+import type { HealthzService } from "@src/healthz/services/healthz/healthz.service";
 import { HealthzController } from "./healthz.controller";
 
 describe(HealthzController.name, () => {

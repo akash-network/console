@@ -1,15 +1,17 @@
-import { QueryKey, useQuery, UseQueryOptions } from "react-query";
+import type { QueryKey, UseQueryOptions } from "react-query";
+import { useQuery } from "react-query";
 import axios from "axios";
 import { z } from "zod";
 
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { PaginatedResults } from "@src/types";
-import { DeploymentDto, RpcDeployment } from "@src/types/deployment";
+import type { PaginatedResults } from "@src/types";
+import type { DeploymentDto, RpcDeployment } from "@src/types/deployment";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 import { coinToUDenom } from "@src/utils/priceUtils";
 import { removeEmptyFilters } from "@src/utils/urlUtils";
-import { deploymentRowSchema, DeploymentRowType } from "@src/utils/zod/deploymentRow";
+import type { DeploymentRowType } from "@src/utils/zod/deploymentRow";
+import { deploymentRowSchema } from "@src/utils/zod/deploymentRow";
 import { useSettings } from "../context/SettingsProvider";
 import { QueryKeys } from "./queryKeys";
 

@@ -1,5 +1,5 @@
 import { HttpService } from "@akashnetwork/http-sdk";
-import { AxiosRequestConfig, AxiosResponse } from "axios";
+import type { AxiosRequestConfig, AxiosResponse } from "axios";
 
 export class ProviderProxyService extends HttpService {
   constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {

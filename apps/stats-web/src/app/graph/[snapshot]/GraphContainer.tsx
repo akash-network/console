@@ -11,10 +11,11 @@ import { DiffPercentageChip } from "@/components/DiffPercentageChip";
 import { TimeRange } from "@/components/graph/TimeRange";
 import { SELECTED_RANGE_VALUES } from "@/config/date.config";
 import { percIncrease, udenomToDenom } from "@/lib/mathHelpers";
-import { SNAPSHOT_NOT_FOUND } from "@/lib/snapshotsUrlHelpers";
+import type { SNAPSHOT_NOT_FOUND } from "@/lib/snapshotsUrlHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";
 import { useGraphSnapshot } from "@/queries";
-import { ISnapshotMetadata, Snapshots } from "@/types";
+import type { ISnapshotMetadata } from "@/types";
+import { Snapshots } from "@/types";
 
 const Graph = dynamic(() => import("../../../components/graph/Graph"), {
   ssr: false

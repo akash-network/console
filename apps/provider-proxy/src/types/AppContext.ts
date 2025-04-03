@@ -1,6 +1,6 @@
-import { Context } from "hono";
+import type { Context } from "hono";
 
-import { Container } from "../container";
+import type { Container } from "../container";
 
 export type AppContext = Context<AppEnv>;
 

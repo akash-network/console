@@ -9,7 +9,7 @@ import { Title } from "@/components/Title";
 import { networkId } from "@/config/env-config.schema";
 import { UrlService } from "@/lib/urlUtils";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
-import { ValidatorDetail } from "@/types";
+import type { ValidatorDetail } from "@/types";
 
 const ValidatorDetailPageSchema = z.object({
   params: z.object({

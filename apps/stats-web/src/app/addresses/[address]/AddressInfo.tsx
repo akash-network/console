@@ -7,7 +7,7 @@ import { useQRCode } from "next-qrcode";
 import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";
 import { customColors } from "@/lib/colors";
-import { AddressDetail } from "@/types";
+import type { AddressDetail } from "@/types";
 
 interface IProps {
   address: string;

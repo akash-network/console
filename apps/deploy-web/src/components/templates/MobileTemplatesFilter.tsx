@@ -1,11 +1,12 @@
 "use client";
-import React, { ReactNode } from "react";
+import type { ReactNode } from "react";
+import React from "react";
 import { Button, buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import Drawer from "@mui/material/Drawer";
 import { Xmark } from "iconoir-react";
 
-import { EnhancedTemplateCategory, TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
+import type { EnhancedTemplateCategory, TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 
 export type Props = {
   children?: ReactNode;

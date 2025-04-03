@@ -1,8 +1,8 @@
-import { ExactDepositDeploymentGrant } from "@akashnetwork/http-sdk";
+import type { ExactDepositDeploymentGrant } from "@akashnetwork/http-sdk";
 
-import { DeploymentDto } from "./deployment";
-import { TransactionDetail } from "./transaction";
-import { IValidatorAddess } from "./validator";
+import type { DeploymentDto } from "./deployment";
+import type { TransactionDetail } from "./transaction";
+import type { IValidatorAddess } from "./validator";
 
 export interface AddressDetail {
   total: number;

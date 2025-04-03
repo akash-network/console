@@ -1,40 +1,27 @@
 "use client";
-import { Control, UseFormSetValue } from "react-hook-form";
-import {
-  buttonVariants,
-  Checkbox,
-  CustomTooltip,
-  FormField,
-  FormItem,
-  FormMessage,
-  Input
-} from "@akashnetwork/ui/components";
+import type { Control, UseFormSetValue } from "react-hook-form";
+import { buttonVariants, Checkbox, CustomTooltip, FormField, FormItem, FormMessage, Input } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { InfoCircle, OpenInWindow } from "iconoir-react";
 import Link from "next/link";
 
-import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { ImageRegistryLogo } from "./ImageRegistryLogo";
 
 type Props = {
   serviceIndex: number;
   control: Control<SdlBuilderFormValuesType, any>;
-  credentials?: ServiceType['credentials'];
+  credentials?: ServiceType["credentials"];
   setValue: UseFormSetValue<SdlBuilderFormValuesType>;
 };
 
 const defaultCredentials = {
-  host: 'docker.io' as 'docker.io' | 'ghcr.io',
-  username: '',
-  password: '',
+  host: "docker.io" as "docker.io" | "ghcr.io",
+  username: "",
+  password: ""
 };
 
-export const ImageInput: React.FunctionComponent<Props> = ({
-  serviceIndex,
-  control,
-  credentials,
-  setValue,
-}) => {
+export const ImageInput: React.FunctionComponent<Props> = ({ serviceIndex, control, credentials, setValue }) => {
   return (
     <FormField
       control={control}
@@ -72,10 +59,7 @@ export const ImageInput: React.FunctionComponent<Props> = ({
                         }}
                         className="ml-4"
                       />
-                      <label
-                        htmlFor={`hasCredentials-${serviceIndex}`}
-                        className="cursor-pointer text-sm ml-2"
-                      >
+                      <label htmlFor={`hasCredentials-${serviceIndex}`} className="ml-2 cursor-pointer text-sm">
                         Private
                       </label>
                     </>

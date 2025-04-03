@@ -5,7 +5,7 @@ import { DynamicReactJson } from "@src/components/shared/DynamicJsonView";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
-import { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
+import type { ApiProviderList, ClientProviderDetailWithStatus } from "@src/types/provider";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../../layout/Layout";
 import { CustomNextSeo } from "../../shared/CustomNextSeo";

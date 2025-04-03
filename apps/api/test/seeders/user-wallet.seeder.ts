@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 
-import { UserWalletOutput } from "@src/billing/repositories";
+import type { UserWalletOutput } from "@src/billing/repositories";
 
 import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
 

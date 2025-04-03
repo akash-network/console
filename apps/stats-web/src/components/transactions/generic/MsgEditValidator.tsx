@@ -3,7 +3,7 @@ import { AddressLink } from "../../AddressLink";
 import { AKTLabel } from "../../AKTLabel";
 import { LabelValue } from "../../LabelValue";
 
-import { TransactionMessage } from "@/types";
+import type { TransactionMessage } from "@/types";
 
 type TxMessageProps = {
   message: TransactionMessage;

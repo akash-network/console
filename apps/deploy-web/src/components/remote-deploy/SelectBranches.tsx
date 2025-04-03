@@ -1,10 +1,11 @@
 import React from "react";
-import { Control, useFieldArray } from "react-hook-form";
+import type { Control } from "react-hook-form";
+import { useFieldArray } from "react-hook-form";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue, Spinner } from "@akashnetwork/ui/components";
 import { nanoid } from "nanoid";
 
 import { CURRENT_SERVICE, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
-import { SdlBuilderFormValuesType } from "@src/types";
+import type { SdlBuilderFormValuesType } from "@src/types";
 
 const SelectBranches = ({
   control,

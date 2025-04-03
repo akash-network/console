@@ -1,10 +1,8 @@
-import { Provider } from '@nestjs/common';
+import type { Provider } from '@nestjs/common';
 import { Client as PgClient } from 'pg';
 
-import {
-  BrokerModuleConfig,
-  MODULE_OPTIONS_TOKEN,
-} from '@src/broker/broker-module.definition';
+import type { BrokerModuleConfig } from '@src/broker/broker-module.definition';
+import { MODULE_OPTIONS_TOKEN } from '@src/broker/broker-module.definition';
 
 export const createPgClientFactory =
   (Client: typeof PgClient) =>

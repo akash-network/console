@@ -1,5 +1,6 @@
-import { getSession, PageRoute, withPageAuthRequired, WithPageAuthRequiredPageRouterOptions } from "@auth0/nextjs-auth0";
-import { ParsedUrlQuery } from "querystring";
+import type { PageRoute, WithPageAuthRequiredPageRouterOptions } from "@auth0/nextjs-auth0";
+import { getSession, withPageAuthRequired } from "@auth0/nextjs-auth0";
+import type { ParsedUrlQuery } from "querystring";
 
 import { UrlService } from "./urlUtils";
 

@@ -7,8 +7,8 @@ import { ControlMachineError } from "@src/components/shared/ControlMachineError"
 import { withAuth } from "@src/components/shared/withAuth";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useProvider } from "@src/context/ProviderContext";
-import { ProviderPricingType } from "@src/types/provider";
-import { ProviderPricingResponse } from "@src/types/providerPricing";
+import type { ProviderPricingType } from "@src/types/provider";
+import type { ProviderPricingResponse } from "@src/types/providerPricing";
 import restClient from "@src/utils/restClient";
 import { convertFromPricingAPI, sanitizeMachineAccess } from "@src/utils/sanityUtils";
 
@@ -55,7 +55,12 @@ const Pricing: React.FunctionComponent = () => {
 
         <div className={isLoading ? "pointer-events-none" : ""}>
           <ControlMachineError customMessage={!existingPricing ? "Please try again later." : undefined} onRetry={!existingPricing ? fetchPricing : undefined} />
-          <ProviderPricing existingPricing={existingPricing} editMode={true} disabled={activeControlMachine && existingPricing ? false : true} providerDetails={providerDetails ?? undefined} />
+          <ProviderPricing
+            existingPricing={existingPricing}
+            editMode={true}
+            disabled={activeControlMachine && existingPricing ? false : true}
+            providerDetails={providerDetails ?? undefined}
+          />
         </div>
       </div>
     </Layout>

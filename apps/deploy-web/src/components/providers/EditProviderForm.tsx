@@ -1,6 +1,9 @@
 "use client";
-import { HTMLInputTypeAttribute, useEffect, useRef, useState } from "react";
-import { Control, useFieldArray, useForm } from "react-hook-form";
+import type { HTMLInputTypeAttribute } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { Control } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
+import type { MultiSelectorOption } from "@akashnetwork/ui/components";
 import {
   Alert,
   Button,
@@ -13,7 +16,6 @@ import {
   FormLabel,
   FormMessage,
   MultipleSelector,
-  MultiSelectorOption,
   Select,
   SelectContent,
   SelectGroup,
@@ -25,12 +27,13 @@ import { cn } from "@akashnetwork/ui/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
-import { z } from "zod";
+import type { z } from "zod";
 
 import { FormPaper } from "@src/components/sdl/FormPaper";
 import { useWallet } from "@src/context/WalletProvider";
-import { ApiProviderDetail } from "@src/types/provider";
-import { ProviderAttributeSchemaDetailValue, providerAttributesFormValuesSchema, ProviderAttributesSchema } from "@src/types/providerAttributes";
+import type { ApiProviderDetail } from "@src/types/provider";
+import type { ProviderAttributeSchemaDetailValue, ProviderAttributesSchema } from "@src/types/providerAttributes";
+import { providerAttributesFormValuesSchema } from "@src/types/providerAttributes";
 import { defaultProviderAttributes } from "@src/utils/providerAttributes/data";
 import { getUnknownAttributes, mapFormValuesToAttributes } from "@src/utils/providerAttributes/helpers";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";

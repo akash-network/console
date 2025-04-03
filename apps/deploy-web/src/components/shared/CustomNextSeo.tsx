@@ -1,6 +1,6 @@
 import React from "react";
 import { NextSeo } from "next-seo";
-import { OpenGraphMedia } from "next-seo/lib/types";
+import type { OpenGraphMedia } from "next-seo/lib/types";
 
 type Props = {
   title: string;

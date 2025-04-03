@@ -2,9 +2,9 @@ import axios from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { REDIRECT_URL } from "@src/config/remote-deploy.config";
-import { GitCommit } from "@src/types/remoteCommits";
-import { GithubRepository } from "@src/types/remotedeploy";
-import { GitHubProfile } from "@src/types/remoteProfile";
+import type { GitCommit } from "@src/types/remoteCommits";
+import type { GithubRepository } from "@src/types/remotedeploy";
+import type { GitHubProfile } from "@src/types/remoteProfile";
 const GITHUB_API_URL = "https://api.github.com";
 
 const axiosInstance = axios.create({

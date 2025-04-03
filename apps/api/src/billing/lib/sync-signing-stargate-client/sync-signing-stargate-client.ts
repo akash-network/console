@@ -1,6 +1,8 @@
 import type { OfflineSigner } from "@cosmjs/proto-signing";
-import { HttpEndpoint, SigningStargateClient, SigningStargateClientOptions } from "@cosmjs/stargate";
-import { CometClient, connectComet } from "@cosmjs/tendermint-rpc";
+import type { HttpEndpoint, SigningStargateClientOptions } from "@cosmjs/stargate";
+import { SigningStargateClient } from "@cosmjs/stargate";
+import type { CometClient } from "@cosmjs/tendermint-rpc";
+import { connectComet } from "@cosmjs/tendermint-rpc";
 import type { BroadcastTxSyncResponse } from "@cosmjs/tendermint-rpc/build/comet38";
 
 export type { BroadcastTxSyncResponse };

@@ -1,7 +1,8 @@
-import { QueryKey, useQuery, UseQueryOptions } from "@tanstack/react-query";
+import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
-import { BidDto, RpcBid } from "@src/types/deployment";
+import type { BidDto, RpcBid } from "@src/types/deployment";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { useSettings } from "../context/SettingsProvider";
 import { QueryKeys } from "./queryKeys";

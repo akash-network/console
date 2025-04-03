@@ -4,7 +4,7 @@ import "@interchain-ui/react/globalStyles";
 
 import { useEffect } from "react";
 import { GasPrice } from "@cosmjs/stargate";
-import { WalletModalProps } from "@cosmos-kit/core";
+import type { WalletModalProps } from "@cosmos-kit/core";
 import { wallets as metamask } from "@cosmos-kit/cosmos-extension-metamask";
 import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
 import { wallets as keplr } from "@cosmos-kit/keplr";

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { AKTAmount } from "@/components/AKTAmount";
 import { getShortText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";
-import { IDelegationDetail } from "@/types";
+import type { IDelegationDetail } from "@/types";
 
 type Props = {
   delegations: IDelegationDetail[];

@@ -1,8 +1,7 @@
-import {
+import type {
   baseObjectInputType,
   baseObjectOutputType,
   objectUtil,
-  z,
   ZodArray,
   ZodEffects,
   ZodObject,
@@ -11,6 +10,7 @@ import {
   ZodString,
   ZodTypeAny
 } from "zod";
+import { z } from "zod";
 
 export class ValidationSchemaService {
   static json<

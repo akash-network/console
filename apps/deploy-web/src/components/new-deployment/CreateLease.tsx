@@ -1,5 +1,6 @@
 "use client";
-import React, { ChangeEventHandler, useCallback, useEffect, useMemo, useState } from "react";
+import type { ChangeEventHandler } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   AlertDescription,
@@ -33,7 +34,7 @@ import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import networkStore from "@src/store/networkStore";
-import { BidDto } from "@src/types/deployment";
+import type { BidDto } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
 import { TRIAL_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";

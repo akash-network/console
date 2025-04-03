@@ -4,7 +4,7 @@ import type { GetServerSideProps } from "next";
 
 import { ProviderDetail } from "@src/components/providers/ProviderDetail";
 import { serverApiUrlService } from "@src/services/api-url/server-api-url.service";
-import { ApiProviderDetail } from "@src/types/provider";
+import type { ApiProviderDetail } from "@src/types/provider";
 
 type Props = {
   owner: string;

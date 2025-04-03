@@ -5,7 +5,7 @@ import { Card, CardContent, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui
 import { Delegations } from "./Delegations";
 import { Redelegations } from "./Redelegations";
 
-import { AddressDetail } from "@/types";
+import type { AddressDetail } from "@/types";
 
 interface IProps {
   addressDetail: AddressDetail;

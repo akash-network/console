@@ -3,7 +3,7 @@ import axios from "axios";
 import minutesToSeconds from "date-fns/minutesToSeconds";
 
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
-import { Auditor, ProviderAttributesSchema } from "@src/types/provider";
+import type { Auditor, ProviderAttributesSchema } from "@src/types/provider";
 
 export function getOctokit(githubPAT: string) {
   if (!githubPAT) {

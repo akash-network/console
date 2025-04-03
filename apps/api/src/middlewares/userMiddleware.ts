@@ -1,4 +1,4 @@
-import { Context } from "hono";
+import type { Context } from "hono";
 
 import { cacheEngine } from "@src/caching/helpers";
 import { env } from "@src/utils/env";

@@ -4,7 +4,7 @@ import { BatchSigningClientService } from "@src/billing/lib/batch-signing-client
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { MANAGED_MASTER_WALLET, UAKT_TOP_UP_MASTER_WALLET, USDC_TOP_UP_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { MasterWalletType } from "@src/billing/types/wallet.type";
+import type { MasterWalletType } from "@src/billing/types/wallet.type";
 
 export const MANAGED_MASTER_SIGNING_CLIENT = "MANAGED_MASTER_SIGNING_CLIENT";
 container.register(MANAGED_MASTER_SIGNING_CLIENT, {

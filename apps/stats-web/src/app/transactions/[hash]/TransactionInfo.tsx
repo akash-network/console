@@ -9,7 +9,7 @@ import { AddressLink } from "@/components/AddressLink";
 import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";
 import { UrlService } from "@/lib/urlUtils";
-import { TransactionDetail } from "@/types";
+import type { TransactionDetail } from "@/types";
 
 interface IProps {
   transaction: TransactionDetail;

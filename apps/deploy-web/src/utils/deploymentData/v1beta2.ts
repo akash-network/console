@@ -1,6 +1,6 @@
-import { SDL } from "@akashnetwork/akashjs/build/sdl";
-import { Attribute, v2Sdl } from "@akashnetwork/akashjs/build/sdl/types";
-import { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+import type { SDL } from "@akashnetwork/akashjs/build/sdl";
+import type { Attribute, v2Sdl } from "@akashnetwork/akashjs/build/sdl/types";
+import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import yaml from "js-yaml";
 import path from "path";
 

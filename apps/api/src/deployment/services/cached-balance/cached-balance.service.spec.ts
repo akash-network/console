@@ -1,4 +1,4 @@
-import { BalancesService } from "@src/billing/services/balances/balances.service";
+import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import { CachedBalanceService } from "./cached-balance.service";
 
 import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";

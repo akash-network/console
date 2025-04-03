@@ -16,10 +16,10 @@ const steps: Step[] = [
 ];
 
 const StepContent: React.FC<{ step: Step; activeStep: number }> = ({ step, activeStep }) => {
-  if (step.id < activeStep) {
-    return <CompletedStep step={step} />;
-  } else if (step.id === activeStep) {
+  if (step.id === activeStep) {
     return <CurrentStep step={step} />;
+  } else if (step.id < activeStep) {
+    return <CompletedStep step={step} />;
   } else {
     return <FutureStep step={step} />;
   }

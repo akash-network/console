@@ -1,6 +1,6 @@
 import { getConnInfo } from "@hono/node-server/conninfo";
 import crypto from "crypto";
-import { Context, Next } from "hono";
+import type { Context, Next } from "hono";
 import { createMiddleware } from "hono/factory";
 
 import { getSentry } from "@src/core/providers/sentry.provider";

@@ -8,7 +8,7 @@ import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useUserTemplates } from "@src/queries/useTemplateQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { IUserSetting } from "@src/types/user";
+import type { IUserSetting } from "@src/types/user";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 

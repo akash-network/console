@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { OnChange, OnMount } from "@monaco-editor/react";
+import type { OnChange, OnMount } from "@monaco-editor/react";
 import isEqual from "lodash/isEqual";
 
 import { DynamicMonacoEditor } from "./DynamicMonacoEditor";

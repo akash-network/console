@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@akashnetwork/ui/components";
+import type { ChartConfig } from "@akashnetwork/ui/components";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@akashnetwork/ui/components";
 import { Area, AreaChart, XAxis } from "recharts";
 
 interface DashboardChartsProps {

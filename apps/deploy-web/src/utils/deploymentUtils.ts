@@ -1,9 +1,9 @@
-import { AxiosResponse } from "axios";
+import type { AxiosResponse } from "axios";
 
-import { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
+import type { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { services } from "@src/services/http/http-browser.service";
-import { ExposeType, TemplateCreation } from "@src/types";
-import { ApiProviderList } from "@src/types/provider";
+import type { ExposeType, TemplateCreation } from "@src/types";
+import type { ApiProviderList } from "@src/types/provider";
 import { wait } from "./timer";
 
 export interface SendManifestToProviderOptions {

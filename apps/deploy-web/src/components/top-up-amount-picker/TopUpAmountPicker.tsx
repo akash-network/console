@@ -1,5 +1,6 @@
 import React from "react";
-import { Button, ButtonProps, buttonVariants, Spinner } from "@akashnetwork/ui/components";
+import type { ButtonProps } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Spinner } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
 import { Cash } from "iconoir-react";
@@ -10,7 +11,7 @@ import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddF
 import { useUser } from "@src/hooks/useUser";
 import { useStripePricesQuery } from "@src/queries/useStripePricesQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { FCWithChildren } from "@src/types/component";
+import type { FCWithChildren } from "@src/types/component";
 
 interface TopUpAmountPickerProps extends ButtonProps {
   className?: string;

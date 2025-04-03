@@ -1,4 +1,4 @@
-import { AllowanceType } from "@src/types/grant";
+import type { AllowanceType } from "@src/types/grant";
 
 export const getAllowanceTitleByType = (allowance: AllowanceType) => {
   switch (allowance.allowance["@type"]) {

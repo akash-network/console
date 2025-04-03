@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
-import { z } from "zod";
+import type { z } from "zod";
 
-import {
+import type {
   ProviderAttributeSchemaDetail,
   ProviderAttributeSchemaDetailValue,
   providerAttributesFormValuesSchema,

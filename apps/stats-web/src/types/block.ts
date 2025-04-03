@@ -1,5 +1,5 @@
-import { TransactionMessage } from "./transaction";
-import { IValidatorAddess } from "./validator";
+import type { TransactionMessage } from "./transaction";
+import type { IValidatorAddess } from "./validator";
 
 export interface Block {
   datetime: string;

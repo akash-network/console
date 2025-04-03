@@ -3,7 +3,7 @@ import { useAtom } from "jotai";
 
 import { GitHubService } from "@src/services/remote-deploy/github-http.service";
 import { tokens } from "@src/store/remoteDeployStore";
-import { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
+import type { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { QueryKeys } from "./queryKeys";
 
 const githubService = new GitHubService();

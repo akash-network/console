@@ -2,7 +2,7 @@
 import { forwardRef } from "react";
 import dynamic from "next/dynamic";
 
-import { IProps, XTermRefType } from "./XTerm";
+import type { IProps, XTermRefType } from "./XTerm";
 
 const _DynamicXTerm = dynamic(() => import("./XTerm"), { ssr: false });
 

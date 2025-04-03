@@ -3,11 +3,13 @@ import nock from "nock";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
-import { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
+import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
-import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
-import { UserOutput, UserRepository } from "@src/user/repositories";
+import type { UserWalletOutput } from "@src/billing/repositories";
+import { UserWalletRepository } from "@src/billing/repositories";
+import type { UserOutput } from "@src/user/repositories";
+import { UserRepository } from "@src/user/repositories";
 import { apiNodeUrl } from "@src/utils/constants";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";

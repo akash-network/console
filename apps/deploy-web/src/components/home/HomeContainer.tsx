@@ -11,7 +11,7 @@ import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import { DeploymentDto } from "@src/types/deployment";
+import type { DeploymentDto } from "@src/types/deployment";
 import Layout from "../layout/Layout";
 import { WelcomePanel } from "./WelcomePanel";
 

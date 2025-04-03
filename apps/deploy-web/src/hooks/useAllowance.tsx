@@ -1,4 +1,5 @@
-import React, { FC, useMemo } from "react";
+import type { FC } from "react";
+import React, { useMemo } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import isAfter from "date-fns/isAfter";
 import parseISO from "date-fns/parseISO";

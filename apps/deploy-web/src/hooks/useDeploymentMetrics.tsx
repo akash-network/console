@@ -1,6 +1,6 @@
 "use client";
 
-import { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { useRealTimeLeft } from "@src/utils/priceUtils";
 
 interface DeploymentTimeMetrics {

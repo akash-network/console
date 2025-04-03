@@ -3,7 +3,7 @@ import type { GetServerSideProps } from "next";
 
 import { UserProfile } from "@src/components/user/UserProfile";
 import { serverEnvConfig } from "@src/config/server-env.config";
-import { IUserSetting } from "@src/types/user";
+import type { IUserSetting } from "@src/types/user";
 
 type Props = {
   username: string;

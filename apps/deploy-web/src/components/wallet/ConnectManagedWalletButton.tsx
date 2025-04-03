@@ -1,6 +1,8 @@
 "use client";
-import React, { ReactNode, useCallback } from "react";
-import { Button, ButtonProps, Spinner } from "@akashnetwork/ui/components";
+import type { ReactNode } from "react";
+import React, { useCallback } from "react";
+import type { ButtonProps } from "@akashnetwork/ui/components";
+import { Button, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Rocket } from "iconoir-react";
 

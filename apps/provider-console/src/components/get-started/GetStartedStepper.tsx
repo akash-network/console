@@ -136,7 +136,7 @@ export const GetStartedStepper: React.FunctionComponent = () => {
             <li className="pt-4">
               <span className="font-medium">Network Configuration:</span>
               <ul className="list-inside list-disc">
-                <li>Open the following ports on all servers: 8443, 8444, 80, 443, 6443.</li>
+                <li>Open the following ports on all servers: 8443, 8444, 80, 443.</li>
                 <li>The server should allow SSH connections from public IPs (ensure the SSH port is open).</li>
                 <li>
                   At least one control node needs to have a public IP and add the nodes need to be on the same layer-2 network. Ideally all the control plane

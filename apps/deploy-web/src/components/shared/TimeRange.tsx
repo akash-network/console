@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 

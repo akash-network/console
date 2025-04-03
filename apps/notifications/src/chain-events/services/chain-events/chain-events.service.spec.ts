@@ -2,13 +2,14 @@ import {
   MsgCloseDeployment,
   MsgCreateDeployment,
 } from '@akashnetwork/akash-api/v1beta3';
-import { Test, TestingModule } from '@nestjs/testing';
-import { MockProxy } from 'jest-mock-extended';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { MockProxy } from 'jest-mock-extended';
 
 import { BrokerService } from '@src/broker/services/broker/broker.service';
 import { LoggerService } from '@src/common/services/logger.service';
 import { BlockMessageService } from '../block-message/block-message.service';
-import { BlockData } from '../block-message-parser/block-message-parser.service';
+import type { BlockData } from '../block-message-parser/block-message-parser.service';
 import { ChainEventsService } from './chain-events.service';
 
 import { MockProvider } from '@test/mocks/provider.mock';

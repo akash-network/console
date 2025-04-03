@@ -2,7 +2,7 @@
 
 import { FormattedNumber } from "react-intl";
 import { Avatar, AvatarFallback, AvatarImage, Badge, DataTableColumnHeader } from "@akashnetwork/ui/components";
-import { AccessorColumnDef } from "@tanstack/react-table";
+import type { AccessorColumnDef } from "@tanstack/react-table";
 import { User } from "iconoir-react";
 import Link from "next/link";
 import { z } from "zod";

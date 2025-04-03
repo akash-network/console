@@ -1,5 +1,6 @@
 "use client";
-import React, { Dispatch, useEffect, useRef, useState } from "react";
+import type { Dispatch } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Alert, Button, Form, Spinner } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,7 +12,8 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
 import { useGpuModels } from "@src/queries/useGpuQuery";
-import { SdlBuilderFormValuesSchema, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { SdlBuilderFormValuesSchema } from "@src/types";
 import { defaultService, defaultSshVMService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";

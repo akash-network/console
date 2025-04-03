@@ -1,9 +1,11 @@
-import { Abilities, AnyAbility, CanParameters, ForbiddenError, subject } from "@casl/ability";
+import type { Abilities, AnyAbility, CanParameters } from "@casl/ability";
+import { ForbiddenError, subject } from "@casl/ability";
 import { rulesToQuery } from "@casl/ability/extra";
 import { CompoundCondition, FieldCondition } from "@ucast/core";
-import { and, BinaryOperator, eq, gt, gte, isNull, lt, lte, ne, or } from "drizzle-orm";
-import { PgTableWithColumns } from "drizzle-orm/pg-core/table";
-import { SQL } from "drizzle-orm/sql/sql";
+import type { BinaryOperator } from "drizzle-orm";
+import { and, eq, gt, gte, isNull, lt, lte, ne, or } from "drizzle-orm";
+import type { PgTableWithColumns } from "drizzle-orm/pg-core/table";
+import type { SQL } from "drizzle-orm/sql/sql";
 
 export class DrizzleAbility<T extends PgTableWithColumns<any>, A extends AnyAbility = AnyAbility> {
   private readonly OPS: Record<string, BinaryOperator> = {

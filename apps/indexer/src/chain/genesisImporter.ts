@@ -5,7 +5,7 @@ import path from "path";
 
 import { dataFolderPath } from "@src/shared/constants";
 import { download } from "@src/shared/utils/download";
-import { IGenesis } from "./genesisTypes";
+import type { IGenesis } from "./genesisTypes";
 
 export async function getGenesis(): Promise<IGenesis> {
   const ext = path.extname(activeChain.genesisFileUrl);

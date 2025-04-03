@@ -1,5 +1,5 @@
 "use client";
-import { MouseEventHandler } from "react";
+import type { MouseEventHandler } from "react";
 import { Button } from "@akashnetwork/ui/components";
 import { Star, StarSolid } from "iconoir-react";
 

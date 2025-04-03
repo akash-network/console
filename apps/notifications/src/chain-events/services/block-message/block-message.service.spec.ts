@@ -1,6 +1,7 @@
 import { faker } from '@faker-js/faker';
-import { Test, TestingModule } from '@nestjs/testing';
-import { MockProxy } from 'jest-mock-extended';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { MockProxy } from 'jest-mock-extended';
 
 import { BlockMessageParserService } from '../block-message-parser/block-message-parser.service';
 import { BlockchainClientService } from '../blockchain-client/blockchain-client.service';

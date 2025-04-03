@@ -1,8 +1,9 @@
-import { QueryKey, useQuery, UseQueryOptions } from "@tanstack/react-query";
+import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { Block } from "@src/types";
+import type { Block } from "@src/types";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 

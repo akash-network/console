@@ -7,7 +7,8 @@ import { container } from "tsyringe";
 
 import { app } from "@src/app";
 import { CheckoutSessionRepository } from "@src/billing/repositories";
-import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
+import type { ApiPgDatabase } from "@src/core";
+import { POSTGRES_DB, resolveTable } from "@src/core";
 
 jest.setTimeout(20000);
 

@@ -1,4 +1,4 @@
-import { AssetList, Chain } from "@chain-registry/types";
+import type { AssetList, Chain } from "@chain-registry/types";
 
 import { akash, akashAssetList } from "./akash";
 

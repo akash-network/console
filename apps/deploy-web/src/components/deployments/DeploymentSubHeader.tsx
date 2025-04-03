@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import isValid from "date-fns/isValid";
@@ -12,7 +12,7 @@ import { StatusPill } from "@src/components/shared/StatusPill";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useDenomData } from "@src/hooks/useWalletBalance";
-import { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import { CopyTextToClipboardButton } from "../copy-text-to-clipboard-button/CopyTextToClipboardButton";

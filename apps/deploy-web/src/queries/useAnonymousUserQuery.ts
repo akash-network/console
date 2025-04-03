@@ -1,6 +1,6 @@
 import { useState } from "react";
 import * as Sentry from "@sentry/nextjs";
-import { AxiosError } from "axios";
+import type { AxiosError } from "axios";
 
 import { useWhen } from "@src/hooks/useWhen";
 import { userHttpService } from "@src/services/http/http-browser.service";

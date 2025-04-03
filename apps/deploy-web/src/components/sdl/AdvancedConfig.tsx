@@ -1,10 +1,11 @@
 "use client";
-import { ReactNode, useEffect, useState } from "react";
-import { Control, UseFieldArrayAppend, UseFieldArrayRemove, UseFormSetValue } from "react-hook-form";
+import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
+import type { Control, UseFieldArrayAppend, UseFieldArrayRemove, UseFormSetValue } from "react-hook-form";
 import { Button, Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 
-import { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { ExpandMore } from "../shared/ExpandMore";
 import { CommandFormModal } from "./CommandFormModal";
 import { CommandList } from "./CommandList";

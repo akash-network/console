@@ -1,5 +1,6 @@
-import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions } from "react-query";
-import { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
+import type { QueryKey, UseQueryOptions } from "react-query";
+import { useMutation, useQuery, useQueryClient } from "react-query";
+import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
 
 import { managedWalletHttpService } from "@src/services/managed-wallet-http/managed-wallet-http.service";
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { FC, useCallback, useState } from "react";
+import type { FC } from "react";
+import { useCallback, useState } from "react";
 import { Button, buttonVariants, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import GitHubIcon from "@mui/icons-material/GitHub";
@@ -12,7 +13,7 @@ import { DynamicMonacoEditor } from "@src/components/shared/DynamicMonacoEditor"
 import Markdown from "@src/components/shared/Markdown";
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
-import { ApiTemplate } from "@src/types";
+import type { ApiTemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";

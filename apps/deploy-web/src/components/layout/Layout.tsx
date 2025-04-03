@@ -1,5 +1,6 @@
 "use client";
-import React, { ReactNode, useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import React, { useEffect, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { IntlProvider } from "react-intl";
 import { ErrorFallback, Spinner } from "@akashnetwork/ui/components";

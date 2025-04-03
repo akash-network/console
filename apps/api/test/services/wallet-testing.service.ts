@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import type { Hono } from "hono";
 
 export class WalletTestingService {
   constructor(private readonly app: Hono) {}

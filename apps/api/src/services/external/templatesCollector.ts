@@ -1,12 +1,12 @@
-import { Octokit } from "@octokit/rest";
+import type { Octokit } from "@octokit/rest";
 import { PromisePool } from "@supercharge/promise-pool";
 import * as fs from "fs";
 import { markdownToTxt } from "markdown-to-txt";
 import fetch from "node-fetch";
 import path from "path";
 
-import { GithubChainRegistryChainResponse } from "@src/types";
-import { GithubDirectoryItem } from "@src/types/github";
+import type { GithubChainRegistryChainResponse } from "@src/types";
+import type { GithubDirectoryItem } from "@src/types/github";
 import { getLogoFromPath } from "@src/utils/templateReposLogos";
 import { isUrlAbsolute } from "@src/utils/urls";
 import { getOctokit } from "./githubService";

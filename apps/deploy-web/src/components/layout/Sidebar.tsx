@@ -1,5 +1,6 @@
 "use client";
-import React, { ReactNode, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import React, { useMemo, useState } from "react";
 import { Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import Drawer from "@mui/material/Drawer";
@@ -15,7 +16,7 @@ import Link from "next/link";
 
 import { useWallet } from "@src/context/WalletProvider";
 import sdlStore from "@src/store/sdlStore";
-import { ISidebarGroupMenu, ISidebarRoute } from "@src/types";
+import type { ISidebarGroupMenu, ISidebarRoute } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import { MobileSidebarUser } from "./MobileSidebarUser";
 import { ModeToggle } from "./ModeToggle";

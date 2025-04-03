@@ -1,5 +1,6 @@
 "use client";
-import { ReactNode, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Form, FormField, FormItem, FormMessage, Snackbar, Spinner, Textarea } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";

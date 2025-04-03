@@ -2,8 +2,8 @@ import axios from "axios";
 import { atom } from "jotai";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { Network } from "@src/types/network";
-import { mainnetId, } from "@src/utils/constants";
+import type { Network } from "@src/types/network";
+import { mainnetId } from "@src/utils/constants";
 
 export let networks: Network[] = [
   {
@@ -17,7 +17,7 @@ export let networks: Network[] = [
     rpcEndpoint: browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL,
     nodesUrl: browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL,
     versionUrl: browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL
-  },
+  }
 ];
 
 /**

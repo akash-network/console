@@ -1,5 +1,6 @@
 "use client";
-import { ReactNode, useCallback, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Badge,
   Button,
@@ -26,8 +27,8 @@ import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConf
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useAllLeases, useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { NamedDeploymentDto } from "@src/types/deployment";
-import { ApiProviderList } from "@src/types/provider";
+import type { NamedDeploymentDto } from "@src/types/deployment";
+import type { ApiProviderList } from "@src/types/provider";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, getTimeLeft, useRealTimeLeft } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -39,7 +40,8 @@ import { PricePerMonth } from "../shared/PricePerMonth";
 import { PriceValue } from "../shared/PriceValue";
 import { SpecDetailList } from "../shared/SpecDetailList";
 import { DeploymentName } from "./DeploymentName/DeploymentName";
-import { DeploymentDepositModal, DeploymentDepositModalProps } from "./DeploymentDepositModal";
+import type { DeploymentDepositModalProps } from "./DeploymentDepositModal";
+import { DeploymentDepositModal } from "./DeploymentDepositModal";
 import { LeaseChip } from "./LeaseChip";
 
 type Props = {

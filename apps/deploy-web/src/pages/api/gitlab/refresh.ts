@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from "next";
 
 import { serverEnvConfig } from "@src/config/server-env.config";
 import GitlabAuth from "@src/services/auth/gitlab.service";

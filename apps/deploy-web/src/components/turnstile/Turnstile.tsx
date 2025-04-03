@@ -1,10 +1,13 @@
 "use client";
 
-import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { FC } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MdInfo } from "react-icons/md";
 import { Button } from "@akashnetwork/ui/components";
-import { Turnstile as ReactTurnstile, TurnstileInstance } from "@marsidev/react-turnstile";
-import axios, { AxiosError, AxiosResponse } from "axios";
+import type { TurnstileInstance } from "@marsidev/react-turnstile";
+import { Turnstile as ReactTurnstile } from "@marsidev/react-turnstile";
+import type { AxiosError, AxiosResponse } from "axios";
+import axios from "axios";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import { firstValueFrom, Subject } from "rxjs";

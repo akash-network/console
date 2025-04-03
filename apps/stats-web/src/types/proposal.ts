@@ -1,4 +1,4 @@
-import { IValidatorAddess } from "./validator";
+import type { IValidatorAddess } from "./validator";
 
 export interface ProposalSummary {
   id: number;

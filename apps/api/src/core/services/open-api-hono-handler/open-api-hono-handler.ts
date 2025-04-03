@@ -1,5 +1,6 @@
-import { OpenAPIHono, OpenAPIHonoOptions } from "@hono/zod-openapi";
-import { Env, Hono, Schema } from "hono";
+import type { OpenAPIHonoOptions } from "@hono/zod-openapi";
+import { OpenAPIHono } from "@hono/zod-openapi";
+import type { Env, Hono, Schema } from "hono";
 import { container } from "tsyringe";
 
 import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";

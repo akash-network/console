@@ -1,10 +1,11 @@
-import { QueryClient, useQuery, UseQueryOptions, UseQueryResult } from "react-query";
+import type { QueryClient, UseQueryOptions, UseQueryResult } from "react-query";
+import { useQuery } from "react-query";
 import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import { MAINNET_ID, SANDBOX_ID } from "@akashnetwork/network-store";
-import { AxiosInstance } from "axios";
+import type { AxiosInstance } from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { ApiUrlService } from "@src/services/api-url/api-url.service";
+import type { ApiUrlService } from "@src/services/api-url/api-url.service";
 import networkStore from "@src/store/networkStore";
 import { QueryKeys } from "./queryKeys";
 

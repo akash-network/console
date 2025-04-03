@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Control, useFieldArray } from "react-hook-form";
+import type { Control } from "react-hook-form";
+import { useFieldArray } from "react-hook-form";
 import {
   Button,
   Dialog,
@@ -21,8 +22,8 @@ import { GitCommitVertical, GitGraph, Info } from "lucide-react";
 import { nanoid } from "nanoid";
 
 import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
-import { SdlBuilderFormValuesType } from "@src/types";
-import { RollBackType } from "@src/types/remotedeploy";
+import type { SdlBuilderFormValuesType } from "@src/types";
+import type { RollBackType } from "@src/types/remotedeploy";
 
 const RollbackModal = ({ commits, control }: { commits?: RollBackType[] | null; control: Control<SdlBuilderFormValuesType> }) => {
   const [filteredCommits, setFilteredCommits] = useState<RollBackType[]>([]);

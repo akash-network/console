@@ -1,7 +1,7 @@
 import { useQuery } from "react-query";
 import axios from "axios";
 
-import { GpuVendor } from "@src/types/gpu";
+import type { GpuVendor } from "@src/types/gpu";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 

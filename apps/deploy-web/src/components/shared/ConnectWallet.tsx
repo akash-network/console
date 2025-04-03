@@ -1,5 +1,6 @@
 "use client";
-import React, { ReactNode } from "react";
+import type { ReactNode } from "react";
+import React from "react";
 import { buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { useAtom } from "jotai";

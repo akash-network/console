@@ -1,10 +1,11 @@
 "use client";
-import React, { ReactNode } from "react";
+import type { ReactNode } from "react";
+import React from "react";
 import { FormattedDate } from "react-intl";
 import { Address } from "@akashnetwork/ui/components";
 
 import { useDenomData } from "@src/hooks/useWalletBalance";
-import { GrantType } from "@src/types/grant";
+import type { GrantType } from "@src/types/grant";
 import { coinToUDenom } from "@src/utils/priceUtils";
 import { AKTAmount } from "../shared/AKTAmount";
 

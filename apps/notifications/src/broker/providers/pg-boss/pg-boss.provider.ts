@@ -1,11 +1,9 @@
-import { Provider } from '@nestjs/common';
+import type { Provider } from '@nestjs/common';
 import { Client } from 'pg';
 import PgBoss from 'pg-boss';
 
-import {
-  BrokerModuleConfig,
-  MODULE_OPTIONS_TOKEN,
-} from '@src/broker/broker-module.definition';
+import type { BrokerModuleConfig } from '@src/broker/broker-module.definition';
+import { MODULE_OPTIONS_TOKEN } from '@src/broker/broker-module.definition';
 
 export const createPgBossFactory =
   (Broker: typeof PgBoss) =>

@@ -1,5 +1,6 @@
 import { BalanceHttpService } from "@akashnetwork/http-sdk";
-import { coins, EncodeObject } from "@cosmjs/proto-signing";
+import type { EncodeObject } from "@cosmjs/proto-signing";
+import { coins } from "@cosmjs/proto-signing";
 import { calculateFee, GasPrice, SigningStargateClient } from "@cosmjs/stargate";
 import dotenv from "dotenv";
 import dotenvExpand from "dotenv-expand";

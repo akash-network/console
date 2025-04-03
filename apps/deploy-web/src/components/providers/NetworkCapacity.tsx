@@ -1,6 +1,7 @@
 "use client";
 import { useIntl } from "react-intl";
-import { PieSvgProps, PieTooltipProps, ResponsivePie } from "@nivo/pie";
+import type { PieSvgProps, PieTooltipProps } from "@nivo/pie";
+import { ResponsivePie } from "@nivo/pie";
 import { BasicTooltip } from "@nivo/tooltip";
 import { useTheme } from "next-themes";
 

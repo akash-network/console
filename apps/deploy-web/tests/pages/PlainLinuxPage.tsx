@@ -1,4 +1,4 @@
-import { SSH_VM_IMAGES } from "@src/utils/sdl/data";
+import type { SSH_VM_IMAGES } from "@src/utils/sdl/data";
 import { DeployBasePage } from "./DeployBasePage";
 
 export class PlainLinuxPage extends DeployBasePage {

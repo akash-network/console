@@ -1,7 +1,9 @@
 import { StargateClient } from '@cosmjs/stargate';
 import { faker } from '@faker-js/faker';
-import { Test, TestingModule } from '@nestjs/testing';
-import { mock, MockProxy } from 'jest-mock-extended';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { MockProxy } from 'jest-mock-extended';
+import { mock } from 'jest-mock-extended';
 
 import { BlockchainClientService } from './blockchain-client.service';
 

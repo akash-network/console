@@ -5,7 +5,7 @@ import { Snackbar } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { RestApiCertificate } from "@src/types/certificate";
+import type { RestApiCertificate } from "@src/types/certificate";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { getStorageWallets, updateWallet } from "@src/utils/walletUtils";

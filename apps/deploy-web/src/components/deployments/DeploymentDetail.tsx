@@ -1,6 +1,7 @@
 "use client";
 
-import { createRef, FC, useEffect, useState } from "react";
+import type { FC } from "react";
+import { createRef, useEffect, useState } from "react";
 import { Alert, Button, buttonVariants, Spinner, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { ArrowLeft } from "iconoir-react";

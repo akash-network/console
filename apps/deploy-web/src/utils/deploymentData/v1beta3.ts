@@ -1,4 +1,4 @@
-import { Attribute } from "@akashnetwork/akash-api/akash/base/v1beta3";
+import type { Attribute } from "@akashnetwork/akash-api/akash/base/v1beta3";
 import yaml from "js-yaml";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";

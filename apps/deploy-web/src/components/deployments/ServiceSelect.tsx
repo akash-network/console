@@ -4,7 +4,8 @@ import { useState } from "react";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-import Select, { SelectChangeEvent } from "@mui/material/Select";
+import type { SelectChangeEvent } from "@mui/material/Select";
+import Select from "@mui/material/Select";
 
 type Props = {
   defaultValue: string;

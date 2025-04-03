@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import { CoinGeckoCoinsResponse } from "@src/types/coingeckoCoinsResponse";
+import type { CoinGeckoCoinsResponse } from "@src/types/coingeckoCoinsResponse";
 
 interface AktMarketData {
   price: number;

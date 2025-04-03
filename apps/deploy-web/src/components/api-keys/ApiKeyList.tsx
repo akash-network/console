@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FormattedDate } from "react-intl";
-import { ApiKeyResponse } from "@akashnetwork/http-sdk";
+import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
 import { Button, Popup, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Trash } from "iconoir-react";
 

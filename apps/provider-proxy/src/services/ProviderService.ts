@@ -1,4 +1,4 @@
-import { SupportedChainNetworks } from "@akashnetwork/net";
+import type { SupportedChainNetworks } from "@akashnetwork/net";
 import { X509Certificate } from "crypto";
 
 import { httpRetry } from "../utils/retry";

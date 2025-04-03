@@ -1,4 +1,4 @@
-import { Coin } from "@cosmjs/stargate";
+import type { Coin } from "@cosmjs/stargate";
 import add from "date-fns/add";
 
 import { getUsdcDenom } from "@src/hooks/useDenom";

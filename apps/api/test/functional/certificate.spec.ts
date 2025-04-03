@@ -6,8 +6,8 @@ import { app } from "@src/app";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserWalletRepository } from "@src/billing/repositories";
-import { CreateCertificateResponse } from "@src/certificate/http-schemas/create-certificate.schema";
-import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import type { CreateCertificateResponse } from "@src/certificate/http-schemas/create-certificate.schema";
+import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { UserRepository } from "@src/user/repositories";
 
 import { stub } from "@test/services/stub";

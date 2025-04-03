@@ -1,9 +1,9 @@
 "use client";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 
-import { ISidebarGroupMenu } from "@src/types";
+import type { ISidebarGroupMenu } from "@src/types";
 import { SidebarRouteButton } from "./SidebarRouteButton";
 
 type Props = {

@@ -1,7 +1,8 @@
 import { stringToPath } from "@cosmjs/crypto";
-import { DirectSecp256k1HdWallet, OfflineDirectSigner } from "@cosmjs/proto-signing";
-import { DirectSecp256k1HdWalletOptions } from "@cosmjs/proto-signing/build/directsecp256k1hdwallet";
-import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
+import type { OfflineDirectSigner } from "@cosmjs/proto-signing";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import type { DirectSecp256k1HdWalletOptions } from "@cosmjs/proto-signing/build/directsecp256k1hdwallet";
+import type { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 
 export class Wallet implements OfflineDirectSigner {
   private readonly PREFIX = "akash";

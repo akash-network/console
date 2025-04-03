@@ -1,6 +1,8 @@
 "use client";
-import { ReactNode, useMemo } from "react";
-import { Control, Controller, UseFieldArrayAppend, UseFieldArrayRemove, UseFormSetValue } from "react-hook-form";
+import type { ReactNode } from "react";
+import { useMemo } from "react";
+import type { Control, UseFieldArrayAppend, UseFieldArrayRemove, UseFormSetValue } from "react-hook-form";
+import { Controller } from "react-hook-form";
 import { MdStorage } from "react-icons/md";
 import {
   Button,
@@ -24,7 +26,7 @@ import {
 import { cn } from "@akashnetwork/ui/utils";
 import { Bin, InfoCircle } from "iconoir-react";
 
-import { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { ephemeralStorageTypes, persistentStorageTypes, storageUnits } from "@src/utils/akash/units";
 import { AddStorageButton } from "./AddStorageButton";
 import { FormPaper } from "./FormPaper";

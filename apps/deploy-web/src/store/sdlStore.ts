@@ -1,6 +1,6 @@
 import { atom } from "jotai";
 
-import { RentGpusFormValuesType, SdlBuilderFormValuesType, TemplateCreation } from "@src/types";
+import type { RentGpusFormValuesType, SdlBuilderFormValuesType, TemplateCreation } from "@src/types";
 
 const deploySdl = atom<TemplateCreation | null>(null);
 const sdlBuilderSdl = atom<SdlBuilderFormValuesType | null>(null);

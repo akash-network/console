@@ -1,10 +1,11 @@
-import { QueryKey, useQuery, UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
+import type { QueryKey, UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
-import { ApiProviderDetail, ApiProviderList, ApiProviderRegion, Auditor, ProviderStatus, ProviderStatusDto, ProviderVersion } from "@src/types/provider";
-import { ProviderAttributesSchema } from "@src/types/providerAttributes";
+import type { ApiProviderDetail, ApiProviderList, ApiProviderRegion, Auditor, ProviderStatus, ProviderStatusDto, ProviderVersion } from "@src/types/provider";
+import type { ProviderAttributesSchema } from "@src/types/providerAttributes";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { getNetworkCapacityDto, providerStatusToDto } from "@src/utils/providerUtils";
 import { QueryKeys } from "./queryKeys";

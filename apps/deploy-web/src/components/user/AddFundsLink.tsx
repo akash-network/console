@@ -1,10 +1,11 @@
 import React from "react";
 import { Button } from "@akashnetwork/ui/components";
-import Link, { LinkProps } from "next/link";
+import type { LinkProps } from "next/link";
+import Link from "next/link";
 
 import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { FCWithChildren } from "@src/types/component";
+import type { FCWithChildren } from "@src/types/component";
 
 export const AddFundsLink: FCWithChildren<
   Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof LinkProps> &

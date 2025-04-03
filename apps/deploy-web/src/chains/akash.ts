@@ -1,4 +1,4 @@
-import { AssetList, Chain } from "@chain-registry/types";
+import type { AssetList, Chain } from "@chain-registry/types";
 import { assets } from "chain-registry";
 
 export const akash: Chain = {

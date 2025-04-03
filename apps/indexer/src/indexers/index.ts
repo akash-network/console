@@ -1,7 +1,7 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 
 import { AkashStatsIndexer } from "./akashStatsIndexer";
-import { Indexer } from "./indexer";
+import type { Indexer } from "./indexer";
 import { MessageAddressesIndexer } from "./messageAddressesIndexer";
 import { ValidatorIndexer } from "./validatorIndexer";
 

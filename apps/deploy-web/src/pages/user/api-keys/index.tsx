@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ApiKeyResponse } from "@akashnetwork/http-sdk";
+import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
 import { NextSeo } from "next-seo";
 import { enqueueSnackbar } from "notistack";
 

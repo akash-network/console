@@ -2,7 +2,7 @@
 
 import { FormattedRelativeTime } from "react-intl";
 import { DataTableColumnHeader } from "@akashnetwork/ui/components";
-import { AccessorColumnDef } from "@tanstack/react-table";
+import type { AccessorColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 
 import { TransactionTypeCell } from "./TransactionTypeCell";
@@ -10,7 +10,7 @@ import { TransactionTypeCell } from "./TransactionTypeCell";
 import { AKTAmount } from "@/components/AKTAmount";
 import { getSplitText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";
-import { TransactionRowType } from "@/lib/zod/transactionRow";
+import type { TransactionRowType } from "@/lib/zod/transactionRow";
 
 export const columns: AccessorColumnDef<TransactionRowType>[] = [
   {

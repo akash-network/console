@@ -1,6 +1,6 @@
 "use client";
 import { Card, CardContent, Spinner, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 
 import { BlockRow } from "../../components/blockchain/BlockRow";
 

@@ -6,7 +6,7 @@ import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.reposit
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
-import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";

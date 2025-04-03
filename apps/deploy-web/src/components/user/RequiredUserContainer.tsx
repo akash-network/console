@@ -1,4 +1,5 @@
-import React, { FC, useEffect } from "react";
+import type { FC } from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { LoadingBlocker } from "@src/components/layout/LoadingBlocker/LoadingBlocker";

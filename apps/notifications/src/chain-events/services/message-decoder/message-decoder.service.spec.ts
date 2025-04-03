@@ -1,6 +1,7 @@
 import { MsgCreateDeployment } from '@akashnetwork/akash-api/v1beta3';
 import { faker } from '@faker-js/faker';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import Long from 'long';
 
 import { RegistryProvider } from '@src/chain-events/providers/registry.provider';

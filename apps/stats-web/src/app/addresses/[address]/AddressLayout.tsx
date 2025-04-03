@@ -1,5 +1,6 @@
 "use client";
-import React, { ReactNode } from "react";
+import type { ReactNode } from "react";
+import React from "react";
 import { Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { useRouter } from "next-nprogress-bar";
 

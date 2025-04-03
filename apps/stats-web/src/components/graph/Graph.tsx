@@ -8,7 +8,7 @@ import { useTheme } from "next-themes";
 
 import { customColors } from "@/lib/colors";
 import { nFormatter, roundDecimal } from "@/lib/mathHelpers";
-import { GraphResponse, ISnapshotMetadata, SnapshotValue } from "@/types";
+import type { GraphResponse, ISnapshotMetadata, SnapshotValue } from "@/types";
 
 interface IGraphProps {
   rangedData: SnapshotValue[];

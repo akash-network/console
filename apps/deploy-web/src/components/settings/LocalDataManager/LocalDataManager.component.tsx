@@ -1,4 +1,5 @@
-import React, { FC, useCallback, useRef } from "react";
+import type { FC } from "react";
+import React, { useCallback, useRef } from "react";
 import { Button } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { Download, Upload } from "iconoir-react";

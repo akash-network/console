@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Control } from "react-hook-form";
+import type { Control } from "react-hook-form";
 import { Card, CardContent, Collapsible, CollapsibleContent, CollapsibleTrigger, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown } from "iconoir-react";
 
-import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { EnvFormModal } from "../../sdl/EnvFormModal";
 import { EnvVarList } from "../../sdl/EnvVarList";
 

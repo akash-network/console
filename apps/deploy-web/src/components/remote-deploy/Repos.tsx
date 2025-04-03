@@ -1,5 +1,6 @@
-import { Dispatch, useEffect, useMemo, useState } from "react";
-import { UseFormSetValue } from "react-hook-form";
+import type { Dispatch } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { UseFormSetValue } from "react-hook-form";
 import {
   Button,
   Dialog,
@@ -30,9 +31,9 @@ import { useSrcFolders } from "@src/queries/useGithubQuery";
 import { useGitlabSrcFolders } from "@src/queries/useGitlabQuery";
 import { EnvVarUpdater, formatUrlWithoutInitialPath } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { tokens } from "@src/store/remoteDeployStore";
-import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { CustomRepo, IGithubDirectoryItem } from "@src/types/remotedeploy";
-import { GitHubProfile } from "@src/types/remoteProfile";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { CustomRepo, IGithubDirectoryItem } from "@src/types/remotedeploy";
+import type { GitHubProfile } from "@src/types/remoteProfile";
 import { useBitSrcFolders } from "../../queries/useBitBucketQuery";
 import CustomInput from "./BoxTextInput";
 

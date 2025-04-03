@@ -31,7 +31,7 @@ import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import sdlStore from "@src/store/sdlStore";
 import walletStore from "@src/store/walletStore";
-import { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
+import type { DeploymentDto, NamedDeploymentDto } from "@src/types/deployment";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";

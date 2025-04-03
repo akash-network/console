@@ -1,5 +1,6 @@
 "use client";
-import React, { ReactNode, useState } from "react";
+import type { ReactNode } from "react";
+import React, { useState } from "react";
 import { Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
@@ -11,7 +12,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { ISidebarGroupMenu } from "@src/types";
+import type { ISidebarGroupMenu } from "@src/types";
 import { closedDrawerWidth, drawerWidth } from "@src/utils/constants";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";

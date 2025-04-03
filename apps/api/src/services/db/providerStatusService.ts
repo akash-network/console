@@ -4,7 +4,7 @@ import { add, sub } from "date-fns";
 import uniqBy from "lodash/uniqBy";
 import { Op } from "sequelize";
 
-import { ProviderDetail } from "@src/types/provider";
+import type { ProviderDetail } from "@src/types/provider";
 import { toUTC } from "@src/utils";
 import { env } from "@src/utils/env";
 import { mapProviderToList } from "@src/utils/map/provider";

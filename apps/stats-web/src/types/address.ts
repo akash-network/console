@@ -1,5 +1,5 @@
-import { TransactionDetail } from "./transaction";
-import { IValidatorAddess } from "./validator";
+import type { TransactionDetail } from "./transaction";
+import type { IValidatorAddess } from "./validator";
 
 export interface AddressDetail {
   total: number;

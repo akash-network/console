@@ -1,11 +1,12 @@
 "use client";
-import React, { ReactNode } from "react";
+import type { ReactNode } from "react";
+import React from "react";
 import { Badge, buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { ISidebarRoute } from "@src/types";
+import type { ISidebarRoute } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {

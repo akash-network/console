@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Controller, SubmitHandler, useFieldArray, useForm } from "react-hook-form";
+import type { SubmitHandler } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 import {
   Alert,
   AlertDescription,
@@ -29,7 +30,8 @@ import { useAtom } from "jotai";
 import { z } from "zod";
 
 import { useControlMachine } from "@src/context/ControlMachineProvider";
-import providerProcessStore, { ProviderAttribute } from "@src/store/providerProcessStore";
+import type { ProviderAttribute } from "@src/store/providerProcessStore";
+import providerProcessStore from "@src/store/providerProcessStore";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 import { providerAttributesFormValuesSchema } from "../../types/providerAttributes";

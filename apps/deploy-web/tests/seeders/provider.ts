@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 
-import { ApiProviderDetail } from "@src/types/provider";
+import type { ApiProviderDetail } from "@src/types/provider";
 
 export function buildProvider(overrides?: Partial<ApiProviderDetail>): ApiProviderDetail {
   return {

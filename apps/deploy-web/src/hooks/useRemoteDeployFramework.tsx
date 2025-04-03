@@ -5,7 +5,7 @@ import { useBitPackageJson } from "@src/queries/useBitBucketQuery";
 import { usePackageJson } from "@src/queries/useGithubQuery";
 import { useGitlabPackageJson } from "@src/queries/useGitlabQuery";
 import { formatUrlWithoutInitialPath } from "@src/services/remote-deploy/remote-deployment-controller.service";
-import { PackageJson } from "@src/types/remotedeploy";
+import type { PackageJson } from "@src/types/remotedeploy";
 
 const useRemoteDeployFramework = ({
   currentRepoUrl,

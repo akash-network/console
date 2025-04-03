@@ -8,7 +8,7 @@ import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
-import { WalletBalance } from "@src/hooks/useWalletBalance";
+import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import { LinkTo } from "../shared/LinkTo";
 

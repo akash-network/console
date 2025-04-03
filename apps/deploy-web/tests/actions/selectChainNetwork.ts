@@ -1,4 +1,4 @@
-import { Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 export async function selectChainNetwork(page: Page, networkId = "sandbox") {
   await page.getByRole("link", { name: "App Settings" }).click();

@@ -1,5 +1,6 @@
 "use client";
-import React, { ReactNode } from "react";
+import type { ReactNode } from "react";
+import React from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { Button, buttonVariants, ErrorFallback, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -9,7 +10,7 @@ import { useRouter } from "next/navigation";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
-import { ClientProviderDetailWithStatus } from "@src/types/provider";
+import type { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import { Title } from "../shared/Title";
 import { ProviderSummary } from "./ProviderSummary";

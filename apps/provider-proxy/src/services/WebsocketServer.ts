@@ -1,12 +1,12 @@
-import { LoggerService } from "@akashnetwork/logging";
-import { SupportedChainNetworks } from "@akashnetwork/net";
-import http from "http";
+import type { LoggerService } from "@akashnetwork/logging";
+import type { SupportedChainNetworks } from "@akashnetwork/net";
+import type http from "http";
 import https from "https";
 import { TLSSocket } from "tls";
 import WebSocket from "ws";
 
-import { CertificateValidator } from "./CertificateValidator";
-import { ClientWebSocketStats, WebsocketStats, WebSocketUsage } from "./WebsocketStats";
+import type { CertificateValidator } from "./CertificateValidator";
+import type { ClientWebSocketStats, WebsocketStats, WebSocketUsage } from "./WebsocketStats";
 
 // @see https://www.rfc-editor.org/rfc/rfc6455.html#page-46
 const WS_ERRORS = {

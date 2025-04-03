@@ -1,10 +1,11 @@
-import { SupportedChainNetworks } from "@akashnetwork/net";
-import { IncomingMessage } from "http";
-import https, { RequestOptions } from "https";
+import type { SupportedChainNetworks } from "@akashnetwork/net";
+import type { IncomingMessage } from "http";
+import type { RequestOptions } from "https";
+import https from "https";
 import { LRUCache } from "lru-cache";
 import { TLSSocket } from "tls";
 
-import { CertificateValidator, CertValidationResultError } from "./CertificateValidator";
+import type { CertificateValidator, CertValidationResultError } from "./CertificateValidator";
 
 export class ProviderProxy {
   /**

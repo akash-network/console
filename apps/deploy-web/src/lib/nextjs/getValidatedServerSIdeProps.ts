@@ -1,6 +1,6 @@
-import { GetServerSidePropsContext, GetServerSidePropsResult } from "next/types";
+import type { GetServerSidePropsContext, GetServerSidePropsResult } from "next/types";
 import type { ParsedUrlQuery } from "querystring";
-import { z } from "zod";
+import type { z } from "zod";
 
 type ContextParamsSchema = z.ZodObject<Record<string, z.ZodString | z.ZodNumber | z.ZodOptional<z.ZodString> | z.ZodOptional<z.ZodNumber>>>;
 

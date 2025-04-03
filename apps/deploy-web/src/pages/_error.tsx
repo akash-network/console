@@ -2,7 +2,7 @@ import { buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import * as Sentry from "@sentry/nextjs";
 import { NavArrowRight } from "iconoir-react";
-import { NextPage, NextPageContext } from "next";
+import type { NextPage, NextPageContext } from "next";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 

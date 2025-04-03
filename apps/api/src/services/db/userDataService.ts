@@ -1,7 +1,7 @@
 import { UserSetting } from "@akashnetwork/database/dbSchemas/user";
 import { LoggerService } from "@akashnetwork/logging";
 import pick from "lodash/pick";
-import { Transaction } from "sequelize";
+import type { Transaction } from "sequelize";
 import { container } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";

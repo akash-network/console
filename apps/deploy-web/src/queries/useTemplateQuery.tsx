@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions } from "react-query";
+import type { QueryKey, UseQueryOptions } from "react-query";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import type { TemplateCategory, TemplateOutputSummary } from "@akashnetwork/http-sdk";
 import { Snackbar } from "@akashnetwork/ui/components";
 import axios from "axios";
@@ -8,7 +9,7 @@ import { useSnackbar } from "notistack";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { services } from "@src/services/http/http-browser.service";
-import { ITemplate } from "@src/types";
+import type { ITemplate } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import { QueryKeys } from "./queryKeys";
 

@@ -7,7 +7,7 @@ import { ArrowDown, ArrowRight, Check, Xmark } from "iconoir-react";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useProviderActionStatus } from "@src/queries/useProviderQuery";
-import { StaticLog, StaticLogsResponse, Task, TaskLogs } from "@src/types/provider";
+import type { StaticLog, StaticLogsResponse, Task, TaskLogs } from "@src/types/provider";
 import { formatLocalTime, formatTimeLapse } from "@src/utils/dateUtils";
 import restClient from "@src/utils/restClient";
 import { checkAndRefreshToken } from "@src/utils/tokenUtils";

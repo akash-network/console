@@ -1,9 +1,9 @@
-import { Dispatch } from "react";
-import { Control, UseFormSetValue } from "react-hook-form";
+import type { Dispatch } from "react";
+import type { Control, UseFormSetValue } from "react-hook-form";
 
 import { useRepos } from "@src/queries/useGithubQuery";
-import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { GitHubProfile } from "@src/types/remoteProfile";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { GitHubProfile } from "@src/types/remoteProfile";
 import Repos from "../Repos";
 import GithubBranches from "./GithubBranches";
 

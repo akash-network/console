@@ -5,7 +5,7 @@ import { LabelValue } from "../../../LabelValue";
 
 import { AddressLink } from "@/components/AddressLink";
 import { UrlService } from "@/lib/urlUtils";
-import { TransactionMessage } from "@/types";
+import type { TransactionMessage } from "@/types";
 
 type TxMessageProps = {
   message: TransactionMessage;

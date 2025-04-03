@@ -7,7 +7,7 @@ import { User } from "iconoir-react";
 import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";
 import { isValidHttpUrl } from "@/lib/urlUtils";
-import { ValidatorDetail } from "@/types";
+import type { ValidatorDetail } from "@/types";
 
 interface IProps {
   validator: ValidatorDetail;

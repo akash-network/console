@@ -1,5 +1,6 @@
 "use client";
-import React, { ReactNode, useState } from "react";
+import type { ReactNode } from "react";
+import React, { useState } from "react";
 import { MdStar, MdStarOutline } from "react-icons/md";
 import { Button, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";

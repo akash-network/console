@@ -1,12 +1,12 @@
 import { QueryClientProvider as LegacyQueryClientProvider } from "react-query";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { AxiosStatic } from "axios";
+import type { AxiosStatic } from "axios";
 
 import { COMPONENTS, ProviderRawData } from "@src/components/providers/ProviderRawData/ProviderRawData";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { legacyQueryClient, queryClient } from "@src/queries";
-import { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
-import { ApiProviderDetail } from "@src/types/provider";
+import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
+import type { ApiProviderDetail } from "@src/types/provider";
 
 import { act, render } from "@testing-library/react";
 import { buildProvider } from "@tests/seeders/provider";

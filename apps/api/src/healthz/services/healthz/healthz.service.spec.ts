@@ -1,9 +1,10 @@
-import { LoggerService } from "@akashnetwork/logging";
+import type { LoggerService } from "@akashnetwork/logging";
 import { millisecondsInMinute } from "date-fns";
 import { sql } from "drizzle-orm";
-import { mock, MockProxy } from "jest-mock-extended";
+import type { MockProxy } from "jest-mock-extended";
+import { mock } from "jest-mock-extended";
 
-import { ApiPgDatabase } from "@src/core/providers/postgres.provider";
+import type { ApiPgDatabase } from "@src/core/providers/postgres.provider";
 import { HealthzService } from "./healthz.service";
 
 describe(HealthzService.name, () => {

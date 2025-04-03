@@ -13,7 +13,7 @@ import { LabelValue } from "@src/components/shared/LabelValue";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllLeases } from "@src/queries/useLeaseQuery";
 import { useProviderAttributesSchema, useProviderDetail, useProviderStatus } from "@src/queries/useProvidersQuery";
-import { ApiProviderDetail, ClientProviderDetailWithStatus, StatsItem } from "@src/types/provider";
+import type { ApiProviderDetail, ClientProviderDetailWithStatus, StatsItem } from "@src/types/provider";
 import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";

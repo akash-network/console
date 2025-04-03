@@ -1,5 +1,6 @@
-import { FC, useCallback, useState } from "react";
-import { Control, UseFormSetValue } from "react-hook-form";
+import type { FC } from "react";
+import { useCallback, useState } from "react";
+import type { Control, UseFormSetValue } from "react-hook-form";
 import { Button, CustomTooltip, FormField, FormInput } from "@akashnetwork/ui/components";
 import { saveAs } from "file-saver";
 import { InfoCircle, Key } from "iconoir-react";
@@ -8,7 +9,7 @@ import forge from "node-forge";
 
 import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
-import { SdlBuilderFormValuesType } from "@src/types";
+import type { SdlBuilderFormValuesType } from "@src/types";
 
 interface SSHKeyInputProps {
   control: Control<SdlBuilderFormValuesType, any>;

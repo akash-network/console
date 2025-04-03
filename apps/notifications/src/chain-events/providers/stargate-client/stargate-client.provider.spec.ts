@@ -1,6 +1,6 @@
-import { StargateClient } from '@cosmjs/stargate';
+import type { StargateClient } from '@cosmjs/stargate';
 import { faker } from '@faker-js/faker';
-import { ConfigService } from '@nestjs/config';
+import type { ConfigService } from '@nestjs/config';
 import { mock } from 'jest-mock-extended';
 
 import { createStargateClientFactory } from './stargate-client.provider';

@@ -8,7 +8,7 @@ import { PriceEstimateTooltip } from "@src/components/shared/PriceEstimateToolti
 import { PricePerMonth } from "@src/components/shared/PricePerMonth";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
-import { LeaseDto } from "@src/types/deployment";
+import type { LeaseDto } from "@src/types/deployment";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { UrlService } from "@src/utils/urlUtils";
 

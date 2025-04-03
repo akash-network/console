@@ -1,4 +1,4 @@
-import { QueryKey } from "react-query";
+import type { QueryKey } from "react-query";
 
 export class QueryKeys {
   static getFinancialDataKey = () => ["MARKET_DATA"];

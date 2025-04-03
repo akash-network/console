@@ -1,7 +1,7 @@
 import React from "react";
 import Head from "next/head";
 import { DefaultSeo, NextSeo } from "next-seo";
-import { NextSeoProps } from "next-seo/lib/types";
+import type { NextSeoProps } from "next-seo/lib/types";
 
 export const PageHead: React.FunctionComponent<{ pageSeo?: NextSeoProps }> = ({ pageSeo }) => {
   return (

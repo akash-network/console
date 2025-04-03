@@ -1,6 +1,7 @@
 import { generateMock } from '@anatine/zod-mock';
-import { Test, TestingModule } from '@nestjs/testing';
-import { MockProxy } from 'jest-mock-extended';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { MockProxy } from 'jest-mock-extended';
 
 import { LoggerService } from '@src/common/services/logger.service';
 import { MsgCloseDeploymentDto } from '@src/event-routing/dto/MsgCloseDeployment.dto';

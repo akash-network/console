@@ -11,7 +11,7 @@ import PageContainer from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { networkId } from "@/config/env-config.schema";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
-import { BlockDetail } from "@/types";
+import type { BlockDetail } from "@/types";
 
 const BlockDetailPageSchema = z.object({
   params: z.object({
@@ -31,6 +31,7 @@ export async function generateMetadata({ params: { height } }: BlockDetailPagePr
 
 async function fetchBlockData(height: string, network: Network["id"]): Promise<BlockDetail> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
+  console.log("------->", apiUrl);
   const response = await fetch(`${apiUrl}/v1/blocks/${height}`);
 
   if (!response.ok) {

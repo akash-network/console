@@ -1,4 +1,5 @@
-import { BrowserContext, chromium, Page, test as baseTest } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
+import { chromium, test as baseTest } from "@playwright/test";
 import fs from "fs";
 import { nanoid } from "nanoid";
 import path from "path";

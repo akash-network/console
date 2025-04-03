@@ -7,7 +7,7 @@ import { AKTAmount } from "@/components/AKTAmount";
 import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
 import { getSplitText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";
-import { BlockTransaction } from "@/types";
+import type { BlockTransaction } from "@/types";
 
 type Props = {
   errors?: string;

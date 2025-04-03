@@ -3,7 +3,7 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwor
 import { SearchX } from "lucide-react";
 
 import { TransactionRow } from "@/components/blockchain/TransactionRow";
-import { AddressDetail } from "@/types";
+import type { AddressDetail } from "@/types";
 
 type Props = {
   addressDetail: AddressDetail;

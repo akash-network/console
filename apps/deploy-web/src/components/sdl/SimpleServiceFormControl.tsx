@@ -1,6 +1,8 @@
 "use client";
-import { Dispatch, SetStateAction, useState } from "react";
-import { Control, useFieldArray, UseFormSetValue, UseFormTrigger } from "react-hook-form";
+import type { Dispatch, SetStateAction } from "react";
+import { useState } from "react";
+import type { Control, UseFormSetValue, UseFormTrigger } from "react-hook-form";
+import { useFieldArray } from "react-hook-form";
 import {
   Button,
   Card,
@@ -30,8 +32,8 @@ import { SSHKeyFormControl } from "@src/components/sdl/SSHKeyFromControl";
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { GpuVendor } from "@src/types/gpu";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { GpuVendor } from "@src/types/gpu";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";

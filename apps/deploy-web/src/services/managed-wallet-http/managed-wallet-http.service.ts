@@ -1,5 +1,6 @@
-import { ApiManagedWalletOutput, ApiWalletOutput, ManagedWalletHttpService as ManagedWalletHttpServiceOriginal } from "@akashnetwork/http-sdk";
-import { AxiosRequestConfig } from "axios";
+import type { ApiManagedWalletOutput, ApiWalletOutput } from "@akashnetwork/http-sdk";
+import { ManagedWalletHttpService as ManagedWalletHttpServiceOriginal } from "@akashnetwork/http-sdk";
+import type { AxiosRequestConfig } from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { analyticsService } from "@src/services/analytics/analytics.service";

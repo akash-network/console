@@ -6,9 +6,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
-import { ProviderInfo } from "@src/hooks/useProviderWebsocket";
+import type { ProviderInfo } from "@src/hooks/useProviderWebsocket";
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { LeaseDto } from "@src/types/deployment";
+import type { LeaseDto } from "@src/types/deployment";
 
 type Props = {
   selectedLease: LeaseDto;

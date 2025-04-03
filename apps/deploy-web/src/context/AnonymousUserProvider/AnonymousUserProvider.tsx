@@ -2,7 +2,7 @@ import React from "react";
 
 import { LoadingBlocker } from "@src/components/layout/LoadingBlocker/LoadingBlocker";
 import { useStoredAnonymousUser } from "@src/hooks/useStoredAnonymousUser";
-import { UserOutput } from "@src/queries/useAnonymousUserQuery";
+import type { UserOutput } from "@src/queries/useAnonymousUserQuery";
 import type { FCWithChildren } from "@src/types/component";
 
 interface IAnonymousUserContext {

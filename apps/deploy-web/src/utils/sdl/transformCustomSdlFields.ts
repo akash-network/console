@@ -2,7 +2,7 @@ import cloneDeep from "lodash/cloneDeep";
 import flow from "lodash/flow";
 import isMatch from "lodash/isMatch";
 
-import { ServiceType } from "@src/types";
+import type { ServiceType } from "@src/types";
 import { SSH_EXPOSE, SSH_VM_IMAGES } from "@src/utils/sdl/data";
 
 interface TransformOptions {

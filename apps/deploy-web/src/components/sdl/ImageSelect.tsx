@@ -1,6 +1,8 @@
 "use client";
-import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Control, Controller } from "react-hook-form";
+import type { ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { Control } from "react-hook-form";
+import { Controller } from "react-hook-form";
 import { buttonVariants, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
@@ -13,8 +15,8 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { useGpuTemplates } from "@src/hooks/useGpuTemplates";
-import { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
-import { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
+import type { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 
 type Props = {
   children?: ReactNode;

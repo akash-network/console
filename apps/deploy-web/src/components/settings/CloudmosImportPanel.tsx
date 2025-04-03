@@ -3,7 +3,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/
 import { Import } from "iconoir-react";
 import { z } from "zod";
 
-import { LocalWallet } from "@src/utils/walletUtils";
+import type { LocalWallet } from "@src/utils/walletUtils";
 
 const autoImportOrigin = "https://deploy.cloudmos.io";
 

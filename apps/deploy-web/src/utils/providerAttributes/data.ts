@@ -1,6 +1,6 @@
-import { z } from "zod";
+import type { z } from "zod";
 
-import { providerAttributesFormValuesSchema } from "@src/types/providerAttributes";
+import type { providerAttributesFormValuesSchema } from "@src/types/providerAttributes";
 
 export const defaultProviderAttributes: z.infer<typeof providerAttributesFormValuesSchema> = {
   "host-uri": "",

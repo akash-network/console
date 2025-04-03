@@ -1,11 +1,12 @@
-import { netConfig, SupportedChainNetworks } from "@akashnetwork/net";
+import type { SupportedChainNetworks } from "@akashnetwork/net";
+import { netConfig } from "@akashnetwork/net";
 import { createRoute, z } from "@hono/zod-openapi";
 import { bech32 } from "bech32";
-import { TypedResponse } from "hono";
-import { ClientErrorStatusCode } from "hono/utils/http-status";
+import type { TypedResponse } from "hono";
+import type { ClientErrorStatusCode } from "hono/utils/http-status";
 import { Readable } from "stream";
 
-import { AppContext } from "../types/AppContext";
+import type { AppContext } from "../types/AppContext";
 import { httpRetry } from "../utils/retry";
 
 const RequestPayload = z.object({

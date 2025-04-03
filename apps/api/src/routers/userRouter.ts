@@ -1,10 +1,11 @@
-import { Context, Hono } from "hono";
+import type { Context } from "hono";
+import { Hono } from "hono";
 import assert from "http-assert";
 import { container } from "tsyringe";
 import * as uuid from "uuid";
 
 import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
-import { ClientInfoContextVariables } from "@src/middlewares/clientInfoMiddleware";
+import type { ClientInfoContextVariables } from "@src/middlewares/clientInfoMiddleware";
 import { getCurrentUserId, optionalUserMiddleware, requiredUserMiddleware } from "@src/middlewares/userMiddleware";
 import {
   addTemplateFavorite,

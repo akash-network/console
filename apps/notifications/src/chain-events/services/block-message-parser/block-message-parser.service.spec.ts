@@ -2,10 +2,11 @@ import {
   MsgCloseDeployment,
   MsgCreateDeployment,
 } from '@akashnetwork/akash-api/akash/deployment/v1beta3';
-import { DecodedTxRaw } from '@cosmjs/proto-signing';
+import type { DecodedTxRaw } from '@cosmjs/proto-signing';
 import { faker } from '@faker-js/faker';
-import { Test, TestingModule } from '@nestjs/testing';
-import { MockProxy } from 'jest-mock-extended';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { MockProxy } from 'jest-mock-extended';
 
 import { LoggerService } from '@src/common/services/logger.service';
 import { CosmjsDecodingService } from '../cosmjs-decoding/cosmjs-decoding.service';

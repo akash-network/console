@@ -1,5 +1,12 @@
 
 
+## [2.66.0](https://github.com/akash-network/console/compare/console-web/v2.65.1...console-web/v2.66.0) (2025-04-02)
+
+
+### Features
+
+* dynamic amount of storages ([411aa68](https://github.com/akash-network/console/commit/411aa68273926d51eec4511929e17e09baae4b7a)), closes [#175](https://github.com/akash-network/console/issues/175)
+
 ## [2.65.1](https://github.com/akash-network/console/compare/console-web/v2.65.0...console-web/v2.65.1) (2025-04-01)
 
 

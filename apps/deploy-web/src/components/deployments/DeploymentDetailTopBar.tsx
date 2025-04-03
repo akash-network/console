@@ -1,5 +1,6 @@
 "use client";
-import { Dispatch, ReactNode, SetStateAction, useCallback, useState } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
+import { useCallback, useState } from "react";
 import { Button, CustomTooltip, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner, Switch } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import addHours from "date-fns/addHours";
@@ -21,7 +22,7 @@ import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { useUser } from "@src/hooks/useUser";
 import { useDeploymentSettingQuery } from "@src/queries/deploymentSettingsQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { DeploymentDto, LeaseDto } from "@src/types/deployment";
+import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { averageBlockTime } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";

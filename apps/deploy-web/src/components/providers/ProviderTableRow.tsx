@@ -1,5 +1,6 @@
 "use client";
-import React, { MouseEventHandler } from "react";
+import type { MouseEventHandler } from "react";
+import React from "react";
 import { Badge, CustomNoDivTooltip, CustomTooltip, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { WarningCircle } from "iconoir-react";
@@ -7,7 +8,7 @@ import { useRouter } from "next/navigation";
 
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { getSplitText } from "@src/hooks/useShortText";
-import { ClientProviderList } from "@src/types/provider";
+import type { ClientProviderList } from "@src/types/provider";
 import { createFilterUnique } from "@src/utils/array";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
 import { roundDecimal } from "@src/utils/mathHelpers";

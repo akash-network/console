@@ -1,10 +1,11 @@
-import { QueryKey, useQuery, UseQueryOptions } from "@tanstack/react-query";
+import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
 import { QueryKeys } from "./queryKeys";
 
 import { ApiUrlService } from "@/lib/apiUtils";
-import { ValidatorSummaryDetail } from "@/types";
+import type { ValidatorSummaryDetail } from "@/types";
 
 async function getValidators(): Promise<ValidatorSummaryDetail[]> {
   const response = await axios.get(ApiUrlService.validators());

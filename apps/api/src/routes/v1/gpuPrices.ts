@@ -1,4 +1,4 @@
-import { MsgCreateBid } from "@akashnetwork/akash-api/akash/market/v1beta4";
+import type { MsgCreateBid } from "@akashnetwork/akash-api/akash/market/v1beta4";
 import { Block } from "@akashnetwork/database/dbSchemas";
 import { AkashMessage, Deployment, DeploymentGroup, DeploymentGroupResource } from "@akashnetwork/database/dbSchemas/akash";
 import { Day, Transaction } from "@akashnetwork/database/dbSchemas/base";
