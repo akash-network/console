@@ -13,6 +13,7 @@ import assert from "http-assert";
 import { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargate-client/sync-signing-stargate-client";
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { Benchmark } from "@src/core/decorators/benchmark.decorator";
 
 interface ShortAccountInfo {
   accountNumber: number;
@@ -117,6 +118,7 @@ export class BatchSigningClientService {
     }
   }
 
+  @Benchmark()
   private async executeTxBatch(inputs: ExecuteTxInput[]): Promise<IndexedTx[]> {
     const txes: TxRaw[] = [];
     let txIndex: number = 0;
