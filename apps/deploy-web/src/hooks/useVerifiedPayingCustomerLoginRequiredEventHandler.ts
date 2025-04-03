@@ -1,4 +1,5 @@
-import { MouseEventHandler, useCallback } from "react";
+import type { MouseEventHandler } from "react";
+import { useCallback } from "react";
 import flow from "lodash/flow";
 
 import { useEmailVerificationRequiredEventHandler } from "@src/hooks/useEmailVerificationRequiredEventHandler";

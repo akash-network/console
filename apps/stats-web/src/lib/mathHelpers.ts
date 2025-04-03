@@ -1,4 +1,4 @@
-import { Coin } from "@/types/coin";
+import type { Coin } from "@/types/coin";
 
 export function nFormatter(num: number, digits: number) {
   const lookup = [

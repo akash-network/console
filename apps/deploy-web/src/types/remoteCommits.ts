@@ -1,4 +1,4 @@
-import { components } from "@octokit/openapi-types";
+import type { components } from "@octokit/openapi-types";
 export type GitCommit = components["schemas"]["commit"];
 export interface GitLabCommit {
   id: string;

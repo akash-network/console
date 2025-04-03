@@ -1,8 +1,8 @@
-import { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import axios from "axios";
 import https from "https";
 
-import { ProviderStatusInfo } from "./types";
+import type { ProviderStatusInfo } from "./types";
 
 export async function fetchProviderStatusFromREST(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
   const httpsAgent = new https.Agent({

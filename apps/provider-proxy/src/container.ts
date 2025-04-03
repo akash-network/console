@@ -1,6 +1,7 @@
 import { LoggerService } from "@akashnetwork/logging";
 import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
-import { netConfig, SupportedChainNetworks } from "@akashnetwork/net";
+import type { SupportedChainNetworks } from "@akashnetwork/net";
+import { netConfig } from "@akashnetwork/net";
 
 import { CertificateValidator, createCertificateValidatorInstrumentation } from "./services/CertificateValidator";
 import { ProviderProxy } from "./services/ProviderProxy";

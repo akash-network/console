@@ -1,7 +1,7 @@
 import Long from "long";
 
 import networkStore from "@src/store/networkStore";
-import { BidDto } from "@src/types/deployment";
+import type { BidDto } from "@src/types/deployment";
 import { BasicAllowance, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "./proto/grant";
 import { protoTypes } from "./proto";
 

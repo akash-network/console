@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
-import { ActionButton, Button, Form, FormField, FormInput, Input, Popup, Snackbar } from "@akashnetwork/ui/components";
+import type { ActionButton } from "@akashnetwork/ui/components";
+import { Button, Form, FormField, FormInput, Input, Popup, Snackbar } from "@akashnetwork/ui/components";
 import { copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSnackbar } from "notistack";

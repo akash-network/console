@@ -1,7 +1,8 @@
-import * as v1beta1 from "@akashnetwork/akash-api/v1beta1";
-import * as v1beta2 from "@akashnetwork/akash-api/v1beta2";
-import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
-import * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
+import type * as v1beta1 from "@akashnetwork/akash-api/v1beta1";
+import type * as v1beta2 from "@akashnetwork/akash-api/v1beta2";
+import type * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
+import type * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
+import type { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
 import {
   Bid,
   Deployment,
@@ -17,10 +18,10 @@ import {
   ProviderSnapshotNodeGPU,
   ProviderSnapshotStorage
 } from "@akashnetwork/database/dbSchemas/akash";
-import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
-import { Transaction, TransactionEvent } from "@akashnetwork/database/dbSchemas/base";
-import { DecodedTxRaw } from "@cosmjs/proto-signing";
-import { Op, Transaction as DbTransaction } from "sequelize";
+import type { Transaction, TransactionEvent } from "@akashnetwork/database/dbSchemas/base";
+import type { DecodedTxRaw } from "@cosmjs/proto-signing";
+import type { Transaction as DbTransaction } from "sequelize";
+import { Op } from "sequelize";
 import * as uuid from "uuid";
 
 import { accountSettle } from "@src/shared/utils/akashPaymentSettle";

@@ -1,5 +1,5 @@
 import { ChannelCredentials } from "@grpc/grpc-js/build/src/channel-credentials";
-import { ConnectionOptions } from "tls";
+import type { ConnectionOptions } from "tls";
 
 // TODO: get rid of it once on-chain certificates validation is implemented
 //  Issue: https://github.com/akash-network/console/issues/170

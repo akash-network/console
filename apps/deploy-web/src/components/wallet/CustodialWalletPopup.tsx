@@ -11,7 +11,7 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { WalletBalance } from "@src/hooks/useWalletBalance";
+import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import walletStore from "@src/store/walletStore";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";

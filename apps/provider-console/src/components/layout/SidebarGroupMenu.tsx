@@ -1,8 +1,8 @@
 "use client";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Separator } from "@akashnetwork/ui/components";
 
-import { ISidebarGroupMenu } from "@src/types";
+import type { ISidebarGroupMenu } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { SidebarRouteButton } from "./SidebarRouteButton";
 
@@ -34,4 +34,3 @@ export const SidebarGroupMenu: React.FC<Props> = ({ group, hasDivider = true, is
     </div>
   );
 };
-

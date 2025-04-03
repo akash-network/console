@@ -3,7 +3,7 @@ import { AddressReference, Transaction } from "@akashnetwork/database/dbSchemas/
 import { QueryTypes } from "sequelize";
 
 import { chainDb } from "@src/db/dbConnection";
-import { ApiTransactionResponse } from "@src/types/transactions";
+import type { ApiTransactionResponse } from "@src/types/transactions";
 import { msgToJSON } from "@src/utils/protobuf";
 
 export async function getTransactions(limit: number) {

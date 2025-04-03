@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { CheckboxWithLabel, CustomPagination, Spinner, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import isEqual from "lodash/isEqual";
 
-import { LeaseDto } from "@src/types/deployment";
+import type { LeaseDto } from "@src/types/deployment";
 import { LeaseRow } from "./LeaseRow";
 
 type Props = {

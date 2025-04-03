@@ -1,4 +1,4 @@
-import { KVStore } from "./use-kv-store";
+import type { KVStore } from "./use-kv-store";
 export type Jwks = { keys: JsonWebKey[] };
 const DEFAULT_JWK_CACHE_KEY = "verify-rsa-jwt-cloudflare-worker-jwks-cache-key";
 export async function getJwks(jwksUri: string, kvStore: KVStore, jwkCacheKey?: string): Promise<Jwks> {

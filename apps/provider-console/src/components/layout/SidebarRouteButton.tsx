@@ -1,10 +1,10 @@
 "use client";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { buttonVariants } from "@akashnetwork/ui/components";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { ISidebarRoute } from "@src/types";
+import type { ISidebarRoute } from "@src/types";
 import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 

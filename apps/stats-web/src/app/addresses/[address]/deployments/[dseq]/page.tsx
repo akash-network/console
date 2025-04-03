@@ -1,5 +1,5 @@
 import type { Network } from "@akashnetwork/network-store";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { z } from "zod";
 
 import { DeploymentInfo } from "./DeploymentInfo";
@@ -9,7 +9,7 @@ import { Title } from "@/components/Title";
 import { networkId } from "@/config/env-config.schema";
 import { UrlService } from "@/lib/urlUtils";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
-import { DeploymentDetail } from "@/types";
+import type { DeploymentDetail } from "@/types";
 
 const DeploymentDetailPageSchema = z.object({
   params: z.object({

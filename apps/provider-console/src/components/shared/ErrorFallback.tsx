@@ -1,6 +1,6 @@
 "use client";
-import { ReactNode } from "react";
-import { FallbackProps } from "react-error-boundary";
+import type { ReactNode } from "react";
+import type { FallbackProps } from "react-error-boundary";
 import { Button } from "@akashnetwork/ui/components";
 
 interface Props extends FallbackProps {

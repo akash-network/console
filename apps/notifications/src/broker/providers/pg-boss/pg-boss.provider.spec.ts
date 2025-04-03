@@ -1,6 +1,6 @@
 import { mock } from 'jest-mock-extended';
-import { Client, QueryResult } from 'pg';
-import PgBoss from 'pg-boss';
+import type { Client, QueryResult } from 'pg';
+import type PgBoss from 'pg-boss';
 
 import { createPgBossFactory } from './pg-boss.provider';
 

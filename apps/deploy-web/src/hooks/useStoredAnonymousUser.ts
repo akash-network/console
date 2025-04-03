@@ -4,7 +4,8 @@ import { ANONYMOUS_USER_KEY, ANONYMOUS_USER_TOKEN_KEY } from "@src/config/auth.c
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useWhen } from "@src/hooks/useWhen";
-import { useAnonymousUserQuery, UserOutput } from "@src/queries/useAnonymousUserQuery";
+import type { UserOutput } from "@src/queries/useAnonymousUserQuery";
+import { useAnonymousUserQuery } from "@src/queries/useAnonymousUserQuery";
 
 type UseApiUserResult = {
   user?: UserOutput;

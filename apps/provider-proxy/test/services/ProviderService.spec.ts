@@ -1,5 +1,6 @@
 import { ProviderService } from "../../src/services/ProviderService";
-import { CertificateOptions, createX509CertPair } from "../seeders/createX509CertPair";
+import type { CertificateOptions } from "../seeders/createX509CertPair";
+import { createX509CertPair } from "../seeders/createX509CertPair";
 
 describe(ProviderService.name, () => {
   describe("hasCertificate", () => {

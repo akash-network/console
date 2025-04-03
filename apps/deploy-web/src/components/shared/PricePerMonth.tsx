@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { averageDaysInMonth } from "@src/utils/dateUtils";
 import { averageBlockTime } from "@src/utils/priceUtils";

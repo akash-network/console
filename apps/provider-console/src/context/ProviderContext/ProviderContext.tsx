@@ -1,10 +1,10 @@
 "use client";
 import React, { useEffect } from "react";
-import { AxiosError } from "axios";
+import type { AxiosError } from "axios";
 
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { useProviderDashboard, useProviderDetails } from "@src/queries/useProviderQuery";
-import { ProviderDashoard, ProviderDetails } from "@src/types/provider";
+import type { ProviderDashoard, ProviderDetails } from "@src/types/provider";
 import restClient from "@src/utils/restClient";
 import { useWallet } from "../WalletProvider";
 

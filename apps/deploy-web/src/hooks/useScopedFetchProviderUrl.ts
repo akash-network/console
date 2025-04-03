@@ -1,8 +1,8 @@
 import { useCallback } from "react";
-import { AxiosResponse } from "axios";
+import type { AxiosResponse } from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { ProviderIdentity, ProviderProxyPayload } from "@src/services/provider-proxy/provider-proxy.service";
+import type { ProviderIdentity, ProviderProxyPayload } from "@src/services/provider-proxy/provider-proxy.service";
 import networkStore from "@src/store/networkStore";
 
 export function useScopedFetchProviderUrl(provider: ProviderIdentity | undefined | null): ScopedFetchProviderUrl {

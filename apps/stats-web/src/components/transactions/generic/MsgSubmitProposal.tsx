@@ -5,7 +5,7 @@ import { LabelValue } from "../../LabelValue";
 
 import { coinsToAmount } from "@/lib/mathHelpers";
 import { getFriendlyProposalType } from "@/lib/proposals";
-import { TransactionMessage } from "@/types";
+import type { TransactionMessage } from "@/types";
 
 type TxMessageProps = {
   message: TransactionMessage;

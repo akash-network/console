@@ -1,6 +1,7 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { Novu } from '@novu/node';
-import { MockProxy } from 'jest-mock-extended';
+import type { MockProxy } from 'jest-mock-extended';
 
 import { EmailSenderService } from './email-sender.service';
 

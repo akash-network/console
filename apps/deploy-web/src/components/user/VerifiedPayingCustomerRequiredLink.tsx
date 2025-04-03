@@ -1,7 +1,7 @@
 import React from "react";
 
 import { useVerifiedPayingCustomerLoginRequiredEventHandler } from "@src/hooks/useVerifiedPayingCustomerLoginRequiredEventHandler";
-import { FCWithChildren } from "@src/types/component";
+import type { FCWithChildren } from "@src/types/component";
 
 type Props = {
   children: React.ReactElement;

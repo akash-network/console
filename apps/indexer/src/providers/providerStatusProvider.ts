@@ -18,7 +18,7 @@ import { sequelize } from "@src/db/dbConnection";
 import { toUTC } from "@src/shared/utils/date";
 import { fetchProviderStatusFromGRPC } from "./statusEndpointHandlers/grpc";
 import { fetchProviderStatusFromREST } from "./statusEndpointHandlers/rest";
-import { ProviderStatusInfo, ProviderVersionEndpointResponseType } from "./statusEndpointHandlers/types";
+import type { ProviderStatusInfo, ProviderVersionEndpointResponseType } from "./statusEndpointHandlers/types";
 
 const ConcurrentStatusCall = 10;
 const StatusCallTimeout = 10_000; // 10 seconds

@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 import { Badge, Spinner } from "@akashnetwork/ui/components";
 import Link from "next/link";
 
-import { LeaseDto } from "@src/types/deployment";
-import { ApiProviderList } from "@src/types/provider";
+import type { LeaseDto } from "@src/types/deployment";
+import type { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
 import { CopyTextToClipboardButton } from "../copy-text-to-clipboard-button/CopyTextToClipboardButton";
 import { StatusPill } from "../shared/StatusPill";
@@ -29,23 +29,19 @@ export const LeaseChip: React.FunctionComponent<Props> = ({ lease, providers }) 
 
   return (
     <div className="flex items-center space-x-2">
-    <Link
-      href={UrlService.providerDetail(lease.provider)}
-      onClick={event => {
-        event.stopPropagation();
-      }}
-    >
-      <Badge variant="outline" className="whitespace-nowrap text-xs hover:bg-primary/20">
-        {providerName ? (
-          <ShortenedValue value={providerName} maxLength={40} headLength={14} />
-        ) : (
-          <Spinner size="xSmall" />
-        )}
-        <StatusPill state={lease.state} size="small" />
-      </Badge>
-    </Link>
+      <Link
+        href={UrlService.providerDetail(lease.provider)}
+        onClick={event => {
+          event.stopPropagation();
+        }}
+      >
+        <Badge variant="outline" className="whitespace-nowrap text-xs hover:bg-primary/20">
+          {providerName ? <ShortenedValue value={providerName} maxLength={40} headLength={14} /> : <Spinner size="xSmall" />}
+          <StatusPill state={lease.state} size="small" />
+        </Badge>
+      </Link>
 
-    {providerName && <CopyTextToClipboardButton value={providerName} />}
+      {providerName && <CopyTextToClipboardButton value={providerName} />}
     </div>
   );
 };

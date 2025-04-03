@@ -19,7 +19,7 @@ import { HelpCircle } from "iconoir-react";
 
 import { FormattedDecimal } from "@/components/FormattedDecimal";
 import { getSplitText } from "@/hooks/useShortText";
-import { AddressDetail } from "@/types";
+import type { AddressDetail } from "@/types";
 
 interface IProps {
   addressDetail: AddressDetail;

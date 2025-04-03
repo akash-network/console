@@ -1,4 +1,4 @@
-import { FC } from "react";
+import type { FC } from "react";
 
 /**
  * Dump component that just renders children in React.Fragment

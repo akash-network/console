@@ -1,6 +1,7 @@
 "use client";
-import { ReactNode } from "react";
-import { Control, Controller } from "react-hook-form";
+import type { ReactNode } from "react";
+import type { Control } from "react-hook-form";
+import { Controller } from "react-hook-form";
 import { MdMemory } from "react-icons/md";
 import {
   CustomTooltip,
@@ -18,7 +19,7 @@ import {
 } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
-import { RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
+import type { RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
 import { memoryUnits } from "@src/utils/akash/units";
 import { FormPaper } from "./FormPaper";
 

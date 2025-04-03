@@ -1,8 +1,8 @@
 import { Unauthorized } from "http-errors";
 import { container } from "tsyringe";
 
-import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
-import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import type { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { ApiKeyAuthService } from "./api-key-auth.service";
 import { ApiKeyGeneratorService } from "./api-key-generator.service";
 

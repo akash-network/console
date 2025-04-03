@@ -1,4 +1,5 @@
-import { QueryKey, useQuery, UseQueryOptions } from "@tanstack/react-query";
+import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { z } from "zod";
 
@@ -6,8 +7,9 @@ import { QueryKeys } from "./queryKeys";
 
 import { ApiUrlService } from "@/lib/apiUtils";
 import { removeEmptyFilters } from "@/lib/urlUtils";
-import { deploymentRowSchema, DeploymentRowType } from "@/lib/zod/deploymentRow";
-import { PaginatedResults, TransactionDetail } from "@/types";
+import type { DeploymentRowType } from "@/lib/zod/deploymentRow";
+import { deploymentRowSchema } from "@/lib/zod/deploymentRow";
+import type { PaginatedResults, TransactionDetail } from "@/types";
 
 async function getTransactions(limit: number): Promise<TransactionDetail[]> {
   const response = await axios.get(ApiUrlService.transactions(limit));

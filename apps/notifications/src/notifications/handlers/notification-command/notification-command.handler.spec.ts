@@ -1,7 +1,8 @@
 import { generateMock } from '@anatine/zod-mock';
-import { Test, TestingModule } from '@nestjs/testing';
-import { MockProxy } from 'jest-mock-extended';
-import PgBoss from 'pg-boss';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { MockProxy } from 'jest-mock-extended';
+import type PgBoss from 'pg-boss';
 
 import { BrokerService } from '@src/broker/services/broker/broker.service';
 import { LoggerService } from '@src/common/services/logger.service';

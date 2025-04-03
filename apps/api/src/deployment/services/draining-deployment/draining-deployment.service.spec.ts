@@ -2,12 +2,12 @@ import "@test/mocks/logger-service.mock";
 
 import { faker } from "@faker-js/faker";
 
-import { UserWalletRepository } from "@src/billing/repositories";
-import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import { AutoTopUpDeployment, DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
+import type { UserWalletRepository } from "@src/billing/repositories";
+import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
+import type { AutoTopUpDeployment, DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
-import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
+import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "./draining-deployment.service";
 
 import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";

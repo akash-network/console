@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 
-import { UserOutput } from "@src/user/repositories";
+import type { UserOutput } from "@src/user/repositories";
 
 export class UserSeeder {
   static create({
@@ -19,7 +19,7 @@ export class UserSeeder {
     lastIp = faker.internet.ip(),
     lastUserAgent = faker.internet.userAgent(),
     lastFingerprint = faker.word.noun(),
-    createdAt = faker.date.recent(),
+    createdAt = faker.date.recent()
   }: Partial<UserOutput> = {}): UserOutput {
     return {
       id,
@@ -37,7 +37,7 @@ export class UserSeeder {
       lastIp,
       lastUserAgent,
       lastFingerprint,
-      createdAt,
+      createdAt
     };
   }
 }

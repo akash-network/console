@@ -1,8 +1,9 @@
 "use client";
-import { MouseEventHandler, ReactNode, useEffect, useRef, useState } from "react";
+import type { MouseEventHandler, ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import type { ActionButton } from "@akashnetwork/ui/components";
 import {
-  ActionButton,
   Alert,
   CheckboxWithLabel,
   Form,
@@ -34,7 +35,7 @@ import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddF
 import { useDenomData, useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useGranteeGrants } from "@src/queries/useGrantsQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { ServiceType } from "@src/types";
+import type { ServiceType } from "@src/types";
 import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { coinToUDenom } from "@src/utils/priceUtils";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";

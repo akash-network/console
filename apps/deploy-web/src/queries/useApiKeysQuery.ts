@@ -1,5 +1,6 @@
-import { ApiKeyResponse } from "@akashnetwork/http-sdk";
-import { QueryKey, useMutation, useQuery, useQueryClient, UseQueryOptions } from "@tanstack/react-query";
+import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
+import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider"; // eslint-disable-line import-x/no-cycle
