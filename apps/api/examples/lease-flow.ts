@@ -203,13 +203,12 @@ async function main() {
 
     // 7. Get the deployment details
     console.log("Getting deployment details...");
-    const deploymentResponse = await api.get(`/v1/deployments/${dseq}`, {
+    const deploymentResponse = await api.get(`/v1/deployments`, {
       headers: {
         "x-api-key": apiKey
       },
       params: {
-        certPem,
-        keyPem: encryptedKey
+        dseq
       }
     });
 
