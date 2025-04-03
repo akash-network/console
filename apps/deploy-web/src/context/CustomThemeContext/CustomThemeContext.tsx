@@ -1,8 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { darken, lighten, PaletteMode } from "@mui/material";
+import type { PaletteMode } from "@mui/material";
+import { darken, lighten } from "@mui/material";
 import { grey } from "@mui/material/colors";
-import { createTheme, ThemeOptions, ThemeProvider } from "@mui/material/styles";
+import type { ThemeOptions } from "@mui/material/styles";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { useTheme } from "next-themes";
 
 import { customColors } from "@src/utils/colors";

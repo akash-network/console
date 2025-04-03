@@ -1,6 +1,7 @@
 "use client";
 import React, { useMemo } from "react";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@akashnetwork/ui/components";
+import type { ChartConfig } from "@akashnetwork/ui/components";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@akashnetwork/ui/components";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 
 interface StatPieChartProps {

@@ -3,7 +3,7 @@ import { Badge, Card, CardContent } from "@akashnetwork/ui/components";
 import { Check } from "iconoir-react";
 
 import { LabelValue } from "@src/components/shared/LabelValue";
-import { ClientProviderDetailWithStatus } from "@src/types/provider";
+import type { ClientProviderDetailWithStatus } from "@src/types/provider";
 import { createFilterUnique } from "@src/utils/array";
 
 type Props = {

@@ -17,7 +17,7 @@ import { getShortText } from "@src/hooks/useShortText";
 import { useDeleteTemplate } from "@src/queries/useTemplateQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
-import { ITemplate } from "@src/types";
+import type { ITemplate } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";

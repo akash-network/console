@@ -27,7 +27,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { getUsdcDenom, useUsdcDenom } from "@src/hooks/useDenom";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { GrantType } from "@src/types/grant";
+import type { GrantType } from "@src/types/grant";
 import { denomToUdenom } from "@src/utils/mathHelpers";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";

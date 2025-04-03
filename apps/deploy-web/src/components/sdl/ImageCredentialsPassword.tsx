@@ -1,16 +1,11 @@
 "use client";
 import { useCallback, useMemo, useState } from "react";
-import { Control } from "react-hook-form";
-import {
-  buttonVariants,
-  FormField,
-  FormItem,
-  FormMessage,
-  Input } from "@akashnetwork/ui/components";
+import type { Control } from "react-hook-form";
+import { buttonVariants, FormField, FormItem, FormMessage, Input } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { EyeClosed, EyeSolid } from "iconoir-react";
 
-import { SdlBuilderFormValuesType } from "@src/types";
+import type { SdlBuilderFormValuesType } from "@src/types";
 
 type Props = {
   serviceIndex: number;
@@ -18,16 +13,12 @@ type Props = {
   label: string;
 };
 
-export const ImageCredentialsPassword: React.FunctionComponent<Props> = ({
-  serviceIndex,
-  control,
-  label,
-}) => {
-  const [type, setType] = useState('password');
+export const ImageCredentialsPassword: React.FunctionComponent<Props> = ({ serviceIndex, control, label }) => {
+  const [type, setType] = useState("password");
   const toggleType = useCallback(() => {
-    setType(type === 'password' ? 'text' : 'password');
+    setType(type === "password" ? "text" : "password");
   }, [type]);
-  const isClosed = useMemo(() => type === 'password', [type]);
+  const isClosed = useMemo(() => type === "password", [type]);
 
   return (
     <FormField
@@ -37,11 +28,7 @@ export const ImageCredentialsPassword: React.FunctionComponent<Props> = ({
         <FormItem className="w-full">
           <Input
             type={type}
-            label={
-              <div className="inline-flex items-center">
-                {label}
-              </div>
-            }
+            label={<div className="inline-flex items-center">{label}</div>}
             value={field.value}
             error={!!fieldState.error}
             onChange={event => field.onChange(event.target.value || "")}
@@ -56,8 +43,7 @@ export const ImageCredentialsPassword: React.FunctionComponent<Props> = ({
                 )}
                 onClick={toggleType}
               >
-                {isClosed ? (<EyeClosed />) : (<EyeSolid />)}
-
+                {isClosed ? <EyeClosed /> : <EyeSolid />}
               </span>
             }
             data-testid="credentials-password-input"

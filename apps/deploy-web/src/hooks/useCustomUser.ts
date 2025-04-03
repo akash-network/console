@@ -1,6 +1,6 @@
 import { useUser } from "@auth0/nextjs-auth0/client";
 
-import { CustomUserProfile } from "@src/types/user";
+import type { CustomUserProfile } from "@src/types/user";
 import { plans } from "@src/utils/plans";
 
 type UseCustomUser = {

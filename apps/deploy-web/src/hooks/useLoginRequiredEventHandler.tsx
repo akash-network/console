@@ -1,4 +1,5 @@
-import { MouseEventHandler, useCallback } from "react";
+import type { MouseEventHandler } from "react";
+import { useCallback } from "react";
 import { usePopup } from "@akashnetwork/ui/context";
 
 import { useUser } from "@src/hooks/useUser";

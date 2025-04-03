@@ -1,4 +1,4 @@
-import { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import { MAINNET_ID, SANDBOX_ID, TESTNET_ID } from "@akashnetwork/network-store";
 
 import networkStore from "@src/store/networkStore";

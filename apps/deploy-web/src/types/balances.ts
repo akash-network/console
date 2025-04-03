@@ -1,4 +1,4 @@
-import { Coin } from "@cosmjs/stargate";
+import type { Coin } from "@cosmjs/stargate";
 
 export type Grant = {
   granter: string;

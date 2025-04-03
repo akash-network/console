@@ -4,7 +4,7 @@ import {
 } from '@akashnetwork/akash-api/v1beta3';
 import { faker } from '@faker-js/faker';
 
-import {
+import type {
   DecodedMessageValue,
   MessageTypeFilter,
 } from '../../src/chain-events/services/block-message-parser/block-message-parser.service';

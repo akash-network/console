@@ -1,8 +1,8 @@
 import { Badge } from "@akashnetwork/ui/components";
-import { Row } from "@tanstack/react-table";
+import type { Row } from "@tanstack/react-table";
 
 import { useFriendlyMessageType } from "@/hooks/useFriendlyMessageType";
-import { TransactionRowType } from "@/lib/zod/transactionRow";
+import type { TransactionRowType } from "@/lib/zod/transactionRow";
 
 export const TransactionTypeCell = ({
   row

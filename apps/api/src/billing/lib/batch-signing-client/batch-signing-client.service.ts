@@ -1,9 +1,9 @@
 import { LoggerService } from "@akashnetwork/logging";
 import { toHex } from "@cosmjs/encoding";
-import { EncodeObject, Registry } from "@cosmjs/proto-signing";
+import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, GasPrice } from "@cosmjs/stargate";
-import { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
-import { BroadcastTxSyncResponse } from "@cosmjs/tendermint-rpc/build/comet38";
+import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
+import type { BroadcastTxSyncResponse } from "@cosmjs/tendermint-rpc/build/comet38";
 import { Sema } from "async-sema";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import DataLoader from "dataloader";
@@ -11,8 +11,8 @@ import { backOff } from "exponential-backoff";
 import assert from "http-assert";
 
 import { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargate-client/sync-signing-stargate-client";
-import { Wallet } from "@src/billing/lib/wallet/wallet";
-import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import type { Wallet } from "@src/billing/lib/wallet/wallet";
+import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 
 interface ShortAccountInfo {
   accountNumber: number;

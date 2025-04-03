@@ -1,4 +1,4 @@
-import { Deployment, Lease } from "@akashnetwork/database/dbSchemas/akash";
+import type { Deployment, Lease } from "@akashnetwork/database/dbSchemas/akash";
 
 // This copies the logic of the akash node
 

@@ -14,7 +14,8 @@ import { NavArrowDown, Refresh } from "iconoir-react";
 import { z } from "zod";
 
 import { NodeStatus } from "@src/components/shared/NodeStatus";
-import { BlockchainNode, useSettings } from "@src/context/SettingsProvider/SettingsProviderContext";
+import type { BlockchainNode } from "@src/context/SettingsProvider/SettingsProviderContext";
+import { useSettings } from "@src/context/SettingsProvider/SettingsProviderContext";
 
 const formSchema = z.object({
   apiEndpoint: z

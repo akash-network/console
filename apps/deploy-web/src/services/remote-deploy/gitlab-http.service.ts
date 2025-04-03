@@ -1,9 +1,9 @@
 import axios from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { GitLabCommit } from "@src/types/remoteCommits";
-import { GitLabProfile } from "@src/types/remoteProfile";
-import { GitlabGroup, GitlabRepo } from "@src/types/remoteRepos";
+import type { GitLabCommit } from "@src/types/remoteCommits";
+import type { GitLabProfile } from "@src/types/remoteProfile";
+import type { GitlabGroup, GitlabRepo } from "@src/types/remoteRepos";
 
 export class GitLabService {
   private axiosInstance = axios.create({

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import type { z } from "zod";
 
 import { ConfigService } from "@src/core/services/config/config.service";
 

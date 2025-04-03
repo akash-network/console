@@ -1,11 +1,12 @@
 "use client";
-import { ReactNode } from "react";
-import { Control, Controller } from "react-hook-form";
+import type { ReactNode } from "react";
+import type { Control } from "react-hook-form";
+import { Controller } from "react-hook-form";
 import { Checkbox, CustomTooltip, FormField, FormInput, FormItem, Label, MultipleSelector } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { InfoCircle } from "iconoir-react";
 
-import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { nextCases } from "@src/utils/sdl/data";
 import { FormPaper } from "./FormPaper";
 

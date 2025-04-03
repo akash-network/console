@@ -8,13 +8,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { CI_CD_TEMPLATE_ID } from "@src/config/remote-deploy.config";
-import { TemplateOutputSummaryWithCategory, useTemplates } from "@src/queries/useTemplateQuery";
+import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
+import { useTemplates } from "@src/queries/useTemplateQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
-import { TemplateCreation } from "@src/types";
+import type { TemplateCreation } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { helloWorldTemplate } from "@src/utils/templates";
-import { domainName, NewDeploymentParams, UrlService } from "@src/utils/urlUtils";
+import type { NewDeploymentParams } from "@src/utils/urlUtils";
+import { domainName, UrlService } from "@src/utils/urlUtils";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { TemplateBox } from "../templates/TemplateBox";
 import { DeployOptionBox } from "./DeployOptionBox";

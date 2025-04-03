@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { DepositParams, RpcDepositParams } from "@src/types/deployment";
+import type { DepositParams, RpcDepositParams } from "@src/types/deployment";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 

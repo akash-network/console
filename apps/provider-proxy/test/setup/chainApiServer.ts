@@ -1,7 +1,7 @@
 import { bech32 } from "bech32";
-import { X509Certificate } from "crypto";
+import type { X509Certificate } from "crypto";
 import http from "http";
-import { AddressInfo } from "net";
+import type { AddressInfo } from "net";
 
 let chainServer: http.Server | undefined;
 /**

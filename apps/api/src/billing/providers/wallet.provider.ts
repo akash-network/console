@@ -2,7 +2,7 @@ import { container, inject } from "tsyringe";
 
 import { config } from "@src/billing/config";
 import { Wallet } from "@src/billing/lib/wallet/wallet";
-import { MasterWalletType } from "@src/billing/types/wallet.type";
+import type { MasterWalletType } from "@src/billing/types/wallet.type";
 
 export const MANAGED_MASTER_WALLET = "MANAGED_MASTER_WALLET";
 container.register(MANAGED_MASTER_WALLET, { useFactory: () => new Wallet(config.MASTER_WALLET_MNEMONIC) });

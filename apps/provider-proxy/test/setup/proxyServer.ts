@@ -1,4 +1,5 @@
-import { AppServer, startAppServer } from "../../src/app";
+import type { AppServer } from "../../src/app";
+import { startAppServer } from "../../src/app";
 
 let server: AppServer | undefined;
 

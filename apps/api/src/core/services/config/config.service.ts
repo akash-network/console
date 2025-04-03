@@ -1,4 +1,4 @@
-import { z, ZodObject, ZodRawShape } from "zod";
+import type { z, ZodObject, ZodRawShape } from "zod";
 
 interface ConfigServiceOptions<E extends ZodObject<ZodRawShape>, C extends Record<string, any>> {
   envSchema?: E;

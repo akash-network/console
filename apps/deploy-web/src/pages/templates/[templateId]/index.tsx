@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { TemplateDetail, TemplateDetailProps } from "@src/components/templates/TemplateDetail";
+import type { TemplateDetailProps } from "@src/components/templates/TemplateDetail";
+import { TemplateDetail } from "@src/components/templates/TemplateDetail";
 import { getValidatedServerSideProps } from "@src/lib/nextjs/getValidatedServerSIdeProps";
 import { services } from "@src/services/http/http-server.service";
 import { getShortText } from "@src/utils/stringUtils";

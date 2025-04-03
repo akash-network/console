@@ -1,4 +1,5 @@
-import { IssueData, z } from "zod";
+import type { IssueData } from "zod";
+import { z } from "zod";
 
 import { memoryUnits, storageUnits, validationConfig } from "@src/utils/akash/units";
 import { ENDPOINT_NAME_VALIDATION_REGEX } from "@src/utils/deploymentData/v1beta3";

@@ -4,7 +4,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { MediaImage } from "iconoir-react";
 import Link from "next/link";
 
-import { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
+import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import { getShortText } from "@src/utils/stringUtils";
 import { UrlService } from "@src/utils/urlUtils";
 

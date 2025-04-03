@@ -1,7 +1,8 @@
 import { bytesToShrink } from "./unitUtils";
 
-import { ISnapshotMetadata, ProviderSnapshots } from "@/types";
-import { NetworkCapacity } from "@/types";
+import type { ISnapshotMetadata } from "@/types";
+import type { NetworkCapacity } from "@/types";
+import { ProviderSnapshots } from "@/types";
 
 export type LocalProviderData = {
   favorites: string[];

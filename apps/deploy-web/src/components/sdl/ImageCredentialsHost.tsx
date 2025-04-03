@@ -1,5 +1,5 @@
 "use client";
-import { Control } from "react-hook-form";
+import type { Control } from "react-hook-form";
 import {
   FormField,
   FormItem,
@@ -10,10 +10,10 @@ import {
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 } from "@akashnetwork/ui/components";
 
-import { SdlBuilderFormValuesType } from "@src/types";
+import type { SdlBuilderFormValuesType } from "@src/types";
 
 type Props = {
   serviceIndex: number;
@@ -21,14 +21,11 @@ type Props = {
 };
 
 const supportedHosts = [
-  { id: 'docker.io', label: 'Docker Hub' },
-  { id: 'ghcr.io', label: 'GitHub Container Registry' }
+  { id: "docker.io", label: "Docker Hub" },
+  { id: "ghcr.io", label: "GitHub Container Registry" }
 ];
 
-export const ImageCredentialsHost: React.FunctionComponent<Props> = ({
-  serviceIndex,
-  control,
-}) => {
+export const ImageCredentialsHost: React.FunctionComponent<Props> = ({ serviceIndex, control }) => {
   return (
     <FormField
       control={control}

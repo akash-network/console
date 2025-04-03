@@ -1,5 +1,5 @@
 "use client";
-import { MouseEvent, MouseEventHandler } from "react";
+import type { MouseEvent, MouseEventHandler } from "react";
 import { Address, Badge, CustomTooltip, Popup, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 
 import { useAuditors } from "@src/queries/useProvidersQuery";

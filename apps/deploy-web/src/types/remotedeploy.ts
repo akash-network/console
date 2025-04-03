@@ -1,4 +1,4 @@
-import { components } from "@octokit/openapi-types";
+import type { components } from "@octokit/openapi-types";
 export type GithubRepository = components["schemas"]["full-repository"];
 export type IGithubDirectoryItem = Omit<components["schemas"]["content-directory"][0], "type"> & {
   type: "file" | "dir" | "commit_directory" | "tree";

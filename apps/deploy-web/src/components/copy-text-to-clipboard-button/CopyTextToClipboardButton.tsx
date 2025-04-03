@@ -1,4 +1,5 @@
-import { ForwardRefExoticComponent, RefAttributes, SVGProps, useCallback } from "react";
+import type { ForwardRefExoticComponent, RefAttributes, SVGProps } from "react";
+import { useCallback } from "react";
 import { Button, Snackbar } from "@akashnetwork/ui/components";
 import { copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { Copy } from "iconoir-react";
@@ -11,11 +12,11 @@ interface Props {
 }
 
 const defaultProps = {
-  message: 'Copied to clipboard!',
-  icon: Copy,
+  message: "Copied to clipboard!",
+  icon: Copy
 };
 
-export const CopyTextToClipboardButton: React.FunctionComponent<Props> = (props) => {
+export const CopyTextToClipboardButton: React.FunctionComponent<Props> = props => {
   const actualProps = { ...defaultProps, ...props };
   const { enqueueSnackbar } = useSnackbar();
 

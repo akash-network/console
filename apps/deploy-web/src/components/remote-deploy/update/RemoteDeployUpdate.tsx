@@ -11,7 +11,7 @@ import { CURRENT_SERVICE, protectedEnvironmentVariables } from "@src/config/remo
 import { SdlBuilderProvider } from "@src/context/SdlBuilderProvider";
 import { EnvVarUpdater } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { tokens } from "@src/store/remoteDeployStore";
-import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";

@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Popup, Spinner } from "@akashnetwork/ui/components";
 
 type Props = {
@@ -29,7 +29,7 @@ export const TransactionModal: React.FC<Props> = ({ state, open, onClose }) => {
           <Spinner size="large" className="flex justify-center" />
         </div>
 
-        <div className="text-sm text-muted-foreground">
+        <div className="text-muted-foreground text-sm">
           {state === "waitingForApproval" ? "APPROVE OR REJECT TX TO CONTINUE..." : "BROADCASTING TRANSACTION..."}
         </div>
       </div>

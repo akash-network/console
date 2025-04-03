@@ -1,7 +1,7 @@
 import { container } from "tsyringe";
 
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
-import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 
 import { stub } from "@test/services/stub";
 

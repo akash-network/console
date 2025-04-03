@@ -3,7 +3,7 @@ import { Level } from "level";
 import path from "path";
 
 import { dataFolderPath } from "@src/shared/constants";
-import { BlockResultType, BlockType } from "@src/shared/types";
+import type { BlockResultType, BlockType } from "@src/shared/types";
 import { bytesToHumanReadableSize } from "@src/shared/utils/files";
 
 const LevelNotFoundCode = "LEVEL_NOT_FOUND";

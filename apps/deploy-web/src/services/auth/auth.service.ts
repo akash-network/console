@@ -1,4 +1,4 @@
-import { InternalAxiosRequestConfig } from "axios";
+import type { InternalAxiosRequestConfig } from "axios";
 
 import { ANONYMOUS_USER_TOKEN_KEY } from "@src/config/auth.config";
 

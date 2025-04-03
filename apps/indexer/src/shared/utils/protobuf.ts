@@ -2,7 +2,8 @@ import * as v1beta1 from "@akashnetwork/akash-api/v1beta1";
 import * as v1beta2 from "@akashnetwork/akash-api/v1beta2";
 import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
 import * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
-import { GeneratedType, isTsProtoGeneratedType, Registry } from "@cosmjs/proto-signing";
+import type { GeneratedType } from "@cosmjs/proto-signing";
+import { isTsProtoGeneratedType, Registry } from "@cosmjs/proto-signing";
 import { defaultRegistryTypes } from "@cosmjs/stargate";
 import { MsgUnjail } from "cosmjs-types/cosmos/slashing/v1beta1/tx";
 

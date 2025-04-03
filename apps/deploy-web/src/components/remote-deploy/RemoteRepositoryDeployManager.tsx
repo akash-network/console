@@ -1,5 +1,6 @@
-import { Dispatch, useEffect, useMemo, useState } from "react";
-import { Control, UseFormSetValue } from "react-hook-form";
+import type { Dispatch } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { Control, UseFormSetValue } from "react-hook-form";
 import { Button, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { Bitbucket, Github as GitIcon, GitlabFull } from "iconoir-react";
 import { useAtom } from "jotai";
@@ -14,7 +15,7 @@ import { GitHubService } from "@src/services/remote-deploy/github-http.service";
 import { GitLabService } from "@src/services/remote-deploy/gitlab-http.service";
 import { EnvVarUpdater } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { tokens } from "@src/store/remoteDeployStore";
-import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { RouteStep } from "@src/types/route-steps.type";
 import { UrlService } from "@src/utils/urlUtils";
 import { useBitFetchAccessToken, useBitUserProfile } from "../../queries/useBitBucketQuery";

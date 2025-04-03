@@ -5,8 +5,8 @@ import { Alert, Table, TableBody, TableCell, TableHeader, TableRow } from "@akas
 import { Check } from "iconoir-react";
 
 import networkStore from "@src/store/networkStore";
-import { BidDto, DeploymentDto } from "@src/types/deployment";
-import { ApiProviderList } from "@src/types/provider";
+import type { BidDto, DeploymentDto } from "@src/types/deployment";
+import type { ApiProviderList } from "@src/types/provider";
 import { deploymentGroupResourceSum, getStorageAmount } from "@src/utils/deploymentDetailUtils";
 import { FormPaper } from "../sdl/FormPaper";
 import { LabelValueOld } from "../shared/LabelValueOld";

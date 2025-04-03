@@ -23,7 +23,7 @@ import { z } from "zod";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useGpuPrices } from "@src/queries/useProviderQuery";
 import providerProcessStore from "@src/store/providerProcessStore";
-import { ProviderDetails } from "@src/types/provider";
+import type { ProviderDetails } from "@src/types/provider";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
