@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { SignTxResponseOutputSchema } from "@src/billing/routes/sign-and-broadcast-tx/sign-and-broadcast-tx.router";
+import { LeaseStatusResponseSchema } from "./lease.schema";
 
 export const DeploymentResponseSchema = z.object({
   deployment: z.object({
@@ -27,7 +28,8 @@ export const DeploymentResponseSchema = z.object({
         amount: z.string()
       }),
       created_at: z.string(),
-      closed_on: z.string()
+      closed_on: z.string(),
+      status: z.nullable(LeaseStatusResponseSchema)
     })
   ),
   escrow_account: z.object({

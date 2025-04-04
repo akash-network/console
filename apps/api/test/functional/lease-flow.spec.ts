@@ -1,7 +1,5 @@
 import { BlockHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
-import * as fs from "node:fs";
-import * as path from "node:path";
 import { setTimeout as delay } from "timers/promises";
 import { container } from "tsyringe";
 
@@ -11,26 +9,27 @@ import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-gener
 import type { BidResponse } from "@src/bid/http-schemas/bid.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import { ProviderService } from "@src/deployment/services/provider/provider.service";
 import { UserRepository } from "@src/user/repositories";
 
+import { createSdlYml } from "@test/mocks/template";
+import { LeaseStatusSeeder } from "@test/seeders/lease-status.seeder";
 import { stub } from "@test/services/stub";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
-const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
-const ymlUpdate = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl-update.yml"), "utf8");
-
 jest.setTimeout(120_000); // 120 seconds for the full flow
 
-// TODO: fix this test https://github.com/akash-network/console/issues/1123
-xdescribe("Lease Flow", () => {
+describe("Lease Flow", () => {
   const userRepository = container.resolve(UserRepository);
   const apiKeyRepository = container.resolve(ApiKeyRepository);
   const blockHttpService = container.resolve(BlockHttpService);
   const walletService = new WalletTestingService(app);
   const userWalletRepository = container.resolve(UserWalletRepository);
+  const providerService = container.resolve(ProviderService);
   let apiKeyGenerator: ApiKeyGeneratorService;
   let config: jest.Mocked<CoreConfigService>;
   let currentHeight: number;
+  const yml = createSdlYml();
 
   async function createTestUser() {
     const { user, wallet } = await walletService.createUserAndWallet();
@@ -69,10 +68,9 @@ xdescribe("Lease Flow", () => {
       ];
     });
 
-    // Mock the wallet repository chain
     const findOneByUserIdMock = jest.fn().mockImplementation(async (id: string) => {
       if (id === userWithId.id) {
-        return wallet;
+        return { ...wallet, isTrialing: false };
       }
       return undefined;
     });
@@ -86,6 +84,10 @@ xdescribe("Lease Flow", () => {
   beforeEach(() => {
     currentHeight = faker.number.int({ min: 1000000, max: 10000000 });
     jest.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(currentHeight);
+
+    // Mock provider service methods
+    jest.spyOn(providerService, "sendManifest").mockResolvedValue(true);
+    jest.spyOn(providerService, "getLeaseStatus").mockResolvedValue(LeaseStatusSeeder.create());
   });
 
   afterEach(async () => {
@@ -166,6 +168,8 @@ xdescribe("Lease Flow", () => {
       body: JSON.stringify(body)
     });
     expect(leaseResponse.status).toBe(200);
+    const leaseResult = await leaseResponse.json();
+    expect(leaseResult.data.leases[0].status).toEqual(LeaseStatusSeeder.create());
 
     // 6. Deposit into deployment
     const depositResponse = await app.request(`/v1/deposit-deployment`, {
@@ -175,6 +179,12 @@ xdescribe("Lease Flow", () => {
     });
     expect(depositResponse.status).toBe(200);
 
+    const ymlUpdate = createSdlYml({
+      "services.web.image": { $set: "baktun/hello-akash-world:1.0.1" },
+      "services.web.env": { $set: ["NEW_FEATURE=enabled"] }
+    });
+
+    console.log(ymlUpdate);
     // 7. Update deployment
     const updateResponse = await app.request(`/v1/deployments/${dseq}`, {
       method: "PUT",
@@ -182,6 +192,8 @@ xdescribe("Lease Flow", () => {
       body: JSON.stringify({ data: { sdl: ymlUpdate, certificate: { certPem, keyPem: encryptedKey } } })
     });
     expect(updateResponse.status).toBe(200);
+    const updateResult = await updateResponse.json();
+    expect(updateResult.data.leases[0].status).toEqual(LeaseStatusSeeder.create());
 
     // 8. Close deployment
     const closeResponse = await app.request(`/v1/deployments/${dseq}`, {

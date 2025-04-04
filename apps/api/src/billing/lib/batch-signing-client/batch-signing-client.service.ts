@@ -13,6 +13,7 @@ import assert from "http-assert";
 import { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargate-client/sync-signing-stargate-client";
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { Benchmark } from "@src/core/decorators/benchmark.decorator";
 
 interface ShortAccountInfo {
   accountNumber: number;
@@ -73,7 +74,7 @@ export class BatchSigningClientService {
           return client;
         }),
       {
-        maxDelay: 15000,
+        maxDelay: 10_000,
         startingDelay: 500,
         timeMultiple: 2,
         numOfAttempts: 7,
@@ -94,8 +95,8 @@ export class BatchSigningClientService {
     await this.semaphore.acquire();
     try {
       return await backOff(() => this.executeTxBatch(inputs), {
-        maxDelay: 10000,
-        startingDelay: 1000,
+        maxDelay: 5_000,
+        startingDelay: 500,
         timeMultiple: 2,
         numOfAttempts: 5,
         jitter: "none",
@@ -117,6 +118,7 @@ export class BatchSigningClientService {
     }
   }
 
+  @Benchmark()
   private async executeTxBatch(inputs: ExecuteTxInput[]): Promise<IndexedTx[]> {
     const txes: TxRaw[] = [];
     let txIndex: number = 0;
