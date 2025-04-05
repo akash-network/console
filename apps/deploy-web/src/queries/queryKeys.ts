@@ -1,5 +1,3 @@
-import type { QueryKey } from "react-query";
-
 export class QueryKeys {
   static getFinancialDataKey = () => ["MARKET_DATA"];
   static getDashboardDataKey = () => ["DASHBOARD_DATA"];
@@ -68,5 +66,5 @@ export class QueryKeys {
   static getDeploymentGrantsKey = (granter: string, grantee: string) => ["DEPLOYMENT_GRANT", granter, grantee];
   static getFeeAllowancesKey = (granter: string, grantee: string) => ["FEE_ALLOWANCE", granter, grantee];
 
-  static getFeatureFlagsKey = (networkId: string) => ["FEATURE_FLAGS", networkId] as QueryKey;
+  static getFeatureFlagsKey = (networkId: string) => ["FEATURE_FLAGS", networkId];
 }
