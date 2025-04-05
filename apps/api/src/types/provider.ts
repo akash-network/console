@@ -31,7 +31,7 @@ export interface ProviderList {
     storage: {
       ephemeral: StatsItem;
       persistent: StatsItem;
-    },
+    };
   };
   /** @deprecated use `stats` instead */
   activeStats: {
@@ -148,3 +148,22 @@ export interface StatsItem {
   available: number;
   pending: number;
 }
+
+export type TrialProviders = {
+  providers: {
+    owner: string;
+    hostUri: string;
+    availableCPU: number;
+    availableGPU: number;
+    availableMemory: number;
+    availablePersistentStorage: number;
+    availableEphemeralStorage: number;
+  }[];
+  total: {
+    availableCPU: number;
+    availableGPU: number;
+    availableMemory: number;
+    availablePersistentStorage: number;
+    availableEphemeralStorage: number;
+  };
+};
