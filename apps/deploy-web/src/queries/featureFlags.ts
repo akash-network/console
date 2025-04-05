@@ -1,7 +1,7 @@
-import type { QueryClient, UseQueryOptions, UseQueryResult } from "react-query";
-import { useQuery } from "react-query";
 import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import { MAINNET_ID, SANDBOX_ID } from "@akashnetwork/network-store";
+import type { QueryClient, UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -35,7 +35,10 @@ export async function prefetchFeatureFlags(queryClient: QueryClient, axios: Axio
   const networks: NetworkId[] = [SANDBOX_ID, MAINNET_ID];
 
   const promises = networks.map(networkId =>
-    queryClient.prefetchQuery(QueryKeys.getFeatureFlagsKey(networkId), () => getFeatureFlags(networkId, axios, apiUrlService))
+    queryClient.prefetchQuery({
+      queryKey: QueryKeys.getFeatureFlagsKey(networkId),
+      queryFn: () => getFeatureFlags(networkId, axios, apiUrlService)
+    })
   );
 
   await Promise.all(promises);
