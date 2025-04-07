@@ -13,7 +13,9 @@ import { BalancesService } from "@src/billing/services/balances/balances.service
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
+import { Memoize } from "@src/caching/helpers";
 import { Semaphore } from "@src/core/lib/semaphore.decorator";
+import { averageBlockTime } from "@src/utils/constants";
 
 @scoped(Lifecycle.ResolutionScoped)
 export class WalletController {
@@ -42,6 +44,7 @@ export class WalletController {
     };
   }
 
+  @Memoize({ ttlInSeconds: averageBlockTime })
   async getBalances(address?: string): Promise<GetBalancesResponseOutput> {
     let currentAddress: string = address;
 

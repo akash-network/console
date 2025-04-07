@@ -26,7 +26,15 @@ export const Memoize = (options?: MemoizeOptions) => (target: object, propertyNa
   const cacheKey = options?.key || `${target.constructor.name}#${propertyName}`;
 
   descriptor.value = async function memoizedFunction(...args: unknown[]) {
-    return await cacheResponse(options?.ttlInSeconds || 60 * 2, cacheKey, originalMethod.bind(this, ...args), options?.keepData);
+    const argsKey =
+      args.length > 0
+        ? `${cacheKey}#${args
+            .map(arg => (typeof arg === "string" ? arg : null))
+            .filter(Boolean)
+            .join("#")}`
+        : cacheKey;
+
+    return await cacheResponse(options?.ttlInSeconds || 60 * 2, argsKey, originalMethod.bind(this, ...args), options?.keepData);
   };
 };
 
