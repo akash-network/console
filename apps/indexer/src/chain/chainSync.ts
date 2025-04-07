@@ -11,7 +11,7 @@ import * as uuid from "uuid";
 
 import { sequelize } from "@src/db/dbConnection";
 import { ExecutionMode, executionMode, isProd, lastBlockToSync } from "@src/shared/constants";
-import { BlockResultType } from "@src/shared/types";
+import type { BlockResultType } from "@src/shared/types";
 import { env } from "@src/shared/utils/env";
 import * as benchmark from "../shared/utils/benchmark";
 import {
@@ -24,7 +24,7 @@ import {
   getLatestHeightInCache
 } from "./dataStore";
 import { nodeAccessor } from "./nodeAccessor";
-import { statsProcessor } from "./statsProcessor";
+import { statsProcessor } from "./statsProcessor"; // eslint-disable-line import-x/no-cycle
 
 export const setMissingBlock = (height: number) => (missingBlock = height);
 let missingBlock: number;

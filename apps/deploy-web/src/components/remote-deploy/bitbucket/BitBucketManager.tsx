@@ -1,8 +1,9 @@
-import { Dispatch, useState } from "react";
-import { Control, UseFormSetValue } from "react-hook-form";
+import type { Dispatch } from "react";
+import { useState } from "react";
+import type { Control, UseFormSetValue } from "react-hook-form";
 
-import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { BitProfile } from "@src/types/remoteProfile";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { BitProfile } from "@src/types/remoteProfile";
 import { useBitReposByWorkspace } from "../../../queries/useBitBucketQuery";
 import Repos from "../Repos";
 import BitBucketBranches from "./BitBucketBranches";

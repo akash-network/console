@@ -1,14 +1,13 @@
 import { faker } from '@faker-js/faker';
 import { ConfigService } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
-import { MockProxy } from 'jest-mock-extended';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { MockProxy } from 'jest-mock-extended';
 import { Client } from 'pg';
 import PgBoss from 'pg-boss';
 
-import {
-  BrokerModuleConfig,
-  MODULE_OPTIONS_TOKEN,
-} from '@src/broker/broker-module.definition';
+import type { BrokerModuleConfig } from '@src/broker/broker-module.definition';
+import { MODULE_OPTIONS_TOKEN } from '@src/broker/broker-module.definition';
 import { LoggerService } from '@src/common/services/logger.service';
 import { BrokerService } from './broker.service';
 

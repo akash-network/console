@@ -1,7 +1,7 @@
 import { generateMock } from '@anatine/zod-mock';
-import { TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { MockProxy } from 'jest-mock-extended';
+import type { MockProxy } from 'jest-mock-extended';
 
 import { NotificationCommandDto } from '@src/notifications/dto/NotificationCommand.dto';
 import { EmailSenderService } from '../email-sender/email-sender.service';

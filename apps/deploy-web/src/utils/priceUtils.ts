@@ -1,9 +1,9 @@
-import { Coin } from "@cosmjs/stargate";
+import type { Coin } from "@cosmjs/stargate";
 import add from "date-fns/add";
 
 import { READABLE_DENOMS, UAKT_DENOM } from "@src/config/denom.config";
 import { getUsdcDenom } from "@src/hooks/useDenom";
-import { useBlock } from "@src/queries/useBlocksQuery";
+import { useBlock } from "@src/queries/useBlocksQuery"; // eslint-disable-line import-x/no-cycle
 import { averageDaysInMonth } from "./dateUtils";
 import { denomToUdenom } from "./mathHelpers";
 

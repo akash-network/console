@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { FormattedDate } from "react-intl";
 import { Alert, Form, FormField, FormInput, Popup } from "@akashnetwork/ui/components";
-import { EncodeObject } from "@cosmjs/proto-signing";
+import type { EncodeObject } from "@cosmjs/proto-signing";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { addYears, format } from "date-fns";
 import { z } from "zod";
@@ -13,7 +13,7 @@ import { UAKT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { AllowanceType } from "@src/types/grant";
+import type { AllowanceType } from "@src/types/grant";
 import { aktToUakt, coinToDenom } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 

@@ -1,11 +1,11 @@
 "use client";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { InfoCircle } from "iconoir-react";
 
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
-import { ServiceType } from "@src/types";
+import type { ServiceType } from "@src/types";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

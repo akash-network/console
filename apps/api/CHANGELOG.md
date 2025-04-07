@@ -1,5 +1,34 @@
 
 
+## [2.79.3](https://github.com/akash-network/console/compare/console-api/v2.79.2...console-api/v2.79.3) (2025-04-01)
+
+
+### Bug Fixes
+
+* **deployment:** append trial attribute for anon only ([#1155](https://github.com/akash-network/console/issues/1155)) ([814e154](https://github.com/akash-network/console/commit/814e154a4bcaaea74507a87a3af3c9a628154835))
+
+## [2.79.2](https://github.com/akash-network/console/compare/console-api/v2.79.1...console-api/v2.79.2) (2025-04-01)
+
+
+### Bug Fixes
+
+* **deployment:** remove back slash replace ([#1154](https://github.com/akash-network/console/issues/1154)) ([94c9e51](https://github.com/akash-network/console/commit/94c9e51b2cb7f1383628e7e358c33eeaf36ac244))
+* improves logging of dashboard data date field and changes it to … ([#1148](https://github.com/akash-network/console/issues/1148)) ([1f83727](https://github.com/akash-network/console/commit/1f83727d88cbd233832d43957979d38eeb128deb))
+
+## [2.79.1](https://github.com/akash-network/console/compare/console-api/v2.79.0...console-api/v2.79.1) (2025-03-31)
+
+
+### Bug Fixes
+
+* ensures that stats.date is a string ([#1145](https://github.com/akash-network/console/issues/1145)) ([38b2382](https://github.com/akash-network/console/commit/38b23820f1d6a4f2850fa645b62ea2637fe3fea3))
+
+## [2.79.0](https://github.com/akash-network/console/compare/console-api/v2.78.0...console-api/v2.79.0) (2025-03-31)
+
+
+### Features
+
+* **deployment:** properly validate user trial deployments ([#1143](https://github.com/akash-network/console/issues/1143)) ([88741b5](https://github.com/akash-network/console/commit/88741b5cfc349b55956880375c06a8c779c9d6bd))
+
 ## [2.78.0](https://github.com/akash-network/console/compare/console-api/v2.77.0...console-api/v2.78.0) (2025-03-31)
 
 

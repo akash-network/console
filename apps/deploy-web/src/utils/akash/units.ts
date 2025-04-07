@@ -23,14 +23,14 @@ export const validationConfig = {
 };
 
 export const memoryUnits = [
-  { id: 3, suffix: "Mb", value: 1000 ** 2 },
+  { id: 3, suffix: "MB", value: 1000 ** 2 },
   { id: 4, suffix: "Mi", value: 1024 ** 2 },
   { id: 5, suffix: "GB", value: 1000 ** 3 },
   { id: 6, suffix: "Gi", value: 1024 ** 3 }
 ];
 
 export const storageUnits = [
-  { id: 3, suffix: "Mb", value: 1000 ** 2 },
+  { id: 3, suffix: "MB", value: 1000 ** 2 },
   { id: 4, suffix: "Mi", value: 1024 ** 2 },
   { id: 5, suffix: "GB", value: 1000 ** 3 },
   { id: 6, suffix: "Gi", value: 1024 ** 3 },
@@ -39,7 +39,9 @@ export const storageUnits = [
 ];
 
 export const persistentStorageTypes = [
-  { id: 1, className: "beta1", name: "hdd" },
-  { id: 2, className: "beta2", name: "ssd" },
+  { id: 1, className: "beta1", name: "HDD" },
+  { id: 2, className: "beta2", name: "SSD" },
   { id: 3, className: "beta3", name: "NVMe" }
 ];
+
+export const ephemeralStorageTypes = [...persistentStorageTypes, { id: 4, className: "ram", name: "RAM" }];

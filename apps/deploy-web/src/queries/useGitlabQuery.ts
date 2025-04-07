@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from "react-query";
-import { AxiosError } from "axios";
+import type { AxiosError } from "axios";
 import { useAtom } from "jotai";
 
 import { GitLabService } from "@src/services/remote-deploy/gitlab-http.service";
 import { tokens } from "@src/store/remoteDeployStore";
-import { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
+import type { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { QueryKeys } from "./queryKeys";
 
 const gitLabService = new GitLabService();

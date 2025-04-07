@@ -1,15 +1,16 @@
 "use client";
-import { ReactNode, useCallback, useEffect, useState } from "react";
-import { UseFormSetValue } from "react-hook-form";
+import type { ReactNode } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { UseFormSetValue } from "react-hook-form";
 import { Alert, Popup, Snackbar } from "@akashnetwork/ui/components";
 import Editor from "@monaco-editor/react";
 import { ArrowDown } from "iconoir-react";
-import { editor } from "monaco-editor";
+import type { editor } from "monaco-editor";
 import { useTheme } from "next-themes";
 import { useSnackbar } from "notistack";
 
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 import { Timer } from "@src/utils/timer";
 

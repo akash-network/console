@@ -4,9 +4,11 @@ import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 
 import { app } from "@src/app";
-import { BILLING_CONFIG, BillingConfig } from "@src/billing/providers";
+import type { BillingConfig } from "@src/billing/providers";
+import { BILLING_CONFIG } from "@src/billing/providers";
 import { resolveWallet } from "@src/billing/providers/wallet.provider";
-import { ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
+import type { ApiPgDatabase } from "@src/core";
+import { POSTGRES_DB, resolveTable } from "@src/core";
 
 jest.setTimeout(20000);
 

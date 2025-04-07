@@ -1,6 +1,8 @@
 "use client";
-import { ReactNode, useRef } from "react";
-import { Control, Controller, useFieldArray } from "react-hook-form";
+import type { ReactNode } from "react";
+import { useRef } from "react";
+import type { Control } from "react-hook-form";
+import { Controller, useFieldArray } from "react-hook-form";
 import {
   Button,
   Checkbox,
@@ -22,12 +24,14 @@ import { cn } from "@akashnetwork/ui/utils";
 import { Bin, InfoCircle } from "iconoir-react";
 import { nanoid } from "nanoid";
 
-import { ExposeType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { ExposeType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { protoTypes } from "@src/utils/sdl/data";
-import { AcceptFormControl, AcceptRefType } from "./AcceptFormControl";
+import type { AcceptRefType } from "./AcceptFormControl";
+import { AcceptFormControl } from "./AcceptFormControl";
 import { FormPaper } from "./FormPaper";
 import { HttpOptionsFormControl } from "./HttpOptionsFormControl";
-import { ToFormControl, ToRefType } from "./ToFormControl";
+import type { ToRefType } from "./ToFormControl";
+import { ToFormControl } from "./ToFormControl";
 
 type Props = {
   serviceIndex: number;

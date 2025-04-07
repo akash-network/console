@@ -1,20 +1,23 @@
 "use client";
-import { ReactNode, useRef } from "react";
-import { Control } from "react-hook-form";
+import type { ReactNode } from "react";
+import { useRef } from "react";
+import type { Control } from "react-hook-form";
 import { FormattedNumber } from "react-intl";
 import { CustomTooltip, FormField, FormInput, Popup } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useSdlDenoms } from "@src/hooks/useDenom";
-import { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, toReadableDenom, uaktToAKT } from "@src/utils/priceUtils";
 import { PriceValue } from "../shared/PriceValue";
 import { USDLabel } from "../shared/UsdLabel";
-import { AttributesFormControl, AttributesRefType } from "./AttributesFormControl";
+import type { AttributesRefType } from "./AttributesFormControl";
+import { AttributesFormControl } from "./AttributesFormControl";
 import { FormPaper } from "./FormPaper";
-import { SignedByFormControl, SignedByRefType } from "./SignedByFormControl";
+import type { SignedByRefType } from "./SignedByFormControl";
+import { SignedByFormControl } from "./SignedByFormControl";
 
 type Props = {
   serviceIndex: number;

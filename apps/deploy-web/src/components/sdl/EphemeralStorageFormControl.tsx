@@ -1,6 +1,7 @@
 "use client";
-import { ReactNode } from "react";
-import { Control, Controller } from "react-hook-form";
+import type { ReactNode } from "react";
+import type { Control, UseFieldArrayAppend } from "react-hook-form";
+import { Controller } from "react-hook-form";
 import { MdStorage } from "react-icons/md";
 import {
   CustomTooltip,
@@ -18,21 +19,24 @@ import {
 } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
-import { RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
+import type { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { storageUnits } from "@src/utils/akash/units";
+import { AddStorageButton } from "./AddStorageButton";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
+  services: ServiceType[];
   serviceIndex: number;
   children?: ReactNode;
   control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
+  appendStorage: UseFieldArrayAppend<SdlBuilderFormValuesType | RentGpusFormValuesType, `services.${number}.profile.storage`>;
 };
 
-export const StorageFormControl: React.FunctionComponent<Props> = ({ control, serviceIndex }) => {
+export const EphemeralStorageFormControl: React.FunctionComponent<Props> = ({ control, services, serviceIndex, appendStorage }) => {
   return (
     <FormField
       control={control}
-      name={`services.${serviceIndex}.profile.storage`}
+      name={`services.${serviceIndex}.profile.storage.0.size`}
       render={({ field, fieldState }) => (
         <FormPaper>
           <FormItem>
@@ -75,7 +79,7 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
 
                 <Controller
                   control={control}
-                  name={`services.${serviceIndex}.profile.storageUnit`}
+                  name={`services.${serviceIndex}.profile.storage.0.unit`}
                   defaultValue=""
                   render={({ field }) => (
                     <Select value={field.value?.toLowerCase() || ""} onValueChange={field.onChange}>
@@ -106,12 +110,13 @@ export const StorageFormControl: React.FunctionComponent<Props> = ({ control, se
               step={1}
               color="secondary"
               aria-label="Storage"
-              onValueChange={newValue => field.onChange(newValue)}
+              onValueChange={newValue => field.onChange(newValue[0])}
               className="pt-2"
             />
 
             <FormMessage />
           </FormItem>
+          <AddStorageButton services={services} serviceIndex={serviceIndex} control={control} storageIndex={0} appendStorage={appendStorage} />
         </FormPaper>
       )}
     />

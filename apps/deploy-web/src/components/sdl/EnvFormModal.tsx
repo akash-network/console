@@ -1,13 +1,15 @@
 "use client";
-import { ReactNode, useEffect } from "react";
-import { Control, Controller, useFieldArray } from "react-hook-form";
+import type { ReactNode } from "react";
+import { useEffect } from "react";
+import type { Control } from "react-hook-form";
+import { Controller, useFieldArray } from "react-hook-form";
 import { Button, CustomNoDivTooltip, FormField, FormInput, Popup, Switch } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Bin } from "iconoir-react";
 import { nanoid } from "nanoid";
 
 import { protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
-import { EnvironmentVariableType, RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
+import type { EnvironmentVariableType, RentGpusFormValuesType, SdlBuilderFormValuesType } from "@src/types";
 import { FormPaper } from "./FormPaper";
 
 type Props = {

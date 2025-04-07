@@ -1,9 +1,9 @@
 import axios from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { BitBucketCommit } from "@src/types/remoteCommits";
-import { BitProfile } from "@src/types/remoteProfile";
-import { BitRepository, BitWorkspace } from "@src/types/remoteRepos";
+import type { BitBucketCommit } from "@src/types/remoteCommits";
+import type { BitProfile } from "@src/types/remoteProfile";
+import type { BitRepository, BitWorkspace } from "@src/types/remoteRepos";
 
 const BITBUCKET_API_URL = "https://api.bitbucket.org/2.0";
 

@@ -5,9 +5,9 @@ import { Drawer, DrawerContent } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { useAtom } from "jotai";
 
-import { ServerForm } from "@src/components/become-provider/ServerForm";
+import { ServerForm } from "@src/components/become-provider/ServerForm"; // eslint-disable-line import-x/no-cycle
 import controlMachineStore from "@src/store/controlMachineStore";
-import { ControlMachineWithAddress } from "@src/types/controlMachine";
+import type { ControlMachineWithAddress } from "@src/types/controlMachine";
 import restClient from "@src/utils/restClient";
 import { useWallet } from "../WalletProvider";
 

@@ -1,4 +1,5 @@
-import React, { FC, useMemo } from "react";
+import type { FC } from "react";
+import React, { useMemo } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import isAfter from "date-fns/isAfter";
 import parseISO from "date-fns/parseISO";
@@ -9,7 +10,7 @@ import { useSnackbar } from "notistack";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useWhen } from "@src/hooks/useWhen";
-import { useAllowancesGranted } from "@src/queries/useGrantsQuery";
+import { useAllowancesGranted } from "@src/queries/useGrantsQuery"; // eslint-disable-line import-x/no-cycle
 
 const persisted: Record<string, string[]> = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("fee-granters") || "{}") : {};
 

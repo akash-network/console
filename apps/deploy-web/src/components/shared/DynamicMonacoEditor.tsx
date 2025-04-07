@@ -1,5 +1,5 @@
 "use client";
-import { OnChange, OnMount } from "@monaco-editor/react";
+import type { OnChange, OnMount } from "@monaco-editor/react";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 

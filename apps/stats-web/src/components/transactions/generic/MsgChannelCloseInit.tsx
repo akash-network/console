@@ -1,7 +1,7 @@
 "use client";
 import { DynamicReactJson } from "../../DynamicJsonView";
 
-import { TransactionMessage } from "@/types";
+import type { TransactionMessage } from "@/types";
 
 type TxMessageProps = {
   message: TransactionMessage;

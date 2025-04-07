@@ -1,6 +1,7 @@
 import { faker } from "@faker-js/faker";
 
-import { Amplitude, AnalyticsOptions, AnalyticsService, GoogleAnalytics, HashFn } from "./analytics.service";
+import type { Amplitude, AnalyticsOptions, GoogleAnalytics, HashFn } from "./analytics.service";
+import { AnalyticsService } from "./analytics.service";
 
 type Mocked<T> = {
   [K in keyof T]?: jest.Mock;

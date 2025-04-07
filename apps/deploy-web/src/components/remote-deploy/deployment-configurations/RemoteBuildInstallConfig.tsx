@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { UseFormSetValue } from "react-hook-form";
+import type { UseFormSetValue } from "react-hook-form";
 import { Card, CardContent, Checkbox, Collapsible, CollapsibleContent, CollapsibleTrigger, Label, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown } from "iconoir-react";
 
 import { CURRENT_SERVICE, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
 import { EnvVarUpdater } from "@src/services/remote-deploy/remote-deployment-controller.service";
-import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import BoxTextInput from "../BoxTextInput";
 
 const RemoteBuildInstallConfig = ({ services, setValue }: { services: ServiceType[]; setValue: UseFormSetValue<SdlBuilderFormValuesType> }) => {

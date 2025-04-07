@@ -1,9 +1,10 @@
 "use client";
-import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { Alert, AlertDescription, Button, CustomTooltip, FileButton, Input, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { EncodeObject } from "@cosmjs/proto-signing";
+import type { EncodeObject } from "@cosmjs/proto-signing";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { ArrowRight, InfoCircle, Upload } from "iconoir-react";
@@ -23,7 +24,7 @@ import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useDepositParams } from "@src/queries/useSettings";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
-import { TemplateCreation } from "@src/types";
+import type { TemplateCreation } from "@src/types";
 import type { DepositParams } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
@@ -42,7 +43,8 @@ import { DynamicMonacoEditor } from "../shared/DynamicMonacoEditor";
 import { LinkTo } from "../shared/LinkTo";
 import { PrerequisiteList } from "../shared/PrerequisiteList";
 import ViewPanel from "../shared/ViewPanel";
-import { SdlBuilder, SdlBuilderRefType } from "./SdlBuilder";
+import type { SdlBuilderRefType } from "./SdlBuilder";
+import { SdlBuilder } from "./SdlBuilder";
 
 const TRIAL_DEPLOYMENT_LIMIT = 5;
 
@@ -233,7 +235,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         return;
       }
 
-      if (isTrialing) {
+      if (isTrialing && !isOnboarding) {
         sdl = appendTrialAttribute(sdl, TRIAL_ATTRIBUTE);
       } else if (isOnboarding) {
         sdl = appendTrialAttribute(sdl, TRIAL_REGISTERED_ATTRIBUTE);

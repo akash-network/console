@@ -7,7 +7,7 @@ import Link from "next/link";
 import { AKTAmount } from "@/components/AKTAmount";
 import { getShortText } from "@/hooks/useShortText";
 import { UrlService } from "@/lib/urlUtils";
-import { IRedelegationDetail } from "@/types";
+import type { IRedelegationDetail } from "@/types";
 
 type Props = {
   redelegations: IRedelegationDetail[];

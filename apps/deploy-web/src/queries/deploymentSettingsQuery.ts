@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { FindDeploymentSettingParams } from "@akashnetwork/http-sdk";
+import type { FindDeploymentSettingParams } from "@akashnetwork/http-sdk";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { millisecondsInMinute } from "date-fns/constants";

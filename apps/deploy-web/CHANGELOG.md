@@ -1,5 +1,26 @@
 
 
+## [2.66.1](https://github.com/akash-network/console/compare/console-web/v2.66.0...console-web/v2.66.1) (2025-04-07)
+
+
+### Bug Fixes
+
+* **release:** points to a sub-path for the api and provider proxy in beta ([eaef0f4](https://github.com/akash-network/console/commit/eaef0f4415f976f18079bd9b7a81256b7f0f2867))
+
+## [2.66.0](https://github.com/akash-network/console/compare/console-web/v2.65.1...console-web/v2.66.0) (2025-04-02)
+
+
+### Features
+
+* dynamic amount of storages ([411aa68](https://github.com/akash-network/console/commit/411aa68273926d51eec4511929e17e09baae4b7a)), closes [#175](https://github.com/akash-network/console/issues/175)
+
+## [2.65.1](https://github.com/akash-network/console/compare/console-web/v2.65.0...console-web/v2.65.1) (2025-04-01)
+
+
+### Bug Fixes
+
+* **deployment:** append trial attribute for anon only ([#1155](https://github.com/akash-network/console/issues/1155)) ([814e154](https://github.com/akash-network/console/commit/814e154a4bcaaea74507a87a3af3c9a628154835))
+
 ## [2.65.0](https://github.com/akash-network/console/compare/console-web/v2.64.0...console-web/v2.65.0) (2025-03-31)
 
 

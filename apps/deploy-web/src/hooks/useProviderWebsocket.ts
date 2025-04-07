@@ -1,11 +1,12 @@
 import { useEffect } from "react";
-import useWebSocket, { Options as WebsocketOptions } from "react-use-websocket";
+import type { Options as WebsocketOptions } from "react-use-websocket";
+import useWebSocket from "react-use-websocket";
 import type { WebSocketHook as LibWebSocketHook } from "react-use-websocket/dist/lib/types";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import networkStore from "@src/store/networkStore";
-import { ApiProviderList } from "@src/types/provider";
+import type { ApiProviderList } from "@src/types/provider";
 
 // @see https://www.rfc-editor.org/rfc/rfc6455.html#page-46
 const WS_ERRORS = {

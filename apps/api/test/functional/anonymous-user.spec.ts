@@ -1,5 +1,5 @@
 import { app } from "@src/app";
-import { AnonymousUserResponseOutput } from "@src/user/schemas/user.schema";
+import type { AnonymousUserResponseOutput } from "@src/user/schemas/user.schema";
 
 describe("Users", () => {
   let user: AnonymousUserResponseOutput["data"];

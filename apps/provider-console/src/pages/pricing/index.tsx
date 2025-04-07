@@ -7,8 +7,8 @@ import { ControlMachineError } from "@src/components/shared/ControlMachineError"
 import { withAuth } from "@src/components/shared/withAuth";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useProvider } from "@src/context/ProviderContext";
-import { ProviderPricingType } from "@src/types/provider";
-import { ProviderPricingResponse } from "@src/types/providerPricing";
+import type { ProviderPricingType } from "@src/types/provider";
+import type { ProviderPricingResponse } from "@src/types/providerPricing";
 import restClient from "@src/utils/restClient";
 import { convertFromPricingAPI, sanitizeMachineAccess } from "@src/utils/sanityUtils";
 

@@ -1,12 +1,11 @@
 import { atomWithStorage } from "jotai/utils";
 
-import { ControlMachineWithAddress } from "@src/types/controlMachine";
-
+import type { ControlMachineWithAddress } from "@src/types/controlMachine";
 
 const controlMachineAtom = atomWithStorage<ControlMachineWithAddress[]>("controlMachines", []);
 
 const controlMachineStore = {
-  controlMachineAtom,
+  controlMachineAtom
 };
 
 export default controlMachineStore;

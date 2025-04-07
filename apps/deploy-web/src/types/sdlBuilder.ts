@@ -1,3 +1,4 @@
+import type { IssueData } from "zod";
 import { z } from "zod";
 
 import { memoryUnits, storageUnits, validationConfig } from "@src/utils/akash/units";
@@ -15,7 +16,10 @@ export const ProfileGpuModelSchema = z.object({
   interface: z.string().optional()
 });
 
-export const ServicePersistentStorageSchema = z.object({
+export const ServiceStorageSchema = z.object({
+  size: z.number().min(1, { message: "Storage is required." }).default(1),
+  unit: z.string().min(1, { message: "Storage unit is required." }).default("Gi"),
+  isPersistent: z.boolean().optional().default(false),
   name: z
     .string()
     .regex(/^[a-z0-9-]+$/, { message: "Invalid storage name. It must only be lower case letters, numbers and dashes." })
@@ -29,7 +33,7 @@ export const ServicePersistentStorageSchema = z.object({
     .regex(/^\/.*$/, { message: "Mount must be an absolute path." })
     .optional()
     .or(z.literal("")),
-  readOnly: z.boolean().optional()
+  isReadOnly: z.boolean().optional()
 });
 
 export const CommandSchema = z.object({
@@ -74,11 +78,13 @@ export const SignedBySchema = z.object({
   value: z.string().min(1, { message: "Value is required." })
 });
 
-export const CredentialsSchema = z.object({
-  host: z.enum(['docker.io', 'ghcr.io']).default('docker.io'),
-  username: z.string(),
-  password: z.string(),
-}).optional();
+export const CredentialsSchema = z
+  .object({
+    host: z.enum(["docker.io", "ghcr.io"]).default("docker.io"),
+    username: z.string(),
+    password: z.string()
+  })
+  .optional();
 
 export const ProfileSchema = z
   .object({
@@ -88,44 +94,60 @@ export const ProfileSchema = z
     gpuModels: z.array(ProfileGpuModelSchema).optional(),
     ram: z.number().min(1, { message: "RAM is required." }),
     ramUnit: z.string().min(1, { message: "RAM unit is required." }),
-    storage: z.number().min(1, { message: "Storage is required." }),
-    storageUnit: z.string().min(1, { message: "Storage unit is required." }),
-    hasPersistentStorage: z.boolean().optional(),
-    persistentStorage: z.number({ invalid_type_error: "Persistent storage amount is required." }).optional(),
-    persistentStorageUnit: z.string().optional(),
-    persistentStorageParam: ServicePersistentStorageSchema.optional()
+    storage: z.array(ServiceStorageSchema).min(1, { message: "Storage is required." })
   })
   .superRefine((data, ctx) => {
+    const customIssues: IssueData[] = [];
+
     if (data.hasGpu && !data.gpu) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Gpu amount is required.", path: ["gpu"], fatal: true });
-      return z.NEVER;
+      customIssues.push({ code: z.ZodIssueCode.custom, message: "Gpu amount is required.", path: ["gpu"], fatal: true });
     }
 
-    if (data.hasPersistentStorage) {
-      if (!data.persistentStorage || data.persistentStorage < 1) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Persistent storage amount is required", path: ["persistentStorage"], fatal: true });
-        return z.NEVER;
-      }
+    if (data.storage.length > 1) {
+      const names = data.storage.map(storage => storage.name);
+      const mounts = data.storage.map(storage => storage.mount);
 
-      if (!data.persistentStorageUnit) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Persistent storage unit is required", path: ["persistentStorageUnit"], fatal: true });
-        return z.NEVER;
-      }
+      data.storage.map((storage, index) => {
+        if (index === 0) {
+          return;
+        }
 
-      if (!data.persistentStorageParam?.name) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Persistent storage name is required", path: ["persistentStorageParam", "name"], fatal: true });
-        return z.NEVER;
-      }
+        if (!storage.size || storage.size < 1) {
+          customIssues.push({ code: z.ZodIssueCode.custom, message: "Storage amount is required", path: ["storage", index, "size"], fatal: true });
+        }
 
-      if (!data.persistentStorageParam?.type) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Persistent storage type is required", path: ["persistentStorageParam", "type"], fatal: true });
-        return z.NEVER;
-      }
+        if (!storage.unit) {
+          customIssues.push({ code: z.ZodIssueCode.custom, message: "Storage unit is required", path: ["storage", index, "unit"], fatal: true });
+        }
 
-      if (!data.persistentStorageParam?.mount) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Persistent storage mount is required", path: ["persistentStorageParam", "mount"], fatal: true });
-        return z.NEVER;
-      }
+        if (!storage.name) {
+          customIssues.push({ code: z.ZodIssueCode.custom, message: "Storage name is required", path: ["storage", index, "name"], fatal: true });
+        }
+
+        if (!storage.type) {
+          customIssues.push({ code: z.ZodIssueCode.custom, message: "Storage type is required", path: ["storage", index, "type"], fatal: true });
+        }
+
+        if (!storage.mount) {
+          customIssues.push({ code: z.ZodIssueCode.custom, message: "Storage mount is required", path: ["storage", index, "mount"], fatal: true });
+        }
+
+        if (names.slice(0, index).includes(storage.name)) {
+          customIssues.push({ code: z.ZodIssueCode.custom, message: "Storage name must be unique", path: ["storage", index, "name"], fatal: true });
+        }
+
+        if (mounts.slice(0, index).includes(storage.mount)) {
+          customIssues.push({ code: z.ZodIssueCode.custom, message: "Storage mount must be unique", path: ["storage", index, "mount"], fatal: true });
+        }
+      });
+    }
+
+    if (customIssues.length) {
+      customIssues.forEach(issue => {
+        ctx.addIssue(issue);
+      });
+
+      return z.NEVER;
     }
   });
 
@@ -314,7 +336,7 @@ export const ServiceSchema = z
   .superRefine((data, ctx) => {
     validateCpuAmount(data.profile.cpu, data.count, ctx);
     validateMemoryAmount(data.profile.ram, data.profile.ramUnit, data.count, ctx);
-    validateStorageAmount(data.profile.storage, data.profile.storageUnit, data.count, ctx);
+    validateStorageAmount(data.profile.storage[0].size, data.profile.storage[0].unit, data.count, ctx);
     if (data.profile.hasGpu) {
       validateGpuAmount(data.profile.gpu as number, data.count, ctx);
     }
@@ -392,7 +414,7 @@ export const RentGpusFormValuesSchema = z.object({
 export type ServiceType = z.infer<typeof ServiceSchema>;
 export type SdlBuilderFormValuesType = z.infer<typeof SdlBuilderFormValuesSchema>;
 export type ProfileGpuModelType = z.infer<typeof ProfileGpuModelSchema>;
-export type ServicePersistentStorageType = z.infer<typeof ServicePersistentStorageSchema>;
+export type ServiceStorageType = z.infer<typeof ServiceStorageSchema>;
 export type CommandType = z.infer<typeof CommandSchema>;
 export type EnvironmentVariableType = z.infer<typeof EnvironmentVariableSchema>;
 export type ToType = z.infer<typeof ToSchema>;

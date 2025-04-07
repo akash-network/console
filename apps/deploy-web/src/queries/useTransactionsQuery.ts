@@ -1,8 +1,9 @@
-import { QueryKey, useQuery, UseQueryOptions } from "react-query";
+import type { QueryKey, UseQueryOptions } from "react-query";
+import { useQuery } from "react-query";
 import axios from "axios";
 
-import { PaginatedResults, TransactionDetail } from "@src/types";
-import { DeploymentSummary } from "@src/types/deployment";
+import type { PaginatedResults, TransactionDetail } from "@src/types";
+import type { DeploymentSummary } from "@src/types/deployment";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { removeEmptyFilters } from "@src/utils/urlUtils";
 import { QueryKeys } from "./queryKeys";

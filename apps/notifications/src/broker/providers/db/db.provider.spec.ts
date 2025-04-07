@@ -1,5 +1,5 @@
 import { mock } from 'jest-mock-extended';
-import { Client } from 'pg';
+import type { Client } from 'pg';
 
 import { createPgClientFactory } from './db.provider';
 

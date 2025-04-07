@@ -1,10 +1,11 @@
-import { QueryKey, useQuery, UseQueryOptions } from "react-query";
-import { AxiosStatic } from "axios";
+import type { QueryKey, UseQueryOptions } from "react-query";
+import { useQuery } from "react-query";
+import type { AxiosStatic } from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
-import { DeploymentDto, LeaseDto, RpcLease } from "@src/types/deployment";
-import { ApiProviderList } from "@src/types/provider";
+import type { DeploymentDto, LeaseDto, RpcLease } from "@src/types/deployment";
+import type { ApiProviderList } from "@src/types/provider";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { useCertificate } from "../context/CertificateProvider";

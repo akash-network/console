@@ -1,6 +1,6 @@
 import yaml from "js-yaml";
 
-import { ExposeType, ProfileGpuModelType, ServiceType } from "@src/types";
+import type { ExposeType, ProfileGpuModelType, ServiceType } from "@src/types";
 import { defaultHttpOptions } from "./data";
 
 export const buildCommand = (command: string) => {
@@ -101,7 +101,7 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
         },
         storage: [
           {
-            size: `${service.profile.storage}${service.profile.storageUnit}`
+            size: `${service.profile.storage[0].size}${service.profile.storage[0].unit}`
           }
         ]
       }
@@ -153,23 +153,27 @@ export const generateSdl = (services: ServiceType[], region?: string) => {
     }
 
     // Persistent Storage
-    if (service.profile.hasPersistentStorage) {
+    if (service.profile.storage.length > 1) {
       sdl.services[service.title].params = {
-        storage: {
-          [service.profile.persistentStorageParam?.name as string]: {
-            mount: service.profile.persistentStorageParam?.mount,
-            readOnly: !!service.profile.persistentStorageParam?.readOnly
-          }
-        }
+        storage: {}
       };
 
-      sdl.profiles.compute[service.title].resources.storage.push({
-        name: service.profile.persistentStorageParam?.name,
-        size: `${service.profile.persistentStorage}${service.profile.persistentStorageUnit}`,
-        attributes: {
-          persistent: true,
-          class: service.profile.persistentStorageParam?.type
+      service.profile.storage.slice(1).forEach(storage => {
+        if (storage.name) {
+          sdl.services[service.title].params.storage[storage.name] = {
+            mount: storage.mount,
+            readOnly: !!storage.isReadOnly
+          };
         }
+
+        sdl.profiles.compute[service.title].resources.storage.push({
+          name: storage.name,
+          size: `${storage.size}${storage.unit}`,
+          attributes: {
+            persistent: storage.isPersistent,
+            class: storage.type
+          }
+        });
       });
     }
 

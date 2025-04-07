@@ -14,7 +14,7 @@ import { getSplitText } from "@/hooks/useShortText";
 import { roundDecimal, udenomToDenom } from "@/lib/mathHelpers";
 import { bytesToShrink } from "@/lib/unitUtils";
 import { UrlService } from "@/lib/urlUtils";
-import { DeploymentDetail } from "@/types";
+import type { DeploymentDetail } from "@/types";
 
 interface IProps {
   deployment: DeploymentDetail;

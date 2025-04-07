@@ -1,4 +1,5 @@
-import { getJwks, useKVStore, verify, VerifyRsaJwtEnv } from "./index";
+import type { VerifyRsaJwtEnv } from "./index";
+import { getJwks, useKVStore, verify } from "./index";
 
 export default {
   async fetch(request: Request, env: VerifyRsaJwtEnv): Promise<Response> {

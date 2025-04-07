@@ -1,7 +1,8 @@
-import React, { Dispatch, SetStateAction, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
+import React, { useState } from "react";
 import { Button, CustomPagination, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 
-import { AllowanceType } from "@src/types/grant";
+import type { AllowanceType } from "@src/types/grant";
 import { LinkTo } from "../shared/LinkTo";
 import { AllowanceIssuedRow } from "./AllowanceIssuedRow";
 

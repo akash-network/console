@@ -1,6 +1,8 @@
-import React, { FC, useCallback, useEffect } from "react";
+import type { FC } from "react";
+import React, { useCallback, useEffect } from "react";
 
-import { AutoTopUpSetting, AutoTopUpSettingProps } from "@src/components/settings/AutoTopUpSetting/AutoTopUpSetting";
+import type { AutoTopUpSettingProps } from "@src/components/settings/AutoTopUpSetting/AutoTopUpSetting";
+import { AutoTopUpSetting } from "@src/components/settings/AutoTopUpSetting/AutoTopUpSetting";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAutoTopUpLimits } from "@src/hooks/useAutoTopUpLimits";
 import { useAutoTopUpService } from "@src/hooks/useAutoTopUpService";

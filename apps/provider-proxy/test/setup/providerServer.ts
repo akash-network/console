@@ -1,10 +1,12 @@
-import { RequestListener } from "http";
-import https, { ServerOptions } from "https";
-import { AddressInfo } from "net";
+import type { RequestListener } from "http";
+import type { ServerOptions } from "https";
+import https from "https";
+import type { AddressInfo } from "net";
 import { setTimeout } from "timers/promises";
 import WebSocket from "ws";
 
-import { CertPair, createX509CertPair } from "../seeders/createX509CertPair";
+import type { CertPair } from "../seeders/createX509CertPair";
+import { createX509CertPair } from "../seeders/createX509CertPair";
 
 let runningServer: https.Server | undefined;
 

@@ -23,7 +23,7 @@ import { z } from "zod";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useGpuPrices } from "@src/queries/useProviderQuery";
 import providerProcessStore from "@src/store/providerProcessStore";
-import { ProviderDetails } from "@src/types/provider";
+import type { ProviderDetails } from "@src/types/provider";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
@@ -337,40 +337,46 @@ export const ProviderPricing: React.FC<ProviderPricingProps> = ({ onComplete, ed
 
   const updateProviderPricingAndProceed = async (data: ProviderPricingValues) => {
     setIsLoading(true);
-    // Convert hourly prices to monthly prices
-    const monthlyPricing = {
-      gpu: Number((data.gpu * HOURS_PER_MONTH).toFixed(4)),
-      cpu: Number((data.cpu * HOURS_PER_MONTH).toFixed(4)),
-      memory: Number((data.memory * HOURS_PER_MONTH).toFixed(4)),
-      storage: Number((data.storage * HOURS_PER_MONTH).toFixed(4)),
-      persistentStorage: Number((data.persistentStorage * HOURS_PER_MONTH).toFixed(4)),
-      ipScalePrice: Number((data.ipScalePrice * HOURS_PER_MONTH).toFixed(4)),
-      endpointBidPrice: Number((data.endpointBidPrice * HOURS_PER_MONTH).toFixed(4))
-    };
-
-    if (!editMode) {
-      setProviderProcess(prev => ({
-        ...prev,
-        pricing: monthlyPricing,
-        process: {
-          ...prev.process,
-          providerPricing: true
-        }
-      }));
-      onComplete && onComplete();
-    } else {
-      const request = {
-        control_machine: sanitizeMachineAccess(activeControlMachine),
-        pricing: monthlyPricing
+    try {
+      // Convert hourly prices to monthly prices
+      const monthlyPricing = {
+        gpu: Number((data.gpu * HOURS_PER_MONTH).toFixed(4)),
+        cpu: Number((data.cpu * HOURS_PER_MONTH).toFixed(4)),
+        memory: Number((data.memory * HOURS_PER_MONTH).toFixed(4)),
+        storage: Number((data.storage * HOURS_PER_MONTH).toFixed(4)),
+        persistentStorage: Number((data.persistentStorage * HOURS_PER_MONTH).toFixed(4)),
+        ipScalePrice: Number((data.ipScalePrice * HOURS_PER_MONTH).toFixed(4)),
+        endpointBidPrice: Number((data.endpointBidPrice * HOURS_PER_MONTH).toFixed(4))
       };
 
-      const response = await restClient.post(`/update-provider-pricing`, request);
-      if (response) {
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 20000);
+      if (!editMode) {
+        setProviderProcess(prev => ({
+          ...prev,
+          pricing: monthlyPricing,
+          process: {
+            ...prev.process,
+            providerPricing: true
+          }
+        }));
+        // Call onComplete after setting the state
+        onComplete?.();
+      } else {
+        const request = {
+          control_machine: sanitizeMachineAccess(activeControlMachine),
+          pricing: monthlyPricing
+        };
+
+        const response = await restClient.post(`/update-provider-pricing`, request);
+        if (response) {
+          setShowSuccess(true);
+          setTimeout(() => setShowSuccess(false), 20000);
+        }
       }
+    } catch (error) {
+      console.error("Error updating provider pricing:", error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (

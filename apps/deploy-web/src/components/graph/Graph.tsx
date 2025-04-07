@@ -6,7 +6,7 @@ import { ResponsiveLineCanvas } from "@nivo/line";
 import { useTheme } from "next-themes";
 
 import { SELECTED_RANGE_VALUES } from "@src/config/graph.config";
-import { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@src/types";
+import type { GraphResponse, ISnapshotMetadata, ProviderSnapshots, Snapshots, SnapshotValue } from "@src/types";
 import { customColors } from "@src/utils/colors";
 import { nFormatter, roundDecimal } from "@src/utils/mathHelpers";
 

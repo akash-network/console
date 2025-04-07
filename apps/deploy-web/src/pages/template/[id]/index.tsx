@@ -4,7 +4,7 @@ import type { GetServerSideProps } from "next";
 
 import { UserTemplate } from "@src/components/templates/UserTemplate";
 import { serverEnvConfig } from "@src/config/server-env.config";
-import { ITemplate } from "@src/types";
+import type { ITemplate } from "@src/types";
 
 type Props = {
   id: string;

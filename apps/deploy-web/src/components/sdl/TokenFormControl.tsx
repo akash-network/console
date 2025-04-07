@@ -1,6 +1,6 @@
 "use client";
-import { ReactElement } from "react";
-import { Control, FieldPathValue, FieldValues, Path } from "react-hook-form";
+import type { ReactElement } from "react";
+import type { Control, FieldPathValue, FieldValues, Path } from "react-hook-form";
 import {
   FormField,
   FormItem,
@@ -15,7 +15,7 @@ import {
 } from "@akashnetwork/ui/components";
 
 import { useSdlDenoms } from "@src/hooks/useDenom";
-import { ServiceType } from "@src/types";
+import type { ServiceType } from "@src/types";
 
 interface ServicesFieldValues extends FieldValues {
   services: ServiceType[];

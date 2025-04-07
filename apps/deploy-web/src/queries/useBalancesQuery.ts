@@ -1,15 +1,16 @@
-import { QueryKey, useQuery, UseQueryOptions } from "react-query";
+import type { QueryKey, UseQueryOptions } from "react-query";
+import { useQuery } from "react-query";
 import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import axios from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { getUsdcDenom } from "@src/hooks/useDenom";
-import { Balances } from "@src/types";
-import { RestApiBalancesResponseType } from "@src/types";
-import { RpcDeployment } from "@src/types/deployment";
+import type { Balances } from "@src/types";
+import type { RestApiBalancesResponseType } from "@src/types";
+import type { RpcDeployment } from "@src/types/deployment";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
-import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
+import { deploymentToDto } from "@src/utils/deploymentDetailUtils"; // eslint-disable-line import-x/no-cycle
 import { useSettings } from "../context/SettingsProvider";
 import { QueryKeys } from "./queryKeys";
 

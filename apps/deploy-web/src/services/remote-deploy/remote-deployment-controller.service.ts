@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 
 export class EnvVarUpdater {
   private services: ServiceType[];

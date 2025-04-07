@@ -1,11 +1,11 @@
 import { AkashBlock as Block } from "@akashnetwork/database/dbSchemas/akash";
 import { Day } from "@akashnetwork/database/dbSchemas/base";
-import { format, subHours } from "date-fns";
+import { isSameDay, subHours } from "date-fns";
 import { Op, QueryTypes } from "sequelize";
 
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
-import { ProviderActiveLeasesStats, ProviderStats, ProviderStatsKey } from "@src/types/graph";
+import type { ProviderActiveLeasesStats, ProviderStats, ProviderStatsKey } from "@src/types/graph";
 import { env } from "@src/utils/env";
 import { getGpuUtilization } from "./gpuBreakdownService";
 
@@ -285,8 +285,15 @@ export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
 const removeLastAroundMidnight = (stats: ProviderStats[]) => {
   const now = new Date();
   const isFirstFifteenMinuesOfDay = now.getHours() === 0 && now.getMinutes() <= 15;
-  const dateToday = format(now, "yyyy-MM-dd");
-  const lastItemIsForToday = stats.length > 0 && stats[stats.length - 1].date.startsWith(dateToday);
+  const lastItem = stats.length > 0 ? stats[stats.length - 1] : null;
+  if (lastItem && typeof lastItem.date !== "string") {
+    console.error(
+      `removeLastAroundMidnight: lastItem.date is not a string: ` +
+        `type = ${typeof lastItem.date} value = ${lastItem.date} constructor = ${(lastItem.date as any)?.constructor?.name}` +
+        JSON.stringify(lastItem)
+    );
+  }
+  const lastItemIsForToday = lastItem && isSameDay(lastItem.date, now);
   if (isFirstFifteenMinuesOfDay && lastItemIsForToday) {
     return stats.slice(0, stats.length - 1);
   }

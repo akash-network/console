@@ -6,11 +6,13 @@ import Link from "next/link";
 
 import { DashboardCardSkeleton } from "@src/components/dashboard/DashboardCardSkeleton";
 import { FinanceCard } from "@src/components/dashboard/FinanceCard";
+import { ProviderHealthCheck } from "@src/components/dashboard/ProviderHealthCheck";
 import { ResourceCards } from "@src/components/dashboard/ResourcesCard";
 import { Layout } from "@src/components/layout/Layout";
 import { ActivityLogList } from "@src/components/shared/ActivityLogList";
 import { Title } from "@src/components/shared/Title";
 import { withAuth } from "@src/components/shared/withAuth";
+import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useProviderActions, useProviderDashboard, useProviderDetails } from "@src/queries/useProviderQuery";
@@ -31,13 +33,73 @@ const OfflineWarningBanner: React.FC = () => (
   </div>
 );
 
+const AuditGuidanceBanner: React.FC = () => (
+  <div className="mb-4 rounded-md border-2 p-4 text-gray-700">
+    <div className="flex flex-col gap-2">
+      <div className="flex items-start">
+        <WarningTriangle className="mr-2 h-5 w-5 text-yellow-500" />
+        <div>
+          <p className="font-semibold">Your provider is not audited yet!</p>
+          <p className="mt-1">Audited providers receive significantly more workloads. Follow these steps to get audited:</p>
+          <ol className="ml-6 list-decimal">
+            <li>Create a separate Keplr wallet for testing (don't use your provider wallet)</li>
+            <li>
+              Test deploy:
+              <ul className="ml-4 mt-1 list-disc">
+                <li>
+                  For CPU-only providers: Deploy{" "}
+                  <Link href="https://console.akash.network/templates/akash-network-awesome-akash-tetris" className="font-medium underline" target="_blank">
+                    Tetris
+                  </Link>{" "}
+                  (remove the "signedBy" field from template)
+                </li>
+                <li>
+                  For GPU providers: Deploy both{" "}
+                  <Link href="https://console.akash.network/templates/akash-network-awesome-akash-tetris" className="font-medium underline" target="_blank">
+                    Tetris
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="https://console.akash.network/templates/akash-network-awesome-akash-comfyui" className="font-medium underline" target="_blank">
+                    ComfyUI
+                  </Link>{" "}
+                  (remove the "signedBy" field from template)
+                </li>
+              </ul>
+            </li>
+            <li>
+              <Link
+                href="https://github.com/akash-network/community/issues/new?template=-provider-audit--template.md"
+                className="font-mediums underline"
+                target="_blank"
+              >
+                Apply for provider audit
+              </Link>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const Dashboard: React.FC = () => {
   const { address } = useSelectedChain();
   const { isOnline, isProviderOnlineStatusFetched } = useWallet();
+  const { activeControlMachine } = useControlMachine();
 
   const { data: providerDetails, isLoading: isLoadingProviderDetails } = useProviderDetails(address);
   const { data: providerDashboard, isLoading: isLoadingProviderDashboard } = useProviderDashboard(address);
   const { data: providerActions, isLoading: isLoadingProviderActions } = useProviderActions();
+
+  // Get the control machine IP from activeControlMachine
+  const controlMachineIp = activeControlMachine?.access?.hostname || "";
+
+  // Get domain from provider details
+  const domain = (() => {
+    if (!providerDetails?.hostUri) return "";
+    const hostMatch = providerDetails.hostUri.match(/provider\.([^:/]+)/);
+    return hostMatch?.[1] || "";
+  })();
 
   const summaryCards = useMemo(
     () => (
@@ -60,7 +122,7 @@ const Dashboard: React.FC = () => {
           title={providerDashboard?.current.activeLeaseCount ? `${providerDashboard?.current.activeLeaseCount}` : "0"}
           subtitle="Active Leases"
           currentPrice={providerDashboard?.current.activeLeaseCount ?? null}
-          previousPrice={providerDashboard?.previous.activeLeaseCount ?? null }
+          previousPrice={providerDashboard?.previous.activeLeaseCount ?? null}
           message="Change in active leases compared to 24 hours ago"
         />
         <FinanceCard
@@ -78,6 +140,10 @@ const Dashboard: React.FC = () => {
   return (
     <Layout isLoading={!isProviderOnlineStatusFetched}>
       {providerDetails && !isOnline && <OfflineWarningBanner />}
+      {/* Add health check warnings for ports and DNS */}
+      {/* Port checks only need provider details, DNS checks need both provider details and control machine */}
+      {(providerDetails || controlMachineIp) && <ProviderHealthCheck providerIp={controlMachineIp} domain={domain} />}
+      {providerDetails && !providerDetails.isAudited && <AuditGuidanceBanner />}
       <div className="flex items-center">
         <div className="w-10 flex-1">
           <Title>Dashboard</Title>

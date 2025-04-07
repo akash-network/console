@@ -1,6 +1,7 @@
 import React, { useCallback } from "react";
 
-import { LocalData, LocalDataManagerComponent } from "./LocalDataManager.component";
+import type { LocalData } from "./LocalDataManager.component";
+import { LocalDataManagerComponent } from "./LocalDataManager.component";
 
 export const LocalDataManagerContainer = () => {
   const importLocalData = useCallback((data: LocalData) => {

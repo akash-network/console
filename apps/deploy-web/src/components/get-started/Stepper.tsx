@@ -1,5 +1,6 @@
 import React from "react";
-import { StepConnector, stepConnectorClasses, StepIconProps, styled } from "@mui/material";
+import type { StepIconProps } from "@mui/material";
+import { StepConnector, stepConnectorClasses, styled } from "@mui/material";
 import { Check } from "iconoir-react";
 
 export const QontoConnector = styled(StepConnector)(({ theme }) => ({

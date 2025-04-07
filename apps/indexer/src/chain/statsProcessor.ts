@@ -1,11 +1,12 @@
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
-import { AkashMessage } from "@akashnetwork/database/dbSchemas/akash";
+import type { AkashMessage } from "@akashnetwork/database/dbSchemas/akash";
 import { Transaction, TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
 import { fromBase64 } from "@cosmjs/encoding";
 import { decodeTxRaw } from "@cosmjs/proto-signing";
 import { sha256 } from "js-sha256";
-import { Op, Transaction as DbTransaction } from "sequelize";
+import type { Transaction as DbTransaction } from "sequelize";
+import { Op } from "sequelize";
 
 import { getCachedBlockByHeight } from "@src/chain/dataStore";
 import { sequelize } from "@src/db/dbConnection";
@@ -13,7 +14,7 @@ import { activeIndexers, indexersMsgTypes } from "@src/indexers";
 import { lastBlockToSync } from "@src/shared/constants";
 import * as benchmark from "@src/shared/utils/benchmark";
 import { decodeMsg } from "@src/shared/utils/protobuf";
-import { setMissingBlock } from "./chainSync";
+import { setMissingBlock } from "./chainSync"; // eslint-disable-line import-x/no-cycle
 import { getGenesis } from "./genesisImporter";
 
 class StatsProcessor {
