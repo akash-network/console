@@ -8,4 +8,9 @@ export const GetBalancesResponseOutputSchema = z.object({
   })
 });
 
+export const GetBalancesQuerySchema = z.object({
+  address: z.string().optional().describe("Optional wallet address to fetch balances for instead of the current user")
+});
+
 export type GetBalancesResponseOutput = z.infer<typeof GetBalancesResponseOutputSchema>;
+export type GetBalancesQuery = z.infer<typeof GetBalancesQuerySchema>;

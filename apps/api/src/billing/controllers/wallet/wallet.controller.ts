@@ -42,16 +42,19 @@ export class WalletController {
     };
   }
 
-  @Protected([{ action: "read", subject: "UserWallet" }])
-  async getBalances(): Promise<GetBalancesResponseOutput> {
-    const { currentUser, ability } = this.authService;
-    const userWallet = await this.userWalletRepository.accessibleBy(ability, "read").findOneByUserId(currentUser.id);
+  async getBalances(address?: string): Promise<GetBalancesResponseOutput> {
+    let currentAddress: string = address;
 
-    assert(userWallet, 404, "UserWallet Not Found");
+    if (!currentAddress) {
+      const { currentUser, ability } = this.authService;
+      const userWallet = await this.userWalletRepository.accessibleBy(ability, "read").findOneByUserId(currentUser.id);
+      assert(userWallet, 404, "UserWallet Not Found");
+      currentAddress = userWallet.address;
+    }
 
     const [balanceData, deploymentEscrowBalance] = await Promise.all([
-      this.balancesService.getFreshLimits({ address: userWallet.address }),
-      this.balancesService.calculateDeploymentEscrowBalance(userWallet.address)
+      this.balancesService.getFreshLimits({ address: currentAddress }),
+      this.balancesService.calculateDeploymentEscrowBalance(currentAddress)
     ]);
 
     return {
