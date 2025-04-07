@@ -1,5 +1,12 @@
 
 
+## [2.66.1](https://github.com/akash-network/console/compare/console-web/v2.66.0...console-web/v2.66.1) (2025-04-07)
+
+
+### Bug Fixes
+
+* **release:** points to a sub-path for the api and provider proxy in beta ([eaef0f4](https://github.com/akash-network/console/commit/eaef0f4415f976f18079bd9b7a81256b7f0f2867))
+
 ## [2.66.0](https://github.com/akash-network/console/compare/console-web/v2.65.1...console-web/v2.66.0) (2025-04-02)
 
 
