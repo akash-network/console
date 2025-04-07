@@ -1,8 +1,9 @@
 import type { AxiosRequestConfig } from "axios";
 
 import { HttpService } from "../http/http.service";
+import { loadWithPagination } from "../utils/pagination.utils";
 
-type DeploymentInfo = {
+export type DeploymentInfo = {
   deployment: {
     deployment_id: {
       owner: string;
@@ -108,17 +109,72 @@ type RestAkashDeploymentInfoResponse =
     }
   | DeploymentInfo;
 
+type DeploymentListResponse = {
+  deployments: DeploymentInfo[];
+  pagination: {
+    next_key: string | null;
+    total: string;
+  };
+};
+
+type DeploymentListParams = {
+  owner: string;
+  state?: string;
+  "pagination.limit"?: number;
+  "pagination.offset"?: number;
+  "pagination.key"?: string;
+};
+
 export class DeploymentHttpService extends HttpService {
   constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
     super(config);
   }
 
   public async findByOwnerAndDseq(owner: string, dseq: string): Promise<RestAkashDeploymentInfoResponse> {
-    return this.extractData(await this.get<RestAkashDeploymentInfoResponse>('/akash/deployment/v1beta3/deployments/info', {
-      params: {
-        "id.owner": owner,
-        "id.dseq": dseq,
-      },
-    }));
+    return this.extractData(
+      await this.get<RestAkashDeploymentInfoResponse>("/akash/deployment/v1beta3/deployments/info", {
+        params: {
+          "id.owner": owner,
+          "id.dseq": dseq
+        }
+      })
+    );
+  }
+
+  public async listDeployments(params: DeploymentListParams): Promise<DeploymentListResponse> {
+    return this.extractData(
+      await this.get<DeploymentListResponse>("/akash/deployment/v1beta3/deployments", {
+        params
+      })
+    );
+  }
+
+  public async listDeploymentsWithPagination(owner: string, state?: string, limit: number = 100, key?: string): Promise<DeploymentListResponse> {
+    const params: DeploymentListParams = {
+      owner,
+      "pagination.limit": limit
+    };
+
+    if (state) {
+      params.state = state;
+    }
+
+    if (key) {
+      params["pagination.key"] = key;
+    }
+
+    return this.listDeployments(params);
+  }
+
+  /**
+   * Load all deployments for an owner with pagination
+   * @param owner Owner address
+   * @param state Optional state filter
+   * @param limit Number of items per page
+   * @returns Array of all deployments
+   */
+  public async loadAllDeployments(owner: string, state?: string, limit: number = 1000): Promise<DeploymentInfo[]> {
+    const baseUrl = `/akash/deployment/v1beta3/deployments?filters.owner=${owner}${state ? `&filters.state=${state}` : ""}`;
+    return loadWithPagination<DeploymentInfo>(baseUrl, "deployments", limit, this);
   }
 }
