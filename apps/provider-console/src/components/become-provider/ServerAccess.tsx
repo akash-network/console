@@ -154,7 +154,7 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
           </div>
         </div>
       ) : (
-        <ServerForm key={currentServer} currentServerNumber={currentServer} onComplete={handleServerFormSubmit} {...getCurrentServerType(currentServer)} />
+        <ServerForm key={currentServer} _currentServerNumber={currentServer} onComplete={handleServerFormSubmit} {...getCurrentServerType(currentServer)} />
       )}
 
       <Popup

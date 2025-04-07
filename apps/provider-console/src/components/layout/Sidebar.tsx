@@ -83,6 +83,13 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
           disabled: false
         },
         {
+          title: "Node Management",
+          icon: props => <Settings {...props} />,
+          url: UrlService.nodes(),
+          activeRoutes: [UrlService.nodes()],
+          disabled: false
+        },
+        {
           title: "Settings",
           icon: props => <Settings {...props} />,
           url: UrlService.settings(),

@@ -110,7 +110,7 @@ export function ControlMachineProvider({ children }: Props) {
           </DrawerTrigger> */}
           <DrawerContent className="z-[200] flex items-center">
             <div className={cn("mb-10 flex max-w-[500px] justify-center")}>
-              <ServerForm currentServerNumber={0} onComplete={() => {}} editMode={true} controlMachine={activeControlMachine} />
+              <ServerForm _currentServerNumber={0} onComplete={() => {}} editMode={true} controlMachine={activeControlMachine} />
             </div>
           </DrawerContent>
         </Drawer>
