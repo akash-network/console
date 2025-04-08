@@ -1,2 +1,3 @@
 chain: sandbox
-hostName: console-api-sandbox.akash.network
+hostNames:
+  - console-api-sandbox.akash.network
