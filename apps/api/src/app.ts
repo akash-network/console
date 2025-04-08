@@ -4,6 +4,7 @@ import "reflect-metadata";
 import { LoggerService } from "@akashnetwork/logging";
 import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
 import { serve } from "@hono/node-server";
+import { otel } from "@hono/otel";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { container } from "tsyringe";
@@ -37,6 +38,7 @@ import { sendVerificationEmailRouter } from "./auth";
 import { checkoutRouter, getWalletListRouter, signAndBroadcastTxRouter, startTrialRouter, stripePricesRouter, stripeWebhook } from "./billing";
 import { Scheduler } from "./scheduler";
 import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
+
 const appHono = new Hono();
 appHono.use(
   "/*",
@@ -47,6 +49,7 @@ appHono.use(
     exposeHeaders: ["cf-mitigated"]
   })
 );
+appHono.use("*", otel());
 
 const { PORT = 3080 } = process.env;
 
