@@ -189,9 +189,7 @@ export class AnalyticsService {
       this.isAmplitudeEnabled = this.shouldSampleUser(user.id);
 
       if (this.isAmplitudeEnabled) {
-        this.amplitude.init(this.options.amplitude.apiKey, {
-          serverUrl: "/api/analytics"
-        });
+        this.amplitude.init(this.options.amplitude.apiKey);
       }
     }
   }
