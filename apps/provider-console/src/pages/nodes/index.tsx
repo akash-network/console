@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Button, Spinner } from "@akashnetwork/ui/components";
+import { useToast } from "@akashnetwork/ui/hooks";
 import { Plus } from "iconoir-react";
 
 import { Layout } from "@src/components/layout/Layout";
@@ -10,16 +11,45 @@ import { Title } from "@src/components/shared/Title";
 // import { withAuth } from "@src/components/shared/withAuth"; // Assuming auth is needed
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useKubeNodesQuery } from "@src/queries/useKubeNodesQuery";
+import { useRemoveNodeMutation } from "@src/queries/useRemoveNodeMutation";
+import type { ControlMachineWithAddress } from "@src/types/controlMachine";
+import type { KubeNode } from "@src/types/kubeNode";
 
 const NodesPage: React.FunctionComponent = () => {
+  const { toast } = useToast();
   const { activeControlMachine, controlMachineLoading } = useControlMachine();
   const { data: kubeNodesResponse, isLoading, error, refetch } = useKubeNodesQuery();
+  const removeNodeMutation = useRemoveNodeMutation();
   const [isAddNodeModalOpen, setIsAddNodeModalOpen] = useState(false);
 
   const nodes = kubeNodesResponse?.nodes || [];
 
   const handleAddNodeClick = () => {
     setIsAddNodeModalOpen(true);
+  };
+
+  const handleRemoveNode = async (node: KubeNode, controlMachine: ControlMachineWithAddress) => {
+    try {
+      await removeNodeMutation.mutateAsync({
+        node,
+        controlMachine
+      });
+
+      toast({
+        variant: "default",
+        title: "Node removal initiated",
+        description: `Node ${node.name} is being removed from the cluster.`
+      });
+
+      // If we have an action_id, the mutation will handle the redirect in onSuccess
+      // This toast is still useful for users to see even if they'll be redirected
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to remove node",
+        description: "There was a problem removing the node. Please try again."
+      });
+    }
   };
 
   return (
@@ -58,7 +88,14 @@ const NodesPage: React.FunctionComponent = () => {
         </div>
       )}
 
-      {!controlMachineLoading && activeControlMachine && !isLoading && !error && <NodeListTable nodes={nodes} />}
+      {!controlMachineLoading && activeControlMachine && !isLoading && !error && (
+        <NodeListTable
+          nodes={nodes}
+          onRemoveNode={handleRemoveNode}
+          activeControlMachine={activeControlMachine}
+          isNodeRemovalLoading={removeNodeMutation.isPending}
+        />
+      )}
 
       <AddNodeModal isOpen={isAddNodeModalOpen} onClose={() => setIsAddNodeModalOpen(false)} existingNodes={nodes} />
     </Layout>

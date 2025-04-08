@@ -16,7 +16,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { PcWarning } from "iconoir-react";
 
 import { Title } from "@src/components/shared/Title";
-import { KubeNode } from "@src/types/kubeNode";
+import type { KubeNode } from "@src/types/kubeNode";
 import { NodeServerForm } from "./NodeServerForm";
 
 interface AddNodeModalProps {

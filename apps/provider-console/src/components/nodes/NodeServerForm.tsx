@@ -2,12 +2,13 @@ import React, { useCallback, useState } from "react";
 import { Separator, Spinner } from "@akashnetwork/ui/components";
 import { useToast } from "@akashnetwork/ui/hooks";
 
-import { MachineAccess } from "@src/components/machine/MachineAccessForm";
+import type { MachineAccess } from "@src/components/machine/MachineAccessForm";
 import { NodeTypeSelector } from "@src/components/shared/NodeTypeSelector";
-import { NodeConfig, ProgressSidebar } from "@src/components/shared/ProgressSidebar";
+import type { NodeConfig } from "@src/components/shared/ProgressSidebar";
+import { ProgressSidebar } from "@src/components/shared/ProgressSidebar";
 import { useAddNodeMutation } from "@src/queries/useAddNodeMutation";
-import { KubeNode } from "@src/types/kubeNode";
-import { SystemInfo } from "@src/types/systemInfo";
+import type { KubeNode } from "@src/types/kubeNode";
+import type { SystemInfo } from "@src/types/systemInfo";
 import { calculateNodeDistribution, isValidControlPlaneCount } from "@src/utils/nodeDistribution";
 import { NodeForm } from "./NodeForm";
 

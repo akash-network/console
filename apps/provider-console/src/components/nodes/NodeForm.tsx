@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@akashnetwork/ui/components";
 
-import { MachineAccess, MachineAccessForm } from "@src/components/machine/MachineAccessForm";
+import type { MachineAccess } from "@src/components/machine/MachineAccessForm";
+import { MachineAccessForm } from "@src/components/machine/MachineAccessForm";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useMachineAccessForm } from "@src/hooks/useMachineAccessForm";
-import { SystemInfo } from "@src/types/systemInfo";
+import type { SystemInfo } from "@src/types/systemInfo";
 
 interface NodeInfo {
   access: MachineAccess;

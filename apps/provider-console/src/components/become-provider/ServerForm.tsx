@@ -35,8 +35,28 @@ export const ServerForm: React.FC<ServerFormProps> = ({
   const { setControlMachine } = useControlMachine();
   const { address } = useWallet();
 
+  // Get the first server's details to use as the control machine for worker nodes
+  const firstServerAccess = providerProcess?.machines?.[0]?.access;
+
   // Use shared machine access form logic
-  const { isVerifying, error, verifyMachine } = useMachineAccessForm();
+  // For first server (_currentServerNumber === 0): verify as control machine
+  // For subsequent servers (_currentServerNumber > 0): verify as worker node using the first server as control machine
+  const { isVerifying, error, verifyMachine } = useMachineAccessForm({
+    // Only pass controlMachine for subsequent servers
+    controlMachine:
+      _currentServerNumber > 0 && firstServerAccess
+        ? {
+            hostname: firstServerAccess.hostname,
+            port: firstServerAccess.port,
+            username: firstServerAccess.username,
+            password: firstServerAccess.password || undefined,
+            keyfile: firstServerAccess.keyfile || undefined,
+            file: firstServerAccess.file || undefined,
+            passphrase: firstServerAccess.passphrase || undefined
+          }
+        : null,
+    isControlPlane: Boolean(isControlPlane)
+  });
 
   const getDefaultValues = (): Partial<MachineAccess> => {
     if (defaultValues) {
@@ -73,7 +93,9 @@ export const ServerForm: React.FC<ServerFormProps> = ({
 
   const handleSubmit = async (formData: MachineAccess) => {
     try {
-      // Use the shared verification logic
+      console.log(`Verifying server ${_currentServerNumber + 1} ${_currentServerNumber === 0 ? "as control machine" : "as worker node"}`);
+
+      // Use the shared verification logic based on server number
       const result = await verifyMachine(formData);
 
       if (!result) {

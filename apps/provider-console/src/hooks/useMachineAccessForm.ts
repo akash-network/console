@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import { MachineAccess } from "@src/components/machine/MachineAccessForm";
-import { SystemInfo } from "@src/types/systemInfo";
+import type { MachineAccess } from "@src/components/machine/MachineAccessForm";
+import type { SystemInfo } from "@src/types/systemInfo";
 import { verifyControlMachine, verifyWorkerNode } from "@src/utils/nodeVerification";
 
 export interface MachineVerificationProps {

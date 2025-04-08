@@ -6,11 +6,12 @@ import { cn } from "@akashnetwork/ui/utils";
 import { useAtom } from "jotai";
 
 import { ServerForm } from "@src/components/become-provider/ServerForm"; // eslint-disable-line import-x/no-cycle
+import { useWallet } from "@src/context/WalletProvider";
 import controlMachineStore from "@src/store/controlMachineStore";
 import type { ControlMachineWithAddress } from "@src/types/controlMachine";
 import { migrateControlMachineStorage } from "@src/utils/migrateMachineStorage";
+import { processKeyfile } from "@src/utils/nodeVerification";
 import restClient from "@src/utils/restClient";
-import { useWallet } from "../WalletProvider";
 
 type Props = {
   children: React.ReactNode;
@@ -34,6 +35,8 @@ export function ControlMachineProvider({ children }: Props) {
   const [controlMachineDrawerOpen, setControlMachineDrawerOpen] = useState(false);
 
   // Run storage migration on mount to handle legacy format
+  // This migration ensures 'file' properties are moved to 'keyfile' property
+  // and also ensures keyfiles have the correct MIME type format
   useEffect(() => {
     migrateControlMachineStorage();
   }, []);
@@ -52,7 +55,7 @@ export function ControlMachineProvider({ children }: Props) {
           setControlMachineLoading(true);
           const request = {
             // Use keyfile instead of file for SSH key content
-            keyfile: controlMachine.access.keyfile,
+            keyfile: controlMachine.access.keyfile ? processKeyfile(controlMachine.access.keyfile) : null,
             hostname: controlMachine.access.hostname,
             port: controlMachine.access.port,
             username: controlMachine.access.username,

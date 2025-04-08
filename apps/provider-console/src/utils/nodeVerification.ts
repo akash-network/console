@@ -1,5 +1,5 @@
-import { MachineAccess } from "@src/components/machine/MachineAccessForm";
-import { SystemInfo } from "../types/systemInfo";
+import type { MachineAccess } from "@src/components/machine/MachineAccessForm";
+import type { SystemInfo } from "../types/systemInfo";
 import restClient from "./restClient";
 
 /**
@@ -11,15 +11,33 @@ export const processKeyfile = (keyfile?: string): string | null => {
   if (!keyfile) return null;
 
   try {
-    // If keyfile is already base64 encoded with correct prefix, use it directly
-    if (keyfile.startsWith("data:application/octet-stream;base64,")) {
+    // If keyfile already has data: prefix, it's already in the correct format
+    if (keyfile.startsWith("data:")) {
       return keyfile;
-    } else if (keyfile.match(/^[A-Za-z0-9+/=]+$/)) {
-      // If it's base64 but missing prefix, add it
-      return `data:application/octet-stream;base64,${keyfile}`;
+    }
+
+    // Determine the keyfile type based on content
+    let mimeType = "application/octet-stream";
+
+    // Check for OpenSSH format
+    if (keyfile.includes("-----BEGIN") && keyfile.includes("PRIVATE KEY-----")) {
+      if (keyfile.includes("-----BEGIN RSA PRIVATE KEY-----")) {
+        mimeType = "application/x-pem-file";
+      } else if (keyfile.includes("-----BEGIN OPENSSH PRIVATE KEY-----")) {
+        mimeType = "application/x-openssh-key";
+      } else {
+        mimeType = "application/x-pem-file"; // Generic PEM format for other types
+      }
+    } else if (keyfile.includes("PuTTY-User-Key-File")) {
+      mimeType = "application/x-putty-private-key";
+    }
+
+    // If it's already base64 but missing prefix, add it with the detected MIME type
+    if (keyfile.match(/^[A-Za-z0-9+/=]+$/)) {
+      return `data:${mimeType};base64,${keyfile}`;
     } else {
-      // Otherwise encode it to base64 with prefix
-      return `data:application/octet-stream;base64,${btoa(keyfile)}`;
+      // Otherwise encode it to base64 with the detected MIME type
+      return `data:${mimeType};base64,${btoa(keyfile)}`;
     }
   } catch (error) {
     console.error("Error encoding keyfile:", error);

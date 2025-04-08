@@ -24,6 +24,7 @@ import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import providerProcessStore from "@src/store/providerProcessStore";
 import type { ControlMachineWithAddress } from "@src/types/controlMachine";
+import { processKeyfile } from "@src/utils/nodeVerification";
 import restClient from "@src/utils/restClient";
 import { ResetProviderForm } from "./ResetProviderProcess";
 
@@ -115,7 +116,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
       hostname: machine.access.hostname,
       port: machine.access.port,
       username: machine.access.username,
-      keyfile: machine.access.keyfile,
+      keyfile: machine.access.keyfile ? processKeyfile(machine.access.keyfile) : null,
       passphrase: machine.access.passphrase,
       password: machine.access.password,
       install_gpu_drivers: machine.systemInfo.gpu.count > 0

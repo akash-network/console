@@ -3,8 +3,9 @@ import React, { useCallback, useState } from "react";
 import { Alert, AlertDescription, AlertTitle, Button, Input, Popup, Separator } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 
-import { MachineAccess } from "@src/components/machine/MachineAccessForm";
-import { NodeConfig, ProgressSidebar } from "@src/components/shared/ProgressSidebar";
+import type { MachineAccess } from "@src/components/machine/MachineAccessForm";
+import type { NodeConfig } from "@src/components/shared/ProgressSidebar";
+import { ProgressSidebar } from "@src/components/shared/ProgressSidebar";
 import { useWallet } from "@src/context/WalletProvider";
 import { calculateNodeDistribution } from "@src/utils/nodeDistribution";
 import { ServerForm } from "./ServerForm";
