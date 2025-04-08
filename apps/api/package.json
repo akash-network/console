@@ -58,6 +58,7 @@
     "@hono/zod-openapi": "0.18.0",
     "@octokit/rest": "^18.12.0",
     "@opentelemetry/api": "^1.4.1",
+    "@opentelemetry/auto-instrumentations-node": "^0.57.1",
     "@opentelemetry/instrumentation": "^0.54.2",
     "@opentelemetry/instrumentation-http": "^0.54.2",
     "@opentelemetry/sdk-node": "^0.54.2",
