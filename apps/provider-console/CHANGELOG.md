@@ -1,5 +1,12 @@
 
 
+## [1.8.1](https://github.com/akash-network/console/compare/provider-console/v1.8.0...provider-console/v1.8.1) (2025-04-08)
+
+
+### Bug Fixes
+
+* **provider:** fix control machine error and added cta button ([#1109](https://github.com/akash-network/console/issues/1109)) ([4a78637](https://github.com/akash-network/console/commit/4a786372fb01431566782760762978947790a4f5))
+
 ## [1.8.0](https://github.com/akash-network/console/compare/provider-console/v1.7.0...provider-console/v1.8.0) (2025-04-02)
 
 
