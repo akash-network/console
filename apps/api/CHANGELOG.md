@@ -1,5 +1,12 @@
 
 
+## [2.80.0](https://github.com/akash-network/console/compare/console-api/v2.79.5...console-api/v2.80.0) (2025-04-08)
+
+
+### Features
+
+* **observability:** adds hono instrumentation  ([2ffeb72](https://github.com/akash-network/console/commit/2ffeb72022a6c33706ceed08417a9b375a51ac4f))
+
 ## [2.79.5](https://github.com/akash-network/console/compare/console-api/v2.79.4...console-api/v2.79.5) (2025-04-08)
 
 
