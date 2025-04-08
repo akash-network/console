@@ -1,5 +1,12 @@
 
 
+## [2.79.4](https://github.com/akash-network/console/compare/console-api/v2.79.3...console-api/v2.79.4) (2025-04-08)
+
+
+### Bug Fixes
+
+* **observability:** adds otel auto instrumentation package ([444ef08](https://github.com/akash-network/console/commit/444ef08859ac00852994ef6c89905a0c1c033cb5))
+
 ## [2.79.3](https://github.com/akash-network/console/compare/console-api/v2.79.2...console-api/v2.79.3) (2025-04-01)
 
 
