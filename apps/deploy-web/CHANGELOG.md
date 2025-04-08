@@ -1,5 +1,12 @@
 
 
+## [2.67.0](https://github.com/akash-network/console/compare/console-web/v2.66.1...console-web/v2.67.0) (2025-04-08)
+
+
+### Features
+
+* **analytics:** sends analytics directly ([ba56b39](https://github.com/akash-network/console/commit/ba56b39ee24189303d58c0216debb55a0e215a6e))
+
 ## [2.66.1](https://github.com/akash-network/console/compare/console-web/v2.66.0...console-web/v2.66.1) (2025-04-07)
 
 
