@@ -1,5 +1,6 @@
 chain: mainnet
-hostName: console-api-mainnet-staging.akash.network
+hostNames:
+  - console-api-mainnet-staging.akash.network
 jobs:
   - name: top-up-deployments
     schedule: "0 * * * *" # 0 minutes past the hour
