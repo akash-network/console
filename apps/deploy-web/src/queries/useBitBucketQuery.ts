@@ -1,4 +1,5 @@
-import { useMutation, useQuery } from "react-query";
+import { useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import { useAtom } from "jotai";
 
@@ -6,10 +7,11 @@ import { BitbucketService } from "@src/services/remote-deploy/bitbucket-http.ser
 import { tokens } from "@src/store/remoteDeployStore";
 import type { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { QueryKeys } from "./queryKeys";
+
 const OAuthType = "bitbucket";
 const bitbucketService = new BitbucketService();
 
-export const useFetchRefreshBitToken = () => {
+const useFetchRefreshBitToken = () => {
   const [token, setToken] = useAtom(tokens);
 
   return useMutation({
@@ -43,16 +45,19 @@ export const useBitUserProfile = () => {
   const [token] = useAtom(tokens);
 
   const { mutate } = useFetchRefreshBitToken();
-  return useQuery({
+  const query = useQuery({
     queryKey: QueryKeys.getUserProfileKey(token.accessToken),
     queryFn: async () => bitbucketService.fetchUserProfile(token.accessToken),
-    enabled: !!token?.accessToken && token.type === OAuthType,
-    onError: (error: AxiosError) => {
-      if (error.response?.status === 401) {
-        mutate();
-      }
-    }
+    enabled: !!token?.accessToken && token.type === OAuthType
   });
+
+  useEffect(() => {
+    if (query.isError && (query.error as unknown as AxiosError).response?.status === 401) {
+      mutate();
+    }
+  }, [query.isError, query.error, mutate]);
+
+  return query;
 };
 
 export const useBitBucketCommits = (repo?: string) => {
@@ -98,26 +103,36 @@ export const useBitBranches = (repo?: string) => {
 export const useBitPackageJson = (onSettled: (data: PackageJson) => void, repo?: string, branch?: string, subFolder?: string) => {
   const [token] = useAtom(tokens);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: QueryKeys.getPackageJsonKey(repo, branch, subFolder),
     queryFn: async () => bitbucketService.fetchPackageJson(repo, branch, subFolder, token.accessToken),
-    enabled: !!token?.accessToken && token.type === OAuthType && !!repo && !!branch,
-    onSettled: data => {
-      onSettled(data);
-    }
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo && !!branch
   });
+
+  useEffect(() => {
+    if (query.data) {
+      onSettled(query.data);
+    }
+  }, [onSettled, query.data]);
+
+  return query;
 };
 
 export const useBitSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void, repo?: string, branch?: string) => {
   const [token] = useAtom(tokens);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: QueryKeys.getSrcFoldersKey(repo, branch),
 
     queryFn: async () => bitbucketService.fetchSrcFolders(repo, branch, token.accessToken),
-    enabled: !!token?.accessToken && token.type === OAuthType && !!repo && !!branch,
-    onSettled: data => {
-      onSettled(data?.values);
-    }
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo && !!branch
   });
+
+  useEffect(() => {
+    if (query.data) {
+      onSettled(query.data?.values);
+    }
+  }, [onSettled, query.data]);
+
+  return query;
 };

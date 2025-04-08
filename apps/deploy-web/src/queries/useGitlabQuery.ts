@@ -1,4 +1,5 @@
-import { useMutation, useQuery } from "react-query";
+import { useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import { useAtom } from "jotai";
 
@@ -45,16 +46,19 @@ export const useGitLabUserProfile = () => {
   const [token] = useAtom(tokens);
   const { mutate } = useFetchRefreshToken();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: QueryKeys.getUserProfileKey(token?.accessToken),
     queryFn: () => gitLabService.fetchUserProfile(token?.accessToken),
-    enabled: !!token?.accessToken && token.type === OAuthType,
-    onError: (error: AxiosError) => {
-      if (error.response?.status === 401) {
-        mutate();
-      }
-    }
+    enabled: !!token?.accessToken && token.type === OAuthType
   });
+
+  useEffect(() => {
+    if (query.isError && (query.error as unknown as AxiosError).response?.status === 401) {
+      mutate();
+    }
+  }, [query.isError, query.error, mutate]);
+
+  return query;
 };
 
 export const useGitLabGroups = () => {
@@ -96,28 +100,41 @@ export const useGitLabCommits = (repo?: string, branch?: string) => {
 export const useGitlabPackageJson = (onSettled: (data: PackageJson) => void, repo?: string, subFolder?: string) => {
   const [token] = useAtom(tokens);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: QueryKeys.getPackageJsonKey(repo, OAuthType, subFolder),
     queryFn: () => gitLabService.fetchPackageJson(repo, subFolder, token?.accessToken),
-    enabled: !!token?.accessToken && token.type === OAuthType && !!repo,
-    onSettled: data => {
-      if (data?.content === undefined) return;
-      const content = atob(data.content);
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo
+  });
+
+  useEffect(() => {
+    if (query.data) {
+      if (query.data?.content === undefined) {
+        return;
+      }
+
+      const content = atob(query.data.content);
       const parsed = JSON.parse(content);
       onSettled(parsed);
     }
-  });
+  }, [onSettled, query.data]);
+
+  return query;
 };
 
 export const useGitlabSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void, repo?: string) => {
   const [token] = useAtom(tokens);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: QueryKeys.getSrcFoldersKey(repo, OAuthType),
     queryFn: () => gitLabService.fetchSrcFolders(repo, token?.accessToken),
-    enabled: !!token?.accessToken && token.type === OAuthType && !!repo,
-    onSettled: data => {
-      onSettled(data);
-    }
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo
   });
+
+  useEffect(() => {
+    if (query.data) {
+      onSettled(query.data);
+    }
+  }, [onSettled, query.data]);
+
+  return query;
 };
