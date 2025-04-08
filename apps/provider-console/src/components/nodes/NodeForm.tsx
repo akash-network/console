@@ -1,39 +1,10 @@
 import React, { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@akashnetwork/ui/components";
 
+import { MachineAccess, MachineAccessForm } from "@src/components/machine/MachineAccessForm";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
-import restClient from "@src/utils/restClient";
-import { MachineAccess, MachineAccessForm } from "../machine/MachineAccessForm";
-
-interface SystemInfo {
-  cpus: string;
-  memory: string;
-  public_ip: string;
-  private_ip: string;
-  os: string;
-  storage: Array<{
-    name: string;
-    size: number;
-    type: string;
-    fstype: string | null;
-    mountpoint: string | null;
-    children?: Array<{
-      name: string;
-      size: number;
-      type: string;
-      fstype: string;
-      mountpoint: string;
-    }>;
-  }>;
-  gpu: {
-    count: number;
-    vendor: string | null;
-    name: string | null;
-    memory_size: string | null;
-    interface: string | null;
-  };
-  has_sudo: boolean;
-}
+import { useMachineAccessForm } from "@src/hooks/useMachineAccessForm";
+import { SystemInfo } from "@src/types/systemInfo";
 
 interface NodeInfo {
   access: MachineAccess;
@@ -45,68 +16,50 @@ interface NodeFormProps {
   nodeNumber: number;
   onComplete: (nodeInfo: NodeInfo) => void;
   _defaultValues?: MachineAccess | null;
+  isSubmitting?: boolean;
 }
 
-export const NodeForm: React.FC<NodeFormProps> = ({ isControlPlane, nodeNumber, onComplete, _defaultValues }) => {
+export const NodeForm: React.FC<NodeFormProps> = ({ isControlPlane, nodeNumber, onComplete, _defaultValues, isSubmitting = false }) => {
   const { activeControlMachine } = useControlMachine();
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [error, setError] = useState<{ message: string; details: string[] } | null>(null);
   const [formKey, setFormKey] = useState(0); // Add key to force form reset
   const [lastSavedConfig, setLastSavedConfig] = useState<MachineAccess | null>(null);
 
+  // Convert control machine access to proper MachineAccess format with proper types
+  const controlMachineAccess = activeControlMachine?.access
+    ? {
+        hostname: activeControlMachine.access.hostname,
+        port: activeControlMachine.access.port,
+        username: activeControlMachine.access.username,
+        password: activeControlMachine.access.password || undefined,
+        // Use keyfile instead of file for SSH key content
+        keyfile: activeControlMachine.access.keyfile || undefined,
+        // Keep file for UI reference
+        file: activeControlMachine.access.file || null,
+        passphrase: activeControlMachine.access.passphrase || undefined
+      }
+    : null;
+
+  // Use the shared machine access form logic
+  const { isVerifying, error, verifyMachine } = useMachineAccessForm({
+    controlMachine: controlMachineAccess,
+    isControlPlane
+  });
+
   const handleSubmit = async (formData: MachineAccess) => {
     if (!activeControlMachine) {
-      setError({
-        message: "Control machine is not active",
-        details: ["Please ensure the control machine is properly configured."]
-      });
       return;
     }
 
-    setIsVerifying(true);
-    setError(null);
-
     try {
-      // Encode worker node keyfile if it exists
-      let workerNodeKeyfile: string | null = null;
-      if (formData.keyfile) {
-        // If keyfile is already base64 encoded with correct prefix, use it directly
-        if (formData.keyfile.startsWith("data:application/octet-stream;base64,")) {
-          workerNodeKeyfile = formData.keyfile;
-        } else if (formData.keyfile.match(/^[A-Za-z0-9+/=]+$/)) {
-          // If it's base64 but missing prefix, add it
-          workerNodeKeyfile = `data:application/octet-stream;base64,${formData.keyfile}`;
-        } else {
-          // Otherwise encode it to base64 with prefix
-          workerNodeKeyfile = `data:application/octet-stream;base64,${btoa(formData.keyfile)}`;
-        }
+      // Log the form data being submitted
+      console.log(`Submitting form data for Node ${nodeNumber}:`, formData);
+
+      // Verify the machine access
+      const result = await verifyMachine(formData);
+
+      if (!result) {
+        return; // Verification failed
       }
-
-      const request = {
-        control_machine: {
-          hostname: activeControlMachine.access.hostname,
-          port: activeControlMachine.access.port || 22,
-          username: activeControlMachine.access.username,
-          keyfile: activeControlMachine.access.file,
-          password: activeControlMachine.access.password || null,
-          passphrase: activeControlMachine.access.passphrase || null
-        },
-        worker_node: {
-          hostname: formData.hostname,
-          port: formData.port || 22,
-          username: formData.username,
-          keyfile: workerNodeKeyfile,
-          password: formData.password || null,
-          passphrase: formData.passphrase || null,
-          is_control_plane: isControlPlane
-        }
-      };
-
-      console.log("Sending verification request:", request);
-      const response = await restClient.post("/verify/control-and-worker", request, {
-        headers: { "Content-Type": "application/json" }
-      });
-      console.log("Verification response:", response);
 
       // Save config if requested
       if (formData.saveInformation) {
@@ -118,35 +71,44 @@ export const NodeForm: React.FC<NodeFormProps> = ({ isControlPlane, nodeNumber, 
         setLastSavedConfig(null);
       }
 
+      // Log the output for debugging
+      console.log(`Node ${nodeNumber} verified with hostname: ${formData.hostname}`);
+
       // Call onComplete with the form data and system info
       onComplete({
         access: formData,
-        system_info: response.data.system_info
+        system_info: result.systemInfo
       });
 
       // Reset form after successful submission
       setFormKey(prev => prev + 1);
-    } catch (error: any) {
-      console.error("Verification error:", error);
-      console.error("Error response:", error.response?.data);
-
-      setError({
-        message: "Failed to verify server access",
-        details: [error.response?.data?.detail?.error?.message || error.message || "Please check your credentials and try again."]
-      });
-    } finally {
-      setIsVerifying(false);
+    } catch (error) {
+      console.error("Form submission error:", error);
     }
   };
 
   // Get default values based on whether previous config should be used
   const getFormDefaults = (): Partial<MachineAccess> => {
+    if (_defaultValues) {
+      // If we're using defaults from a shared configuration, make sure hostname is empty
+      console.log("Using _defaultValues in NodeForm:", _defaultValues);
+
+      return {
+        ..._defaultValues,
+        hostname: "" // Always empty hostname when using shared configuration
+      };
+    }
+
     if (lastSavedConfig) {
+      console.log("Using lastSavedConfig in NodeForm:", lastSavedConfig);
+
       return {
         ...lastSavedConfig,
         hostname: "" // Always empty hostname
       };
     }
+
+    console.log("Using default values in NodeForm");
 
     return {
       hostname: "", // Always empty hostname
@@ -154,6 +116,10 @@ export const NodeForm: React.FC<NodeFormProps> = ({ isControlPlane, nodeNumber, 
       port: 22 // Keep default port
     };
   };
+
+  // Log the actual form defaults for debugging
+  const formDefaults = getFormDefaults();
+  console.log("Final formDefaults:", formDefaults);
 
   return (
     <div className="space-y-6">
@@ -172,11 +138,12 @@ export const NodeForm: React.FC<NodeFormProps> = ({ isControlPlane, nodeNumber, 
       <MachineAccessForm
         key={formKey} // Add key to force form reset
         onSubmit={handleSubmit}
-        defaultValues={getFormDefaults()}
+        defaultValues={formDefaults}
         isVerifying={isVerifying}
         error={error}
         isPublicIP={false}
         showSaveConfig={true}
+        disabled={isSubmitting}
       />
     </div>
   );

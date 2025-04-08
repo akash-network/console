@@ -1,16 +1,16 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
 import { Alert, AlertDescription, AlertTitle } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
 
-import { useControlMachine } from "@src/context/ControlMachineProvider"; // eslint-disable-line import-x/no-cycle
+import type { MachineAccess } from "@src/components/machine/MachineAccessForm";
+import { MachineAccessForm } from "@src/components/machine/MachineAccessForm";
+import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useMachineAccessForm } from "@src/hooks/useMachineAccessForm";
 import providerProcessStore from "@src/store/providerProcessStore";
 import type { ControlMachineWithAddress } from "@src/types/controlMachine";
 import type { MachineInformation } from "@src/types/machineAccess";
-import restClient from "@src/utils/restClient";
-import type { MachineAccess } from "../machine/MachineAccessForm";
-import { MachineAccessForm } from "../machine/MachineAccessForm";
 
 interface ServerFormProps {
   _currentServerNumber: number;
@@ -34,8 +34,9 @@ export const ServerForm: React.FC<ServerFormProps> = ({
   const [providerProcess, setProviderProcess] = useAtom(providerProcessStore.providerProcessAtom);
   const { setControlMachine } = useControlMachine();
   const { address } = useWallet();
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [error, setError] = useState<{ message: string; details: string[] } | null>(null);
+
+  // Use shared machine access form logic
+  const { isVerifying, error, verifyMachine } = useMachineAccessForm();
 
   const getDefaultValues = (): Partial<MachineAccess> => {
     if (defaultValues) {
@@ -70,100 +71,65 @@ export const ServerForm: React.FC<ServerFormProps> = ({
     };
   };
 
-  const handleSubmit = async (formData: MachineAccess & { saveInformation?: boolean }) => {
-    setIsVerifying(true);
-    setError(null);
-
+  const handleSubmit = async (formData: MachineAccess) => {
     try {
-      console.log("Form data:", formData);
+      // Use the shared verification logic
+      const result = await verifyMachine(formData);
 
-      const port = formData.port || 22;
-
-      // Convert keyfile to base64 if it exists
-      let encodedKeyfile: string | null = null;
-      if (formData.keyfile) {
-        try {
-          // If keyfile is already base64 encoded with correct prefix, use it directly
-          if (formData.keyfile.startsWith("data:application/octet-stream;base64,")) {
-            encodedKeyfile = formData.keyfile;
-          } else if (formData.keyfile.match(/^[A-Za-z0-9+/=]+$/)) {
-            // If it's base64 but missing prefix, add it
-            encodedKeyfile = `data:application/octet-stream;base64,${formData.keyfile}`;
-          } else {
-            // Otherwise encode it to base64 with prefix
-            encodedKeyfile = `data:application/octet-stream;base64,${btoa(formData.keyfile)}`;
-          }
-        } catch (error) {
-          console.error("Error encoding keyfile:", error);
-          setError({
-            message: "Failed to process keyfile",
-            details: ["The keyfile content could not be encoded properly. Please check the file format."]
-          });
-          setIsVerifying(false);
-          return;
-        }
+      if (!result) {
+        return; // Verification failed
       }
 
-      const response = await restClient.post(
-        "/verify/control-machine",
-        {
-          hostname: formData.hostname,
-          port,
-          username: formData.username,
-          password: formData.password || null,
-          keyfile: encodedKeyfile,
-          passphrase: formData.passphrase || null
-        },
-        {
-          headers: { "Content-Type": "application/json" }
-        }
-      );
-
-      console.log("Server response:", response);
-
-      if (response?.status?.toString().toLowerCase() === "success") {
+      // Update the machine information as needed
+      if (editMode) {
         const machineInfo: MachineInformation = {
           access: {
             hostname: formData.hostname,
-            port,
+            port: formData.port || 22,
             username: formData.username,
             password: formData.password || null,
             file: formData.file || null,
             keyfile: formData.keyfile || null,
             passphrase: formData.passphrase || null
           },
-          systemInfo: response.data.system_info
+          systemInfo: result.systemInfo
         };
 
-        if (editMode) {
-          setControlMachine({
-            address,
-            ...machineInfo
-          });
-        } else {
-          const machines = [...(providerProcess?.machines ?? [])];
-          machines[_currentServerNumber] = machineInfo;
+        setControlMachine({
+          address,
+          ...machineInfo
+        });
+      } else {
+        // Update provider process for the flow
+        const machines = [...(providerProcess?.machines ?? [])];
 
-          setProviderProcess({
-            ...providerProcess,
-            machines,
-            storeInformation: _currentServerNumber === 0 ? Boolean(formData.saveInformation) : providerProcess?.storeInformation,
-            process: providerProcess.process
-          });
-        }
+        const machineInfo: MachineInformation = {
+          access: {
+            hostname: formData.hostname,
+            port: formData.port || 22,
+            username: formData.username,
+            password: formData.password || null,
+            file: formData.file || null,
+            keyfile: formData.keyfile || null,
+            passphrase: formData.passphrase || null
+          },
+          systemInfo: result.systemInfo
+        };
 
-        onComplete(formData);
+        machines[_currentServerNumber] = machineInfo;
+
+        setProviderProcess({
+          ...providerProcess,
+          machines,
+          storeInformation: _currentServerNumber === 0 ? Boolean(formData.saveInformation) : providerProcess?.storeInformation,
+          process: providerProcess.process
+        });
       }
-    } catch (error: any) {
-      console.error("Verification error:", error);
-      console.error("Error response:", error.response?.data);
 
-      setError({
-        message: "Failed to verify server access",
-        details: [error.response?.data?.detail?.error?.message || error.message || "Please check your credentials and try again."]
-      });
-    } finally {
-      setIsVerifying(false);
+      // Call the completion handler
+      onComplete(formData);
+    } catch (error) {
+      console.error("Form submission error:", error);
     }
   };
 

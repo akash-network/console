@@ -29,7 +29,7 @@ const machineAccessSchema = z.object({
   username: z.string().min(1, "Username is required"),
   authType: z.enum(["password", "file"]),
   password: z.string().optional(),
-  file: z.any().optional(), // File object
+  file: z.any().optional(), // File object for UI only
   passphrase: z.string().optional(),
   saveInformation: z.boolean().optional()
 });
@@ -41,8 +41,8 @@ export interface MachineAccess {
   port: number;
   username: string;
   password?: string;
-  keyfile?: string; // base64 encoded file content
-  file?: File | null; // actual file object
+  keyfile?: string | null; // Base64 encoded file content
+  file?: File | null; // Actual File object, only used in UI
   passphrase?: string;
   saveInformation?: boolean;
 }
@@ -68,16 +68,34 @@ export const MachineAccessForm: React.FC<MachineAccessFormProps> = ({
   isVerifying = false,
   error = null
 }) => {
+  // Determine the default authentication type
+  // If defaultValues has a keyfile, use "file", otherwise check if it has a password, if not default to "file"
+  const defaultAuthType = defaultValues?.keyfile ? "file" : defaultValues?.password ? "password" : "file";
+
+  // Display a message if we have a keyfile from shared config
+  const hasSharedKeyfile = Boolean(defaultValues?.keyfile);
+
+  console.log("MachineAccessForm defaultValues:", {
+    hostname: defaultValues?.hostname,
+    port: defaultValues?.port,
+    username: defaultValues?.username,
+    hasPassword: Boolean(defaultValues?.password),
+    hasKeyfile: Boolean(defaultValues?.keyfile),
+    hasFile: Boolean(defaultValues?.file),
+    keyfileLength: defaultValues?.keyfile?.length
+  });
+  console.log("hasSharedKeyfile:", hasSharedKeyfile);
+
   const form = useForm<MachineAccessFormValues>({
     resolver: zodResolver(machineAccessSchema),
     defaultValues: {
       hostname: defaultValues?.hostname || "",
       port: defaultValues?.port || 22,
       username: defaultValues?.username || "root",
-      authType: defaultValues?.keyfile ? "file" : "password",
+      authType: defaultAuthType, // Will be "file" if keyfile exists from shared config
       password: defaultValues?.password,
       passphrase: defaultValues?.passphrase,
-      saveInformation: false
+      saveInformation: defaultValues?.saveInformation || false
     }
   });
 
@@ -94,11 +112,13 @@ export const MachineAccessForm: React.FC<MachineAccessFormProps> = ({
         formData.password = values.password;
       }
 
-      const fileContent = values.file && values.file[0] ? await readFileAsBase64(values.file[0]) : defaultValues?.keyfile;
-
-      if (fileContent) {
-        formData.keyfile = fileContent;
-        formData.file = values.file?.[0] || null;
+      // If file is selected, read it and store the base64 in keyfile
+      if (values.file && values.file[0]) {
+        formData.keyfile = await readFileAsBase64(values.file[0]);
+        formData.file = values.file[0]; // Keep reference to File object for UI
+      } else if (defaultValues?.keyfile) {
+        // If no file selected but we have a default keyfile, use that
+        formData.keyfile = defaultValues.keyfile;
       }
 
       if (values.passphrase) {
@@ -216,6 +236,12 @@ export const MachineAccessForm: React.FC<MachineAccessFormProps> = ({
               </TabsContent>
 
               <TabsContent value="file" className="space-y-4 p-4">
+                {hasSharedKeyfile && (
+                  <div className="mb-2 rounded-md border border-gray-200 bg-gray-50 p-2">
+                    <p className="font-medium">Using SSH key from Node 1</p>
+                    <p className="text-sm">The private key from the first node will be used automatically.</p>
+                  </div>
+                )}
                 <FormField
                   control={form.control}
                   name="file"
@@ -223,16 +249,40 @@ export const MachineAccessForm: React.FC<MachineAccessFormProps> = ({
                     <FormItem className="flex flex-col space-y-2">
                       <FormLabel>Private Key</FormLabel>
                       <FormControl>
-                        <Input
-                          type="file"
-                          onChange={e => {
-                            const file = e.target.files?.[0];
-                            onChange(file ? [file] : undefined);
-                          }}
-                          {...field}
-                          disabled={disabled}
-                        />
+                        {hasSharedKeyfile ? (
+                          <>
+                            <div className="flex items-center">
+                              <Input type="text" value="SSH key from Node 1 (shared)" disabled className="mr-2 flex-grow bg-gray-50 text-gray-500" />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  // Clear the field to allow selecting a new file
+                                  onChange(undefined);
+                                }}
+                                className="whitespace-nowrap"
+                              >
+                                Replace File
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <Input
+                              type="file"
+                              onChange={e => {
+                                const file = e.target.files?.[0];
+                                onChange(file ? [file] : undefined);
+                              }}
+                              {...field}
+                              disabled={disabled}
+                            />
+                          </>
+                        )}
                       </FormControl>
+                      {hasSharedKeyfile && (
+                        <FormDescription>The key file from Node 1 will be used. Click Replace File if you want to use a different key.</FormDescription>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}

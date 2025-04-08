@@ -115,7 +115,7 @@ export const WalletImport: React.FC<WalletImportProps> = ({ onComplete }) => {
       hostname: machine.access.hostname,
       port: machine.access.port,
       username: machine.access.username,
-      keyfile: machine.access.file,
+      keyfile: machine.access.keyfile,
       passphrase: machine.access.passphrase,
       password: machine.access.password,
       install_gpu_drivers: machine.systemInfo.gpu.count > 0

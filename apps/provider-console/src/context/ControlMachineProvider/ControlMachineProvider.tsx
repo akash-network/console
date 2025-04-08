@@ -8,6 +8,7 @@ import { useAtom } from "jotai";
 import { ServerForm } from "@src/components/become-provider/ServerForm"; // eslint-disable-line import-x/no-cycle
 import controlMachineStore from "@src/store/controlMachineStore";
 import type { ControlMachineWithAddress } from "@src/types/controlMachine";
+import { migrateControlMachineStorage } from "@src/utils/migrateMachineStorage";
 import restClient from "@src/utils/restClient";
 import { useWallet } from "../WalletProvider";
 
@@ -32,6 +33,11 @@ export function ControlMachineProvider({ children }: Props) {
   const { address, isWalletArbitrarySigned, isProvider } = useWallet();
   const [controlMachineDrawerOpen, setControlMachineDrawerOpen] = useState(false);
 
+  // Run storage migration on mount to handle legacy format
+  useEffect(() => {
+    migrateControlMachineStorage();
+  }, []);
+
   useEffect(() => {
     if (isWalletArbitrarySigned || isProvider) {
       setActiveControlMachine(null);
@@ -45,7 +51,8 @@ export function ControlMachineProvider({ children }: Props) {
         try {
           setControlMachineLoading(true);
           const request = {
-            keyfile: controlMachine.access.file,
+            // Use keyfile instead of file for SSH key content
+            keyfile: controlMachine.access.keyfile,
             hostname: controlMachine.access.hostname,
             port: controlMachine.access.port,
             username: controlMachine.access.username,

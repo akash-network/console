@@ -8,7 +8,7 @@ export function sanitizeMachineAccess(machine: ControlMachineWithAddress | null)
     hostname: machine.access.hostname,
     port: machine.access.port,
     username: machine.access.username,
-    keyfile: machine.access.file || null,
+    keyfile: machine.access.keyfile || null,
     password: machine.access.password || null,
     passphrase: machine.access.passphrase || null
   };
