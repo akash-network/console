@@ -1,5 +1,12 @@
 
 
+## [2.79.5](https://github.com/akash-network/console/compare/console-api/v2.79.4...console-api/v2.79.5) (2025-04-08)
+
+
+### Bug Fixes
+
+* **observability:** remove manual instrumentations ([2156682](https://github.com/akash-network/console/commit/215668283dab26bbcc549ce2fe955625e52ad749))
+
 ## [2.79.4](https://github.com/akash-network/console/compare/console-api/v2.79.3...console-api/v2.79.4) (2025-04-08)
 
 
