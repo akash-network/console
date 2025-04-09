@@ -14,13 +14,14 @@ interface NodeInfo {
 
 interface NodeFormProps {
   isControlPlane: boolean;
+  isEtcd?: boolean;
   nodeNumber: number;
   onComplete: (nodeInfo: NodeInfo) => void;
   _defaultValues?: MachineAccess | null;
   isSubmitting?: boolean;
 }
 
-export const NodeForm: React.FC<NodeFormProps> = ({ isControlPlane, nodeNumber, onComplete, _defaultValues, isSubmitting = false }) => {
+export const NodeForm: React.FC<NodeFormProps> = ({ isControlPlane, isEtcd = false, nodeNumber, onComplete, _defaultValues, isSubmitting = false }) => {
   const { activeControlMachine } = useControlMachine();
   const [formKey, setFormKey] = useState(0); // Add key to force form reset
   const [lastSavedConfig, setLastSavedConfig] = useState<MachineAccess | null>(null);
@@ -122,19 +123,35 @@ export const NodeForm: React.FC<NodeFormProps> = ({ isControlPlane, nodeNumber, 
   const formDefaults = getFormDefaults();
   console.log("Final formDefaults:", formDefaults);
 
-  return (
-    <div className="space-y-6">
-      {isControlPlane ? (
+  // Create appropriate alert based on node type
+  const getNodeAlert = () => {
+    if (isControlPlane && isEtcd) {
+      return (
+        <Alert>
+          <AlertTitle>Control Plane + etcd Node {nodeNumber}</AlertTitle>
+          <AlertDescription>This node will manage cluster operations, participate in consensus voting, and run workloads</AlertDescription>
+        </Alert>
+      );
+    } else if (isControlPlane) {
+      return (
         <Alert>
           <AlertTitle>Control Plane Node {nodeNumber}</AlertTitle>
           <AlertDescription>This node will manage cluster operations and run workloads</AlertDescription>
         </Alert>
-      ) : (
+      );
+    } else {
+      return (
         <Alert>
           <AlertTitle>Worker Node {nodeNumber}</AlertTitle>
           <AlertDescription>This node will run workloads</AlertDescription>
         </Alert>
-      )}
+      );
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {getNodeAlert()}
 
       <MachineAccessForm
         key={formKey} // Add key to force form reset

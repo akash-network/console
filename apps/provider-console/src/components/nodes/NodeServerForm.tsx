@@ -4,12 +4,11 @@ import { useToast } from "@akashnetwork/ui/hooks";
 
 import type { MachineAccess } from "@src/components/machine/MachineAccessForm";
 import { NodeTypeSelector } from "@src/components/shared/NodeTypeSelector";
-import type { NodeConfig } from "@src/components/shared/ProgressSidebar";
 import { ProgressSidebar } from "@src/components/shared/ProgressSidebar";
 import { useAddNodeMutation } from "@src/queries/useAddNodeMutation";
 import type { KubeNode } from "@src/types/kubeNode";
 import type { SystemInfo } from "@src/types/systemInfo";
-import { calculateNodeDistribution, isValidControlPlaneCount } from "@src/utils/nodeDistribution";
+import { hasEtcdRole } from "@src/utils/nodeDistribution";
 import { NodeForm } from "./NodeForm";
 
 interface NodeInfo {
@@ -18,22 +17,19 @@ interface NodeInfo {
 }
 
 interface NodeServerFormProps {
-  _currentServerNumber: number;
-  onComplete: () => void;
   nodeCount: number;
   existingControlPlaneCount: number;
-  existingWorkerCount: number;
   existingNodes: KubeNode[];
 }
 
-export const NodeServerForm: React.FC<NodeServerFormProps> = ({
-  _currentServerNumber,
-  onComplete,
-  nodeCount,
-  existingControlPlaneCount,
-  existingWorkerCount,
-  existingNodes
-}) => {
+interface NodeConfig {
+  isControlPlane: boolean;
+  isEtcd?: boolean;
+  nodeNumber: number;
+  status: "not-started" | "in-progress" | "completed";
+}
+
+export const NodeServerForm: React.FC<NodeServerFormProps> = ({ nodeCount, existingControlPlaneCount, existingNodes }) => {
   const [currentNodeIndex, setCurrentNodeIndex] = useState(0);
   const [firstNodeConfig, setFirstNodeConfig] = useState<NodeInfo | null>(null);
   const [useSharedConfig, setUseSharedConfig] = useState(false);
@@ -42,16 +38,29 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({
   const { toast } = useToast();
   const addNodeMutation = useAddNodeMutation();
 
-  const distribution = calculateNodeDistribution(nodeCount, existingControlPlaneCount, existingWorkerCount);
+  // Calculate existing etcd count
+  const existingEtcdCount = existingNodes.filter(node => hasEtcdRole(node.roles)).length;
 
+  // Initialize node configs based on etcd count
   const [nodeConfigs, setNodeConfigs] = useState<NodeConfig[]>(() => {
     return Array(nodeCount)
       .fill(null)
-      .map((_, index) => ({
-        isControlPlane: index < distribution.newControlPlane,
-        nodeNumber: index + 1,
-        status: index === 0 ? "in-progress" : "not-started"
-      }));
+      .map((_, index) => {
+        // Calculate the current etcd count including previous nodes in this batch
+        const currentEtcdCount = existingEtcdCount + index;
+
+        // If we have an even number of etcd nodes, make this a control-plane+etcd
+        // Otherwise, make it a worker node
+        const isEtcd = currentEtcdCount % 2 === 0;
+        const isControlPlane = isEtcd; // Control plane is required for etcd
+
+        return {
+          isControlPlane,
+          isEtcd,
+          nodeNumber: index + 1,
+          status: index === 0 ? "in-progress" : "not-started"
+        };
+      });
   });
 
   const handleNodeComplete = useCallback(
@@ -166,10 +175,20 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({
         setCurrentNodeIndex(prev => prev + 1);
       }
     },
-    [currentNodeIndex, nodeCount, useSharedConfig, firstNodeConfig, addNodeMutation, onComplete, nodeConfigs, toast, existingNodes, completedNodeInfos]
+    [currentNodeIndex, nodeCount, useSharedConfig, firstNodeConfig, addNodeMutation, toast, nodeConfigs, existingNodes, completedNodeInfos]
   );
 
-  // Calculate total control plane nodes if we change the current node type
+  // Get total etcd count including nodes we're adding up to current index
+  const getEtcdTotalIfChanged = useCallback(
+    (toEtcd: boolean) => {
+      // Calculate total etcd nodes if we change the current node
+      const currentConfigEtcdCount = nodeConfigs.reduce((sum, node, idx) => (idx === currentNodeIndex ? sum : node.isEtcd ? sum + 1 : sum), 0);
+      return currentConfigEtcdCount + (toEtcd ? 1 : 0) + existingEtcdCount;
+    },
+    [nodeConfigs, currentNodeIndex, existingEtcdCount]
+  );
+
+  // Get total control plane count
   const getControlPlaneTotalIfChanged = useCallback(
     (toControlPlane: boolean) => {
       const currentConfigControlPlane = nodeConfigs.reduce((sum, node, idx) => (idx === currentNodeIndex ? sum : node.isControlPlane ? sum + 1 : sum), 0);
@@ -178,59 +197,38 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({
     [nodeConfigs, currentNodeIndex, existingControlPlaneCount]
   );
 
-  // Find the next best node to convert to control plane
-  const findNodeToConvertToControlPlane = useCallback(() => {
-    // First try to find an unconfigured node (not completed)
-    const unconfiguredIndex = nodeConfigs.findIndex((node, idx) => !node.isControlPlane && idx !== currentNodeIndex && node.status !== "completed");
-
-    if (unconfiguredIndex !== -1) return unconfiguredIndex;
-
-    // If no unconfigured nodes, find any worker node that's not the current one
-    return nodeConfigs.findIndex((node, idx) => !node.isControlPlane && idx !== currentNodeIndex);
-  }, [nodeConfigs, currentNodeIndex]);
-
+  // Simplified node type change handling that follows our rule:
+  // If we have even etcd nodes, add control plane+etcd, otherwise add worker
   const handleNodeTypeChange = useCallback(
-    (isControlPlane: boolean) => {
-      const isCurrentlyControlPlane = nodeConfigs[currentNodeIndex].isControlPlane;
-      const totalControlPlane = getControlPlaneTotalIfChanged(isControlPlane);
-
-      // If changing to control plane and would result in even number, don't allow
-      if (isControlPlane && !isValidControlPlaneCount(totalControlPlane)) {
-        return;
+    (isControlPlane: boolean, isEtcd: boolean = false) => {
+      // Force consistency: etcd requires control plane, and we don't allow manual changes
+      if (isEtcd && !isControlPlane) {
+        isControlPlane = true;
       }
 
-      // If changing from control plane to worker and would result in even number
-      if (!isControlPlane && isCurrentlyControlPlane && !isValidControlPlaneCount(totalControlPlane)) {
-        // Find another node to convert to control plane
-        const nodeToConvert = findNodeToConvertToControlPlane();
+      // Get the current etcd count
+      const totalEtcdNodes = existingEtcdCount + nodeConfigs.filter((node, idx) => idx !== currentNodeIndex && node.isEtcd).length;
 
-        if (nodeToConvert !== -1) {
-          // Update both the current node and the found node
-          setNodeConfigs(prev =>
-            prev.map((config, index) => ({
-              ...config,
-              isControlPlane: index === currentNodeIndex ? false : index === nodeToConvert ? true : config.isControlPlane
-            }))
-          );
-          return;
-        }
-        // If no node found to convert, don't allow the change
-        return;
-      }
+      // Decide node type based on etcd count
+      const shouldBeEtcd = totalEtcdNodes % 2 === 0;
+      const shouldBeControlPlane = shouldBeEtcd;
 
-      // Normal case - just update the current node
+      // Set the node configuration based on our rule
       setNodeConfigs(prev =>
-        prev.map((config, index) => ({
-          ...config,
-          isControlPlane: index === currentNodeIndex ? isControlPlane : config.isControlPlane
-        }))
+        prev.map((config, index) => {
+          if (index === currentNodeIndex) {
+            return {
+              ...config,
+              isControlPlane: shouldBeControlPlane,
+              isEtcd: shouldBeEtcd
+            };
+          }
+          return config;
+        })
       );
     },
-    [currentNodeIndex, nodeConfigs, findNodeToConvertToControlPlane, getControlPlaneTotalIfChanged]
+    [currentNodeIndex, nodeConfigs, existingEtcdCount]
   );
-
-  // Calculate if we can change current node to worker (if it's a control plane node)
-  const canChangeToWorker = !nodeConfigs[currentNodeIndex].isControlPlane || findNodeToConvertToControlPlane() !== -1;
 
   return (
     <div className="relative flex gap-8 p-6">
@@ -249,12 +247,16 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({
       {/* Form Content */}
       <div className="flex-1">
         <div className="space-y-6">
+          {/* Simplified NodeTypeSelector that shows the current node type but disables changes */}
           <NodeTypeSelector
             isControlPlane={nodeConfigs[currentNodeIndex].isControlPlane}
+            isEtcd={nodeConfigs[currentNodeIndex].isEtcd}
             onNodeTypeChange={handleNodeTypeChange}
             getControlPlaneTotalIfChanged={getControlPlaneTotalIfChanged}
-            canChangeToWorker={canChangeToWorker}
-            disabled={(useSharedConfig && currentNodeIndex > 0) || isSubmitting}
+            getEtcdTotalIfChanged={getEtcdTotalIfChanged}
+            // Disable manual type changes as we're now auto-assigning node types
+            disabled={true}
+            showAutoAssignMessage={true}
           />
 
           <Separator />
@@ -263,6 +265,7 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({
             <NodeForm
               key={`node-form-${currentNodeIndex}`}
               isControlPlane={nodeConfigs[currentNodeIndex].isControlPlane}
+              isEtcd={nodeConfigs[currentNodeIndex].isEtcd}
               nodeNumber={nodeConfigs[currentNodeIndex].nodeNumber}
               onComplete={isSubmitting ? () => {} : handleNodeComplete}
               _defaultValues={

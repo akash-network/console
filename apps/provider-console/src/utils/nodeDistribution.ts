@@ -45,8 +45,41 @@ export const calculateNodeDistribution = (totalNewNodes: number, existingControl
  *
  * @param controlPlaneCount - Number of control plane nodes
  * @returns Boolean indicating if the count is valid (odd)
+ * @deprecated Use isValidEtcdCount instead for more accurate consensus validation
  */
 export const isValidControlPlaneCount = (controlPlaneCount: number): boolean => {
   if (controlPlaneCount <= 0) return false;
   return controlPlaneCount % 2 === 1; // Control plane count should be odd
+};
+
+/**
+ * Checks if a node has the etcd role based on its roles string
+ *
+ * @param roles - The roles string from the node
+ * @returns Boolean indicating if the node has etcd role
+ */
+export const hasEtcdRole = (roles: string): boolean => {
+  return roles.toLowerCase().includes("etcd");
+};
+
+/**
+ * Utility function to check if having an even number of etcd nodes
+ * is valid (it should always be odd for optimal consensus)
+ *
+ * @param etcdCount - Number of etcd nodes
+ * @returns Boolean indicating if the count is valid (odd)
+ */
+export const isValidEtcdCount = (etcdCount: number): boolean => {
+  if (etcdCount <= 0) return false;
+  return etcdCount % 2 === 1; // Etcd count should be odd for consensus
+};
+
+/**
+ * Counts the number of etcd nodes in a list of nodes
+ *
+ * @param nodes - Array of nodes with roles property
+ * @returns The count of etcd nodes
+ */
+export const countEtcdNodes = (nodes: Array<{ roles: string }>): number => {
+  return nodes.filter(node => hasEtcdRole(node.roles)).length;
 };

@@ -91,10 +91,6 @@ export const AddNodeModal: React.FC<AddNodeModalProps> = ({ isOpen, onClose, exi
     setStep("form");
   }, [showWarning, proceedAnyway]);
 
-  const handleFormComplete = useCallback(() => {
-    onClose();
-  }, [onClose]);
-
   // Reset state when modal closes
   const handleClose = useCallback(() => {
     setStep("count");
@@ -154,14 +150,7 @@ export const AddNodeModal: React.FC<AddNodeModalProps> = ({ isOpen, onClose, exi
             </div>
           </>
         ) : (
-          <NodeServerForm
-            _currentServerNumber={existingNodes.length}
-            onComplete={handleFormComplete}
-            nodeCount={nodeCount}
-            existingControlPlaneCount={current.controlPlane}
-            existingWorkerCount={current.workerNodes}
-            existingNodes={existingNodes}
-          />
+          <NodeServerForm nodeCount={nodeCount} existingControlPlaneCount={current.controlPlane} existingNodes={existingNodes} />
         )}
       </DialogContent>
     </Dialog>

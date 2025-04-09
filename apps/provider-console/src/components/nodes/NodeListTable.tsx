@@ -18,6 +18,7 @@ import { Trash } from "iconoir-react";
 
 import type { ControlMachineWithAddress } from "@src/types/controlMachine";
 import type { KubeNode } from "@src/types/kubeNode";
+import { hasEtcdRole } from "@src/utils/nodeDistribution";
 import { RemoveNodeDialog } from "./RemoveNodeDialog";
 
 interface NodeListTableProps {
@@ -31,9 +32,9 @@ export const NodeListTable = ({ nodes, onRemoveNode, activeControlMachine, isNod
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<KubeNode | null>(null);
 
-  // Count the number of control-plane nodes
-  const controlPlaneNodes = nodes.filter(node => node.roles.toLowerCase().includes("control-plane"));
-  const controlPlaneCount = controlPlaneNodes.length;
+  // Count the number of nodes with control-plane and etcd roles
+  const controlPlaneCount = nodes.filter(n => n.roles.toLowerCase().includes("control-plane")).length;
+  const etcdCount = nodes.filter(n => hasEtcdRole(n.roles)).length;
 
   const handleRemoveNodeClick = (node: KubeNode) => {
     setSelectedNode(node);
@@ -76,6 +77,11 @@ export const NodeListTable = ({ nodes, onRemoveNode, activeControlMachine, isNod
   const canRemoveNode = (node: KubeNode) => {
     // If it's the only control-plane node, it cannot be removed
     if (node.roles.toLowerCase().includes("control-plane") && controlPlaneCount <= 1) {
+      return false;
+    }
+
+    // If it's the only etcd node, it cannot be removed
+    if (hasEtcdRole(node.roles) && etcdCount <= 1) {
       return false;
     }
 
@@ -159,6 +165,8 @@ export const NodeListTable = ({ nodes, onRemoveNode, activeControlMachine, isNod
                             <p>Cannot delete control machine node</p>
                           ) : node.roles.toLowerCase().includes("control-plane") && controlPlaneCount <= 1 ? (
                             <p>Cannot remove the only control-plane node</p>
+                          ) : hasEtcdRole(node.roles) && etcdCount <= 1 ? (
+                            <p>Cannot remove the only etcd node</p>
                           ) : (
                             <p>This node cannot be removed</p>
                           )}
@@ -185,6 +193,7 @@ export const NodeListTable = ({ nodes, onRemoveNode, activeControlMachine, isNod
         onConfirm={confirmNodeRemoval}
         node={selectedNode}
         controlPlaneCount={controlPlaneCount}
+        etcdCount={etcdCount}
         isLoading={isNodeRemovalLoading}
       />
     </>
