@@ -23,6 +23,7 @@ import { apiNodeUrl, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/c
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
 import { LeaseSeeder } from "@test/seeders/lease.seeder";
+import { LeaseStatusSeeder } from "@test/seeders/lease-status.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
@@ -85,6 +86,7 @@ describe("Deployments API", () => {
     });
 
     jest.spyOn(providerService, "sendManifest").mockResolvedValue(true);
+    jest.spyOn(providerService, "getLeaseStatus").mockResolvedValue(LeaseStatusSeeder.create());
   });
 
   afterEach(async () => {
