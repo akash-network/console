@@ -13,6 +13,7 @@ import assert from "http-assert";
 import { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargate-client/sync-signing-stargate-client";
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { withSpan } from "@src/core/services/tracing/tracing.service";
 
 interface ShortAccountInfo {
   accountNumber: number;
@@ -118,40 +119,42 @@ export class BatchSigningClientService {
   }
 
   private async executeTxBatch(inputs: ExecuteTxInput[]): Promise<IndexedTx[]> {
-    const txes: TxRaw[] = [];
-    let txIndex: number = 0;
+    return await withSpan("BatchSigningClientService.executeTxBatchV1", async () => {
+      const txes: TxRaw[] = [];
+      let txIndex: number = 0;
 
-    const client = await this.clientAsPromised;
-    await this.updateAccountInfo();
+      const client = await this.clientAsPromised;
+      await this.updateAccountInfo();
 
-    const address = await this.wallet.getFirstAddress();
+      const address = await this.wallet.getFirstAddress();
 
-    while (txIndex < inputs.length) {
-      const { messages, options } = inputs[txIndex];
-      const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee.granter);
-      txes.push(
-        await client.sign(address, messages, fee, "", {
-          accountNumber: this.accountInfo.accountNumber,
-          sequence: this.accountInfo.sequence++,
-          chainId: this.chainId
-        })
-      );
-      txIndex++;
-    }
+      while (txIndex < inputs.length) {
+        const { messages, options } = inputs[txIndex];
+        const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee.granter);
+        txes.push(
+          await client.sign(address, messages, fee, "", {
+            accountNumber: this.accountInfo.accountNumber,
+            sequence: this.accountInfo.sequence++,
+            chainId: this.chainId
+          })
+        );
+        txIndex++;
+      }
 
-    const responses: BroadcastTxSyncResponse[] = [];
-    txIndex = 0;
+      const responses: BroadcastTxSyncResponse[] = [];
+      txIndex = 0;
 
-    while (txIndex < txes.length - 1) {
-      const txRaw: TxRaw = txes[txIndex];
-      responses.push(await client.tmBroadcastTxSync(TxRaw.encode(txRaw).finish()));
-      txIndex++;
-    }
+      while (txIndex < txes.length - 1) {
+        const txRaw: TxRaw = txes[txIndex];
+        responses.push(await client.tmBroadcastTxSync(TxRaw.encode(txRaw).finish()));
+        txIndex++;
+      }
 
-    const lastDelivery = await client.broadcastTx(TxRaw.encode(txes[txes.length - 1]).finish());
-    const hashes = [...responses.map(hash => toHex(hash.hash)), lastDelivery.transactionHash];
+      const lastDelivery = await client.broadcastTx(TxRaw.encode(txes[txes.length - 1]).finish());
+      const hashes = [...responses.map(hash => toHex(hash.hash)), lastDelivery.transactionHash];
 
-    return await Promise.all(hashes.map(hash => client.getTx(hash)));
+      return await Promise.all(hashes.map(hash => client.getTx(hash)));
+    });
   }
 
   private async updateAccountInfo() {
