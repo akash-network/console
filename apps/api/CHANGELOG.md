@@ -1,5 +1,12 @@
 
 
+## [2.82.0](https://github.com/akash-network/console/compare/console-api/v2.81.0...console-api/v2.82.0) (2025-04-09)
+
+
+### Features
+
+* **deployment:** managed wallet api lease status ([#1161](https://github.com/akash-network/console/issues/1161)) ([d2f03f8](https://github.com/akash-network/console/commit/d2f03f85924ed791aa9b160bf6276571066c4074))
+
 ## [2.81.0](https://github.com/akash-network/console/compare/console-api/v2.80.0...console-api/v2.81.0) (2025-04-09)
 
 
