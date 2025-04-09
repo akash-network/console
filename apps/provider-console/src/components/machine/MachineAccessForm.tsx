@@ -75,17 +75,6 @@ export const MachineAccessForm: React.FC<MachineAccessFormProps> = ({
   // Display a message if we have a keyfile from shared config
   const hasSharedKeyfile = Boolean(defaultValues?.keyfile);
 
-  console.log("MachineAccessForm defaultValues:", {
-    hostname: defaultValues?.hostname,
-    port: defaultValues?.port,
-    username: defaultValues?.username,
-    hasPassword: Boolean(defaultValues?.password),
-    hasKeyfile: Boolean(defaultValues?.keyfile),
-    hasFile: Boolean(defaultValues?.file),
-    keyfileLength: defaultValues?.keyfile?.length
-  });
-  console.log("hasSharedKeyfile:", hasSharedKeyfile);
-
   const form = useForm<MachineAccessFormValues>({
     resolver: zodResolver(machineAccessSchema),
     defaultValues: {

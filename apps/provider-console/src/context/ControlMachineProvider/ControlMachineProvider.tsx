@@ -69,7 +69,6 @@ export function ControlMachineProvider({ children }: Props) {
         // Only update storage if changes were made
         if (migrationPerformed) {
           localStorage.setItem("controlMachines", JSON.stringify(migratedMachines));
-          console.log("Keyfile migration completed successfully");
         }
       }
 

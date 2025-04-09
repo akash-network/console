@@ -93,8 +93,6 @@ export const ServerForm: React.FC<ServerFormProps> = ({
 
   const handleSubmit = async (formData: MachineAccess) => {
     try {
-      console.log(`Verifying server ${_currentServerNumber + 1} ${_currentServerNumber === 0 ? "as control machine" : "as worker node"}`);
-
       // Use the shared verification logic based on server number
       const result = await verifyMachine(formData);
 

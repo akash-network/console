@@ -65,50 +65,27 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({ nodeCount, exist
 
   const handleNodeComplete = useCallback(
     async (nodeInfo: NodeInfo) => {
-      // Update the current node's configuration
       setNodeConfigs(prev => prev.map((config, index) => (index === currentNodeIndex ? { ...config, status: "completed" } : config)));
 
-      // Store the full node info for this index
       setCompletedNodeInfos(prev => {
         const updated = [...prev];
         updated[currentNodeIndex] = nodeInfo;
-        console.log(`Saving nodeInfo for node ${currentNodeIndex + 1}:`, nodeInfo);
         return updated;
       });
 
-      // Store the first node's config if it's the first node and shared config is enabled
       if (currentNodeIndex === 0) {
-        // Check if user wants to use the same config for all nodes
         setUseSharedConfig(Boolean(nodeInfo.access.saveInformation));
         setFirstNodeConfig(nodeInfo);
-        console.log("Saving first node config:", nodeInfo);
-        console.log("Will use shared config:", Boolean(nodeInfo.access.saveInformation));
       }
 
-      // If moving to the next node with shared config, log the values
-      if (currentNodeIndex < nodeCount - 1 && useSharedConfig) {
-        console.log("Moving to next node with shared config", {
-          currentNodeIndex,
-          firstNodeConfig,
-          useSharedConfig
-        });
-      }
-
-      // If this is the last node, submit all nodes
       if (currentNodeIndex === nodeCount - 1) {
-        // Prepare nodes data for backend submission
         const completedNodes = nodeConfigs.map((config, index) => {
           let nodeData;
 
-          // For the current (last) node, use the just-submitted data
           if (index === currentNodeIndex) {
             nodeData = nodeInfo;
-            console.log(`Using current node info for node ${index + 1}`);
-          }
-          // For previously completed nodes, use their stored nodeInfo
-          else if (completedNodeInfos[index]) {
+          } else if (completedNodeInfos[index]) {
             nodeData = completedNodeInfos[index];
-            console.log(`Using stored node info for node ${index + 1}:`, nodeData?.access.hostname);
           }
           // Fallback to shared config when appropriate
           else if (useSharedConfig && firstNodeConfig) {
@@ -120,19 +97,16 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({ nodeCount, exist
                 hostname: "MISSING_HOSTNAME"
               }
             };
-            console.log(`WARNING: Missing node info for node ${index + 1}, using shared config`);
           }
           // Last resort fallback
           else {
             nodeData = nodeInfo;
-            console.log(`FALLBACK: Using current node info for node ${index + 1}`);
           }
 
           // Check if the node has GPUs
           const hasGpus = nodeData.system_info?.gpu?.count > 0;
 
           // Log the hostname we're using
-          console.log(`Final hostname for node ${index + 1}: ${nodeData.access.hostname}`);
 
           // Return only the properties needed for the API request
           return {
@@ -147,8 +121,6 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({ nodeCount, exist
           };
         });
 
-        console.log("Final nodes data:", completedNodes);
-
         try {
           setIsSubmitting(true);
           await addNodeMutation.mutateAsync({
@@ -158,7 +130,6 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({ nodeCount, exist
           // The mutation's onSuccess will handle navigation to activity-logs page
           // No need to call onComplete here
         } catch (error: any) {
-          console.error("Failed to add nodes:", error);
           toast({
             variant: "destructive",
             title: "Failed to Add Nodes",

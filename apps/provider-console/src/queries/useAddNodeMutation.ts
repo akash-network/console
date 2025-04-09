@@ -98,11 +98,6 @@ export const useAddNodeMutation = () => {
           })
         };
 
-        console.log(
-          "AddNodeMutation - Final node hostnames:",
-          request.nodes.map(n => n.hostname)
-        );
-        console.log("Sending request with nodes:", request.nodes.length);
         const response: { message: string; action_id: string } = await restClient.post("/kube/add-nodes", request);
         return response;
       } catch (error) {

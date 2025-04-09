@@ -24,7 +24,6 @@ export function migrateControlMachineStorage() {
         typeof machine.access.file === "string" &&
         (machine.access.file.startsWith("data:") || machine.access.file.match(/^[A-Za-z0-9+/=]+$/))
       ) {
-        console.log(`Migrating control machine ${address} from file to keyfile property`);
         // Move to keyfile property with correct MIME type format
         machine.access.keyfile = processKeyfile(machine.access.file);
         delete machine.access.file; // Remove the file property entirely
@@ -34,7 +33,6 @@ export function migrateControlMachineStorage() {
       else if (machine.access.keyfile && typeof machine.access.keyfile === "string") {
         const processedKeyfile = processKeyfile(machine.access.keyfile);
         if (processedKeyfile !== machine.access.keyfile) {
-          console.log(`Updating MIME type for keyfile of machine ${address}`);
           machine.access.keyfile = processedKeyfile;
           migrationPerformed = true;
         }
@@ -44,7 +42,6 @@ export function migrateControlMachineStorage() {
     // Save if changes were made
     if (migrationPerformed) {
       localStorage.setItem(storageKey, JSON.stringify(storedMachines));
-      console.log("Successfully migrated control machines to use keyfile property with correct MIME types");
     }
   } catch (error) {
     console.error("Migration error:", error);
