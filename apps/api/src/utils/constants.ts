@@ -15,7 +15,7 @@ export const openApiExampleTransactionHash = "A19F1950D97E576F0D7B591D71A8D0366A
 export const openApiExampleValidatorAddress = "akashvaloper14mt78hz73d9tdwpdvkd59ne9509kxw8yj7qy8f";
 
 export const defaultNodeUrlMapping: { [key: string]: string } = {
-  mainnet: "https://api.akashnet.net:443",
+  mainnet: "https://consoleapi.akashnet.net:443",
   sandbox: "https://api.sandbox-01.aksh.pw",
   testnet: "https://api.testnet-02.aksh.pw"
 };

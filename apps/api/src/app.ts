@@ -35,7 +35,15 @@ import { web3IndexRouter } from "./routers/web3indexRouter";
 import { env } from "./utils/env";
 import { bytesToHumanReadableSize } from "./utils/files";
 import { sendVerificationEmailRouter } from "./auth";
-import { checkoutRouter, getWalletListRouter, signAndBroadcastTxRouter, startTrialRouter, stripePricesRouter, stripeWebhook } from "./billing";
+import {
+  checkoutRouter,
+  getBalancesRouter,
+  getWalletListRouter,
+  signAndBroadcastTxRouter,
+  startTrialRouter,
+  stripePricesRouter,
+  stripeWebhook
+} from "./billing";
 import { Scheduler } from "./scheduler";
 import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
 
@@ -100,6 +108,7 @@ appHono.route("/", apiKeysRouter);
 appHono.route("/", bidsRouter);
 appHono.route("/", certificateRouter);
 appHono.route("/", featuresRouter);
+appHono.route("/", getBalancesRouter);
 
 appHono.route("/", healthzRouter);
 

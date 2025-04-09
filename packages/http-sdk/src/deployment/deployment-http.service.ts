@@ -174,7 +174,9 @@ export class DeploymentHttpService extends HttpService {
    * @returns Array of all deployments
    */
   public async loadAllDeployments(owner: string, state?: string, limit: number = 1000): Promise<DeploymentInfo[]> {
-    const baseUrl = `/akash/deployment/v1beta3/deployments?filters.owner=${owner}${state ? `&filters.state=${state}` : ""}`;
+    const baseUrl = this.getUri({
+      url: `/akash/deployment/v1beta3/deployments/list?filters.owner=${owner}${state ? `&filters.state=${state}` : ""}`
+    });
     return loadWithPagination<DeploymentInfo>(baseUrl, "deployments", limit, this);
   }
 }
