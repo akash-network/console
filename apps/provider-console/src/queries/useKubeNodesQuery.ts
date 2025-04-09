@@ -1,9 +1,9 @@
 import { type ToasterToast, useToast } from "@akashnetwork/ui/hooks";
 import { useQuery } from "@tanstack/react-query";
-import { AxiosError } from "axios";
+import type { AxiosError } from "axios";
 
 import { useControlMachine } from "@src/context/ControlMachineProvider";
-import { KubeNodesResponse } from "@src/types/kubeNode";
+import type { KubeNodesResponse } from "@src/types/kubeNode";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 
