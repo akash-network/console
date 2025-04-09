@@ -31,7 +31,11 @@ export class DeploymentService {
     private readonly providerService: ProviderService
   ) {}
 
-  public async findByOwnerAndDseq(owner: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
+  public async findByOwnerAndDseq(
+    owner: string,
+    dseq: string,
+    options?: { certificate?: { certPem: string; keyPem: string } }
+  ): Promise<GetDeploymentResponse["data"]> {
     const deploymentResponse = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
 
     if ("code" in deploymentResponse) {
@@ -42,9 +46,42 @@ export class DeploymentService {
 
     const { leases } = await this.leaseHttpService.listByOwnerAndDseq(owner, dseq);
 
+    const leasesWithStatus = await Promise.all(
+      leases.map(async ({ lease }) => {
+        if (!options?.certificate) {
+          return {
+            lease,
+            status: null
+          };
+        }
+
+        try {
+          const leaseStatus = await this.providerService.getLeaseStatus(
+            lease.lease_id.provider,
+            lease.lease_id.dseq,
+            lease.lease_id.gseq,
+            lease.lease_id.oseq,
+            options.certificate
+          );
+          return {
+            lease,
+            status: leaseStatus
+          };
+        } catch {
+          return {
+            lease,
+            status: null
+          };
+        }
+      })
+    );
+
     return {
       deployment: deploymentResponse.deployment,
-      leases: leases.map(({ lease }) => lease),
+      leases: leasesWithStatus.map(({ lease, status }) => ({
+        ...lease,
+        status
+      })),
       escrow_account: deploymentResponse.escrow_account
     };
   }
@@ -120,7 +157,7 @@ export class DeploymentService {
     await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
     await this.sendManifestToProviders(dseq, manifest, certificate as { certPem: string; keyPem: string }, deployment.leases);
 
-    return await this.findByOwnerAndDseq(wallet.address, dseq);
+    return await this.findByOwnerAndDseq(wallet.address, dseq, { certificate: { certPem: certificate.certPem, keyPem: certificate.keyPem } });
   }
 
   private async ensureDeploymentIsUpToDate(
