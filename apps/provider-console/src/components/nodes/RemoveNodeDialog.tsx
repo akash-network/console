@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Spinner } from "@akashnetwork/ui/components";
+import { Popup, Spinner } from "@akashnetwork/ui/components";
 import { WarningTriangle } from "iconoir-react";
 
 import type { KubeNode } from "@src/types/kubeNode";
@@ -71,40 +71,51 @@ export const RemoveNodeDialog: React.FC<RemoveNodeDialogProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Remove Node</DialogTitle>
-          <DialogDescription className="space-y-2 pt-1">
-            <p>
-              Are you sure you want to remove the node <span className="font-medium">{node.name}</span>?
-            </p>
-            <p>The node will be cordoned to prevent new workloads from being scheduled on it before removal.</p>
-            <p className="text-amber-600 dark:text-amber-400">
-              Existing workloads might be affected, removed, or moved to other nodes if possible, which could cause restarts and temporary disruption to
-              customer deployments.
-            </p>
-          </DialogDescription>
-        </DialogHeader>
+    <Popup
+      open={isOpen}
+      onClose={onClose}
+      title="Remove Node"
+      variant="custom"
+      enableCloseOnBackdropClick
+      maxWidth="sm"
+      actions={[
+        {
+          label: "Cancel",
+          variant: "outline",
+          side: "left",
+          onClick: onClose,
+          disabled: isLoading
+        },
+        {
+          label: isLoading ? (
+            <>
+              <Spinner className="mr-2" size="small" />
+              Removing Node...
+            </>
+          ) : (
+            "Remove Node"
+          ),
+          variant: "destructive",
+          side: "right",
+          onClick: onConfirm,
+          disabled: isLoading
+        }
+      ]}
+    >
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <p>
+            Are you sure you want to remove the node <span className="font-medium">{node.name}</span>?
+          </p>
+          <p>The node will be cordoned to prevent new workloads from being scheduled on it before removal.</p>
+          <p className="text-amber-600 dark:text-amber-400">
+            Existing workloads might be affected, removed, or moved to other nodes if possible, which could cause restarts and temporary disruption to customer
+            deployments.
+          </p>
+        </div>
 
         {getWarningMessage()}
-
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Spinner className="mr-2" size="small" />
-                Removing Node...
-              </>
-            ) : (
-              "Remove Node"
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </Popup>
   );
 };

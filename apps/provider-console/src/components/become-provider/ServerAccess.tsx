@@ -7,6 +7,7 @@ import type { MachineAccess } from "@src/components/machine/MachineAccessForm";
 import type { NodeConfig } from "@src/components/shared/ProgressSidebar";
 import { ProgressSidebar } from "@src/components/shared/ProgressSidebar";
 import { useWallet } from "@src/context/WalletProvider";
+import { NODE_STATUS } from "@src/utils/constants";
 import { calculateNodeDistribution } from "@src/utils/nodeDistribution";
 import { ServerForm } from "./ServerForm";
 
@@ -54,7 +55,7 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
         configs.push({
           isControlPlane: true,
           nodeNumber: i + 1,
-          status: i === 0 ? "in-progress" : "not-started"
+          status: i === 0 ? NODE_STATUS.IN_PROGRESS : NODE_STATUS.NOT_STARTED
         });
       }
 
@@ -63,7 +64,7 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
         configs.push({
           isControlPlane: false,
           nodeNumber: i + 1,
-          status: "not-started"
+          status: NODE_STATUS.NOT_STARTED
         });
       }
 
@@ -74,7 +75,7 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
   const handleServerFormSubmit = useCallback(
     (_formData: MachineAccess) => {
       // Update status of current server to completed
-      setServerConfigs(prev => prev.map((config, index) => (index === currentServer ? { ...config, status: "completed" } : config)));
+      setServerConfigs(prev => prev.map((config, index) => (index === currentServer ? { ...config, status: NODE_STATUS.COMPLETED } : config)));
 
       // If this was the last server, we're done
       if (currentServer + 1 >= numberOfServers) {
@@ -83,7 +84,7 @@ export const ServerAccess: React.FC<ServerAccessProps> = ({ onComplete }) => {
       }
 
       // Otherwise, move to the next server and update its status to in-progress
-      setServerConfigs(prev => prev.map((config, index) => (index === currentServer + 1 ? { ...config, status: "in-progress" } : config)));
+      setServerConfigs(prev => prev.map((config, index) => (index === currentServer + 1 ? { ...config, status: NODE_STATUS.IN_PROGRESS } : config)));
 
       setCurrentServer(prev => prev + 1);
     },

@@ -105,7 +105,7 @@ export const AddNodeModal: React.FC<AddNodeModalProps> = ({ isOpen, onClose, exi
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className={cn("max-w-[500px] p-8 transition-all duration-200", step === "form" && "max-w-[1000px]")}>
+      <DialogContent className={cn("max-w-[500px] p-8 transition-all duration-200", { "max-w-[1000px]": step === "form" })}>
         <DialogHeader>
           <Title>Add New Nodes</Title>
           <DialogDescription>

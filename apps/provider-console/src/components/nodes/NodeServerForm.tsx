@@ -106,9 +106,6 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({ nodeCount, exist
           // Check if the node has GPUs
           const hasGpus = nodeData.system_info?.gpu?.count > 0;
 
-          // Log the hostname we're using
-
-          // Return only the properties needed for the API request
           return {
             hostname: nodeData.access.hostname,
             port: nodeData.access.port || 22,

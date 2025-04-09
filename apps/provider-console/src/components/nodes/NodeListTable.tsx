@@ -53,11 +53,6 @@ export const NodeListTable = ({ nodes, onRemoveNode, activeControlMachine, isNod
     }
   };
 
-  const getStatusClass = (status: string) => {
-    // Assuming status is 'True' for Ready, adjust as needed
-    return status === "True" ? "text-green-500" : "text-red-500";
-  };
-
   const formatAge = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -132,7 +127,9 @@ export const NodeListTable = ({ nodes, onRemoveNode, activeControlMachine, isNod
                     </Tooltip>
                   </TooltipProvider>
                 </TableCell>
-                <TableCell className={cn(getStatusClass(node.status), "py-1 align-middle")}>{node.status === "True" ? "Ready" : "NotReady"}</TableCell>
+                <TableCell className={cn({ "text-green-500": node.status === "True", "text-red-500": node.status !== "True" }, "py-1 align-middle")}>
+                  {node.status === "True" ? "Ready" : "NotReady"}
+                </TableCell>
                 <TableCell className="truncate py-1 align-middle">{node.roles}</TableCell>
                 <TableCell className="py-1 align-middle">{node.internalIP}</TableCell>
                 <TableCell className="py-1 align-middle">{node.externalIP || "-"}</TableCell>
