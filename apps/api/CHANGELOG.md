@@ -1,5 +1,12 @@
 
 
+## [2.81.0](https://github.com/akash-network/console/compare/console-api/v2.80.0...console-api/v2.81.0) (2025-04-09)
+
+
+### Features
+
+* **observability:** adds tracing utilities and spans tx signing method  ([4ab8e66](https://github.com/akash-network/console/commit/4ab8e6616fb2672f64f1daf7b2e424a267e3728c))
+
 ## [2.80.0](https://github.com/akash-network/console/compare/console-api/v2.79.5...console-api/v2.80.0) (2025-04-08)
 
 
