@@ -5,38 +5,17 @@ import type { SystemInfo } from "@src/types/systemInfo";
 import { verifyControlMachine, verifyWorkerNode } from "@src/utils/nodeVerification";
 
 export interface MachineVerificationProps {
-  /**
-   * Optional control machine for verifying worker nodes
-   */
   controlMachine?: MachineAccess | null;
-  /**
-   * Whether the node being configured is a control plane node
-   */
   isControlPlane?: boolean;
 }
 
 export interface MachineVerificationResult {
-  /**
-   * Current verification state
-   */
   isVerifying: boolean;
-  /**
-   * Error information if verification failed
-   */
   error: { message: string; details: string[] } | null;
-  /**
-   * Function to verify a machine's access
-   */
   verifyMachine: (formData: MachineAccess) => Promise<{ access: MachineAccess; systemInfo: SystemInfo } | null>;
-  /**
-   * Reset error state
-   */
   resetError: () => void;
 }
 
-/**
- * Hook for handling machine access verification logic
- */
 export const useMachineAccessForm = ({ controlMachine, isControlPlane = false }: MachineVerificationProps = {}): MachineVerificationResult => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<{ message: string; details: string[] } | null>(null);
@@ -50,15 +29,12 @@ export const useMachineAccessForm = ({ controlMachine, isControlPlane = false }:
     try {
       let systemInfo: SystemInfo;
 
-      // If controlMachine is provided, verify as a worker node
       if (controlMachine) {
         systemInfo = await verifyWorkerNode(controlMachine, formData, isControlPlane);
       } else {
-        // Otherwise verify as a control machine
         systemInfo = await verifyControlMachine(formData);
       }
 
-      // Return the verified machine information
       return {
         access: {
           hostname: formData.hostname,

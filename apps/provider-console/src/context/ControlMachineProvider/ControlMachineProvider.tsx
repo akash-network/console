@@ -5,7 +5,7 @@ import { Drawer, DrawerContent } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { useAtom } from "jotai";
 
-import { ServerForm } from "@src/components/become-provider/ServerForm"; // eslint-disable-line import-x/no-cycle
+import { ServerForm } from "@src/components/become-provider/ServerForm";
 import { useWallet } from "@src/context/WalletProvider";
 import controlMachineStore from "@src/store/controlMachineStore";
 import type { ControlMachineWithAddress } from "@src/types/controlMachine";
@@ -166,9 +166,6 @@ export function ControlMachineProvider({ children }: Props) {
       <>
         {children}
         <Drawer open={controlMachineDrawerOpen} onOpenChange={setControlMachineDrawerOpen}>
-          {/* <DrawerTrigger asChild>
-            <Button variant="outline">Edit Profile</Button>
-          </DrawerTrigger> */}
           <DrawerContent className="z-[200] flex items-center">
             <div className={cn("mb-10 flex max-w-[500px] justify-center")}>
               <ServerForm _currentServerNumber={0} onComplete={() => {}} editMode={true} controlMachine={activeControlMachine} />
