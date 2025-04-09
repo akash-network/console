@@ -9,7 +9,6 @@ import { ServerForm } from "@src/components/become-provider/ServerForm"; // esli
 import { useWallet } from "@src/context/WalletProvider";
 import controlMachineStore from "@src/store/controlMachineStore";
 import type { ControlMachineWithAddress } from "@src/types/controlMachine";
-import { migrateControlMachineStorage } from "@src/utils/migrateMachineStorage";
 import { processKeyfile } from "@src/utils/nodeVerification";
 import restClient from "@src/utils/restClient";
 
@@ -34,11 +33,63 @@ export function ControlMachineProvider({ children }: Props) {
   const { address, isWalletArbitrarySigned, isProvider } = useWallet();
   const [controlMachineDrawerOpen, setControlMachineDrawerOpen] = useState(false);
 
+  // Define the migration function within the component
+  const migrateKeyfileOneTime = () => {
+    // Skip if already migrated
+    if (localStorage.getItem("keyfileMigrationComplete")) {
+      return;
+    }
+
+    try {
+      // Create backup before making any changes
+      const controlMachinesString = localStorage.getItem("controlMachines");
+      if (controlMachinesString) {
+        // Store backup
+        localStorage.setItem("controlMachines_backup", controlMachinesString);
+
+        // Parse and update data
+        const controlMachines = JSON.parse(controlMachinesString);
+        let migrationPerformed = false;
+
+        const migratedMachines = controlMachines.map(machine => {
+          // Only update machines that need migration
+          if (machine?.access?.file && !machine?.access?.keyfile) {
+            migrationPerformed = true;
+            return {
+              ...machine,
+              access: {
+                ...machine.access,
+                keyfile: machine.access.file
+              }
+            };
+          }
+          return machine;
+        });
+
+        // Only update storage if changes were made
+        if (migrationPerformed) {
+          localStorage.setItem("controlMachines", JSON.stringify(migratedMachines));
+          console.log("Keyfile migration completed successfully");
+        }
+      }
+
+      // Mark migration as complete
+      localStorage.setItem("keyfileMigrationComplete", "true");
+    } catch (error) {
+      console.error("Failed to migrate control machines:", error);
+      // Restore from backup if available
+      const backup = localStorage.getItem("controlMachines_backup");
+      if (backup) {
+        localStorage.setItem("controlMachines", backup);
+      }
+    }
+  };
+
   // Run storage migration on mount to handle legacy format
   // This migration ensures 'file' properties are moved to 'keyfile' property
   // and also ensures keyfiles have the correct MIME type format
   useEffect(() => {
-    migrateControlMachineStorage();
+    migrateKeyfileOneTime();
   }, []);
 
   useEffect(() => {
