@@ -21,10 +21,11 @@ export class NotificationCommandHandler implements OnModuleInit {
       'notification.v1.send',
       { prefetchCount: 10 },
       async (events) => {
-        events.map(async (event) => {
-          const msg = validate(event.data, NotificationCommandDto);
-          await this.notificationController.send(msg);
-        });
+        this.loggerService.log({ key: "notification.v1.send", events })
+        // events.map(async (event) => {
+        //   const msg = validate(event.data, NotificationCommandDto);
+        //   await this.notificationController.send(msg);
+        // });
       },
     );
   }
