@@ -42,6 +42,7 @@ export class ProviderProxy {
           try {
             const socket = res.socket;
             if (!socket || !(socket instanceof TLSSocket)) {
+              this.removeAgentFromCache(agentOptions);
               return resolve({ ok: false, code: "insecureConnection" });
             }
 
@@ -59,7 +60,7 @@ export class ProviderProxy {
               const validationResult = await this.certificateValidator.validate(serverCert, options.network, options.providerAddress);
               if (validationResult.ok === false) {
                 // remove agent from cache to destroy TLS session to force TLS handshake on the next call
-                this.agentsCache.delete(genAgentsCacheKey(agentOptions));
+                this.removeAgentFromCache(agentOptions);
                 resolve({ ok: false, code: "invalidCertificate", reason: validationResult.code });
                 req.off("error", reject);
                 req.destroy();
@@ -70,17 +71,22 @@ export class ProviderProxy {
 
             resolve({ ok: true, response: res });
           } catch (error) {
+            this.removeAgentFromCache(agentOptions);
             reject(error);
           }
         }
       );
 
       if (!req.reusedSocket) {
-        req.on("error", reject);
+        req.on("error", error => {
+          this.removeAgentFromCache(agentOptions);
+          reject(error);
+        });
         req.on("timeout", () => {
           // here we are just notified that response take more than specified in request options timeout
           // then we manually destroy request and it drops connection and
           // on('error') handler is called with Error code = ECONNRESET
+          this.removeAgentFromCache(agentOptions);
           req.destroy();
         });
       }
@@ -101,6 +107,11 @@ export class ProviderProxy {
     }
 
     return this.agentsCache.get(key)!;
+  }
+
+  private removeAgentFromCache(options: TLSChainAgentOptions): void {
+    const key = genAgentsCacheKey(options);
+    this.agentsCache.delete(key);
   }
 }
 
