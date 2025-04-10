@@ -33,5 +33,5 @@ export async function loadWithPagination<T>(baseUrl: string, dataKey: string, li
  * @returns Boolean indicating if the URL has query parameters
  */
 export function hasQueryParam(url: string): boolean {
-  return /[?&]/gm.test(url);
+  return new URL(url).searchParams.size > 0;
 }

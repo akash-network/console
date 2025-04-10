@@ -24,9 +24,8 @@ const route = createRoute({
     }
   }
 });
-export const getBalancesRouter = new OpenApiHonoHandler();
 
-getBalancesRouter.openapi(route, async function routeGetBalances(c) {
+export const getBalancesRouter = new OpenApiHonoHandler().openapi(route, async function routeGetBalances(c) {
   const query = c.req.valid("query");
   return c.json(await container.resolve(WalletController).getBalances(query.address), 200);
 });
