@@ -1,5 +1,17 @@
 
 
+## [2.68.0](https://github.com/akash-network/console/compare/console-web/v2.67.2...console-web/v2.68.0) (2025-04-10)
+
+
+### Features
+
+* **billing:** managed wallet api balances endpoint ([#1183](https://github.com/akash-network/console/issues/1183)) ([68024bc](https://github.com/akash-network/console/commit/68024bc394d1d846779a82038abb8b52a694cf21))
+
+
+### Bug Fixes
+
+* **analytics:** fix default import for ga events ([#1202](https://github.com/akash-network/console/issues/1202)) ([a54d65f](https://github.com/akash-network/console/commit/a54d65f17c2db89a899e1e41c3a70d04a114f0d4))
+
 ## [2.67.2](https://github.com/akash-network/console/compare/console-web/v2.67.1...console-web/v2.67.2) (2025-04-10)
 
 
