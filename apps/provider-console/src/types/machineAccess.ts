@@ -4,8 +4,9 @@ export interface MachineInformation {
     username: string;
     password: string | null;
     file: File | null;
+    keyfile?: string | null;
     passphrase: string | null;
     port: number;
-  }
-  systemInfo: any | null
+  };
+  systemInfo: any | null;
 }
