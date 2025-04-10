@@ -48,7 +48,7 @@ describe(BrokerService.name, () => {
       expect(pgBoss.createQueue).toHaveBeenCalledWith(queueName);
       expect(pgBoss.subscribe).toHaveBeenCalledWith(eventName, queueName);
       expect(pgBoss.work).toHaveBeenCalledTimes(options.prefetchCount);
-      expect(pgBoss.work).toHaveBeenCalledWith(queueName, handler);
+      expect(pgBoss.work).toHaveBeenCalledWith(queueName, expect.any(Function));
     });
   });
 

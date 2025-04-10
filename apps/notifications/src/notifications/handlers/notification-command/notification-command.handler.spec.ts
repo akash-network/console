@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import type { MockProxy } from 'jest-mock-extended';
 import type PgBoss from 'pg-boss';
 
+import type { SingleMsgWorkHandler } from '@src/broker/services/broker/broker.service';
 import { BrokerService } from '@src/broker/services/broker/broker.service';
 import { LoggerService } from '@src/common/services/logger.service';
 import { NotificationController } from '@src/notifications/controllers/notification/notification.controller';
@@ -33,8 +34,8 @@ describe(NotificationCommandHandler.name, () => {
 
       brokerService.subscribe.mockImplementation(
         (eventName, options, callback) => {
-          const typedCallback = callback as PgBoss.WorkHandler<any>;
-          typedCallback([{ data: notificationData } as PgBoss.Job]);
+          const typedCallback = callback as SingleMsgWorkHandler<any>;
+          typedCallback({ data: notificationData } as PgBoss.Job);
           return Promise.resolve();
         },
       );

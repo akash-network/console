@@ -15,6 +15,10 @@ type Event = {
   event: object;
 };
 
+export type SingleMsgWorkHandler<ReqData> = (
+  job: PgBoss.Job<ReqData>,
+) => Promise<any>;
+
 @Injectable()
 export class BrokerService {
   constructor(
@@ -34,7 +38,7 @@ export class BrokerService {
   async subscribe<ReqData>(
     eventName: string,
     options: { prefetchCount: number },
-    handler: PgBoss.WorkHandler<ReqData>,
+    handler: SingleMsgWorkHandler<ReqData>,
   ) {
     const queueName = this.toQueueName(eventName);
     await this.boss.createQueue(queueName);
@@ -42,9 +46,19 @@ export class BrokerService {
 
     await Promise.all(
       Array.from({ length: options.prefetchCount }).map(() =>
-        this.boss.work(queueName, handler),
+        this.work(queueName, (messages: PgBoss.Job<ReqData>[]) =>
+          handler(messages[0]),
+        ),
       ),
     );
+  }
+
+  private async work<ReqData>(
+    queueName: string,
+    handler: PgBoss.WorkHandler<ReqData>,
+  ) {
+    await this.boss.work(queueName, handler);
+    this.logger.log({ event: 'WORKER_STARTED', queueName });
   }
 
   async publishAll(events: Event[]) {

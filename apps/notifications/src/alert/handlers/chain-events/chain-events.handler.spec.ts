@@ -5,10 +5,11 @@ import { Test } from '@nestjs/testing';
 import type { MockProxy } from 'jest-mock-extended';
 import type PgBoss from 'pg-boss';
 
+import { ChainEventsController } from '@src/alert/controllers/chain-events/chain-events.controller';
+import { MsgCloseDeploymentDto } from '@src/alert/dto/msg-close-deployment.dto';
+import type { SingleMsgWorkHandler } from '@src/broker/services/broker/broker.service';
 import { BrokerService } from '@src/broker/services/broker/broker.service';
 import { LoggerService } from '@src/common/services/logger.service';
-import { ChainEventsController } from '@src/event-routing/controllers/chain-events/chain-events.controller';
-import { MsgCloseDeploymentDto } from '@src/event-routing/dto/MsgCloseDeployment.dto';
 import { ChainEventsHandler } from './chain-events.handler';
 
 import { MockProvider } from '@test/mocks/provider.mock';
@@ -33,11 +34,13 @@ describe(ChainEventsHandler.name, () => {
         async (
           eventName: string,
           options: { prefetchCount: number },
-          handler: PgBoss.WorkHandler<any>,
+          handler: SingleMsgWorkHandler<any>,
         ) => {
-          await handler([
-            { data: message } as PgBoss.Job<MsgCloseDeploymentDto>,
-          ]);
+          if (eventName === 'akash.deployment.v1beta3.MsgCloseDeployment') {
+            await handler({
+              data: message,
+            } as PgBoss.Job<MsgCloseDeploymentDto>);
+          }
         },
       );
 
