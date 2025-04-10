@@ -30,6 +30,13 @@ export const readableDenoms = {
   [usdcIbcDenoms[sandboxId]]: readableUsdcDenom
 };
 
+// Node status constants
+export const NODE_STATUS = {
+  NOT_STARTED: "not-started",
+  IN_PROGRESS: "in-progress",
+  COMPLETED: "completed"
+} as const;
+
 export let selectedNetworkId = "";
 
 // 0.5AKT aka 500000uakt

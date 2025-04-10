@@ -4,6 +4,7 @@ export interface ServerAccess {
   username: string;
   password?: string;
   keyfile?: string;
+  file?: File;
   passphrase?: string;
 }
 

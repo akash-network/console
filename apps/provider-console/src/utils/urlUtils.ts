@@ -27,10 +27,11 @@ export class UrlService {
   static activityLogs = () => "/activity-logs";
   static pricing = () => "/pricing";
   static persistentStorage = () => "/persistent-storage";
+  static nodes = () => "/nodes";
 }
 
 export const stripProviderPrefixAndPort = (url: string) => {
   return url
-    .replace(/^https?:\/\/provider\./, '') // Remove https://provider. or http://provider.
-    .replace(/:\d+$/, ''); // Remove port number at the end
+    .replace(/^https?:\/\/provider\./, "") // Remove https://provider. or http://provider.
+    .replace(/:\d+$/, ""); // Remove port number at the end
 };
