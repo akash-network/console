@@ -1,6 +1,6 @@
 import * as amplitude from "@amplitude/analytics-browser";
 import murmurhash from "murmurhash";
-import nextGa from "nextjs-google-analytics";
+import { event } from "nextjs-google-analytics";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 
@@ -119,7 +119,7 @@ const AMPLITUDE_USER_PROPERTIES_MAP = {
 const isBrowser = typeof window !== "undefined";
 
 export type Amplitude = Pick<typeof amplitude, "init" | "Identify" | "identify" | "track" | "setUserId">;
-export type GoogleAnalytics = Pick<typeof nextGa, "event">;
+export type GoogleAnalytics = { event: typeof event };
 export type HashFn = typeof murmurhash.v3;
 
 export class AnalyticsService {
@@ -266,7 +266,7 @@ export const analyticsService = new AnalyticsService(
   },
   amplitude,
   murmurhash.v3,
-  nextGa,
+  { event },
   gtag,
   localStorage
 );
