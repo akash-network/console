@@ -1,5 +1,12 @@
 
 
+## [2.67.2](https://github.com/akash-network/console/compare/console-web/v2.67.1...console-web/v2.67.2) (2025-04-10)
+
+
+### Bug Fixes
+
+* makes sure that deploy-web proxy sends real ip to console api ([#1188](https://github.com/akash-network/console/issues/1188)) ([b11cf5d](https://github.com/akash-network/console/commit/b11cf5dd1ff52a81ecfed411cda1d95abc2f7772))
+
 ## [2.67.1](https://github.com/akash-network/console/compare/console-web/v2.67.0...console-web/v2.67.1) (2025-04-08)
 
 
