@@ -158,12 +158,13 @@ export const getProviderAttributeValue = <TKey extends keyof ProviderAttributesS
       return provider.providerAttributes
         .filter(x => x.key === _key)
         .map(x => possibleValues?.find(v => v.key === x.value)?.description)
-        .filter(x => x);
+        .filter((x): x is string => !!x);
     case "multiple-option":
+      if (!possibleValues) return null;
       return possibleValues
         .filter(x => provider.providerAttributes.some(at => at.key === x.key))
         .map(x => x.description)
-        .filter(x => x);
+        .filter((x): x is string => !!x);
     default:
       console.error(`Unknown attribute type: ${providerAttributeSchema[key].type}`);
       return null;

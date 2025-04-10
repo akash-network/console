@@ -45,27 +45,27 @@ export async function getChainStats() {
       const bondedTokensAsPromised = await runOrLog(async () => {
         const bondedTokensQuery = await axios.get<CosmosStakingPoolResponse>(`${apiNodeUrl}/cosmos/staking/v1beta1/pool`);
         return parseInt(bondedTokensQuery.data.pool.bonded_tokens);
-      });
+      }, 0);
 
       const totalSupplyAsPromised = await runOrLog(async () => {
         const supplyQuery = await axios.get<CosmosBankSupplyResponse>(`${apiNodeUrl}/cosmos/bank/v1beta1/supply?pagination.limit=1000`);
         return parseInt(supplyQuery.data.supply.find(x => x.denom === "uakt")?.amount || "0");
-      });
+      }, 0);
 
       const communityPoolAsPromised = await runOrLog(async () => {
         const communityPoolQuery = await axios.get<CosmosDistributionCommunityPoolResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
         return parseFloat(communityPoolQuery.data.pool.find(x => x.denom === "uakt")?.amount || "0");
-      });
+      }, 0);
 
       const inflationAsPromised = await runOrLog(async () => {
         const inflationQuery = await axios.get<CosmosMintInflationResponse>(`${apiNodeUrl}/cosmos/mint/v1beta1/inflation`);
         return parseFloat(inflationQuery.data.inflation || "0");
-      });
+      }, 0);
 
       const communityTaxAsPromised = await runOrLog(async () => {
         const distributionQuery = await axios.get<CosmosDistributionParamsResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/params`);
         return parseFloat(distributionQuery.data.params.community_tax || "0");
-      });
+      }, 0);
 
       const [bondedTokens, totalSupply, communityPool, inflation, communityTax] = await Promise.all([
         bondedTokensAsPromised,
