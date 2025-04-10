@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
-import { Separator, Spinner } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, AlertTitle, Separator, Spinner } from "@akashnetwork/ui/components";
 import { useToast } from "@akashnetwork/ui/hooks";
+import { PcWarning } from "iconoir-react";
 
 import type { MachineAccess } from "@src/components/machine/MachineAccessForm";
 import { NodeTypeSelector } from "@src/components/shared/NodeTypeSelector";
@@ -27,6 +28,7 @@ interface NodeConfig {
   isEtcd?: boolean;
   nodeNumber: number;
   status: "not-started" | "in-progress" | "completed";
+  warning?: string;
 }
 
 export const NodeServerForm: React.FC<NodeServerFormProps> = ({ nodeCount, existingControlPlaneCount, existingNodes }) => {
@@ -38,21 +40,44 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({ nodeCount, exist
   const { toast } = useToast();
   const addNodeMutation = useAddNodeMutation();
 
-  // Calculate existing etcd count
+  // Calculate existing counts
   const existingEtcdCount = existingNodes.filter(node => hasEtcdRole(node.roles)).length;
+  const totalMachineCount = existingNodes.length + nodeCount;
 
-  // Initialize node configs based on etcd count
+  // Helper function to determine required control plane count based on total machines
+  const getRequiredControlPlaneCount = (machineCount: number) => {
+    if (machineCount <= 3) return 1;
+    if (machineCount <= 50) return 3;
+    if (machineCount <= 100) return 5;
+    return 7;
+  };
+
+  // Initialize node configs based on machine count rules
   const [nodeConfigs, setNodeConfigs] = useState<NodeConfig[]>(() => {
+    const requiredControlPlane = getRequiredControlPlaneCount(totalMachineCount);
+
+    // If we already have enough or more control plane nodes, don't add more
+    if (existingControlPlaneCount >= requiredControlPlane) {
+      return Array(nodeCount)
+        .fill(null)
+        .map((_, index) => ({
+          isControlPlane: false,
+          isEtcd: false,
+          nodeNumber: index + 1,
+          status: index === 0 ? "in-progress" : "not-started"
+        }));
+    }
+
+    // Calculate how many new control plane nodes we need
+    const neededControlPlane = requiredControlPlane - existingControlPlaneCount;
+
     return Array(nodeCount)
       .fill(null)
       .map((_, index) => {
-        // Calculate the current etcd count including previous nodes in this batch
-        const currentEtcdCount = existingEtcdCount + index;
-
-        // If we have an even number of etcd nodes, make this a control-plane+etcd
-        // Otherwise, make it a worker node
-        const isEtcd = currentEtcdCount % 2 === 0;
-        const isControlPlane = isEtcd; // Control plane is required for etcd
+        // First add needed control-plane+etcd nodes, then regular worker nodes
+        const isControlPlane = index < neededControlPlane;
+        // All control plane nodes should also be etcd nodes
+        const isEtcd = isControlPlane;
 
         return {
           isControlPlane,
@@ -165,37 +190,65 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({ nodeCount, exist
     [nodeConfigs, currentNodeIndex, existingControlPlaneCount]
   );
 
-  // Simplified node type change handling that follows our rule:
-  // If we have even etcd nodes, add control plane+etcd, otherwise add worker
+  // Enhanced node type change handling with validation and warnings
   const handleNodeTypeChange = useCallback(
     (isControlPlane: boolean, isEtcd: boolean = false) => {
-      // Force consistency: etcd requires control plane, and we don't allow manual changes
-      if (isEtcd && !isControlPlane) {
-        isControlPlane = true;
+      // Force consistency: etcd requires control plane and vice versa in our case
+      if (isEtcd) isControlPlane = true;
+      if (isControlPlane) isEtcd = true;
+
+      // Calculate totals if we make this change
+      const newControlPlaneTotal = getControlPlaneTotalIfChanged(isControlPlane);
+      const requiredControlPlane = getRequiredControlPlaneCount(totalMachineCount);
+
+      // Generate warnings based on the configuration
+      let warning: string | undefined;
+
+      // Validate against our scaling rules
+      if (isControlPlane) {
+        if (newControlPlaneTotal > requiredControlPlane) {
+          warning = `For ${totalMachineCount} machines, you should have exactly ${requiredControlPlane} control plane nodes with etcd (you already have ${existingControlPlaneCount}).`;
+        }
       }
 
-      // Get the current etcd count
-      const totalEtcdNodes = existingEtcdCount + nodeConfigs.filter((node, idx) => idx !== currentNodeIndex && node.isEtcd).length;
+      // Force first node to be control plane if none exist
+      if (currentNodeIndex === 0 && existingControlPlaneCount === 0) {
+        if (!isControlPlane) {
+          isControlPlane = true;
+          isEtcd = true;
+          warning = "First node must be a control plane node with etcd when no control plane nodes exist.";
+        }
+      }
 
-      // Decide node type based on etcd count
-      const shouldBeEtcd = totalEtcdNodes % 2 === 0;
-      const shouldBeControlPlane = shouldBeEtcd;
+      // Warn if trying to add worker node when we don't have enough control plane nodes
+      const totalControlPlaneAfterChanges =
+        existingControlPlaneCount +
+        nodeConfigs.reduce((sum, node, idx) => {
+          if (idx === currentNodeIndex) return sum; // Exclude current node as it's being changed
+          return sum + (node.isControlPlane ? 1 : 0);
+        }, 0) +
+        (isControlPlane ? 1 : 0);
 
-      // Set the node configuration based on our rule
+      if (!isControlPlane && totalControlPlaneAfterChanges < requiredControlPlane) {
+        warning = `You need ${requiredControlPlane} control plane nodes for ${totalMachineCount} machines (you have ${existingControlPlaneCount} existing + ${totalControlPlaneAfterChanges - existingControlPlaneCount} new = ${totalControlPlaneAfterChanges} total). Please add ${requiredControlPlane - totalControlPlaneAfterChanges} more control plane nodes.`;
+      }
+
+      // Update the node configuration
       setNodeConfigs(prev =>
         prev.map((config, index) => {
           if (index === currentNodeIndex) {
             return {
               ...config,
-              isControlPlane: shouldBeControlPlane,
-              isEtcd: shouldBeEtcd
+              isControlPlane,
+              isEtcd,
+              warning
             };
           }
           return config;
         })
       );
     },
-    [currentNodeIndex, nodeConfigs, existingEtcdCount]
+    [currentNodeIndex, getControlPlaneTotalIfChanged, existingControlPlaneCount, nodeConfigs, totalMachineCount]
   );
 
   return (
@@ -215,17 +268,26 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({ nodeCount, exist
       {/* Form Content */}
       <div className="flex-1">
         <div className="space-y-6">
-          {/* Simplified NodeTypeSelector that shows the current node type but disables changes */}
-          <NodeTypeSelector
-            isControlPlane={nodeConfigs[currentNodeIndex].isControlPlane}
-            isEtcd={nodeConfigs[currentNodeIndex].isEtcd}
-            onNodeTypeChange={handleNodeTypeChange}
-            getControlPlaneTotalIfChanged={getControlPlaneTotalIfChanged}
-            getEtcdTotalIfChanged={getEtcdTotalIfChanged}
-            // Disable manual type changes as we're now auto-assigning node types
-            disabled={true}
-            showAutoAssignMessage={true}
-          />
+          {/* Enhanced NodeTypeSelector that allows changes with warnings */}
+          <div className="space-y-4">
+            <NodeTypeSelector
+              isControlPlane={nodeConfigs[currentNodeIndex].isControlPlane}
+              isEtcd={nodeConfigs[currentNodeIndex].isEtcd}
+              onNodeTypeChange={handleNodeTypeChange}
+              getControlPlaneTotalIfChanged={getControlPlaneTotalIfChanged}
+              getEtcdTotalIfChanged={getEtcdTotalIfChanged}
+              disabled={false}
+              showAutoAssignMessage={false}
+            />
+
+            {nodeConfigs[currentNodeIndex].warning && (
+              <Alert variant="warning">
+                <PcWarning className="h-4 w-4" />
+                <AlertTitle>Warning</AlertTitle>
+                <AlertDescription>{nodeConfigs[currentNodeIndex].warning}</AlertDescription>
+              </Alert>
+            )}
+          </div>
 
           <Separator />
 

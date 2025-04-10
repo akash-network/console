@@ -91,10 +91,7 @@ export const NodeTypeSelector: React.FC<NodeTypeSelectorProps> = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="control-plane-etcd" disabled={(wouldBeInvalidEtcdCount && !isEtcd) || (wouldBeInvalidControlPlaneCount && !isControlPlane)}>
-              Control Plane with etcd
-            </SelectItem>
-            <SelectItem value="control-plane" disabled={wouldBeInvalidControlPlaneCount && !isControlPlane}>
-              Control Plane without etcd
+              Control Plane / etcd
             </SelectItem>
             <SelectItem value="worker" disabled={!canChangeToWorker}>
               Worker Node
