@@ -1,5 +1,12 @@
 
 
+## [1.9.0](https://github.com/akash-network/console/compare/provider-console/v1.8.1...provider-console/v1.9.0) (2025-04-10)
+
+
+### Features
+
+* **provider:** node management with changes to create cluster ([#1167](https://github.com/akash-network/console/issues/1167)) ([ef79ff6](https://github.com/akash-network/console/commit/ef79ff6c500350bf014183c7101d3f5cf6190d3a))
+
 ## [1.8.1](https://github.com/akash-network/console/compare/provider-console/v1.8.0...provider-console/v1.8.1) (2025-04-08)
 
 
