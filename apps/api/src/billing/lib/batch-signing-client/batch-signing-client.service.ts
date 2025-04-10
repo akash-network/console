@@ -119,7 +119,7 @@ export class BatchSigningClientService {
   }
 
   private async executeTxBatch(inputs: ExecuteTxInput[]): Promise<IndexedTx[]> {
-    return await withSpan("BatchSigningClientService.executeTxBatchV1", async () => {
+    return await withSpan("BatchSigningClientService.executeTxBatch", async () => {
       const txes: TxRaw[] = [];
       let txIndex: number = 0;
 

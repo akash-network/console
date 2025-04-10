@@ -24,7 +24,10 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
     changeOrigin: true,
     target: serverEnvConfig.BASE_API_MAINNET_URL,
     secure: false,
-    autoRewrite: false
+    autoRewrite: false,
+    headers: {
+      "cf-connecting-ip": String(req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "")
+    }
   });
 
   return new Promise((resolve, reject) => {
