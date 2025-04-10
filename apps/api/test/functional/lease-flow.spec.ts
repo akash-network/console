@@ -118,7 +118,21 @@ describe("Lease Flow", () => {
     // 1. Setup user and get authentication
     const { apiKey, wallet } = await createTestUser();
 
-    // 2. Create certificate
+    // 2. Check initial balances
+    const initialBalancesResponse = await app.request("/v1/balances", {
+      method: "GET",
+      headers: new Headers({
+        "Content-Type": "application/json",
+        "x-api-key": apiKey
+      })
+    });
+    expect(initialBalancesResponse.status).toBe(200);
+    const initialBalances = (await initialBalancesResponse.json()).data;
+    const initialBalance = initialBalances.balance;
+    const initialDeployments = initialBalances.deployments;
+    const initialTotal = initialBalances.total;
+
+    // 3. Create certificate
     const certResponse = await app.request("/v1/certificates", {
       method: "POST",
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
@@ -126,7 +140,7 @@ describe("Lease Flow", () => {
     expect(certResponse.status).toBe(200);
     const { certPem, encryptedKey } = (await certResponse.json()).data;
 
-    // 3. Create deployment
+    // 4. Create deployment
     const deployResponse = await app.request("/v1/deployments", {
       method: "POST",
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey }),
@@ -140,7 +154,24 @@ describe("Lease Flow", () => {
     expect(deployResponse.status).toBe(201);
     const { dseq, manifest } = (await deployResponse.json()).data;
 
-    // 4. Wait for and get bids
+    // 5. Check balances after deployment creation
+    const afterDeployBalancesResponse = await app.request("/v1/balances", {
+      method: "GET",
+      headers: new Headers({
+        "Content-Type": "application/json",
+        "x-api-key": apiKey
+      })
+    });
+    expect(afterDeployBalancesResponse.status).toBe(200);
+    const afterDeployBalances = (await afterDeployBalancesResponse.json()).data;
+    // Balance should be reduced by the deposit amount
+    expect(afterDeployBalances.balance).toBeLessThan(initialBalance);
+    // Deployments should be increased by the deposit amount
+    expect(afterDeployBalances.deployments).toBeGreaterThan(initialDeployments);
+    // Total should remain the same
+    expect(afterDeployBalances.total).toBe(initialTotal);
+
+    // 6. Wait for and get bids
     const bids = await waitForBids(dseq, wallet.address, apiKey);
     expect(bids.length).toBeGreaterThan(0);
     const firstBid = bids[0];
@@ -161,7 +192,7 @@ describe("Lease Flow", () => {
       ]
     };
 
-    // 5. Create lease and send manifest
+    // 7. Create lease and send manifest
     const leaseResponse = await app.request("/v1/leases", {
       method: "POST",
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey }),
@@ -171,7 +202,7 @@ describe("Lease Flow", () => {
     const leaseResult = await leaseResponse.json();
     expect(leaseResult.data.leases[0].status).toEqual(LeaseStatusSeeder.create());
 
-    // 6. Deposit into deployment
+    // 8. Deposit into deployment
     const depositResponse = await app.request(`/v1/deposit-deployment`, {
       method: "POST",
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey }),
@@ -179,13 +210,29 @@ describe("Lease Flow", () => {
     });
     expect(depositResponse.status).toBe(200);
 
+    // 9. Check balances after deposit
+    const afterDepositBalancesResponse = await app.request("/v1/balances", {
+      method: "GET",
+      headers: new Headers({
+        "Content-Type": "application/json",
+        "x-api-key": apiKey
+      })
+    });
+    expect(afterDepositBalancesResponse.status).toBe(200);
+    const afterDepositBalances = (await afterDepositBalancesResponse.json()).data;
+    // Balance should be reduced by the additional deposit amount
+    expect(afterDepositBalances.balance).toBeLessThan(afterDeployBalances.balance);
+    // Deployments should be increased by the additional deposit amount
+    expect(afterDepositBalances.deployments).toBeGreaterThan(afterDeployBalances.deployments);
+    // Total should remain the same
+    expect(afterDepositBalances.total).toBe(initialTotal);
+
     const ymlUpdate = createSdlYml({
       "services.web.image": { $set: "baktun/hello-akash-world:1.0.1" },
       "services.web.env": { $set: ["NEW_FEATURE=enabled"] }
     });
 
-    console.log(ymlUpdate);
-    // 7. Update deployment
+    // 10. Update deployment
     const updateResponse = await app.request(`/v1/deployments/${dseq}`, {
       method: "PUT",
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey }),
@@ -195,7 +242,7 @@ describe("Lease Flow", () => {
     const updateResult = await updateResponse.json();
     expect(updateResult.data.leases[0].status).toEqual(LeaseStatusSeeder.create());
 
-    // 8. Close deployment
+    // 11. Close deployment
     const closeResponse = await app.request(`/v1/deployments/${dseq}`, {
       method: "DELETE",
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
@@ -203,5 +250,22 @@ describe("Lease Flow", () => {
     expect(closeResponse.status).toBe(200);
     const closeResult = await closeResponse.json();
     expect(closeResult.data.success).toBe(true);
+
+    // 12. Check final balances
+    const finalBalancesResponse = await app.request("/v1/balances", {
+      method: "GET",
+      headers: new Headers({
+        "Content-Type": "application/json",
+        "x-api-key": apiKey
+      })
+    });
+    expect(finalBalancesResponse.status).toBe(200);
+    const finalBalances = (await finalBalancesResponse.json()).data;
+    // Balance should be increased back to initial level (minus fees)
+    expect(finalBalances.balance).toBeGreaterThan(afterDepositBalances.balance);
+    // Deployments should be decreased back to initial level
+    expect(finalBalances.deployments).toBeLessThan(afterDepositBalances.deployments);
+    // Total should be less than initial total due to fees
+    expect(finalBalances.total).toBeLessThan(initialTotal);
   });
 });
