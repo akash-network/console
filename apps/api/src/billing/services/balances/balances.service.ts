@@ -1,4 +1,4 @@
-import { AuthzHttpService } from "@akashnetwork/http-sdk";
+import { AuthzHttpService, DeploymentHttpService, DeploymentInfo } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
 import { Wallet } from "@src/billing/lib/wallet/wallet";
@@ -12,7 +12,8 @@ export class BalancesService {
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
-    private readonly authzHttpService: AuthzHttpService
+    private readonly authzHttpService: AuthzHttpService,
+    private readonly deploymentHttpService: DeploymentHttpService
   ) {}
 
   async refreshUserWalletLimits(userWallet: UserWalletOutput, options?: { endTrial: boolean }): Promise<void> {
@@ -69,5 +70,31 @@ export class BalancesService {
     }
 
     return parseInt(depositDeploymentGrant.authorization.spend_limit.amount);
+  }
+
+  /**
+   * Calculate the total escrow balance for all active deployments of a user
+   * @param address User wallet address
+   * @returns Total escrow balance
+   */
+  async calculateDeploymentEscrowBalance(address: string): Promise<number> {
+    const activeDeployments = await this.deploymentHttpService.loadAllDeployments(address, "active");
+
+    const deploymentEscrowBalance = activeDeployments.reduce((total: number, deployment: DeploymentInfo) => {
+      const escrowAccount = deployment.escrow_account;
+      if (!escrowAccount) return total;
+
+      if (escrowAccount.balance && escrowAccount.balance.amount) {
+        total += parseFloat(escrowAccount.balance.amount);
+      }
+
+      if (escrowAccount.funds && escrowAccount.funds.amount) {
+        total += parseFloat(escrowAccount.funds.amount);
+      }
+
+      return total;
+    }, 0);
+
+    return deploymentEscrowBalance;
   }
 }

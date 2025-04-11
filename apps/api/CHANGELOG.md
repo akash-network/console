@@ -1,5 +1,19 @@
 
 
+## [2.85.0](https://github.com/akash-network/console/compare/console-api/v2.84.0...console-api/v2.85.0) (2025-04-11)
+
+
+### Features
+
+* **billing:** handles some chain errors ([496c5f8](https://github.com/akash-network/console/commit/496c5f870f44650692f3ab074138c79b56251d6e)), closes [#1190](https://github.com/akash-network/console/issues/1190) [#1194](https://github.com/akash-network/console/issues/1194)
+
+## [2.84.0](https://github.com/akash-network/console/compare/console-api/v2.83.0...console-api/v2.84.0) (2025-04-10)
+
+
+### Features
+
+* **billing:** managed wallet api balances endpoint ([#1183](https://github.com/akash-network/console/issues/1183)) ([68024bc](https://github.com/akash-network/console/commit/68024bc394d1d846779a82038abb8b52a694cf21))
+
 ## [2.83.0](https://github.com/akash-network/console/compare/console-api/v2.82.0...console-api/v2.83.0) (2025-04-10)
 
 

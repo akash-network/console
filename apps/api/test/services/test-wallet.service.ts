@@ -65,6 +65,8 @@ export class TestWalletService {
         const wallet = new Wallet();
         const address = await wallet.getFirstAddress();
         const fileName = this.getFileName(path);
+        const coinAmount = MIN_AMOUNTS[fileName] || amount;
+        const coinAmountStr = Math.floor(coinAmount).toString();
 
         return {
           path,
@@ -75,7 +77,7 @@ export class TestWalletService {
             value: {
               fromAddress: faucetAddress,
               toAddress: address,
-              amount: coins(MIN_AMOUNTS[fileName] || amount, "uakt")
+              amount: coins(coinAmountStr, "uakt")
             }
           }
         };
