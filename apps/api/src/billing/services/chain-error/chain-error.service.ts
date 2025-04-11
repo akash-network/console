@@ -12,6 +12,14 @@ export class ChainErrorService {
     "Deposit too low": {
       code: 400,
       message: "Deposit too low"
+    },
+    "Deployment closed": {
+      code: 400,
+      message: "Deployment closed"
+    },
+    "invalid coin denominations": {
+      code: 400,
+      message: "Invalid coin denominations"
     }
   };
 
