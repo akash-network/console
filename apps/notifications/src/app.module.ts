@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
+import { AlertModule } from '@src/alert/alert.module';
 import { ChainEventsModule } from './chain-events/chain-events.module';
 import { globalEnvSchema } from './config/env.config';
-import { EventRoutingModule } from './event-routing/event-routing.module';
 import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
@@ -14,7 +14,7 @@ import { NotificationsModule } from './notifications/notifications.module';
       validate: (config) => globalEnvSchema.parse(config),
     }),
     ChainEventsModule,
-    EventRoutingModule,
+    AlertModule,
     NotificationsModule,
   ],
 })
