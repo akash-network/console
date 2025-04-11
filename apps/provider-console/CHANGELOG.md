@@ -1,5 +1,12 @@
 
 
+## [1.9.1](https://github.com/akash-network/console/compare/provider-console/v1.9.0...provider-console/v1.9.1) (2025-04-11)
+
+
+### Bug Fixes
+
+* **provider:** fixed ordering on control node and worker node and cal… ([#1199](https://github.com/akash-network/console/issues/1199)) ([50ba064](https://github.com/akash-network/console/commit/50ba064593421bcfacbab4ddb520a5d8fa7b2f7f))
+
 ## [1.9.0](https://github.com/akash-network/console/compare/provider-console/v1.8.1...provider-console/v1.9.0) (2025-04-10)
 
 
