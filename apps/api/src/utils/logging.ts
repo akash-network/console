@@ -3,8 +3,8 @@ import type { LoggerService } from "@akashnetwork/logging";
 import { getSentry } from "@src/core/providers/sentry.provider";
 
 export const createLoggingExecutor =
-  (logger: LoggerService) =>
-  async <T>(cb: () => Promise<T>, defaultValue?: T): Promise<T> => {
+  (logger: LoggerService): LoggingExecutor =>
+  async (cb, defaultValue?) => {
     try {
       return await cb();
     } catch (error) {
@@ -13,3 +13,8 @@ export const createLoggingExecutor =
       return defaultValue;
     }
   };
+
+type LoggingExecutor = {
+  <T>(cb: () => Promise<T>): Promise<T | undefined>;
+  <T>(cb: () => Promise<T>, defaultValue: T): Promise<T>;
+};
