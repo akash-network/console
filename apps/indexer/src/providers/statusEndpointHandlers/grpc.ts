@@ -96,7 +96,12 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
 }
 
 async function queryStatus(hostUri: string, timeout: number): Promise<Status> {
-  return await createProviderClient(hostUri).getStatus(timeout);
+  try {
+    return await createProviderClient(hostUri).getStatus(timeout);
+  } catch (error) {
+    createProviderClient.cache.delete(hostUri);
+    throw error;
+  }
 }
 
 const createProviderClient = memoize((hostUri: string) => {
