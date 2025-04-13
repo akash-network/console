@@ -6,9 +6,9 @@ import Link from "next/link";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { UrlService } from "@src/utils/urlUtils";
-import { CopyTextToClipboardButton } from "../copy-text-to-clipboard-button/CopyTextToClipboardButton";
+import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
+import { ShortenedValue } from "../shared/ShortenedValue";
 import { StatusPill } from "../shared/StatusPill";
-import { ShortenedValue } from "../shortened-value/ShortenedValue";
 
 type Props = {
   lease: LeaseDto;
