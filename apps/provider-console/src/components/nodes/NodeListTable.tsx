@@ -147,7 +147,7 @@ export const NodeListTable = ({ nodes, onRemoveNode, activeControlMachine, isNod
                             aria-label={`Remove node ${node.name}`}
                             disabled={!canRemoveNode(node) || !activeControlMachine || isNodeRemovalLoading}
                           >
-                            <Trash className={cn("h-4 w-4", canRemoveNode(node) ? "text-destructive" : "text-muted-foreground")} />
+                            <Trash className={cn("h-4 w-4", canRemoveNode(node) ? "text-primary" : "text-muted-foreground")} />
                           </Button>
                         </div>
                       </TooltipTrigger>

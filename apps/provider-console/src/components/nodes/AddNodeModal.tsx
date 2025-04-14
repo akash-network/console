@@ -105,7 +105,7 @@ export const AddNodeModal: React.FC<AddNodeModalProps> = ({ isOpen, onClose, exi
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className={cn("max-w-[500px] p-8 transition-all duration-200", { "max-w-[1000px]": step === "form" })}>
+      <DialogContent className={cn("max-h-[90vh] max-w-[500px] overflow-y-auto p-8 transition-all duration-200", { "max-w-[1000px]": step === "form" })}>
         <DialogHeader>
           <Title>Add New Nodes</Title>
           <DialogDescription>
@@ -132,7 +132,7 @@ export const AddNodeModal: React.FC<AddNodeModalProps> = ({ isOpen, onClose, exi
               </div>
 
               {warning && (
-                <Alert variant="destructive">
+                <Alert variant="warning">
                   <PcWarning className="h-4 w-4" />
                   <AlertTitle>Warning</AlertTitle>
                   <AlertDescription>{warning}</AlertDescription>
@@ -146,7 +146,7 @@ export const AddNodeModal: React.FC<AddNodeModalProps> = ({ isOpen, onClose, exi
               <Button variant="ghost" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button onClick={handleProceed}>{showWarning && !proceedAnyway ? "I understand, continue" : "Continue"}</Button>
+              <Button onClick={handleProceed}>{showWarning && !proceedAnyway ? "I understand" : "Continue"}</Button>
             </div>
           </>
         ) : (
