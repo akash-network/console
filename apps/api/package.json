@@ -32,7 +32,8 @@
     "test:unit": "jest --selectProjects unit",
     "test:unit:cov": "jest --selectProjects unit --coverage",
     "test:unit:watch": "jest --selectProjects unit --watch",
-    "test:watch": "jest --selectProjects unit functional --watch"
+    "test:watch": "jest --selectProjects unit functional --watch",
+    "validate:types-strict": "tsc -p tsconfig.strict.json && echo"
   },
   "dependencies": {
     "@akashnetwork/akash-api": "^1.3.0",

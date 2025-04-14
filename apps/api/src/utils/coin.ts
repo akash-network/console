@@ -19,7 +19,7 @@ export function coinToAsset(coin: Coin) {
     };
   } else {
     const akashChain = asset_lists.find(c => c.chain_name === "akash");
-    const ibcAsset = akashChain.assets.find(a => a.base === coin.denom);
+    const ibcAsset = akashChain?.assets.find(a => a.base === coin.denom);
 
     if (!ibcAsset) {
       logger.info(`Unknown asset ${coin.denom}`);
