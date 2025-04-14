@@ -1,8 +1,7 @@
 import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
-import axios from "axios";
-import type { GetServerSideProps } from "next";
 
 import { ProviderDetail } from "@src/components/providers/ProviderDetail";
+import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
 import { serverApiUrlService } from "@src/services/api-url/server-api-url.service";
 import type { ApiProviderDetail } from "@src/types/provider";
 
@@ -17,14 +16,14 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
 
 export default ProviderDetailPage;
 
-export const getServerSideProps: GetServerSideProps<Props, Pick<Props, "owner">> = async ({ params, query }) => {
+export const getServerSideProps = getServerSidePropsWithServices<Props>(async ({ params, query, services }) => {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(query.network as NetworkId);
-  const response = await axios.get(`${apiUrl}/v1/providers/${params?.owner}`);
+  const response = await services.axios.get(`${apiUrl}/v1/providers/${params?.owner}`);
 
   return {
     props: {
-      owner: params!.owner,
+      owner: params!.owner as string,
       _provider: response.data
     }
   };
-};
+});

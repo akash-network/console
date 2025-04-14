@@ -9,10 +9,8 @@ import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context"
 import { cn } from "@akashnetwork/ui/utils";
 import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
 import { dehydrate, HydrationBoundary, QueryClientProvider } from "@tanstack/react-query";
-import axios from "axios";
 import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
-import type { GetServerSideProps } from "next";
 import type { AppProps } from "next/app";
 import Router from "next/router";
 import type { NextSeoProps } from "next-seo/lib/types";
@@ -34,6 +32,7 @@ import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
+import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
 import { legacyQueryClient, queryClient } from "@src/queries";
 import { prefetchFeatureFlags } from "@src/queries/featureFlags";
 import { serverApiUrlService } from "@src/services/api-url/server-api-url.service";
@@ -112,9 +111,9 @@ const App: React.FunctionComponent<Props> = props => {
 
 export default App;
 
-export const getServerSideProps: GetServerSideProps = async () => {
+export const getServerSideProps = getServerSidePropsWithServices(async ({ services }) => {
   try {
-    await prefetchFeatureFlags(queryClient, axios, serverApiUrlService);
+    await prefetchFeatureFlags(queryClient, services.axios, serverApiUrlService);
   } catch (error) {
     console.error(error);
   }
@@ -124,4 +123,4 @@ export const getServerSideProps: GetServerSideProps = async () => {
       dehydratedState: dehydrate(queryClient)
     }
   };
-};
+});

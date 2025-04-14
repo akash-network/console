@@ -1,4 +1,5 @@
 import { UserFavorites } from "@src/components/user/UserFavorites";
+import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
 import { withCustomPageAuthRequired } from "@src/utils/withCustomPageAuthRequired";
 
 const UserFavoritesPage: React.FunctionComponent = () => {
@@ -8,9 +9,9 @@ const UserFavoritesPage: React.FunctionComponent = () => {
 export default UserFavoritesPage;
 
 export const getServerSideProps = withCustomPageAuthRequired({
-  async getServerSideProps() {
+  getServerSideProps: getServerSidePropsWithServices(async () => {
     return {
       props: {}
     };
-  }
+  })
 });

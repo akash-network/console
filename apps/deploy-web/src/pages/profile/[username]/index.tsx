@@ -1,8 +1,6 @@
-import axios from "axios";
-import type { GetServerSideProps } from "next";
-
 import { UserProfile } from "@src/components/user/UserProfile";
 import { serverEnvConfig } from "@src/config/server-env.config";
+import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
 import type { IUserSetting } from "@src/types/user";
 
 type Props = {
@@ -16,13 +14,19 @@ const UserProfilePage: React.FunctionComponent<Props> = ({ username, user }) => 
 
 export default UserProfilePage;
 
-export const getServerSideProps: GetServerSideProps<Props, Pick<Props, "username">> = async ({ params }) => {
+export const getServerSideProps = getServerSidePropsWithServices<Props, Pick<Props, "username">>(async ({ params, services }) => {
+  if (!params?.username) {
+    return {
+      notFound: true
+    };
+  }
+
   try {
-    const user = await fetchUser(params!.username);
+    const { data: user } = await services.axios.get(`${serverEnvConfig.BASE_API_MAINNET_URL}/user/byUsername/${params.username}`);
 
     return {
       props: {
-        username: params!.username,
+        username: params.username,
         user
       }
     };
@@ -35,9 +39,4 @@ export const getServerSideProps: GetServerSideProps<Props, Pick<Props, "username
       throw error;
     }
   }
-};
-
-async function fetchUser(username: string) {
-  const response = await axios.get(`${serverEnvConfig.BASE_API_MAINNET_URL}/user/byUsername/${username}`);
-  return response.data;
-}
+});

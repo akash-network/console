@@ -1,12 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import { serverEnvConfig } from "@src/config/server-env.config";
+import { wrapApiHandlerInExecutionContext } from "@src/lib/nextjs/wrapApiHandler";
 import BitbucketAuth from "@src/services/auth/bitbucket.service";
 
 const NEXT_PUBLIC_BITBUCKET_CLIENT_ID = serverEnvConfig.NEXT_PUBLIC_BITBUCKET_CLIENT_ID as string;
 const BITBUCKET_CLIENT_SECRET = serverEnvConfig.BITBUCKET_CLIENT_SECRET as string;
 
-export default async function refreshTokensHandler(req: NextApiRequest, res: NextApiResponse): Promise<void> {
+export default wrapApiHandlerInExecutionContext(async function refreshTokensHandler(req: NextApiRequest, res: NextApiResponse): Promise<void> {
   const { refreshToken }: { refreshToken: string } = req.body;
 
   if (!refreshToken) {
@@ -27,4 +28,4 @@ export default async function refreshTokensHandler(req: NextApiRequest, res: Nex
       message: error.response?.data?.error_description
     });
   }
-}
+});
