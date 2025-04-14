@@ -9,7 +9,6 @@ import { ProgressSidebar } from "@src/components/shared/ProgressSidebar";
 import { useAddNodeMutation } from "@src/queries/useAddNodeMutation";
 import type { KubeNode } from "@src/types/kubeNode";
 import type { SystemInfo } from "@src/types/systemInfo";
-import { hasEtcdRole } from "@src/utils/nodeDistribution";
 import { NodeForm } from "./NodeForm";
 
 interface NodeInfo {
@@ -41,7 +40,6 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({ nodeCount, exist
   const addNodeMutation = useAddNodeMutation();
 
   // Calculate existing counts
-  const existingEtcdCount = existingNodes.filter(node => hasEtcdRole(node.roles)).length;
   const totalMachineCount = existingNodes.length + nodeCount;
 
   // Helper function to determine required control plane count based on total machines
@@ -171,16 +169,6 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({ nodeCount, exist
     [currentNodeIndex, nodeCount, useSharedConfig, firstNodeConfig, addNodeMutation, toast, nodeConfigs, existingNodes, completedNodeInfos]
   );
 
-  // Get total etcd count including nodes we're adding up to current index
-  const getEtcdTotalIfChanged = useCallback(
-    (toEtcd: boolean) => {
-      // Calculate total etcd nodes if we change the current node
-      const currentConfigEtcdCount = nodeConfigs.reduce((sum, node, idx) => (idx === currentNodeIndex ? sum : node.isEtcd ? sum + 1 : sum), 0);
-      return currentConfigEtcdCount + (toEtcd ? 1 : 0) + existingEtcdCount;
-    },
-    [nodeConfigs, currentNodeIndex, existingEtcdCount]
-  );
-
   // Get total control plane count
   const getControlPlaneTotalIfChanged = useCallback(
     (toControlPlane: boolean) => {
@@ -274,8 +262,6 @@ export const NodeServerForm: React.FC<NodeServerFormProps> = ({ nodeCount, exist
               isControlPlane={nodeConfigs[currentNodeIndex].isControlPlane}
               isEtcd={nodeConfigs[currentNodeIndex].isEtcd}
               onNodeTypeChange={handleNodeTypeChange}
-              getControlPlaneTotalIfChanged={getControlPlaneTotalIfChanged}
-              getEtcdTotalIfChanged={getEtcdTotalIfChanged}
               disabled={false}
               showAutoAssignMessage={false}
             />
