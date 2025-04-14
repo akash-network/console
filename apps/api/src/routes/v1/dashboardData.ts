@@ -64,7 +64,7 @@ const route = createRoute({
               activeMemory: z.number(),
               activeStorage: z.number()
             }),
-            netwqorkCapacity: z.object({
+            networkCapacity: z.object({
               activeProviderCount: z.number(),
               activeCPU: z.number(),
               activeGPU: z.number(),
@@ -150,7 +150,7 @@ const route = createRoute({
 
 export default new OpenAPIHono().openapi(route, async c => {
   const [{ now, compare }, chainStatsQuery, networkCapacity, networkCapacityStats, latestBlocks, latestTransactions] = await Promise.all([
-    runOrLog(getDashboardData),
+    runOrLog(getDashboardData, {} as Awaited<ReturnType<typeof getDashboardData>>),
     runOrLog(getChainStats, {
       bondedTokens: undefined,
       totalSupply: undefined,
@@ -158,10 +158,10 @@ export default new OpenAPIHono().openapi(route, async c => {
       inflation: undefined,
       stakingAPR: undefined
     }),
-    runOrLog(getNetworkCapacity),
-    runOrLog(() => getProviderGraphData("count")),
-    runOrLog(() => getBlocks(5)),
-    runOrLog(() => getTransactions(5))
+    runOrLog(getNetworkCapacity, {} as Awaited<ReturnType<typeof getNetworkCapacity>>),
+    runOrLog(() => getProviderGraphData("count"), {} as Awaited<ReturnType<typeof getProviderGraphData>>),
+    runOrLog(() => getBlocks(5), []),
+    runOrLog(() => getTransactions(5), [])
   ]);
   const chainStats = {
     ...chainStatsQuery,
