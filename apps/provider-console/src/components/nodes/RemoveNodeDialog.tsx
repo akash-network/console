@@ -52,8 +52,8 @@ export const RemoveNodeDialog: React.FC<RemoveNodeDialogProps> = ({
           <AlertTitle>Warning</AlertTitle>
           <AlertDescription>
             Removing this etcd node will leave your cluster with an even number of etcd nodes ({remainingEtcdNodes}). This could potentially cause a
-            "split-brain" issue where the cluster cannot reach consensus. If this happens, the cluster may become unrecoverable and you may need to create a new
-            one.
+            &quot;split-brain&quot; issue where the cluster cannot reach consensus. If this happens, the cluster may become unrecoverable and you may need to
+            create a new one.
           </AlertDescription>
         </Alert>
       );

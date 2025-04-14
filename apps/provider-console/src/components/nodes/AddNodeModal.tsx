@@ -13,7 +13,7 @@ import {
   Separator
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { PcWarning } from "iconoir-react";
+import { WarningTriangle } from "iconoir-react";
 
 import { Title } from "@src/components/shared/Title";
 import type { KubeNode } from "@src/types/kubeNode";
@@ -133,7 +133,7 @@ export const AddNodeModal: React.FC<AddNodeModalProps> = ({ isOpen, onClose, exi
 
               {warning && (
                 <Alert variant="warning">
-                  <PcWarning className="h-4 w-4" />
+                  <WarningTriangle className="h-4 w-4" />
                   <AlertTitle>Warning</AlertTitle>
                   <AlertDescription>{warning}</AlertDescription>
                 </Alert>

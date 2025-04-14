@@ -42,7 +42,7 @@ const AuditGuidanceBanner: React.FC = () => (
           <p className="font-semibold">Your provider is not audited yet!</p>
           <p className="mt-1">Audited providers receive significantly more workloads. Follow these steps to get audited:</p>
           <ol className="ml-6 list-decimal">
-            <li>Create a separate Keplr wallet for testing (don't use your provider wallet)</li>
+            <li>Create a separate Keplr wallet for testing (don&apos;t use your provider wallet)</li>
             <li>
               Test deploy:
               <ul className="ml-4 mt-1 list-disc">
@@ -55,7 +55,7 @@ const AuditGuidanceBanner: React.FC = () => (
                   >
                     Tetris
                   </Link>{" "}
-                  (remove the "signedBy" field from template)
+                  (remove the &quot;signedBy&quot; field from template)
                 </li>
                 <li>
                   For GPU providers: Deploy both{" "}
@@ -74,7 +74,7 @@ const AuditGuidanceBanner: React.FC = () => (
                   >
                     ComfyUI
                   </Link>{" "}
-                  (remove the "signedBy" field from template)
+                  (remove the &quot;signedBy&quot; field from template)
                 </li>
               </ul>
             </li>

@@ -18,7 +18,7 @@ import {
   TabsTrigger
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Info } from "lucide-react";
+import { InfoCircle } from "iconoir-react";
 import { z } from "zod";
 
 import { readFileAsBase64 } from "../../utils/files";
@@ -229,7 +229,7 @@ export const MachineAccessForm: React.FC<MachineAccessFormProps> = ({
                 {hasSharedKeyfile && (
                   <div className="bg-card mb-4 rounded-lg p-4">
                     <div className="flex items-center gap-2">
-                      <Info className="text-muted-foreground h-5 w-5" />
+                      <InfoCircle className="text-muted-foreground h-5 w-5" />
                       <div>
                         <h4 className="text-card-foreground font-medium">Using SSH key from Node 1</h4>
                         <p className="text-muted-foreground text-sm">The private key from the first node will be used automatically.</p>
