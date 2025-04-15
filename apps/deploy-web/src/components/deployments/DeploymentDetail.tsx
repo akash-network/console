@@ -44,21 +44,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const isRemoteDeploy: boolean = !!editedManifest && !!isCiCdImageInYaml(editedManifest);
   const repo: string | null = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
 
-  const {
-    data: deployment,
-    isFetching: isLoadingDeployment,
-    refetch: getDeploymentDetail,
-    error: deploymentError
-  } = useDeploymentDetail(address, dseq, {
-    onSuccess: _deploymentDetail => {
-      if (_deploymentDetail) {
-        getLeases();
-        getProviders();
-        const deploymentData = getDeploymentLocalData(dseq);
-        setDeploymentManifest(deploymentData?.manifest || "");
-      }
-    }
-  });
+  const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = useDeploymentDetail(address, dseq);
   const {
     data: leases,
     isLoading: isLoadingLeases,
@@ -91,6 +77,15 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const hasLeases = leases && leases.length > 0;
   const { isLocalCertMatching, localCert, isCreatingCert, createCertificate } = useCertificate();
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
+  useEffect(() => {
+    if (deployment) {
+      getLeases();
+      getProviders();
+      const deploymentData = getDeploymentLocalData(dseq);
+      setDeploymentManifest(deploymentData?.manifest || "");
+    }
+  }, [deployment, dseq, getLeases, getProviders]);
+
   const isActive = deployment?.state === "active" && leases?.some(x => x.state === "active");
 
   const searchParams = useSearchParams();

@@ -1,6 +1,6 @@
-import type { QueryKey, UseQueryOptions } from "react-query";
-import { useQuery } from "react-query";
 import { AuthzHttpService } from "@akashnetwork/http-sdk";
+import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -63,7 +63,9 @@ async function getBalances(apiEndpoint: string, address?: string): Promise<Balan
 
 export function useBalances(address?: string, options?: Omit<UseQueryOptions<Balances | undefined>, "queryKey" | "queryFn">) {
   const { settings } = useSettings();
-  return useQuery(QueryKeys.getBalancesKey(address) as QueryKey, () => getBalances(settings.apiEndpoint, address), {
+  return useQuery({
+    queryKey: QueryKeys.getBalancesKey(address) as QueryKey,
+    queryFn: () => getBalances(settings.apiEndpoint, address),
     enabled: !!address,
     ...options
   });

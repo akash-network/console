@@ -318,7 +318,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     setSelectedSdlEditMode(mode);
   };
 
-  const { data: deployments } = useDeploymentList(address, {});
+  const { data: deployments } = useDeploymentList(address);
   const trialDeploymentLimitReached = useMemo(() => {
     return isTrialing && (deployments?.length || 0) >= TRIAL_DEPLOYMENT_LIMIT;
   }, [deployments?.length, isTrialing]);

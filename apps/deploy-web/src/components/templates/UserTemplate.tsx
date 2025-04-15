@@ -35,7 +35,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
   const [isShowingDelete, setIsShowingDelete] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const { user } = useCustomUser();
-  const { mutate: deleteTemplate, isLoading: isDeleting } = useDeleteTemplate(id);
+  const { mutate: deleteTemplate, isPending: isDeleting } = useDeleteTemplate(id);
   const isCurrentUserTemplate = user?.sub === template.userId;
   const _ram = bytesToShrink(template.ram);
   const _storage = bytesToShrink(template.storage);
