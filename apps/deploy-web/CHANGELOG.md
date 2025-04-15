@@ -1,5 +1,12 @@
 
 
+## [2.68.2](https://github.com/akash-network/console/compare/console-web/v2.68.1...console-web/v2.68.2) (2025-04-15)
+
+
+### Bug Fixes
+
+* update react-query in a few places ([#1159](https://github.com/akash-network/console/issues/1159)) ([be806c8](https://github.com/akash-network/console/commit/be806c8ce50a969198b7ba409750961f1a8e4363)), closes [#337](https://github.com/akash-network/console/issues/337)
+
 ## [2.68.1](https://github.com/akash-network/console/compare/console-web/v2.68.0...console-web/v2.68.1) (2025-04-15)
 
 
