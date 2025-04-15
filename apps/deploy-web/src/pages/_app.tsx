@@ -3,12 +3,12 @@ import "nprogress/nprogress.css";
 import "../styles/index.css";
 
 import React from "react";
-import { dehydrate, Hydrate, QueryClient as LegacyQueryClient, QueryClientProvider as LegacyQueryClientProvider } from "react-query";
+import { QueryClientProvider as LegacyQueryClientProvider } from "react-query";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
 import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { dehydrate, HydrationBoundary, QueryClientProvider } from "@tanstack/react-query";
 import axios from "axios";
 import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
@@ -65,7 +65,7 @@ const App: React.FunctionComponent<Props> = props => {
           <CustomIntlProvider>
             <LegacyQueryClientProvider client={legacyQueryClient}>
               <QueryClientProvider client={queryClient}>
-                <Hydrate state={pageProps.dehydratedState}>
+                <HydrationBoundary state={pageProps.dehydratedState}>
                   <JotaiProvider store={store}>
                     <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
                       <ColorModeProvider>
@@ -100,7 +100,7 @@ const App: React.FunctionComponent<Props> = props => {
                       </ColorModeProvider>
                     </ThemeProvider>
                   </JotaiProvider>
-                </Hydrate>
+                </HydrationBoundary>
               </QueryClientProvider>
             </LegacyQueryClientProvider>
           </CustomIntlProvider>
@@ -113,7 +113,6 @@ const App: React.FunctionComponent<Props> = props => {
 export default App;
 
 export const getServerSideProps: GetServerSideProps = async () => {
-  const queryClient = new LegacyQueryClient();
   try {
     await prefetchFeatureFlags(queryClient, axios, serverApiUrlService);
   } catch (error) {
