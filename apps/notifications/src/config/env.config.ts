@@ -5,6 +5,7 @@ export const globalEnvSchema = z.object({
   NOTIFICATIONS_POSTGRES_URL: z.string(),
   RPC_NODE_ENDPOINT: z.string(),
   API_NODE_ENDPOINT: z.string(),
+  APP_NAME: z.string(),
 });
 
 export type GlobalEnvConfig = z.infer<typeof globalEnvSchema>;

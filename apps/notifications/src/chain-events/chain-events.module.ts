@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 
-import { BrokerModule } from '@src/broker/broker.module';
 import { RegistryProvider } from '@src/chain-events/providers/registry.provider';
 import { CosmjsDecodingService } from '@src/chain-events/services/cosmjs-decoding/cosmjs-decoding.service';
 import { CommonModule } from '@src/common/common.module';
@@ -14,17 +13,7 @@ import { ChainEventsService } from './services/chain-events/chain-events.service
 import { MessageDecoderService } from './services/message-decoder/message-decoder.service';
 
 @Module({
-  imports: [
-    CommonModule,
-    ConfigModule.forFeature(envConfig),
-    BrokerModule.registerAsync({
-      useFactory: async (configService: ConfigService) => ({
-        appName: 'chain-events',
-        postgresUri: configService.getOrThrow('EVENT_BROKER_POSTGRES_URI'),
-      }),
-      inject: [ConfigService],
-    }),
-  ],
+  imports: [CommonModule, ConfigModule.forFeature(envConfig)],
   providers: [
     ChainEventsService,
     BlockMessageService,

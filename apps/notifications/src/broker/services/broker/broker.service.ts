@@ -33,6 +33,7 @@ export class BrokerService {
 
   async publish(eventName: string, event: EventPayload) {
     await this.boss.publish(eventName, event);
+    this.logger.log({ event: 'EVENT_PUBLISHED', eventName });
   }
 
   async subscribe<ReqData>(
@@ -46,19 +47,12 @@ export class BrokerService {
 
     await Promise.all(
       Array.from({ length: options.prefetchCount }).map(() =>
-        this.work(queueName, (messages: PgBoss.Job<ReqData>[]) =>
+        this.boss.work(queueName, (messages: PgBoss.Job<ReqData>[]) =>
           handler(messages[0]),
         ),
       ),
     );
-  }
-
-  private async work<ReqData>(
-    queueName: string,
-    handler: PgBoss.WorkHandler<ReqData>,
-  ) {
-    await this.boss.work(queueName, handler);
-    this.logger.log({ event: 'WORKER_STARTED', queueName });
+    this.logger.log({ event: 'WORKER_STARTED', queueName, options });
   }
 
   async publishAll(events: Event[]) {
@@ -70,6 +64,10 @@ export class BrokerService {
           this.boss.publish(event.eventName, event.event),
         ),
       );
+      this.logger.log({
+        event: 'EVENT_PUBLISHED',
+        eventName: events.map(({ eventName }) => eventName),
+      });
 
       await this.pg.query('COMMIT');
     } catch (error: unknown) {

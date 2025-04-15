@@ -6,7 +6,7 @@ import {
   RawAlertRepository,
 } from '@src/alert/repositories/raw-alert/raw-alert.repository';
 import { ConditionsMatcherService } from '@src/alert/services/conditions-matcher/conditions-matcher.service';
-import { BrokerService } from '@src/broker/services/broker/broker.service';
+import { BrokerService } from '@src/broker';
 import { LoggerService } from '@src/common/services/logger.service';
 
 type AlertCallback = (alert: AlertOutput) => Promise<void> | void;

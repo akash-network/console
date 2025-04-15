@@ -8,7 +8,7 @@ import {
 } from '@src/alert/repositories/deployment-balance-alert/deployment-balance-alert.repository';
 import { ConditionsMatcherService } from '@src/alert/services/conditions-matcher/conditions-matcher.service';
 import { DeploymentService } from '@src/alert/services/deployment/deployment.service';
-import { BrokerService } from '@src/broker/services/broker/broker.service';
+import { BrokerService } from '@src/broker';
 import { LoggerService } from '@src/common/services/logger.service';
 
 type AlertCallback = (

@@ -24,4 +24,3 @@ export class ConditionsMatcherService {
     return new FieldCondition(ast.operator, ast.field, ast.value);
   }
 }
-

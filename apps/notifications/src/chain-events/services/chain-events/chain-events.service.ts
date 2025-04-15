@@ -4,7 +4,7 @@ import {
 } from '@akashnetwork/akash-api/v1beta3';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
-import { BrokerService } from '@src/broker/services/broker/broker.service';
+import { BrokerService } from '@src/broker';
 import { LoggerService } from '@src/common/services/logger.service';
 import { BlockMessageService } from '../block-message/block-message.service';
 

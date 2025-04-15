@@ -10,6 +10,8 @@
     "dev": "npm run start:dev",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "migration:exec": "drizzle-kit migrate",
+    "migration:gen": "drizzle-kit generate",
     "start": "nest start",
     "start:debug": "nest start --debug --watch",
     "start:dev": "nest start --watch",
@@ -18,9 +20,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "test:watch": "jest --watch",
-    "migration:gen": "drizzle-kit generate",
-    "migration:exec": "drizzle-kit migrate"
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@akashnetwork/akash-api": "^1.4.0",
@@ -31,6 +31,7 @@
     "@cosmjs/encoding": "^0.32.4",
     "@cosmjs/proto-signing": "^0.33.0",
     "@cosmjs/stargate": "^0.33.0",
+    "@golevelup/nestjs-discovery": "^4.0.3",
     "@knaadh/nestjs-drizzle-pg": "^1.2.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.1",

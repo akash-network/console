@@ -5,7 +5,7 @@ import type { MockProxy } from 'jest-mock-extended';
 import { MsgCloseDeploymentDto } from '@src/alert/dto/msg-close-deployment.dto';
 import type { AlertOutput } from '@src/alert/repositories/raw-alert/raw-alert.repository';
 import { RawAlertRepository } from '@src/alert/repositories/raw-alert/raw-alert.repository';
-import { BrokerService } from '@src/broker/services/broker/broker.service';
+import { BrokerService } from '@src/broker';
 import { LoggerService } from '@src/common/services/logger.service';
 import { ConditionsMatcherService } from '../conditions-matcher/conditions-matcher.service';
 import { RawAlertsService } from './raw-alerts.service';

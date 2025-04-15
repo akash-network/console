@@ -4,7 +4,7 @@ import type { MockProxy } from 'jest-mock-extended';
 
 import type { DeploymentBalanceAlertOutput } from '@src/alert/repositories/deployment-balance-alert/deployment-balance-alert.repository';
 import { DeploymentBalanceAlertRepository } from '@src/alert/repositories/deployment-balance-alert/deployment-balance-alert.repository';
-import { BrokerService } from '@src/broker/services/broker/broker.service';
+import { BrokerService } from '@src/broker';
 import { LoggerService } from '@src/common/services/logger.service';
 import { ConditionsMatcherService } from '../conditions-matcher/conditions-matcher.service';
 import { DeploymentService } from '../deployment/deployment.service';
