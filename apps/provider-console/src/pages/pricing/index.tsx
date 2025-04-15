@@ -45,10 +45,10 @@ const Pricing: React.FunctionComponent = () => {
     <Layout>
       <div>
         {isLoading && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/80">
+          <div className="bg-background/80 absolute inset-0 z-50 flex items-center justify-center">
             <div className="flex items-center gap-2">
               <Spinner />
-              <span className="text-sm text-gray-600">Loading provider pricing...</span>
+              <span className="text-muted-foreground text-sm">Loading provider pricing...</span>
             </div>
           </div>
         )}
