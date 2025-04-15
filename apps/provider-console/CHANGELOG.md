@@ -1,5 +1,12 @@
 
 
+## [1.9.2](https://github.com/akash-network/console/compare/provider-console/v1.9.1...provider-console/v1.9.2) (2025-04-15)
+
+
+### Bug Fixes
+
+* disables nodejs auto family selection ([#1212](https://github.com/akash-network/console/issues/1212)) ([c6be104](https://github.com/akash-network/console/commit/c6be104cf583a07d20fb9f92661ffa29e23b492a))
+
 ## [1.9.1](https://github.com/akash-network/console/compare/provider-console/v1.9.0...provider-console/v1.9.1) (2025-04-11)
 
 
