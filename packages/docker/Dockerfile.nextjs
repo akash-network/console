@@ -5,6 +5,9 @@ FROM node:22.14-alpine AS base
 ARG WORKSPACE
 ENV WORKSPACE $WORKSPACE
 
+# see https://r1ch.net/blog/node-v20-aggregateeerror-etimedout-happy-eyeballs and https://github.com/nodejs/node/issues/54359
+ARG NODE_OPTIONS="--no-network-family-autoselection"
+
 ARG DEPLOYMENT_ENV
 ENV DEPLOYMENT_ENV $DEPLOYMENT_ENV
 
@@ -33,6 +36,8 @@ RUN npm ci && npm cache clean --force
 
 COPY $WORKSPACE ./$WORKSPACE
 COPY /packages /app/packages
+
+ENV NODE_OPTIONS=$NODE_OPTIONS
 
 CMD ["npm", "run", "dev", "--workspace", "${WORKSPACE}"]
 
@@ -64,6 +69,8 @@ RUN chown -R $APP_USER:$APP_GROUP /app
 WORKDIR /app/$WORKSPACE
 
 USER $APP_USER
+
+ENV NODE_OPTIONS=$NODE_OPTIONS
 
 CMD ["node", "server.js"]
 
