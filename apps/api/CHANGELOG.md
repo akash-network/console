@@ -1,5 +1,17 @@
 
 
+## [2.85.1](https://github.com/akash-network/console/compare/console-api/v2.85.0...console-api/v2.85.1) (2025-04-15)
+
+
+### Bug Fixes
+
+* disables nodejs auto family selection ([#1212](https://github.com/akash-network/console/issues/1212)) ([c6be104](https://github.com/akash-network/console/commit/c6be104cf583a07d20fb9f92661ffa29e23b492a))
+
+
+### Code Refactoring
+
+* changes api/utils to use strict types ([#1186](https://github.com/akash-network/console/issues/1186)) ([4b32c47](https://github.com/akash-network/console/commit/4b32c477b7d4c60e1912ba583dca5526b3a2b818))
+
 ## [2.85.0](https://github.com/akash-network/console/compare/console-api/v2.84.0...console-api/v2.85.0) (2025-04-11)
 
 

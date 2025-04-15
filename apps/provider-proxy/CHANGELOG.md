@@ -1,5 +1,12 @@
 
 
+## [1.6.1](https://github.com/akash-network/console/compare/provider-proxy/v1.6.0...provider-proxy/v1.6.1) (2025-04-15)
+
+
+### Bug Fixes
+
+* disables nodejs auto family selection ([#1212](https://github.com/akash-network/console/issues/1212)) ([c6be104](https://github.com/akash-network/console/commit/c6be104cf583a07d20fb9f92661ffa29e23b492a))
+
 ## [1.6.0](https://github.com/akash-network/console/compare/provider-proxy/v1.5.2...provider-proxy/v1.6.0) (2025-03-31)
 
 
