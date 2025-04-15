@@ -1,5 +1,12 @@
 
 
+## [1.9.3](https://github.com/akash-network/console/compare/provider-console/v1.9.2...provider-console/v1.9.3) (2025-04-15)
+
+
+### Bug Fixes
+
+* **provider:** styling issue fixed in dark mode ([#1216](https://github.com/akash-network/console/issues/1216)) ([175d513](https://github.com/akash-network/console/commit/175d5136fc073c8262b8de20e462f73abbc7d6c2))
+
 ## [1.9.2](https://github.com/akash-network/console/compare/provider-console/v1.9.1...provider-console/v1.9.2) (2025-04-15)
 
 
