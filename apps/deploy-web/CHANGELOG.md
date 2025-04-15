@@ -1,5 +1,12 @@
 
 
+## [2.68.1](https://github.com/akash-network/console/compare/console-web/v2.68.0...console-web/v2.68.1) (2025-04-15)
+
+
+### Bug Fixes
+
+* disables nodejs auto family selection ([#1212](https://github.com/akash-network/console/issues/1212)) ([c6be104](https://github.com/akash-network/console/commit/c6be104cf583a07d20fb9f92661ffa29e23b492a))
+
 ## [2.68.0](https://github.com/akash-network/console/compare/console-web/v2.67.2...console-web/v2.68.0) (2025-04-10)
 
 

@@ -1,5 +1,12 @@
 
 
+## [0.22.2](https://github.com/akash-network/console/compare/stats-web/v0.22.1...stats-web/v0.22.2) (2025-04-15)
+
+
+### Bug Fixes
+
+* disables nodejs auto family selection ([#1212](https://github.com/akash-network/console/issues/1212)) ([c6be104](https://github.com/akash-network/console/commit/c6be104cf583a07d20fb9f92661ffa29e23b492a))
+
 ## [0.22.1](https://github.com/akash-network/console/compare/stats-web/v0.22.0...stats-web/v0.22.1) (2025-04-01)
 
 
