@@ -34,42 +34,54 @@ const OfflineWarningBanner: React.FC = () => (
 );
 
 const AuditGuidanceBanner: React.FC = () => (
-  <div className="mb-4 rounded-md border-2 p-4 text-gray-700">
+  <div className="border-border bg-card text-card-foreground mb-4 rounded-md border-2 p-4">
     <div className="flex flex-col gap-2">
       <div className="flex items-start">
-        <WarningTriangle className="mr-2 h-5 w-5 text-yellow-500" />
+        <WarningTriangle className="text-warning mr-2 h-5 w-5" />
         <div>
           <p className="font-semibold">Your provider is not audited yet!</p>
           <p className="mt-1">Audited providers receive significantly more workloads. Follow these steps to get audited:</p>
           <ol className="ml-6 list-decimal">
-            <li>Create a separate Keplr wallet for testing (don't use your provider wallet)</li>
+            <li>Create a separate Keplr wallet for testing (don&apos;t use your provider wallet)</li>
             <li>
               Test deploy:
               <ul className="ml-4 mt-1 list-disc">
                 <li>
                   For CPU-only providers: Deploy{" "}
-                  <Link href="https://console.akash.network/templates/akash-network-awesome-akash-tetris" className="font-medium underline" target="_blank">
+                  <Link
+                    href="https://console.akash.network/templates/akash-network-awesome-akash-tetris"
+                    className="text-primary hover:underline"
+                    target="_blank"
+                  >
                     Tetris
                   </Link>{" "}
-                  (remove the "signedBy" field from template)
+                  (remove the &quot;signedBy&quot; field from template)
                 </li>
                 <li>
                   For GPU providers: Deploy both{" "}
-                  <Link href="https://console.akash.network/templates/akash-network-awesome-akash-tetris" className="font-medium underline" target="_blank">
+                  <Link
+                    href="https://console.akash.network/templates/akash-network-awesome-akash-tetris"
+                    className="text-primary hover:underline"
+                    target="_blank"
+                  >
                     Tetris
                   </Link>{" "}
                   and{" "}
-                  <Link href="https://console.akash.network/templates/akash-network-awesome-akash-comfyui" className="font-medium underline" target="_blank">
+                  <Link
+                    href="https://console.akash.network/templates/akash-network-awesome-akash-comfyui"
+                    className="text-primary hover:underline"
+                    target="_blank"
+                  >
                     ComfyUI
                   </Link>{" "}
-                  (remove the "signedBy" field from template)
+                  (remove the &quot;signedBy&quot; field from template)
                 </li>
               </ul>
             </li>
             <li>
               <Link
                 href="https://github.com/akash-network/community/issues/new?template=-provider-audit--template.md"
-                className="font-mediums underline"
+                className="text-primary hover:underline"
                 target="_blank"
               >
                 Apply for provider audit

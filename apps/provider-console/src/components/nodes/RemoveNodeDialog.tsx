@@ -1,5 +1,5 @@
 import React from "react";
-import { Popup, Spinner } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, AlertTitle, Popup, Spinner } from "@akashnetwork/ui/components";
 import { WarningTriangle } from "iconoir-react";
 
 import type { KubeNode } from "@src/types/kubeNode";
@@ -47,24 +47,26 @@ export const RemoveNodeDialog: React.FC<RemoveNodeDialogProps> = ({
   const getWarningMessage = () => {
     if (isEtcd && hasEvenEtcdNodes) {
       return (
-        <div className="mt-4 flex items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 p-3">
-          <WarningTriangle className="h-5 w-5 flex-shrink-0 text-yellow-500" />
-          <div className="text-sm text-yellow-700">
-            <strong>Warning:</strong> Removing this etcd node will leave your cluster with an even number of etcd nodes ({remainingEtcdNodes}). This could
-            potentially cause a "split-brain" issue where the cluster cannot reach consensus. If this happens, the cluster may become unrecoverable and you may
-            need to create a new one.
-          </div>
-        </div>
+        <Alert variant="warning" className="mt-4">
+          <WarningTriangle className="h-4 w-4" />
+          <AlertTitle>Warning</AlertTitle>
+          <AlertDescription>
+            Removing this etcd node will leave your cluster with an even number of etcd nodes ({remainingEtcdNodes}). This could potentially cause a
+            &quot;split-brain&quot; issue where the cluster cannot reach consensus. If this happens, the cluster may become unrecoverable and you may need to
+            create a new one.
+          </AlertDescription>
+        </Alert>
       );
     } else if (isControlPlane && hasEvenControlNodes && !isEtcd) {
       return (
-        <div className="mt-4 flex items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 p-3">
-          <WarningTriangle className="h-5 w-5 flex-shrink-0 text-yellow-500" />
-          <div className="text-sm text-yellow-700">
-            <strong>Warning:</strong> Removing this control plane node will leave your cluster with an even number of control plane nodes (
-            {remainingControlNodes}). This could potentially affect high availability, although consensus is managed by etcd nodes.
-          </div>
-        </div>
+        <Alert variant="warning" className="mt-4">
+          <WarningTriangle className="h-4 w-4" />
+          <AlertTitle>Warning</AlertTitle>
+          <AlertDescription>
+            Removing this control plane node will leave your cluster with an even number of control plane nodes ({remainingControlNodes}). This could
+            potentially affect high availability, although consensus is managed by etcd nodes.
+          </AlertDescription>
+        </Alert>
       );
     }
     return null;

@@ -18,6 +18,7 @@ import {
   TabsTrigger
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { InfoCircle } from "iconoir-react";
 import { z } from "zod";
 
 import { readFileAsBase64 } from "../../utils/files";
@@ -226,9 +227,14 @@ export const MachineAccessForm: React.FC<MachineAccessFormProps> = ({
 
               <TabsContent value="file" className="space-y-4 p-4">
                 {hasSharedKeyfile && (
-                  <div className="mb-2 rounded-md border border-gray-200 bg-gray-50 p-2">
-                    <p className="font-medium">Using SSH key from Node 1</p>
-                    <p className="text-sm">The private key from the first node will be used automatically.</p>
+                  <div className="bg-card mb-4 rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                      <InfoCircle className="text-muted-foreground h-5 w-5" />
+                      <div>
+                        <h4 className="text-card-foreground font-medium">Using SSH key from Node 1</h4>
+                        <p className="text-muted-foreground text-sm">The private key from the first node will be used automatically.</p>
+                      </div>
+                    </div>
                   </div>
                 )}
                 <FormField
@@ -241,7 +247,7 @@ export const MachineAccessForm: React.FC<MachineAccessFormProps> = ({
                         {hasSharedKeyfile ? (
                           <>
                             <div className="flex items-center">
-                              <Input type="text" value="SSH key from Node 1 (shared)" disabled className="mr-2 flex-grow bg-gray-50 text-gray-500" />
+                              <Input type="text" value="SSH key from Node 1 (shared)" disabled className="bg-muted text-muted-foreground mr-2 flex-grow" />
                               <Button
                                 type="button"
                                 variant="outline"

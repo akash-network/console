@@ -1,6 +1,6 @@
 import React from "react";
 import { cn } from "@akashnetwork/ui/utils";
-import { Check, Circle, MinusCircle } from "lucide-react";
+import { CheckCircle, Circle, MinusCircle } from "iconoir-react";
 
 export type NodeStatus = "completed" | "in-progress" | "not-started";
 
@@ -19,7 +19,7 @@ export const ProgressSidebar: React.FC<ProgressSidebarProps> = ({ nodeConfigs, c
   const getStatusIcon = (status: NodeStatus) => {
     switch (status) {
       case "completed":
-        return <Check className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
       case "in-progress":
         return <Circle className="h-5 w-5 text-blue-500" />;
       case "not-started":
