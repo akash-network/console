@@ -22,7 +22,7 @@ export const LeaseChip: React.FunctionComponent<Props> = ({ lease, providers }) 
     const provider = providers?.find(p => p.owner === lease?.provider);
 
     if (provider) {
-      setProviderName(provider.name);
+      setProviderName(provider.name ?? "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providers]);

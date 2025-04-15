@@ -1,6 +1,6 @@
 export interface ProviderList {
   owner: string;
-  name: string;
+  name: string | null;
   hostUri: string;
   createdHeight: number;
   email: string;
@@ -31,7 +31,7 @@ export interface ProviderList {
     storage: {
       ephemeral: StatsItem;
       persistent: StatsItem;
-    },
+    };
   };
   /** @deprecated use `stats` instead */
   activeStats: {
