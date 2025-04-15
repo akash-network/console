@@ -1,8 +1,8 @@
 import { useMemo } from "react";
-import type { QueryKey, UseQueryOptions } from "react-query";
-import { useMutation, useQuery, useQueryClient } from "react-query";
 import type { TemplateCategory, TemplateOutputSummary } from "@akashnetwork/http-sdk";
 import { Snackbar } from "@akashnetwork/ui/components";
+import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
@@ -20,7 +20,11 @@ async function getUserTemplates(username: string): Promise<ITemplate[]> {
 }
 
 export function useUserTemplates(username: string, options?: Omit<UseQueryOptions<ITemplate[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
-  return useQuery<ITemplate[], Error>(QueryKeys.getUserTemplatesKey(username), () => getUserTemplates(username), options);
+  return useQuery<ITemplate[], Error>({
+    queryKey: QueryKeys.getUserTemplatesKey(username),
+    queryFn: () => getUserTemplates(username),
+    ...options
+  });
 }
 
 async function getUserFavoriteTemplates(): Promise<Partial<ITemplate>[]> {
@@ -31,7 +35,11 @@ async function getUserFavoriteTemplates(): Promise<Partial<ITemplate>[]> {
 
 export function useUserFavoriteTemplates(options?: Omit<UseQueryOptions<Partial<ITemplate>[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
   const { user } = useCustomUser();
-  return useQuery<Partial<ITemplate>[], Error>(QueryKeys.getUserFavoriteTemplatesKey(user?.sub || ""), () => getUserFavoriteTemplates(), options);
+  return useQuery<Partial<ITemplate>[], Error>({
+    queryKey: QueryKeys.getUserFavoriteTemplatesKey(user?.sub || ""),
+    queryFn: getUserFavoriteTemplates,
+    ...options
+  });
 }
 
 async function getTemplate(id: string): Promise<ITemplate> {
@@ -41,15 +49,19 @@ async function getTemplate(id: string): Promise<ITemplate> {
 }
 
 export function useTemplate(id: string, options?: Omit<UseQueryOptions<ITemplate, Error, any, QueryKey>, "queryKey" | "queryFn">) {
-  return useQuery<ITemplate, Error>(QueryKeys.getTemplateKey(id), () => getTemplate(id), options);
+  return useQuery<ITemplate, Error>({
+    queryKey: QueryKeys.getTemplateKey(id),
+    queryFn: () => getTemplate(id),
+    ...options
+  });
 }
 
 export function useSaveUserTemplate(isNew: boolean = false) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  return useMutation(
-    (template: Partial<ITemplate>) =>
+  return useMutation({
+    mutationFn: (template: Partial<ITemplate>) =>
       axios.post("/api/proxy/user/saveTemplate", {
         id: template.id,
         sdl: template.sdl,
@@ -60,25 +72,24 @@ export function useSaveUserTemplate(isNew: boolean = false) {
         ram: template.ram,
         storage: template.storage
       }),
-    {
-      onSuccess: (_response, newTemplate) => {
-        queryClient.setQueryData<Partial<ITemplate>>(QueryKeys.getTemplateKey(_response.data), oldData => {
-          return { ...oldData, ...newTemplate };
-        });
+    onSuccess: (_response, newTemplate) => {
+      queryClient.setQueryData<Partial<ITemplate>>(QueryKeys.getTemplateKey(_response.data), oldData => {
+        return { ...oldData, ...newTemplate };
+      });
 
-        if (isNew && _response.data) {
-          router.push(UrlService.sdlBuilder(_response.data));
-        }
+      if (isNew && _response.data) {
+        router.push(UrlService.sdlBuilder(_response.data));
       }
     }
-  );
+  });
 }
 
 export function useDeleteTemplate(id: string) {
   const { user } = useCustomUser();
   const queryClient = useQueryClient();
 
-  return useMutation(() => axios.delete(`/api/proxy/user/deleteTemplate/${id}`), {
+  return useMutation({
+    mutationFn: () => axios.delete(`/api/proxy/user/deleteTemplate/${id}`),
     onSuccess: () => {
       if (user.username) {
         queryClient.setQueryData(QueryKeys.getUserTemplatesKey(user?.username), (oldData: ITemplate[] = []) => {
@@ -91,7 +102,8 @@ export function useDeleteTemplate(id: string) {
 
 export function useAddFavoriteTemplate(id: string) {
   const { enqueueSnackbar } = useSnackbar();
-  return useMutation(() => axios.post(`/api/proxy/user/addFavoriteTemplate/${id}`), {
+  return useMutation({
+    mutationFn: () => axios.post(`/api/proxy/user/addFavoriteTemplate/${id}`),
     onSuccess: () => {
       enqueueSnackbar(<Snackbar title="Favorite added!" iconVariant="success" />, { variant: "success" });
     }
@@ -101,7 +113,8 @@ export function useAddFavoriteTemplate(id: string) {
 export function useRemoveFavoriteTemplate(id: string) {
   const { enqueueSnackbar } = useSnackbar();
 
-  return useMutation(() => axios.delete(`/api/proxy/user/removeFavoriteTemplate/${id}`), {
+  return useMutation({
+    mutationFn: () => axios.delete(`/api/proxy/user/removeFavoriteTemplate/${id}`),
     onSuccess: () => {
       enqueueSnackbar(<Snackbar title="Favorite removed" iconVariant="success" />, { variant: "success" });
     }
@@ -147,7 +160,9 @@ export interface CategoriesAndTemplatesResult extends CategoriesAndTemplates {
 }
 
 export function useTemplates(options = {}): CategoriesAndTemplatesResult {
-  const query = useQuery(QueryKeys.getTemplatesKey(), () => getTemplates(), {
+  const query = useQuery({
+    queryKey: QueryKeys.getTemplatesKey(),
+    queryFn: getTemplates,
     ...options,
     refetchInterval: 60000 * 2, // Refetch templates every 2 minutes
     refetchIntervalInBackground: false,
