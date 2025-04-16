@@ -20,7 +20,7 @@ export const ShortenedValue: React.FunctionComponent<Props> = ({ value, maxLengt
 
   return value.length > maxLength ? (
     <CustomTooltip title={value}>
-      <span>{getSplitText(value, (headLength ?? defaultHeadLength), tailLength)}</span>
+      <span>{getSplitText(value, headLength ?? defaultHeadLength, tailLength)}</span>
     </CustomTooltip>
   ) : (
     <>{value}</>

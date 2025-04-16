@@ -15,7 +15,7 @@ import { useDenomData } from "@src/hooks/useWalletBalance";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
-import { CopyTextToClipboardButton } from "../copy-text-to-clipboard-button/CopyTextToClipboardButton";
+import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 
 type Props = {
   deployment: DeploymentDto;
