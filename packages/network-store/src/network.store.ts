@@ -109,6 +109,10 @@ export class NetworkStore {
   }
 
   private async initiateNetworks() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
     const errors: NetworkError[] = [];
     const networks = await Promise.all(
       cloneDeep(INITIAL_NETWORKS_CONFIG).map(async network => {

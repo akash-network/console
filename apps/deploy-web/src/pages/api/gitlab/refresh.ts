@@ -1,11 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import { serverEnvConfig } from "@src/config/server-env.config";
+import { wrapApiHandlerInExecutionContext } from "@src/lib/nextjs/wrapApiHandler";
 import GitlabAuth from "@src/services/auth/gitlab.service";
 
 const { NEXT_PUBLIC_GITLAB_CLIENT_ID, GITLAB_CLIENT_SECRET } = serverEnvConfig;
 
-export default async function refreshGitLabTokensHandler(req: NextApiRequest, res: NextApiResponse): Promise<void> {
+export default wrapApiHandlerInExecutionContext(async function refreshGitLabTokensHandler(req: NextApiRequest, res: NextApiResponse): Promise<void> {
   const { refreshToken }: { refreshToken: string } = req.body;
 
   if (!refreshToken) {
@@ -26,4 +27,4 @@ export default async function refreshGitLabTokensHandler(req: NextApiRequest, re
       message: error.response?.data?.error_description
     });
   }
-}
+});

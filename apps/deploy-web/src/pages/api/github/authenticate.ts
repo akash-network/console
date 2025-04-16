@@ -1,11 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import { serverEnvConfig } from "@src/config/server-env.config";
+import { wrapApiHandlerInExecutionContext } from "@src/lib/nextjs/wrapApiHandler";
 import GitHubAuth from "@src/services/auth/github.service";
 
 const { NEXT_PUBLIC_GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, NEXT_PUBLIC_REDIRECT_URI } = serverEnvConfig;
 
-export default async function exchangeGitHubCodeForTokenHandler(req: NextApiRequest, res: NextApiResponse): Promise<void> {
+export default wrapApiHandlerInExecutionContext(async function exchangeGitHubCodeForTokenHandler(req: NextApiRequest, res: NextApiResponse): Promise<void> {
   const { code }: { code: string } = req.body;
 
   if (!code) {
@@ -26,4 +27,4 @@ export default async function exchangeGitHubCodeForTokenHandler(req: NextApiRequ
       message: error
     });
   }
-}
+});

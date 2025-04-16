@@ -1,6 +1,6 @@
 import type { QueryKey, UseQueryOptions } from "react-query";
 import { useQuery } from "react-query";
-import type { AxiosStatic } from "axios";
+import type { AxiosInstance } from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
@@ -42,7 +42,7 @@ export function useDeploymentLeaseList(
   );
 }
 
-async function getAllLeases(apiEndpoint: string, address: string, deployment?: any, httpClient?: AxiosStatic) {
+async function getAllLeases(apiEndpoint: string, address: string, deployment?: any, httpClient?: AxiosInstance) {
   if (!address) {
     return null;
   }
