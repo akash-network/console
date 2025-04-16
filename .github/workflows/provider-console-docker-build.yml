@@ -1,4 +1,4 @@
-name: Deploy Provider Console CI
+name: Provider Console CI
 
 on:
   pull_request:

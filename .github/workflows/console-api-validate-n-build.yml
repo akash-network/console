@@ -1,4 +1,4 @@
-name: Validate and Build API
+name: API CI
 
 on:
   pull_request:
