@@ -34,7 +34,7 @@ import { getAvgCostPerMonth, getTimeLeft, useRealTimeLeft } from "@src/utils/pri
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { useLocalNotes } from "../../context/LocalNoteProvider";
-import { CopyTextToClipboardButton } from "../copy-text-to-clipboard-button/CopyTextToClipboardButton";
+import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import { PricePerMonth } from "../shared/PricePerMonth";
 import { PriceValue } from "../shared/PriceValue";

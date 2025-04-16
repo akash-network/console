@@ -32,10 +32,9 @@ import { deploymentData } from "@src/utils/deploymentData";
 import { getGpusFromAttributes, sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { sshVmImages } from "@src/utils/sdl/data";
-import { UrlService } from "@src/utils/urlUtils";
-import { CopyTextToClipboardButton } from "../copy-text-to-clipboard-button/CopyTextToClipboardButton";
+import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
-import { ShortenedValue } from "../shortened-value/ShortenedValue";
+import { ProviderName } from "../shared/ProviderName";
 
 type Props = {
   index: number;
@@ -225,12 +224,10 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                   {isLeaseActive && isLoadingProviderStatus && <Spinner size="small" className="mr-2" />}
                   {provider && (
                     <div className="flex items-center space-x-2">
-                      <Link href={UrlService.providerDetail(lease.provider)}>
-                        <ShortenedValue value={provider.name} maxLength={40} headLength={14} />
-                      </Link>
+                      <ProviderName provider={provider} />
 
                       <div className="flex items-center space-x-2">
-                        <CopyTextToClipboardButton value={provider.name} />
+                        <CopyTextToClipboardButton value={provider.name ?? provider.hostUri} />
                         <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
 
                         {provider?.isAudited && (

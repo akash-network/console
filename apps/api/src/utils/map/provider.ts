@@ -28,8 +28,8 @@ export const mapProviderToList = (
     name: name,
     hostUri: provider.hostUri,
     createdHeight: provider.createdHeight,
-    email: provider.email || getProviderAttributeValue("email", provider, providerAttributeSchema),
-    website: provider.website || getProviderAttributeValue("website", provider, providerAttributeSchema),
+    email: provider.email || getStringAttribute("email", provider, providerAttributeSchema),
+    website: provider.website || getStringAttribute("website", provider, providerAttributeSchema),
     lastCheckDate: provider.lastCheckDate,
     deploymentCount: lastSuccessfulSnapshot?.deploymentCount,
     leaseCount: lastSuccessfulSnapshot?.leaseCount,
@@ -60,32 +60,32 @@ export const mapProviderToList = (
     })),
 
     // Attributes schema
-    host: getProviderAttributeValue("host", provider, providerAttributeSchema),
-    organization: getProviderAttributeValue("organization", provider, providerAttributeSchema),
-    statusPage: getProviderAttributeValue("status-page", provider, providerAttributeSchema),
-    locationRegion: getProviderAttributeValue("location-region", provider, providerAttributeSchema),
-    country: getProviderAttributeValue("country", provider, providerAttributeSchema),
-    city: getProviderAttributeValue("city", provider, providerAttributeSchema),
-    timezone: getProviderAttributeValue("timezone", provider, providerAttributeSchema),
-    locationType: getProviderAttributeValue("location-type", provider, providerAttributeSchema),
-    hostingProvider: getProviderAttributeValue("hosting-provider", provider, providerAttributeSchema),
-    hardwareCpu: getProviderAttributeValue("hardware-cpu", provider, providerAttributeSchema),
-    hardwareCpuArch: getProviderAttributeValue("hardware-cpu-arch", provider, providerAttributeSchema),
-    hardwareGpuVendor: getProviderAttributeValue("hardware-gpu", provider, providerAttributeSchema),
-    hardwareGpuModels: getProviderAttributeValue("hardware-gpu-model", provider, providerAttributeSchema),
-    hardwareDisk: getProviderAttributeValue("hardware-disk", provider, providerAttributeSchema),
-    featPersistentStorage: getProviderAttributeValue("feat-persistent-storage", provider, providerAttributeSchema),
-    featPersistentStorageType: getProviderAttributeValue("feat-persistent-storage-type", provider, providerAttributeSchema),
-    hardwareMemory: getProviderAttributeValue("hardware-memory", provider, providerAttributeSchema),
-    networkProvider: getProviderAttributeValue("network-provider", provider, providerAttributeSchema),
-    networkSpeedDown: getProviderAttributeValue("network-speed-down", provider, providerAttributeSchema),
-    networkSpeedUp: getProviderAttributeValue("network-speed-up", provider, providerAttributeSchema),
-    tier: getProviderAttributeValue("tier", provider, providerAttributeSchema),
-    featEndpointCustomDomain: getProviderAttributeValue("feat-endpoint-custom-domain", provider, providerAttributeSchema),
-    workloadSupportChia: getProviderAttributeValue("workload-support-chia", provider, providerAttributeSchema),
-    workloadSupportChiaCapabilities: getProviderAttributeValue("workload-support-chia-capabilities", provider, providerAttributeSchema),
-    featEndpointIp: getProviderAttributeValue("feat-endpoint-ip", provider, providerAttributeSchema)
-  } as ProviderList;
+    host: getStringAttribute("host", provider, providerAttributeSchema),
+    organization: getStringAttribute("organization", provider, providerAttributeSchema),
+    statusPage: getStringAttribute("status-page", provider, providerAttributeSchema),
+    locationRegion: getStringAttribute("location-region", provider, providerAttributeSchema),
+    country: getStringAttribute("country", provider, providerAttributeSchema),
+    city: getStringAttribute("city", provider, providerAttributeSchema),
+    timezone: getStringAttribute("timezone", provider, providerAttributeSchema),
+    locationType: getStringAttribute("location-type", provider, providerAttributeSchema),
+    hostingProvider: getStringAttribute("hosting-provider", provider, providerAttributeSchema),
+    hardwareCpu: getStringAttribute("hardware-cpu", provider, providerAttributeSchema),
+    hardwareCpuArch: getStringAttribute("hardware-cpu-arch", provider, providerAttributeSchema),
+    hardwareGpuVendor: getStringAttribute("hardware-gpu", provider, providerAttributeSchema),
+    hardwareGpuModels: getStringArrayAttribute("hardware-gpu-model", provider, providerAttributeSchema),
+    hardwareDisk: getStringArrayAttribute("hardware-disk", provider, providerAttributeSchema),
+    featPersistentStorage: getBooleanAttribute("feat-persistent-storage", provider, providerAttributeSchema),
+    featPersistentStorageType: getStringArrayAttribute("feat-persistent-storage-type", provider, providerAttributeSchema),
+    hardwareMemory: getStringAttribute("hardware-memory", provider, providerAttributeSchema),
+    networkProvider: getStringAttribute("network-provider", provider, providerAttributeSchema),
+    networkSpeedDown: getNumberAttribute("network-speed-down", provider, providerAttributeSchema),
+    networkSpeedUp: getNumberAttribute("network-speed-up", provider, providerAttributeSchema),
+    tier: getStringAttribute("tier", provider, providerAttributeSchema),
+    featEndpointCustomDomain: getBooleanAttribute("feat-endpoint-custom-domain", provider, providerAttributeSchema),
+    workloadSupportChia: getBooleanAttribute("workload-support-chia", provider, providerAttributeSchema),
+    workloadSupportChiaCapabilities: getStringArrayAttribute("workload-support-chia-capabilities", provider, providerAttributeSchema),
+    featEndpointIp: getBooleanAttribute("feat-endpoint-ip", provider, providerAttributeSchema)
+  };
 };
 
 type StatsEntry = "CPU" | "GPU" | "Memory" | "PersistentStorage" | "EphemeralStorage";
@@ -170,3 +170,23 @@ export const getProviderAttributeValue = <TKey extends keyof ProviderAttributesS
       return null;
   }
 };
+
+function getStringAttribute(key: keyof ProviderAttributesSchema, provider: Provider, schema: ProviderAttributesSchema): string | null {
+  const value = getProviderAttributeValue(key, provider, schema);
+  return typeof value === "string" ? value : null;
+}
+
+function getStringArrayAttribute(key: keyof ProviderAttributesSchema, provider: Provider, schema: ProviderAttributesSchema): string[] | null {
+  const value = getProviderAttributeValue(key, provider, schema);
+  return Array.isArray(value) ? value : null;
+}
+
+function getBooleanAttribute(key: keyof ProviderAttributesSchema, provider: Provider, schema: ProviderAttributesSchema): boolean {
+  const value = getProviderAttributeValue(key, provider, schema);
+  return typeof value === "boolean" ? value : false;
+}
+
+function getNumberAttribute(key: keyof ProviderAttributesSchema, provider: Provider, schema: ProviderAttributesSchema): number {
+  const value = getProviderAttributeValue(key, provider, schema);
+  return typeof value === "number" ? value : 0;
+}

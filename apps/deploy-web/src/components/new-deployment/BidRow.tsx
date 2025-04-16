@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { Badge, CustomTooltip, RadioGroup, RadioGroupItem, Spinner, TableCell, TableRow } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { CloudXmark, WarningTriangle } from "iconoir-react";
-import Link from "next/link";
 
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useProviderStatus } from "@src/queries/useProvidersQuery";
@@ -13,15 +12,13 @@ import type { ApiProviderList } from "@src/types/provider";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { UrlService } from "@src/utils/urlUtils";
-import { CopyTextToClipboardButton } from "../copy-text-to-clipboard-button/CopyTextToClipboardButton";
 import { AuditorButton } from "../providers/AuditorButton";
 import { Uptime } from "../providers/Uptime";
+import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 import { FavoriteButton } from "../shared/FavoriteButton";
 import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
 import { PricePerMonth } from "../shared/PricePerMonth";
-import { ShortenedValue } from "../shortened-value/ShortenedValue";
-
+import { ProviderName } from "../shared/ProviderName";
 type Props = {
   testIndex: number;
   bid: BidDto;
@@ -111,13 +108,7 @@ export const BidRow: React.FunctionComponent<Props> = ({ testIndex, bid, selecte
         <div className="flex items-center">
           <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
           <div className="ml-2">
-            {provider.name ? (
-              <Link href={UrlService.providerDetail(provider.owner)} onClick={e => e.stopPropagation()}>
-                <ShortenedValue value={provider.name} maxLength={40} headLength={14} />
-              </Link>
-            ) : (
-              <ShortenedValue value={provider.hostUri} maxLength={40} headLength={14} />
-            )}
+            <ProviderName provider={provider} />
           </div>
           <div className="pl-2">
             <CopyTextToClipboardButton value={provider.name ?? provider.hostUri} />
