@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       enabled: ${{ github.event_name == 'push' || steps.has_changes.outputs.app == 'true' }}
-      has_changes: ${{ steps.has_changes.outputs.api }}
+      has_changes: ${{ steps.has_changes.outputs.app }}
 
     steps:
       - name: Checkout repository
