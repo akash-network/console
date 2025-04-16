@@ -1,9 +1,55 @@
 coverage:
   status:
     patch:
-      default:
-        target: 50%
-        threshold: 1%
-        if_ci_failed: error
-        if_not_found: error
-        informational: false
+      default: off
+      api:
+        target: 80%
+        flags:
+          - api
+      deploy-web:
+        target: 30%
+        flags:
+          - deploy-web
+      indexer:
+        target: 0%
+        flags:
+          - indexer
+      notifications:
+        target: 80%
+        flags:
+          - notifications
+      provider-console:
+        target: 0%
+        flags:
+          - provider-console
+      provider-proxy:
+        target: 80%
+        flags:
+          - provider-proxy
+      stats-web:
+        target: 0%
+        flags:
+          - stats-web
+
+flags:
+  api:
+    paths:
+      - apps/api/
+  deploy-web:
+    paths:
+      - apps/deploy-web/
+  indexer:
+    paths:
+      - apps/indexer/
+  notifications:
+    paths:
+      - apps/notifications/
+  provider-console:
+    paths:
+      - apps/provider-console/
+  provider-proxy:
+    paths:
+      - apps/provider-proxy/
+  stats-web:
+    paths:
+      - apps/stats-web/

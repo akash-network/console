@@ -1,4 +1,4 @@
-name: Validate and Build Provider Proxy CI
+name: Provider Proxy CI
 
 on:
   pull_request:
