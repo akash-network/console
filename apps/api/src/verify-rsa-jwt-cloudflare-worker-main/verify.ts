@@ -1,3 +1,5 @@
+import type { JsonWebKey } from "crypto";
+
 import type { Jwks } from "./get-jwks";
 
 const ALGO = { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" };

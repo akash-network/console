@@ -1,4 +1,4 @@
-import { collectFullErrorStack, ErrorWithCause } from "./collect-full-error-stack";
+import { collectFullErrorStack } from "./collect-full-error-stack";
 
 describe(collectFullErrorStack.name, () => {
   it("returns empty string for falsy value", () => {
@@ -15,7 +15,7 @@ describe(collectFullErrorStack.name, () => {
   it("returns error stacktrace with its cause stacktrace", () => {
     const causeError = new Error("cause error");
     const mainError = new Error("main error");
-    (mainError as unknown as ErrorWithCause).cause = causeError;
+    mainError.cause = causeError;
 
     const result = collectFullErrorStack(mainError);
 
@@ -29,8 +29,8 @@ describe(collectFullErrorStack.name, () => {
     const middleError = new Error("middle error");
     const topError = new Error("top error");
 
-    (middleError as unknown as ErrorWithCause).cause = deepError;
-    (topError as unknown as ErrorWithCause).cause = middleError;
+    middleError.cause = deepError;
+    topError.cause = middleError;
 
     const result = collectFullErrorStack(topError);
 
@@ -43,8 +43,7 @@ describe(collectFullErrorStack.name, () => {
   it("returns error array stacktrace", () => {
     const error1 = new Error("error 1");
     const error2 = new Error("error 2");
-    const mainError = new Error("main error");
-    (mainError as unknown as ErrorWithCause).errors = [error1, error2];
+    const mainError = new AggregateError([error1, error2], "main error");
 
     const result = collectFullErrorStack(mainError);
 
@@ -68,10 +67,9 @@ describe(collectFullErrorStack.name, () => {
     const causeError = new Error("cause error");
     const error1 = new Error("error 1");
     const error2 = new Error("error 2");
-    const mainError = new Error("main error");
+    const mainError = new AggregateError([error1, error2], "main error");
 
-    (mainError as unknown as ErrorWithCause).cause = causeError;
-    (mainError as unknown as ErrorWithCause).errors = [error1, error2];
+    mainError.cause = causeError;
 
     const result = collectFullErrorStack(mainError);
 

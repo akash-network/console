@@ -7,7 +7,7 @@
   "author": "Akash Network",
   "scripts": {
     "build": "npm run build-env-schemas && next build",
-    "build-env-schemas": "tsc src/config/env-config.schema.ts --outDir . --skipLibCheck",
+    "build-env-schemas": "tsc src/config/env-config.schema.ts --outDir . --skipLibCheck --target es2023 --moduleResolution node",
     "dev": "next",
     "dev-nodc": "next",
     "format": "prettier --write ./*.{ts,js,json} **/*.{ts,tsx,js,json}",

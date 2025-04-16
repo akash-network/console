@@ -12,10 +12,6 @@ export const envSchema = z.object({
   POSTGRES_MAX_CONNECTIONS: z.number({ coerce: true }).optional().default(20),
   DRIZZLE_MIGRATIONS_FOLDER: z.string().optional().default("./drizzle"),
   DEPLOYMENT_ENV: z.string().optional().default("production"),
-  SENTRY_TRACES_RATE: z.number({ coerce: true }).optional().default(0.01),
-  SENTRY_ENABLED: z.enum(["true", "false"]).optional().default("false"),
-  SENTRY_SERVER_NAME: z.string().optional(),
-  SENTRY_DSN: z.string().optional(),
   AMPLITUDE_API_KEY: z.string(),
   AMPLITUDE_SAMPLING: z.number({ coerce: true }).optional().default(1)
 });

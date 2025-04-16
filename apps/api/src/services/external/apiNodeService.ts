@@ -246,7 +246,7 @@ export async function getValidator(address: string) {
     return null;
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as any;
 
   const validatorsResponse = await axios.get<RestCosmosStakingValidatorsResponse>(
     `${apiNodeUrl}/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=1000`

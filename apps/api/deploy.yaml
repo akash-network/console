@@ -7,7 +7,6 @@ services:
     depends-on: cloud-sql-proxy
     env:
       - DOPPLER_TOKEN={{DOPPLER_TOKEN}}
-      - SENTRY_SERVER_NAME=akash
     expose:
       - port: 3000
         as: 80

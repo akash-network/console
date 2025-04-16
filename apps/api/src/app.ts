@@ -1,4 +1,3 @@
-import "@src/core/providers/sentry.provider";
 import "reflect-metadata";
 
 import { LoggerService } from "@akashnetwork/logging";
@@ -10,8 +9,6 @@ import { cors } from "hono/cors";
 import { container } from "tsyringe";
 
 import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
-import { config } from "@src/core/config";
-import { getSentry, sentryOptions } from "@src/core/providers/sentry.provider";
 import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
 import { RequestContextInterceptor } from "@src/core/services/request-context-interceptor/request-context.interceptor";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
@@ -65,7 +62,6 @@ const scheduler = new Scheduler({
   healthchecksEnabled: env.HEALTHCHECKS_ENABLED === "true",
   errorHandler: (task, error) => {
     console.error(`Task "${task.name}" failed: ${error}`);
-    getSentry().captureException(error);
   }
 });
 
@@ -73,16 +69,6 @@ appHono.use(container.resolve(HttpLoggerIntercepter).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
 appHono.use(container.resolve<HonoInterceptor>(AuthInterceptor).intercept());
 appHono.use(clientInfoMiddleware);
-appHono.use("*", async (c, next) => {
-  const { sentry } = await import("@hono/sentry");
-  return sentry({
-    ...sentryOptions,
-    beforeSend: event => {
-      event.server_name = config.SENTRY_SERVER_NAME;
-      return event;
-    }
-  })(c, next);
-});
 
 appHono.route("/", legacyRouter);
 appHono.route("/", apiRouter);
@@ -151,7 +137,6 @@ export async function initApp() {
     });
   } catch (error) {
     appLogger.error({ event: "APP_INIT_ERROR", error });
-    getSentry().captureException(error);
   }
 }
 
