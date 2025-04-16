@@ -1,4 +1,4 @@
-name: Validate and Build Notifications
+name: Notifications CI
 
 on:
   pull_request:
