@@ -13,7 +13,7 @@ concurrency:
 jobs:
   should-validate:
     name: Decide Whether to Validate
-    uses: ./.github/workflows/reusable/should-validate.yml
+    uses: ./.github/workflows/reusable-should-validate.yml
     with:
       app: provider-proxy
 
