@@ -7,40 +7,34 @@ on:
     branches: ["main"]
 
 jobs:
-  build-stats-web:
+  should-validate:
+    name: Decide Whether to Validate
+    uses: ./.github/workflows/reusable-should-validate.yml
+    with:
+      app: stats-web
+
+  validate-stats-web:
     runs-on: ubuntu-latest
+    needs: should-validate
+    if: needs.should-validate.outputs.enabled == 'true'
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - uses: ./.github/actions/local-dependencies
-        id: local_deps
-        with:
-          app: stats-web
-
-      - uses: dorny/paths-filter@v2
-        id: has_changes
-        with:
-          filters: |
-            local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
-            app:
-              - 'apps/stats-web/**'
-              - *local_deps
-
-      - name: Decide whether to validate
-        id: validation
-        run: echo "enabled=${{ steps.has_changes.outputs.app == 'true' }}" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup-app-deps
-        if: steps.validation.outputs.enabled == 'true'
         with:
           app: stats-web
 
       - name: Run static code analysis
-        if: steps.validation.outputs.enabled == 'true'
+        if: github.event_name == 'pull_request'
         run: npm run lint -w apps/stats-web -- --quiet
 
+  test-stats-web-build:
+    runs-on: ubuntu-latest
+    needs: should-validate
+    if: needs.should-validate.outputs.has_changes == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
       - name: Build the Docker image
-        if: steps.filter.outputs.app == 'true'
         run: packages/docker/script/dc.sh build stats-web --build-arg DEPLOYMENT_ENV=production

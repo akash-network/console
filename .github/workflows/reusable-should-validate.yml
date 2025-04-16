@@ -1,0 +1,46 @@
+name: Decide Whether to Validate
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: "The app to release" # dir name in ./apps/*
+        required: true
+        type: string
+    outputs:
+      enabled:
+        description: "Whether should validate"
+        value: ${{ jobs.should-validate.outputs.enabled }}
+      has_changes:
+        description: "Whether app has PR level changes"
+        value: ${{ jobs.should-validate.outputs.has_changes }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.app }}
+  cancel-in-progress: true
+
+jobs:
+  should-validate:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ github.event_name == 'push' || steps.has_changes.outputs.app == 'true' }}
+      has_changes: ${{ steps.has_changes.outputs.api }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/local-dependencies
+        id: local_deps
+        with:
+          app: ${{ inputs.app }}
+
+      - name: Check for changes
+        uses: dorny/paths-filter@v2
+        id: has_changes
+        with:
+          filters: |
+            local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
+            app:
+              - 'apps/${{ inputs.app }}/**'
+              - *local_deps

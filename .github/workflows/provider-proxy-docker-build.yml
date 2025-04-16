@@ -11,55 +11,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-provider-proxy:
+  should-validate:
+    name: Decide Whether to Validate
+    uses: ./.github/workflows/reusable/should-validate.yml
+    with:
+      app: provider-proxy
+
+  validate-provider-proxy:
     runs-on: ubuntu-latest
+    needs: should-validate
+    if: needs.should-validate.outputs.enabled == 'true'
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - uses: ./.github/actions/local-dependencies
-        id: local_deps
-        with:
-          app: provider-proxy
-
-      # Check for changes
-      - uses: dorny/paths-filter@v2
-        if: github.event_name == 'pull_request'
-        id: has_changes
-        with:
-          filters: |
-            local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
-            provider-proxy:
-              - 'apps/provider-proxy/**'
-              - *local_deps
-
-      - name: Decide whether to validate
-        id: validation
-        run: echo "enabled=${{ github.event_name == 'push' || steps.has_changes.outputs.provider-proxy == 'true' }}" >> $GITHUB_OUTPUT
-
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-app-deps
         if: steps.validation.outputs.enabled == 'true'
         with:
           app: provider-proxy
 
       - name: Run static code analysis
-        if: steps.validation.outputs.enabled == 'true' && github.event_name == 'pull_request'
-        run: npm run lint -w apps/provider-proxy
+        if: github.event_name == 'pull_request'
+        run: npm run lint -w apps/provider-proxy -- --quiet
 
       - name: Run tests
-        if: steps.validation.outputs.enabled == 'true'
         run: npm run test:cov --workspace=apps/provider-proxy
-
-      - name: Build the Docker image
-        if: steps.validation.outputs.enabled == 'true' && github.event_name == 'pull_request'
-        run: packages/docker/script/dc.sh build provider-proxy
 
       - name: Upload Test Coverage
         if: steps.validation.outputs.enabled == 'true'
         uses: codecov/codecov-action@v5
         with:
+          fail_ci_if_error: true
           directory: ./apps/provider-proxy/coverage
           flags: provider-proxy
           token: ${{ secrets.CODECOV_TOKEN }}
           base_sha: ${{ github.event.pull_request.base.sha }}
+
+  test-provider-proxy-build:
+    runs-on: ubuntu-latest
+    needs: should-validate
+    if: needs.should-validate.outputs.has_changes == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the Docker image
+        run: packages/docker/script/dc.sh build provider-proxy

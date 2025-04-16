@@ -9,49 +9,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate-n-build-notifications:
+  should-validate:
+    name: Decide Whether to Validate
+    uses: ./.github/workflows/reusable-should-validate.yml
+    with:
+      app: notifications
+
+  validate-notifications:
     runs-on: ubuntu-latest
+    needs: should-validate
+    if: needs.should-validate.outputs.enabled == 'true'
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Detect Local Deps Changes
-        uses: ./.github/actions/local-dependencies
-        id: local_deps
-        with:
-          app: notifications
-
-      - name: Check for changes
-        uses: dorny/paths-filter@v2
-        id: filter
-        with:
-          filters: |
-            local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
-            notifications:
-              - 'apps/notifications/**'
-              - *local_deps
+      - uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup-app-deps
-        if: steps.filter.outputs.notifications == 'true'
         with:
           app: notifications
 
       - name: Run static code analysis
-        if: steps.filter.outputs.notifications == 'true'
-        run: npm run lint -w apps/notifications
+        if: github.event_name == 'pull_request'
+        run: npm run lint -w apps/notifications -- --quiet
 
       - name: Run tests
-        if: steps.filter.outputs.notifications == 'true'
         env:
           POSTGRES_SKIP_IMPORT: true
         run: |
           npm run test:cov --workspace=apps/notifications
 
       - name: Upload Test Coverage
-        if: steps.filter.outputs.notifications == 'true'
         uses: codecov/codecov-action@v5
         with:
+          fail_ci_if_error: true
           directory: ./apps/notifications/coverage
           flags: notifications
           token: ${{ secrets.CODECOV_TOKEN }}

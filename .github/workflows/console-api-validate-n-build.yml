@@ -9,39 +9,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate-n-build-api:
+  should-validate:
+    name: Decide Whether to Validate
+    uses: ./.github/workflows/reusable-should-validate.yml
+    with:
+      app: api
+
+  validate-api:
     runs-on: ubuntu-latest
+    needs: should-validate
+    if: needs.should-validate.outputs.enabled == 'true'
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - uses: ./.github/actions/local-dependencies
-        id: local_deps
-        with:
-          app: api
-
-      - name: Check for changes
-        uses: dorny/paths-filter@v2
-        id: filter
-        with:
-          filters: |
-            local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
-            api:
-              - 'apps/api/**'
-              - *local_deps
+        uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup-app-deps
-        if: steps.filter.outputs.api == 'true'
         with:
           app: api
 
       - name: Run static code analysis
-        if: steps.filter.outputs.api == 'true'
-        run: npm run lint:api
+        if: github.event_name == 'pull_request'
+        run: npm run lint -w apps/api -- --quiet
 
       - name: Run tests
-        if: steps.filter.outputs.api == 'true'
         env:
           POSTGRES_SKIP_IMPORT: true
         run: |
@@ -49,16 +40,24 @@ jobs:
           npm run test:cov --workspace=apps/api
           npm run dc:down
 
-      - name: Build the Docker image for API
-        if: steps.filter.outputs.api == 'true'
-        env:
-          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-        run: packages/docker/script/dc.sh build api
-
       - name: Upload Test Coverage
-        if: steps.filter.outputs.api == 'true'
         uses: codecov/codecov-action@v5
         with:
+          fail_ci_if_error: true
           directory: ./apps/api/coverage
           flags: api
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  test-api-build:
+    runs-on: ubuntu-latest
+    needs: should-validate
+    if: needs.should-validate.outputs.has_changes == 'true'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build the Docker image for API
+        env:
+          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+        run: packages/docker/script/dc.sh build api
