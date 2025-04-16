@@ -25,7 +25,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-app-deps
-        if: steps.validation.outputs.enabled == 'true'
         with:
           app: provider-proxy
 
@@ -37,7 +36,6 @@ jobs:
         run: npm run test:cov --workspace=apps/provider-proxy
 
       - name: Upload Test Coverage
-        if: steps.validation.outputs.enabled == 'true'
         uses: codecov/codecov-action@v5
         with:
           fail_ci_if_error: true
