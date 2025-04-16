@@ -137,7 +137,7 @@ export interface ProviderVersion {
 }
 
 export interface ProviderStatusDto {
-  name: string;
+  name: string | null;
   orderCount: number;
   deploymentCount: number;
   leaseCount: number;
@@ -184,7 +184,7 @@ export interface ProviderStatusDto {
 
 export interface ApiProviderList {
   owner: string;
-  name: string;
+  name: string | null;
   hostUri: string;
   createdHeight: number;
   email: string;
@@ -237,7 +237,7 @@ export interface ApiProviderList {
       ephemeral: StatsItem;
       persistent: StatsItem;
     };
-  },
+  };
   attributes: Array<{
     key: string;
     value: string;
