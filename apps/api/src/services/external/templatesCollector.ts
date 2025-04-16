@@ -2,7 +2,6 @@ import type { Octokit } from "@octokit/rest";
 import { PromisePool } from "@supercharge/promise-pool";
 import * as fs from "fs";
 import { markdownToTxt } from "markdown-to-txt";
-import fetch from "node-fetch";
 import path from "path";
 
 import type { GithubChainRegistryChainResponse } from "@src/types";

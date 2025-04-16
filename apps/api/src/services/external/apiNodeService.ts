@@ -3,7 +3,6 @@ import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/da
 import { Validator } from "@akashnetwork/database/dbSchemas/base";
 import { LoggerService } from "@akashnetwork/logging";
 import axios from "axios";
-import fetch from "node-fetch";
 import { Op } from "sequelize";
 
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
