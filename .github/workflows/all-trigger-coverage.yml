@@ -1,0 +1,18 @@
+name: Triggers coverage check for files that do not require coverage
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'apps/**'
+      - 'packages/**'
+
+jobs:
+  trigger-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: codecov/codecov-action@v5
+        with:
+          directory: ./coverage
+          token: ${{ secrets.CODECOV_TOKEN }}
+          run_command: empty-upload
