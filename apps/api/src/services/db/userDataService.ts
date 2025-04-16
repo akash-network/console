@@ -5,6 +5,7 @@ import type { Transaction } from "sequelize";
 import { container } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
+import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 
 const logger = LoggerService.forContext("UserDataService");
 
@@ -76,6 +77,8 @@ type UserInput = {
   fingerprint?: string;
 };
 
+const analyticsService = container.resolve(AnalyticsService);
+
 export async function getSettingsOrInit({
   anonymousUserId,
   userId,
@@ -89,7 +92,6 @@ export async function getSettingsOrInit({
 }: UserInput) {
   let userSettings: UserSetting;
   let isAnonymous = false;
-  let isJustRegistered = false;
 
   if (anonymousUserId) {
     try {
@@ -112,7 +114,7 @@ export async function getSettingsOrInit({
       isAnonymous = !!userSettings;
 
       if (isAnonymous) {
-        isJustRegistered = true;
+        analyticsService.track(anonymousUserId, "user_registered");
         logger.info({ event: "ANONYMOUS_USER_REGISTERED", id: anonymousUserId, userId });
       }
     } catch (error) {
@@ -138,17 +140,17 @@ export async function getSettingsOrInit({
 
   if (!userSettings) {
     userSettings = await UserSetting.create({
-      userId: userId,
+      userId,
       username: await generateUsername(wantedUsername),
-      email: email,
-      emailVerified: emailVerified,
+      email,
+      emailVerified,
       stripeCustomerId: null,
       subscribedToNewsletter,
       lastIp: ip,
       lastUserAgent: userAgent,
       lastFingerprint: fingerprint
     });
-    isJustRegistered = true;
+    analyticsService.track(userSettings.id, "user_registered");
     logger.info({ event: "USER_REGISTERED", userId });
   }
 
@@ -167,22 +169,19 @@ export async function getSettingsOrInit({
     await userSettings.save();
   }
 
-  return {
-    ...pick(userSettings, [
-      "id",
-      "userId",
-      "username",
-      "email",
-      "emailVerified",
-      "stripeCustomerId",
-      "bio",
-      "subscribedToNewsletter",
-      "youtubeUsername",
-      "twitterUsername",
-      "githubUsername"
-    ]),
-    isJustRegistered
-  };
+  return pick(userSettings, [
+    "id",
+    "userId",
+    "username",
+    "email",
+    "emailVerified",
+    "stripeCustomerId",
+    "bio",
+    "subscribedToNewsletter",
+    "youtubeUsername",
+    "twitterUsername",
+    "githubUsername"
+  ]);
 }
 
 async function tryToTransferWallet(prevUserId: string, nextUserId: string) {
