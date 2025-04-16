@@ -3,8 +3,9 @@ import httpProxy from "http-proxy";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import { serverEnvConfig } from "@src/config/server-env.config";
+import { wrapApiHandlerInExecutionContext } from "@src/lib/nextjs/wrapApiHandler";
 
-export default async (req: NextApiRequest, res: NextApiResponse) => {
+export default wrapApiHandlerInExecutionContext(async (req: NextApiRequest, res: NextApiResponse) => {
   // removes the api prefix from url
   req.url = req.url?.replace(/^\/api\/proxy/, "");
 
@@ -39,7 +40,7 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
       })
       .web(req, res);
   });
-};
+});
 
 export const config = {
   api: {

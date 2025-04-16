@@ -1,7 +1,9 @@
 import { handleLogin } from "@auth0/nextjs-auth0";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-export default async function signup(req: NextApiRequest, res: NextApiResponse) {
+import { wrapApiHandlerInExecutionContext } from "@src/lib/nextjs/wrapApiHandler";
+
+export default wrapApiHandlerInExecutionContext(async function signup(req: NextApiRequest, res: NextApiResponse) {
   try {
     await handleLogin(req, res, {
       authorizationParams: {
@@ -15,4 +17,4 @@ export default async function signup(req: NextApiRequest, res: NextApiResponse) 
   } catch (error: any) {
     res.status(error.status || 400).end(error.message);
   }
-}
+});
