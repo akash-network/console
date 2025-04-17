@@ -61,9 +61,9 @@ jobs:
             exit 1
           fi
 
-          has_tag=$(git rev-parse "$git_tag" >/dev/null 2>&1 && echo "true" || echo "false")
+          tag_exists=$(git rev-parse "$git_tag" >/dev/null 2>&1 && echo "true" || echo "false")
 
-          if [ "$has_tag" = "false" ]; then
+          if [ "$tag_exists" = "false" ]; then
             echo "git_tag=$git_tag" >> $GITHUB_OUTPUT
             echo "git_tag=$git_tag"
 

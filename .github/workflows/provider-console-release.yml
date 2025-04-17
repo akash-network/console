@@ -18,6 +18,7 @@ jobs:
   build-beta:
     needs: release
     name: Build Beta Docker image
+    if: needs.release.outputs.git_tag != ''
     uses: ./.github/workflows/reusable-build-image.yml
     secrets: inherit
     permissions:
@@ -30,6 +31,7 @@ jobs:
   build-prod:
     needs: release
     name: Build Prod Docker image
+    if: needs.release.outputs.git_tag != ''
     uses: ./.github/workflows/reusable-build-image.yml
     secrets: inherit
     permissions:

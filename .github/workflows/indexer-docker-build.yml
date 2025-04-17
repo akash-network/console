@@ -3,14 +3,8 @@ name: Indexer CI
 on:
   push:
     branches: ["main"]
-    paths:
-      - "apps/indexer/**"
-      - "packages/**"
   pull_request:
     branches: ["main"]
-    paths:
-      - "apps/indexer/**"
-      - "packages/**"
 
 jobs:
   should-validate:
