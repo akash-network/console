@@ -4,6 +4,7 @@ import type { MockProxy } from 'jest-mock-extended';
 
 import type { DeploymentBalanceAlertOutput } from '@src/alert/repositories/deployment-balance-alert/deployment-balance-alert.repository';
 import { DeploymentBalanceAlertRepository } from '@src/alert/repositories/deployment-balance-alert/deployment-balance-alert.repository';
+import { TemplateService } from '@src/alert/services/template/template.service';
 import { BrokerService } from '@src/broker';
 import { LoggerService } from '@src/common/services/logger.service';
 import { ConditionsMatcherService } from '../conditions-matcher/conditions-matcher.service';
@@ -25,7 +26,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
         owner,
         dseq,
         conditions: { field: 'balance', value: 10000000, operator: 'lt' },
-        template: 'Deployment balance is low ${balance}',
+        template: 'Deployment balance is low {{balance}}',
         minBlockHeight: 1000,
       });
       const alerts: DeploymentBalanceAlertOutput[] = [alert];
@@ -58,7 +59,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
         owner,
         dseq,
         conditions: { field: 'balance', value: 10000000, operator: 'lt' },
-        template: 'Deployment balance is low ${balance}',
+        template: 'Deployment balance is low {{balance}}',
         minBlockHeight: 1000,
         status: 'firing',
       });
@@ -193,8 +194,9 @@ describe(DeploymentBalanceAlertsService.name, () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DeploymentBalanceAlertsService,
-        MockProvider(DeploymentBalanceAlertRepository),
         ConditionsMatcherService,
+        TemplateService,
+        MockProvider(DeploymentBalanceAlertRepository),
         MockProvider(BrokerService),
         MockProvider(DeploymentService),
         MockProvider(LoggerService),

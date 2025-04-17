@@ -5,6 +5,7 @@ import type { MockProxy } from 'jest-mock-extended';
 import { MsgCloseDeploymentDto } from '@src/alert/dto/msg-close-deployment.dto';
 import type { AlertOutput } from '@src/alert/repositories/raw-alert/raw-alert.repository';
 import { RawAlertRepository } from '@src/alert/repositories/raw-alert/raw-alert.repository';
+import { TemplateService } from '@src/alert/services/template/template.service';
 import { BrokerService } from '@src/broker';
 import { LoggerService } from '@src/common/services/logger.service';
 import { ConditionsMatcherService } from '../conditions-matcher/conditions-matcher.service';
@@ -28,7 +29,7 @@ describe(RawAlertsService.name, () => {
           operator: 'eq',
         },
         template:
-          'Deployment ${value.id.dseq.low} was closed by ${value.id.owner}',
+          'Deployment {{value.id.dseq.low}} was closed by {{value.id.owner}}',
       });
 
       const alerts: AlertOutput[] = [alert];
@@ -152,7 +153,7 @@ describe(RawAlertsService.name, () => {
           value: 'akash.deployment.v1beta3.MsgCloseDeployment',
           operator: 'eq',
         },
-        template: 'Alert 1: DSEQ ${value.id.dseq.low}',
+        template: 'Alert 1: DSEQ {{value.id.dseq.low}}',
       });
 
       const alert2 = generateRawAlert({
@@ -161,7 +162,7 @@ describe(RawAlertsService.name, () => {
           value: 'akash.deployment.v1beta3.MsgCloseDeployment',
           operator: 'eq',
         },
-        template: 'Alert 2: Owner ${value.id.owner}',
+        template: 'Alert 2: Owner {{value.id.owner}}',
       });
 
       const alerts: AlertOutput[] = [alert1, alert2];
@@ -207,7 +208,8 @@ describe(RawAlertsService.name, () => {
             },
           ],
         },
-        template: 'Deployment ${value.id.dseq.low} closed by ${value.id.owner}',
+        template:
+          'Deployment {{value.id.dseq.low}} closed by {{value.id.owner}}',
       });
 
       const alerts: AlertOutput[] = [alert];
@@ -242,6 +244,7 @@ describe(RawAlertsService.name, () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RawAlertsService,
+        TemplateService,
         MockProvider(RawAlertRepository),
         MockProvider(ConditionsMatcherService),
         MockProvider(BrokerService),

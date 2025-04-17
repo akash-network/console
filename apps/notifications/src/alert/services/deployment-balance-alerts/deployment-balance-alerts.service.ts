@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import template from 'lodash/template';
 
 import { ChainBlockCreatedDto } from '@src/alert/dto/chain-block-created.dto';
 import {
@@ -8,6 +7,7 @@ import {
 } from '@src/alert/repositories/deployment-balance-alert/deployment-balance-alert.repository';
 import { ConditionsMatcherService } from '@src/alert/services/conditions-matcher/conditions-matcher.service';
 import { DeploymentService } from '@src/alert/services/deployment/deployment.service';
+import { TemplateService } from '@src/alert/services/template/template.service';
 import { BrokerService } from '@src/broker';
 import { LoggerService } from '@src/common/services/logger.service';
 
@@ -22,6 +22,7 @@ export class DeploymentBalanceAlertsService {
     private readonly conditionsMatcher: ConditionsMatcherService,
     private readonly brokerService: BrokerService,
     private readonly deploymentService: DeploymentService,
+    private readonly templateService: TemplateService,
     private readonly loggerService: LoggerService,
   ) {
     this.loggerService.setContext(DeploymentBalanceAlertsService.name);
@@ -80,12 +81,10 @@ export class DeploymentBalanceAlertsService {
       let message: string | undefined;
 
       if (isMatching && alert.status === 'normal') {
-        const interpolate = template(alert.template);
-        message = `FIRING: ${interpolate(balance)}`;
+        message = `FIRING: ${this.templateService.interpolate(alert.template, balance)}`;
         update.status = 'firing';
       } else if (!isMatching && alert.status === 'firing') {
-        const interpolate = template(alert.template);
-        message = `RECOVERED: ${interpolate(balance)}`;
+        message = `RECOVERED: ${this.templateService.interpolate(alert.template, balance)}`;
         update.status = 'normal';
       }
 

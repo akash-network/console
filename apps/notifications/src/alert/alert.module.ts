@@ -8,6 +8,7 @@ import { ConditionsMatcherService } from '@src/alert/services/conditions-matcher
 import { DeploymentService } from '@src/alert/services/deployment/deployment.service';
 import { DeploymentBalanceAlertsService } from '@src/alert/services/deployment-balance-alerts/deployment-balance-alerts.service';
 import { RawAlertsService } from '@src/alert/services/raw-alerts/raw-alerts.service';
+import { TemplateService } from '@src/alert/services/template/template.service';
 import { CommonModule } from '@src/common/common.module';
 import { GlobalEnvConfig } from '@src/config/env.config';
 import { ChainEventsController } from './controllers/chain-events/chain-events.controller';
@@ -44,6 +45,7 @@ import * as schema from './model-schemas';
     ConditionsMatcherService,
     DeploymentBalanceAlertRepository,
     DeploymentService,
+    TemplateService,
   ],
 })
 export class AlertModule {}

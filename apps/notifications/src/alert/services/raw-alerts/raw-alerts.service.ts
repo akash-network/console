@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import template from 'lodash/template';
 
 import {
   AlertOutput,
   RawAlertRepository,
 } from '@src/alert/repositories/raw-alert/raw-alert.repository';
 import { ConditionsMatcherService } from '@src/alert/services/conditions-matcher/conditions-matcher.service';
+import { TemplateService } from '@src/alert/services/template/template.service';
 import { BrokerService } from '@src/broker';
 import { LoggerService } from '@src/common/services/logger.service';
 
@@ -17,6 +17,7 @@ export class RawAlertsService {
     private readonly alertRepository: RawAlertRepository,
     private readonly conditionsMatcher: ConditionsMatcherService,
     private readonly brokerService: BrokerService,
+    private readonly templateService: TemplateService,
     private readonly loggerService: LoggerService,
   ) {
     this.loggerService.setContext(RawAlertsService.name);
@@ -34,8 +35,7 @@ export class RawAlertsService {
           return;
         }
 
-        const interpolate = template(alert.template);
-        const message = interpolate(event);
+        const message = this.templateService.interpolate(alert.template, event);
 
         await this.brokerService.publish('notification.v1.send', {
           message,
