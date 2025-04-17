@@ -1,5 +1,6 @@
 import assert from "http-assert";
 import { singleton } from "tsyringe";
+import { z } from "zod";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import { UserWalletRepository } from "@src/billing/repositories";
@@ -10,6 +11,7 @@ import {
   DepositDeploymentRequest,
   DepositDeploymentResponse,
   GetDeploymentResponse,
+  ListDeploymentsResponseSchema,
   UpdateDeploymentRequest,
   UpdateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
@@ -85,5 +87,27 @@ export class DeploymentController {
     const result = await this.deploymentService.update(userWallet, dseq, input);
 
     return { data: result };
+  }
+
+  @Protected([{ action: "sign", subject: "UserWallet" }])
+  async list({ skip, limit }: { skip?: number; limit?: number }): Promise<z.infer<typeof ListDeploymentsResponseSchema>> {
+    const { currentUser, ability } = this.authService;
+
+    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
+    assert(userWallet, 404, "UserWallet Not Found");
+
+    const { deployments, total } = await this.deploymentService.list(userWallet.address, { skip, limit });
+
+    return {
+      data: {
+        deployments,
+        pagination: {
+          total,
+          skip: skip ?? 0,
+          limit: limit ?? total,
+          hasMore: skip !== undefined && limit !== undefined ? total > skip + limit : false
+        }
+      }
+    };
   }
 }

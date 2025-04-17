@@ -115,6 +115,23 @@ export const UpdateDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
 });
 
+export const ListDeploymentsQuerySchema = z.object({
+  skip: z.optional(z.number().int().min(0)),
+  limit: z.optional(z.number().int().min(1).max(100))
+});
+
+export const ListDeploymentsResponseSchema = z.object({
+  data: z.object({
+    deployments: z.array(DeploymentResponseSchema),
+    pagination: z.object({
+      total: z.number(),
+      skip: z.number(),
+      limit: z.number(),
+      hasMore: z.boolean()
+    })
+  })
+});
+
 export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
 export type CreateDeploymentRequest = z.infer<typeof CreateDeploymentRequestSchema>;
 export type CreateDeploymentResponse = z.infer<typeof CreateDeploymentResponseSchema>;

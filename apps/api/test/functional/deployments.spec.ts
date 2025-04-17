@@ -666,4 +666,176 @@ describe("Deployments API", () => {
       });
     });
   });
+
+  describe("GET /v1/deployments/list", () => {
+    it("returns all deployments when skip and limit are not provided", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const dseq1 = "1234";
+      const dseq2 = "5678";
+      setupDeploymentInfoMock(wallets, dseq1);
+      setupDeploymentInfoMock(wallets, dseq2);
+
+      const response = await app.request("/v1/deployments/list", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data).toEqual({
+        deployments: expect.arrayContaining([
+          expect.objectContaining({
+            deployment: expect.any(Object),
+            escrow_account: expect.any(Object),
+            leases: expect.arrayContaining([expect.any(Object)])
+          })
+        ]),
+        pagination: {
+          total: expect.any(Number),
+          skip: 0,
+          limit: expect.any(Number),
+          hasMore: false
+        }
+      });
+    });
+
+    it("returns paginated list of deployments when skip and limit are provided", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const dseq1 = "1234";
+      const dseq2 = "5678";
+      setupDeploymentInfoMock(wallets, dseq1);
+      setupDeploymentInfoMock(wallets, dseq2);
+
+      const response = await app.request("/v1/deployments/list?skip=0&limit=1", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data).toEqual({
+        deployments: expect.arrayContaining([
+          expect.objectContaining({
+            deployment: expect.any(Object),
+            escrow_account: expect.any(Object),
+            leases: expect.arrayContaining([expect.any(Object)])
+          })
+        ]),
+        pagination: {
+          total: expect.any(Number),
+          skip: 0,
+          limit: 1,
+          hasMore: true
+        }
+      });
+      expect(result.data.deployments).toHaveLength(1);
+    });
+
+    it("filters deployments by status", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const dseq = "1234";
+      setupDeploymentInfoMock(wallets, dseq, {
+        deployment: {
+          deployment_id: {
+            owner: wallets[0].address,
+            dseq
+          },
+          state: "active",
+          version: "v1",
+          created_at: new Date().toISOString()
+        },
+        groups: [
+          {
+            group_id: {
+              owner: wallets[0].address,
+              dseq,
+              gseq: 1
+            },
+            state: "active",
+            group_spec: {
+              name: "test",
+              requirements: {
+                signed_by: {
+                  all_of: [],
+                  any_of: []
+                },
+                attributes: []
+              },
+              resources: []
+            },
+            created_at: new Date().toISOString()
+          }
+        ],
+        escrow_account: {
+          id: { scope: "scope", xid: "xid" },
+          owner: wallets[0].address,
+          state: "active",
+          balance: { denom: "uakt", amount: "1000" },
+          transferred: { denom: "uakt", amount: "0" },
+          settled_at: new Date().toISOString(),
+          depositor: wallets[0].address,
+          funds: { denom: "uakt", amount: "1000" }
+        }
+      });
+
+      const response = await app.request("/v1/deployments/list?status=active", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data.deployments).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            deployment: expect.objectContaining({
+              state: "active"
+            })
+          })
+        ])
+      );
+    });
+
+    it("returns 401 for an unauthenticated request", async () => {
+      const response = await app.request("/v1/deployments/list", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json" })
+      });
+
+      expect(response.status).toBe(401);
+    });
+
+    it("returns 400 if skip is negative", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments/list?skip=-1&limit=10", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("returns 400 if limit is less than 1", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments/list?skip=0&limit=0", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("returns 400 if limit is greater than 100", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments/list?skip=0&limit=101", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+    });
+  });
 });

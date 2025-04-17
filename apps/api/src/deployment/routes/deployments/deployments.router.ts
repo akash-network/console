@@ -12,6 +12,8 @@ import {
   DepositDeploymentResponseSchema,
   GetDeploymentQuerySchema,
   GetDeploymentResponseSchema,
+  ListDeploymentsQuerySchema,
+  ListDeploymentsResponseSchema,
   UpdateDeploymentRequestSchema,
   UpdateDeploymentResponseSchema
 } from "@src/deployment/http-schemas/deployment.schema";
@@ -135,6 +137,26 @@ const updateRoute = createRoute({
   }
 });
 
+const listRoute = createRoute({
+  method: "get",
+  path: "/v1/deployments/list",
+  summary: "List deployments with pagination and filtering",
+  tags: ["Deployments"],
+  request: {
+    query: ListDeploymentsQuerySchema
+  },
+  responses: {
+    200: {
+      description: "Returns paginated list of deployments",
+      content: {
+        "application/json": {
+          schema: ListDeploymentsResponseSchema
+        }
+      }
+    }
+  }
+});
+
 export const deploymentsRouter = new OpenApiHonoHandler();
 
 deploymentsRouter.openapi(getRoute, async function routeGetDeployment(c) {
@@ -165,5 +187,11 @@ deploymentsRouter.openapi(updateRoute, async function routeUpdateDeployment(c) {
   const { dseq } = c.req.valid("param");
   const { data } = c.req.valid("json");
   const result = await container.resolve(DeploymentController).update(dseq, data);
+  return c.json(result, 200);
+});
+
+deploymentsRouter.openapi(listRoute, async function routeListDeployments(c) {
+  const { skip, limit } = c.req.valid("query");
+  const result = await container.resolve(DeploymentController).list({ skip, limit });
   return c.json(result, 200);
 });
