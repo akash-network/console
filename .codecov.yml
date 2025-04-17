@@ -1,16 +1,7 @@
-github_checks:
-  annotations: true
-
 coverage:
   status:
     project:
-      default:
-        target: auto
-        branches:
-          - main
-        if_ci_failed: error
-        informational: false
-        only_pulls: false
+      default: off
       api:
         target: 80%
         flags:
@@ -19,34 +10,16 @@ coverage:
         target: auto
         flags:
           - deploy-web
-      indexer:
-        target: 0%
-        flags:
-          - indexer
       notifications:
         target: 80%
         flags:
           - notifications
-      provider-console:
-        target: 0%
-        flags:
-          - provider-console
       provider-proxy:
         target: 80%
         flags:
           - provider-proxy
-      stats-web:
-        target: 0%
-        flags:
-          - stats-web
     patch:
-      default:
-        target: auto
-        branches:
-          - main
-        if_ci_failed: error
-        informational: false
-        only_pulls: false
+      default: off
       api:
         target: 80%
         flags:
@@ -55,46 +28,51 @@ coverage:
         target: 30%
         flags:
           - deploy-web
-      indexer:
-        target: 0%
-        flags:
-          - indexer
       notifications:
         target: 80%
         flags:
           - notifications
-      provider-console:
-        target: 0%
-        flags:
-          - provider-console
       provider-proxy:
         target: 80%
         flags:
           - provider-proxy
-      stats-web:
-        target: 0%
-        flags:
-          - stats-web
 
 flags:
   api:
+    carryforward: true
     paths:
       - apps/api/
   deploy-web:
+    carryforward: true
     paths:
       - apps/deploy-web/
   indexer:
+    carryforward: true
     paths:
       - apps/indexer/
   notifications:
+    carryforward: true
     paths:
       - apps/notifications/
   provider-console:
+    carryforward: true
     paths:
       - apps/provider-console/
   provider-proxy:
+    carryforward: true
     paths:
       - apps/provider-proxy/
   stats-web:
+    carryforward: true
     paths:
       - apps/stats-web/
+
+comment:
+  layout: "diff, flags, files"
+  behavior: default
+  require_changes: true
+  require_base: yes
+  require_head: yes
+  branches:
+    - main
+  show_carryforward_flags: true
