@@ -1,5 +1,25 @@
 
 
+## [2.86.0](https://github.com/akash-network/console/compare/console-api/v2.85.1...console-api/v2.86.0) (2025-04-17)
+
+
+### Features
+
+* **analytics:** track user action on the backend ([d0ae4da](https://github.com/akash-network/console/commit/d0ae4da0d176b03e6621db32a97cf36c8cd4c8d5))
+
+
+### Bug Fixes
+
+* **billing:** handle deployment config errors ([#1236](https://github.com/akash-network/console/issues/1236)) ([2d04840](https://github.com/akash-network/console/commit/2d04840e22e9a2ef0fb3b96ae89058ba57d2d88c))
+* **billing:** logs auto top up error data ([cd1863f](https://github.com/akash-network/console/commit/cd1863fe7edef0e408fa95047579fa8971de0fd9))
+* **deployment:** provider name might be null ([#1209](https://github.com/akash-network/console/issues/1209)) ([5c622d4](https://github.com/akash-network/console/commit/5c622d44f0cd045b3e32cb7d2818977175c12551)), closes [#1197](https://github.com/akash-network/console/issues/1197) [#1197](https://github.com/akash-network/console/issues/1197)
+
+
+### Code Refactoring
+
+* removes sentry from console-api ([#1220](https://github.com/akash-network/console/issues/1220)) ([8339158](https://github.com/akash-network/console/commit/8339158321771e716cddd7de4242d7de370697d0))
+* removes unused dependencies in console-api ([#1221](https://github.com/akash-network/console/issues/1221)) ([e16ffbf](https://github.com/akash-network/console/commit/e16ffbfcb07d5e683792882c242004e1c62da46c))
+
 ## [2.85.1](https://github.com/akash-network/console/compare/console-api/v2.85.0...console-api/v2.85.1) (2025-04-15)
 
 

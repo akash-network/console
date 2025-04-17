@@ -1,5 +1,23 @@
 
 
+## [2.69.0](https://github.com/akash-network/console/compare/console-web/v2.68.2...console-web/v2.69.0) (2025-04-17)
+
+
+### Features
+
+* **analytics:** track user action on the backend ([d0ae4da](https://github.com/akash-network/console/commit/d0ae4da0d176b03e6621db32a97cf36c8cd4c8d5))
+
+
+### Bug Fixes
+
+* **deployment:** provider name might be null ([#1209](https://github.com/akash-network/console/issues/1209)) ([5c622d4](https://github.com/akash-network/console/commit/5c622d44f0cd045b3e32cb7d2818977175c12551)), closes [#1197](https://github.com/akash-network/console/issues/1197) [#1197](https://github.com/akash-network/console/issues/1197)
+* ensure SSR initiated request forward real client ip ([#1210](https://github.com/akash-network/console/issues/1210)) ([4fb0427](https://github.com/akash-network/console/commit/4fb0427c295141c572ff0b3c2d8874feadaa2590))
+
+
+### Code Refactoring
+
+* removes sentry from console-api ([#1220](https://github.com/akash-network/console/issues/1220)) ([8339158](https://github.com/akash-network/console/commit/8339158321771e716cddd7de4242d7de370697d0))
+
 ## [2.68.2](https://github.com/akash-network/console/compare/console-web/v2.68.1...console-web/v2.68.2) (2025-04-15)
 
 
