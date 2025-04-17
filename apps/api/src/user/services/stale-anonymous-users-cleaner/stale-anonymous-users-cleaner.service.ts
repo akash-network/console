@@ -4,8 +4,6 @@ import { singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService } from "@src/billing/services";
-import { InjectSentry, Sentry } from "@src/core/providers/sentry.provider";
-import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
 import { DryRunOptions } from "@src/core/types/console";
 import { UserRepository } from "@src/user/repositories";
 import { StaleAnonymousUsersCleanerSummarizer } from "@src/user/services/stale-anonymous-users-cleaner-summarizer/stale-anonymous-users-cleaner-summarizer.service";
@@ -25,9 +23,7 @@ export class StaleAnonymousUsersCleanerService {
     private readonly userRepository: UserRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly managedUserWalletService: ManagedUserWalletService,
-    private readonly config: UserConfigService,
-    @InjectSentry() private readonly sentry: Sentry,
-    private readonly sentryEventService: SentryEventService
+    private readonly config: UserConfigService
   ) {}
 
   async cleanUpStaleAnonymousUsers(options: StaleAnonymousUsersCleanerOptions) {
@@ -54,7 +50,6 @@ export class StaleAnonymousUsersCleanerService {
           } catch (error) {
             summary.inc("revokeErrorCount", 1);
             this.logger.debug({ event: "STALE_ANONYMOUS_USERS_REVOKE_ERROR", error });
-            this.sentry.captureEvent(this.sentryEventService.toEvent(error));
           }
         });
         const userIdsToRemove = (await Promise.all(revokeAll)).filter(Boolean);

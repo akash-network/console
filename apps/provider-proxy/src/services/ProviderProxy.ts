@@ -109,7 +109,7 @@ function genAgentsCacheKey(options: TLSChainAgentOptions): string {
 }
 
 export interface ProxyConnectOptions extends Pick<RequestOptions, "cert" | "key" | "method"> {
-  body?: BodyInit;
+  body?: RequestInit["body"];
   headers?: Record<string, string>;
   network: SupportedChainNetworks;
   timeout?: number;
