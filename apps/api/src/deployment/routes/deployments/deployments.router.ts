@@ -1,5 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
+import { z } from "zod";
 
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
@@ -10,7 +11,6 @@ import {
   CreateDeploymentResponseSchema,
   DepositDeploymentRequestSchema,
   DepositDeploymentResponseSchema,
-  GetDeploymentQuerySchema,
   GetDeploymentResponseSchema,
   ListDeploymentsQuerySchema,
   ListDeploymentsResponseSchema,
@@ -20,11 +20,13 @@ import {
 
 const getRoute = createRoute({
   method: "get",
-  path: "/v1/deployments",
+  path: "/v1/deployments/{dseq}",
   summary: "Get a deployment",
   tags: ["Deployments"],
   request: {
-    query: GetDeploymentQuerySchema
+    params: z.object({
+      dseq: z.string()
+    })
   },
   responses: {
     200: {
@@ -139,7 +141,7 @@ const updateRoute = createRoute({
 
 const listRoute = createRoute({
   method: "get",
-  path: "/v1/deployments/list",
+  path: "/v1/deployments",
   summary: "List deployments with pagination and filtering",
   tags: ["Deployments"],
   request: {
@@ -160,8 +162,8 @@ const listRoute = createRoute({
 export const deploymentsRouter = new OpenApiHonoHandler();
 
 deploymentsRouter.openapi(getRoute, async function routeGetDeployment(c) {
-  const { dseq, userId } = c.req.valid("query");
-  const result = await container.resolve(DeploymentController).findByDseqAndUserId(dseq, userId);
+  const { dseq } = c.req.valid("param");
+  const result = await container.resolve(DeploymentController).findByDseq(dseq);
   return c.json(result, 200);
 });
 

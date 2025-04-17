@@ -26,10 +26,10 @@ export class DeploymentController {
   ) {}
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
-  async findByDseqAndUserId(dseq: string, userId?: string): Promise<GetDeploymentResponse> {
+  async findByDseq(dseq: string): Promise<GetDeploymentResponse> {
     const { currentUser, ability } = this.authService;
 
-    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(userId ?? currentUser.id);
+    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
     const deployment = await this.deploymentService.findByOwnerAndDseq(userWallet.address, dseq);

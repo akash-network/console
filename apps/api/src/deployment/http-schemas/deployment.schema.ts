@@ -56,11 +56,6 @@ export const DeploymentResponseSchema = z.object({
   })
 });
 
-export const GetDeploymentQuerySchema = z.object({
-  dseq: z.string(),
-  userId: z.optional(z.string())
-});
-
 export const GetDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
 });

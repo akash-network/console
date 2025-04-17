@@ -167,7 +167,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret, wallets } = await mockUser();
       setupDeploymentInfoMock(wallets, dseq);
 
-      const response = await app.request(`/v1/deployments?dseq=${dseq}`, {
+      const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
@@ -186,7 +186,7 @@ describe("Deployments API", () => {
       const { user, userApiKeySecret, wallets } = await mockUser();
       setupDeploymentInfoMock(wallets, dseq);
 
-      const response = await app.request(`/v1/deployments?dseq=${dseq}&userId=${user.id}`, {
+      const response = await app.request(`/v1/deployments/${dseq}?userId=${user.id}`, {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
@@ -206,7 +206,7 @@ describe("Deployments API", () => {
       const { adminApiKeySecret } = await mockAdmin();
       setupDeploymentInfoMock(wallets, dseq);
 
-      const response = await app.request(`/v1/deployments?dseq=${dseq}&userId=${user.id}`, {
+      const response = await app.request(`/v1/deployments/${dseq}?userId=${user.id}`, {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": adminApiKeySecret })
       });
@@ -226,7 +226,7 @@ describe("Deployments API", () => {
       const { adminApiKeySecret } = await mockAdmin();
       setupDeploymentInfoMock(wallets, dseq, DeploymentInfoSeeder.createError());
 
-      const response = await app.request(`/v1/deployments?dseq=${dseq}&userId=${user.id}`, {
+      const response = await app.request(`/v1/deployments/${dseq}?userId=${user.id}`, {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": adminApiKeySecret })
       });
@@ -240,7 +240,7 @@ describe("Deployments API", () => {
     });
 
     it("returns 401 for an unauthenticated request", async () => {
-      const response = await app.request("/v1/deployments?dseq=1234", {
+      const response = await app.request("/v1/deployments/1234", {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json" })
       });
