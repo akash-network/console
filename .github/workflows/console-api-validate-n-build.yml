@@ -3,14 +3,8 @@ name: API CI
 on:
   pull_request:
     branches: ["main"]
-    paths:
-      - "apps/api/**"
-      - "packages/**"
   push:
     branches: ["main"]
-    paths:
-      - "apps/api/**"
-      - "packages/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

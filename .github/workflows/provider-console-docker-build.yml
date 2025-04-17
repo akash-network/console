@@ -3,14 +3,8 @@ name: Provider Console CI
 on:
   pull_request:
     branches: ["main"]
-    paths:
-      - "apps/provider-console/**"
-      - "packages/**"
   push:
     branches: ["main"]
-    paths:
-      - "apps/provider-console/**"
-      - "packages/**"
 jobs:
   should-validate:
     name: Decide Whether to Validate

@@ -19,6 +19,7 @@ jobs:
   build:
     needs: release
     name: Build Docker image
+    if: needs.release.outputs.git_tag != ''
     uses: ./.github/workflows/reusable-build-image.yml
     secrets: inherit
     permissions:

@@ -18,6 +18,7 @@ jobs:
   build-beta:
     needs: release
     name: Build Beta Docker image
+    if: needs.release.outputs.git_tag != ''
     uses: ./.github/workflows/reusable-build-image.yml
     secrets: inherit
     permissions:
@@ -30,6 +31,7 @@ jobs:
   deploy-beta:
     needs: build-beta
     name: Deploy to beta sandbox
+    if: needs.build-beta.outputs.base_image_tag != ''
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
