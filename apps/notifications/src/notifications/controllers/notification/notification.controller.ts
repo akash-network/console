@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { PgBossHandler } from '@src/broker';
+import { Handler } from '@src/broker';
 import { LoggerService } from '@src/common/services/logger.service';
 import { NotificationCommandDto } from '@src/notifications/dto/NotificationCommand.dto';
 import { NotificationRouterService } from '@src/notifications/services/notification-router/notification-router.service';
@@ -14,7 +14,7 @@ export class NotificationController {
     this.loggerService.setContext(NotificationController.name);
   }
 
-  @PgBossHandler({
+  @Handler({
     key: 'notification.v1.send',
     dto: NotificationCommandDto,
   })

@@ -5,7 +5,7 @@ import { ChainBlockCreatedDto } from '@src/alert/dto/chain-block-created.dto';
 import { MsgCloseDeploymentDto } from '@src/alert/dto/msg-close-deployment.dto';
 import { DeploymentBalanceAlertsService } from '@src/alert/services/deployment-balance-alerts/deployment-balance-alerts.service';
 import { RawAlertsService } from '@src/alert/services/raw-alerts/raw-alerts.service';
-import { PgBossHandler } from '@src/broker';
+import { Handler } from '@src/broker';
 
 @Injectable()
 export class ChainEventsController {
@@ -14,7 +14,7 @@ export class ChainEventsController {
     private readonly deploymentBalanceAlertsService: DeploymentBalanceAlertsService,
   ) {}
 
-  @PgBossHandler({
+  @Handler({
     key: 'blockchain.v1.block.created',
     dto: ChainBlockCreatedDto,
   })
@@ -22,7 +22,7 @@ export class ChainEventsController {
     await this.deploymentBalanceAlertsService.alertFor(block);
   }
 
-  @PgBossHandler({
+  @Handler({
     key: MsgCloseDeployment['$type'],
     dto: MsgCloseDeploymentDto,
   })
