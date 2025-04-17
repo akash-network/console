@@ -1,5 +1,17 @@
 
 
+## [0.22.3](https://github.com/akash-network/console/compare/stats-web/v0.22.2...stats-web/v0.22.3) (2025-04-17)
+
+
+### Bug Fixes
+
+* ensure SSR initiated request forward real client ip ([#1210](https://github.com/akash-network/console/issues/1210)) ([4fb0427](https://github.com/akash-network/console/commit/4fb0427c295141c572ff0b3c2d8874feadaa2590))
+
+
+### Code Refactoring
+
+* removes sentry from console-api ([#1220](https://github.com/akash-network/console/issues/1220)) ([8339158](https://github.com/akash-network/console/commit/8339158321771e716cddd7de4242d7de370697d0))
+
 ## [0.22.2](https://github.com/akash-network/console/compare/stats-web/v0.22.1...stats-web/v0.22.2) (2025-04-15)
 
 
