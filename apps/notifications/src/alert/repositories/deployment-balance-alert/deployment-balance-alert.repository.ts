@@ -4,6 +4,7 @@ import { and, eq, gt, lte } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { z } from 'zod';
 
+import { DRIZZLE_PROVIDER_TOKEN } from '@src/config/db.config';
 import * as schema from '../../model-schemas';
 
 const conditionSchema: z.ZodType<any> = z.lazy(() =>
@@ -38,7 +39,8 @@ export type DeploymentBalanceAlertOutput = Omit<
 @Injectable()
 export class DeploymentBalanceAlertRepository {
   constructor(
-    @InjectDrizzle() private readonly db: NodePgDatabase<typeof schema>,
+    @InjectDrizzle(DRIZZLE_PROVIDER_TOKEN)
+    private readonly db: NodePgDatabase<typeof schema>,
   ) {}
 
   async updateById(

@@ -1,6 +1,13 @@
 import { DiscoveryModule } from '@golevelup/nestjs-discovery';
-import { DynamicModule, Global, OnApplicationBootstrap } from '@nestjs/common';
+import {
+  DynamicModule,
+  Global,
+  OnApplicationBootstrap,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Client } from 'pg';
+import PgBoss from 'pg-boss';
 
 import {
   ASYNC_OPTIONS_TYPE,
@@ -16,7 +23,7 @@ import { BrokerService } from './services/broker/broker.service';
 @Global()
 export class BrokerModule
   extends ConfigurableModuleClass
-  implements OnApplicationBootstrap
+  implements OnApplicationBootstrap, OnApplicationShutdown
 {
   static register(options: typeof OPTIONS_TYPE): DynamicModule {
     const { providers = [], exports = [], ...props } = super.register(options);
@@ -57,11 +64,20 @@ export class BrokerModule
     };
   }
 
-  constructor(private readonly pgBossHandlerService: PgBossHandlerService) {
+  constructor(
+    private readonly pgBossHandlerService: PgBossHandlerService,
+    private readonly pg: Client,
+    private readonly boss: PgBoss,
+  ) {
     super();
   }
 
   async onApplicationBootstrap() {
     await this.pgBossHandlerService.startAllHandlers();
+  }
+
+  async onApplicationShutdown() {
+    await this.boss.stop();
+    await this.pg.end();
   }
 }
