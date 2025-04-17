@@ -1,5 +1,12 @@
 
 
+## [1.9.4](https://github.com/akash-network/console/compare/provider-console/v1.9.3...provider-console/v1.9.4) (2025-04-17)
+
+
+### Code Refactoring
+
+* removes sentry from console-api ([#1220](https://github.com/akash-network/console/issues/1220)) ([8339158](https://github.com/akash-network/console/commit/8339158321771e716cddd7de4242d7de370697d0))
+
 ## [1.9.3](https://github.com/akash-network/console/compare/provider-console/v1.9.2...provider-console/v1.9.3) (2025-04-15)
 
 

@@ -1,5 +1,12 @@
 
 
+## [1.6.2](https://github.com/akash-network/console/compare/provider-proxy/v1.6.1...provider-proxy/v1.6.2) (2025-04-17)
+
+
+### Code Refactoring
+
+* removes sentry from console-api ([#1220](https://github.com/akash-network/console/issues/1220)) ([8339158](https://github.com/akash-network/console/commit/8339158321771e716cddd7de4242d7de370697d0))
+
 ## [1.6.1](https://github.com/akash-network/console/compare/provider-proxy/v1.6.0...provider-proxy/v1.6.1) (2025-04-15)
 
 
