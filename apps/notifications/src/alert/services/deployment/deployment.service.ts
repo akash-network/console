@@ -59,12 +59,12 @@ export class DeploymentService {
 
     const balanceAmount =
       balance.denom === 'uakt'
-        ? parseInt(balance.amount)
-        : parseInt(balance.amount) * 1_000_000;
+        ? parseInt(balance.amount, 10)
+        : parseInt(balance.amount, 10) * 1_000_000;
     const fundsAmount =
       funds.denom === 'uakt'
-        ? parseInt(funds.amount)
-        : parseInt(funds.amount) * 1_000_000;
+        ? parseInt(funds.amount, 10)
+        : parseInt(funds.amount, 10) * 1_000_000;
 
     return { balance: balanceAmount + fundsAmount };
   }
