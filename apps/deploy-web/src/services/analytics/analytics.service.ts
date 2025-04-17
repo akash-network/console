@@ -68,7 +68,6 @@ export type AnalyticsEvent =
   | "user_profile_template_tab"
   | "user_settings_save"
   | "anonymous_user_created"
-  | "user_registered"
   | "trial_started"
   | "create_api_key"
   | "delete_api_key"
