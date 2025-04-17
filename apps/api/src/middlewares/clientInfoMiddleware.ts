@@ -1,9 +1,8 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import crypto from "crypto";
 import type { Context, Next } from "hono";
 import { createMiddleware } from "hono/factory";
-
-import { getSentry } from "@src/core/providers/sentry.provider";
 
 export type ClientInfoContextVariables = {
   clientInfo?: {
@@ -13,6 +12,7 @@ export type ClientInfoContextVariables = {
   };
 };
 
+let logger: LoggerService | undefined;
 export const clientInfoMiddleware = createMiddleware<{
   Variables: ClientInfoContextVariables;
 }>(async (c: Context, next: Next) => {
@@ -32,8 +32,9 @@ export const clientInfoMiddleware = createMiddleware<{
       userAgent: userAgent,
       fingerprint: fingerprint
     });
-  } catch (err) {
-    getSentry().captureException(err);
+  } catch (error) {
+    logger ??= LoggerService.forContext("clientInfoMiddleware");
+    logger.error({ error });
   } finally {
     await next();
   }

@@ -11,8 +11,17 @@ jobs:
   trigger-coverage:
     runs-on: ubuntu-latest
     steps:
-      - uses: codecov/codecov-action@v5
+      - name: Check for changes
+        uses: dorny/paths-filter@v2
+        id: has_changes
         with:
-          directory: ./coverage
+          filters: |
+            app:
+              - 'apps/**'
+              - 'packages/**'
+
+      - uses: codecov/codecov-action@v5
+        if: steps.has_changes.outputs.app != 'true'
+        with:
           token: ${{ secrets.CODECOV_TOKEN }}
           run_command: empty-upload

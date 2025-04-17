@@ -97,7 +97,7 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
     }
   });
 
-  return new Response(Readable.toWeb(proxyResult.response) as BodyInit, {
+  return new Response(Readable.toWeb(proxyResult.response) as RequestInit["body"], {
     status: proxyResult.response.statusCode,
     statusText: proxyResult.response.statusMessage,
     headers

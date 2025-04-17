@@ -1,3 +1,5 @@
+import type { JsonWebKey } from "crypto";
+
 import type { KVStore } from "./use-kv-store";
 export type Jwks = { keys: JsonWebKey[] };
 const DEFAULT_JWK_CACHE_KEY = "verify-rsa-jwt-cloudflare-worker-jwks-cache-key";
@@ -25,7 +27,7 @@ async function fetchJwks(jwksUri: string): Promise<Jwks> {
   if (!response.ok || !response.status.toString().startsWith("2")) {
     throw new Error("Failed to fetch JWKs: " + response.statusText);
   }
-  const jwks: { keys: JsonWebKey[] } = await response.json();
+  const jwks = (await response.json()) as { keys: JsonWebKey[] };
   return jwks;
 }
 

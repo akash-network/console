@@ -1,5 +1,4 @@
 import { LoggerService } from "@akashnetwork/logging";
-import * as Sentry from "@sentry/node";
 import { differenceInSeconds } from "date-fns";
 
 import MemoryCacheEngine from "./memoryCacheEngine";
@@ -54,8 +53,7 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
       })
       .catch(err => {
         if (cachedObject) {
-          logger.error(`Error making cache request ${err}`);
-          Sentry.captureException(err);
+          logger.error({ message: `Error making cache request`, error: err });
         } else {
           throw err;
         }

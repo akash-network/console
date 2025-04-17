@@ -6,9 +6,7 @@ import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService, WalletInitializerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
-import { InjectSentry, Sentry } from "@src/core/providers/sentry.provider";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
-import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
 
 @singleton()
 export class RefillService {
@@ -20,8 +18,6 @@ export class RefillService {
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly balancesService: BalancesService,
     private readonly walletInitializerService: WalletInitializerService,
-    @InjectSentry() private readonly sentry: Sentry,
-    private readonly sentryEventService: SentryEventService,
     private readonly analyticsService: AnalyticsService
   ) {}
 
@@ -36,8 +32,7 @@ export class RefillService {
         .process(async wallet => this.refillWalletFees(wallet));
 
       if (errors.length) {
-        const id = this.sentry.captureEvent(this.sentryEventService.toEvent(errors));
-        this.logger.error({ event: "WALLETS_REFILL_ERROR", errors, sentryEventId: id });
+        this.logger.error({ event: "WALLETS_REFILL_ERROR", error: new AggregateError(errors) });
       }
     }
   }

@@ -1,7 +1,5 @@
 import type { LoggerService } from "@akashnetwork/logging";
 
-import { getSentry } from "@src/core/providers/sentry.provider";
-
 export const createLoggingExecutor =
   (logger: LoggerService): LoggingExecutor =>
   async (cb, defaultValue?) => {
@@ -9,7 +7,6 @@ export const createLoggingExecutor =
       return await cb();
     } catch (error) {
       logger.error({ event: `Failed to fetch ${cb.name}`, error });
-      getSentry().captureException(error);
       return defaultValue;
     }
   };
