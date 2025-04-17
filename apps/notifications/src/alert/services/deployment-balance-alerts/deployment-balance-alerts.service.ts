@@ -60,12 +60,12 @@ export class DeploymentBalanceAlertsService {
     alert: DeploymentBalanceAlertOutput,
   ) {
     try {
-      const balance = await this.deploymentService.getDeploymentBalance(
+      const balanceResponse = await this.deploymentService.getDeploymentBalance(
         alert.owner,
         alert.dseq,
       );
 
-      if (!balance) {
+      if (!balanceResponse) {
         // TODO: send a relevant notification. e.g. alert suspended for a "reason"
         await this.alertRepository.updateById(alert.id, { enabled: false });
         return;
@@ -73,7 +73,7 @@ export class DeploymentBalanceAlertsService {
 
       const isMatching = this.conditionsMatcher.isMatching(
         alert.conditions,
-        balance,
+        balanceResponse,
       );
       const update: Partial<DeploymentBalanceAlertOutput> = {
         minBlockHeight: block.height + this.DEPLOYMENT_BALANCE_BLOCKS_THROTTLE,
@@ -81,10 +81,10 @@ export class DeploymentBalanceAlertsService {
       let message: string | undefined;
 
       if (isMatching && alert.status === 'normal') {
-        message = `FIRING: ${this.templateService.interpolate(alert.template, balance)}`;
+        message = `FIRING: ${this.templateService.interpolate(alert.template, balanceResponse)}`;
         update.status = 'firing';
       } else if (!isMatching && alert.status === 'firing') {
-        message = `RECOVERED: ${this.templateService.interpolate(alert.template, balance)}`;
+        message = `RECOVERED: ${this.templateService.interpolate(alert.template, balanceResponse)}`;
         update.status = 'normal';
       }
 
