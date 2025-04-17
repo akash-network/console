@@ -20,6 +20,14 @@ export class ChainErrorService {
     "invalid coin denominations": {
       code: 400,
       message: "Invalid coin denominations"
+    },
+    "invalid gpu atttributes": {
+      code: 400,
+      message: "Invalid GPU attributes"
+    },
+    "invalid: deployment version": {
+      code: 400,
+      message: "Invalid deployment version"
     }
   };
 
@@ -31,7 +39,7 @@ export class ChainErrorService {
   public toAppError(error: Error, messages: readonly EncodeObject[]) {
     const clues = Object.keys(this.ERRORS) as (keyof typeof this.ERRORS)[];
 
-    const clue = clues.find(clue => error.message.includes(clue));
+    const clue = clues.find(clue => error.message.toLowerCase().includes(clue.toLowerCase()));
 
     if (!clue) {
       return error;
