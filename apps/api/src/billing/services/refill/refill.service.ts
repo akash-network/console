@@ -7,6 +7,7 @@ import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositorie
 import { ManagedUserWalletService, WalletInitializerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { InjectSentry, Sentry } from "@src/core/providers/sentry.provider";
+import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { SentryEventService } from "@src/core/services/sentry-event/sentry-event.service";
 
 @singleton()
@@ -20,7 +21,8 @@ export class RefillService {
     private readonly balancesService: BalancesService,
     private readonly walletInitializerService: WalletInitializerService,
     @InjectSentry() private readonly sentry: Sentry,
-    private readonly sentryEventService: SentryEventService
+    private readonly sentryEventService: SentryEventService,
+    private readonly analyticsService: AnalyticsService
   ) {}
 
   async refillAllFees() {
@@ -68,6 +70,7 @@ export class RefillService {
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: true });
+    this.analyticsService.track(userId, "balance_top_up");
     this.logger.debug({ event: "WALLET_TOP_UP", userWallet, limits });
   }
 }

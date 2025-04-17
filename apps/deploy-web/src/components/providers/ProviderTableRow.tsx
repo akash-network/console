@@ -58,7 +58,7 @@ export const ProviderListRow: React.FunctionComponent<Props> = ({ provider }) =>
 
   return (
     <TableRow className="provider-list-row cursor-pointer hover:bg-muted-foreground/10 [&>td]:px-2 [&>td]:py-1" onClick={onRowClick}>
-      {provider.isOnline ? (
+      {provider.name ? (
         <TableCell>
           {provider.name?.length > 20 ? (
             <CustomTooltip title={provider.name}>
