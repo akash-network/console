@@ -3,14 +3,8 @@ name: Deploy Web CI
 on:
   pull_request:
     branches: ["main"]
-    paths:
-      - "apps/deploy-web/**"
-      - "packages/**"
   push:
     branches: ["main"]
-    paths:
-      - "apps/deploy-web/**"
-      - "packages/**"
 
 
 jobs:

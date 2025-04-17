@@ -3,14 +3,8 @@ name: Stats Web CI
 on:
   push:
     branches: ["main"]
-    paths:
-      - "apps/stats-web/**"
-      - "packages/**"
   pull_request:
     branches: ["main"]
-    paths:
-      - "apps/stats-web/**"
-      - "packages/**"
 
 jobs:
   should-validate:

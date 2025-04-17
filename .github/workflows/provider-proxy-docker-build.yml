@@ -3,14 +3,8 @@ name: Provider Proxy CI
 on:
   pull_request:
     branches: ["main"]
-    paths:
-      - "apps/provider-proxy/**"
-      - "packages/**"
   push:
     branches: ["main"]
-    paths:
-      - "apps/provider-proxy/**"
-      - "packages/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
