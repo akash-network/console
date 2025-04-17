@@ -6,7 +6,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import type { MockProxy } from 'jest-mock-extended';
 
-import { BrokerService } from '@src/broker/services/broker/broker.service';
+import { BrokerService } from '@src/broker';
 import { LoggerService } from '@src/common/services/logger.service';
 import { BlockMessageService } from '../block-message/block-message.service';
 import type { BlockData } from '../block-message-parser/block-message-parser.service';

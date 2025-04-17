@@ -24,7 +24,8 @@
         "observability",
         "analytics",
         "template",
-        "notifications"
+        "notifications",
+        "alert"
       ]
     ]
   }
