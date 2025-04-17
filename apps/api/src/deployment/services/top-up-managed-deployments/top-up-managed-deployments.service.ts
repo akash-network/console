@@ -142,7 +142,8 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
         items: logItems,
         message: error.message,
         stack: error.stack,
-        dryRun: options.dryRun
+        dryRun: options.dryRun,
+        data: error.data
       });
       this.summarizer.inc("deploymentTopUpErrorCount", ownerInputs.length);
       this.summarizer.trackFailedWallet(owner);
