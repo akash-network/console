@@ -1,14 +1,28 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import axios from 'axios';
 
+import { BlockchainNodeHttpService } from '@src/alert/services/blockchain-node-http/blockchain-node-http.service';
 import { LoggerService } from '@src/common/services/logger.service';
-import { GlobalEnvConfig } from '@src/config/env.config';
+
+export type DeploymentInfo = {
+  deployment: {
+    state: string;
+  };
+  escrow_account: {
+    balance: {
+      denom: string;
+      amount: string;
+    };
+    funds: {
+      denom: string;
+      amount: string;
+    };
+  };
+};
 
 @Injectable()
 export class DeploymentService {
   constructor(
-    private readonly configService: ConfigService<GlobalEnvConfig>,
+    private readonly blockchainClientService: BlockchainNodeHttpService,
     private readonly loggerService: LoggerService,
   ) {
     this.loggerService.setContext(DeploymentService.name);
@@ -18,26 +32,16 @@ export class DeploymentService {
     owner: string,
     dseq: string,
   ): Promise<{ balance: number } | null> {
-    const { data: result } = await axios.get<any>(
-      `${this.configService.getOrThrow('API_NODE_ENDPOINT')}/akash/deployment/v1beta3/deployments/info`,
-      {
-        params: {
-          'id.owner': owner,
-          'id.dseq': dseq,
+    const { data: result } =
+      await this.blockchainClientService.get<DeploymentInfo>(
+        '/akash/deployment/v1beta3/deployments/info',
+        {
+          params: {
+            'id.owner': owner,
+            'id.dseq': dseq,
+          },
         },
-      },
-    );
-
-    if (!('deployment' in result)) {
-      this.loggerService.error({
-        event: 'BALANCE_FETCH_ERROR',
-        owner,
-        dseq,
-        error: result,
-      });
-
-      return null;
-    }
+      );
 
     if (result.deployment.state === 'closed') {
       this.loggerService.warn({
