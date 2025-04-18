@@ -6,6 +6,7 @@ import { useAtom } from "jotai";
 import { BitbucketService } from "@src/services/remote-deploy/bitbucket-http.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import type { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
+import type { BitProfile } from "@src/types/remoteProfile";
 import { QueryKeys } from "./queryKeys";
 
 const OAuthType = "bitbucket";
@@ -45,17 +46,17 @@ export const useBitUserProfile = () => {
   const [token] = useAtom(tokens);
 
   const { mutate } = useFetchRefreshBitToken();
-  const query = useQuery({
+  const query = useQuery<BitProfile, AxiosError>({
     queryKey: QueryKeys.getUserProfileKey(token.accessToken),
     queryFn: async () => bitbucketService.fetchUserProfile(token.accessToken),
     enabled: !!token?.accessToken && token.type === OAuthType
   });
 
   useEffect(() => {
-    if (query.isError && (query.error as unknown as AxiosError).response?.status === 401) {
+    if (query.error?.response?.status === 401) {
       mutate();
     }
-  }, [query.isError, query.error, mutate]);
+  }, [query.error, mutate]);
 
   return query;
 };

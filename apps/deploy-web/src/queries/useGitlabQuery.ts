@@ -6,6 +6,7 @@ import { useAtom } from "jotai";
 import { GitLabService } from "@src/services/remote-deploy/gitlab-http.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import type { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
+import type { GitLabProfile } from "@src/types/remoteProfile";
 import { QueryKeys } from "./queryKeys";
 
 const gitLabService = new GitLabService();
@@ -46,17 +47,17 @@ export const useGitLabUserProfile = () => {
   const [token] = useAtom(tokens);
   const { mutate } = useFetchRefreshToken();
 
-  const query = useQuery({
+  const query = useQuery<GitLabProfile, AxiosError>({
     queryKey: QueryKeys.getUserProfileKey(token?.accessToken),
     queryFn: () => gitLabService.fetchUserProfile(token?.accessToken),
     enabled: !!token?.accessToken && token.type === OAuthType
   });
 
   useEffect(() => {
-    if (query.isError && (query.error as unknown as AxiosError).response?.status === 401) {
+    if (query.error?.response?.status === 401) {
       mutate();
     }
-  }, [query.isError, query.error, mutate]);
+  }, [query.error, mutate]);
 
   return query;
 };

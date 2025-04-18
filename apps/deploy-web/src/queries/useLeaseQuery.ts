@@ -20,7 +20,6 @@ async function getDeploymentLeases(apiEndpoint: string, address: string, deploym
   }
 
   const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList(apiEndpoint, address, deployment?.dseq), "leases", 1000);
-
   const leases = response.map(l => leaseToDto(l, deployment));
 
   return leases;
@@ -29,7 +28,7 @@ async function getDeploymentLeases(apiEndpoint: string, address: string, deploym
 export function useDeploymentLeaseList(
   address: string,
   deployment: Pick<DeploymentDto, "dseq" | "groups"> | null | undefined,
-  options: Omit<UseQueryOptions<LeaseDto[] | null>, "queryKey" | "queryFn">
+  options: Omit<UseQueryOptions<LeaseDto[] | null>, "queryKey" | "queryFn"> = {}
 ) {
   const { settings } = useSettings();
 
@@ -74,7 +73,7 @@ export function useAllLeases(address: string, options = {}) {
 export function useLeaseStatus(
   provider: ApiProviderList | undefined,
   lease: LeaseDto | undefined,
-  options: Omit<UseQueryOptions<LeaseStatusDto | null>, "queryKey" | "queryFn">
+  options: Omit<UseQueryOptions<LeaseStatusDto | null>, "queryKey" | "queryFn"> = {}
 ) {
   const { localCert } = useCertificate();
   const fetchProviderUrl = useScopedFetchProviderUrl(provider);
