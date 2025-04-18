@@ -111,8 +111,8 @@ export const UpdateDeploymentResponseSchema = z.object({
 });
 
 export const ListDeploymentsQuerySchema = z.object({
-  skip: z.optional(z.number().int().min(0)),
-  limit: z.optional(z.number().int().min(1).max(100))
+  skip: z.coerce.number().min(0).optional(),
+  limit: z.coerce.number().min(1).max(100).optional()
 });
 
 export const ListDeploymentsResponseSchema = z.object({
