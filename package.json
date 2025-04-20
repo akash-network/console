@@ -39,6 +39,9 @@
     "./packages/net/**/*.ts": [
       "npm run validate:types -w packages/net"
     ],
+    "./packages/jwt/**/*.ts": [
+      "npm run validate:types -w packages/jwt"
+    ],
     "./packages/network-store/**/*.ts": [
       "npm run validate:types -w packages/network-store"
     ],
