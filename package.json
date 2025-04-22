@@ -56,9 +56,13 @@
     ]
   },
   "dependencies": {
+    "-": "^0.0.1",
+    "@akashnetwork/notifications": "^0.0.1",
     "@interchain-ui/react": "^1.23.31",
     "drizzle-orm": "^0.31.2",
-    "pg": "^8.11.6"
+    "nock": "^14.0.4",
+    "pg": "^8.11.6",
+    "w": "^2.3.1"
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
