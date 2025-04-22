@@ -1,9 +1,8 @@
 import type { Config } from "jest";
 
-const config: Config = {
+export default {
   preset: "ts-jest",
   testEnvironment: "node",
-  testMatch: ["**/*.spec.ts"]
-};
-
-export default config;
+  testMatch: ["**/src/**/*.spec.ts"],
+  verbose: true
+} satisfies Config;

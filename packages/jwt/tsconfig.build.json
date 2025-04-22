@@ -1,4 +1,8 @@
 {
-  "extends": "./tsconfig.json",
-  "exclude": ["**/*.spec.ts", "**/__tests__/**", "scripts/**"]
-} 
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noImplicitAny": true,
+    "strict": true
+  },
+  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
+}
