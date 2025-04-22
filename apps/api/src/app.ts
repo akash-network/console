@@ -25,6 +25,7 @@ import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
 import { apiRouter } from "./routers/apiRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
+import { deploymentRouter } from "./routers/deploymentApiRouter";
 import { internalRouter } from "./routers/internalRouter";
 import { legacyRouter } from "./routers/legacyRouter";
 import { userRouter } from "./routers/userRouter";
@@ -76,6 +77,7 @@ appHono.route("/user", userRouter);
 appHono.route("/web3-index", web3IndexRouter);
 appHono.route("/dashboard", dashboardRouter);
 appHono.route("/internal", internalRouter);
+appHono.route("/deployments", deploymentRouter);
 
 appHono.route("/", startTrialRouter);
 appHono.route("/", getWalletListRouter);
