@@ -5,7 +5,7 @@ export function hasSomeParentTheClass(element: HTMLElement, classname: string): 
 }
 
 interface ScriptOptions {
-  src: string;
+  src?: string;
   async?: boolean;
   defer?: boolean;
   type?: string;
@@ -14,6 +14,7 @@ interface ScriptOptions {
   noModule?: boolean;
   referrerPolicy?: ReferrerPolicy;
   id?: string;
+  innerHTML?: string;
 }
 
 /**
@@ -26,5 +27,17 @@ export function addScriptToHead(options: ScriptOptions): HTMLScriptElement {
 
   Object.assign(script, options);
   document.head.appendChild(script);
+  return script;
+}
+
+/**
+ * Adds a script tag to the document body
+ * @param options Configuration object for the script element
+ * @returns The created script element
+ */
+export function addScriptToBody(options: ScriptOptions): HTMLScriptElement {
+  const script = document.createElement("script");
+  Object.assign(script, options);
+  document.body.appendChild(script);
   return script;
 }
