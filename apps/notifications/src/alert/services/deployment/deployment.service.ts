@@ -32,30 +32,29 @@ export class DeploymentService {
     owner: string,
     dseq: string,
   ): Promise<{ balance: number } | null> {
-    const { data: result } =
-      await this.blockchainClientService.get<DeploymentInfo>(
-        '/akash/deployment/v1beta3/deployments/info',
-        {
-          params: {
-            'id.owner': owner,
-            'id.dseq': dseq,
-          },
+    const { data } = await this.blockchainClientService.get<DeploymentInfo>(
+      '/akash/deployment/v1beta3/deployments/info',
+      {
+        params: {
+          'id.owner': owner,
+          'id.dseq': dseq,
         },
-      );
+      },
+    );
 
-    if (result.deployment.state === 'closed') {
+    if (data.deployment.state === 'closed') {
       this.loggerService.warn({
         event: 'DEPLOYMENT_CLOSED',
         owner,
         dseq,
-        result,
+        data,
       });
 
       return null;
     }
 
-    const balance = result.escrow_account.balance;
-    const funds = result.escrow_account.funds;
+    const balance = data.escrow_account.balance;
+    const funds = data.escrow_account.funds;
 
     const balanceAmount =
       balance.denom === 'uakt'
