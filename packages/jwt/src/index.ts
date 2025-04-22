@@ -1,4 +1,5 @@
-import { JwtSchema } from "./JwtSchema/JwtSchema";
+import { JwtValidator } from "./JwtValidator/JwtValidator";
 
-export const jwtSchema = new JwtSchema();
-export { JwtSchema } from "./JwtSchema/JwtSchema";
+export const jwtValidator = new JwtValidator();
+
+export { JwtValidator, JwtValidationResult } from "./JwtValidator/JwtValidator";
