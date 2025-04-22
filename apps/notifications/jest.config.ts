@@ -3,27 +3,38 @@ const MAP_ALIASES = {
   '^@test/(.*)$': '<rootDir>/test/$1',
 };
 
-export default {
+const common = {
+  transform: {
+    '^.+\\.(t|j)s$': 'ts-jest',
+  },
   rootDir: '.',
   moduleNameMapper: {
     ...MAP_ALIASES,
   },
+};
+
+export default {
   collectCoverageFrom: [
     'src/**/*.ts',
-    '!src/**/*.module.ts',
-    '!src/**/env.config.ts',
     '!src/**/*.spec.ts',
     '!src/**/*.d.ts',
     '!src/main.ts',
     '!src/console.ts',
+    '!src/test/**/*',
     '!src/**/index.ts',
-    '!test/**/*',
   ],
-  coverageDirectory: './coverage',
-  moduleFileExtensions: ['js', 'json', 'ts'],
-  testEnvironment: 'node',
-  testRegex: '.*\\.spec\\.ts$',
-  transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
-  },
+  projects: [
+    {
+      displayName: 'unit',
+      ...common,
+      testMatch: ['<rootDir>/src/**/*.spec.ts'],
+    },
+    {
+      displayName: 'functional',
+      ...common,
+      testMatch: ['<rootDir>/test/functional/**/*.spec.ts'],
+      setupFilesAfterEnv: ['./test/setup-functional-tests.ts'],
+      setupFiles: ['./test/setup-functional-env.ts'],
+    },
+  ],
 };
