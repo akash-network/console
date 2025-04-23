@@ -79,6 +79,7 @@ jobs:
           oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ env.TS_OAUTH_SECRET }}
           tags: tag:ci
+          timeout: 5m
 
       - name: Check tailscale connection
         run: |
