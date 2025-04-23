@@ -1,5 +1,6 @@
 import { Block, StargateClient } from '@cosmjs/stargate';
 import { Injectable, Logger } from '@nestjs/common';
+import { backOff } from 'exponential-backoff';
 
 @Injectable()
 export class BlockchainClientService {
@@ -15,7 +16,7 @@ export class BlockchainClientService {
   async getBlock(height: number | 'latest'): Promise<Block> {
     const blockHeight = await this.toBlockHeight(height);
     this.logger.debug(`Fetching block at height: ${blockHeight}`);
-    return await this.stargateClient.getBlock(blockHeight);
+    return await this.getBlockAwaited(blockHeight);
   }
 
   /**
@@ -25,5 +26,15 @@ export class BlockchainClientService {
    */
   private async toBlockHeight(height: number | 'latest'): Promise<number> {
     return height === 'latest' ? this.stargateClient.getHeight() : height;
+  }
+
+  private async getBlockAwaited(height: number): Promise<Block> {
+    return await backOff(() => this.stargateClient.getBlock(height), {
+      maxDelay: 5_000,
+      startingDelay: 500,
+      timeMultiple: 2,
+      numOfAttempts: 5,
+      jitter: 'none',
+    });
   }
 }

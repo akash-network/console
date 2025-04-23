@@ -10,7 +10,7 @@ import { BrokerService } from '@src/broker';
 import { LoggerService } from '@src/common/services/logger.service';
 import { BlockMessageService } from '../block-message/block-message.service';
 import type { BlockData } from '../block-message-parser/block-message-parser.service';
-import { ChainEventsService } from './chain-events.service';
+import { ChainEventsPollerService } from './chain-events-poller.service';
 
 import { MockProvider } from '@test/mocks/provider.mock';
 import { generateMockBlockData } from '@test/seeders/block.seeder';
@@ -21,7 +21,7 @@ import {
 
 jest.useFakeTimers();
 
-describe(ChainEventsService.name, () => {
+describe(ChainEventsPollerService.name, () => {
   it('should be defined', async () => {
     const { service } = await setup();
     expect(service).toBeDefined();
@@ -32,7 +32,9 @@ describe(ChainEventsService.name, () => {
 
     service.onModuleInit();
 
-    expect(loggerService.setContext).toHaveBeenCalledWith('ChainEventsService');
+    expect(loggerService.setContext).toHaveBeenCalledWith(
+      ChainEventsPollerService.name,
+    );
     expect(loggerService.log).toHaveBeenCalledWith(
       'Subscribing to chain events...',
     );
@@ -117,14 +119,14 @@ describe(ChainEventsService.name, () => {
 
   async function setup(): Promise<{
     module: TestingModule;
-    service: ChainEventsService;
+    service: ChainEventsPollerService;
     brokerService: MockProxy<BrokerService>;
     blockMessageService: MockProxy<BlockMessageService>;
     loggerService: MockProxy<LoggerService>;
   }> {
     const module = await Test.createTestingModule({
       providers: [
-        ChainEventsService,
+        ChainEventsPollerService,
         MockProvider(BrokerService),
         MockProvider(BlockMessageService),
         MockProvider(LoggerService),
@@ -133,7 +135,7 @@ describe(ChainEventsService.name, () => {
 
     return {
       module,
-      service: module.get<ChainEventsService>(ChainEventsService),
+      service: module.get<ChainEventsPollerService>(ChainEventsPollerService),
       brokerService: module.get<MockProxy<BrokerService>>(BrokerService),
       blockMessageService:
         module.get<MockProxy<BlockMessageService>>(BlockMessageService),

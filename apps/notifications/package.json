@@ -46,13 +46,16 @@
     "@ucast/js": "^3.0.4",
     "axios": "^1.8.2",
     "cosmjs-types": "^0.9.0",
+    "date-fns": "^4.1.0",
     "drizzle-orm": "^0.41.0",
+    "exponential-backoff": "^3.1.2",
     "lodash": "^4.17.21",
     "nestjs-zod": "^4.3.1",
     "pg": "^8.13.0",
     "pg-boss": "^10.1.6",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "ts-results": "^3.3.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
