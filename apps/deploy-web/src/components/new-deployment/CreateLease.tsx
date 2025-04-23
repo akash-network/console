@@ -25,6 +25,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useWhen } from "@src/hooks/useWhen";
@@ -161,11 +162,14 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
       }
 
       // Ad tracking script
-      addScriptToHead({
-        src: "https://pxl.growth-channel.net/s/76250b26-c260-4776-874b-471ed290230d",
-        async: true,
-        defer: true
-      });
+      browserEnvConfig.NEXT_PUBLIC_TRACKING_ENABLED &&
+        browserEnvConfig.NEXT_PUBLIC_GROWTH_CHANNEL_TRACKING_ENABLED &&
+        addScriptToHead({
+          src: "https://pxl.growth-channel.net/s/76250b26-c260-4776-874b-471ed290230d",
+          async: true,
+          defer: true,
+          id: "growth-channel-script-lease"
+        });
 
       router.replace(UrlService.deploymentDetails(dseq, "EVENTS", "events"));
     } catch (err) {
