@@ -1,3 +1,5 @@
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
 import path from "path";
 import postgres from "postgres";
 
@@ -31,6 +33,15 @@ export class TestDatabaseService {
     await Promise.all([this.createDatabase(this.dbName), this.createDatabase(this.indexerDbName)]);
 
     await this.postgres.migratePG();
+    await this.migrateIndexerDb();
+  }
+
+  private async migrateIndexerDb() {
+    const migrationClient = postgres(process.env.CHAIN_INDEXER_POSTGRES_DB_URI, { max: 1 });
+    const pgMigrationDatabase = drizzle(migrationClient);
+    const migrationsFolder = path.resolve(process.cwd(), "../indexer/drizzle");
+
+    await migrate(pgMigrationDatabase, { migrationsFolder });
   }
 
   async teardown(): Promise<void> {
