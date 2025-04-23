@@ -108,3 +108,7 @@ Here are the properties/methods that can be overriden:
 - `blocks.db` - [LevelDB Database](https://github.com/Level/level) containing block information from RPC nodes
 - `genesis.json` - If syncing from block 1 the chain's [genesis file](https://github.com/akash-network/net/blob/master/mainnet/genesis.json) will be downloaded here.
 - `nodeStatus.json` - Saved status of every rpc node so that invalid/rate limited nodes are remembered after a restart (if there is persistent storage)
+
+## Drizzle Migrations
+
+You may find drizzle present in the app as a development dependency. Although we want to migrate to it eventually, at the moment it is added to ease migrations for the Indexer database. It was used to introspect existing schema and is used to add more migrations and apply them in test environment.
