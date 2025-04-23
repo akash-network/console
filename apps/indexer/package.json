@@ -19,6 +19,8 @@
     "dev-nodc": "npm run start",
     "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
     "lint": "eslint .",
+    "migration:exec": "drizzle-kit migrate",
+    "migration:pull": "drizzle-kit pull",
     "prod": "node dist/server.js",
     "start": "webpack --mode development --config webpack.dev.js --watch",
     "test": "jest"
@@ -71,6 +73,8 @@
     "@types/validator": "^13.7.8",
     "@typescript-eslint/eslint-plugin": "^7.12.0",
     "alias-hq": "^5.1.6",
+    "drizzle-kit": "^0.31.0",
+    "drizzle-orm": "^0.42.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.3",
     "eslint-plugin-simple-import-sort": "^12.1.0",
@@ -84,6 +88,7 @@
     "typescript": "~5.8.2",
     "webpack": "^5.91.0",
     "webpack-cli": "4.10.0",
-    "webpack-node-externals": "^3.0.0"
+    "webpack-node-externals": "^3.0.0",
+    "zod": "^3.24.3"
   }
 }
