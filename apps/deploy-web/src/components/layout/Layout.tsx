@@ -17,6 +17,7 @@ import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
 import { CreditCardBanner, MaintenanceBanner } from "./TopBanner";
+import { TrackingScripts } from "./TrackingScripts";
 import { WelcomeToTrialModal } from "./WelcomeToTrialModal";
 
 type Props = {
@@ -136,6 +137,8 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
           </div>
         </div>
       </div>
+
+      <TrackingScripts />
     </div>
   );
 };
