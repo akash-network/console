@@ -47,12 +47,14 @@ export const TrackingScripts = () => {
       // Growth Channel tracking
       addScriptToBody({
         src: "https://pxl.growth-channel.net/s/8d425860-cf3c-49cf-a459-069a7dc7b1f8",
-        async: true
+        async: true,
+        id: "growth-channel-script-retargeting"
       });
 
       addScriptToBody({
         src: "https://pxl.growth-channel.net/s/e94b4a7a-8431-4b9b-a679-290a1dbbab1b",
-        async: true
+        async: true,
+        id: "growth-channel-script-console"
       });
     }
   }, []);

@@ -167,7 +167,8 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         addScriptToHead({
           src: "https://pxl.growth-channel.net/s/76250b26-c260-4776-874b-471ed290230d",
           async: true,
-          defer: true
+          defer: true,
+          id: "growth-channel-script-lease"
         });
 
       router.replace(UrlService.deploymentDetails(dseq, "EVENTS", "events"));
