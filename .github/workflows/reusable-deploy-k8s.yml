@@ -80,6 +80,7 @@ jobs:
           oauth-secret: ${{ env.TS_OAUTH_SECRET }}
           tags: tag:ci
           timeout: 5m
+          use-cache: true
 
       - name: Check tailscale connection
         run: |
