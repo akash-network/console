@@ -1,5 +1,17 @@
 
 
+## [2.70.0](https://github.com/akash-network/console/compare/console-web/v2.69.0...console-web/v2.70.0) (2025-04-23)
+
+
+### Features
+
+* **analytics:** add linkedin script ([#1255](https://github.com/akash-network/console/issues/1255)) ([12c9dd3](https://github.com/akash-network/console/commit/12c9dd3681eb94db0261d1358ccf33d565a5476f))
+
+
+### Bug Fixes
+
+* **styling:** sidebar collapsed styling ([#1254](https://github.com/akash-network/console/issues/1254)) ([920a570](https://github.com/akash-network/console/commit/920a570e1b9795b1366d73be1e9da6a9e79d90be))
+
 ## [2.69.0](https://github.com/akash-network/console/compare/console-web/v2.68.2...console-web/v2.69.0) (2025-04-17)
 
 

@@ -1,5 +1,12 @@
 
 
+## [2.87.0](https://github.com/akash-network/console/compare/console-api/v2.86.0...console-api/v2.87.0) (2025-04-23)
+
+
+### Features
+
+* **deployment:** add swagger doc for managed api ([#1247](https://github.com/akash-network/console/issues/1247)) ([c5a20f5](https://github.com/akash-network/console/commit/c5a20f5ff75c9e63bfd2fc7789baf07a51aad199))
+
 ## [2.86.0](https://github.com/akash-network/console/compare/console-api/v2.85.1...console-api/v2.86.0) (2025-04-17)
 
 
