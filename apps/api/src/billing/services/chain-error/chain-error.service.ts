@@ -21,13 +21,21 @@ export class ChainErrorService {
       code: 400,
       message: "Invalid coin denominations"
     },
-    "invalid gpu atttributes": {
+    "invalid gpu attributes": {
       code: 400,
       message: "Invalid GPU attributes"
     },
     "invalid: deployment version": {
       code: 400,
       message: "Invalid deployment version"
+    },
+    "fee allowance expired": {
+      code: 400,
+      message: "Console trial expired"
+    },
+    "Deployment exists": {
+      code: 400,
+      message: "Deployment with provided dseq and owner already exists"
     }
   };
 

@@ -1,4 +1,6 @@
 import type { JsonWebKey } from "crypto";
+import assert from "http-assert";
+import { BadRequest } from "http-errors";
 
 import type { Jwks } from "./get-jwks";
 
@@ -29,16 +31,14 @@ function parseToken(token: string): {
   payload: unknown;
 } {
   const tokenParts = token.split(".");
-  if (tokenParts.length !== 3) {
-    throw new Error("Invalid token format");
-  }
+  assert(tokenParts.length === 3, 400, "Invalid token format");
 
   let payload;
   try {
     // kid = JSON.parse(atob(tokenParts[0])).kid; - kid is optional. Cannot always expect.
     payload = JSON.parse(atob(tokenParts[1]));
   } catch (error) {
-    throw new Error("Invalid token format");
+    throw new BadRequest("Invalid token format");
   }
   const headerPayload = new TextEncoder().encode(`${tokenParts[0]}.${tokenParts[1]}`);
   const signature = base64urlToUint8Array(tokenParts[2]);
