@@ -47,6 +47,10 @@ export class DeploymentBalanceAlertRepository {
     id: string,
     alert: Partial<DeploymentBalanceAlertOutput>,
   ): Promise<void> {
+    if (!alert.updatedAt) {
+      alert.updatedAt = new Date();
+    }
+
     await this.db
       .update(schema.DeploymentBalanceAlert)
       .set(alert)

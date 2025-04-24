@@ -47,7 +47,7 @@ export class BlockCursorRepository {
 
       await transaction
         .update(schema.BlockCursor)
-        .set({ lastProcessedBlock: nextBlock })
+        .set({ lastProcessedBlock: nextBlock, updatedAt: new Date() })
         .where(eq(schema.BlockCursor.id, this.id));
 
       return cbResult;
