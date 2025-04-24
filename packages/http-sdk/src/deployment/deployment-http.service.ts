@@ -164,7 +164,6 @@ export class DeploymentHttpService extends HttpService {
     });
     const defaultLimit = 1000;
 
-    // If no pagination parameters are provided, fetch all deployments with default limit
     if (!pagination) {
       const allDeployments = await loadWithPagination<DeploymentInfo>(baseUrl, "deployments", defaultLimit, this);
       return {
@@ -176,7 +175,6 @@ export class DeploymentHttpService extends HttpService {
       };
     }
 
-    // If pagination parameters are provided, make a single request with those parameters
     const params: DeploymentListParams = {
       owner,
       "pagination.limit": pagination.limit || defaultLimit,
@@ -191,7 +189,7 @@ export class DeploymentHttpService extends HttpService {
     }
 
     return this.extractData(
-      await this.get<DeploymentListResponse>("/akash/deployment/v1beta3/deployments", {
+      await this.get<DeploymentListResponse>("/akash/deployment/v1beta3/deployments/list", {
         params
       })
     );

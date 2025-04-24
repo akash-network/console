@@ -145,7 +145,7 @@ describe("Deployments API", () => {
 
   function setupDeploymentListMock(wallets: UserWalletOutput[], count: number = 2, state: string = "active") {
     const address = wallets[0].address;
-    const deployments = [];
+    const deployments: RestAkashDeploymentInfoResponse[] = [];
 
     for (let i = 0; i < count; i++) {
       const dseq = faker.string.numeric();
@@ -157,32 +157,16 @@ describe("Deployments API", () => {
 
       deployments.push(deploymentInfo);
 
-      // Mock the individual deployment info endpoint
-      nock(apiNodeUrl).persist().get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`).reply(200, deploymentInfo);
+      nock(apiNodeUrl).get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`).reply(200, deploymentInfo);
 
-      // Mock the leases for this deployment
       const leases = LeaseSeeder.createMany(2, {
         owner: address,
         dseq,
         state: "active"
       });
 
-      nock(apiNodeUrl).persist().get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });
+      nock(apiNodeUrl).get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });
     }
-
-    // Mock the deployment list endpoint with all deployments
-    nock(apiNodeUrl)
-      .persist()
-      .get(
-        `/akash/deployment/${betaTypeVersion}/deployments/list?filters.owner=${address}&filters.state=${state}&pagination.limit=1000&pagination.count_total=true`
-      )
-      .reply(200, {
-        deployments,
-        pagination: {
-          total: deployments.length,
-          next_key: null
-        }
-      });
 
     return deployments;
   }
@@ -236,7 +220,18 @@ describe("Deployments API", () => {
 
     it("returns all deployments when skip and limit are not provided", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
-      setupDeploymentListMock(wallets, 2);
+      const deployments = setupDeploymentListMock(wallets, 2);
+
+      nock(apiNodeUrl)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta3\/deployments\/list\?.*/)
+        .reply(200, {
+          deployments,
+          pagination: {
+            total: deployments.length,
+            next_key: null
+          }
+        });
 
       const response = await app.request("/v1/deployments", {
         method: "GET",
@@ -264,7 +259,18 @@ describe("Deployments API", () => {
 
     it("returns paginated list of deployments when skip and limit are provided", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
-      setupDeploymentListMock(wallets, 2);
+      const deployments = setupDeploymentListMock(wallets, 2, "active");
+
+      nock(apiNodeUrl)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta3\/deployments\/list\?.*/)
+        .reply(200, {
+          deployments: deployments.slice(0, 1),
+          pagination: {
+            total: deployments.length,
+            next_key: null
+          }
+        });
 
       const response = await app.request("/v1/deployments?skip=0&limit=1", {
         method: "GET",
@@ -358,7 +364,18 @@ describe("Deployments API", () => {
 
     it("filters deployments by status", async () => {
       const { userApiKeySecret, wallets } = await mockUser();
-      setupDeploymentListMock(wallets, 1, "active");
+      const deployments = setupDeploymentListMock(wallets, 1, "active");
+
+      nock(apiNodeUrl)
+        .persist()
+        .get(/\/akash\/deployment\/v1beta3\/deployments\/list\?.*/)
+        .reply(200, {
+          deployments,
+          pagination: {
+            total: deployments.length,
+            next_key: null
+          }
+        });
 
       const response = await app.request("/v1/deployments?status=active", {
         method: "GET",

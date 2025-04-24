@@ -197,10 +197,11 @@ export class DeploymentService {
   public async list(
     owner: string,
     { skip, limit }: { skip?: number; limit?: number }
-  ): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number }> {
-    const deploymentReponse = await this.deploymentHttpService.loadAllDeployments(owner, "active", skip && limit ? { offset: skip, limit } : undefined);
+  ): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
+    const pagination = typeof skip === "number" && typeof limit === "number" ? { offset: skip, limit } : undefined;
+    const deploymentReponse = await this.deploymentHttpService.loadAllDeployments(owner, "active", pagination);
     const deployments = deploymentReponse.deployments;
-    const total = deployments.length;
+    const total = parseInt(deploymentReponse.pagination.total);
 
     const leasePromises = deployments.map(deployment => this.leaseHttpService.listByOwnerAndDseq(owner, deployment.deployment.deployment_id.dseq));
     const leaseResults = await Promise.all(leasePromises);
@@ -215,7 +216,8 @@ export class DeploymentService {
 
     return {
       deployments: deploymentsWithLeases,
-      total
+      total,
+      hasMore: skip !== undefined && limit !== undefined ? total > skip + limit : false
     };
   }
 }

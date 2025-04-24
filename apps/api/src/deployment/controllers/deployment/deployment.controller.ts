@@ -101,7 +101,7 @@ export class DeploymentController {
       "Skip and limit must be provided together or not at all"
     );
 
-    const { deployments, total } = await this.deploymentService.list(userWallet.address, { skip, limit });
+    const { deployments, total, hasMore } = await this.deploymentService.list(userWallet.address, { skip, limit });
 
     return {
       data: {
@@ -110,7 +110,7 @@ export class DeploymentController {
           total,
           skip: skip ?? 0,
           limit: limit ?? total,
-          hasMore: skip !== undefined && limit !== undefined ? total > skip + limit : false
+          hasMore
         }
       }
     };
