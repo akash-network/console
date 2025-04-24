@@ -1,5 +1,12 @@
 
 
+## [2.87.1](https://github.com/akash-network/console/compare/console-api/v2.87.0...console-api/v2.87.1) (2025-04-24)
+
+
+### Bug Fixes
+
+* **billing:** fixes some of the managed wallet error codes ([262fd43](https://github.com/akash-network/console/commit/262fd43c1f69530ad9fab89843130f131b583b94)), closes [#1251](https://github.com/akash-network/console/issues/1251)
+
 ## [2.87.0](https://github.com/akash-network/console/compare/console-api/v2.86.0...console-api/v2.87.0) (2025-04-23)
 
 

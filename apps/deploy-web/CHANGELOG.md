@@ -1,5 +1,12 @@
 
 
+## [2.71.0](https://github.com/akash-network/console/compare/console-web/v2.70.0...console-web/v2.71.0) (2025-04-24)
+
+
+### Features
+
+* **config:** specifies backend urls as relative paths ([9b2ab95](https://github.com/akash-network/console/commit/9b2ab95adad7e5a7b9d6018a0f2c6d712836b110))
+
 ## [2.70.0](https://github.com/akash-network/console/compare/console-web/v2.69.0...console-web/v2.70.0) (2025-04-23)
 
 
