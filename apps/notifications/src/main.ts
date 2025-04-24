@@ -9,9 +9,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableShutdownHooks();
-
-  const shutdownService = await app.resolve(ShutdownService);
-  shutdownService.onShutdown(() => app.close());
+  app.get(ShutdownService).onShutdown(() => app.close());
 
   await app.init();
   await app.listen(process.env.PORT ?? 3000);
