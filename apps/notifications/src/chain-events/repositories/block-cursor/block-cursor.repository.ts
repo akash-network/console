@@ -2,9 +2,9 @@ import { InjectDrizzle } from '@knaadh/nestjs-drizzle-pg';
 import { Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { backOff } from 'exponential-backoff';
 
 import { DRIZZLE_PROVIDER_TOKEN } from '@src/config/db.config';
+import { valueBackoff } from '@src/lib/value-backoff/value-backoff';
 import * as schema from '../../model-schemas';
 
 @Injectable()
@@ -20,7 +20,7 @@ export class BlockCursorRepository {
     cb: (block: number) => Promise<T>,
   ): Promise<T> {
     return await this.db.transaction(async (transaction) => {
-      const prevBlock = await backOff(
+      const prevBlock = await valueBackoff(
         async () => {
           const cursor = await transaction
             .select({ height: schema.BlockCursor.lastProcessedBlock })
@@ -29,13 +29,7 @@ export class BlockCursorRepository {
             .for('update', { skipLocked: true })
             .limit(1);
 
-          const cursorHeight = cursor[0]?.height;
-
-          if (!cursorHeight) {
-            throw new Error('BlockCursor not found.');
-          }
-
-          return cursorHeight;
+          return cursor[0]?.height;
         },
         {
           maxDelay: 5_000,

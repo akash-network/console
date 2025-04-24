@@ -135,7 +135,7 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
 
   private async delayAfterBlock(block: BlockData) {
     const date = new Date(block.time);
-    const nextBlockDate = new Date(date.getTime() + this.blockTimeSec);
+    const nextBlockDate = new Date(date.getTime() + this.blockTimeSec * 1000);
     const now = new Date();
     const nextRunDelay = nextBlockDate.getTime() - now.getTime();
 
