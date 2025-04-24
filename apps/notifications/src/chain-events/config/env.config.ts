@@ -1,4 +1,3 @@
-import { registerAs } from '@nestjs/config';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -6,4 +5,4 @@ const schema = z.object({
 });
 
 export type ChainEventsEnvConfig = z.infer<typeof schema>;
-export default registerAs('chain-events', () => schema.parse(process.env));
+export const envConfig = schema.parse(process.env);

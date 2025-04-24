@@ -2,12 +2,18 @@ import {
   MsgCloseDeployment,
   MsgCreateDeployment,
 } from '@akashnetwork/akash-api/v1beta3';
+import { StargateClient } from '@cosmjs/stargate';
+import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import type { MockProxy } from 'jest-mock-extended';
+import { setTimeout as delay } from 'timers/promises';
 
 import { BrokerService } from '@src/broker';
+import type { ChainEventsConfig } from '@src/chain-events/config';
+import { BlockCursorRepository } from '@src/chain-events/repositories/block-cursor/block-cursor.repository';
 import { LoggerService } from '@src/common/services/logger.service';
+import { ShutdownService } from '@src/common/services/shutdown/shutdown.service';
 import { BlockMessageService } from '../block-message/block-message.service';
 import type { BlockData } from '../block-message-parser/block-message-parser.service';
 import { ChainEventsPollerService } from './chain-events-poller.service';
@@ -19,55 +25,43 @@ import {
   generateMsgCreateDeployment,
 } from '@test/seeders/message.seeder';
 
-jest.useFakeTimers();
-
 describe(ChainEventsPollerService.name, () => {
-  it('should be defined', async () => {
-    const { service } = await setup();
-    expect(service).toBeDefined();
-  });
-
-  it('should subscribe to chain events on module init', async () => {
-    const { service, loggerService } = await setup();
-
-    service.onModuleInit();
-
-    expect(loggerService.setContext).toHaveBeenCalledWith(
-      ChainEventsPollerService.name,
-    );
-    expect(loggerService.log).toHaveBeenCalledWith(
-      'Subscribing to chain events...',
-    );
-  });
-
-  it('should process new blocks and publish events', async () => {
-    const { service, brokerService, blockMessageService } = await setup();
+  it('initializes poller, processes a new block and publishes related events', async () => {
+    const {
+      service,
+      blockCursorRepository,
+      blockMessageService,
+      module,
+      CURRENT_HEIGHT,
+    } = await setup();
 
     const createDeploymentMessage = generateMsgCreateDeployment();
     const closeDeploymentMessage = generateMsgCloseDeployment();
 
     const mockBlock: BlockData = generateMockBlockData({
+      height: CURRENT_HEIGHT + 1,
       messages: [createDeploymentMessage, closeDeploymentMessage],
     });
 
-    blockMessageService.getMessages.mockResolvedValue(mockBlock);
+    blockMessageService.getMessages.mockResolvedValueOnce(mockBlock);
 
     service.onModuleInit();
+    await delay(500);
+    service.onModuleDestroy();
 
-    jest.advanceTimersByTime(5000);
-    await Promise.resolve();
+    expect(blockCursorRepository.ensureInitialized).toHaveBeenCalledWith(
+      CURRENT_HEIGHT,
+    );
 
-    expect(blockMessageService.getMessages).toHaveBeenCalledWith('latest', [
-      MsgCloseDeployment['$type'],
-      MsgCreateDeployment['$type'],
-    ]);
+    expect(blockMessageService.getMessages).toHaveBeenCalledWith(
+      CURRENT_HEIGHT + 1,
+      [MsgCloseDeployment['$type'], MsgCreateDeployment['$type']],
+    );
 
-    expect(brokerService.publishAll).toHaveBeenCalledWith([
+    expect(module.get(BrokerService).publishAll).toHaveBeenCalledWith([
       {
         eventName: 'blockchain.v1.block.created',
-        event: {
-          height: mockBlock.height,
-        },
+        event: { height: mockBlock.height },
       },
       {
         eventName: mockBlock.messages[0].type,
@@ -80,66 +74,108 @@ describe(ChainEventsPollerService.name, () => {
     ]);
   });
 
-  it('should not process blocks with height less than or equal to the last processed height', async () => {
-    const { service, brokerService, blockMessageService } = await setup();
+  it('shuts down application when block processing consistently fails', async () => {
+    const {
+      service,
+      module,
+      blockCursorRepository,
+      blockMessageService,
+      CURRENT_HEIGHT,
+    } = await setup();
 
-    const mockBlock1: BlockData = generateMockBlockData({ height: 100 });
-    const mockBlock2: BlockData = generateMockBlockData({ height: 100 });
+    blockCursorRepository.getNextBlockForProcessing.mockImplementation(
+      async () => {
+        throw new Error('Block Cursor lookup failed');
+      },
+    );
 
-    blockMessageService.getMessages
-      .mockResolvedValueOnce(mockBlock1)
-      .mockResolvedValueOnce(mockBlock2);
+    const mockBlock: BlockData = generateMockBlockData({
+      height: CURRENT_HEIGHT + 1,
+    });
+
+    blockMessageService.getMessages.mockResolvedValueOnce(mockBlock);
 
     service.onModuleInit();
+    await delay(500);
 
-    jest.advanceTimersByTime(5000);
-    await Promise.resolve();
-
-    jest.advanceTimersByTime(5000);
-    await Promise.resolve();
-
-    expect(brokerService.publishAll).toHaveBeenCalledTimes(1);
+    expect(module.get(ShutdownService).shutdown).toHaveBeenCalled();
   });
 
-  it('should handle errors when processing chain events', async () => {
-    const { service, blockMessageService, loggerService } = await setup();
+  it('completes currently processed block before shutdown is finalized', async () => {
+    const { service, blockMessageService } = await setup();
 
-    const error = new Error('Test error');
-    blockMessageService.getMessages.mockRejectedValue(error);
+    blockMessageService.getMessages.mockImplementation(async () =>
+      generateMockBlockData({ time: new Date().toISOString() }),
+    );
 
     service.onModuleInit();
+    await delay(10);
+    service.onModuleDestroy();
 
-    jest.advanceTimersByTime(5000);
-    await Promise.resolve();
-
-    expect(loggerService.error).toHaveBeenCalledWith(
-      'Error processing chain events: Test error',
-    );
+    expect(blockMessageService.getMessages).toHaveBeenCalledTimes(1);
   });
 
   async function setup(): Promise<{
     module: TestingModule;
     service: ChainEventsPollerService;
-    brokerService: MockProxy<BrokerService>;
     blockMessageService: MockProxy<BlockMessageService>;
+    blockCursorRepository: MockProxy<BlockCursorRepository>;
     loggerService: MockProxy<LoggerService>;
+    CURRENT_HEIGHT: number;
   }> {
     const module = await Test.createTestingModule({
       providers: [
         ChainEventsPollerService,
         MockProvider(BrokerService),
         MockProvider(BlockMessageService),
+        MockProvider(BlockCursorRepository),
+        MockProvider(StargateClient as any),
+        MockProvider(ShutdownService),
         MockProvider(LoggerService),
+        MockProvider(ConfigService),
       ],
     }).compile();
 
+    const CURRENT_HEIGHT = 100;
+    const CONFIG: ChainEventsConfig = {
+      BLOCK_TIME_SEC: 0.1,
+      pollingConfig: {
+        maxDelay: 30,
+        startingDelay: 3,
+        timeMultiple: 2,
+        numOfAttempts: 5,
+        jitter: 'none',
+      },
+    };
+
+    const configService = module.get<MockProxy<ConfigService>>(ConfigService);
+    configService.getOrThrow.mockImplementation((key: string) => {
+      return CONFIG[
+        key.replace('chain-events.', '') as keyof ChainEventsConfig
+      ];
+    });
+
+    const stargateClient =
+      module.get<MockProxy<StargateClient>>(StargateClient);
+    stargateClient.getHeight.mockResolvedValue(CURRENT_HEIGHT);
+
+    const blockCursorRepository = module.get<MockProxy<BlockCursorRepository>>(
+      BlockCursorRepository,
+    );
+    blockCursorRepository.getNextBlockForProcessing.mockImplementation(
+      async (cb) => {
+        const height = CURRENT_HEIGHT + 1;
+        return await cb(height);
+      },
+    );
+
     return {
       module,
-      service: module.get<ChainEventsPollerService>(ChainEventsPollerService),
-      brokerService: module.get<MockProxy<BrokerService>>(BrokerService),
-      blockMessageService:
-        module.get<MockProxy<BlockMessageService>>(BlockMessageService),
-      loggerService: module.get<MockProxy<LoggerService>>(LoggerService),
+      service: module.get(ChainEventsPollerService),
+      blockMessageService: module.get(BlockMessageService),
+      blockCursorRepository,
+      loggerService: module.get(LoggerService),
+      CURRENT_HEIGHT,
     };
   }
 });

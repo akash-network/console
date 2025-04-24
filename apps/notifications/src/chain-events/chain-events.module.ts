@@ -6,15 +6,15 @@ import { BlockCursorRepository } from '@src/chain-events/repositories/block-curs
 import { ChainEventsPollerService } from '@src/chain-events/services/chain-events-poller/chain-events-poller.service';
 import { CosmjsDecodingService } from '@src/chain-events/services/cosmjs-decoding/cosmjs-decoding.service';
 import { CommonModule } from '@src/common/common.module';
-import envConfig from './config/env.config';
 import { StargateClientProvider } from './providers/stargate-client/stargate-client.provider';
 import { BlockMessageService } from './services/block-message/block-message.service';
 import { BlockMessageParserService } from './services/block-message-parser/block-message-parser.service';
 import { BlockchainClientService } from './services/blockchain-client/blockchain-client.service';
 import { MessageDecoderService } from './services/message-decoder/message-decoder.service';
+import moduleConfig from './config';
 
 @Module({
-  imports: [CommonModule, ConfigModule.forFeature(envConfig)],
+  imports: [CommonModule, ConfigModule.forFeature(moduleConfig)],
   providers: [
     ChainEventsPollerService,
     BlockMessageService,

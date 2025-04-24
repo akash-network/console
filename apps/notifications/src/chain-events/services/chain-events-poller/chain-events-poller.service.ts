@@ -10,7 +10,7 @@ import { BehaviorSubject, filter, firstValueFrom } from 'rxjs';
 import { setTimeout as delay } from 'timers/promises';
 
 import { BrokerService } from '@src/broker';
-import type { ChainEventsEnvConfig } from '@src/chain-events/config/env.config';
+import type { ChainEventsConfig } from '@src/chain-events/config';
 import { BlockCursorRepository } from '@src/chain-events/repositories/block-cursor/block-cursor.repository';
 import { BlockData } from '@src/chain-events/services/block-message-parser/block-message-parser.service';
 import { LoggerService } from '@src/common/services/logger.service';
@@ -24,20 +24,16 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
 
   private readonly isActive = new BehaviorSubject<boolean>(false);
 
-  private readonly blockTimeSec: number = this.configService.getOrThrow(
-    'chain-events.BLOCK_TIME_SEC',
-  );
-
   constructor(
     private readonly brokerService: BrokerService,
     private readonly blockMessageService: BlockMessageService,
     private readonly loggerService: LoggerService,
     private readonly blockCursorRepository: BlockCursorRepository,
     private readonly stargateClient: StargateClient,
-    private readonly configService: ConfigService<
-      Namespaced<'chain-events', ChainEventsEnvConfig>
-    >,
     private readonly shutdownService: ShutdownService,
+    private readonly configService: ConfigService<
+      Namespaced<'chain-events', ChainEventsConfig>
+    >,
   ) {
     this.loggerService.setContext(ChainEventsPollerService.name);
   }
@@ -82,11 +78,7 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
 
   private async processNextBlockWithRetries(): Promise<BlockData> {
     return await backOff(async () => await this.processNextBlock(), {
-      maxDelay: 5_000,
-      startingDelay: 500,
-      timeMultiple: 2,
-      numOfAttempts: 5,
-      jitter: 'none',
+      ...this.configService.getOrThrow('chain-events.pollingConfig'),
       retry: (error, attempt) => {
         this.logProcessingError(error, attempt);
         return true;
@@ -138,8 +130,10 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async delayAfterBlock(block: BlockData) {
+    const blockTimeMs =
+      this.configService.getOrThrow('chain-events.BLOCK_TIME_SEC') * 1000;
     const date = new Date(block.time);
-    const nextBlockDate = new Date(date.getTime() + this.blockTimeSec * 1000);
+    const nextBlockDate = new Date(date.getTime() + blockTimeMs);
     const now = new Date();
     const nextRunDelay = nextBlockDate.getTime() - now.getTime();
 
