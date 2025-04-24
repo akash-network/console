@@ -123,7 +123,17 @@ type DeploymentListParams = {
   "pagination.limit"?: number;
   "pagination.offset"?: number;
   "pagination.key"?: string;
+  "pagination.count_total"?: boolean;
+  "pagination.reverse"?: boolean;
 };
+
+interface PaginationParams {
+  key?: string;
+  offset?: number;
+  limit?: number;
+  countTotal?: boolean;
+  reverse?: boolean;
+}
 
 export class DeploymentHttpService extends HttpService {
   constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
@@ -141,42 +151,49 @@ export class DeploymentHttpService extends HttpService {
     );
   }
 
-  public async listDeployments(params: DeploymentListParams): Promise<DeploymentListResponse> {
-    return this.extractData(
-      await this.get<DeploymentListResponse>("/akash/deployment/v1beta3/deployments", {
-        params
-      })
-    );
-  }
+  /**
+   * Load deployments for an owner with optional pagination
+   * @param owner Owner address
+   * @param state Optional state filter
+   * @param pagination Optional pagination parameters
+   * @returns Paginated response with deployments
+   */
+  public async loadAllDeployments(owner: string, state?: string, pagination?: PaginationParams): Promise<DeploymentListResponse> {
+    const baseUrl = this.getUri({
+      url: `/akash/deployment/v1beta3/deployments/list?filters.owner=${owner}${state ? `&filters.state=${state}` : ""}`
+    });
+    const defaultLimit = 1000;
 
-  public async listDeploymentsWithPagination(owner: string, state?: string, limit: number = 100, key?: string): Promise<DeploymentListResponse> {
+    // If no pagination parameters are provided, fetch all deployments with default limit
+    if (!pagination) {
+      const allDeployments = await loadWithPagination<DeploymentInfo>(baseUrl, "deployments", defaultLimit, this);
+      return {
+        deployments: allDeployments,
+        pagination: {
+          next_key: null,
+          total: allDeployments.length.toString()
+        }
+      };
+    }
+
+    // If pagination parameters are provided, make a single request with those parameters
     const params: DeploymentListParams = {
       owner,
-      "pagination.limit": limit
+      "pagination.limit": pagination.limit || defaultLimit,
+      "pagination.offset": pagination.offset,
+      "pagination.key": pagination.key,
+      "pagination.count_total": pagination.countTotal,
+      "pagination.reverse": pagination.reverse
     };
 
     if (state) {
       params.state = state;
     }
 
-    if (key) {
-      params["pagination.key"] = key;
-    }
-
-    return this.listDeployments(params);
-  }
-
-  /**
-   * Load all deployments for an owner with pagination
-   * @param owner Owner address
-   * @param state Optional state filter
-   * @param limit Number of items per page
-   * @returns Array of all deployments
-   */
-  public async loadAllDeployments(owner: string, state?: string, limit: number = 1000): Promise<DeploymentInfo[]> {
-    const baseUrl = this.getUri({
-      url: `/akash/deployment/v1beta3/deployments/list?filters.owner=${owner}${state ? `&filters.state=${state}` : ""}`
-    });
-    return loadWithPagination<DeploymentInfo>(baseUrl, "deployments", limit, this);
+    return this.extractData(
+      await this.get<DeploymentListResponse>("/akash/deployment/v1beta3/deployments", {
+        params
+      })
+    );
   }
 }

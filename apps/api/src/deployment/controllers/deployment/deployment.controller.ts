@@ -95,6 +95,11 @@ export class DeploymentController {
 
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
+    assert(
+      (skip === undefined && limit === undefined) || (skip !== undefined && limit !== undefined),
+      400,
+      "Skip and limit must be provided together or not at all"
+    );
 
     const { deployments, total } = await this.deploymentService.list(userWallet.address, { skip, limit });
 

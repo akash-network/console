@@ -198,17 +198,13 @@ export class DeploymentService {
     owner: string,
     { skip, limit }: { skip?: number; limit?: number }
   ): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number }> {
-    const deployments = await this.deploymentHttpService.loadAllDeployments(owner, "active");
+    const deploymentReponse = await this.deploymentHttpService.loadAllDeployments(owner, "active", skip && limit ? { offset: skip, limit } : undefined);
+    const deployments = deploymentReponse.deployments;
     const total = deployments.length;
 
-    const paginatedDeployments = skip !== undefined && limit !== undefined ? deployments.slice(skip, skip + limit) : deployments;
-
-    // Fetch all leases in parallel
-    const leasePromises = paginatedDeployments.map(deployment => this.leaseHttpService.listByOwnerAndDseq(owner, deployment.deployment.deployment_id.dseq));
+    const leasePromises = deployments.map(deployment => this.leaseHttpService.listByOwnerAndDseq(owner, deployment.deployment.deployment_id.dseq));
     const leaseResults = await Promise.all(leasePromises);
-
-    // Map deployments with their corresponding leases
-    const deploymentsWithLeases = paginatedDeployments.map((deployment, index) => ({
+    const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
       leases: leaseResults[index].leases.map(({ lease }) => ({
         ...lease,

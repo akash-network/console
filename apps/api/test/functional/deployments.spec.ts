@@ -291,35 +291,36 @@ describe("Deployments API", () => {
       expect(result.data.deployments).toHaveLength(1);
     });
 
-    it("filters deployments by status", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
-      setupDeploymentListMock(wallets, 1, "active");
+    it("returns 400 if only skip is provided", async () => {
+      const { userApiKeySecret } = await mockUser();
 
-      const response = await app.request("/v1/deployments?status=active", {
+      const response = await app.request("/v1/deployments?skip=0", {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(400);
       const result = await response.json();
-      expect(result.data.deployments).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            deployment: expect.objectContaining({
-              state: "active"
-            })
-          })
-        ])
-      );
+      expect(result).toEqual({
+        error: "BadRequestError",
+        message: "Skip and limit must be provided together or not at all"
+      });
     });
 
-    it("returns 401 for an unauthenticated request", async () => {
-      const response = await app.request("/v1/deployments", {
+    it("returns 400 if only limit is provided", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments?limit=10", {
         method: "GET",
-        headers: new Headers({ "Content-Type": "application/json" })
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
 
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(400);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "BadRequestError",
+        message: "Skip and limit must be provided together or not at all"
+      });
     });
 
     it("returns 400 if skip is negative", async () => {
@@ -353,6 +354,37 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(400);
+    });
+
+    it("filters deployments by status", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      setupDeploymentListMock(wallets, 1, "active");
+
+      const response = await app.request("/v1/deployments?status=active", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data.deployments).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            deployment: expect.objectContaining({
+              state: "active"
+            })
+          })
+        ])
+      );
+    });
+
+    it("returns 401 for an unauthenticated request", async () => {
+      const response = await app.request("/v1/deployments", {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json" })
+      });
+
+      expect(response.status).toBe(401);
     });
   });
 
