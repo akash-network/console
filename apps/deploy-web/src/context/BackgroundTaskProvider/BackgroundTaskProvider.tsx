@@ -4,7 +4,7 @@ import { Button, Snackbar } from "@akashnetwork/ui/components";
 import FileSaver from "file-saver";
 import { useSnackbar } from "notistack";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import { providerProxyUrlWs } from "@src/config/ws.config";
 import type { ProviderInfo } from "@src/hooks/useProviderWebsocket";
 import networkStore from "@src/store/networkStore";
 import { useCertificate } from "../CertificateProvider";
@@ -37,7 +37,7 @@ export const BackgroundTaskProvider: React.FC<{ children: React.ReactNode }> = (
 
   function downloadMessages(options: DownloadMessagesOptions): Promise<DownloadMessagesResult> {
     return new Promise(resolve => {
-      const ws = new WebSocket(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL_WS);
+      const ws = new WebSocket(providerProxyUrlWs);
       const state = { isCancelled: false, isFinished: false };
 
       function onCancel() {

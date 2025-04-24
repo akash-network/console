@@ -3,7 +3,7 @@ import type { Options as WebsocketOptions } from "react-use-websocket";
 import useWebSocket from "react-use-websocket";
 import type { WebSocketHook as LibWebSocketHook } from "react-use-websocket/dist/lib/types";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import { providerProxyUrlWs } from "@src/config/ws.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import networkStore from "@src/store/networkStore";
 import type { ApiProviderList } from "@src/types/provider";
@@ -17,7 +17,7 @@ export function useProviderWebsocket(provider: ProviderInfo | undefined, options
   const chainNetwork = networkStore.useSelectedNetworkId();
   const { localCert } = useCertificate();
 
-  const wsHook = useWebSocket(browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL_WS, {
+  const wsHook = useWebSocket(providerProxyUrlWs, {
     reconnectAttempts: 5,
     reconnectInterval: 500,
     onError: error => console.error("error", error),
