@@ -14,6 +14,7 @@ import type { ChainEventsEnvConfig } from '@src/chain-events/config/env.config';
 import { BlockCursorRepository } from '@src/chain-events/repositories/block-cursor/block-cursor.repository';
 import { BlockData } from '@src/chain-events/services/block-message-parser/block-message-parser.service';
 import { LoggerService } from '@src/common/services/logger.service';
+import { ShutdownService } from '@src/common/services/shutdown/shutdown.service';
 import { Namespaced } from '@src/lib/types/namespaced-config.type';
 import { BlockMessageService } from '../block-message/block-message.service';
 
@@ -36,6 +37,7 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
     private readonly configService: ConfigService<
       Namespaced<'chain-events', ChainEventsEnvConfig>
     >,
+    private readonly shutdownService: ShutdownService,
   ) {
     this.loggerService.setContext(ChainEventsPollerService.name);
   }
@@ -60,7 +62,9 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
         error,
         stack: error.stack,
       });
-      process.exit(1);
+      this.loggerService.fatal({ event: 'APPLICATION_STOP' });
+      this.isActive.next(false);
+      this.shutdownService.shutdown();
     });
     this.isActive.next(true);
   }

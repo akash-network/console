@@ -37,6 +37,7 @@ export class BlockCursorRepository {
           timeMultiple: 2,
           numOfAttempts: 5,
           jitter: 'none',
+          createError: () => new Error('Block Cursor lookup failed'),
         },
       );
 

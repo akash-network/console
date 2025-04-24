@@ -4,7 +4,10 @@ import { backOff } from 'exponential-backoff';
 export const MESSAGE = 'Received empty value';
 type EmptyResult = null | undefined;
 
-type ValueBackoffOptions = Omit<BackoffOptions, 'retry'> & { safe?: boolean };
+type ValueBackoffOptions = Omit<BackoffOptions, 'retry'> & {
+  safe?: boolean;
+  createError?: () => Error;
+};
 
 export function valueBackoff<T>(request: () => Promise<T>): Promise<T>;
 export function valueBackoff<T>(
@@ -44,7 +47,7 @@ export function valueBackoff<T>(
     if (isInternalError(error) && options.safe) {
       return emptyResult;
     }
-    return Promise.reject(error);
+    return Promise.reject(options.createError ? options.createError() : error);
   });
 }
 
