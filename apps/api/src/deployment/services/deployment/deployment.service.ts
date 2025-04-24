@@ -1,4 +1,5 @@
 import { BlockHttpService, DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
+import { PromisePool } from "@supercharge/promise-pool";
 import assert from "http-assert";
 import { InternalServerError } from "http-errors";
 import { singleton } from "tsyringe";
@@ -203,8 +204,10 @@ export class DeploymentService {
     const deployments = deploymentReponse.deployments;
     const total = parseInt(deploymentReponse.pagination.total);
 
-    const leasePromises = deployments.map(deployment => this.leaseHttpService.listByOwnerAndDseq(owner, deployment.deployment.deployment_id.dseq));
-    const leaseResults = await Promise.all(leasePromises);
+    const { results: leaseResults } = await PromisePool.withConcurrency(10)
+      .for(deployments)
+      .process(async deployment => this.leaseHttpService.listByOwnerAndDseq(owner, deployment.deployment.deployment_id.dseq));
+
     const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
       leases: leaseResults[index].leases.map(({ lease }) => ({
