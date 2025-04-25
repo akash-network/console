@@ -118,8 +118,8 @@ type DeploymentListResponse = {
 };
 
 type DeploymentListParams = {
-  owner: string;
-  state?: string;
+  "filters.owner": string;
+  "filters.state"?: string;
   "pagination.limit"?: number;
   "pagination.offset"?: number;
   "pagination.key"?: string;
@@ -176,7 +176,7 @@ export class DeploymentHttpService extends HttpService {
     }
 
     const params: DeploymentListParams = {
-      owner,
+      "filters.owner": owner,
       // As per the documenation, Only one of offset or key should be set.
       // https://github.com/cosmos/cosmos-sdk/blob/main/types/query/pagination.pb.go#L33
       "pagination.limit": pagination.limit || defaultLimit,
@@ -188,7 +188,7 @@ export class DeploymentHttpService extends HttpService {
     };
 
     if (state) {
-      params.state = state;
+      params["filters.state"] = state;
     }
 
     return this.extractData(

@@ -199,7 +199,7 @@ export class DeploymentService {
     owner: string,
     { skip, limit }: { skip?: number; limit?: number }
   ): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
-    const pagination = { offset: skip, limit };
+    const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
     const deploymentReponse = await this.deploymentHttpService.loadDeploymentList(owner, "active", pagination);
     const deployments = deploymentReponse.deployments;
     const total = parseInt(deploymentReponse.pagination.total, 10);
@@ -210,10 +210,11 @@ export class DeploymentService {
 
     const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
-      leases: leaseResults[index].leases.map(({ lease }) => ({
-        ...lease,
-        status: null as null
-      })),
+      leases:
+        leaseResults[index]?.leases?.map(({ lease }) => ({
+          ...lease,
+          status: null as null
+        })) ?? [],
       escrow_account: deployment.escrow_account
     }));
 
