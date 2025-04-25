@@ -1,5 +1,5 @@
-import type { QueryKey, UseQueryOptions } from "react-query";
-import { useQuery } from "react-query";
+import type { UseQueryOptions } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -10,6 +10,7 @@ import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { useCertificate } from "../context/CertificateProvider";
 import { useSettings } from "../context/SettingsProvider";
+import { queryClient } from "./queryClient";
 import { QueryKeys } from "./queryKeys";
 
 // Leases
@@ -19,7 +20,6 @@ async function getDeploymentLeases(apiEndpoint: string, address: string, deploym
   }
 
   const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList(apiEndpoint, address, deployment?.dseq), "leases", 1000);
-
   const leases = response.map(l => leaseToDto(l, deployment));
 
   return leases;
@@ -28,18 +28,24 @@ async function getDeploymentLeases(apiEndpoint: string, address: string, deploym
 export function useDeploymentLeaseList(
   address: string,
   deployment: Pick<DeploymentDto, "dseq" | "groups"> | null | undefined,
-  options: UseQueryOptions<LeaseDto[] | null>
+  options: Omit<UseQueryOptions<LeaseDto[] | null>, "queryKey" | "queryFn"> = {}
 ) {
   const { settings } = useSettings();
 
-  return useQuery(
-    QueryKeys.getLeasesKey(address, deployment?.dseq || "") as QueryKey,
-    async () => {
+  const queryKey = QueryKeys.getLeasesKey(address, deployment?.dseq || "");
+  const query = useQuery({
+    queryKey,
+    queryFn: async () => {
       if (!deployment) return null;
       return getDeploymentLeases(settings.apiEndpoint, address, deployment);
     },
-    options
-  );
+    ...options
+  });
+
+  return {
+    ...query,
+    remove: () => queryClient.removeQueries({ queryKey })
+  };
 }
 
 async function getAllLeases(apiEndpoint: string, address: string, deployment?: any, httpClient?: AxiosInstance) {
@@ -48,7 +54,6 @@ async function getAllLeases(apiEndpoint: string, address: string, deployment?: a
   }
 
   const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList(apiEndpoint, address, deployment?.dseq), "leases", 1000, httpClient);
-
   const leases = response.map(l => leaseToDto(l, deployment));
 
   return leases;
@@ -57,16 +62,25 @@ async function getAllLeases(apiEndpoint: string, address: string, deployment?: a
 export function useAllLeases(address: string, options = {}) {
   const { settings } = useSettings();
   const { axios } = useServices();
-  return useQuery(QueryKeys.getAllLeasesKey(address), () => getAllLeases(settings.apiEndpoint, address, undefined, axios), options);
+
+  return useQuery({
+    queryKey: QueryKeys.getAllLeasesKey(address),
+    queryFn: () => getAllLeases(settings.apiEndpoint, address, undefined, axios),
+    ...options
+  });
 }
 
-export function useLeaseStatus(provider: ApiProviderList | undefined, lease: LeaseDto | undefined, options: UseQueryOptions<LeaseStatusDto | null>) {
+export function useLeaseStatus(
+  provider: ApiProviderList | undefined,
+  lease: LeaseDto | undefined,
+  options: Omit<UseQueryOptions<LeaseStatusDto | null>, "queryKey" | "queryFn"> = {}
+) {
   const { localCert } = useCertificate();
   const fetchProviderUrl = useScopedFetchProviderUrl(provider);
 
-  return useQuery(
-    QueryKeys.getLeaseStatusKey(lease?.dseq || "", lease?.gseq || NaN, lease?.oseq || NaN) as QueryKey,
-    async () => {
+  return useQuery({
+    queryKey: QueryKeys.getLeaseStatusKey(lease?.dseq || "", lease?.gseq || NaN, lease?.oseq || NaN),
+    queryFn: async () => {
       if (!lease) return null;
 
       const response = await fetchProviderUrl<LeaseStatusDto>(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, {
@@ -76,8 +90,8 @@ export function useLeaseStatus(provider: ApiProviderList | undefined, lease: Lea
       });
       return response.data;
     },
-    options
-  );
+    ...options
+  });
 }
 
 export interface LeaseStatusDto {

@@ -51,7 +51,7 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
     watch,
     formState: { isDirty, errors }
   } = form;
-  const { mutate: saveSettings, isLoading: isSaving } = useSaveSettings();
+  const { mutate: saveSettings, isPending: isSaving } = useSaveSettings();
   const { username } = watch();
 
   const isFormDisabled = isSaving;

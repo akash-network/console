@@ -1,4 +1,5 @@
-import { useMutation, useQuery } from "react-query";
+import { useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 
 import { GitHubService } from "@src/services/remote-deploy/github-http.service";
@@ -50,31 +51,44 @@ export const useCommits = (repo?: string, branch?: string) => {
 export const usePackageJson = (onSuccess: (data: PackageJson) => void, repo?: string, subFolder?: string) => {
   const [token] = useAtom(tokens);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: QueryKeys.getPackageJsonKey(repo, OAuthType, subFolder),
     queryFn: () => githubService.fetchPackageJson(repo, subFolder, token?.accessToken),
-    enabled: !!token?.accessToken && token.type === OAuthType && !!repo,
-    onSettled: data => {
-      if (data?.content === undefined) return;
-      const content = atob(data.content);
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo
+  });
+
+  useEffect(() => {
+    if (query.data) {
+      if (query.data?.content === undefined) {
+        return;
+      }
+
+      const content = atob(query.data.content);
       const parsed = JSON.parse(content);
 
       onSuccess(parsed);
     }
-  });
+  }, [onSuccess, query.data]);
+
+  return query;
 };
 
 export const useSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void, repo?: string) => {
   const [token] = useAtom(tokens);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: QueryKeys.getSrcFoldersKey(repo, OAuthType),
     queryFn: () => githubService.fetchSrcFolders(repo!, token?.accessToken),
-    enabled: !!token?.accessToken && token.type === OAuthType && !!repo,
-    onSettled: data => {
-      onSettled(data);
-    }
+    enabled: !!token?.accessToken && token.type === OAuthType && !!repo
   });
+
+  useEffect(() => {
+    if (query.data) {
+      onSettled(query.data);
+    }
+  }, [onSettled, query.data]);
+
+  return query;
 };
 
 export const useFetchAccessToken = (onSuccess: () => void) => {

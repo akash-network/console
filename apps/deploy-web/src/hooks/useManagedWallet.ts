@@ -17,19 +17,13 @@ export const useManagedWallet = () => {
   const { user: signedInUser } = useCustomUser();
   const userWallet = useSelectedChain();
   const [selectedWalletType, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
-  const {
-    data: queried,
-    isFetched,
-    isLoading: isFetching,
-    refetch
-  } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined, {
-    onSuccess: wallet => {
-      if (selectedWalletType === "custodial" && wallet && !userWallet.isWalletConnected && !userWallet.isWalletConnecting) {
-        setSelectedWalletType("managed");
-      }
+  const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined);
+  useEffect(() => {
+    if (selectedWalletType === "custodial" && queried && !userWallet.isWalletConnected && !userWallet.isWalletConnecting) {
+      setSelectedWalletType("managed");
     }
-  });
-  const { mutate: create, data: created, isLoading: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
+  }, [queried, selectedWalletType, setSelectedWalletType, userWallet.isWalletConnected, userWallet.isWalletConnecting]);
+  const { mutate: create, data: created, isPending: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => queried || created, [queried, created]);
   const isLoading = isFetching || isCreating;
 
