@@ -15,6 +15,13 @@
       "when": 1744640958108,
       "tag": "0001_foamy_amazoness",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1745409668188,
+      "tag": "0002_tiresome_power_man",
+      "breakpoints": true
     }
   ]
 }
