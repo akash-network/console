@@ -67,18 +67,19 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
       isLoading: isLoadingLeaseStatus
     } = useLeaseStatus(provider, lease, {
       enabled: isLeaseActive && !isServicesAvailable && !!provider?.hostUri && !!localCert,
-      refetchInterval: 10_000,
-      onSuccess: leaseStatus => {
-        if (leaseStatus) {
-          checkIfServicesAreAvailable(leaseStatus);
-        }
-      }
+      refetchInterval: 10_000
     });
+    useEffect(() => {
+      if (leaseStatus) {
+        checkIfServicesAreAvailable(leaseStatus);
+      }
+    }, [leaseStatus]);
     const { isLoading: isLoadingProviderStatus, refetch: getProviderStatus } = useProviderStatus(provider, {
       enabled: false,
       retry: false
     });
-    const isLeaseNotFound = error && (error as string).includes && (error as string).includes("lease not found") && isLeaseActive;
+    const errorMessage = typeof error === "string" ? error : error?.message;
+    const isLeaseNotFound = errorMessage?.includes("lease not found") && isLeaseActive;
     const servicesNames = useMemo(() => (leaseStatus ? Object.keys(leaseStatus.services) : []), [leaseStatus]);
     const [isSendingManifest, setIsSendingManifest] = useState(false);
     const { data: bid } = useBidInfo(lease.owner, lease.dseq, lease.gseq, lease.oseq, lease.provider);

@@ -32,8 +32,7 @@ const MASTER_WALLETS = new Set([
   browserEnvConfig.NEXT_PUBLIC_UAKT_TOP_UP_MASTER_WALLET_ADDRESS
 ]);
 
-const selectNonMaster = (records: Pick<GrantType, "grantee">[] | Pick<AllowanceType, "grantee">[]) =>
-  records.filter(({ grantee }) => !MASTER_WALLETS.has(grantee));
+const selectNonMaster = <T extends GrantType | AllowanceType>(records: T[]) => records.filter(({ grantee }) => !MASTER_WALLETS.has(grantee));
 
 export const Authorizations: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx, isManaged } = useWallet();
