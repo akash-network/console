@@ -158,7 +158,7 @@ export class DeploymentHttpService extends HttpService {
    * @param pagination Optional pagination parameters
    * @returns Paginated response with deployments
    */
-  public async loadAllDeployments(owner: string, state?: string, pagination?: PaginationParams): Promise<DeploymentListResponse> {
+  public async loadDeploymentList(owner: string, state?: string, pagination?: PaginationParams): Promise<DeploymentListResponse> {
     const baseUrl = this.getUri({
       url: `/akash/deployment/v1beta3/deployments/list?filters.owner=${owner}${state ? `&filters.state=${state}` : ""}`
     });
@@ -177,10 +177,13 @@ export class DeploymentHttpService extends HttpService {
 
     const params: DeploymentListParams = {
       owner,
+      // As per the documenation, Only one of offset or key should be set.
+      // https://github.com/cosmos/cosmos-sdk/blob/main/types/query/pagination.pb.go#L33
       "pagination.limit": pagination.limit || defaultLimit,
-      "pagination.offset": pagination.offset,
-      "pagination.key": pagination.key,
-      "pagination.count_total": pagination.countTotal,
+      "pagination.offset": pagination.key ? undefined : pagination.offset,
+      "pagination.key": pagination.offset ? undefined : pagination.key,
+      // count_total is only respected when offset is used. It is ignored when key is set.
+      "pagination.count_total": pagination.offset !== undefined ? true : pagination.countTotal,
       "pagination.reverse": pagination.reverse
     };
 

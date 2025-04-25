@@ -199,12 +199,12 @@ export class DeploymentService {
     owner: string,
     { skip, limit }: { skip?: number; limit?: number }
   ): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
-    const pagination = typeof skip === "number" && typeof limit === "number" ? { offset: skip, limit } : undefined;
-    const deploymentReponse = await this.deploymentHttpService.loadAllDeployments(owner, "active", pagination);
+    const pagination = { offset: skip, limit };
+    const deploymentReponse = await this.deploymentHttpService.loadDeploymentList(owner, "active", pagination);
     const deployments = deploymentReponse.deployments;
-    const total = parseInt(deploymentReponse.pagination.total);
+    const total = parseInt(deploymentReponse.pagination.total, 10);
 
-    const { results: leaseResults } = await PromisePool.withConcurrency(10)
+    const { results: leaseResults } = await PromisePool.withConcurrency(100)
       .for(deployments)
       .process(async deployment => this.leaseHttpService.listByOwnerAndDseq(owner, deployment.deployment.deployment_id.dseq));
 

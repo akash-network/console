@@ -297,38 +297,6 @@ describe("Deployments API", () => {
       expect(result.data.deployments).toHaveLength(1);
     });
 
-    it("returns 400 if only skip is provided", async () => {
-      const { userApiKeySecret } = await mockUser();
-
-      const response = await app.request("/v1/deployments?skip=0", {
-        method: "GET",
-        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
-      });
-
-      expect(response.status).toBe(400);
-      const result = await response.json();
-      expect(result).toEqual({
-        error: "BadRequestError",
-        message: "Skip and limit must be provided together or not at all"
-      });
-    });
-
-    it("returns 400 if only limit is provided", async () => {
-      const { userApiKeySecret } = await mockUser();
-
-      const response = await app.request("/v1/deployments?limit=10", {
-        method: "GET",
-        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
-      });
-
-      expect(response.status).toBe(400);
-      const result = await response.json();
-      expect(result).toEqual({
-        error: "BadRequestError",
-        message: "Skip and limit must be provided together or not at all"
-      });
-    });
-
     it("returns 400 if skip is negative", async () => {
       const { userApiKeySecret } = await mockUser();
 
@@ -344,17 +312,6 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
 
       const response = await app.request("/v1/deployments?skip=0&limit=0", {
-        method: "GET",
-        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
-      });
-
-      expect(response.status).toBe(400);
-    });
-
-    it("returns 400 if limit is greater than 100", async () => {
-      const { userApiKeySecret } = await mockUser();
-
-      const response = await app.request("/v1/deployments?skip=0&limit=101", {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
       });
