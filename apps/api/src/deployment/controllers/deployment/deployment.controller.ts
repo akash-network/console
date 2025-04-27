@@ -11,7 +11,6 @@ import {
   DepositDeploymentRequest,
   DepositDeploymentResponse,
   GetDeploymentResponse,
-  ListDeploymentsQuerySchema,
   ListDeploymentsResponseSchema,
   UpdateDeploymentRequest,
   UpdateDeploymentResponse
@@ -97,17 +96,15 @@ export class DeploymentController {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    const validatedParams = ListDeploymentsQuerySchema.parse({ skip, limit });
-
-    const { deployments, total, hasMore } = await this.deploymentService.list(userWallet.address, validatedParams);
+    const { deployments, total, hasMore } = await this.deploymentService.list(userWallet.address, { skip, limit });
 
     return {
       data: {
         deployments,
         pagination: {
           total,
-          skip: validatedParams.skip ?? 0,
-          limit: validatedParams.limit ?? total,
+          skip: skip ?? 0,
+          limit: limit ?? total,
           hasMore
         }
       }
