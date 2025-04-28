@@ -1,4 +1,5 @@
 import { BlockHttpService, DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
+import { PromisePool } from "@supercharge/promise-pool";
 import assert from "http-assert";
 import { InternalServerError } from "http-errors";
 import { singleton } from "tsyringe";
@@ -192,5 +193,35 @@ export class DeploymentService {
         keyPem: certificate.keyPem
       });
     }
+  }
+
+  public async list(
+    owner: string,
+    { skip, limit }: { skip?: number; limit?: number }
+  ): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
+    const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
+    const deploymentReponse = await this.deploymentHttpService.loadDeploymentList(owner, "active", pagination);
+    const deployments = deploymentReponse.deployments;
+    const total = parseInt(deploymentReponse.pagination.total, 10);
+
+    const { results: leaseResults } = await PromisePool.withConcurrency(100)
+      .for(deployments)
+      .process(async deployment => this.leaseHttpService.listByOwnerAndDseq(owner, deployment.deployment.deployment_id.dseq));
+
+    const deploymentsWithLeases = deployments.map((deployment, index) => ({
+      deployment: deployment.deployment,
+      leases:
+        leaseResults[index]?.leases?.map(({ lease }) => ({
+          ...lease,
+          status: null as null
+        })) ?? [],
+      escrow_account: deployment.escrow_account
+    }));
+
+    return {
+      deployments: deploymentsWithLeases,
+      total,
+      hasMore: skip !== undefined && limit !== undefined ? total > skip + limit : false
+    };
   }
 }

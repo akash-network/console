@@ -56,11 +56,6 @@ export const DeploymentResponseSchema = z.object({
   })
 });
 
-export const GetDeploymentQuerySchema = z.object({
-  dseq: z.string(),
-  userId: z.optional(z.string())
-});
-
 export const GetDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
 });
@@ -113,6 +108,23 @@ export const UpdateDeploymentRequestSchema = z.object({
 
 export const UpdateDeploymentResponseSchema = z.object({
   data: DeploymentResponseSchema
+});
+
+export const ListDeploymentsQuerySchema = z.object({
+  skip: z.coerce.number().min(0).optional(),
+  limit: z.coerce.number().min(1).default(1000).optional()
+});
+
+export const ListDeploymentsResponseSchema = z.object({
+  data: z.object({
+    deployments: z.array(DeploymentResponseSchema),
+    pagination: z.object({
+      total: z.number(),
+      skip: z.number(),
+      limit: z.number(),
+      hasMore: z.boolean()
+    })
+  })
 });
 
 export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
