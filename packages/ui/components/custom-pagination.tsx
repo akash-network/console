@@ -10,6 +10,8 @@ interface Props {
   setPageIndex: (pageIndex: number) => void;
 }
 
+export const MIN_PAGE_SIZE = 10;
+
 export function CustomPagination({ pageIndex, totalPageCount, pageSize, setPageSize, setPageIndex }: React.PropsWithChildren<Props>) {
   return (
     <div className="flex flex-col items-center justify-between px-2 md:flex-row md:space-x-4">
@@ -25,8 +27,8 @@ export function CustomPagination({ pageIndex, totalPageCount, pageSize, setPageS
             <SelectValue placeholder={pageSize} />
           </SelectTrigger>
           <SelectContent side="top">
-            {[10, 20, 30, 40, 50].map((val, i) => (
-              <SelectItem key={i} value={`${val}`}>
+            {[MIN_PAGE_SIZE, 20, 30, 40, 50].map(val => (
+              <SelectItem key={val} value={`${val}`}>
                 {val}
               </SelectItem>
             ))}
