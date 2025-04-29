@@ -80,7 +80,7 @@ export class ManagedSignerService {
 
       return result;
     } catch (error) {
-      throw this.chainErrorService.toAppError(error, messages);
+      throw await this.chainErrorService.toAppError(error, messages);
     }
   }
 
