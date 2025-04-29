@@ -28,7 +28,7 @@ jest.mock("@akashnetwork/logging", () => ({
 
 describe(TopUpManagedDeploymentsService.name, () => {
   let managedSignerService: jest.Mocked<ManagedSignerService>;
-  let billingConfig: MockConfigService<{ DEPLOYMENT_GRANT_DENOM: string }>;
+  let billingConfig: MockConfigService<{ DEPLOYMENT_GRANT_DENOM: string; USDC_IBC_DENOMS: { mainnetId: string; sandboxId: string } }>;
   let drainingDeploymentService: jest.Mocked<DrainingDeploymentService>;
   let managedMasterWallet: jest.Mocked<Wallet>;
   let rpcMessageService: RpcMessageService;
@@ -43,8 +43,12 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
   beforeEach(() => {
     managedSignerService = stub<ManagedSignerService>({ executeManagedTx: jest.fn() });
-    billingConfig = new MockConfigService<{ DEPLOYMENT_GRANT_DENOM: string }>({
-      DEPLOYMENT_GRANT_DENOM
+    billingConfig = new MockConfigService<{ DEPLOYMENT_GRANT_DENOM: string; USDC_IBC_DENOMS: { mainnetId: string; sandboxId: string } }>({
+      DEPLOYMENT_GRANT_DENOM,
+      USDC_IBC_DENOMS: {
+        mainnetId: DEPLOYMENT_GRANT_DENOM,
+        sandboxId: DEPLOYMENT_GRANT_DENOM
+      }
     });
     drainingDeploymentService = stub<DrainingDeploymentService>({
       paginate: jest.fn(),
