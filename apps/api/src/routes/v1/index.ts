@@ -11,7 +11,6 @@ import proposalById from "./proposals/byId";
 import proposals from "./proposals/list";
 import providerByAddress from "./providers/byAddress";
 import providerDeployments from "./providers/deployments";
-import providerList from "./providers/list";
 import templateById from "./templates/byId";
 import templateList from "./templates/list";
 import templateListFull from "./templates/list-full";
@@ -54,7 +53,6 @@ export default [
   addressTransactions,
   addressDeployments,
   providerByAddress,
-  providerList,
   providerDeployments,
   providerAttributesSchema,
   providerRegions,
