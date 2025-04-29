@@ -17,7 +17,7 @@ export const netConfigData = {
   },
   sandbox: {
     version: "0.38.0",
-    apiUrls: [""],
+    apiUrls: ["https://api.sandbox-01.aksh.pw:443"],
     rpcUrls: ["https://rpc.sandbox-01.aksh.pw:443"]
   },
   "testnet-02": {
