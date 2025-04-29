@@ -1,6 +1,11 @@
+import { BalanceHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import createError from "http-errors";
 import { singleton } from "tsyringe";
+
+import { Wallet } from "@src/billing/lib/wallet/wallet";
+import { InjectWallet } from "@src/billing/providers/wallet.provider";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 
 @singleton()
 export class ChainErrorService {
@@ -44,7 +49,13 @@ export class ChainErrorService {
     "/akash.market.v1beta4.MsgCreateLease": "Failed to create lease"
   };
 
-  public toAppError(error: Error, messages: readonly EncodeObject[]) {
+  constructor(
+    private readonly balanceHttpService: BalanceHttpService,
+    private readonly billingConfigService: BillingConfigService,
+    @InjectWallet("MANAGED") private readonly masterWallet: Wallet
+  ) {}
+
+  public async toAppError(error: Error, messages: readonly EncodeObject[]) {
     const clues = Object.keys(this.ERRORS) as (keyof typeof this.ERRORS)[];
 
     const clue = clues.find(clue => error.message.toLowerCase().includes(clue.toLowerCase()));
@@ -54,10 +65,50 @@ export class ChainErrorService {
     }
 
     const messagePrefix = this.getMessagePrefix(error, messages);
-    const { message, code } = this.ERRORS[clue];
+
+    const { message, code } = (await this.getBalanceError(clue, error.message)) || this.ERRORS[clue];
     const prefixedMessage = messagePrefix ? `${messagePrefix}: ${message}` : message;
 
     return createError(code, prefixedMessage, { originalError: error });
+  }
+
+  private async getBalanceError(clue: string, message: string) {
+    if (clue !== "insufficient funds") return;
+
+    const masterWalletAddress = await this.masterWallet.getFirstAddress();
+    const { amount } = await this.balanceHttpService.getBalance(masterWalletAddress, this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM"));
+    const parsedMessage = this.parseInsufficientFundsErrorMessage(message);
+
+    if (parsedMessage && amount < parsedMessage.requiredAmount) {
+      return {
+        code: 503,
+        message: "Service temporarily unavailable"
+      };
+    }
+  }
+
+  private parseInsufficientFundsErrorMessage(message: string): {
+    availableAmount: number;
+    requiredAmount: number;
+    denom: string;
+  } | null {
+    const usdcDenoms = Object.values(this.billingConfigService.get("USDC_IBC_DENOMS"))
+      .map(denom => denom.replace(/\//g, "\\/"))
+      .join("|");
+
+    const pattern = new RegExp(`(\\d+)(uakt|${usdcDenoms}) is smaller than (\\d+)\\2`);
+
+    const match = message.match(pattern);
+
+    if (!match) {
+      return null;
+    }
+
+    return {
+      availableAmount: parseInt(match[1], 10),
+      requiredAmount: parseInt(match[3], 10),
+      denom: match[2]
+    };
   }
 
   private getMessagePrefix(error: Error, messages: readonly EncodeObject[]) {
