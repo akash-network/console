@@ -13,9 +13,9 @@ import { WalletController } from "@src/billing/controllers/wallet/wallet.control
 import { chainDb } from "@src/db/dbConnection";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
 import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
+import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { UserConfigService } from "@src/user/services/user-config/user-config.service";
-import { ProviderController } from "./deployment/controllers/provider/provider.controller";
 
 const program = new Command();
 
