@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { Button, Input } from "@akashnetwork/ui/components";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, AlertDescription, AlertTitle, Button, Input } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, CheckCircle, Refresh, WarningTriangle } from "iconoir-react";
 import { useRouter } from "next/router";
 import { z } from "zod";
@@ -10,6 +11,7 @@ import { ControlMachineError } from "@src/components/shared/ControlMachineError"
 import { Title } from "@src/components/shared/Title";
 import { withAuth } from "@src/components/shared/withAuth";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
+import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useProvider } from "@src/context/ProviderContext";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
@@ -19,6 +21,8 @@ const urlSchema = z.string().refine(value => {
   const regex = /^(?!:\/\/)([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$/;
   return regex.test(value);
 }, "Invalid domain name format");
+
+const emailSchema = z.string().email("Invalid email address");
 
 const SettingsPage: React.FC = () => {
   const [urlError, setUrlError] = useState("");
@@ -43,15 +47,28 @@ const SettingsPage: React.FC = () => {
     };
   } | null>(null);
   const [isUpgradeStatusLoading, setIsUpgradeStatusLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [emailSuccess, setEmailSuccess] = useState(false);
+  const [isEmailLoading, setIsEmailLoading] = useState(false);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
 
   const { providerDetails } = useProvider();
   const { activeControlMachine } = useControlMachine();
   const [url, setUrl] = useState(() => stripProviderPrefixAndPort(providerDetails?.hostUri ?? "") || "");
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { address } = useSelectedChain();
 
   const isDisabled = !activeControlMachine;
 
-  const fetchUpgradeStatus = async () => {
+  useEffect(() => {
+    if (providerDetails?.email) {
+      setEmail(providerDetails.email);
+    }
+  }, [providerDetails]);
+
+  const fetchUpgradeStatus = useCallback(async () => {
     if (!activeControlMachine) return;
 
     try {
@@ -107,11 +124,11 @@ const SettingsPage: React.FC = () => {
     } finally {
       setIsUpgradeStatusLoading(false);
     }
-  };
+  }, [activeControlMachine]);
 
   useEffect(() => {
     fetchUpgradeStatus();
-  }, [activeControlMachine]);
+  }, [activeControlMachine, fetchUpgradeStatus]);
 
   const handleUrlUpdate = async () => {
     try {
@@ -243,6 +260,35 @@ const SettingsPage: React.FC = () => {
     }
 
     return reasons.length > 0 ? `Update available for ${reasons.join(" and ")}` : null;
+  };
+
+  const handleEmailUpdate = async () => {
+    try {
+      setIsEmailLoading(true);
+      emailSchema.parse(email);
+      const request = {
+        control_machine: sanitizeMachineAccess(activeControlMachine),
+        email: email
+      };
+      const response = await restClient.post("/update-provider-email", request);
+      if (response) {
+        setEmailSuccess(true);
+        setTimeout(() => setEmailSuccess(false), 20000);
+        // Refresh provider details to get updated email
+        queryClient.invalidateQueries({ queryKey: ["providerDetails", address] });
+        setIsEditingEmail(false);
+      }
+      setEmailError("");
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        setEmailError(error.errors[0].message);
+      } else {
+        console.error("Error updating email:", error);
+        setEmailError("Failed to update email. Please try again.");
+      }
+    } finally {
+      setIsEmailLoading(false);
+    }
   };
 
   return (
@@ -452,6 +498,37 @@ const SettingsPage: React.FC = () => {
               Update URL
             </Button>
           </div>
+        </div>
+
+        <div className="rounded-lg border p-6">
+          <h2 className="text-xl font-semibold">Email Settings</h2>
+          <p className="text-muted-foreground mt-2">Update your provider email address for future notifications.</p>
+          <div className="mt-4 flex gap-4">
+            <Input
+              value={email}
+              onChange={e => {
+                setEmail(e.target.value);
+                setIsEditingEmail(true);
+              }}
+              onFocus={() => setIsEditingEmail(true)}
+              placeholder={providerDetails?.email || "Enter email address"}
+              error={emailError ? true : undefined}
+              className={cn("min-w-[400px]")}
+              disabled={isDisabled}
+              type="email"
+            />
+            <Button onClick={handleEmailUpdate} disabled={isDisabled || isEmailLoading}>
+              {isEmailLoading ? "Updating..." : "Update Email"}
+            </Button>
+          </div>
+          {emailError && <p className="mt-2 text-sm text-red-500">{emailError}</p>}
+          {emailSuccess && (
+            <Alert variant="success" className="mt-4">
+              <AlertTitle>Success</AlertTitle>
+              <AlertDescription>Email updated successfully</AlertDescription>
+            </Alert>
+          )}
+          {isEditingEmail && providerDetails?.email && <p className="text-muted-foreground mt-2 text-sm">Current email: {providerDetails.email}</p>}
         </div>
       </div>
     </Layout>
