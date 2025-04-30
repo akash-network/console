@@ -4,18 +4,20 @@ import assert from "http-assert";
 import { InternalServerError } from "http-errors";
 import { singleton } from "tsyringe";
 
+import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput } from "@src/billing/repositories";
-import { ManagedSignerService, RpcMessageService, Wallet } from "@src/billing/services";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
+import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import {
   CreateDeploymentRequest,
   CreateDeploymentResponse,
   GetDeploymentResponse,
   UpdateDeploymentRequest
 } from "@src/deployment/http-schemas/deployment.schema";
-import { ProviderService } from "@src/deployment/services/provider/provider.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { denomToUdenom } from "@src/utils/math";
 
 @singleton()

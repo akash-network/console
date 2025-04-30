@@ -7,12 +7,10 @@ import { Op } from "sequelize";
 
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { getTransactionByAddress } from "@src/services/db/transactionsService";
-import type { ProviderList } from "@src/types/provider";
 import type {
   CosmosGovProposalResponse,
   CosmosGovProposalsResponse,
   RestAkashDeploymentInfoResponse,
-  RestAkashDeploymentListResponse,
   RestAkashLeaseListResponse,
   RestCosmosBankBalancesResponse,
   RestCosmosDistributionDelegatorsRewardsResponse,
@@ -31,7 +29,6 @@ import { coinToAsset } from "@src/utils/coin";
 import { apiNodeUrl, averageBlockCountInAMonth, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/constants";
 import { createLoggingExecutor } from "@src/utils/logging";
 import { getDeploymentRelatedMessages } from "../db/deploymentService";
-import { getProviderList } from "../db/providerStatusService";
 
 export async function getChainStats() {
   const logger = LoggerService.forContext("ApiNode");
@@ -461,66 +458,5 @@ export async function getDeployment(owner: string, dseq: string) {
     leases: leases,
     events: relatedMessages || [],
     other: deploymentData
-  };
-}
-
-export async function getAddressDeployments(owner: string, skip: number, limit: number, reverseSorting: boolean, filters: { status?: string } = {}) {
-  const response = await axios.get<RestAkashDeploymentListResponse>(`${apiNodeUrl}/akash/deployment/${betaTypeVersion}/deployments/list`, {
-    params: {
-      "filters.owner": owner,
-      "filters.state": filters.status,
-      "pagination.offset": skip,
-      "pagination.limit": limit,
-      "pagination.count_total": true,
-      "pagination.reverse": reverseSorting
-    }
-  });
-
-  const leaseResponse = await axios.get<RestAkashLeaseListResponse>(`${apiNodeUrl}/akash/market/${betaTypeVersionMarket}/leases/list`, {
-    params: {
-      "filters.owner": owner,
-      "filters.state": "active"
-    }
-  });
-  const providers = response.data.deployments.length ? await getProviderList() : ([] as ProviderList[]);
-
-  return {
-    count: parseInt(response.data.pagination.total),
-    results: response.data.deployments.map(x => ({
-      owner: x.deployment.deployment_id.owner,
-      dseq: x.deployment.deployment_id.dseq,
-      status: x.deployment.state,
-      createdHeight: parseInt(x.deployment.created_at),
-      escrowAccount: x.escrow_account,
-      cpuUnits: x.groups
-        .map(g => g.group_spec.resources.map(r => parseInt(r.resource.cpu.units.val) * r.count).reduce((a, b) => a + b, 0))
-        .reduce((a, b) => a + b, 0),
-      gpuUnits: x.groups
-        .map(g => g.group_spec.resources.map(r => parseInt(r.resource.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0))
-        .reduce((a, b) => a + b, 0),
-      memoryQuantity: x.groups
-        .map(g => g.group_spec.resources.map(r => parseInt(r.resource.memory.quantity.val) * r.count).reduce((a, b) => a + b, 0))
-        .reduce((a, b) => a + b, 0),
-      storageQuantity: x.groups
-        .map(g =>
-          g.group_spec.resources.map(r => r.resource.storage.map(s => parseInt(s.quantity.val)).reduce((a, b) => a + b, 0) * r.count).reduce((a, b) => a + b, 0)
-        )
-        .reduce((a, b) => a + b, 0),
-      leases: leaseResponse.data.leases
-        .filter(l => l.lease.lease_id.dseq === x.deployment.deployment_id.dseq)
-        .map(lease => {
-          const provider = providers.find(p => p.owner === lease.lease.lease_id.provider);
-          return {
-            id: lease.lease.lease_id.dseq + lease.lease.lease_id.gseq + lease.lease.lease_id.oseq,
-            owner: lease.lease.lease_id.owner,
-            provider: provider,
-            dseq: lease.lease.lease_id.dseq,
-            gseq: lease.lease.lease_id.gseq,
-            oseq: lease.lease.lease_id.oseq,
-            state: lease.lease.state,
-            price: lease.lease.price
-          };
-        })
-    }))
   };
 }

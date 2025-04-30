@@ -12,11 +12,16 @@ import {
   DepositDeploymentRequestSchema,
   DepositDeploymentResponseSchema,
   GetDeploymentResponseSchema,
+  listByOwnerMaxLimit,
+  ListByOwnerParamsSchema,
+  ListByOwnerQuerySchema,
+  ListByOwnerResponseSchema,
   ListDeploymentsQuerySchema,
   ListDeploymentsResponseSchema,
   UpdateDeploymentRequestSchema,
   UpdateDeploymentResponseSchema
 } from "@src/deployment/http-schemas/deployment.schema";
+import { isValidBech32Address } from "@src/utils/addresses";
 
 const getRoute = createRoute({
   method: "get",
@@ -159,6 +164,30 @@ const listRoute = createRoute({
   }
 });
 
+const listByOwnerRoute = createRoute({
+  method: "get",
+  path: "/v1/addresses/{address}/deployments/{skip}/{limit}",
+  summary: "Get a list of deployments by owner address.",
+  tags: ["Addresses", "Deployments"],
+  request: {
+    params: ListByOwnerParamsSchema,
+    query: ListByOwnerQuerySchema
+  },
+  responses: {
+    200: {
+      description: "Returns deployment list",
+      content: {
+        "application/json": {
+          schema: ListByOwnerResponseSchema
+        }
+      }
+    },
+    400: {
+      description: "Invalid address"
+    }
+  }
+});
+
 export const deploymentsRouter = new OpenApiHonoHandler();
 
 deploymentsRouter.openapi(getRoute, async function routeGetDeployment(c) {
@@ -195,5 +224,30 @@ deploymentsRouter.openapi(updateRoute, async function routeUpdateDeployment(c) {
 deploymentsRouter.openapi(listRoute, async function routeListDeployments(c) {
   const { skip, limit } = c.req.valid("query");
   const result = await container.resolve(DeploymentController).list({ skip, limit });
+  return c.json(result, 200);
+});
+
+deploymentsRouter.openapi(listByOwnerRoute, async function routeListDeploymentsByOwner(c) {
+  if (!isValidBech32Address(c.req.valid("param").address, "akash")) {
+    return c.text("Invalid address", 400);
+  }
+
+  const skip = parseInt(c.req.valid("param").skip);
+  const limit = Math.min(listByOwnerMaxLimit, parseInt(c.req.valid("param").limit));
+
+  if (isNaN(skip)) {
+    return c.text("Invalid skip.", 400);
+  }
+
+  if (isNaN(limit)) {
+    return c.text("Invalid limit.", 400);
+  }
+
+  const result = await container
+    .resolve(DeploymentController)
+    .listByOwner(c.req.valid("param").address, skip, limit, c.req.valid("query").reverseSorting === "true", {
+      status: c.req.valid("query").status
+    });
+
   return c.json(result, 200);
 });
