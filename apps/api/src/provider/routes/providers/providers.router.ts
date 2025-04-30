@@ -1,13 +1,19 @@
-import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
+import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { getProviderList } from "@src/services/db/providerStatusService";
 
 const route = createRoute({
   method: "get",
-  path: "/providers",
+  path: "/v1/providers",
   summary: "Get a list of providers.",
   tags: ["Providers"],
+  request: {
+    query: z.object({
+      scope: z.enum(["all", "trial"]).default("all")
+    })
+  },
   responses: {
     200: {
       description: "Returns a list of providers",
@@ -105,7 +111,17 @@ const route = createRoute({
   }
 });
 
-export default new OpenAPIHono().openapi(route, async c => {
-  const providers = await cacheResponse(60, cacheKeys.getProviderList, getProviderList, true);
+export const providersRouter = new OpenApiHonoHandler();
+
+providersRouter.openapi(route, async function routeListProviders(c) {
+  const { scope } = c.req.valid("query");
+
+  const providers = await cacheResponse(
+    60,
+    scope === "trial" ? cacheKeys.getTrialProviderList : cacheKeys.getProviderList,
+    () => getProviderList({ trial: scope === "trial" }),
+    true
+  );
+
   return c.json(providers);
 });

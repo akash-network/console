@@ -1,6 +1,6 @@
 import { singleton } from "tsyringe";
 
-import { ProviderRepository } from "@src/deployment/repositories/provider/provider.repository";
+import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 
 @singleton()
 export class TrialProvidersService {

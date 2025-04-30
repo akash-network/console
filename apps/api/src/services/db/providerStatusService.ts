@@ -4,6 +4,7 @@ import { add, sub } from "date-fns";
 import uniqBy from "lodash/uniqBy";
 import { Op } from "sequelize";
 
+import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import type { ProviderDetail } from "@src/types/provider";
 import { toUTC } from "@src/utils";
 import { env } from "@src/utils/env";
@@ -86,7 +87,7 @@ export async function getNetworkCapacity() {
   };
 }
 
-export const getProviderList = async () => {
+export const getProviderList = async ({ trial = false }: { trial?: boolean } = {}) => {
   const providersWithAttributesAndAuditors = await Provider.findAll({
     where: {
       deletedHeight: null
@@ -96,9 +97,19 @@ export const getProviderList = async () => {
       {
         model: ProviderAttribute
       },
-      {
-        model: ProviderAttributeSignature
-      }
+      trial
+        ? {
+            model: ProviderAttributeSignature,
+            required: true,
+            where: {
+              auditor: AUDITOR,
+              key: TRIAL_ATTRIBUTE,
+              value: "true"
+            }
+          }
+        : {
+            model: ProviderAttributeSignature
+          }
     ]
   });
 

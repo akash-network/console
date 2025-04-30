@@ -23,6 +23,7 @@ import { leasesRouter } from "./deployment/routes/leases/leases.router";
 import { featuresRouter } from "./features/routes/features/features.router";
 import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
+import { providersRouter } from "./provider/routes/providers/providers.router";
 import { apiRouter } from "./routers/apiRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
 import { deploymentRouter } from "./routers/deploymentApiRouter";
@@ -97,6 +98,7 @@ appHono.route("/", bidsRouter);
 appHono.route("/", certificateRouter);
 appHono.route("/", featuresRouter);
 appHono.route("/", getBalancesRouter);
+appHono.route("/", providersRouter);
 
 appHono.route("/", healthzRouter);
 
