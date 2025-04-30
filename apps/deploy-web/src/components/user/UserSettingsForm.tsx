@@ -157,9 +157,7 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
                   <FormField
                     name="youtubeUsername"
                     control={control}
-                    render={({ field }) => (
-                      <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://www.youtube.com/c/</div>} />
-                    )}
+                    render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" placeholder="https://www.youtube.com/c/" />}
                   />
                 }
               />
@@ -169,7 +167,7 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
                   <FormField
                     name="twitterUsername"
                     control={control}
-                    render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://x.com/</div>} />}
+                    render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" placeholder="https://x.com/" />}
                   />
                 }
               />
@@ -179,7 +177,7 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
                   <FormField
                     name="githubUsername"
                     control={control}
-                    render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" startIcon={<div>https://github.com/</div>} />}
+                    render={({ field }) => <FormInput {...field} disabled={isFormDisabled} className="w-full" placeholder="https://github.com/" />}
                   />
                 }
               />
