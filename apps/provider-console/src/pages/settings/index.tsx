@@ -22,7 +22,12 @@ const urlSchema = z.string().refine(value => {
   return regex.test(value);
 }, "Invalid domain name format");
 
-const emailSchema = z.string().email("Invalid email address");
+const emailSchema = z
+  .string()
+  .min(1, "Email is required")
+  .email("Invalid email address")
+  .max(254, "Email is too long")
+  .refine(email => email.trim() === email, "Email cannot start or end with spaces");
 
 const SettingsPage: React.FC = () => {
   const [urlError, setUrlError] = useState("");
