@@ -54,11 +54,24 @@ export class LeaseHttpService extends HttpService {
   }
 
   public async listByOwnerAndDseq(owner: string, dseq: string): Promise<RestAkashLeaseListResponse> {
-    return this.extractData(await this.get<RestAkashLeaseListResponse>('/akash/market/v1beta4/leases/list', {
-      params: {
-        "filters.owner": owner,
-        "filters.dseq": dseq,
-      },
-    }));
+    return this.extractData(
+      await this.get<RestAkashLeaseListResponse>("/akash/market/v1beta4/leases/list", {
+        params: {
+          "filters.owner": owner,
+          "filters.dseq": dseq
+        }
+      })
+    );
+  }
+
+  public async listByOwner(owner: string): Promise<RestAkashLeaseListResponse> {
+    return this.extractData(
+      await this.get<RestAkashLeaseListResponse>("/akash/market/v1beta4/leases/list", {
+        params: {
+          "filters.owner": owner,
+          "filters.state": "active"
+        }
+      })
+    );
   }
 }

@@ -1,41 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
-import { z } from "zod";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
+import { SignTxRequestInputSchema, SignTxResponseOutputSchema } from "@src/billing/http-schemas/wallet.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
-
-export const SignTxRequestInputSchema = z.object({
-  data: z.object({
-    userId: z.string(),
-    messages: z
-      .array(
-        z.object({
-          typeUrl: z.enum([
-            "/akash.deployment.v1beta3.MsgCreateDeployment",
-            "/akash.cert.v1beta3.MsgCreateCertificate",
-            "/akash.market.v1beta4.MsgCreateLease",
-            "/akash.deployment.v1beta3.MsgUpdateDeployment",
-            "/akash.deployment.v1beta3.MsgCloseDeployment",
-            "/akash.deployment.v1beta3.MsgDepositDeployment"
-          ]),
-          value: z.string()
-        })
-      )
-      .min(1)
-      .openapi({})
-  })
-});
-
-export const SignTxResponseOutputSchema = z.object({
-  data: z.object({
-    code: z.number(),
-    transactionHash: z.string(),
-    rawLog: z.string()
-  })
-});
-export type SignTxRequestInput = z.infer<typeof SignTxRequestInputSchema>;
-export type SignTxResponseOutput = z.infer<typeof SignTxResponseOutputSchema>;
 
 const route = createRoute({
   method: "post",

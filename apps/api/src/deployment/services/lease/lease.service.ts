@@ -4,7 +4,7 @@ import { UserWalletOutput } from "@src/billing/repositories";
 import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
-import { ProviderService } from "@src/deployment/services/provider/provider.service";
+import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { DeploymentService } from "../deployment/deployment.service";
 
 @singleton()

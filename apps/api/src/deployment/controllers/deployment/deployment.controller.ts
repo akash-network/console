@@ -11,16 +11,19 @@ import {
   DepositDeploymentRequest,
   DepositDeploymentResponse,
   GetDeploymentResponse,
+  ListByOwnerResponseSchema,
   ListDeploymentsResponseSchema,
   UpdateDeploymentRequest,
   UpdateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentService } from "@src/deployment/services/deployment/deployment.service";
+import { DeploymentListByOwnerService } from "@src/deployment/services/deployment-list-by-owner/deployment-list-by-owner.service";
 
 @singleton()
 export class DeploymentController {
   constructor(
     private readonly deploymentService: DeploymentService,
+    private readonly deploymentListByOwnerService: DeploymentListByOwnerService,
     private readonly authService: AuthService,
     private readonly userWalletRepository: UserWalletRepository
   ) {}
@@ -109,5 +112,15 @@ export class DeploymentController {
         }
       }
     };
+  }
+
+  async listByOwner(
+    address: string,
+    skip: number,
+    limit: number,
+    reverseSorting: boolean,
+    filters: { status?: string } = {}
+  ): Promise<z.infer<typeof ListByOwnerResponseSchema>> {
+    return this.deploymentListByOwnerService.listByOwner(address, skip, limit, reverseSorting, filters);
   }
 }

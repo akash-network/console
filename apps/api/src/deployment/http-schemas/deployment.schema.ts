@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { SignTxResponseOutputSchema } from "@src/billing/routes/sign-and-broadcast-tx/sign-and-broadcast-tx.router";
+import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/wallet.schema";
+import { openApiExampleAddress } from "@src/utils/constants";
 import { LeaseStatusResponseSchema } from "./lease.schema";
 
 export const DeploymentResponseSchema = z.object({
@@ -125,6 +126,51 @@ export const ListDeploymentsResponseSchema = z.object({
       hasMore: z.boolean()
     })
   })
+});
+
+export const listByOwnerMaxLimit = 100;
+
+export const ListByOwnerParamsSchema = z.object({
+  address: z.string().openapi({
+    description: "Wallet Address",
+    example: openApiExampleAddress
+  }),
+  skip: z.string().openapi({
+    description: "Deployments to skip",
+    example: "10"
+  }),
+  limit: z.string().openapi({
+    description: "Deployments to return",
+    example: "10",
+    maximum: listByOwnerMaxLimit
+  })
+});
+
+export const ListByOwnerQuerySchema = z.object({
+  status: z.string().optional().openapi({
+    description: "Filter by status", // TODO: Set possible statuses?
+    example: "closed"
+  }),
+  reverseSorting: z.string().optional().openapi({
+    description: "Reverse sorting",
+    example: "true"
+  })
+});
+
+export const ListByOwnerResponseSchema = z.object({
+  count: z.number(),
+  results: z.array(
+    z.object({
+      owner: z.string(),
+      dseq: z.string(),
+      status: z.string(),
+      createdHeight: z.number(),
+      cpuUnits: z.number(),
+      gpuUnits: z.number(),
+      memoryQuantity: z.number(),
+      storageQuantity: z.number()
+    })
+  )
 });
 
 export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
