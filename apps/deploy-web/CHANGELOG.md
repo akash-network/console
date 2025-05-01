@@ -1,5 +1,24 @@
 
 
+## [2.72.0](https://github.com/akash-network/console/compare/console-web/v2.71.0...console-web/v2.72.0) (2025-05-01)
+
+
+### Features
+
+* **deployment:** managed api all deployments ([#1243](https://github.com/akash-network/console/issues/1243)) ([d86d748](https://github.com/akash-network/console/commit/d86d7484fa5b683329a84c6bfba1f6bcb46132bc))
+
+
+### Bug Fixes
+
+* **deployment:** template list logo dark ([#1287](https://github.com/akash-network/console/issues/1287)) ([49f3fd3](https://github.com/akash-network/console/commit/49f3fd36c20e38bd6a6055804c2e9656881377b6))
+* use placeholder in profile social inputs ([#1289](https://github.com/akash-network/console/issues/1289)) ([444788b](https://github.com/akash-network/console/commit/444788b4a841531239b4579256df358416f79804))
+
+
+### Code Refactoring
+
+* **authorization:** use react-table for deployment grants  ([cfd28ab](https://github.com/akash-network/console/commit/cfd28aba79a349f17293a669f8104b8565db8e8d)), closes [#595](https://github.com/akash-network/console/issues/595)
+* drop react-query 3 ([#1244](https://github.com/akash-network/console/issues/1244)) ([8378b60](https://github.com/akash-network/console/commit/8378b6028610f98b013c09f03596af4506cca32e)), closes [#337](https://github.com/akash-network/console/issues/337) [#337](https://github.com/akash-network/console/issues/337)
+
 ## [2.71.0](https://github.com/akash-network/console/compare/console-web/v2.70.0...console-web/v2.71.0) (2025-04-24)
 
 

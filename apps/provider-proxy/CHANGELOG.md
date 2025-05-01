@@ -1,5 +1,12 @@
 
 
+## [1.6.3](https://github.com/akash-network/console/compare/provider-proxy/v1.6.2...provider-proxy/v1.6.3) (2025-05-01)
+
+
+### Bug Fixes
+
+* **billing:** handle insufficient funds error for user and master wallet ([136162e](https://github.com/akash-network/console/commit/136162e1e91d5e515863b30e678c3d4ce20bad18)), closes [#1107](https://github.com/akash-network/console/issues/1107)
+
 ## [1.6.2](https://github.com/akash-network/console/compare/provider-proxy/v1.6.1...provider-proxy/v1.6.2) (2025-04-17)
 
 
