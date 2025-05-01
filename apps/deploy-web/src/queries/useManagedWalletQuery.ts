@@ -12,6 +12,7 @@ export function useManagedWalletQuery(userId?: string) {
       if (userId) {
         return await managedWalletHttpService.getWallet(userId);
       }
+      return null;
     },
     enabled: !!userId,
     staleTime: Infinity
