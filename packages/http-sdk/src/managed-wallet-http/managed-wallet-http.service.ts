@@ -13,10 +13,10 @@ export class ManagedWalletHttpService extends ApiHttpService {
     return this.addWalletEssentials(this.extractApiData(await this.post<ApiWalletOutput>("v1/start-trial", { data: { userId } }, { withCredentials: true })));
   }
 
-  async getWallet(userId: string) {
+  async getWallet(userId: string): Promise<ApiManagedWalletOutput | null> {
     const [wallet] = this.extractApiData(await this.get<ApiWalletOutput[]>("v1/wallets", { params: { userId } }));
 
-    return wallet && this.addWalletEssentials(wallet);
+    return wallet ? this.addWalletEssentials(wallet) : null;
   }
 
   protected addWalletEssentials(input: ApiWalletOutput): ApiManagedWalletOutput {
