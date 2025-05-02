@@ -1,5 +1,12 @@
 
 
+## [0.22.4](https://github.com/akash-network/console/compare/stats-web/v0.22.3...stats-web/v0.22.4) (2025-05-01)
+
+
+### Code Refactoring
+
+* **authorization:** use react-table for deployment grants  ([cfd28ab](https://github.com/akash-network/console/commit/cfd28aba79a349f17293a669f8104b8565db8e8d)), closes [#595](https://github.com/akash-network/console/issues/595)
+
 ## [0.22.3](https://github.com/akash-network/console/compare/stats-web/v0.22.2...stats-web/v0.22.3) (2025-04-17)
 
 
