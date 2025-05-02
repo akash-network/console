@@ -6,18 +6,18 @@ import { singleton } from "tsyringe";
 
 import { UserWalletOutput } from "@src/billing/repositories";
 import { AUDITOR, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/deployment/config/provider.config";
-import { DeploymentListByOwnerService } from "@src/deployment/services/deployment-list-by-owner/deployment-list-by-owner.service";
+import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import type { UserOutput } from "@src/user/repositories";
 
 const TRIAL_DEPLOYMENT_LIMIT = 5;
 
 @singleton()
 export class TrialValidationService {
-  constructor(private readonly deploymentListByOwnerService: DeploymentListByOwnerService) {}
+  constructor(private readonly deploymentReaderService: DeploymentReaderService) {}
 
   async validateTrialLimit(decoded: EncodeObject, userWallet: UserWalletOutput) {
     if (userWallet.isTrialing && decoded.typeUrl === "/akash.deployment.v1beta3.MsgCreateDeployment") {
-      const deployments = await this.deploymentListByOwnerService.listByOwner(userWallet.address, 0, 1, false, {});
+      const deployments = await this.deploymentReaderService.listByOwner(userWallet.address, 0, 1, false, {});
       assert(deployments.count < TRIAL_DEPLOYMENT_LIMIT, 402, "Trial limit reached. Add funds to your account to deploy more.");
     }
   }
