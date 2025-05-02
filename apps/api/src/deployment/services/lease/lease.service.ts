@@ -5,7 +5,7 @@ import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
-import { DeploymentService } from "../deployment/deployment.service";
+import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 
 @singleton()
 export class LeaseService {
@@ -13,7 +13,7 @@ export class LeaseService {
     private readonly signerService: ManagedSignerService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly providerService: ProviderService,
-    private readonly deploymentService: DeploymentService
+    private readonly deploymentReaderService: DeploymentReaderService
   ) {}
 
   public async createLeasesAndSendManifest(wallet: UserWalletOutput, input: CreateLeaseRequest): Promise<GetDeploymentResponse["data"]> {
@@ -36,7 +36,7 @@ export class LeaseService {
       });
     }
 
-    return await this.deploymentService.findByOwnerAndDseq(wallet.address, input.leases[0].dseq, {
+    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, input.leases[0].dseq, {
       certificate: { certPem: input.certificate.certPem, keyPem: input.certificate.keyPem }
     });
   }

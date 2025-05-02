@@ -16,14 +16,14 @@ import {
   UpdateDeploymentRequest,
   UpdateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
-import { DeploymentService } from "@src/deployment/services/deployment/deployment.service";
-import { DeploymentListByOwnerService } from "@src/deployment/services/deployment-list-by-owner/deployment-list-by-owner.service";
+import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
+import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 
 @singleton()
 export class DeploymentController {
   constructor(
-    private readonly deploymentService: DeploymentService,
-    private readonly deploymentListByOwnerService: DeploymentListByOwnerService,
+    private readonly deploymentReaderService: DeploymentReaderService,
+    private readonly deploymentWriterService: DeploymentWriterService,
     private readonly authService: AuthService,
     private readonly userWalletRepository: UserWalletRepository
   ) {}
@@ -35,7 +35,7 @@ export class DeploymentController {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    const deployment = await this.deploymentService.findByOwnerAndDseq(userWallet.address, dseq);
+    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(userWallet.address, dseq);
 
     return {
       data: deployment
@@ -49,7 +49,7 @@ export class DeploymentController {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    const result = await this.deploymentService.create(userWallet, input);
+    const result = await this.deploymentWriterService.create(userWallet, input);
 
     return {
       data: result
@@ -63,7 +63,7 @@ export class DeploymentController {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    const result = await this.deploymentService.close(userWallet, dseq);
+    const result = await this.deploymentWriterService.close(userWallet, dseq);
 
     return { data: result };
   }
@@ -75,7 +75,7 @@ export class DeploymentController {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    const result = await this.deploymentService.deposit(userWallet, input.dseq, input.deposit);
+    const result = await this.deploymentWriterService.deposit(userWallet, input.dseq, input.deposit);
 
     return { data: result };
   }
@@ -87,7 +87,7 @@ export class DeploymentController {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    const result = await this.deploymentService.update(userWallet, dseq, input);
+    const result = await this.deploymentWriterService.update(userWallet, dseq, input);
 
     return { data: result };
   }
@@ -99,7 +99,7 @@ export class DeploymentController {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    const { deployments, total, hasMore } = await this.deploymentService.list(userWallet.address, { skip, limit });
+    const { deployments, total, hasMore } = await this.deploymentReaderService.list(userWallet.address, { skip, limit });
 
     return {
       data: {
@@ -121,6 +121,6 @@ export class DeploymentController {
     reverseSorting: boolean,
     filters: { status?: string } = {}
   ): Promise<z.infer<typeof ListByOwnerResponseSchema>> {
-    return this.deploymentListByOwnerService.listByOwner(address, skip, limit, reverseSorting, filters);
+    return this.deploymentReaderService.listByOwner(address, skip, limit, reverseSorting, filters);
   }
 }
