@@ -1,3 +1,5 @@
+// import type { StdSignature } from "@cosmjs/amino";
+import encode from "base64url";
 import { ec as EC } from "elliptic";
 
 import type { JWK } from "./types";
@@ -22,8 +24,8 @@ export class WalletUtils {
     return {
       kty: "EC",
       crv: "secp256k1",
-      x: Buffer.from(pub.getX().toArray()).toString("base64url"),
-      y: Buffer.from(pub.getY().toArray()).toString("base64url")
+      x: encode(Buffer.from(pub.getX().toArray())),
+      y: encode(Buffer.from(pub.getY().toArray()))
     };
   }
 
@@ -32,7 +34,7 @@ export class WalletUtils {
    * @param signature - The raw signature as Uint8Array
    * @returns The signature in base64url format
    */
-  static signatureToBase64url(signature: Uint8Array): string {
-    return Buffer.from(signature).toString("base64url");
-  }
+  // static signatureToBase64url(signature: StdSignature): string {
+  //   return Buffer.from(signature).toString("base64url");
+  // }
 }

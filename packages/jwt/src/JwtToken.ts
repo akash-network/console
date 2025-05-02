@@ -1,3 +1,4 @@
+import encode from "base64url";
 import { createJWT } from "did-jwt";
 import { ec as EC } from "elliptic";
 
@@ -6,19 +7,17 @@ import type { CosmosWallet, JWTPayload } from "./types";
 import { WalletUtils } from "./wallet";
 
 export interface JwtTokenOptions {
-  issuer: string;
-  subject: string;
-  audience: string;
-  expiresIn?: number;
-  notBefore?: number;
-  issuedAt?: number;
-  jwtId?: string;
-  version?: string;
+  iss: string;
+  iat?: number;
+  nbf?: number;
+  exp?: number;
+  jti?: string;
+  version?: "v1";
   leases?: {
     access: "full" | "granular";
     permissions?: Array<{
       provider: string;
-      scope: Array<string>;
+      scope: Array<"send-manifest" | "shell" | "logs" | "events" | "restart">;
       dseq?: number;
       gseq?: number;
       oseq?: number;
@@ -46,44 +45,38 @@ export class JwtToken {
    * @returns The signed JWT token
    */
   async createToken(options: JwtTokenOptions): Promise<string> {
-    // Connect to wallet and get key
-    await this.wallet.enable(this.chainId);
-    const { bech32Address, pubKey } = await this.wallet.getKey(this.chainId);
-
     // Create JWK from public key
-    const jwk = WalletUtils.publicKeyToJWK(pubKey);
+    const jwk = WalletUtils.publicKeyToJWK(this.wallet.pubkey);
 
     // Create payload
     const payload: JWTPayload = {
-      iss: options.issuer,
-      sub: options.subject,
-      aud: options.audience,
-      exp: options.expiresIn ? Math.floor(Date.now() / 1000) + options.expiresIn : undefined,
-      nbf: options.notBefore || Math.floor(Date.now() / 1000),
-      iat: options.issuedAt || Math.floor(Date.now() / 1000),
-      jti: options.jwtId,
+      iss: options.iss,
+      iat: options.iat || Math.floor(Date.now() / 1000),
+      nbf: options.nbf || Math.floor(Date.now() / 1000),
+      exp: options.exp ? Math.floor(Date.now() / 1000) + options.exp : undefined,
+      jti: options.jti,
       version: options.version || "v1",
       leases: options.leases || { access: "full" }
     };
 
     // Create signer function
     const signer = async (data: string | Uint8Array): Promise<string> => {
-      const signResponse = await this.wallet.signArbitrary(this.chainId, bech32Address, typeof data === "string" ? data : new TextDecoder().decode(data));
-      return WalletUtils.signatureToBase64url(signResponse.signature);
+      const signResponse = await this.wallet.signArbitrary(this.wallet.address, typeof data === "string" ? data : new TextDecoder().decode(data));
+      return signResponse.signature.replace(/=/g, "");
     };
 
     // Create JWT with ES256K using did-jwt
     const jwt = await createJWT(payload, {
-      issuer: options.issuer,
+      issuer: options.iss,
       signer,
       alg: "ES256K"
     });
 
     // Add JWK to header
     const [header, payloadB64, signature] = jwt.split(".");
-    const headerObj = JSON.parse(Buffer.from(header, "base64url").toString());
+    const headerObj = JSON.parse(Buffer.from(header, "base64").toString());
     headerObj.jwk = jwk;
-    const newHeader = Buffer.from(JSON.stringify(headerObj)).toString("base64url");
+    const newHeader = encode(Buffer.from(JSON.stringify(headerObj)));
 
     return `${newHeader}.${payloadB64}.${signature}`;
   }

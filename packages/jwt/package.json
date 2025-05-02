@@ -14,6 +14,7 @@
     "validate:types": "tsc --noEmit && echo"
   },
   "dependencies": {
+    "@cosmjs/amino": "^0.32.4",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "base64url": "^3.0.1",
