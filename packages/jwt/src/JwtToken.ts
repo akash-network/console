@@ -3,8 +3,7 @@ import { createJWT } from "did-jwt";
 import { ec as EC } from "elliptic";
 
 import { JwtValidator } from "./JwtValidator/JwtValidator";
-import type { CosmosWallet, JWTPayload } from "./types";
-import { WalletUtils } from "./wallet";
+import type { CosmosWallet, JWK, JWTPayload } from "./types";
 
 export interface JwtTokenOptions {
   iss: string;
@@ -46,14 +45,15 @@ export class JwtToken {
    */
   async createToken(options: JwtTokenOptions): Promise<string> {
     // Create JWK from public key
-    const jwk = WalletUtils.publicKeyToJWK(this.wallet.pubkey);
+    const jwk = this.publicKeyToJWK(this.wallet.pubkey);
 
     // Create payload
+    const now = Math.floor(Date.now() / 1000);
     const payload: JWTPayload = {
       iss: options.iss,
-      iat: options.iat || Math.floor(Date.now() / 1000),
-      nbf: options.nbf || Math.floor(Date.now() / 1000),
-      exp: options.exp ? Math.floor(Date.now() / 1000) + options.exp : undefined,
+      iat: options.iat || now,
+      nbf: options.nbf || now,
+      exp: options.exp ? now + options.exp : now + 3600, // Default to 1 hour expiration
       jti: options.jti,
       version: options.version || "v1",
       leases: options.leases || { access: "full" }
@@ -85,22 +85,55 @@ export class JwtToken {
    * Decodes a JWT token
    * @param token - The JWT token to decode
    * @returns The decoded JWT payload
+   * @throws Error if the token is malformed
    */
   decodeToken(token: string): JWTPayload {
-    const [, payload] = token.split(".");
-    return JSON.parse(Buffer.from(payload, "base64url").toString());
+    const parts = token.split(".");
+    if (parts.length !== 3) {
+      throw new Error("Invalid JWT format");
+    }
+
+    try {
+      const [, payload] = parts;
+      return JSON.parse(Buffer.from(payload, "base64url").toString());
+    } catch (error) {
+      throw new Error("Failed to decode JWT token");
+    }
   }
 
   /**
-   * Validates a JWT payload against the schema
+   * Validates a JWT payload against the schema and time-based constraints
    * @param payload - The JWT payload to validate
    * @returns True if the payload is valid, false otherwise
    */
   validatePayload(payload: JWTPayload): boolean {
+    // Check schema validation
     const token = this.createUnsignedToken(payload);
     const result = this.validator.validateToken(token);
-    console.log("Validation errors:", result.errors);
-    return result.isValid;
+    if (!result.isValid) {
+      console.log("Validation errors:", result.errors);
+      return false;
+    }
+
+    // Check time-based validation
+    const now = Math.floor(Date.now() / 1000);
+
+    // Check if token is expired
+    if (payload.exp && payload.exp < now) {
+      return false;
+    }
+
+    // Check if token is not yet valid
+    if (payload.nbf && payload.nbf > now) {
+      return false;
+    }
+
+    // Check if token was issued in the future
+    if (payload.iat && payload.iat > now) {
+      return false;
+    }
+
+    return true;
   }
 
   private createUnsignedToken(payload: JWTPayload): string {
@@ -111,5 +144,24 @@ export class JwtToken {
     const encodedHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
     const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
     return `${encodedHeader}.${encodedPayload}.dummy-signature`;
+  }
+
+  /**
+   * Converts a raw public key to JWK format
+   * @param pubKey - The raw public key as Uint8Array
+   * @returns The public key in JWK format
+   */
+  private publicKeyToJWK(pubKey: Uint8Array): JWK {
+    // Convert pubKey to hex string
+    const pubKeyHex = Buffer.from(pubKey).toString("hex");
+    const keyPair = this.ec.keyFromPublic(pubKeyHex, "hex");
+    const pub = keyPair.getPublic();
+
+    return {
+      kty: "EC",
+      crv: "secp256k1",
+      x: encode(Buffer.from(pub.getX().toArray())),
+      y: encode(Buffer.from(pub.getY().toArray()))
+    };
   }
 }
