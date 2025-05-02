@@ -1,5 +1,2 @@
-import { JwtValidator } from "./JwtValidator/JwtValidator";
-
-export const jwtValidator = new JwtValidator();
-
+export { JwtToken, JwtTokenOptions } from "./JwtToken";
 export { JwtValidator, JwtValidationResult } from "./JwtValidator/JwtValidator";

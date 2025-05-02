@@ -48,11 +48,23 @@ export interface JWTHeader {
 }
 
 export interface JWTPayload {
-  iss?: string;
+  iss: string;
   sub?: string;
   aud?: string;
   exp?: number;
   nbf?: number;
   iat?: number;
   jti?: string;
+  version?: string;
+  leases?: {
+    access: "full" | "granular";
+    permissions?: Array<{
+      provider: string;
+      scope: Array<string>;
+      dseq?: number;
+      gseq?: number;
+      oseq?: number;
+      services?: Array<string>;
+    }>;
+  };
 }

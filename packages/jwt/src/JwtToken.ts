@@ -1,8 +1,9 @@
-import base64url from "base64url";
+import { createJWT } from "did-jwt";
+import { ec as EC } from "elliptic";
 
-import { JwtValidator } from "./JwtValidator/JwtValidator.js";
-import type { CosmosWallet, JWK, JWTHeader, JWTPayload } from "./types.js";
-import { WalletUtils } from "./wallet.js";
+import { JwtValidator } from "./JwtValidator/JwtValidator";
+import type { CosmosWallet, JWTPayload } from "./types";
+import { WalletUtils } from "./wallet";
 
 export interface JwtTokenOptions {
   issuer: string;
@@ -12,17 +13,31 @@ export interface JwtTokenOptions {
   notBefore?: number;
   issuedAt?: number;
   jwtId?: string;
+  version?: string;
+  leases?: {
+    access: "full" | "granular";
+    permissions?: Array<{
+      provider: string;
+      scope: Array<string>;
+      dseq?: number;
+      gseq?: number;
+      oseq?: number;
+      services?: Array<string>;
+    }>;
+  };
 }
 
 export class JwtToken {
   private validator: JwtValidator;
   private wallet: CosmosWallet;
   private chainId: string;
+  private ec: EC;
 
   constructor(wallet: CosmosWallet, chainId: string = "akashnet-2") {
     this.validator = new JwtValidator();
     this.wallet = wallet;
     this.chainId = chainId;
+    this.ec = new EC("secp256k1");
   }
 
   /**
@@ -38,35 +53,39 @@ export class JwtToken {
     // Create JWK from public key
     const jwk = WalletUtils.publicKeyToJWK(pubKey);
 
-    // Create header with algorithm and JWK
-    const header: JWTHeader & { jwk: JWK } = {
-      alg: "ES256K",
-      typ: "JWT",
-      jwk
-    };
-
     // Create payload
     const payload: JWTPayload = {
       iss: options.issuer,
       sub: options.subject,
       aud: options.audience,
       exp: options.expiresIn ? Math.floor(Date.now() / 1000) + options.expiresIn : undefined,
-      nbf: options.notBefore,
+      nbf: options.notBefore || Math.floor(Date.now() / 1000),
       iat: options.issuedAt || Math.floor(Date.now() / 1000),
-      jti: options.jwtId
+      jti: options.jwtId,
+      version: options.version || "v1",
+      leases: options.leases || { access: "full" }
     };
 
-    // Encode header and payload
-    const encodedHeader = base64url(JSON.stringify(header));
-    const encodedPayload = base64url(JSON.stringify(payload));
-    const unsignedJWT = `${encodedHeader}.${encodedPayload}`;
+    // Create signer function
+    const signer = async (data: string | Uint8Array): Promise<string> => {
+      const signResponse = await this.wallet.signArbitrary(this.chainId, bech32Address, typeof data === "string" ? data : new TextDecoder().decode(data));
+      return WalletUtils.signatureToBase64url(signResponse.signature);
+    };
 
-    // Sign the JWT
-    const { signature } = await this.wallet.signArbitrary(this.chainId, bech32Address, unsignedJWT);
-    const encodedSignature = WalletUtils.signatureToBase64url(signature);
+    // Create JWT with ES256K using did-jwt
+    const jwt = await createJWT(payload, {
+      issuer: options.issuer,
+      signer,
+      alg: "ES256K"
+    });
 
-    // Return complete JWT
-    return `${unsignedJWT}.${encodedSignature}`;
+    // Add JWK to header
+    const [header, payloadB64, signature] = jwt.split(".");
+    const headerObj = JSON.parse(Buffer.from(header, "base64url").toString());
+    headerObj.jwk = jwk;
+    const newHeader = Buffer.from(JSON.stringify(headerObj)).toString("base64url");
+
+    return `${newHeader}.${payloadB64}.${signature}`;
   }
 
   /**
@@ -87,6 +106,7 @@ export class JwtToken {
   validatePayload(payload: JWTPayload): boolean {
     const token = this.createUnsignedToken(payload);
     const result = this.validator.validateToken(token);
+    console.log("Validation errors:", result.errors);
     return result.isValid;
   }
 
@@ -95,8 +115,8 @@ export class JwtToken {
       alg: "ES256K",
       typ: "JWT"
     };
-    const encodedHeader = base64url(JSON.stringify(header));
-    const encodedPayload = base64url(JSON.stringify(payload));
+    const encodedHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
+    const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
     return `${encodedHeader}.${encodedPayload}.dummy-signature`;
   }
 }
