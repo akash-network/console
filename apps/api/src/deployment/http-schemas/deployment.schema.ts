@@ -147,8 +147,8 @@ export const ListByOwnerParamsSchema = z.object({
 });
 
 export const ListByOwnerQuerySchema = z.object({
-  status: z.string().optional().openapi({
-    description: "Filter by status", // TODO: Set possible statuses?
+  status: z.enum(["active", "closed"]).optional().openapi({
+    description: "Filter by status",
     example: "closed"
   }),
   reverseSorting: z.string().optional().openapi({

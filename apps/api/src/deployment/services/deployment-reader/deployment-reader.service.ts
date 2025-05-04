@@ -101,7 +101,7 @@ export class DeploymentReaderService {
     };
   }
 
-  public async listByOwner(owner: string, skip: number, limit: number, reverseSorting: boolean, filters: { status?: string } = {}) {
+  public async listByOwner(owner: string, skip: number, limit: number, reverseSorting: boolean, filters: { status?: "active" | "closed" } = {}) {
     const response = await this.deploymentHttpService.loadDeploymentList(owner, filters.status, {
       offset: skip,
       limit: limit,
