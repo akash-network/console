@@ -1,4 +1,7 @@
 import { z } from "zod";
+
+import { openApiExampleProviderAddress } from "@src/utils/constants";
+
 export const ProviderListQuerySchema = z.object({
   scope: z.enum(["all", "trial"]).default("all")
 });
@@ -89,5 +92,28 @@ export const ProviderListResponseSchema = z.array(
   })
 );
 
+export const ProviderActiveLeasesGraphDataParamsSchema = z.object({
+  providerAddress: z.string().openapi({ example: openApiExampleProviderAddress })
+});
+
+export const ProviderActiveLeasesGraphDataResponseSchema = z.object({
+  currentValue: z.number(),
+  compareValue: z.number(),
+  snapshots: z.array(
+    z.object({
+      date: z.string().openapi({ example: "2021-07-01T00:00:00.000Z" }),
+      value: z.number().openapi({ example: 100 })
+    })
+  ),
+  now: z.object({
+    count: z.number().openapi({ example: 100 })
+  }),
+  compare: z.object({
+    count: z.number().openapi({ example: 100 })
+  })
+});
+
 export type ProviderListQuery = z.infer<typeof ProviderListQuerySchema>;
 export type ProviderListResponse = z.infer<typeof ProviderListResponseSchema>;
+export type ProviderActiveLeasesGraphDataParams = z.infer<typeof ProviderActiveLeasesGraphDataParamsSchema>;
+export type ProviderActiveLeasesGraphDataResponse = z.infer<typeof ProviderActiveLeasesGraphDataResponseSchema>;

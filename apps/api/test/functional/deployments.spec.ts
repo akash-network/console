@@ -21,7 +21,7 @@ import { apiNodeUrl, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/c
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
-import { LeaseSeeder } from "@test/seeders/lease.seeder";
+import { LeaseApiResponseSeeder } from "@test/seeders/lease-api-response.seeder";
 import { LeaseStatusSeeder } from "@test/seeders/lease-status.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
@@ -145,7 +145,7 @@ describe("Deployments API", () => {
         }
       });
 
-    const leases = LeaseSeeder.createMany(2, {
+    const leases = LeaseApiResponseSeeder.createMany(2, {
       owner: address,
       dseq,
       state: "active"
@@ -173,7 +173,7 @@ describe("Deployments API", () => {
 
       nock(apiNodeUrl).get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`).reply(200, deploymentInfo);
 
-      const leases = LeaseSeeder.createMany(2, {
+      const leases = LeaseApiResponseSeeder.createMany(2, {
         owner: address,
         dseq,
         state: "active"
