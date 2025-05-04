@@ -158,7 +158,7 @@ export class DeploymentHttpService extends HttpService {
    * @param pagination Optional pagination parameters
    * @returns Paginated response with deployments
    */
-  public async loadDeploymentList(owner: string, state?: string, pagination?: PaginationParams): Promise<DeploymentListResponse> {
+  public async loadDeploymentList(owner: string, state?: "active" | "closed", pagination?: PaginationParams): Promise<DeploymentListResponse> {
     const baseUrl = this.getUri({
       url: `/akash/deployment/v1beta3/deployments/list?filters.owner=${owner}${state ? `&filters.state=${state}` : ""}`
     });

@@ -119,7 +119,7 @@ export class DeploymentController {
     skip: number,
     limit: number,
     reverseSorting: boolean,
-    filters: { status?: string } = {}
+    filters: { status?: "active" | "closed" } = {}
   ): Promise<z.infer<typeof ListByOwnerResponseSchema>> {
     return this.deploymentReaderService.listByOwner(address, skip, limit, reverseSorting, filters);
   }
