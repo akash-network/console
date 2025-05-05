@@ -1,14 +1,14 @@
+import { generateMock } from '@anatine/zod-mock';
 import { faker } from '@faker-js/faker';
 
-import type { ContactPoint } from '@src/alert/model-schemas';
-
-type ContactPointOutput = typeof ContactPoint.$inferSelect;
+import type { ContactPointOutput } from '@src/notifications/repositories/contact-point/contact-point.repository';
+import { contactPointConfigSchema } from '@src/notifications/repositories/contact-point/contact-point.repository';
 
 export const generateContactPoint = ({
   id = faker.string.uuid(),
   userId = faker.string.uuid(),
   type = faker.helpers.arrayElement<ContactPointOutput['type']>(['email']),
-  config = {},
+  config = generateMock(contactPointConfigSchema),
   createdAt = new Date(),
   updatedAt = new Date(),
 }: Partial<ContactPointOutput>): ContactPointOutput => {

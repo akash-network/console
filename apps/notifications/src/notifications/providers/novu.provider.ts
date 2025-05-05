@@ -1,21 +1,14 @@
 import type { Provider } from '@nestjs/common';
-import { Novu } from '@novu/node';
+import { ConfigService } from '@nestjs/config';
+import { Novu } from '@novu/api';
 
-import { LoggerService } from '@src/common/services/logger.service';
+import type { NotificationsConfig } from '@src/notifications/config';
 
 export const NovuProvider: Provider = {
   provide: Novu,
-  useFactory: (loggerService: LoggerService) => {
-    loggerService.setContext('Novu');
-    return {
-      trigger: async (trigger: string, payload: any) => {
-        loggerService.warn({
-          message: 'Triggering Novu notification placeholder',
-          trigger,
-          payload,
-        });
-      },
-    } as unknown as Novu;
-  },
-  inject: [LoggerService],
+  useFactory: (configService: ConfigService<NotificationsConfig>) =>
+    new Novu({
+      secretKey: configService.getOrThrow('notifications.NOVU_SECRET_KEY'),
+    }),
+  inject: [ConfigService],
 };
