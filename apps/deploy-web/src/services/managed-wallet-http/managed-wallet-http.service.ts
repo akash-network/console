@@ -34,12 +34,12 @@ class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
     }
   }
 
-  async getWallet(userId: string): Promise<ApiManagedWalletOutput> {
+  async getWallet(userId: string): Promise<ApiManagedWalletOutput | null> {
     const [wallet] = this.extractApiData(await this.get<ApiWalletOutput[]>("v1/wallets", { params: this.getWalletListParams(userId) }));
 
     this.clearSessionResults();
 
-    return wallet && this.addWalletEssentials(wallet);
+    return wallet ? this.addWalletEssentials(wallet) : null;
   }
 
   private getWalletListParams(userId: string) {

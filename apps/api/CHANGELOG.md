@@ -1,5 +1,19 @@
 
 
+## [2.88.0](https://github.com/akash-network/console/compare/console-api/v2.87.1...console-api/v2.88.0) (2025-05-01)
+
+
+### Features
+
+* **deployment:** managed api all deployments ([#1243](https://github.com/akash-network/console/issues/1243)) ([d86d748](https://github.com/akash-network/console/commit/d86d7484fa5b683329a84c6bfba1f6bcb46132bc))
+* **provider:** can list trial providers, as well as trial/registered providers ([#1288](https://github.com/akash-network/console/issues/1288)) ([313af5b](https://github.com/akash-network/console/commit/313af5b44436beb4dc6faffd495fd078f5e4d3e6)), closes [#1272](https://github.com/akash-network/console/issues/1272)
+
+
+### Bug Fixes
+
+* **billing:** handle insufficient funds error for user and master wallet ([136162e](https://github.com/akash-network/console/commit/136162e1e91d5e515863b30e678c3d4ce20bad18)), closes [#1107](https://github.com/akash-network/console/issues/1107)
+* **deployment:** template list logo dark ([#1287](https://github.com/akash-network/console/issues/1287)) ([49f3fd3](https://github.com/akash-network/console/commit/49f3fd36c20e38bd6a6055804c2e9656881377b6))
+
 ## [2.87.1](https://github.com/akash-network/console/compare/console-api/v2.87.0...console-api/v2.87.1) (2025-04-24)
 
 
