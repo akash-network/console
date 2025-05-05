@@ -2,7 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
-import { SignTxRequestInputSchema, SignTxResponseOutputSchema } from "@src/billing/http-schemas/wallet.schema";
+import { SignTxRequestInputSchema, SignTxResponseOutputSchema } from "@src/billing/http-schemas/tx.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
 const route = createRoute({

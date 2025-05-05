@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/wallet.schema";
+import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/tx.schema";
 import { openApiExampleAddress } from "@src/utils/constants";
 import { LeaseStatusResponseSchema } from "./lease.schema";
 
