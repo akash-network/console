@@ -5,21 +5,30 @@ const PROJECT_DIR = normalize(joinPath(__dirname, "..", "..", ".."));
 const PACKAGE_DIR = normalize(joinPath(__dirname, ".."));
 const OUT_DIR = joinPath(PACKAGE_DIR, "src", "generated");
 const JWT_SCHEMA_URL = "https://raw.githubusercontent.com/akash-network/akash-api/refs/heads/main/specs/jwt-schema.json";
-const JWT_TEST_CASES_URL = "https://raw.githubusercontent.com/akash-network/akash-api/refs/heads/main/testdata/jwt/cases_es256k.json";
+const JWT_SIGNING_TEST_CASES_URL = "https://raw.githubusercontent.com/akash-network/akash-api/refs/heads/main/testdata/jwt/cases_es256k.json";
+const JWT_CLAIMS_TEST_CASES_URL = "https://raw.githubusercontent.com/akash-network/akash-api/refs/heads/main/testdata/jwt/cases_jwt.json.tmpl";
 
 async function main() {
-  console.log(`Generating JWT schema from ${JWT_SCHEMA_URL}`);
+  console.log(`Generating JWT schema and test cases`);
 
   try {
-    const [schema, testCases] = await Promise.all([fetchJson(JWT_SCHEMA_URL), fetchJson(JWT_TEST_CASES_URL)]);
+    const [schema, signingTestCases, claimsTestCases] = await Promise.all([
+      fetchJson(JWT_SCHEMA_URL),
+      fetchJson(JWT_SIGNING_TEST_CASES_URL),
+      fetchJson(JWT_CLAIMS_TEST_CASES_URL)
+    ]);
 
     await fsp.mkdir(OUT_DIR, { recursive: true });
 
     await Promise.all([
       fsp.writeFile(joinPath(OUT_DIR, "jwtSchemaData.ts"), `export const jwtSchemaData = ${JSON.stringify(schema, null, 2)}`),
       fsp.writeFile(
-        joinPath(OUT_DIR, "jwtTestCases.ts"),
-        `// This file contains test cases for JWT validation\nexport const jwtTestCases = ${JSON.stringify(testCases, null, 2)};`
+        joinPath(OUT_DIR, "jwtSigningTestCases.ts"),
+        `// This file contains test cases for JWT signing validation\nexport const jwtSigningTestCases = ${JSON.stringify(signingTestCases, null, 2)};`
+      ),
+      fsp.writeFile(
+        joinPath(OUT_DIR, "jwtClaimsTestCases.ts"),
+        `// This file contains test cases for JWT claims validation\nexport const jwtClaimsTestCases = ${JSON.stringify(claimsTestCases, null, 2)};`
       )
     ]);
 
