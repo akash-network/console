@@ -71,7 +71,7 @@ export class DeploymentReaderService {
     };
   }
 
-  public async list(
+  public async listByOwner(
     owner: string,
     { skip, limit }: { skip?: number; limit?: number }
   ): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
@@ -101,14 +101,26 @@ export class DeploymentReaderService {
     };
   }
 
-  public async listByOwner(owner: string, skip: number, limit: number, reverseSorting: boolean, filters: { status?: "active" | "closed" } = {}) {
-    const response = await this.deploymentHttpService.loadDeploymentList(owner, filters.status, {
+  public async listByOwnerAndStatus({
+    address,
+    status,
+    skip,
+    limit,
+    reverseSorting
+  }: {
+    address: string;
+    status?: "active" | "closed";
+    skip?: number;
+    limit?: number;
+    reverseSorting?: boolean;
+  }) {
+    const response = await this.deploymentHttpService.loadDeploymentList(address, status, {
       offset: skip,
       limit: limit,
       reverse: reverseSorting,
       countTotal: true
     });
-    const leaseResponse = await this.leaseHttpService.listByOwner(owner);
+    const leaseResponse = await this.leaseHttpService.listByOwner(address);
     const providers = response.deployments.length ? await this.providerService.getProviderList() : ([] as ProviderList[]);
 
     return {

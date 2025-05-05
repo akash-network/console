@@ -99,7 +99,10 @@ export class DeploymentController {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    const { deployments, total, hasMore } = await this.deploymentReaderService.list(userWallet.address, { skip, limit });
+    const { deployments, total, hasMore } = await this.deploymentReaderService.listByOwner(userWallet.address, {
+      skip,
+      limit
+    });
 
     return {
       data: {
@@ -114,13 +117,13 @@ export class DeploymentController {
     };
   }
 
-  async listByOwner(
-    address: string,
-    skip: number,
-    limit: number,
-    reverseSorting: boolean,
-    filters: { status?: "active" | "closed" } = {}
-  ): Promise<z.infer<typeof ListByOwnerResponseSchema>> {
-    return this.deploymentReaderService.listByOwner(address, skip, limit, reverseSorting, filters);
+  async listByOwner(query: {
+    address: string;
+    status?: "active" | "closed";
+    skip?: number;
+    limit?: number;
+    reverseSorting?: boolean;
+  }): Promise<z.infer<typeof ListByOwnerResponseSchema>> {
+    return this.deploymentReaderService.listByOwnerAndStatus(query);
   }
 }

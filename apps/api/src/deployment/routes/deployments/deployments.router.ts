@@ -12,7 +12,6 @@ import {
   DepositDeploymentRequestSchema,
   DepositDeploymentResponseSchema,
   GetDeploymentResponseSchema,
-  listByOwnerMaxLimit,
   ListByOwnerParamsSchema,
   ListByOwnerQuerySchema,
   ListByOwnerResponseSchema,
@@ -21,7 +20,6 @@ import {
   UpdateDeploymentRequestSchema,
   UpdateDeploymentResponseSchema
 } from "@src/deployment/http-schemas/deployment.schema";
-import { isValidBech32Address } from "@src/utils/addresses";
 
 const getRoute = createRoute({
   method: "get",
@@ -228,26 +226,15 @@ deploymentsRouter.openapi(listRoute, async function routeListDeployments(c) {
 });
 
 deploymentsRouter.openapi(listByOwnerRoute, async function routeListDeploymentsByOwner(c) {
-  if (!isValidBech32Address(c.req.valid("param").address, "akash")) {
-    return c.text("Invalid address", 400);
-  }
-
-  const skip = parseInt(c.req.valid("param").skip);
-  const limit = Math.min(listByOwnerMaxLimit, parseInt(c.req.valid("param").limit));
-
-  if (isNaN(skip)) {
-    return c.text("Invalid skip.", 400);
-  }
-
-  if (isNaN(limit)) {
-    return c.text("Invalid limit.", 400);
-  }
-
-  const result = await container
-    .resolve(DeploymentController)
-    .listByOwner(c.req.valid("param").address, skip, limit, c.req.valid("query").reverseSorting === "true", {
-      status: c.req.valid("query").status
-    });
+  const { address, skip, limit } = c.req.valid("param");
+  const { status, reverseSorting } = c.req.valid("query");
+  const result = await container.resolve(DeploymentController).listByOwner({
+    address,
+    status,
+    skip,
+    limit,
+    reverseSorting: reverseSorting === "true"
+  });
 
   return c.json(result, 200);
 });
