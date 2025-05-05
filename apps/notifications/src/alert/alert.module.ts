@@ -6,6 +6,7 @@ import type { Client } from 'pg';
 
 import { DeploymentBalanceAlertRepository } from '@src/alert/repositories/deployment-balance-alert/deployment-balance-alert.repository';
 import { RawAlertRepository } from '@src/alert/repositories/raw-alert/raw-alert.repository';
+import { AlertSenderService } from '@src/alert/services/alert-sender/alert-sender.service';
 import { BlockchainNodeHttpService } from '@src/alert/services/blockchain-node-http/blockchain-node-http.service';
 import { ConditionsMatcherService } from '@src/alert/services/conditions-matcher/conditions-matcher.service';
 import { DeploymentService } from '@src/alert/services/deployment/deployment.service';
@@ -49,6 +50,7 @@ import * as schema from './model-schemas';
     RawAlertRepository,
     ConditionsMatcherService,
     DeploymentBalanceAlertRepository,
+    AlertSenderService,
     DeploymentService,
     TemplateService,
     BlockchainNodeHttpService,

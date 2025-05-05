@@ -3,7 +3,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import type { MockProxy } from 'jest-mock-extended';
 
-import { LoggerService } from '@src/common/services/logger.service';
+import { LoggerService } from '@src/common/services/logger/logger.service';
 import { NotificationCommandDto } from '@src/notifications/dto/NotificationCommand.dto';
 import { NotificationRouterService } from '@src/notifications/services/notification-router/notification-router.service';
 import { NotificationController } from './notification.controller';

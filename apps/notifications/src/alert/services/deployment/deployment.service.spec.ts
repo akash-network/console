@@ -1,9 +1,10 @@
 import { faker } from '@faker-js/faker';
 import { Test, type TestingModule } from '@nestjs/testing';
 import type { MockProxy } from 'jest-mock-extended';
+import { Ok } from 'ts-results';
 
 import { BlockchainNodeHttpService } from '@src/alert/services/blockchain-node-http/blockchain-node-http.service';
-import { LoggerService } from '@src/common/services/logger.service';
+import { LoggerService } from '@src/common/services/logger/logger.service';
 import { DeploymentService } from './deployment.service';
 
 import { MockProvider } from '@test/mocks/provider.mock';
@@ -36,7 +37,7 @@ describe(DeploymentService.name, () => {
 
       const balance = await service.getDeploymentBalance(owner, dseq);
 
-      expect(balance).toEqual({ balance: 2000 });
+      expect(balance).toEqual(Ok({ balance: 2000 }));
       expect(blockchainNodeHttpService.get).toHaveBeenCalledWith(
         '/akash/deployment/v1beta3/deployments/info',
         {
@@ -73,7 +74,13 @@ describe(DeploymentService.name, () => {
 
       const balance = await service.getDeploymentBalance(owner, dseq);
 
-      expect(balance).toBeNull();
+      expect(balance).toMatchObject({
+        err: true,
+        val: {
+          message: 'Deployment closed',
+          code: 'DEPLOYMENT_CLOSED',
+        },
+      });
       expect(blockchainNodeHttpService.get).toHaveBeenCalledWith(
         '/akash/deployment/v1beta3/deployments/info',
         {
