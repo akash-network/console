@@ -24,6 +24,7 @@
     "@akashnetwork/akashjs": "^0.10.0",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/http-sdk": "*",
+    "@akashnetwork/jwt": "*",
     "@akashnetwork/logging": "*",
     "@akashnetwork/network-store": "*",
     "@akashnetwork/ui": "*",
