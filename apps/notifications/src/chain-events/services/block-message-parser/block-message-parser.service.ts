@@ -5,7 +5,7 @@ import {
 import type { Block } from '@cosmjs/stargate';
 import { Injectable } from '@nestjs/common';
 
-import { LoggerService } from '@src/common/services/logger.service';
+import { LoggerService } from '@src/common/services/logger/logger.service';
 import { CosmjsDecodingService } from '../cosmjs-decoding/cosmjs-decoding.service';
 import { MessageDecoderService } from '../message-decoder/message-decoder.service';
 

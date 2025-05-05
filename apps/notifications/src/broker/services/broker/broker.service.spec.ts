@@ -8,7 +8,7 @@ import PgBoss from 'pg-boss';
 
 import type { BrokerModuleConfig } from '@src/broker/broker-module.definition';
 import { MODULE_OPTIONS_TOKEN } from '@src/broker/broker-module.definition';
-import { LoggerService } from '@src/common/services/logger.service';
+import { LoggerService } from '@src/common/services/logger/logger.service';
 import { BrokerService } from './broker.service';
 
 import { MockProvider } from '@test/mocks/provider.mock';

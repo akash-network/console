@@ -10,7 +10,7 @@ import type PgBoss from 'pg-boss';
 import { z } from 'zod';
 
 import { BrokerService } from '@src/broker/services/broker/broker.service';
-import { LoggerService } from '@src/common/services/logger.service';
+import { LoggerService } from '@src/common/services/logger/logger.service';
 import { PgBossHandlerService } from './pg-boss-handler.service';
 
 import { MockProvider } from '@test/mocks/provider.mock';

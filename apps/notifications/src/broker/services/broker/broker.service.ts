@@ -6,7 +6,7 @@ import {
   BrokerModuleConfig,
   MODULE_OPTIONS_TOKEN,
 } from '@src/broker/broker-module.definition';
-import { LoggerService } from '@src/common/services/logger.service';
+import { LoggerService } from '@src/common/services/logger/logger.service';
 
 type EventPayload = object;
 

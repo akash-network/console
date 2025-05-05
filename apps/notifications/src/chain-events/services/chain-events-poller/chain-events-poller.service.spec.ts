@@ -12,7 +12,7 @@ import { setTimeout as delay } from 'timers/promises';
 import { BrokerService } from '@src/broker';
 import type { ChainEventsConfig } from '@src/chain-events/config';
 import { BlockCursorRepository } from '@src/chain-events/repositories/block-cursor/block-cursor.repository';
-import { LoggerService } from '@src/common/services/logger.service';
+import { LoggerService } from '@src/common/services/logger/logger.service';
 import { ShutdownService } from '@src/common/services/shutdown/shutdown.service';
 import { BlockMessageService } from '../block-message/block-message.service';
 import type { BlockData } from '../block-message-parser/block-message-parser.service';
