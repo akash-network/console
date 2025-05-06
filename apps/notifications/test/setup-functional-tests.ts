@@ -9,12 +9,15 @@ if (!testPath) {
   process.exit(1);
 }
 
-const dbService = new TestDatabaseService(testPath);
+const EXCLUSIONS = ['http-tools.spec.ts'];
 
-beforeAll(async () => {
-  await dbService.setup();
-}, 10000);
+if (!EXCLUSIONS.some((path) => testPath.endsWith(path))) {
+  const dbService = new TestDatabaseService(testPath);
+  beforeAll(async () => {
+    await dbService.setup();
+  }, 10000);
 
-afterAll(async () => {
-  await dbService.teardown();
-}, 10000);
+  afterAll(async () => {
+    await dbService.teardown();
+  }, 10000);
+}

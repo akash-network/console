@@ -3,11 +3,12 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { getProviderDetail } from "@src/services/db/providerStatusService";
 import { openApiExampleProviderAddress } from "@src/utils/constants";
 
-const statsItemSchema = () => z.object({
-  active: z.number(),
-  available: z.number(),
-  pending: z.number(),
-});
+const statsItemSchema = () =>
+  z.object({
+    active: z.number(),
+    available: z.number(),
+    pending: z.number()
+  });
 const route = createRoute({
   method: "get",
   path: "/providers/{address}",
@@ -57,7 +58,7 @@ const route = createRoute({
               memory: statsItemSchema(),
               storage: z.object({
                 ephemeral: statsItemSchema(),
-                persistent: statsItemSchema(),
+                persistent: statsItemSchema()
               })
             }),
             activeStats: z.object({

@@ -1,19 +1,17 @@
 import { generateMock } from '@anatine/zod-mock';
 import { faker } from '@faker-js/faker';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import nock from 'nock';
 
-import { AlertModule } from '@src/alert/alert.module';
-import { ChainEventsController } from '@src/alert/controllers/chain-events/chain-events.controller';
-import { ChainBlockCreatedDto } from '@src/alert/dto/chain-block-created.dto';
-import * as schema from '@src/alert/model-schemas';
-import { BrokerModule, BrokerService } from '@src/broker';
 import { DRIZZLE_PROVIDER_TOKEN } from '@src/config/db.config';
-import type { GlobalEnvConfig } from '@src/config/env.config';
-import { globalEnvSchema } from '@src/config/env.config';
+import { BrokerService } from '@src/infrastructure/broker';
+import AlertEventsModule from '@src/interfaces/alert-events/alert-events.module';
+import { ChainEventsHandler } from '@src/interfaces/alert-events/handlers/chain-events/chain-events.handler';
+import { ChainBlockCreatedDto } from '@src/modules/alert/dto/chain-block-created.dto';
+import * as schema from '@src/modules/alert/model-schemas';
 
 import { mockAkashAddress } from '@test/seeders/akash-address.seeder';
 import { generateContactPoint } from '@test/seeders/contact-point.seeder';
@@ -23,7 +21,7 @@ import { generateDeploymentBalanceResponse } from '@test/seeders/deployment-bala
 describe('balance alerts', () => {
   it('should send an alert based on conditions', async () => {
     const { module, chainApi } = await setup();
-    const controller = module.get(ChainEventsController);
+    const controller = module.get(ChainEventsHandler);
     const brokerService = module.get(BrokerService);
     const db = module.get<NodePgDatabase<typeof schema>>(
       DRIZZLE_PROVIDER_TOKEN,
@@ -44,14 +42,9 @@ describe('balance alerts', () => {
     const matchingAlert = generateDeploymentBalanceAlert({
       contactPointId: contactPoint.id,
       conditions: {
-        value: [
-          {
-            field: 'balance',
-            value: 10000000,
-            operator: 'lt',
-          },
-        ],
-        operator: 'and',
+        field: 'balance',
+        value: 10000000,
+        operator: 'lt',
       },
       dseq: String(matchingDseq),
       owner,
@@ -117,23 +110,7 @@ describe('balance alerts', () => {
 
   async function setup() {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [
-        AlertModule,
-        ConfigModule.forRoot({
-          isGlobal: true,
-          skipProcessEnv: true,
-          validate: (config) => globalEnvSchema.parse(config),
-        }),
-        BrokerModule.registerAsync({
-          useFactory: async (
-            configService: ConfigService<GlobalEnvConfig>,
-          ) => ({
-            appName: configService.getOrThrow('APP_NAME'),
-            postgresUri: configService.getOrThrow('EVENT_BROKER_POSTGRES_URI'),
-          }),
-          inject: [ConfigService],
-        }),
-      ],
+      imports: [AlertEventsModule],
     }).compile();
 
     const chainApi = nock(

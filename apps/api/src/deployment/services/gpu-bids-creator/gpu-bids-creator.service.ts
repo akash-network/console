@@ -23,8 +23,8 @@ export class GpuBidsCreatorService {
 
   constructor(
     private readonly config: BillingConfigService,
-    private readonly bidHttpService: BidHttpService,
-  ) { }
+    private readonly bidHttpService: BidHttpService
+  ) {}
 
   async createGpuBids() {
     if (!env.GPU_BOT_WALLET_MNEMONIC) throw new Error("The env variable GPU_BOT_WALLET_MNEMONIC is not set.");
