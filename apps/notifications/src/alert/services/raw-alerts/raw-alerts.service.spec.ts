@@ -5,9 +5,9 @@ import type { MockProxy } from 'jest-mock-extended';
 import { MsgCloseDeploymentDto } from '@src/alert/dto/msg-close-deployment.dto';
 import type { AlertOutput } from '@src/alert/repositories/raw-alert/raw-alert.repository';
 import { RawAlertRepository } from '@src/alert/repositories/raw-alert/raw-alert.repository';
+import { AlertSenderService } from '@src/alert/services/alert-sender/alert-sender.service';
 import { TemplateService } from '@src/alert/services/template/template.service';
-import { BrokerService } from '@src/broker';
-import { LoggerService } from '@src/common/services/logger.service';
+import { LoggerService } from '@src/common/services/logger/logger.service';
 import { ConditionsMatcherService } from '../conditions-matcher/conditions-matcher.service';
 import { RawAlertsService } from './raw-alerts.service';
 
@@ -17,10 +17,14 @@ import { generateRawAlert } from '@test/seeders/raw-alert.seeder';
 describe(RawAlertsService.name, () => {
   describe('alertFor', () => {
     it('should send notification when event conditions match', async () => {
-      const { service, alertRepository, conditionsMatcher, brokerService } =
-        await setup();
+      const {
+        service,
+        alertRepository,
+        conditionsMatcher,
+        alertSenderService,
+      } = await setup();
 
-      const mockEvent = generateMock(MsgCloseDeploymentDto.schema);
+      const event = generateMock(MsgCloseDeploymentDto.schema);
 
       const alert = generateRawAlert({
         eventConditions: {
@@ -28,8 +32,6 @@ describe(RawAlertsService.name, () => {
           value: 'akash.deployment.v1beta3.MsgCloseDeployment',
           operator: 'eq',
         },
-        template:
-          'Deployment {{value.id.dseq.low}} was closed by {{value.id.owner}}',
       });
 
       const alerts: AlertOutput[] = [alert];
@@ -39,25 +41,27 @@ describe(RawAlertsService.name, () => {
 
       conditionsMatcher.isMatching.mockReturnValue(true);
 
-      await service.alertFor(mockEvent);
+      await service.alertFor(event);
 
       expect(conditionsMatcher.isMatching).toHaveBeenCalledWith(
         alert.eventConditions,
-        mockEvent,
+        event,
       );
-      expect(brokerService.publish).toHaveBeenCalledWith(
-        'notification.v1.send',
-        {
-          message: `Deployment ${mockEvent.value.id.dseq.low} was closed by ${mockEvent.value.id.owner}`,
-        },
-      );
+      expect(alertSenderService.send).toHaveBeenCalledWith({
+        alert,
+        vars: event,
+      });
     });
 
     it('should not send notification when event conditions do not match', async () => {
-      const { service, alertRepository, conditionsMatcher, brokerService } =
-        await setup();
+      const {
+        service,
+        alertRepository,
+        conditionsMatcher,
+        alertSenderService,
+      } = await setup();
 
-      const mockEvent = generateMock(MsgCloseDeploymentDto.schema);
+      const event = generateMock(MsgCloseDeploymentDto.schema);
 
       const alert = generateRawAlert({
         eventConditions: {
@@ -74,13 +78,13 @@ describe(RawAlertsService.name, () => {
 
       conditionsMatcher.isMatching.mockReturnValue(false);
 
-      await service.alertFor(mockEvent);
+      await service.alertFor(event);
 
       expect(conditionsMatcher.isMatching).toHaveBeenCalledWith(
         alert.eventConditions,
-        mockEvent,
+        event,
       );
-      expect(brokerService.publish).not.toHaveBeenCalled();
+      expect(alertSenderService.send).not.toHaveBeenCalled();
     });
 
     it('should log error if alert processing fails', async () => {
@@ -88,11 +92,11 @@ describe(RawAlertsService.name, () => {
         service,
         alertRepository,
         conditionsMatcher,
-        brokerService,
+        alertSenderService,
         loggerService,
       } = await setup();
 
-      const mockEvent = generateMock(MsgCloseDeploymentDto.schema);
+      const event = generateMock(MsgCloseDeploymentDto.schema);
 
       const alert = generateRawAlert({
         eventConditions: {
@@ -112,29 +116,29 @@ describe(RawAlertsService.name, () => {
         throw error;
       });
 
-      await service.alertFor(mockEvent);
+      await service.alertFor(event);
 
-      expect(brokerService.publish).not.toHaveBeenCalled();
+      expect(alertSenderService.send).not.toHaveBeenCalled();
       expect(loggerService.error).toHaveBeenCalledWith({
         event: 'ALERT_FAILURE',
         alert,
-        triggerEvent: mockEvent,
+        triggerEvent: event,
         error,
       });
     });
 
     it('should log error if alert repository call fails and reject', async () => {
-      const { service, alertRepository, loggerService, brokerService } =
+      const { service, alertRepository, loggerService, alertSenderService } =
         await setup();
 
       const error = new Error('test');
       alertRepository.paginate.mockRejectedValue(error);
 
-      const mockEvent = generateMock(MsgCloseDeploymentDto.schema);
+      const event = generateMock(MsgCloseDeploymentDto.schema);
 
-      await expect(service.alertFor(mockEvent)).rejects.toBe(error);
+      await expect(service.alertFor(event)).rejects.toBe(error);
 
-      expect(brokerService.publish).not.toHaveBeenCalled();
+      expect(alertSenderService.send).not.toHaveBeenCalled();
       expect(loggerService.error).toHaveBeenCalledWith({
         event: 'ALERT_FAILURE',
         error,
@@ -142,10 +146,14 @@ describe(RawAlertsService.name, () => {
     });
 
     it('should process multiple alerts in parallel', async () => {
-      const { service, alertRepository, conditionsMatcher, brokerService } =
-        await setup();
+      const {
+        service,
+        alertRepository,
+        conditionsMatcher,
+        alertSenderService,
+      } = await setup();
 
-      const mockEvent = generateMock(MsgCloseDeploymentDto.schema);
+      const event = generateMock(MsgCloseDeploymentDto.schema);
 
       const alert1 = generateRawAlert({
         eventConditions: {
@@ -153,7 +161,6 @@ describe(RawAlertsService.name, () => {
           value: 'akash.deployment.v1beta3.MsgCloseDeployment',
           operator: 'eq',
         },
-        template: 'Alert 1: DSEQ {{value.id.dseq.low}}',
       });
 
       const alert2 = generateRawAlert({
@@ -162,7 +169,6 @@ describe(RawAlertsService.name, () => {
           value: 'akash.deployment.v1beta3.MsgCloseDeployment',
           operator: 'eq',
         },
-        template: 'Alert 2: Owner {{value.id.owner}}',
       });
 
       const alerts: AlertOutput[] = [alert1, alert2];
@@ -172,25 +178,29 @@ describe(RawAlertsService.name, () => {
 
       conditionsMatcher.isMatching.mockReturnValue(true);
 
-      await service.alertFor(mockEvent);
+      await service.alertFor(event);
 
-      expect(brokerService.publish).toHaveBeenCalledTimes(2);
-      expect(brokerService.publish).toHaveBeenCalledWith(
-        'notification.v1.send',
-        { message: `Alert 1: DSEQ ${mockEvent.value.id.dseq.low}` },
-      );
-      expect(brokerService.publish).toHaveBeenCalledWith(
-        'notification.v1.send',
-        { message: `Alert 2: Owner ${mockEvent.value.id.owner}` },
-      );
+      expect(alertSenderService.send).toHaveBeenCalledTimes(2);
+      expect(alertSenderService.send).toHaveBeenCalledWith({
+        alert: alert1,
+        vars: event,
+      });
+      expect(alertSenderService.send).toHaveBeenCalledWith({
+        alert: alert2,
+        vars: event,
+      });
     });
 
     it('should correctly handle complex condition matching', async () => {
-      const { service, alertRepository, conditionsMatcher, brokerService } =
-        await setup();
+      const {
+        service,
+        alertRepository,
+        conditionsMatcher,
+        alertSenderService,
+      } = await setup();
 
-      const mockEvent = generateMock(MsgCloseDeploymentDto.schema);
-      const owner = mockEvent.value.id.owner;
+      const event = generateMock(MsgCloseDeploymentDto.schema);
+      const owner = event.value.id.owner;
 
       const alert = generateRawAlert({
         eventConditions: {
@@ -208,8 +218,6 @@ describe(RawAlertsService.name, () => {
             },
           ],
         },
-        template:
-          'Deployment {{value.id.dseq.low}} closed by {{value.id.owner}}',
       });
 
       const alerts: AlertOutput[] = [alert];
@@ -219,18 +227,16 @@ describe(RawAlertsService.name, () => {
 
       conditionsMatcher.isMatching.mockReturnValue(true);
 
-      await service.alertFor(mockEvent);
+      await service.alertFor(event);
 
       expect(conditionsMatcher.isMatching).toHaveBeenCalledWith(
         alert.eventConditions,
-        mockEvent,
+        event,
       );
-      expect(brokerService.publish).toHaveBeenCalledWith(
-        'notification.v1.send',
-        {
-          message: `Deployment ${mockEvent.value.id.dseq.low} closed by ${owner}`,
-        },
-      );
+      expect(alertSenderService.send).toHaveBeenCalledWith({
+        alert,
+        vars: event,
+      });
     });
   });
 
@@ -239,7 +245,7 @@ describe(RawAlertsService.name, () => {
     loggerService: MockProxy<LoggerService>;
     alertRepository: MockProxy<RawAlertRepository>;
     conditionsMatcher: MockProxy<ConditionsMatcherService>;
-    brokerService: MockProxy<BrokerService>;
+    alertSenderService: MockProxy<AlertSenderService>;
   }> {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -247,8 +253,8 @@ describe(RawAlertsService.name, () => {
         TemplateService,
         MockProvider(RawAlertRepository),
         MockProvider(ConditionsMatcherService),
-        MockProvider(BrokerService),
         MockProvider(LoggerService),
+        MockProvider(AlertSenderService),
       ],
     }).compile();
 
@@ -260,7 +266,8 @@ describe(RawAlertsService.name, () => {
       conditionsMatcher: module.get<MockProxy<ConditionsMatcherService>>(
         ConditionsMatcherService,
       ),
-      brokerService: module.get<MockProxy<BrokerService>>(BrokerService),
+      alertSenderService:
+        module.get<MockProxy<AlertSenderService>>(AlertSenderService),
     };
   }
 });

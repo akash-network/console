@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { Handler } from '@src/broker';
-import { LoggerService } from '@src/common/services/logger.service';
+import { LoggerService } from '@src/common/services/logger/logger.service';
 import { NotificationCommandDto } from '@src/notifications/dto/NotificationCommand.dto';
 import { NotificationRouterService } from '@src/notifications/services/notification-router/notification-router.service';
 
@@ -19,6 +19,6 @@ export class NotificationController {
     dto: NotificationCommandDto,
   })
   async send(event: NotificationCommandDto) {
-    await this.notificationRouter.send(event);
+    return await this.notificationRouter.send(event);
   }
 }

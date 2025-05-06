@@ -55,7 +55,8 @@ describe('balance alerts', () => {
       },
       dseq: String(matchingDseq),
       owner,
-      template: `deployment ${matchingDseq} balance is {{balance}} < 10000000 uAKT`,
+      summary: `deployment low: ${matchingDseq}`,
+      description: `deployment ${matchingDseq} balance is {{balance}} < 10000000 uAKT`,
       minBlockHeight: CURRENT_HEIGHT,
     });
 
@@ -73,7 +74,8 @@ describe('balance alerts', () => {
       },
       dseq: String(throttlingDseq),
       owner: mockAkashAddress(),
-      template: `deployment ${matchingDseq} balance is {{balance}} < 10000000 uAKT`,
+      summary: `deployment low: ${matchingDseq}`,
+      description: `deployment ${matchingDseq} balance is {{balance}} < 10000000 uAKT`,
       minBlockHeight: CURRENT_HEIGHT + 10,
     });
 
@@ -103,7 +105,11 @@ describe('balance alerts', () => {
 
     expect(brokerService.publish).toHaveBeenCalledTimes(1);
     expect(brokerService.publish).toHaveBeenCalledWith('notification.v1.send', {
-      message: `FIRING: deployment ${matchingDseq} balance is 800000 < 10000000 uAKT`,
+      contactPointId: contactPoint.id,
+      payload: {
+        summary: `[FIRING] deployment low: ${matchingDseq}`,
+        description: `deployment ${matchingDseq} balance is 800000 < 10000000 uAKT`,
+      },
     });
 
     await module.close();

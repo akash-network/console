@@ -50,7 +50,8 @@ describe('raw alerts', () => {
         ],
         operator: 'and',
       },
-      template: 'deployment {{value.id.dseq.low}} is closed',
+      summary: 'deployment {{value.id.dseq.low}} closed',
+      description: 'deployment {{value.id.dseq.low}} is closed',
     });
 
     const mismatchingAlert = generateRawAlert({
@@ -70,7 +71,8 @@ describe('raw alerts', () => {
         ],
         operator: 'and',
       },
-      template: 'deployment {{value.id.dseq.low}} is closed',
+      summary: 'deployment {{value.id.dseq.low}} closed',
+      description: 'deployment {{value.id.dseq.low}} is closed',
     });
 
     await db.insert(schema.RawAlert).values([matchingAlert, mismatchingAlert]);
@@ -83,7 +85,11 @@ describe('raw alerts', () => {
 
     expect(brokerService.publish).toHaveBeenCalledTimes(1);
     expect(brokerService.publish).toHaveBeenCalledWith('notification.v1.send', {
-      message: `deployment ${dseq} is closed`,
+      contactPointId: contactPoint.id,
+      payload: {
+        summary: `deployment ${dseq} closed`,
+        description: `deployment ${dseq} is closed`,
+      },
     });
 
     await module.close();

@@ -22,6 +22,9 @@ export default {
     '!src/console.ts',
     '!src/test/**/*',
     '!src/**/index.ts',
+    '!src/**/*.module.ts',
+    '!src/**/*.config.ts',
+    '!src/notifications/providers/novu.provider.ts',
   ],
   projects: [
     {
