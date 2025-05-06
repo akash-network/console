@@ -2,6 +2,7 @@ import Ajv from "ajv";
 import addFormats from "ajv-formats";
 
 import { jwtSchemaData } from "../generated/jwtSchemaData";
+import type { JWTPayload } from "../types";
 
 export interface JwtValidationResult {
   isValid: boolean;
@@ -17,7 +18,12 @@ export class JwtValidator {
   private ajv: Ajv;
 
   constructor() {
-    this.ajv = new Ajv({ allErrors: true });
+    this.ajv = new Ajv({
+      allErrors: true,
+      strict: false,
+      strictTypes: false,
+      strictSchema: false
+    });
     addFormats(this.ajv);
   }
 
@@ -26,47 +32,46 @@ export class JwtValidator {
    * @param token The JWT token to validate
    * @returns Validation result with errors if any
    */
-  validateToken(token: string): JwtValidationResult {
+  validateToken(token: string | JWTPayload): JwtValidationResult {
     const result: JwtValidationResult = {
       isValid: false,
       errors: []
     };
 
     try {
-      // Split token into parts
-      const parts = token.split(".");
-      if (parts.length !== 3) {
-        result.errors.push("Error validating token: Invalid token format");
-        return result;
+      let payload: Record<string, any>;
+
+      if (typeof token === "string") {
+        // Split token into parts
+        const parts = token.split(".");
+        if (parts.length !== 3) {
+          result.errors.push("Error validating token: Invalid token format");
+          return result;
+        }
+
+        const [headerB64, payloadB64, signature] = parts;
+
+        // Decode header and payload
+        const header = this.base64Decode(headerB64);
+        payload = this.base64Decode(payloadB64);
+
+        result.decodedToken = {
+          header,
+          payload,
+          signature
+        };
+
+        // Validate header
+        if (!header.alg) {
+          result.errors.push("Missing required field in header: alg");
+          return result;
+        }
+      } else {
+        payload = token;
       }
 
-      const [headerB64, payloadB64, signature] = parts;
-
-      // Decode header and payload
-      const header = this.base64Decode(headerB64);
-      const payload = this.base64Decode(payloadB64);
-
-      result.decodedToken = {
-        header,
-        payload,
-        signature
-      };
-
-      // Validate header
-      if (!header.alg) {
-        result.errors.push("Missing required field in header: alg");
-        return result;
-      }
-
-      // Create a simplified schema that matches AJV's capabilities
-      const schema = {
-        type: jwtSchemaData.type,
-        required: jwtSchemaData.required,
-        properties: jwtSchemaData.properties,
-        additionalProperties: jwtSchemaData.additionalProperties
-      };
-
-      const validate = this.ajv.compile(schema);
+      // Use the schema directly from jwtSchemaData
+      const validate = this.ajv.compile(jwtSchemaData);
       let valid = validate(payload);
 
       if (!valid) {
@@ -86,9 +91,46 @@ export class JwtValidator {
       }
 
       // Additional validation for granular access
-      if (payload.leases?.access === "granular" && !payload.leases?.permissions) {
-        result.errors.push("Missing required field: permissions");
-        valid = false;
+      if (payload.leases?.access === "granular") {
+        if (!payload.leases?.permissions) {
+          result.errors.push("Missing required field: permissions");
+          valid = false;
+        } else {
+          // Check for duplicate providers
+          const providers = new Set<string>();
+          for (const perm of payload.leases.permissions) {
+            if (providers.has(perm.provider)) {
+              result.errors.push("Duplicate provider in permissions");
+              valid = false;
+              break;
+            }
+            providers.add(perm.provider);
+
+            // Check for duplicate scopes within each permission
+            const scopes = new Set<string>();
+            for (const scope of perm.scope) {
+              if (scopes.has(scope)) {
+                result.errors.push("Duplicate scope in permission");
+                valid = false;
+                break;
+              }
+              scopes.add(scope);
+            }
+
+            // Check for duplicate services within each permission
+            if (perm.services) {
+              const services = new Set<string>();
+              for (const service of perm.services) {
+                if (services.has(service)) {
+                  result.errors.push("Duplicate service in permission");
+                  valid = false;
+                  break;
+                }
+                services.add(service);
+              }
+            }
+          }
+        }
       }
 
       result.isValid = result.errors.length === 0;

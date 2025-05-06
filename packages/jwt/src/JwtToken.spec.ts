@@ -124,7 +124,7 @@ describe("JwtToken", () => {
   });
 
   describe("validatePayload", () => {
-    it("should validate a valid JWT payload with all required fields", () => {
+    it("should validate a valid JWT payload with all required fields", async () => {
       const now = Math.floor(Date.now() / 1000);
       const payload: JWTPayload = {
         iss: generateAkashAddress(),
@@ -137,10 +137,10 @@ describe("JwtToken", () => {
         }
       };
 
-      expect(jwtToken.validatePayload(payload)).toBe(true);
+      expect(await jwtToken.validatePayload(payload)).toBe(true);
     });
 
-    it("should reject a payload missing required fields", () => {
+    it("should reject a payload missing required fields", async () => {
       const payload: Partial<JWTPayload> = {
         iss: generateAkashAddress(),
         iat: Math.floor(Date.now() / 1000),
@@ -148,10 +148,10 @@ describe("JwtToken", () => {
         // missing required fields
       };
 
-      expect(jwtToken.validatePayload(payload as JWTPayload)).toBe(false);
+      expect(await jwtToken.validatePayload(payload as JWTPayload)).toBe(false);
     });
 
-    it("should reject an expired payload", () => {
+    it("should reject an expired payload", async () => {
       const now = Math.floor(Date.now() / 1000);
       const payload: JWTPayload = {
         iss: generateAkashAddress(),
@@ -164,10 +164,10 @@ describe("JwtToken", () => {
         }
       };
 
-      expect(jwtToken.validatePayload(payload)).toBe(false);
+      expect(await jwtToken.validatePayload(payload)).toBe(false);
     });
 
-    it("should reject a payload with invalid not-before time", () => {
+    it("should reject a payload with invalid not-before time", async () => {
       const now = Math.floor(Date.now() / 1000);
       const payload: JWTPayload = {
         iss: generateAkashAddress(),
@@ -180,7 +180,7 @@ describe("JwtToken", () => {
         }
       };
 
-      expect(jwtToken.validatePayload(payload)).toBe(false);
+      expect(await jwtToken.validatePayload(payload)).toBe(false);
     });
   });
 
@@ -240,28 +240,26 @@ describe("JwtToken", () => {
     expect(payloadObj.leases.permissions[0].scope).toEqual(["send-manifest", "shell"]);
   });
 
-  it("should validate payload against schema", () => {
+  it("should validate payload against schema", async () => {
     const now = Math.floor(Date.now() / 1000);
     const validPayload: JWTPayload = {
-      iss: "akash1p2e73vphy9umsx02y6xqr49yeu0dn9s3pytkvk",
+      iss: generateAkashAddress(),
+      version: "v1",
       iat: now,
       nbf: now,
       exp: now + 3600,
-      version: "v1",
       leases: {
         access: "full" as const
       }
     };
 
     const invalidPayload: Partial<JWTPayload> = {
-      iss: "akash1p2e73vphy9umsx02y6xqr49yeu0dn9s3pytkvk",
-      iat: now,
-      nbf: now
-      // missing required fields
+      iss: "invalid_address",
+      version: "invalid_version"
     };
 
-    expect(jwtToken.validatePayload(validPayload)).toBe(true);
-    expect(jwtToken.validatePayload(invalidPayload as JWTPayload)).toBe(false);
+    expect(await jwtToken.validatePayload(validPayload)).toBe(true);
+    expect(await jwtToken.validatePayload(invalidPayload as JWTPayload)).toBe(false);
   });
 
   it("should decode token correctly", async () => {

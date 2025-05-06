@@ -2,6 +2,25 @@ import type { StdSignature } from "@cosmjs/amino";
 import type { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 
 import type { jwtClaimsTestCases } from "../generated/jwtClaimsTestCases";
+import type { JWTPayload } from "../types";
+
+/**
+ * Generates Akash addresses for testing purposes
+ */
+export class AkashAddressSeeder {
+  private static readonly PREFIX = "akash1";
+  private static readonly ADDRESS_LENGTH = 38; // 38 chars after akash1 prefix
+
+  /**
+   * Creates a random Akash address
+   * @returns A random Akash address string
+   */
+  static create(): string {
+    const chars = "0123456789abcdefghijklmnopqrstuvwxyz";
+    const randomChars = Array.from({ length: this.ADDRESS_LENGTH }, () => chars.charAt(Math.floor(Math.random() * chars.length)));
+    return `${this.PREFIX}${randomChars.join("")}`;
+  }
+}
 
 /**
  * Creates a mock CosmosWallet that mimics Keplr's signArbitrary implementation
@@ -44,21 +63,27 @@ export async function createMockCosmosWallet(wallet: DirectSecp256k1HdWallet) {
  */
 export function replaceTemplateValues(testCase: (typeof jwtClaimsTestCases)[0]) {
   const now = Math.floor(Date.now() / 1000);
-  const issuer = "akash1test1234567890";
-  const provider = "akash1provider1234567890";
+  const issuer = AkashAddressSeeder.create();
+  const provider = AkashAddressSeeder.create();
 
-  const claims = { ...testCase.claims };
+  const claims = { ...testCase.claims } as any;
   if (claims.iss === "{{.Issuer}}") claims.iss = issuer;
-  if (claims.iat === "{{.Iat24h}}") claims.iat = (now - 86400).toString(); // 24 hours ago
-  if (claims.exp === "{{.Exp48h}}") claims.exp = (now + 172800).toString(); // 48 hours from now
+  if (claims.iat === "{{.Iat24h}}") claims.iat = now - 86400; // 24 hours ago
+  if (claims.exp === "{{.Exp48h}}") claims.exp = now + 172800; // 48 hours from now
+  if (!claims.nbf) claims.nbf = now;
+
+  // Convert string timestamps to numbers
+  if (typeof claims.iat === "string") claims.iat = parseInt(claims.iat, 10);
+  if (typeof claims.exp === "string") claims.exp = parseInt(claims.exp, 10);
+  if (typeof claims.nbf === "string") claims.nbf = parseInt(claims.nbf, 10);
 
   // Replace provider address in permissions if present
   if (claims.leases?.permissions) {
-    claims.leases.permissions = claims.leases.permissions.map(perm => ({
+    claims.leases.permissions = claims.leases.permissions.map((perm: { provider: string; [key: string]: any }) => ({
       ...perm,
       provider: perm.provider === "{{.Provider}}" ? provider : perm.provider
     }));
   }
 
-  return { ...testCase, claims };
+  return { ...testCase, claims: claims as JWTPayload };
 }

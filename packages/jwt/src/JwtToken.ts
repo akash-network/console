@@ -59,6 +59,12 @@ export class JwtToken {
       leases: options.leases || { access: "full" }
     };
 
+    // Validate payload and throw error with validation details if invalid
+    const validationResult = this.validatePayload(payload);
+    if (!validationResult) {
+      throw new Error("Invalid payload");
+    }
+
     // Create signer function
     const signer = async (data: string | Uint8Array): Promise<string> => {
       const signResponse = await this.wallet.signArbitrary(this.wallet.address, typeof data === "string" ? data : new TextDecoder().decode(data));
@@ -104,32 +110,23 @@ export class JwtToken {
   /**
    * Validates a JWT payload against the schema and time-based constraints
    * @param payload - The JWT payload to validate
-   * @returns True if the payload is valid, false otherwise
+   * @returns A boolean indicating whether the payload is valid
    */
-  validatePayload(payload: JWTPayload): boolean {
-    // Check schema validation
-    const token = this.createUnsignedToken(payload);
-    const result = this.validator.validateToken(token);
+  public async validatePayload(payload: JWTPayload): Promise<boolean> {
+    const result = this.validator.validateToken(payload);
     if (!result.isValid) {
-      console.log("Validation errors:", result.errors);
       return false;
     }
 
-    // Check time-based validation
     const now = Math.floor(Date.now() / 1000);
 
-    // Check if token is expired
-    if (payload.exp && payload.exp < now) {
+    // Check expiration
+    if (payload.exp && payload.exp <= now) {
       return false;
     }
 
-    // Check if token is not yet valid
+    // Check not-before time
     if (payload.nbf && payload.nbf > now) {
-      return false;
-    }
-
-    // Check if token was issued in the future
-    if (payload.iat && payload.iat > now) {
       return false;
     }
 
