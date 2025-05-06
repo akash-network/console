@@ -15,7 +15,7 @@ export default function MyDocument(props: DocumentHeadTagsProps) {
 
         {/* PWA */}
         <link rel="shortcut icon" href="/favicon.ico" />
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="manifest" href="/manifest.json" crossOrigin="use-credentials" />
         <link rel="mask-icon" href="/safari-pinned-tab.svg" color={customColors.dark} />
         <meta name="msapplication-TileColor" content={customColors.dark} />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
