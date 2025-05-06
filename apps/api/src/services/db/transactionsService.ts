@@ -46,7 +46,7 @@ export async function getTransactions(limit: number) {
 export async function getTransaction(hash: string): Promise<ApiTransactionResponse | null> {
   const tx = await Transaction.findOne({
     where: {
-      hash: hash
+      hash
     },
     include: [
       {
