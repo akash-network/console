@@ -7,15 +7,17 @@ const OUT_DIR = joinPath(PACKAGE_DIR, "src", "generated");
 const JWT_SCHEMA_URL = "https://raw.githubusercontent.com/akash-network/akash-api/refs/heads/main/specs/jwt-schema.json";
 const JWT_SIGNING_TEST_CASES_URL = "https://raw.githubusercontent.com/akash-network/akash-api/refs/heads/main/testdata/jwt/cases_es256k.json";
 const JWT_CLAIMS_TEST_CASES_URL = "https://raw.githubusercontent.com/akash-network/akash-api/refs/heads/main/testdata/jwt/cases_jwt.json.tmpl";
+const JWT_MNEMONIC_URL = "https://raw.githubusercontent.com/akash-network/akash-api/refs/heads/main/testdata/jwt/mnemonic";
 
 async function main() {
   console.log(`Generating JWT schema and test cases`);
 
   try {
-    const [schema, signingTestCases, claimsTestCases] = await Promise.all([
+    const [schema, signingTestCases, claimsTestCases, mnemonic] = await Promise.all([
       fetchJson(JWT_SCHEMA_URL),
       fetchJson(JWT_SIGNING_TEST_CASES_URL),
-      fetchJson(JWT_CLAIMS_TEST_CASES_URL)
+      fetchJson(JWT_CLAIMS_TEST_CASES_URL),
+      fetchText(JWT_MNEMONIC_URL)
     ]);
 
     await fsp.mkdir(OUT_DIR, { recursive: true });
@@ -29,6 +31,10 @@ async function main() {
       fsp.writeFile(
         joinPath(OUT_DIR, "jwtClaimsTestCases.ts"),
         `// This file contains test cases for JWT claims validation\nexport const jwtClaimsTestCases = ${JSON.stringify(claimsTestCases, null, 2)};`
+      ),
+      fsp.writeFile(
+        joinPath(OUT_DIR, "jwtMnemonic.ts"),
+        `// This file contains the test mnemonic for JWT signing\nexport const jwtMnemonic = "${mnemonic.trim()}";`
       )
     ]);
 
@@ -45,6 +51,15 @@ function fetchJson(url: string): Promise<any> {
       throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
     }
     return res.json();
+  });
+}
+
+function fetchText(url: string): Promise<string> {
+  return fetch(url).then(res => {
+    if (!res.ok) {
+      throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+    }
+    return res.text();
   });
 }
 
