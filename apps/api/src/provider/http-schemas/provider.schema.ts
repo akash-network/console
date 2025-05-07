@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { openApiExampleProviderAddress } from "@src/utils/constants";
+import { AkashAddressSchema } from "@src/utils/schema";
 
 export const ProviderListQuerySchema = z.object({
   scope: z.enum(["all", "trial"]).default("all")
@@ -93,7 +94,7 @@ export const ProviderListResponseSchema = z.array(
 );
 
 export const ProviderActiveLeasesGraphDataParamsSchema = z.object({
-  providerAddress: z.string().openapi({ example: openApiExampleProviderAddress })
+  providerAddress: AkashAddressSchema.openapi({ example: openApiExampleProviderAddress })
 });
 
 export const ProviderActiveLeasesGraphDataResponseSchema = z.object({

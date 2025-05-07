@@ -9,7 +9,6 @@ import {
   ProviderListQuerySchema,
   ProviderListResponseSchema
 } from "@src/provider/http-schemas/provider.schema";
-import { isValidBech32Address } from "@src/utils/addresses";
 
 const route = createRoute({
   method: "get",
@@ -64,11 +63,6 @@ providersRouter.openapi(route, async function routeListProviders(c) {
 
 providersRouter.openapi(activeLeasesGraphDataRoute, async function routeProviderActiveLeasesGraphData(c) {
   const providerAddress = c.req.valid("param").providerAddress;
-
-  if (!isValidBech32Address(providerAddress, "akash")) {
-    return c.text("Invalid address", 400);
-  }
-
   const graphData = await container.resolve(ProviderController).getProviderActiveLeasesGraphData(providerAddress);
 
   return c.json(graphData);
