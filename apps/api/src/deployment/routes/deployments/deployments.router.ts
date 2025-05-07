@@ -12,11 +12,11 @@ import {
   DepositDeploymentRequestSchema,
   DepositDeploymentResponseSchema,
   GetDeploymentResponseSchema,
-  ListByOwnerParamsSchema,
-  ListByOwnerQuerySchema,
-  ListByOwnerResponseSchema,
   ListDeploymentsQuerySchema,
   ListDeploymentsResponseSchema,
+  ListWithResourcesParamsSchema,
+  ListWithResourcesQuerySchema,
+  ListWithResourcesResponseSchema,
   UpdateDeploymentRequestSchema,
   UpdateDeploymentResponseSchema
 } from "@src/deployment/http-schemas/deployment.schema";
@@ -162,21 +162,21 @@ const listRoute = createRoute({
   }
 });
 
-const listByOwnerRoute = createRoute({
+const listWithResourcesRoute = createRoute({
   method: "get",
   path: "/v1/addresses/{address}/deployments/{skip}/{limit}",
   summary: "Get a list of deployments by owner address.",
   tags: ["Addresses", "Deployments"],
   request: {
-    params: ListByOwnerParamsSchema,
-    query: ListByOwnerQuerySchema
+    params: ListWithResourcesParamsSchema,
+    query: ListWithResourcesQuerySchema
   },
   responses: {
     200: {
       description: "Returns deployment list",
       content: {
         "application/json": {
-          schema: ListByOwnerResponseSchema
+          schema: ListWithResourcesResponseSchema
         }
       }
     },
@@ -225,15 +225,15 @@ deploymentsRouter.openapi(listRoute, async function routeListDeployments(c) {
   return c.json(result, 200);
 });
 
-deploymentsRouter.openapi(listByOwnerRoute, async function routeListDeploymentsByOwner(c) {
+deploymentsRouter.openapi(listWithResourcesRoute, async function routeListDeploymentsWithResources(c) {
   const { address, skip, limit } = c.req.valid("param");
   const { status, reverseSorting } = c.req.valid("query");
-  const result = await container.resolve(DeploymentController).listByOwner({
+  const result = await container.resolve(DeploymentController).listWithResources({
     address,
     status,
     skip,
     limit,
-    reverseSorting: reverseSorting === "true"
+    reverseSorting
   });
 
   return c.json(result, 200);

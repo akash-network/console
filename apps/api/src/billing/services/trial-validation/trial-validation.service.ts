@@ -17,7 +17,7 @@ export class TrialValidationService {
 
   async validateTrialLimit(decoded: EncodeObject, userWallet: UserWalletOutput) {
     if (userWallet.isTrialing && decoded.typeUrl === "/akash.deployment.v1beta3.MsgCreateDeployment") {
-      const deployments = await this.deploymentReaderService.listByOwnerAndStatus({
+      const deployments = await this.deploymentReaderService.listWithResources({
         address: userWallet.address,
         limit: 1
       });
