@@ -7,7 +7,7 @@ export const jwtSigningTestCases = [
     expected: {
       alg: "ES256K",
       claims: {
-        foo: "bar"
+        issuer: "bar"
       }
     },
     mustFail: false
@@ -19,11 +19,11 @@ export const jwtSigningTestCases = [
     expected: {
       alg: "ES256K",
       claims: {
-        foo: "bar"
+        issuer: "bar"
       }
     },
     claims: {
-      foo: "bar"
+      issuer: "bar"
     },
     mustFail: true
   }

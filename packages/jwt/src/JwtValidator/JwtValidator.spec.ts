@@ -9,7 +9,7 @@ describe("JwtValidator", () => {
 
   it("should validate a valid token", () => {
     const validToken =
-      "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJha2FzaDFhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ejEyMzQ1Njc4OTBhYiIsImlhdCI6MTY1NDAwMDAwMCwiZXhwIjoxNjU0MDAzNjAwLCJuYmYiOjE2NTQwMDAwMDAsInZlcnNpb24iOiJ2MSIsImxlYXNlcyI6eyJhY2Nlc3MiOiJncmFudWxhciIsInBlcm1pc3Npb25zIjpbeyJwcm92aWRlciI6ImFrYXNoMWFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6MTIzNDU2Nzg5MGFiIiwic2NvcGUiOlsic2VuZC1tYW5pZmVzdCJdfV19fQ.signature";
+      "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJha2FzaDFhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ejEyMzQ1Njc4OTBhYiIsImlhdCI6MTY1NDAwMDAwMCwiZXhwIjoxNjU0MDAzNjAwLCJuYmYiOjE2NTQwMDAwMDAsInZlcnNpb24iOiJ2MSIsImxlYXNlcyI6eyJhY2Nlc3MiOiJncmFudWxhciIsInBlcm1pc3Npb25zIjpbeyJwcm92aWRlciI6ImFrYXNoMWFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6MTIzNDU2Nzg5MGFiIiwiYWNjZXNzIjoic2NvcGVkIiwic2NvcGUiOlsic2VuZC1tYW5pZmVzdCJdfV19fQ.signature";
     const result = validator.validateToken(validToken);
     expect(result.isValid).toBe(true);
     expect(result.errors.length).toBe(0);

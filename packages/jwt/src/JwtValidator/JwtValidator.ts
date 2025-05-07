@@ -106,29 +106,103 @@ export class JwtValidator {
             }
             providers.add(perm.provider);
 
-            // Check for duplicate scopes within each permission
-            const scopes = new Set<string>();
-            for (const scope of perm.scope) {
-              if (scopes.has(scope)) {
-                result.errors.push("Duplicate scope in permission");
+            // Validate access type specific rules
+            if (perm.access === "scoped") {
+              if (!perm.scope) {
+                result.errors.push("Missing required field: scope for scoped access");
                 valid = false;
-                break;
+              } else if (perm.deployments) {
+                result.errors.push("Deployments not allowed for scoped access");
+                valid = false;
               }
-              scopes.add(scope);
+            } else if (perm.access === "granular") {
+              if (!perm.deployments) {
+                result.errors.push("Missing required field: deployments for granular access");
+                valid = false;
+              } else if (perm.scope) {
+                result.errors.push("Scope not allowed for granular access");
+                valid = false;
+              }
             }
 
-            // Check for duplicate services within each permission
-            if (perm.services) {
-              const services = new Set<string>();
-              for (const service of perm.services) {
-                if (services.has(service)) {
-                  result.errors.push("Duplicate service in permission");
+            // Check for duplicate scopes within each permission
+            if (perm.scope) {
+              const scopes = new Set<string>();
+              for (const scope of perm.scope) {
+                if (scopes.has(scope)) {
+                  result.errors.push("Duplicate scope in permission");
                   valid = false;
                   break;
                 }
-                services.add(service);
+                scopes.add(scope);
               }
             }
+
+            // Check for duplicate services and validate deployment dependencies
+            if (perm.deployments) {
+              for (const deployment of perm.deployments) {
+                // Check for duplicate scopes within deployment
+                const scopes = new Set<string>();
+                for (const scope of deployment.scope) {
+                  if (scopes.has(scope)) {
+                    result.errors.push("Duplicate scope in deployment");
+                    valid = false;
+                    break;
+                  }
+                  scopes.add(scope);
+                }
+
+                // Validate deployment dependencies
+                if (deployment.gseq && !deployment.dseq) {
+                  result.errors.push("gseq requires dseq");
+                  valid = false;
+                }
+                if (deployment.oseq && (!deployment.dseq || !deployment.gseq)) {
+                  result.errors.push("oseq requires dseq and gseq");
+                  valid = false;
+                }
+                if (deployment.dseq && !deployment.services) {
+                  result.errors.push("services required when dseq is present");
+                  valid = false;
+                }
+                if (deployment.services && !deployment.dseq) {
+                  result.errors.push("services requires dseq");
+                  valid = false;
+                }
+
+                // Check for duplicate services
+                if (deployment.services) {
+                  const services = new Set<string>();
+                  for (const service of deployment.services) {
+                    if (services.has(service)) {
+                      result.errors.push("Duplicate service in deployment");
+                      valid = false;
+                      break;
+                    }
+                    services.add(service);
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (payload.leases?.access === "full") {
+        if (!payload.leases?.scope) {
+          result.errors.push("Missing required field: scope for full access");
+          valid = false;
+        } else if (payload.leases?.permissions) {
+          result.errors.push("Permissions not allowed for full access");
+          valid = false;
+        } else {
+          // Check for duplicate scopes
+          const scopes = new Set<string>();
+          for (const scope of payload.leases.scope) {
+            if (scopes.has(scope)) {
+              result.errors.push("Duplicate scope in full access");
+              valid = false;
+              break;
+            }
+            scopes.add(scope);
           }
         }
       }
