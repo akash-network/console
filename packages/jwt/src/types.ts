@@ -33,22 +33,25 @@ export interface JWTHeader {
 
 export interface JWTPayload {
   iss: string;
-  sub?: string;
-  aud?: string;
-  exp?: number;
-  nbf?: number;
-  iat?: number;
+  iat: number;
+  nbf: number;
+  exp: number;
   jti?: string;
-  version?: string;
-  leases?: {
+  version: "v1";
+  leases: {
     access: "full" | "granular";
+    scope?: Array<"send-manifest" | "get-manifest" | "logs" | "shell" | "events" | "status" | "restart" | "hostname-migrate" | "ip-migrate">;
     permissions?: Array<{
       provider: string;
-      scope: Array<string>;
-      dseq?: number;
-      gseq?: number;
-      oseq?: number;
-      services?: Array<string>;
+      access: "full" | "scoped" | "granular";
+      scope?: Array<"send-manifest" | "get-manifest" | "logs" | "shell" | "events" | "status" | "restart" | "hostname-migrate" | "ip-migrate">;
+      deployments?: Array<{
+        dseq: number;
+        scope: Array<"send-manifest" | "get-manifest" | "logs" | "shell" | "events" | "status" | "restart" | "hostname-migrate" | "ip-migrate">;
+        gseq?: number;
+        oseq?: number;
+        services?: Array<string>;
+      }>;
     }>;
   };
 }

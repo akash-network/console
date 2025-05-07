@@ -114,7 +114,7 @@ export const jwtClaimsTestCases = [
     }
   },
   {
-    description: "sign valid/verify fail granular access/specific provider/missing scope",
+    description: "sign valid/verify fail granular access/specific provider/missing access",
     claims: {
       iss: "{{.Issuer}}",
       iat: "{{.Iat24h}}",
@@ -136,7 +136,7 @@ export const jwtClaimsTestCases = [
     }
   },
   {
-    description: "sign valid/verify pass granular access/specific provider/scope",
+    description: "sign valid/verify pass/specific provider/full access",
     claims: {
       iss: "{{.Issuer}}",
       iat: "{{.Iat24h}}",
@@ -147,14 +147,110 @@ export const jwtClaimsTestCases = [
         permissions: [
           {
             provider: "{{.Provider}}",
+            access: "full"
+          }
+        ]
+      }
+    },
+    expected: {
+      error: "token has invalid claims",
+      signFail: false,
+      verifyFail: false
+    }
+  },
+  {
+    description: "sign valid/verify fail/specific provider/scoped access",
+    claims: {
+      iss: "{{.Issuer}}",
+      iat: "{{.Iat24h}}",
+      exp: "{{.Exp48h}}",
+      version: "v1",
+      leases: {
+        access: "granular",
+        permissions: [
+          {
+            provider: "{{.Provider}}",
+            access: "scoped"
+          }
+        ]
+      }
+    },
+    expected: {
+      error: "token has invalid claims",
+      signFail: false,
+      verifyFail: true
+    }
+  },
+  {
+    description: "sign valid/verify pass/specific provider/scoped access",
+    claims: {
+      iss: "{{.Issuer}}",
+      iat: "{{.Iat24h}}",
+      exp: "{{.Exp48h}}",
+      version: "v1",
+      leases: {
+        access: "granular",
+        permissions: [
+          {
+            provider: "{{.Provider}}",
+            access: "scoped",
             scope: ["send-manifest"]
           }
         ]
       }
     },
     expected: {
+      error: "token has invalid claims",
       signFail: false,
       verifyFail: false
+    }
+  },
+  {
+    description: "sign valid/verify fail/specific provider/scoped access/duplicate",
+    claims: {
+      iss: "{{.Issuer}}",
+      iat: "{{.Iat24h}}",
+      exp: "{{.Exp48h}}",
+      version: "v1",
+      leases: {
+        access: "granular",
+        permissions: [
+          {
+            provider: "{{.Provider}}",
+            access: "scoped",
+            scope: ["send-manifest", "send-manifest"]
+          }
+        ]
+      }
+    },
+    expected: {
+      error: "token has invalid claims",
+      signFail: false,
+      verifyFail: true
+    }
+  },
+  {
+    description: "sign valid/verify fail/specific provider/granular access with scope",
+    claims: {
+      iss: "{{.Issuer}}",
+      iat: "{{.Iat24h}}",
+      exp: "{{.Exp48h}}",
+      version: "v1",
+      leases: {
+        access: "granular",
+        permissions: [
+          {
+            provider: "{{.Provider}}",
+            access: "granular",
+            scope: ["send-manifest"]
+          }
+        ]
+      }
+    },
+    expected: {
+      error: "token has invalid claims",
+      signFail: false,
+      verifyFail: true
     }
   },
   {
@@ -169,34 +265,13 @@ export const jwtClaimsTestCases = [
         permissions: [
           {
             provider: "{{.Provider}}",
+            access: "scoped",
             scope: ["send-manifest"]
           },
           {
             provider: "{{.Provider}}",
+            access: "scoped",
             scope: ["send-manifest"]
-          }
-        ]
-      }
-    },
-    expected: {
-      error: "token has invalid claims",
-      signFail: false,
-      verifyFail: true
-    }
-  },
-  {
-    description: "sign valid/verify fail granular access/specific provider/duplicate scope",
-    claims: {
-      iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
-      exp: "{{.Exp48h}}",
-      version: "v1",
-      leases: {
-        access: "granular",
-        permissions: [
-          {
-            provider: "{{.Provider}}",
-            scope: ["send-manifest", "send-manifest"]
           }
         ]
       }
@@ -219,6 +294,7 @@ export const jwtClaimsTestCases = [
         permissions: [
           {
             provider: "{{.Provider}}",
+            access: "scoped",
             scope: ["unknown"]
           }
         ]
@@ -231,7 +307,7 @@ export const jwtClaimsTestCases = [
     }
   },
   {
-    description: "sign valid/verify pass granular access/specific provider/service",
+    description: "sign valid/verify fail granular access/specific provider/deployment/missing scope",
     claims: {
       iss: "{{.Issuer}}",
       iat: "{{.Iat24h}}",
@@ -242,8 +318,150 @@ export const jwtClaimsTestCases = [
         permissions: [
           {
             provider: "{{.Provider}}",
-            scope: ["send-manifest"],
-            services: ["web"]
+            access: "granular",
+            deployments: [
+              {
+                services: ["web"]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    expected: {
+      signFail: false,
+      verifyFail: true
+    }
+  },
+  {
+    description: "sign valid/verify fail granular access/specific provider/deployment/duplicate scope",
+    claims: {
+      iss: "{{.Issuer}}",
+      iat: "{{.Iat24h}}",
+      exp: "{{.Exp48h}}",
+      version: "v1",
+      leases: {
+        access: "granular",
+        permissions: [
+          {
+            provider: "{{.Provider}}",
+            access: "granular",
+            deployments: [
+              {
+                scope: ["send-manifest", "send-manifest"]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    expected: {
+      signFail: false,
+      verifyFail: true
+    }
+  },
+  {
+    description: "sign valid/verify fail granular access/specific provider/deployment/invalid scope",
+    claims: {
+      iss: "{{.Issuer}}",
+      iat: "{{.Iat24h}}",
+      exp: "{{.Exp48h}}",
+      version: "v1",
+      leases: {
+        access: "granular",
+        permissions: [
+          {
+            provider: "{{.Provider}}",
+            access: "granular",
+            deployments: [
+              {
+                scope: ["unknown"]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    expected: {
+      signFail: false,
+      verifyFail: true
+    }
+  },
+  {
+    description: "sign valid/verify fail granular access/specific provider/deployment/missing dseq",
+    claims: {
+      iss: "{{.Issuer}}",
+      iat: "{{.Iat24h}}",
+      exp: "{{.Exp48h}}",
+      version: "v1",
+      leases: {
+        access: "granular",
+        permissions: [
+          {
+            provider: "{{.Provider}}",
+            access: "granular",
+            deployments: [
+              {
+                scope: ["send-manifest"]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    expected: {
+      signFail: false,
+      verifyFail: true
+    }
+  },
+  {
+    description: "sign valid/verify fail granular access/specific provider/deployment/no services",
+    claims: {
+      iss: "{{.Issuer}}",
+      iat: "{{.Iat24h}}",
+      exp: "{{.Exp48h}}",
+      version: "v1",
+      leases: {
+        access: "granular",
+        permissions: [
+          {
+            provider: "{{.Provider}}",
+            access: "granular",
+            deployments: [
+              {
+                scope: ["send-manifest"],
+                dseq: 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    expected: {
+      signFail: false,
+      verifyFail: true
+    }
+  },
+  {
+    description: "sign valid/verify pass granular access/specific provider/deployment",
+    claims: {
+      iss: "{{.Issuer}}",
+      iat: "{{.Iat24h}}",
+      exp: "{{.Exp48h}}",
+      version: "v1",
+      leases: {
+        access: "granular",
+        permissions: [
+          {
+            provider: "{{.Provider}}",
+            access: "granular",
+            deployments: [
+              {
+                scope: ["send-manifest"],
+                dseq: 1,
+                services: ["web"]
+              }
+            ]
           }
         ]
       }
@@ -254,7 +472,7 @@ export const jwtClaimsTestCases = [
     }
   },
   {
-    description: "sign valid/verify fail granular access/specific provider/service",
+    description: "sign valid/verify fail granular access/specific provider/deployment/duplicate service",
     claims: {
       iss: "{{.Issuer}}",
       iat: "{{.Iat24h}}",
@@ -265,8 +483,14 @@ export const jwtClaimsTestCases = [
         permissions: [
           {
             provider: "{{.Provider}}",
-            scope: ["send-manifest"],
-            services: ["web", "web"]
+            access: "granular",
+            deployments: [
+              {
+                scope: ["send-manifest"],
+                dseq: 1,
+                services: ["web", "web"]
+              }
+            ]
           }
         ]
       }
@@ -278,7 +502,7 @@ export const jwtClaimsTestCases = [
     }
   },
   {
-    description: "sign valid/verify pass granular access/dseq",
+    description: "sign valid/verify fail granular access/specific provider/deployment/oseq",
     claims: {
       iss: "{{.Issuer}}",
       iat: "{{.Iat24h}}",
@@ -289,31 +513,15 @@ export const jwtClaimsTestCases = [
         permissions: [
           {
             provider: "{{.Provider}}",
-            scope: ["send-manifest"],
-            dseq: 1
-          }
-        ]
-      }
-    },
-    expected: {
-      signFail: false,
-      verifyFail: false
-    }
-  },
-  {
-    description: "sign valid/verify fail granular access/gseq",
-    claims: {
-      iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
-      exp: "{{.Exp48h}}",
-      version: "v1",
-      leases: {
-        access: "granular",
-        permissions: [
-          {
-            provider: "{{.Provider}}",
-            scope: ["send-manifest"],
-            gseq: 1
+            access: "granular",
+            deployments: [
+              {
+                scope: ["send-manifest"],
+                dseq: 1,
+                oseq: 1,
+                services: ["web", "web"]
+              }
+            ]
           }
         ]
       }
@@ -322,80 +530,6 @@ export const jwtClaimsTestCases = [
       error: "token has invalid claims",
       signFail: false,
       verifyFail: true
-    }
-  },
-  {
-    description: "sign valid/verify fail granular access/oseq",
-    claims: {
-      iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
-      exp: "{{.Exp48h}}",
-      version: "v1",
-      leases: {
-        access: "granular",
-        permissions: [
-          {
-            provider: "{{.Provider}}",
-            scope: ["send-manifest"],
-            oseq: 1
-          }
-        ]
-      }
-    },
-    expected: {
-      error: "token has invalid claims",
-      signFail: false,
-      verifyFail: true
-    }
-  },
-  {
-    description: "sign valid/verify fail granular access/dseq/oseq",
-    claims: {
-      iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
-      exp: "{{.Exp48h}}",
-      version: "v1",
-      leases: {
-        access: "granular",
-        permissions: [
-          {
-            provider: "{{.Provider}}",
-            scope: ["send-manifest"],
-            dseq: 1,
-            oseq: 1
-          }
-        ]
-      }
-    },
-    expected: {
-      error: "token has invalid claims",
-      signFail: false,
-      verifyFail: true
-    }
-  },
-  {
-    description: "sign valid/verify pass granular access/dseq/gseq/oseq",
-    claims: {
-      iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
-      exp: "{{.Exp48h}}",
-      version: "v1",
-      leases: {
-        access: "granular",
-        permissions: [
-          {
-            provider: "{{.Provider}}",
-            scope: ["send-manifest"],
-            dseq: 1,
-            gseq: 1,
-            oseq: 1
-          }
-        ]
-      }
-    },
-    expected: {
-      signFail: false,
-      verifyFail: false
     }
   }
 ];

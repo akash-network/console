@@ -14,13 +14,18 @@ export interface JwtTokenOptions {
   version?: "v1";
   leases?: {
     access: "full" | "granular";
+    scope?: Array<"send-manifest" | "get-manifest" | "logs" | "shell" | "events" | "status" | "restart" | "hostname-migrate" | "ip-migrate">;
     permissions?: Array<{
       provider: string;
-      scope: Array<"send-manifest" | "shell" | "logs" | "events" | "restart">;
-      dseq?: number;
-      gseq?: number;
-      oseq?: number;
-      services?: Array<string>;
+      access: "full" | "scoped" | "granular";
+      scope?: Array<"send-manifest" | "get-manifest" | "logs" | "shell" | "events" | "status" | "restart" | "hostname-migrate" | "ip-migrate">;
+      deployments?: Array<{
+        dseq: number;
+        scope: Array<"send-manifest" | "get-manifest" | "logs" | "shell" | "events" | "status" | "restart" | "hostname-migrate" | "ip-migrate">;
+        gseq?: number;
+        oseq?: number;
+        services?: Array<string>;
+      }>;
     }>;
   };
 }
@@ -44,10 +49,7 @@ export class JwtToken {
    * @returns The signed JWT token
    */
   async createToken(options: JwtTokenOptions): Promise<string> {
-    // Create JWK from public key
     const jwk = this.publicKeyToJWK(this.wallet.pubkey);
-
-    // Create payload
     const now = Math.floor(Date.now() / 1000);
     const payload: JWTPayload = {
       iss: options.iss,
@@ -65,26 +67,37 @@ export class JwtToken {
       throw new Error("Invalid payload");
     }
 
-    // Create signer function
-    const signer = async (data: string | Uint8Array): Promise<string> => {
-      const signResponse = await this.wallet.signArbitrary(this.wallet.address, typeof data === "string" ? data : new TextDecoder().decode(data));
-      return signResponse.signature.replace(/=/g, "");
-    };
-
-    // Create JWT with ES256K using did-jwt
-    const jwt = await createJWT(payload, {
-      issuer: options.iss,
-      signer,
-      alg: "ES256K"
-    });
+    // Sign the payload
+    const signedJwt = await this.sign(payload, options.iss);
 
     // Add JWK to header
-    const [header, payloadB64, signature] = jwt.split(".");
+    const [header, payloadB64, signature] = signedJwt.split(".");
     const headerObj = JSON.parse(Buffer.from(header, "base64").toString());
     headerObj.jwk = jwk;
     const newHeader = encode(Buffer.from(JSON.stringify(headerObj)));
 
     return `${newHeader}.${payloadB64}.${signature}`;
+  }
+
+  /**
+   * Signs a JWT payload using ES256K signature
+   * @param payload - The JWT payload to sign
+   * @param issuer - The issuer of the JWT
+   * @returns The signed JWT token
+   */
+  async sign(payload: JWTPayload, issuer: string): Promise<string> {
+    const signer = async (data: string | Uint8Array): Promise<string> => {
+      const signResponse = await this.wallet.signArbitrary(this.wallet.address, typeof data === "string" ? data : new TextDecoder().decode(data));
+      // Convert base64 signature to raw bytes then back to base64url without padding
+      const signatureBytes = Buffer.from(signResponse.signature, "base64");
+      return encode(signatureBytes);
+    };
+
+    return createJWT(payload, {
+      issuer,
+      signer,
+      alg: "ES256K"
+    });
   }
 
   /**
@@ -131,16 +144,6 @@ export class JwtToken {
     }
 
     return true;
-  }
-
-  private createUnsignedToken(payload: JWTPayload): string {
-    const header = {
-      alg: "ES256K",
-      typ: "JWT"
-    };
-    const encodedHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
-    const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
-    return `${encodedHeader}.${encodedPayload}.dummy-signature`;
   }
 
   /**

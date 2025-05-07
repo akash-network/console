@@ -133,7 +133,8 @@ describe("JwtToken", () => {
         exp: now + 3600, // 1 hour from now
         version: "v1",
         leases: {
-          access: "full" as const
+          access: "full" as const,
+          scope: ["send-manifest", "shell"]
         }
       };
 
@@ -224,7 +225,10 @@ describe("JwtToken", () => {
         permissions: [
           {
             provider: "akash1xyz",
-            scope: ["send-manifest", "shell"] as Array<"send-manifest" | "shell" | "logs" | "events" | "restart">
+            access: "scoped" as const,
+            scope: ["send-manifest", "shell"] as Array<
+              "send-manifest" | "shell" | "logs" | "events" | "restart" | "get-manifest" | "status" | "hostname-migrate" | "ip-migrate"
+            >
           }
         ]
       }
@@ -237,6 +241,7 @@ describe("JwtToken", () => {
     expect(payloadObj.leases.access).toBe("granular");
     expect(payloadObj.leases.permissions).toBeDefined();
     expect(payloadObj.leases.permissions[0].provider).toBe("akash1xyz");
+    expect(payloadObj.leases.permissions[0].access).toBe("scoped");
     expect(payloadObj.leases.permissions[0].scope).toEqual(["send-manifest", "shell"]);
   });
 
@@ -249,13 +254,18 @@ describe("JwtToken", () => {
       nbf: now,
       exp: now + 3600,
       leases: {
-        access: "full" as const
+        access: "full" as const,
+        scope: ["send-manifest"]
       }
     };
 
     const invalidPayload: Partial<JWTPayload> = {
       iss: "invalid_address",
-      version: "invalid_version"
+      version: "v1",
+      leases: {
+        access: "full",
+        scope: ["send-manifest"]
+      }
     };
 
     expect(await jwtToken.validatePayload(validPayload)).toBe(true);

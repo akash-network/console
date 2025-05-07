@@ -15,26 +15,27 @@ export const jwtSchemaData = {
     iat: {
       type: "integer",
       minimum: 0,
-      description: "Token issuance timestamp as Unix time (seconds since 1970-01-01T00:00:00Z)"
+      description: "Token issuance timestamp as Unix time (seconds since 1970-01-01T00:00:00Z). Should be <= exp and >= nbf."
     },
     nbf: {
       type: "integer",
       minimum: 0,
-      description: "Not valid before timestamp as Unix time (seconds since 1970-01-01T00:00:00Z)"
+      description: "Not valid before timestamp as Unix time (seconds since 1970-01-01T00:00:00Z). Should be <= iat."
     },
     exp: {
       type: "integer",
       minimum: 0,
-      description: "Expiration timestamp as Unix time (seconds since 1970-01-01T00:00:00Z)"
+      description: "Expiration timestamp as Unix time (seconds since 1970-01-01T00:00:00Z). Should be >= iat."
     },
     jti: {
       type: "string",
-      description: "The jti (JWT ID) claim provides a unique identifier for the JWT"
+      minLength: 1,
+      description: "Unique identifier for the JWT, used to prevent token reuse."
     },
     version: {
       type: "string",
       enum: ["v1"],
-      description: "Version of the JWT specification (currently fixed at v1)"
+      description: "Version of the JWT specification (currently fixed at v1)."
     },
     leases: {
       type: "object",
@@ -44,21 +45,37 @@ export const jwtSchemaData = {
         access: {
           type: "string",
           enum: ["full", "granular"],
-          description: "Access level of the token: 'full' for unrestricted, 'granular' for specific permissions"
+          description: "Access level for the lease: 'full' for unrestricted access to all actions, 'granular' for provider-specific permissions."
+        },
+        scope: {
+          type: "array",
+          minItems: 1,
+          uniqueItems: true,
+          items: {
+            type: "string",
+            enum: ["send-manifest", "get-manifest", "logs", "shell", "events", "status", "restart", "hostname-migrate", "ip-migrate"]
+          },
+          description: "Global list of permitted actions across all owned leases (no duplicates). Applies when access is 'full'."
         },
         permissions: {
           type: "array",
-          description: "Required if access is 'granular'; defines specific permissions",
+          description: "Required if leases.access is 'granular'; defines provider-specific permissions.",
           minItems: 1,
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["provider", "scope"],
+            required: ["provider", "access"],
             properties: {
               provider: {
                 type: "string",
                 pattern: "^akash1[a-z0-9]{38}$",
-                description: "Provider address, e.g., akash1xyz... (44 characters)"
+                description: "Provider address, e.g., akash1xyz... (44 characters)."
+              },
+              access: {
+                type: "string",
+                enum: ["full", "scoped", "granular"],
+                description:
+                  "Provider-level access: 'full' for all actions, 'scoped' for specific actions across all provider leases, 'granular' for deployment-specific actions."
               },
               scope: {
                 type: "array",
@@ -66,43 +83,147 @@ export const jwtSchemaData = {
                 uniqueItems: true,
                 items: {
                   type: "string",
-                  enum: ["send-manifest", "shell", "logs", "events", "restart"]
+                  enum: ["send-manifest", "get-manifest", "logs", "shell", "events", "status", "restart", "hostname-migrate", "ip-migrate"]
                 },
-                description: "List of permitted actions (no duplicates)"
+                description: "Provider-level list of permitted actions for 'scoped' access (no duplicates)."
               },
-              dseq: {
-                type: "integer",
-                minimum: 1,
-                description: "Optional deployment sequence number"
-              },
-              gseq: {
-                type: "integer",
-                minimum: 1,
-                description: "Optional group sequence number (requires dseq)"
-              },
-              oseq: {
-                type: "integer",
-                minimum: 1,
-                description: "Optional order sequence number (requires dseq)"
-              },
-              services: {
+              deployments: {
                 type: "array",
                 minItems: 1,
                 items: {
-                  type: "string",
-                  minLength: 1
-                },
-                description: "Optional list of service names (requires dseq)"
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["dseq", "scope"],
+                  properties: {
+                    dseq: {
+                      type: "integer",
+                      minimum: 1,
+                      description: "Deployment sequence number."
+                    },
+                    scope: {
+                      type: "array",
+                      minItems: 1,
+                      uniqueItems: true,
+                      items: {
+                        type: "string",
+                        enum: ["send-manifest", "get-manifest", "logs", "shell", "events", "status", "restart", "hostname-migrate", "ip-migrate"]
+                      },
+                      description: "Deployment-level list of permitted actions (no duplicates)."
+                    },
+                    gseq: {
+                      type: "integer",
+                      minimum: 0,
+                      description: "Group sequence number (requires dseq)."
+                    },
+                    oseq: {
+                      type: "integer",
+                      minimum: 0,
+                      description: "Order sequence number (requires dseq and gseq)."
+                    },
+                    services: {
+                      type: "array",
+                      minItems: 1,
+                      items: {
+                        type: "string",
+                        minLength: 1
+                      },
+                      description: "List of service names (requires dseq)."
+                    }
+                  },
+                  dependencies: {
+                    gseq: ["dseq"],
+                    oseq: ["dseq", "gseq"],
+                    services: ["dseq"]
+                  }
+                }
               }
             },
-            dependencies: {
-              gseq: ["dseq"],
-              oseq: ["dseq", "gseq"],
-              services: ["dseq"]
+            allOf: [
+              {
+                if: {
+                  properties: {
+                    access: {
+                      const: "scoped"
+                    }
+                  }
+                },
+                then: {
+                  required: ["scope"],
+                  properties: {
+                    scope: {
+                      minItems: 1
+                    },
+                    deployments: false
+                  }
+                }
+              },
+              {
+                if: {
+                  properties: {
+                    access: {
+                      const: "granular"
+                    }
+                  }
+                },
+                then: {
+                  required: ["deployments"],
+                  properties: {
+                    scope: false
+                  }
+                }
+              },
+              {
+                if: {
+                  properties: {
+                    access: {
+                      const: "full"
+                    }
+                  }
+                },
+                then: {
+                  properties: {
+                    scope: false,
+                    deployments: false
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      allOf: [
+        {
+          if: {
+            properties: {
+              access: {
+                const: "full"
+              }
+            }
+          },
+          then: {
+            required: ["scope"],
+            properties: {
+              permissions: false
+            }
+          }
+        },
+        {
+          if: {
+            properties: {
+              access: {
+                const: "granular"
+              }
+            },
+            required: ["access"]
+          },
+          then: {
+            required: ["permissions"],
+            properties: {
+              scope: false
             }
           }
         }
-      }
+      ]
     }
   },
   allOf: [
@@ -123,7 +244,10 @@ export const jwtSchemaData = {
       then: {
         properties: {
           leases: {
-            required: ["permissions"]
+            required: ["permissions"],
+            properties: {
+              scope: false
+            }
           }
         }
       }
