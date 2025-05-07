@@ -15,5 +15,13 @@ export const WalletResponseOutputSchema = z.object({
 export const WalletListResponseOutputSchema = z.object({
   data: z.array(WalletOutputSchema)
 });
+
+export const StartTrialRequestInputSchema = z.object({
+  data: z.object({
+    userId: z.string().openapi({})
+  })
+});
+
 export type WalletOutputResponse = z.infer<typeof WalletResponseOutputSchema>;
 export type WalletListOutputResponse = z.infer<typeof WalletListResponseOutputSchema>;
+export type StartTrialRequestInput = z.infer<typeof StartTrialRequestInputSchema>;

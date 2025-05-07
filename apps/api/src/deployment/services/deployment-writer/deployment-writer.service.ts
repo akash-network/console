@@ -1,91 +1,36 @@
-import { BlockHttpService, DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
-import { PromisePool } from "@supercharge/promise-pool";
+import { BlockHttpService } from "@akashnetwork/http-sdk";
 import assert from "http-assert";
-import { InternalServerError } from "http-errors";
 import { singleton } from "tsyringe";
 
+import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletOutput } from "@src/billing/repositories";
-import { ManagedSignerService, RpcMessageService, Wallet } from "@src/billing/services";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
+import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import {
   CreateDeploymentRequest,
   CreateDeploymentResponse,
   GetDeploymentResponse,
   UpdateDeploymentRequest
 } from "@src/deployment/http-schemas/deployment.schema";
-import { ProviderService } from "@src/deployment/services/provider/provider.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { denomToUdenom } from "@src/utils/math";
+import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 
 @singleton()
-export class DeploymentService {
+export class DeploymentWriterService {
   constructor(
     private readonly blockHttpService: BlockHttpService,
-    private readonly deploymentHttpService: DeploymentHttpService,
-    private readonly leaseHttpService: LeaseHttpService,
     private readonly signerService: ManagedSignerService,
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
     private readonly rpcMessageService: RpcMessageService,
     private readonly sdlService: SdlService,
     private readonly billingConfig: BillingConfigService,
-    private readonly providerService: ProviderService
+    private readonly providerService: ProviderService,
+    private readonly deploymentReaderService: DeploymentReaderService
   ) {}
-
-  public async findByOwnerAndDseq(
-    owner: string,
-    dseq: string,
-    options?: { certificate?: { certPem: string; keyPem: string } }
-  ): Promise<GetDeploymentResponse["data"]> {
-    const deploymentResponse = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
-
-    if ("code" in deploymentResponse) {
-      assert(!deploymentResponse.message?.toLowerCase().includes("deployment not found"), 404, "Deployment not found");
-
-      throw new InternalServerError(deploymentResponse.message);
-    }
-
-    const { leases } = await this.leaseHttpService.listByOwnerAndDseq(owner, dseq);
-
-    const leasesWithStatus = await Promise.all(
-      leases.map(async ({ lease }) => {
-        if (!options?.certificate) {
-          return {
-            lease,
-            status: null
-          };
-        }
-
-        try {
-          const leaseStatus = await this.providerService.getLeaseStatus(
-            lease.lease_id.provider,
-            lease.lease_id.dseq,
-            lease.lease_id.gseq,
-            lease.lease_id.oseq,
-            options.certificate
-          );
-          return {
-            lease,
-            status: leaseStatus
-          };
-        } catch {
-          return {
-            lease,
-            status: null
-          };
-        }
-      })
-    );
-
-    return {
-      deployment: deploymentResponse.deployment,
-      leases: leasesWithStatus.map(({ lease, status }) => ({
-        ...lease,
-        status
-      })),
-      escrow_account: deploymentResponse.escrow_account
-    };
-  }
 
   public async create(wallet: UserWalletOutput, input: CreateDeploymentRequest["data"]): Promise<CreateDeploymentResponse["data"]> {
     let sdl: string = input.sdl;
@@ -121,7 +66,7 @@ export class DeploymentService {
   }
 
   public async close(wallet: UserWalletOutput, dseq: string): Promise<{ success: boolean }> {
-    const deployment = await this.findByOwnerAndDseq(wallet.address, dseq);
+    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq);
     const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.deployment_id.dseq);
     await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
 
@@ -129,7 +74,7 @@ export class DeploymentService {
   }
 
   public async deposit(wallet: UserWalletOutput, dseq: string, amount: number): Promise<GetDeploymentResponse["data"]> {
-    const deployment = await this.findByOwnerAndDseq(wallet.address, dseq);
+    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq);
     const deploymentGrantDenom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
     const depositor = await this.masterWallet.getFirstAddress();
 
@@ -143,7 +88,7 @@ export class DeploymentService {
 
     await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
 
-    return await this.findByOwnerAndDseq(wallet.address, dseq);
+    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq);
   }
 
   public async update(wallet: UserWalletOutput, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
@@ -151,14 +96,16 @@ export class DeploymentService {
 
     assert(this.sdlService.validateSdl(sdl), 400, "Invalid SDL");
 
-    const deployment = await this.findByOwnerAndDseq(wallet.address, dseq);
+    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq);
     const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");
     const manifest = this.sdlService.getManifest(sdl, "beta3", true) as string;
 
     await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
     await this.sendManifestToProviders(dseq, manifest, certificate as { certPem: string; keyPem: string }, deployment.leases);
 
-    return await this.findByOwnerAndDseq(wallet.address, dseq, { certificate: { certPem: certificate.certPem, keyPem: certificate.keyPem } });
+    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq, {
+      certificate: { certPem: certificate.certPem, keyPem: certificate.keyPem }
+    });
   }
 
   private async ensureDeploymentIsUpToDate(
@@ -193,35 +140,5 @@ export class DeploymentService {
         keyPem: certificate.keyPem
       });
     }
-  }
-
-  public async list(
-    owner: string,
-    { skip, limit }: { skip?: number; limit?: number }
-  ): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
-    const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
-    const deploymentReponse = await this.deploymentHttpService.loadDeploymentList(owner, "active", pagination);
-    const deployments = deploymentReponse.deployments;
-    const total = parseInt(deploymentReponse.pagination.total, 10);
-
-    const { results: leaseResults } = await PromisePool.withConcurrency(100)
-      .for(deployments)
-      .process(async deployment => this.leaseHttpService.listByOwnerAndDseq(owner, deployment.deployment.deployment_id.dseq));
-
-    const deploymentsWithLeases = deployments.map((deployment, index) => ({
-      deployment: deployment.deployment,
-      leases:
-        leaseResults[index]?.leases?.map(({ lease }) => ({
-          ...lease,
-          status: null as null
-        })) ?? [],
-      escrow_account: deployment.escrow_account
-    }));
-
-    return {
-      deployments: deploymentsWithLeases,
-      total,
-      hasMore: skip !== undefined && limit !== undefined ? total > skip + limit : false
-    };
   }
 }

@@ -9,7 +9,7 @@ import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-gener
 import type { BidResponse } from "@src/bid/http-schemas/bid.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
-import { ProviderService } from "@src/deployment/services/provider/provider.service";
+import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { UserRepository } from "@src/user/repositories";
 
 import { createSdlYml } from "@test/mocks/template";
