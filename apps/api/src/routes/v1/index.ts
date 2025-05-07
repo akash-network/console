@@ -1,5 +1,4 @@
 import address from "./addresses/address";
-import addressDeployments from "./addresses/deployments";
 import addressTransactions from "./addresses/transactions";
 import blockByHeight from "./blocks/byHeight";
 import blocks from "./blocks/list";
@@ -51,7 +50,6 @@ export default [
   transactionByHash,
   address,
   addressTransactions,
-  addressDeployments,
   providerByAddress,
   providerDeployments,
   providerAttributesSchema,

@@ -14,6 +14,9 @@ import {
   GetDeploymentResponseSchema,
   ListDeploymentsQuerySchema,
   ListDeploymentsResponseSchema,
+  ListWithResourcesParamsSchema,
+  ListWithResourcesQuerySchema,
+  ListWithResourcesResponseSchema,
   UpdateDeploymentRequestSchema,
   UpdateDeploymentResponseSchema
 } from "@src/deployment/http-schemas/deployment.schema";
@@ -159,6 +162,30 @@ const listRoute = createRoute({
   }
 });
 
+const listWithResourcesRoute = createRoute({
+  method: "get",
+  path: "/v1/addresses/{address}/deployments/{skip}/{limit}",
+  summary: "Get a list of deployments by owner address.",
+  tags: ["Addresses", "Deployments"],
+  request: {
+    params: ListWithResourcesParamsSchema,
+    query: ListWithResourcesQuerySchema
+  },
+  responses: {
+    200: {
+      description: "Returns deployment list",
+      content: {
+        "application/json": {
+          schema: ListWithResourcesResponseSchema
+        }
+      }
+    },
+    400: {
+      description: "Invalid address"
+    }
+  }
+});
+
 export const deploymentsRouter = new OpenApiHonoHandler();
 
 deploymentsRouter.openapi(getRoute, async function routeGetDeployment(c) {
@@ -195,5 +222,19 @@ deploymentsRouter.openapi(updateRoute, async function routeUpdateDeployment(c) {
 deploymentsRouter.openapi(listRoute, async function routeListDeployments(c) {
   const { skip, limit } = c.req.valid("query");
   const result = await container.resolve(DeploymentController).list({ skip, limit });
+  return c.json(result, 200);
+});
+
+deploymentsRouter.openapi(listWithResourcesRoute, async function routeListDeploymentsWithResources(c) {
+  const { address, skip, limit } = c.req.valid("param");
+  const { status, reverseSorting } = c.req.valid("query");
+  const result = await container.resolve(DeploymentController).listWithResources({
+    address,
+    status,
+    skip,
+    limit,
+    reverseSorting
+  });
+
   return c.json(result, 200);
 });

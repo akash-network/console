@@ -1,6 +1,8 @@
 import { z } from "zod";
 
-import { SignTxResponseOutputSchema } from "@src/billing/routes/sign-and-broadcast-tx/sign-and-broadcast-tx.router";
+import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/tx.schema";
+import { isValidBech32Address } from "@src/utils/addresses";
+import { openApiExampleAddress } from "@src/utils/constants";
 import { LeaseStatusResponseSchema } from "./lease.schema";
 
 export const DeploymentResponseSchema = z.object({
@@ -127,6 +129,74 @@ export const ListDeploymentsResponseSchema = z.object({
   })
 });
 
+export const deploymentListMaxLimit = 100;
+
+export const ListWithResourcesParamsSchema = z.object({
+  address: z
+    .string()
+    .refine(val => isValidBech32Address(val, "akash"), { message: "Invalid address" })
+    .openapi({
+      description: "Wallet Address",
+      example: openApiExampleAddress
+    }),
+  skip: z.coerce.number().min(0).openapi({
+    description: "Deployments to skip",
+    example: 10
+  }),
+  limit: z.coerce.number().min(1).max(deploymentListMaxLimit).openapi({
+    description: "Deployments to return",
+    example: 10
+  })
+});
+
+export const ListWithResourcesQuerySchema = z.object({
+  status: z.enum(["active", "closed"]).optional().openapi({
+    description: "Filter by status",
+    example: "closed"
+  }),
+  reverseSorting: z
+    .string()
+    .optional()
+    .transform(val => val === "true")
+    .openapi({
+      description: "Reverse sorting",
+      example: "true"
+    })
+});
+
+export const ListWithResourcesResponseSchema = z.object({
+  count: z.number(),
+  results: z.array(
+    z.object({
+      owner: z.string(),
+      dseq: z.string(),
+      status: z.string(),
+      createdHeight: z.number(),
+      cpuUnits: z.number(),
+      gpuUnits: z.number(),
+      memoryQuantity: z.number(),
+      storageQuantity: z.number(),
+      leases: z.array(
+        z.object({
+          id: z.string(),
+          owner: z.string(),
+          provider: z.object({
+            address: z.string(),
+            hostUri: z.string(),
+            isDeleted: z.boolean(),
+            attributes: z.array(z.object({ key: z.string(), value: z.string() }))
+          }),
+          dseq: z.string(),
+          gseq: z.number(),
+          oseq: z.number(),
+          state: z.string(),
+          price: z.object({ denom: z.string(), amount: z.string() })
+        })
+      )
+    })
+  )
+});
+
 export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
 export type CreateDeploymentRequest = z.infer<typeof CreateDeploymentRequestSchema>;
 export type CreateDeploymentResponse = z.infer<typeof CreateDeploymentResponseSchema>;
@@ -136,3 +206,6 @@ export type DepositDeploymentRequest = z.infer<typeof DepositDeploymentRequestSc
 export type DepositDeploymentResponse = z.infer<typeof DepositDeploymentResponseSchema>;
 export type UpdateDeploymentRequest = z.infer<typeof UpdateDeploymentRequestSchema>;
 export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSchema>;
+export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSchema>;
+export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;
+export type ListWithResourcesResponse = z.infer<typeof ListWithResourcesResponseSchema>;

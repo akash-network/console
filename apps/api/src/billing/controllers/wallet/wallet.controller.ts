@@ -4,9 +4,9 @@ import { Lifecycle, scoped } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
-import type { WalletListOutputResponse, WalletOutputResponse } from "@src/billing/http-schemas/wallet.schema";
+import type { SignTxRequestInput, SignTxResponseOutput } from "@src/billing/http-schemas/tx.schema";
+import type { StartTrialRequestInput, WalletListOutputResponse, WalletOutputResponse } from "@src/billing/http-schemas/wallet.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
-import type { SignTxRequestInput, SignTxResponseOutput, StartTrialRequestInput } from "@src/billing/routes";
 import type { GetWalletQuery } from "@src/billing/routes/get-wallet-list/get-wallet-list.router";
 import { WalletInitializerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";

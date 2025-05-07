@@ -12,8 +12,8 @@ import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.servi
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
-import { DeploymentService } from "@src/deployment/services/deployment/deployment.service";
-import { ProviderService } from "@src/deployment/services/provider/provider.service";
+import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
+import { ProviderService } from "@src/provider/services/provider/provider.service";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
@@ -35,7 +35,7 @@ describe("Deployments API", () => {
   const providerService = container.resolve(ProviderService);
   const blockHttpService = container.resolve(BlockHttpService);
   const signerService = container.resolve(ManagedSignerService);
-  const deploymentService = container.resolve(DeploymentService);
+  const deploymentReaderService = container.resolve(DeploymentReaderService);
 
   let knownUsers: Record<string, UserOutput>;
   let knownApiKeys: Record<string, ApiKeyOutput>;
@@ -102,7 +102,7 @@ describe("Deployments API", () => {
     const userApiKeySecret = faker.word.noun();
     const user = UserSeeder.create({ userId });
     const apiKey = ApiKeySeeder.create({ userId });
-    const wallets = [UserWalletSeeder.create({ userId })];
+    const wallets = [UserWalletSeeder.create({ userId, address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm" })];
 
     knownUsers[userId] = user;
     knownApiKeys[userApiKeySecret] = apiKey;
@@ -132,6 +132,19 @@ describe("Deployments API", () => {
       .get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`)
       .reply(200, defaultDeploymentInfo);
 
+    nock(apiNodeUrl)
+      .persist()
+      .get(
+        `/akash/deployment/${betaTypeVersion}/deployments/list?filters.owner=${address}&pagination.offset=0&pagination.limit=1&pagination.count_total=true&pagination.reverse=false`
+      )
+      .reply(200, {
+        deployments: [defaultDeploymentInfo],
+        pagination: {
+          total: 1,
+          next_key: null
+        }
+      });
+
     const leases = LeaseSeeder.createMany(2, {
       owner: address,
       dseq,
@@ -139,6 +152,7 @@ describe("Deployments API", () => {
     });
 
     nock(apiNodeUrl).persist().get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });
+    nock(apiNodeUrl).persist().get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.state=active`).reply(200, { leases });
 
     return defaultDeploymentInfo;
   }
@@ -495,7 +509,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      jest.spyOn(deploymentService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+      jest.spyOn(deploymentReaderService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "DELETE",
@@ -557,7 +571,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      jest.spyOn(deploymentService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+      jest.spyOn(deploymentReaderService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
       const response = await app.request(`/v1/deposit-deployment`, {
         method: "POST",
@@ -659,7 +673,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      jest.spyOn(deploymentService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+      jest.spyOn(deploymentReaderService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
@@ -764,6 +778,38 @@ describe("Deployments API", () => {
           }
         ],
         error: "BadRequestError"
+      });
+    });
+  });
+
+  describe("GET /v1/addresses/{address}/deployments/{skip}/{limit}", () => {
+    it("returns deployment by dseq", async () => {
+      const dseq = "1234";
+      const { userApiKeySecret, wallets } = await mockUser();
+      setupDeploymentInfoMock(wallets, dseq);
+
+      const response = await app.request(`/v1/addresses/${wallets[0].address}/deployments/0/1`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      const result = await response.json();
+      expect(result).toEqual({
+        count: 1,
+        results: [
+          expect.objectContaining({
+            owner: wallets[0].address,
+            dseq,
+            status: "active",
+            createdHeight: expect.any(Number),
+            escrowAccount: expect.any(Object),
+            cpuUnits: expect.any(Number),
+            gpuUnits: expect.any(Number),
+            memoryQuantity: expect.any(Number),
+            storageQuantity: expect.any(Number),
+            leases: expect.arrayContaining([expect.any(Object)])
+          })
+        ]
       });
     });
   });

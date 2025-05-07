@@ -1,11 +1,17 @@
+import { Provider, ProviderAttribute, ProviderAttributeSignature, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
+import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
 import { ProviderHttpService } from "@akashnetwork/http-sdk";
 import { SupportedChainNetworks } from "@akashnetwork/net";
 import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
-import { ProviderIdentity, ProviderProxyService } from "./provider-proxy.service";
+import { ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
+import { ProviderIdentity } from "@src/provider/services/provider/provider-proxy.service";
+import { getAuditors, getProviderAttributesSchema } from "@src/services/external/githubService";
+import { mapProviderToList } from "@src/utils/map/provider";
 
 @singleton()
 export class ProviderService {
@@ -84,5 +90,63 @@ export class ProviderService {
     });
 
     return response;
+  }
+
+  async getProviderList({ trial = false }: { trial?: boolean } = {}) {
+    const providersWithAttributesAndAuditors = await Provider.findAll({
+      where: {
+        deletedHeight: null
+      },
+      order: [["createdHeight", "ASC"]],
+      include: [
+        {
+          model: ProviderAttribute
+        },
+        trial
+          ? {
+              model: ProviderAttributeSignature,
+              required: true,
+              where: {
+                auditor: AUDITOR,
+                key: TRIAL_ATTRIBUTE,
+                value: "true"
+              }
+            }
+          : {
+              model: ProviderAttributeSignature
+            }
+      ]
+    });
+
+    const providerWithNodes = await Provider.findAll({
+      attributes: ["owner"],
+      where: {
+        deletedHeight: null
+      },
+      include: [
+        {
+          model: ProviderSnapshot,
+          required: true,
+          as: "lastSuccessfulSnapshot",
+          include: [
+            {
+              model: ProviderSnapshotNode,
+              attributes: ["id"],
+              required: false,
+              include: [{ model: ProviderSnapshotNodeGPU, required: false }]
+            }
+          ]
+        }
+      ]
+    });
+
+    const distinctProviders = providersWithAttributesAndAuditors.filter((value, index, self) => self.map(x => x.hostUri).lastIndexOf(value.hostUri) === index);
+
+    const [auditors, providerAttributeSchema] = await Promise.all([getAuditors(), getProviderAttributesSchema()]);
+
+    return distinctProviders.map(x => {
+      const lastSuccessfulSnapshot = providerWithNodes.find(p => p.owner === x.owner)?.lastSuccessfulSnapshot;
+      return mapProviderToList(x, providerAttributeSchema, auditors, lastSuccessfulSnapshot);
+    });
   }
 }

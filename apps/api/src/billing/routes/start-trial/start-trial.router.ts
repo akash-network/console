@@ -1,18 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
-import { z } from "zod";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
-import { WalletResponseOutputSchema } from "@src/billing/http-schemas/wallet.schema";
+import { StartTrialRequestInputSchema, WalletResponseOutputSchema } from "@src/billing/http-schemas/wallet.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
-
-export const StartTrialRequestInputSchema = z.object({
-  data: z.object({
-    userId: z.string().openapi({})
-  })
-});
-
-export type StartTrialRequestInput = z.infer<typeof StartTrialRequestInputSchema>;
 
 const route = createRoute({
   method: "post",

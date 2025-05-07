@@ -4,7 +4,6 @@ import { add, sub } from "date-fns";
 import uniqBy from "lodash/uniqBy";
 import { Op } from "sequelize";
 
-import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import type { ProviderDetail } from "@src/types/provider";
 import { toUTC } from "@src/utils";
 import { env } from "@src/utils/env";
@@ -86,64 +85,6 @@ export async function getNetworkCapacity() {
     totalStorage: stats.activeStorage + stats.pendingStorage + stats.availableStorage
   };
 }
-
-export const getProviderList = async ({ trial = false }: { trial?: boolean } = {}) => {
-  const providersWithAttributesAndAuditors = await Provider.findAll({
-    where: {
-      deletedHeight: null
-    },
-    order: [["createdHeight", "ASC"]],
-    include: [
-      {
-        model: ProviderAttribute
-      },
-      trial
-        ? {
-            model: ProviderAttributeSignature,
-            required: true,
-            where: {
-              auditor: AUDITOR,
-              key: TRIAL_ATTRIBUTE,
-              value: "true"
-            }
-          }
-        : {
-            model: ProviderAttributeSignature
-          }
-    ]
-  });
-
-  const providerWithNodes = await Provider.findAll({
-    attributes: ["owner"],
-    where: {
-      deletedHeight: null
-    },
-    include: [
-      {
-        model: ProviderSnapshot,
-        required: true,
-        as: "lastSuccessfulSnapshot",
-        include: [
-          {
-            model: ProviderSnapshotNode,
-            attributes: ["id"],
-            required: false,
-            include: [{ model: ProviderSnapshotNodeGPU, required: false }]
-          }
-        ]
-      }
-    ]
-  });
-
-  const distinctProviders = providersWithAttributesAndAuditors.filter((value, index, self) => self.map(x => x.hostUri).lastIndexOf(value.hostUri) === index);
-
-  const [auditors, providerAttributeSchema] = await Promise.all([getAuditors(), getProviderAttributesSchema()]);
-
-  return distinctProviders.map(x => {
-    const lastSuccessfulSnapshot = providerWithNodes.find(p => p.owner === x.owner)?.lastSuccessfulSnapshot;
-    return mapProviderToList(x, providerAttributeSchema, auditors, lastSuccessfulSnapshot);
-  });
-};
 
 export const getProviderDetail = async (address: string): Promise<ProviderDetail> => {
   const nowUtc = toUTC(new Date());
