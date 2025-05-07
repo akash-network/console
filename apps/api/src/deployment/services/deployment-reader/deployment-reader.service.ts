@@ -71,7 +71,7 @@ export class DeploymentReaderService {
     };
   }
 
-  public async listByOwner(
+  public async list(
     owner: string,
     { skip, limit }: { skip?: number; limit?: number }
   ): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
@@ -101,7 +101,7 @@ export class DeploymentReaderService {
     };
   }
 
-  public async listByOwnerAndStatus({
+  public async listWithResources({
     address,
     status,
     skip,

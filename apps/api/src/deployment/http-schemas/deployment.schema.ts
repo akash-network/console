@@ -129,9 +129,9 @@ export const ListDeploymentsResponseSchema = z.object({
   })
 });
 
-export const listByOwnerMaxLimit = 100;
+export const deploymentListMaxLimit = 100;
 
-export const ListByOwnerParamsSchema = z.object({
+export const ListWithResourcesParamsSchema = z.object({
   address: AkashAddressSchema.openapi({
     description: "Wallet Address",
     example: openApiExampleAddress
@@ -140,24 +140,28 @@ export const ListByOwnerParamsSchema = z.object({
     description: "Deployments to skip",
     example: 10
   }),
-  limit: z.coerce.number().min(1).max(listByOwnerMaxLimit).openapi({
+  limit: z.coerce.number().min(1).max(deploymentListMaxLimit).openapi({
     description: "Deployments to return",
     example: 10
   })
 });
 
-export const ListByOwnerQuerySchema = z.object({
+export const ListWithResourcesQuerySchema = z.object({
   status: z.enum(["active", "closed"]).optional().openapi({
     description: "Filter by status",
     example: "closed"
   }),
-  reverseSorting: z.string().optional().openapi({
-    description: "Reverse sorting",
-    example: "true"
-  })
+  reverseSorting: z
+    .string()
+    .optional()
+    .transform(val => val === "true")
+    .openapi({
+      description: "Reverse sorting",
+      example: "true"
+    })
 });
 
-export const ListByOwnerResponseSchema = z.object({
+export const ListWithResourcesResponseSchema = z.object({
   count: z.number(),
   results: z.array(
     z.object({
@@ -168,7 +172,24 @@ export const ListByOwnerResponseSchema = z.object({
       cpuUnits: z.number(),
       gpuUnits: z.number(),
       memoryQuantity: z.number(),
-      storageQuantity: z.number()
+      storageQuantity: z.number(),
+      leases: z.array(
+        z.object({
+          id: z.string(),
+          owner: z.string(),
+          provider: z.object({
+            address: z.string(),
+            hostUri: z.string(),
+            isDeleted: z.boolean(),
+            attributes: z.array(z.object({ key: z.string(), value: z.string() }))
+          }),
+          dseq: z.string(),
+          gseq: z.number(),
+          oseq: z.number(),
+          state: z.string(),
+          price: z.object({ denom: z.string(), amount: z.string() })
+        })
+      )
     })
   )
 });
@@ -182,3 +203,6 @@ export type DepositDeploymentRequest = z.infer<typeof DepositDeploymentRequestSc
 export type DepositDeploymentResponse = z.infer<typeof DepositDeploymentResponseSchema>;
 export type UpdateDeploymentRequest = z.infer<typeof UpdateDeploymentRequestSchema>;
 export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSchema>;
+export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSchema>;
+export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;
+export type ListWithResourcesResponse = z.infer<typeof ListWithResourcesResponseSchema>;

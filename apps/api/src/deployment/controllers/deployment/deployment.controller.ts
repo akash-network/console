@@ -11,8 +11,10 @@ import {
   DepositDeploymentRequest,
   DepositDeploymentResponse,
   GetDeploymentResponse,
-  ListByOwnerResponseSchema,
   ListDeploymentsResponseSchema,
+  ListWithResourcesParams,
+  ListWithResourcesQuery,
+  ListWithResourcesResponse,
   UpdateDeploymentRequest,
   UpdateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
@@ -99,7 +101,7 @@ export class DeploymentController {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    const { deployments, total, hasMore } = await this.deploymentReaderService.listByOwner(userWallet.address, {
+    const { deployments, total, hasMore } = await this.deploymentReaderService.list(userWallet.address, {
       skip,
       limit
     });
@@ -117,13 +119,7 @@ export class DeploymentController {
     };
   }
 
-  async listByOwner(query: {
-    address: string;
-    status?: "active" | "closed";
-    skip?: number;
-    limit?: number;
-    reverseSorting?: boolean;
-  }): Promise<z.infer<typeof ListByOwnerResponseSchema>> {
-    return this.deploymentReaderService.listByOwnerAndStatus(query);
+  async listWithResources({ address, ...query }: ListWithResourcesParams & ListWithResourcesQuery): Promise<ListWithResourcesResponse> {
+    return this.deploymentReaderService.listWithResources({ address, ...query });
   }
 }
