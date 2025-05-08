@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker';
 
-import type { BlockMessage } from '@src/chain-events/services/block-message-parser/block-message-parser.service';
+import type { BlockMessage } from '@src/modules/chain/services/block-message-parser/block-message-parser.service';
 
 /**
  * Generates a simplified mock Block object for testing

@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker';
 
-import type { DeploymentBalanceAlertOutput } from '@src/alert/repositories/deployment-balance-alert/deployment-balance-alert.repository';
+import type { DeploymentBalanceAlertOutput } from '@src/modules/alert/repositories/deployment-balance-alert/deployment-balance-alert.repository';
 
 import { mockAkashAddress } from '@test/seeders/akash-address.seeder';
 
