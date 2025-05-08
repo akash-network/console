@@ -4,15 +4,7 @@ import type { AxiosError } from "axios";
 
 import type { ControlMachineWithAddress } from "@src/types/controlMachine";
 import type { DeploymentDetail, ProviderDeployments } from "@src/types/deployment";
-import type {
-  ActionList,
-  ActionStatus,
-  PersistentStorageResponse,
-  ProviderDashoard,
-  ProviderDetails,
-  ProviderOnChainStatus,
-  ProviderStatus
-} from "@src/types/provider";
+import type { ActionList, ActionStatus, PersistentStorageResponse, ProviderDashoard, ProviderDetails, ProviderOnChainStatus } from "@src/types/provider";
 import type { GpuPricesResponse } from "@src/types/providerPricing";
 import consoleClient from "@src/utils/consoleClient";
 import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
@@ -214,19 +206,16 @@ export const useProviderStatus = (chainId: string, enabled = true) => {
   });
 };
 
-export const useProviderOnlineStatus = (chainId: string, isProvider: boolean) => {
-  const { toast } = useToast();
+export const useProviderOnlineStatus = (providerUri: string | undefined, chainId: string | undefined, enabled = true) => {
   return useQuery({
-    queryKey: ["providerOnlineStatus", chainId],
+    queryKey: ["providerOnlineStatus", providerUri, chainId],
     queryFn: async () => {
-      try {
-        const response: ProviderStatus = await restClient.get(`/provider/status/online?chainid=${chainId}`);
-        return response.online;
-      } catch (error: unknown) {
-        return handleQueryError(error as AxiosError, toast, "Failed to fetch provider online status");
-      }
+      if (!providerUri || !chainId) return null;
+      const res: { online: boolean } = await restClient.get(`/provider/status/v2/online?provider_uri=${encodeURIComponent(providerUri)}&chainid=${chainId}`);
+      return res.online;
     },
-    enabled: isProvider,
+    enabled: !!providerUri && !!chainId && enabled,
+    refetchInterval: 5 * 60 * 1000, // 5 minutes
     retry: 3
   });
 };
