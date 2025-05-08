@@ -44,7 +44,7 @@ export class RichError extends Error {
     public message: string,
     public code: string | number = 'UNDEFINED',
     public data: Record<string, unknown> = {},
-    public originalError?: unknown,
+    public cause?: unknown,
   ) {
     super(message);
   }

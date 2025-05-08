@@ -5,4 +5,3 @@ export interface DryRunOptions {
 export interface ConcurrencyOptions {
   concurrency?: number;
 }
-
