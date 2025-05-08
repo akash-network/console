@@ -20,7 +20,6 @@ export class HttpResultInterceptor implements NestInterceptor {
         }
 
         if (result instanceof Ok) {
-          console.log('DEBUG result', result);
           return result.val;
         }
 
