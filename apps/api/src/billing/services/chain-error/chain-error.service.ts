@@ -66,20 +66,26 @@ export class ChainErrorService {
 
     const messagePrefix = this.getMessagePrefix(error, messages);
 
-    const { message, code } = (await this.getBalanceError(clue, error.message)) || this.ERRORS[clue];
+    const { message, code } = (await this.getBalanceError(clue, error)) || this.ERRORS[clue];
     const prefixedMessage = messagePrefix ? `${messagePrefix}: ${message}` : message;
 
     return createError(code, prefixedMessage, { originalError: error });
   }
 
-  private async getBalanceError(clue: string, message: string) {
-    if (clue !== "insufficient funds") return;
+  public async isMasterWalletInsufficientFundsError(error: Error) {
+    if (!error.message.toLowerCase().includes("insufficient funds")) return false;
 
     const masterWalletAddress = await this.masterWallet.getFirstAddress();
-    const { amount } = await this.balanceHttpService.getBalance(masterWalletAddress, this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM"));
-    const parsedMessage = this.parseInsufficientFundsErrorMessage(message);
+    const masterWalletBalance = await this.balanceHttpService.getBalance(masterWalletAddress, this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM"));
+    const insufficientFundsErrorData = this.parseInsufficientFundsErrorMessage(error.message);
 
-    if (parsedMessage && amount < parsedMessage.requiredAmount) {
+    return masterWalletBalance.amount < insufficientFundsErrorData?.requiredAmount;
+  }
+
+  private async getBalanceError(clue: string, error: Error) {
+    if (clue !== "insufficient funds") return;
+
+    if (await this.isMasterWalletInsufficientFundsError(error)) {
       return {
         code: 503,
         message: "Service temporarily unavailable"

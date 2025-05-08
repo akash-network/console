@@ -6,6 +6,7 @@ import "@src/utils/protobuf";
 import { LoggerService } from "@akashnetwork/logging";
 import { context, trace } from "@opentelemetry/api";
 import { Command } from "commander";
+import { Err } from "ts-results";
 import { container } from "tsyringe";
 import { z } from "zod";
 
@@ -87,7 +88,7 @@ program
 
 const logger = LoggerService.forContext("CLI");
 
-async function executeCliHandler(name: string, handler: () => Promise<void>) {
+async function executeCliHandler(name: string, handler: () => Promise<unknown>) {
   await context.with(trace.setSpan(context.active(), tracer.startSpan(name)), async () => {
     logger.info({ event: "COMMAND_START", name });
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -97,11 +98,17 @@ async function executeCliHandler(name: string, handler: () => Promise<void>) {
       await migratePG();
       await chainDb.authenticate();
 
-      await handler();
+      const result = await handler();
 
-      logger.info({ event: "COMMAND_END", name });
+      if (result instanceof Err) {
+        logger.error({ event: "COMMAND_ERROR", name, result: result.val });
+        process.exitCode = 1;
+      } else {
+        logger.info({ event: "COMMAND_END", name });
+      }
     } catch (error) {
       logger.error({ event: "COMMAND_ERROR", name, message: error.message, stack: error.stack });
+      process.exitCode = 1;
     } finally {
       await closeConnections();
       await chainDb.close();
