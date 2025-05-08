@@ -11,7 +11,7 @@ const responseSchema = z.array(
         name: z.string(),
         logoUrl: z.string().nullable(),
         summary: z.string(),
-        deploy: z.string(),
+        deploy: z.string()
       })
     )
   })
@@ -38,8 +38,6 @@ export default new OpenAPIHono().openapi(route, async c => {
   const templatesPerCategory = await getCachedTemplatesGallery();
   // TODO: remove manual response filtering when https://github.com/honojs/middleware/issues/181 is done
   const filteredTemplatesPerCategory = await responseSchema.safeParseAsync(templatesPerCategory);
-  const response = filteredTemplatesPerCategory.success
-    ? filteredTemplatesPerCategory.data
-    : templatesPerCategory;
+  const response = filteredTemplatesPerCategory.success ? filteredTemplatesPerCategory.data : templatesPerCategory;
   return c.json({ data: response });
 });

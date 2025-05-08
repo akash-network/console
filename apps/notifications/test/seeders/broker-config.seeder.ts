@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker';
 
-import type { BrokerModuleConfig } from '@src/broker/broker-module.definition';
+import type { BrokerModuleConfig } from '@src/infrastructure/broker/broker-module.definition';
 
 export const generateBrokerConfig = (): BrokerModuleConfig => ({
   appName: faker.lorem.word(),
