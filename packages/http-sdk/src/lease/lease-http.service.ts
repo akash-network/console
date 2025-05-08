@@ -48,28 +48,24 @@ type RestAkashLeaseListResponse = {
   };
 };
 
+type LeaseListParams = {
+  owner: string;
+  dseq?: string;
+  state?: "active" | "insufficient_funds" | "closed";
+};
+
 export class LeaseHttpService extends HttpService {
   constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
     super(config);
   }
 
-  public async listByOwnerAndDseq(owner: string, dseq: string): Promise<RestAkashLeaseListResponse> {
+  public async list({ owner, dseq, state }: LeaseListParams): Promise<RestAkashLeaseListResponse> {
     return this.extractData(
       await this.get<RestAkashLeaseListResponse>("/akash/market/v1beta4/leases/list", {
         params: {
           "filters.owner": owner,
-          "filters.dseq": dseq
-        }
-      })
-    );
-  }
-
-  public async listByOwner(owner: string): Promise<RestAkashLeaseListResponse> {
-    return this.extractData(
-      await this.get<RestAkashLeaseListResponse>("/akash/market/v1beta4/leases/list", {
-        params: {
-          "filters.owner": owner,
-          "filters.state": "active"
+          "filters.dseq": dseq,
+          "filters.state": state
         }
       })
     );
