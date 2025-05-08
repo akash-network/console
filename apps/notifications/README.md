@@ -8,15 +8,14 @@ The Notifications Service is a key component of the Akash Console application, r
 
 - **Chain Event Processing**: Listens to blockchain events and processes them for notifications
 - **Notification Routing**: Routes notifications to appropriate channels (email, etc.)
-- **Broker Service**: Manages message queuing and delivery
 - **Email Notifications**: Sends email notifications via Novu
+- **Broker Service**: Manages message queuing and delivery
 
 ## Project Structure
 
-- **chain-events**: Handles blockchain event processing
-- **notifications**: Core notification handling and routing
-- **event-routing**: Routes events to appropriate handlers
-- **broker**: Message broker service for reliable delivery
+- **modules**: Contains domain specific modules, core business logic
+- **interfaces**: Contains various outer interfaces, these can be treated as independent entry points
+- **infrastructure**: Contains implementations like dbs, message brokers, etc.
 - **common**: Shared utilities and services
 
 ## Project Setup

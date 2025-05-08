@@ -92,8 +92,6 @@ export class TestDatabaseService {
     const db = drizzle(client);
     const migrationsFolder = join(process.cwd(), 'drizzle');
 
-    console.log('DEBUG migrationsFolder', migrationsFolder);
-
     try {
       await migrate(db, { migrationsFolder });
     } catch (err) {

@@ -34,7 +34,7 @@ const route = createRoute({
             availableEphemeralStorage: z.number(),
             activePersistentStorage: z.number(),
             pendingPersistentStorage: z.number(),
-            availablePersistentStorage: z.number(),
+            availablePersistentStorage: z.number()
           })
         }
       }

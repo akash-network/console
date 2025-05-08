@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker';
 
-import type { DeploymentInfo } from '@src/alert/services/deployment/deployment.service';
+import type { DeploymentInfo } from '@src/modules/alert/services/deployment/deployment.service';
 
 export const generateDeploymentBalanceResponse = ({
   escrowAmount = faker.number.int({ min: 0, max: 10000 }),

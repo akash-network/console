@@ -3,7 +3,7 @@ import { faker } from '@faker-js/faker';
 import type {
   AlertOutput,
   Conditions,
-} from '@src/alert/repositories/raw-alert/raw-alert.repository';
+} from '@src/modules/alert/repositories/raw-alert/raw-alert.repository';
 
 export const generateRawAlert = ({
   id = faker.string.uuid(),
@@ -11,15 +11,14 @@ export const generateRawAlert = ({
   contactPointId = faker.string.uuid(),
   summary = 'Default summary {{type}}',
   description = 'Default description {{type}}',
-  eventConditions = {
+  conditions = {
     field: 'type',
     value: 'default',
     operator: 'eq',
   } as Conditions,
-  conditions = {},
   enabled = true,
-  createdAt = new Date(),
-  updatedAt = new Date(),
+  createdAt = faker.date.recent(),
+  updatedAt = faker.date.recent(),
 }: Partial<AlertOutput>): AlertOutput => {
   return {
     id,
@@ -27,7 +26,6 @@ export const generateRawAlert = ({
     contactPointId,
     summary,
     description,
-    eventConditions,
     conditions,
     enabled,
     createdAt,
