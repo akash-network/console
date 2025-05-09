@@ -146,7 +146,12 @@ export class ProviderService {
       ]
     });
 
-    const distinctProviders = providersWithAttributesAndAuditors.filter((value, index, self) => self.map(x => x.hostUri).lastIndexOf(value.hostUri) === index);
+    const distinctProviders = Object.values(
+      providersWithAttributesAndAuditors.reduce((acc: Record<string, Provider>, provider: Provider) => {
+        acc[provider.hostUri] = provider;
+        return acc;
+      }, {})
+    );
 
     const [auditors, providerAttributeSchema] = await Promise.all([
       this.auditorsService.getAuditors(),

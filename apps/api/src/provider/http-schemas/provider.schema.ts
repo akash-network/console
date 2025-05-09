@@ -92,12 +92,11 @@ export const ProviderListResponseSchema = z.array(
   })
 );
 
-const statsItemSchema = () =>
-  z.object({
-    active: z.number(),
-    available: z.number(),
-    pending: z.number()
-  });
+const statsItemSchema = z.object({
+  active: z.number(),
+  available: z.number(),
+  pending: z.number()
+});
 
 export const ProviderParamsSchema = z.object({
   address: z.string().openapi({
@@ -132,12 +131,12 @@ export const ProviderResponseSchema = z.object({
   lastOnlineDate: z.string().nullable(),
   isAudited: z.boolean(),
   stats: z.object({
-    cpu: statsItemSchema(),
-    gpu: statsItemSchema(),
-    memory: statsItemSchema(),
+    cpu: statsItemSchema,
+    gpu: statsItemSchema,
+    memory: statsItemSchema,
     storage: z.object({
-      ephemeral: statsItemSchema(),
-      persistent: statsItemSchema()
+      ephemeral: statsItemSchema,
+      persistent: statsItemSchema
     })
   }),
   activeStats: z.object({

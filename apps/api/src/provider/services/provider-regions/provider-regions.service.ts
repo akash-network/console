@@ -12,6 +12,10 @@ export class ProviderRegionsService {
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   async getProviderRegions() {
     const providerAttributesSchema = await this.providerAttributesSchemaService.getProviderAttributesSchema();
+    if (!providerAttributesSchema["location-region"]) {
+      return [];
+    }
+
     const regions = providerAttributesSchema["location-region"].values;
 
     const providers = await Provider.findAll({
@@ -19,9 +23,20 @@ export class ProviderRegionsService {
       include: [{ model: ProviderAttribute, attributes: ["value"], where: { key: "location-region" } }]
     });
 
+    const providersByRegion = providers.reduce((acc: Record<string, string[]>, provider) => {
+      provider.providerAttributes.forEach(regionAttribute => {
+        if (!acc[regionAttribute.value]) {
+          acc[regionAttribute.value] = [];
+        }
+
+        acc[regionAttribute.value].push(provider.owner);
+      });
+
+      return acc;
+    }, {});
+
     return regions.map(region => {
-      const filteredProviders = providers.filter(p => p.providerAttributes.some(attr => attr.value === region.key)).map(x => x.owner);
-      return { ...region, providers: filteredProviders };
+      return { ...region, providers: providersByRegion[region.key] || [] };
     });
   }
 }

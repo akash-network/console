@@ -38,7 +38,7 @@ describe("ProviderRegions", () => {
   };
 
   describe("GET /v1/provider-regions", () => {
-    it("returns schema for provider attributes", async () => {
+    it("returns providers grouped by regions", async () => {
       const response = await app.request("/v1/provider-regions");
 
       const data = await response.json();
