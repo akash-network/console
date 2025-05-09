@@ -7,7 +7,7 @@ import { faker } from '@faker-js/faker';
 import type {
   DecodedMessageValue,
   MessageTypeFilter,
-} from '../../src/chain-events/services/block-message-parser/block-message-parser.service';
+} from '@src/modules/chain/services/block-message-parser/block-message-parser.service';
 
 /**
  * Generates a DeploymentID object

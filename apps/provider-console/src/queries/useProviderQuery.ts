@@ -194,7 +194,6 @@ export const useProviderStatus = (chainId: string, enabled = true) => {
       try {
         const response: ProviderOnChainStatus = await restClient.get(`/provider/status/onchain?chainid=${chainId}`);
         return {
-          isProvider: response.provider ? true : false,
           provider: response.provider
         };
       } catch (error: unknown) {
@@ -215,7 +214,7 @@ export const useProviderOnlineStatus = (providerUri: string | undefined, chainId
       return res.online;
     },
     enabled: !!providerUri && !!chainId && enabled,
-    refetchInterval: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 2 * 60 * 1000, // 2 minutes
     retry: 3
   });
 };
