@@ -1,5 +1,6 @@
-import type { StdSignature } from "@cosmjs/amino";
-import type { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import { encodeSecp256k1Signature, type StdSignature } from "@cosmjs/amino";
+import { Bip39, EnglishMnemonic, Secp256k1, sha256, Slip10, Slip10Curve, stringToPath } from "@cosmjs/crypto";
+import type { DirectSecp256k1HdWallet, DirectSecp256k1HdWalletOptions } from "@cosmjs/proto-signing";
 
 import type { jwtClaimsTestCases } from "../generated/jwtClaimsTestCases";
 import type { JWTPayload } from "../types";
@@ -34,26 +35,23 @@ export async function createMockCosmosWallet(wallet: DirectSecp256k1HdWallet) {
     pubkey: account.pubkey,
     address: account.address,
     signArbitrary: async (signer: string, data: string | Uint8Array): Promise<StdSignature> => {
-      const message = typeof data === "string" ? data : new TextDecoder().decode(data);
+      const message = typeof data === "string" ? Buffer.from(data) : data;
+      const hashedMessage = sha256(message);
+      const seed = await fromMnemonic(wallet.mnemonic);
+      const { privkey } = Slip10.derivePath(Slip10Curve.Secp256k1, seed, stringToPath("m/44'/118'/0'/0/0"));
+      const signature = await Secp256k1.createSignature(hashedMessage, privkey);
+      const signatureBytes = new Uint8Array([...signature.r(32), ...signature.s(32)]);
+      const stdSignature = encodeSecp256k1Signature(account.pubkey, signatureBytes);
 
-      // Sign the message using signDirect
-      const signResponse = await wallet.signDirect(signer, {
-        bodyBytes: new TextEncoder().encode(message),
-        authInfoBytes: new Uint8Array(),
-        chainId: "akashnet-2",
-        accountNumber: BigInt(0)
-      });
-
-      // Convert the signature to the expected format
-      return {
-        signature: Buffer.from(signResponse.signature.signature).toString("base64"),
-        pub_key: {
-          type: "tendermint/PubKeySecp256k1",
-          value: Buffer.from(account.pubkey).toString("base64")
-        }
-      };
+      return stdSignature;
     }
   };
+}
+
+async function fromMnemonic(mnemonic: string, options: Partial<DirectSecp256k1HdWalletOptions> = {}): Promise<Uint8Array> {
+  const mnemonicChecked = new EnglishMnemonic(mnemonic);
+  const seed = await Bip39.mnemonicToSeed(mnemonicChecked, options.bip39Password);
+  return seed;
 }
 
 /**
@@ -70,7 +68,6 @@ export function replaceTemplateValues(testCase: (typeof jwtClaimsTestCases)[0]) 
   if (claims.iss === "{{.Issuer}}") claims.iss = issuer;
   if (claims.iat === "{{.Iat24h}}") claims.iat = now - 86400; // 24 hours ago
   if (claims.exp === "{{.Exp48h}}") claims.exp = now + 172800; // 48 hours from now
-  if (!claims.nbf) claims.nbf = now;
 
   // Convert string timestamps to numbers
   if (typeof claims.iat === "string") claims.iat = parseInt(claims.iat, 10);
