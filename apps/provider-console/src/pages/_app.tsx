@@ -31,11 +31,11 @@ export default function App({ Component, pageProps }: AppProps) {
                 <TooltipProvider>
                   <CustomChainProvider>
                     <WalletProvider>
-                      <ControlMachineProvider>
-                        <ProviderContextProvider>
+                      <ProviderContextProvider>
+                        <ControlMachineProvider>
                           <Component {...pageProps} />
-                        </ProviderContextProvider>
-                      </ControlMachineProvider>
+                        </ControlMachineProvider>
+                      </ProviderContextProvider>
                     </WalletProvider>
                   </CustomChainProvider>
                 </TooltipProvider>
