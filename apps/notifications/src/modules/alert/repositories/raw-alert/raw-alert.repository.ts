@@ -1,7 +1,7 @@
 import type { AnyAbility } from '@casl/ability';
 import { InjectDrizzle } from '@knaadh/nestjs-drizzle-pg';
 import { Injectable } from '@nestjs/common';
-import { gt } from 'drizzle-orm';
+import { eq, gt } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { SQL } from 'drizzle-orm/sql/sql';
 import { z } from 'zod';
@@ -89,6 +89,36 @@ export class RawAlertRepository {
     return this.toOutput(result);
   }
 
+  async updateById(
+    id: string,
+    input: Partial<AlertInput>,
+  ): Promise<AlertOutput | undefined> {
+    const [alert] = await this.db
+      .update(schema.RawAlert)
+      .set(this.toInput(input))
+      .where(this.whereAccessibleBy(eq(schema.RawAlert.id, id)))
+      .returning();
+
+    return alert && this.toOutput(alert);
+  }
+
+  async findOneById(id: string): Promise<AlertOutput | undefined> {
+    const alert = await this.db.query.RawAlert.findFirst({
+      where: this.whereAccessibleBy(eq(schema.RawAlert.id, id)),
+    });
+
+    return alert && this.toOutput(alert);
+  }
+
+  async deleteOneById(id: string): Promise<AlertOutput | undefined> {
+    const [alert] = await this.db
+      .delete(schema.RawAlert)
+      .where(this.whereAccessibleBy(eq(schema.RawAlert.id, id)))
+      .returning();
+
+    return alert && this.toOutput(alert);
+  }
+
   async paginate({
     limit,
     callback,
@@ -131,11 +161,15 @@ export class RawAlertRepository {
     return alerts.map(this.toOutput);
   }
 
-  private toInput<T extends InternalAlertInput>(alert: T): T {
-    return {
-      ...alert,
-      conditions: conditionSchema.parse(alert.conditions),
-    };
+  private toInput<T extends Partial<InternalAlertInput>>(alert: T): T {
+    if (alert.conditions) {
+      return {
+        ...alert,
+        conditions: conditionSchema.parse(alert.conditions),
+      };
+    }
+
+    return alert;
   }
 
   private toOutput(alert: InternalAlertOutput): AlertOutput {

@@ -25,7 +25,8 @@
         "analytics",
         "template",
         "notifications",
-        "alert"
+        "alert",
+        "contact-point"
       ]
     ]
   }
