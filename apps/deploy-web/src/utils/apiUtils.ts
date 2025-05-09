@@ -103,7 +103,7 @@ export class ApiUrlService {
     return `${this.baseApiUrl}/v1/blocks${appendSearchParams({ limit })}`;
   }
   static providerActiveLeasesGraph(providerAddress: string) {
-    return `${this.baseApiUrl}/v1/provider-active-leases-graph-data/${providerAddress}`;
+    return `${this.baseApiUrl}/v1/providers/${providerAddress}/active-leases-graph-data`;
   }
   static providerAttributesSchema() {
     return `${this.baseApiUrl}/v1/provider-attributes-schema`;

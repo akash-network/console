@@ -180,7 +180,7 @@ legacyRouter.get("/getProviderGraphData/:dataName", async c => {
 
 legacyRouter.get("/getProviderActiveLeasesGraphData/:address", async c => {
   const address = c.req.param("address");
-  return c.redirect(`/v1/provider-active-leases-graph-data/${address}`, redirectStatusCode);
+  return c.redirect(`/v1/providers/${address}/active-leases-graph-data`, redirectStatusCode);
 });
 
 legacyRouter.get("/getGraphData/:dataName", async c => {

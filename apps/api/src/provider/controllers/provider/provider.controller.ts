@@ -5,6 +5,7 @@ import { ProviderCleanupParams } from "@src/billing/types/provider-cleanup";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { ProviderListQuery } from "@src/provider/http-schemas/provider.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
+import { ProviderStatsService } from "@src/provider/services/provider-stats/provider-stats.service";
 import { TrialProvidersService } from "@src/provider/services/trial-providers/trial-providers.service";
 
 @singleton()
@@ -12,7 +13,8 @@ export class ProviderController {
   constructor(
     private readonly trialProvidersService: TrialProvidersService,
     private readonly providerCleanupService: ProviderCleanupService,
-    private readonly providerService: ProviderService
+    private readonly providerService: ProviderService,
+    private readonly providerStatsService: ProviderStatsService
   ) {}
 
   async getTrialProviders() {
@@ -30,5 +32,9 @@ export class ProviderController {
       () => this.providerService.getProviderList({ trial: scope === "trial" }),
       true
     );
+  }
+
+  async getProviderActiveLeasesGraphData(providerAddress: string) {
+    return await this.providerStatsService.getProviderActiveLeasesGraphData(providerAddress);
   }
 }

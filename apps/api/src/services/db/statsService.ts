@@ -5,7 +5,7 @@ import { Op, QueryTypes } from "sequelize";
 
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
-import type { ProviderActiveLeasesStats, ProviderStats, ProviderStatsKey } from "@src/types/graph";
+import type { ProviderStats, ProviderStatsKey } from "@src/types/graph";
 import { env } from "@src/utils/env";
 import { getGpuUtilization } from "./gpuBreakdownService";
 
@@ -299,66 +299,6 @@ const removeLastAroundMidnight = (stats: ProviderStats[]) => {
   }
 
   return stats;
-};
-
-export const getProviderActiveLeasesGraphData = async (providerAddress: string) => {
-  console.log("getProviderActiveLeasesGraphData");
-
-  const result = await chainDb.query<ProviderActiveLeasesStats>(
-    `SELECT "date" AS date, COUNT(l."id") AS count
-    FROM "day" d
-    LEFT JOIN "lease" l
-        ON l."providerAddress" = :providerAddress
-        AND l."createdHeight" <= d."lastBlockHeightYet"
-        AND COALESCE(l."closedHeight", l."predictedClosedHeight") > d."lastBlockHeightYet"
-        AND (l."predictedClosedHeight" IS NULL OR l."predictedClosedHeight" > d."lastBlockHeightYet")
-    INNER JOIN "provider" p
-        ON p."owner" = :providerAddress
-    WHERE d."lastBlockHeightYet" >= p."createdHeight"
-    GROUP BY "date"
-    ORDER BY "date" ASC`,
-    {
-      type: QueryTypes.SELECT,
-      replacements: { providerAddress: providerAddress }
-    }
-  );
-
-  if (result.length < 2) {
-    return {
-      currentValue: 0,
-      compareValue: 0,
-      snapshots: [] as {
-        date: string;
-        value: number;
-      }[],
-      now: {
-        count: 0
-      },
-      compare: {
-        count: 0
-      }
-    };
-  }
-
-  const currentValue = result[result.length - 1];
-  const compareValue = result[result.length - 2];
-
-  return {
-    currentValue: currentValue.count,
-    compareValue: compareValue.count,
-    snapshots: result.map(day => ({
-      date: day.date,
-      value: day.count
-    })),
-
-    // To compare from previous day
-    now: {
-      count: currentValue.count
-    },
-    compare: {
-      count: compareValue.count
-    }
-  };
 };
 
 export async function getProviderTotalLeaseCountAtHeight(provider: string, height: number) {

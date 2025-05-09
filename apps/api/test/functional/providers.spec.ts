@@ -8,11 +8,15 @@ import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/db/dbConnection";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 
-import { generateProvider } from "@test/seeders/provider.seeder";
+import { DaySeeder } from "@test/seeders/day.seeder";
+import { DeploymentSeeder } from "@test/seeders/deployment.seeder";
+import { DeploymentGroupSeeder } from "@test/seeders/deployment-group.seeder";
+import { LeaseSeeder } from "@test/seeders/lease.seeder";
+import { ProviderSeeder } from "@test/seeders/provider.seeder";
 import { generateProviderSnapshot } from "@test/seeders/provider-snapshot.seeder";
 
 describe("Providers", () => {
-  const providerSeeds = [generateProvider(), generateProvider(), generateProvider()];
+  const providerSeeds = [ProviderSeeder.create(), ProviderSeeder.create(), ProviderSeeder.create()];
   const providerSnapshotSeeds = [
     generateProviderSnapshot({
       owner: providerSeeds[0].owner,
@@ -123,6 +127,86 @@ describe("Providers", () => {
 
       expect(response.status).toBe(200);
       expectProviders(data, [providers[0]]);
+    });
+  });
+
+  describe("GET /v1/providers/{providerAddress}/active-leases-graph-data", () => {
+    it("returns the active leases graph data for a provider", async () => {
+      const providerAddress = "akash18ga02jzaq8cw52anyhzkwta5wygufgu6zsz6xc";
+      const days = [
+        await DaySeeder.createInDatabase({
+          date: subDays(new Date(), 2),
+          firstBlockHeight: 1,
+          lastBlockHeight: 100,
+          lastBlockHeightYet: 100
+        }),
+        await DaySeeder.createInDatabase({
+          date: subDays(new Date(), 1),
+          firstBlockHeight: 101,
+          lastBlockHeight: 200,
+          lastBlockHeightYet: 200
+        })
+      ];
+      const provider = await ProviderSeeder.createInDatabase({
+        owner: providerAddress,
+        createdHeight: days[0].lastBlockHeightYet - 1
+      });
+
+      const deployment = await DeploymentSeeder.createInDatabase();
+
+      const deploymentGroup = await DeploymentGroupSeeder.createInDatabase({
+        deploymentId: deployment.id
+      });
+
+      await LeaseSeeder.createInDatabase({
+        providerAddress: provider.owner,
+        createdHeight: days[0].lastBlockHeightYet - 1,
+        closedHeight: null,
+        predictedClosedHeight: days[0].lastBlockHeightYet + 1,
+        deploymentId: deployment.id,
+        deploymentGroupId: deploymentGroup.id,
+        state: "active"
+      });
+      await LeaseSeeder.createInDatabase({
+        providerAddress: provider.owner,
+        createdHeight: days[0].lastBlockHeightYet - 1,
+        closedHeight: null,
+        predictedClosedHeight: days[0].lastBlockHeightYet + 1,
+        deploymentId: deployment.id,
+        deploymentGroupId: deploymentGroup.id,
+        state: "active"
+      });
+      await LeaseSeeder.createInDatabase({
+        providerAddress: provider.owner,
+        createdHeight: days[1].lastBlockHeightYet - 1,
+        closedHeight: null,
+        predictedClosedHeight: days[1].lastBlockHeightYet + 1,
+        deploymentId: deployment.id,
+        deploymentGroupId: deploymentGroup.id,
+        state: "active"
+      });
+
+      const response = await app.request(`/v1/providers/${providerAddress}/active-leases-graph-data`);
+
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toEqual({
+        currentValue: 1,
+        compareValue: 2,
+        snapshots: [
+          {
+            date: days[0].date.toISOString(),
+            value: 2
+          },
+          {
+            date: days[1].date.toISOString(),
+            value: 1
+          }
+        ],
+        now: { count: 1 },
+        compare: { count: 2 }
+      });
     });
   });
 });
