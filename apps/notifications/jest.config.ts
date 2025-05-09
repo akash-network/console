@@ -30,13 +30,14 @@ export default {
       displayName: 'unit',
       ...common,
       testMatch: ['<rootDir>/src/**/*.spec.ts'],
+      setupFiles: ['./test/setup-env.ts'],
     },
     {
       displayName: 'functional',
       ...common,
       testMatch: ['<rootDir>/test/functional/**/*.spec.ts'],
       setupFilesAfterEnv: ['./test/setup-functional-tests.ts'],
-      setupFiles: ['./test/setup-functional-env.ts'],
+      setupFiles: ['./test/setup-env.ts'],
     },
   ],
 };

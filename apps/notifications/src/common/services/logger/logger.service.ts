@@ -1,8 +1,17 @@
-import { Injectable, Logger, Scope } from '@nestjs/common';
+import type { Logger as LoggerBase } from '@akashnetwork/logging';
+import type { ConsoleLoggerOptions } from '@nestjs/common';
+import { ConsoleLogger } from '@nestjs/common';
 
-@Injectable({ scope: Scope.TRANSIENT })
-export class LoggerService extends Logger {
-  setContext(context: string) {
-    this.context = context;
+export class LoggerService extends ConsoleLogger implements LoggerBase {
+  constructor(options: ConsoleLoggerOptions = {}) {
+    const opts: ConsoleLoggerOptions = {
+      prefix: 'APP',
+      ...options,
+    };
+    super(opts);
+  }
+
+  info(message: any, ...optionalParams: [...any, string?]) {
+    return this.log(message, ...optionalParams);
   }
 }

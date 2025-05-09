@@ -2,12 +2,15 @@ import '@akashnetwork/env-loader';
 
 import { NestFactory } from '@nestjs/core';
 
+import { Logger } from '@src/common/providers/logger.provider';
 import { ShutdownService } from '@src/common/services/shutdown/shutdown.service';
 import { HttpExceptionFilter } from '@src/interfaces/rest/filters/http-exception/http-exception.filter';
 import { HttpResultInterceptor } from '@src/interfaces/rest/interceptors/http-result/http-result.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(loadInterface());
+  const app = await NestFactory.create(loadInterface(), {
+    logger: new Logger({ context: 'APP' }),
+  });
 
   app.enableShutdownHooks();
   app.get(ShutdownService).onShutdown(() => app.close());

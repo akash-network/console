@@ -6,6 +6,9 @@ export const globalEnvSchema = z.object({
   RPC_NODE_ENDPOINT: z.string(),
   API_NODE_ENDPOINT: z.string(),
   APP_NAME: z.string(),
+  STD_OUT_LOG_FORMAT: z.enum(['json', 'pretty']).optional().default('json'),
 });
 
 export type GlobalEnvConfig = z.infer<typeof globalEnvSchema>;
+
+export const globalEnv = globalEnvSchema.parse(process.env);
