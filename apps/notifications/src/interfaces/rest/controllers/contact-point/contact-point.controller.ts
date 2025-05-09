@@ -42,10 +42,6 @@ export const contactPointPatchInputSchema = z.object({
   config: contactPointConfigSchema.optional(),
 });
 
-export const contactPointNotFoundError = new NotFoundException(
-  'Contact point not found',
-);
-
 @Controller({
   version: '1',
   path: 'contact-points',
@@ -108,6 +104,6 @@ export class ContactPointController {
   ): Result<ContactPointOutputResponse, NotFoundException> {
     return contactPoint
       ? Ok({ data: contactPoint })
-      : Err(contactPointNotFoundError);
+      : Err(new NotFoundException('Contact point not found'));
   }
 }

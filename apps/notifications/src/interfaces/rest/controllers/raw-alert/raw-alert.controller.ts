@@ -46,8 +46,6 @@ export const alertPatchInputSchema = z.object({
   conditions: rawConditionSchema.optional(),
 });
 
-export const alertNotFoundError = new NotFoundException('Alert not found');
-
 @Controller({
   version: '1',
   path: 'alerts',
@@ -106,6 +104,8 @@ export class RawAlertController {
   private toResponse(
     alert: AlertOutput | undefined,
   ): Result<AlertOutputResponse, NotFoundException> {
-    return alert ? Ok({ data: alert }) : Err(alertNotFoundError);
+    return alert
+      ? Ok({ data: alert })
+      : Err(new NotFoundException('Alert not found'));
   }
 }

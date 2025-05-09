@@ -8,7 +8,6 @@ import { Ok } from 'ts-results';
 import { RawAlertRepository } from '@src/modules/alert/repositories/raw-alert/raw-alert.repository';
 import {
   alertCreateInputSchema,
-  alertNotFoundError,
   alertOutputSchema,
   alertPatchInputSchema,
   RawAlertController,
@@ -59,7 +58,10 @@ describe(RawAlertController.name, () => {
 
       await expect(
         controller.patchAlert(id, { data: input }),
-      ).resolves.toMatchObject({ err: true, val: alertNotFoundError });
+      ).resolves.toMatchObject({
+        err: true,
+        val: expect.objectContaining({ message: 'Alert not found' }),
+      });
       expect(rawAlertRepository.updateById).toHaveBeenCalledWith(id, input);
     });
   });
@@ -88,7 +90,7 @@ describe(RawAlertController.name, () => {
 
       await expect(controller.getAlert(id)).resolves.toMatchObject({
         err: true,
-        val: alertNotFoundError,
+        val: expect.objectContaining({ message: 'Alert not found' }),
       });
       expect(rawAlertRepository.findOneById).toHaveBeenCalledWith(id);
     });
@@ -118,7 +120,7 @@ describe(RawAlertController.name, () => {
 
       await expect(controller.deleteAlert(id)).resolves.toMatchObject({
         err: true,
-        val: alertNotFoundError,
+        val: expect.objectContaining({ message: 'Alert not found' }),
       });
       expect(rawAlertRepository.deleteOneById).toHaveBeenCalledWith(id);
     });

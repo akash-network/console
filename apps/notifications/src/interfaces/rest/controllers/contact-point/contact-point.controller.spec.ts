@@ -1,7 +1,7 @@
 import { generateMock } from '@anatine/zod-mock';
 import { faker } from '@faker-js/faker';
-import type { TestingModule } from "@nestjs/testing";
-import { Test } from "@nestjs/testing";
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import type { MockProxy } from 'jest-mock-extended';
 import { Ok } from 'ts-results';
 
@@ -9,12 +9,11 @@ import { ContactPointRepository } from '@src/modules/notifications/repositories/
 import {
   ContactPointController,
   contactPointCreateInputSchema,
-  contactPointNotFoundError,
   contactPointOutputSchema,
   contactPointPatchInputSchema,
 } from './contact-point.controller';
 
-import { MockProvider } from "@test/mocks/provider.mock";
+import { MockProvider } from '@test/mocks/provider.mock';
 
 describe(ContactPointController.name, () => {
   describe('createContactPoint', () => {
@@ -58,7 +57,9 @@ describe(ContactPointController.name, () => {
         controller.patchContactPoint(id, { data: input }),
       ).resolves.toMatchObject({
         err: true,
-        val: contactPointNotFoundError,
+        val: expect.objectContaining({
+          message: 'Contact point not found',
+        }),
       });
       expect(contactPointRepository.updateById).toHaveBeenCalledWith(id, input);
     });
@@ -86,7 +87,9 @@ describe(ContactPointController.name, () => {
 
       await expect(controller.getContactPoint(id)).resolves.toMatchObject({
         err: true,
-        val: contactPointNotFoundError,
+        val: expect.objectContaining({
+          message: 'Contact point not found',
+        }),
       });
       expect(contactPointRepository.findById).toHaveBeenCalledWith(id);
     });
@@ -114,7 +117,9 @@ describe(ContactPointController.name, () => {
 
       await expect(controller.deleteContactPoint(id)).resolves.toMatchObject({
         err: true,
-        val: contactPointNotFoundError,
+        val: expect.objectContaining({
+          message: 'Contact point not found',
+        }),
       });
       expect(contactPointRepository.deleteById).toHaveBeenCalledWith(id);
     });
