@@ -7,10 +7,12 @@ import {
   ProviderActiveLeasesGraphDataParamsSchema,
   ProviderActiveLeasesGraphDataResponseSchema,
   ProviderListQuerySchema,
-  ProviderListResponseSchema
+  ProviderListResponseSchema,
+  ProviderParamsSchema,
+  ProviderResponseSchema
 } from "@src/provider/http-schemas/provider.schema";
 
-const route = createRoute({
+const providerListRoute = createRoute({
   method: "get",
   path: "/v1/providers",
   summary: "Get a list of providers.",
@@ -26,6 +28,32 @@ const route = createRoute({
           schema: ProviderListResponseSchema
         }
       }
+    }
+  }
+});
+
+const providerRoute = createRoute({
+  method: "get",
+  path: "/v1/providers/{address}",
+  summary: "Get a provider details.",
+  tags: ["Providers"],
+  request: {
+    params: ProviderParamsSchema
+  },
+  responses: {
+    200: {
+      description: "Return a provider details",
+      content: {
+        "application/json": {
+          schema: ProviderResponseSchema
+        }
+      }
+    },
+    404: {
+      description: "Provider not found"
+    },
+    400: {
+      description: "Invalid address"
     }
   }
 });
@@ -54,11 +82,26 @@ const activeLeasesGraphDataRoute = createRoute({
 
 export const providersRouter = new OpenApiHonoHandler();
 
-providersRouter.openapi(route, async function routeListProviders(c) {
+providersRouter.openapi(providerListRoute, async function routeListProviders(c) {
   const { scope } = c.req.valid("query");
   const providers = await container.resolve(ProviderController).getProviderList(scope);
 
   return c.json(providers);
+});
+
+providersRouter.openapi(providerRoute, async function routeGetProvider(c) {
+  const { address } = c.req.valid("param");
+  if (!address) {
+    return c.text("Address is undefined.", 400);
+  }
+
+  const provider = await container.resolve(ProviderController).getProvider(address);
+
+  if (!provider) {
+    return c.text("Provider not found.", 404);
+  }
+
+  return c.json(provider);
 });
 
 providersRouter.openapi(activeLeasesGraphDataRoute, async function routeProviderActiveLeasesGraphData(c) {

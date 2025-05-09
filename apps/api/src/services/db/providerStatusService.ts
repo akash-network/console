@@ -1,14 +1,11 @@
-import { Provider, ProviderAttribute, ProviderAttributeSignature, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
+import { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
-import { add, sub } from "date-fns";
+import { sub } from "date-fns";
 import uniqBy from "lodash/uniqBy";
 import { Op } from "sequelize";
 
-import type { ProviderDetail } from "@src/types/provider";
 import { toUTC } from "@src/utils";
 import { env } from "@src/utils/env";
-import { mapProviderToList } from "@src/utils/map/provider";
-import { getAuditors, getProviderAttributesSchema } from "../external/githubService";
 
 export async function getNetworkCapacity() {
   const providers = await Provider.findAll({
@@ -85,59 +82,3 @@ export async function getNetworkCapacity() {
     totalStorage: stats.activeStorage + stats.pendingStorage + stats.availableStorage
   };
 }
-
-export const getProviderDetail = async (address: string): Promise<ProviderDetail> => {
-  const nowUtc = toUTC(new Date());
-  const provider = await Provider.findOne({
-    where: {
-      deletedHeight: null,
-      owner: address
-    },
-    include: [
-      {
-        model: ProviderAttribute
-      },
-      {
-        model: ProviderAttributeSignature
-      }
-    ]
-  });
-
-  if (!provider) return null;
-
-  const uptimeSnapshots = await ProviderSnapshot.findAll({
-    attributes: ["isOnline", "id", "checkDate"],
-    where: {
-      owner: provider.owner,
-      checkDate: {
-        [Op.gte]: add(nowUtc, { days: -1 })
-      }
-    }
-  });
-
-  const lastSuccessfulSnapshot = provider.lastSuccessfulSnapshotId
-    ? await ProviderSnapshot.findOne({
-        where: {
-          id: provider.lastSuccessfulSnapshotId
-        },
-        order: [["checkDate", "DESC"]],
-        include: [
-          {
-            model: ProviderSnapshotNode,
-            include: [{ model: ProviderSnapshotNodeGPU }]
-          }
-        ]
-      })
-    : null;
-
-  const [auditors, providerAttributeSchema] = await Promise.all([getAuditors(), getProviderAttributesSchema()]);
-
-  return {
-    ...mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot),
-    uptime: uptimeSnapshots.map(ps => ({
-      id: ps.id,
-      isOnline: ps.isOnline,
-      checkDate: ps.checkDate
-    }))
-  };
-};

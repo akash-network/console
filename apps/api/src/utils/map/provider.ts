@@ -1,7 +1,8 @@
 import type { Provider, ProviderSnapshot, ProviderSnapshotNode } from "@akashnetwork/database/dbSchemas/akash";
+import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import semver from "semver";
 
-import type { Auditor, ProviderAttributesSchema, ProviderList, StatsItem } from "@src/types/provider";
+import type { Auditor, ProviderList, StatsItem } from "@src/types/provider";
 import { createFilterUnique } from "../array/array";
 
 export const mapProviderToList = (
