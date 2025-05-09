@@ -4,9 +4,9 @@ import { ProviderAttributesSchemaService } from "@src/provider/services/provider
 
 @singleton()
 export class ProviderAttributesSchemaController {
-  constructor(private readonly providetAttributesSchemaService: ProviderAttributesSchemaService) {}
+  constructor(private readonly providerAttributesSchemaService: ProviderAttributesSchemaService) {}
 
   async getProviderAttributesSchema() {
-    return await this.providetAttributesSchemaService.getProviderAttributesSchema();
+    return await this.providerAttributesSchemaService.getProviderAttributesSchema();
   }
 }

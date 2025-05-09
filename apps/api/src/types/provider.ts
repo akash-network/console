@@ -101,13 +101,6 @@ export interface ProviderDetail extends ProviderList {
   }[];
 }
 
-export type Auditor = {
-  id: string;
-  name: string;
-  address: string;
-  website: string;
-};
-
 export interface StatsItem {
   active: number;
   available: number;

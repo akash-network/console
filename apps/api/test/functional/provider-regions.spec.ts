@@ -1,19 +1,18 @@
-import { Provider, ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
+import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import { ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
 
 import { app, initDb } from "@src/app";
 import type { ProviderRegionsResponse } from "@src/provider/http-schemas/provider-regions.schema";
 
-import { generateProvider } from "@test/seeders/provider.seeder";
+import { ProviderSeeder } from "@test/seeders/provider.seeder";
 
 describe("ProviderRegions", () => {
-  const providerSeeds = [generateProvider(), generateProvider(), generateProvider()];
-
   let providers: Provider[];
 
   beforeAll(async () => {
     await initDb();
 
-    providers = await Promise.all(providerSeeds.map(async provider => Provider.create(provider)));
+    providers = await Promise.all([ProviderSeeder.createInDatabase(), ProviderSeeder.createInDatabase(), ProviderSeeder.createInDatabase()]);
     await ProviderAttribute.create({
       provider: providers[0].owner,
       key: "location-region",
@@ -38,7 +37,7 @@ describe("ProviderRegions", () => {
   };
 
   describe("GET /v1/provider-regions", () => {
-    it("returns schema for provider attributes", async () => {
+    it("returns providers grouped by regions", async () => {
       const response = await app.request("/v1/provider-regions");
 
       const data = await response.json();

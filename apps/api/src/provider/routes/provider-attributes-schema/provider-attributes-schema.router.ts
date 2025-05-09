@@ -18,9 +18,6 @@ const route = createRoute({
           schema: ProviderAttributesSchemaResponseSchema
         }
       }
-    },
-    400: {
-      description: "Invalid address"
     }
   }
 });
