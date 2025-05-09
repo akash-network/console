@@ -206,15 +206,23 @@ export const useProviderStatus = (chainId: string, enabled = true) => {
 };
 
 export const useProviderOnlineStatus = (providerUri: string | undefined, chainId: string | undefined, enabled = true) => {
+  const { toast } = useToast();
   return useQuery({
     queryKey: ["providerOnlineStatus", providerUri, chainId],
     queryFn: async () => {
       if (!providerUri || !chainId) return null;
-      const res: { online: boolean } = await restClient.get(`/provider/status/v2/online?provider_uri=${encodeURIComponent(providerUri)}&chainid=${chainId}`);
-      return res.online;
+      try {
+        const res: { online: boolean } = await restClient.get(
+          `/provider/status/v2/online?provider_uri=${encodeURIComponent(providerUri)}&chainid=${encodeURIComponent(chainId)}`
+        );
+        return res.online;
+      } catch (error: unknown) {
+        return handleQueryError(error as AxiosError, toast, "Failed to fetch provider online status");
+      }
     },
     enabled: !!providerUri && !!chainId && enabled,
     refetchInterval: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false,
     retry: 3
   });
 };

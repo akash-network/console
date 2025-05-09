@@ -5,7 +5,7 @@ import { useProvider } from "@src/context/ProviderContext";
 
 export const ProviderStatus: React.FC = () => {
   const router = useRouter();
-  const { isOnline, providerDetails, isLoadingProviderDetails } = useProvider();
+  const { isOnline, providerDetails, isLoadingProviderDetails, isLoadingOnlineStatus } = useProvider();
 
   const routeToRemedies = () => {
     if (providerDetails && !isOnline) {
@@ -14,7 +14,7 @@ export const ProviderStatus: React.FC = () => {
   };
 
   const renderStatus = () => {
-    if (isLoadingProviderDetails) {
+    if (isLoadingProviderDetails || isLoadingOnlineStatus) {
       return (
         <span className="ml-2 flex items-center text-gray-500">
           <Spinner className="mr-2 h-4 w-4" />

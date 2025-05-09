@@ -177,6 +177,11 @@ export function ControlMachineProvider({ children }: Props) {
         systemInfo: result.systemInfo
       };
 
+      if (!address) {
+        console.error("No wallet address found – aborting control-machine save.");
+        return;
+      }
+
       setControlMachine({
         address,
         ...machineInfo

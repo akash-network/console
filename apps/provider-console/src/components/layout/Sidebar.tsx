@@ -34,8 +34,7 @@ type Props = {
 export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick }) => {
   const [isHovering, setIsHovering] = useState(false);
 
-  const { providerDetails, isLoadingProviderDetails } = useProvider();
-  const { isOnline, isLoadingOnlineStatus } = useProvider();
+  const { providerDetails, isLoadingProviderDetails, isOnline, isLoadingOnlineStatus } = useProvider();
 
   const _isNavOpen = isNavOpen || isHovering;
   const muiTheme = useMuiTheme();
