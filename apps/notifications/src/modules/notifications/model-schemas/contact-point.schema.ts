@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm';
-import { jsonb, pgEnum, pgTable, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { jsonb, pgEnum, pgTable, uuid } from 'drizzle-orm/pg-core';
+
+import { timestamps } from '@src/lib/db/timestamps';
 
 export const ContactPointType = pgEnum('contact_point_type', ['email']);
 
@@ -11,6 +13,6 @@ export const ContactPoint = pgTable('contact_points', {
   userId: uuid('user_id').notNull().unique(),
   type: ContactPointType('type').notNull(),
   config: jsonb('config').notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+
+  ...timestamps,
 });
