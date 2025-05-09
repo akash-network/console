@@ -79,7 +79,9 @@ export class ChainErrorService {
     const masterWalletBalance = await this.balanceHttpService.getBalance(masterWalletAddress, this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM"));
     const insufficientFundsErrorData = this.parseInsufficientFundsErrorMessage(error.message);
 
-    return masterWalletBalance.amount < insufficientFundsErrorData?.requiredAmount;
+    if (!insufficientFundsErrorData) return false;
+
+    return masterWalletBalance.amount < insufficientFundsErrorData.requiredAmount;
   }
 
   private async getBalanceError(clue: string, error: Error) {

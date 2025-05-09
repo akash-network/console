@@ -37,7 +37,7 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
     return new DeploymentSettingRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  async *autoTopUpDeploymentsIterator(options: { limit: number }): AsyncGenerator<AutoTopUpDeployment[]> {
+  async *paginateAutoTopUpDeployments(options: { limit: number }): AsyncGenerator<AutoTopUpDeployment[]> {
     let lastId: string | undefined;
 
     do {

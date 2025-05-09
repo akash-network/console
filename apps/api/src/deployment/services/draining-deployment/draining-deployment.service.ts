@@ -23,7 +23,7 @@ export class DrainingDeploymentService {
   ) {}
 
   async *paginate(params: { limit: number }): AsyncGenerator<DrainingDeployment[]> {
-    for await (const deploymentSettings of this.deploymentSettingRepository.autoTopUpDeploymentsIterator({ limit: params.limit })) {
+    for await (const deploymentSettings of this.deploymentSettingRepository.paginateAutoTopUpDeployments({ limit: params.limit })) {
       const currentHeight = await this.blockHttpService.getCurrentHeight();
       const expectedClosureHeight = Math.floor(currentHeight + averageBlockCountInAnHour * 2 * this.config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H"));
 
