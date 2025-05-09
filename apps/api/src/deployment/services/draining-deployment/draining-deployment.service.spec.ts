@@ -42,7 +42,7 @@ describe(DrainingDeploymentService.name, () => {
     } as Partial<jest.Mocked<UserWalletRepository>> as jest.Mocked<UserWalletRepository>;
 
     deploymentSettingRepository = {
-      autoTopUpDeploymentsIterator: jest.fn(),
+      paginateAutoTopUpDeployments: jest.fn(),
       updateManyById: jest.fn()
     } as Partial<jest.Mocked<DeploymentSettingRepository>> as jest.Mocked<DeploymentSettingRepository>;
 
@@ -98,7 +98,7 @@ describe(DrainingDeploymentService.name, () => {
         })
       ];
 
-      (deploymentSettingRepository.autoTopUpDeploymentsIterator as jest.Mock).mockImplementation((_params: { limit: number }) =>
+      (deploymentSettingRepository.paginateAutoTopUpDeployments as jest.Mock).mockImplementation((_params: { limit: number }) =>
         (async function* () {
           yield deploymentSettings;
         })()
@@ -114,7 +114,7 @@ describe(DrainingDeploymentService.name, () => {
       const expectedClosureHeight = Math.floor(CURRENT_HEIGHT + averageBlockCountInAnHour * 2 * config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H"));
 
       expect(blockHttpService.getCurrentHeight).toHaveBeenCalled();
-      expect(deploymentSettingRepository.autoTopUpDeploymentsIterator).toHaveBeenCalled();
+      expect(deploymentSettingRepository.paginateAutoTopUpDeployments).toHaveBeenCalled();
       expect(leaseRepository.findManyByDseqAndOwner).toHaveBeenCalledWith(
         expectedClosureHeight,
         expect.arrayContaining([
@@ -147,7 +147,7 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("should not call callback if no draining deployments found", async () => {
-      (deploymentSettingRepository.autoTopUpDeploymentsIterator as jest.Mock).mockImplementation((_params: { limit: number }) => (async function* () {})());
+      (deploymentSettingRepository.paginateAutoTopUpDeployments as jest.Mock).mockImplementation((_params: { limit: number }) => (async function* () {})());
 
       (leaseRepository.findManyByDseqAndOwner as jest.Mock).mockResolvedValue([]);
 
