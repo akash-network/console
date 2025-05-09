@@ -1,23 +1,23 @@
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 
-import { jwtClaimsTestCases } from "../generated/jwtClaimsTestCases";
-import { jwtMnemonic } from "../generated/jwtMnemonic";
-import { jwtSigningTestCases } from "../generated/jwtSigningTestCases";
-import { JwtToken } from "../JwtToken";
-import type { CosmosWallet } from "../types";
-import { createMockCosmosWallet, replaceTemplateValues } from "./utils";
+import { jwtClaimsTestCases } from "./generated/jwtClaimsTestCases";
+import { jwtMnemonic } from "./generated/jwtMnemonic";
+import { jwtSigningTestCases } from "./generated/jwtSigningTestCases";
+import { replaceTemplateValues } from "./test/test-utils";
+import { JwtToken } from "./jwt-token";
+import { createSignArbitraryAkashWallet, type SignArbitraryAkashWallet } from "./wallet-utils";
 
 describe("JWT Claims Validation", () => {
   let testWallet: DirectSecp256k1HdWallet;
   let jwtToken: JwtToken;
-  let mockWallet: CosmosWallet;
+  let akashWallet: SignArbitraryAkashWallet;
 
   beforeAll(async () => {
     testWallet = await DirectSecp256k1HdWallet.fromMnemonic(jwtMnemonic, {
       prefix: "akash"
     });
-    mockWallet = await createMockCosmosWallet(testWallet);
-    jwtToken = new JwtToken(mockWallet);
+    akashWallet = await createSignArbitraryAkashWallet(testWallet);
+    jwtToken = new JwtToken(akashWallet);
   });
 
   it.each(jwtClaimsTestCases)("$description", async testCase => {
@@ -55,7 +55,7 @@ describe("JWT Claims Validation", () => {
     const signingString = `${expectedHeader}.${expectedPayload}`;
 
     // Sign using the mock wallet's signArbitrary method
-    const signResponse = await mockWallet.signArbitrary(mockWallet.address, signingString);
+    const signResponse = await akashWallet.signArbitrary(akashWallet.address, signingString);
 
     const signature = Buffer.from(signResponse.signature, "base64url").toString("base64url");
 

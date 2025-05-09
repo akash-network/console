@@ -1,8 +1,8 @@
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 
-import { jwtSchemaData } from "../generated/jwtSchemaData";
-import type { JWTPayload } from "../types";
+import { jwtSchemaData } from "./generated/jwtSchemaData";
+import type { JWTPayload } from "./types";
 
 export interface JwtValidationResult {
   isValid: boolean;

@@ -1,4 +1,4 @@
-import { JwtValidator } from "./JwtValidator";
+import { JwtValidator } from "./jwt-validator";
 
 describe("JwtValidator", () => {
   let validator: JwtValidator;
