@@ -1,2 +1,2 @@
-export { JwtToken, JwtTokenOptions } from "./JwtToken";
-export { JwtValidator, JwtValidationResult } from "./JwtValidator/JwtValidator";
+export { JwtToken } from "./jwt-token";
+export { JwtValidator, type JwtValidationResult } from "./jwt-validator";
