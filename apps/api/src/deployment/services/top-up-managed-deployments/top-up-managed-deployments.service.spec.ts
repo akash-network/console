@@ -237,11 +237,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     });
 
     it("should not execute transactions if no draining deployments", async () => {
-      (drainingDeploymentService.paginate as jest.Mock).mockImplementation((_params: { limit: number }) =>
-        (async function* () {
-          // no deployments
-        })()
-      );
+      (drainingDeploymentService.paginate as jest.Mock).mockImplementation((_params: { limit: number }) => (async function* () {})());
 
       await service.topUpDeployments({ concurrency: 10, dryRun: false });
 
