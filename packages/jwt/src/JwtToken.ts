@@ -1,9 +1,8 @@
-import encode from "base64url";
 import { createJWT } from "did-jwt";
 import { ec as EC } from "elliptic";
 
 import { JwtValidator } from "./JwtValidator/JwtValidator";
-import type { CosmosWallet, JWK, JWTPayload } from "./types";
+import type { CosmosWallet, JWTPayload } from "./types";
 
 export interface JwtTokenOptions {
   iss: string;
@@ -49,13 +48,12 @@ export class JwtToken {
    * @returns The signed JWT token
    */
   async createToken(options: JwtTokenOptions): Promise<string> {
-    const jwk = this.publicKeyToJWK(this.wallet.pubkey);
     const now = Math.floor(Date.now() / 1000);
     const payload: JWTPayload = {
       iss: options.iss,
-      iat: options.iat || now,
-      nbf: options.nbf || now,
-      exp: options.exp ? now + options.exp : now + 3600, // Default to 1 hour expiration
+      exp: options.exp ? options.exp : now + 3600, // Default to 1 hour expiration
+      iat: options.iat,
+      nbf: options.nbf,
       jti: options.jti,
       version: options.version || "v1",
       leases: options.leases || { access: "full" }
@@ -67,37 +65,37 @@ export class JwtToken {
       throw new Error("Invalid payload");
     }
 
-    // Sign the payload
-    const signedJwt = await this.sign(payload, options.iss);
+    const signedJwt = await this.createJWT(payload, options.iss);
 
-    // Add JWK to header
-    const [header, payloadB64, signature] = signedJwt.split(".");
-    const headerObj = JSON.parse(Buffer.from(header, "base64").toString());
-    headerObj.jwk = jwk;
-    const newHeader = encode(Buffer.from(JSON.stringify(headerObj)));
-
-    return `${newHeader}.${payloadB64}.${signature}`;
+    return signedJwt;
   }
 
   /**
-   * Signs a JWT payload using ES256K signature
+   * Created a signed JWT token from using ES256K signature
    * @param payload - The JWT payload to sign
    * @param issuer - The issuer of the JWT
    * @returns The signed JWT token
    */
-  async sign(payload: JWTPayload, issuer: string): Promise<string> {
+  async createJWT(payload: JWTPayload, issuer: string): Promise<string> {
     const signer = async (data: string | Uint8Array): Promise<string> => {
-      const signResponse = await this.wallet.signArbitrary(this.wallet.address, typeof data === "string" ? data : new TextDecoder().decode(data));
-      // Convert base64 signature to raw bytes then back to base64url without padding
-      const signatureBytes = Buffer.from(signResponse.signature, "base64");
-      return encode(signatureBytes);
+      const input = typeof data === "string" ? data : new TextDecoder().decode(data);
+
+      const signResponse = await this.wallet.signArbitrary(this.wallet.address, input);
+      return signResponse.signature.replace(/=+$/, "");
     };
 
-    return createJWT(payload, {
-      issuer,
-      signer,
-      alg: "ES256K"
-    });
+    return createJWT(
+      payload,
+      {
+        issuer,
+        signer,
+        alg: "ES256K"
+      },
+      {
+        alg: "ES256K",
+        typ: "JWT"
+      }
+    );
   }
 
   /**
@@ -144,24 +142,5 @@ export class JwtToken {
     }
 
     return true;
-  }
-
-  /**
-   * Converts a raw public key to JWK format
-   * @param pubKey - The raw public key as Uint8Array
-   * @returns The public key in JWK format
-   */
-  private publicKeyToJWK(pubKey: Uint8Array): JWK {
-    // Convert pubKey to hex string
-    const pubKeyHex = Buffer.from(pubKey).toString("hex");
-    const keyPair = this.ec.keyFromPublic(pubKeyHex, "hex");
-    const pub = keyPair.getPublic();
-
-    return {
-      kty: "EC",
-      crv: "secp256k1",
-      x: encode(Buffer.from(pub.getX().toArray())),
-      y: encode(Buffer.from(pub.getY().toArray()))
-    };
   }
 }

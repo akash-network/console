@@ -201,9 +201,6 @@ describe("JwtToken", () => {
     const headerObj = JSON.parse(Buffer.from(header, "base64").toString());
     expect(headerObj.typ).toBe("JWT");
     expect(headerObj.alg).toBe("ES256K");
-    expect(headerObj.jwk).toBeDefined();
-    expect(headerObj.jwk.kty).toBe("EC");
-    expect(headerObj.jwk.crv).toBe("secp256k1");
 
     // Verify payload structure matches reference
     const payloadObj = JSON.parse(Buffer.from(payload, "base64").toString());

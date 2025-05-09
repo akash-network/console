@@ -25,6 +25,25 @@ export const jwtClaimsTestCases = [
     }
   },
   {
+    description: "sign valid/verify against static token string",
+    tokenString:
+      "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJha2FzaDFxdWZhM3h6cmYzNHF2d3llamtodm5jNHBzZjQ5ZmZ0YXcwYXNtaCIsImV4cCI6MjA0NjY2NzEwMywiaWF0IjoxNzQ2NjY2MTAzLCJ2ZXJzaW9uIjoidjEiLCJsZWFzZXMiOnsiYWNjZXNzIjoiZnVsbCJ9fQ.HHeMUBJplkyQdkG6IgJtPxFyhyIG8EvcjW7k8btrYJxW_3mr5j-ZPQbjKbOkcXx75xm4pT_wEBeR6W39Ekcqng",
+    claims: {
+      iss: "akash1qufa3xzrf34qvwyejkhvnc4psf49fftaw0asmh",
+      iat: "1746666103",
+      exp: "2046667103",
+      version: "v1",
+      leases: {
+        access: "full"
+      }
+    },
+    expected: {
+      error: "token has invalid claims",
+      signFail: false,
+      verifyFail: false
+    }
+  },
+  {
     description: "sign valid/verify fail with invalid exp",
     claims: {
       iss: "{{.Issuer}}",
