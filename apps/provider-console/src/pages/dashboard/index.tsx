@@ -13,25 +13,39 @@ import { ActivityLogList } from "@src/components/shared/ActivityLogList";
 import { Title } from "@src/components/shared/Title";
 import { withAuth } from "@src/components/shared/withAuth";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
-import { useSelectedChain } from "@src/context/CustomChainProvider";
-import { useWallet } from "@src/context/WalletProvider";
-import { useProviderActions, useProviderDashboard, useProviderDetails } from "@src/queries/useProviderQuery";
+import { useProvider } from "@src/context/ProviderContext";
+import { useProviderActions } from "@src/queries/useProviderQuery";
 import { formatUUsd } from "@src/utils/formatUsd";
 
-const OfflineWarningBanner: React.FC = () => (
-  <div className="mb-4 rounded-md bg-yellow-100 p-4 text-yellow-700">
-    <div className="flex">
-      <WarningTriangle className="mr-2 h-5 w-5" />
-      <p>
-        Warning: Your provider is currently offline.{" "}
-        <Link href="/remedies" className="font-medium underline">
-          Click here for remedies
-        </Link>
-        .
-      </p>
+const OfflineWarningBanner: React.FC = () => {
+  const { isLoadingOnlineStatus } = useProvider();
+
+  if (isLoadingOnlineStatus) {
+    return (
+      <div className="mb-4 rounded-md bg-yellow-100 p-4 text-gray-700">
+        <div className="flex h-6 items-center">
+          <Spinner className="mr-2 h-5 w-5" size="small" />
+          <p>Checking provider status...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-4 rounded-md bg-yellow-100 p-4 text-yellow-700">
+      <div className="flex">
+        <WarningTriangle className="mr-2 h-5 w-5" />
+        <p>
+          Warning: Your provider is currently offline.{" "}
+          <Link href="/remedies" className="font-medium underline">
+            Click here for remedies
+          </Link>
+          .
+        </p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const AuditGuidanceBanner: React.FC = () => (
   <div className="border-border bg-card text-card-foreground mb-4 rounded-md border-2 p-4">
@@ -95,12 +109,10 @@ const AuditGuidanceBanner: React.FC = () => (
 );
 
 const Dashboard: React.FC = () => {
-  const { address } = useSelectedChain();
-  const { isOnline, isProviderOnlineStatusFetched } = useWallet();
+  const { isOnline, isLoadingOnlineStatus } = useProvider();
   const { activeControlMachine } = useControlMachine();
 
-  const { data: providerDetails, isLoading: isLoadingProviderDetails } = useProviderDetails(address);
-  const { data: providerDashboard, isLoading: isLoadingProviderDashboard } = useProviderDashboard(address);
+  const { providerDetails, providerDashboard, isLoadingProviderDetails, isLoadingProviderDashboard } = useProvider();
   const { data: providerActions, isLoading: isLoadingProviderActions } = useProviderActions();
 
   // Get the control machine IP from activeControlMachine
@@ -150,7 +162,7 @@ const Dashboard: React.FC = () => {
   );
 
   return (
-    <Layout isLoading={!isProviderOnlineStatusFetched}>
+    <Layout isLoading={isLoadingOnlineStatus}>
       {providerDetails && !isOnline && <OfflineWarningBanner />}
       {/* Add health check warnings for ports and DNS */}
       {/* Port checks only need provider details, DNS checks need both provider details and control machine */}

@@ -39,15 +39,7 @@ type ContextType = {
   setIsWalletArbitrarySigned: React.Dispatch<React.SetStateAction<boolean>>;
   signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<any>;
   refreshBalances: (address?: string) => Promise<Balances>;
-  isProvider: boolean;
-  isOnline: boolean;
-  isProviderStatusFetched: boolean;
-  isProviderOnlineStatusFetched: boolean;
   handleArbitrarySigning: () => Promise<void>;
-  setIsWalletProvider: React.Dispatch<React.SetStateAction<boolean>>;
-  setIsProviderStatusFetched: React.Dispatch<React.SetStateAction<boolean>>;
-  setIsProviderOnlineStatusFetched: React.Dispatch<React.SetStateAction<boolean>>;
-  setIsWalletProviderOnline: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
@@ -55,10 +47,6 @@ const WalletProviderContext = React.createContext<ContextType>({} as ContextType
 export const WalletProvider = ({ children }) => {
   const [walletBalances, setWalletBalances] = useState<Balances | null>(null);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
-  const [isWalletProvider, setIsWalletProvider] = useState<boolean>(false);
-  const [isWalletProviderOnline, setIsWalletProviderOnline] = useState<boolean>(false);
-  const [isProviderOnlineStatusFetched, setIsProviderOnlineStatusFetched] = useState<boolean>(false);
-  const [isProviderStatusFetched, setIsProviderStatusFetched] = useState<boolean>(false);
   const [isBroadcastingTx, setIsBroadcastingTx] = useState<boolean>(false);
   const [isWaitingForApproval, setIsWaitingForApproval] = useState<boolean>(false);
   const [isWalletArbitrarySigned, setIsWalletArbitrarySigned] = useState<boolean>(false);
@@ -129,10 +117,6 @@ export const WalletProvider = ({ children }) => {
   function resetWalletStats() {
     setWalletBalances(null);
     setIsWalletArbitrarySigned(false);
-    setIsProviderStatusFetched(false);
-    setIsProviderOnlineStatusFetched(false);
-    setIsWalletProvider(false);
-    setIsWalletProviderOnline(false);
   }
 
   async function connectWallet() {
@@ -340,15 +324,7 @@ export const WalletProvider = ({ children }) => {
         setIsWalletLoaded,
         signAndBroadcastTx,
         refreshBalances,
-        isProvider: isWalletProvider,
-        isOnline: isWalletProviderOnline,
-        isProviderStatusFetched,
-        isProviderOnlineStatusFetched,
-        handleArbitrarySigning,
-        setIsWalletProvider,
-        setIsProviderStatusFetched,
-        setIsProviderOnlineStatusFetched,
-        setIsWalletProviderOnline
+        handleArbitrarySigning
       }}
     >
       {children}
