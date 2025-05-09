@@ -29,7 +29,7 @@ export class DeploymentReaderService {
       throw new InternalServerError(deploymentResponse.message);
     }
 
-    const { leases } = await this.leaseHttpService.listByOwnerAndDseq(owner, dseq);
+    const { leases } = await this.leaseHttpService.list({ owner, dseq });
 
     const leasesWithStatus = await Promise.all(
       leases.map(async ({ lease }) => {
@@ -82,7 +82,7 @@ export class DeploymentReaderService {
 
     const { results: leaseResults } = await PromisePool.withConcurrency(100)
       .for(deployments)
-      .process(async deployment => this.leaseHttpService.listByOwnerAndDseq(owner, deployment.deployment.deployment_id.dseq));
+      .process(async deployment => this.leaseHttpService.list({ owner, dseq: deployment.deployment.deployment_id.dseq }));
 
     const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
@@ -120,7 +120,7 @@ export class DeploymentReaderService {
       reverse: reverseSorting,
       countTotal: true
     });
-    const leaseResponse = await this.leaseHttpService.listByOwner(address);
+    const leaseResponse = await this.leaseHttpService.list({ owner: address, state: "active" });
     const providers = response.deployments.length ? await this.providerService.getProviderList() : ([] as ProviderList[]);
 
     return {
