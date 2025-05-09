@@ -7,7 +7,9 @@
       "@src/*": ["./src/*"],
       "@test/*": ["./test/*"]
     },
-    "strict": true
+    "strict": true,
+    "target": "es2022",
+    "lib": ["ESNext"]
   },
   "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
 }
