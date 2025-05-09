@@ -38,21 +38,16 @@ export function ControlMachineProvider({ children }: Props) {
     isControlPlane: true
   });
 
-  // Define the migration function within the component
   const migrateKeyfileOneTime = () => {
-    // Skip if already migrated
     if (localStorage.getItem("keyfileMigrationComplete")) {
       return;
     }
 
     try {
-      // Create backup before making any changes
       const controlMachinesString = localStorage.getItem("controlMachines");
       if (controlMachinesString) {
-        // Store backup
         localStorage.setItem("controlMachines_backup", controlMachinesString);
 
-        // Parse and update data
         const controlMachines = JSON.parse(controlMachinesString);
         let migrationPerformed = false;
 
