@@ -118,19 +118,19 @@ export class HttpValidateInterceptor implements NestInterceptor {
     if (options.response) {
       return next.handle().pipe(
         map((data) => {
-          if (options.response) {
-            const unwrapped = data instanceof Ok ? data.val : data;
-            const result = options.response.safeParse(unwrapped);
-            if (!result.success) {
-              this.loggerService.error({
-                event: 'HTTP_RESPONSE_VALIDATION_FAILED',
-                error: result.error,
-              });
-              return Err(new InternalServerErrorException());
-            }
-            return result.data;
+          if (!options.response || data instanceof Err) {
+            return data;
           }
-          return data;
+          const unwrapped = data instanceof Ok ? data.val : data;
+          const result = options.response.safeParse(unwrapped);
+          if (!result.success) {
+            this.loggerService.error({
+              event: 'HTTP_RESPONSE_VALIDATION_FAILED',
+              error: result.error,
+            });
+            return Err(new InternalServerErrorException());
+          }
+          return result.data;
         }),
       );
     }
