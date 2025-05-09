@@ -49,7 +49,7 @@ export class JwtToken {
    */
   async createToken(options: JwtTokenOptions): Promise<string> {
     const now = Math.floor(Date.now() / 1000);
-    const payload: JWTPayload = {
+    const inputPayload: JWTPayload = {
       iss: options.iss,
       exp: options.exp ? options.exp : now + 3600, // Default to 1 hour expiration
       iat: options.iat,
@@ -60,14 +60,20 @@ export class JwtToken {
     };
 
     // Validate payload and throw error with validation details if invalid
-    const validationResult = this.validatePayload(payload);
+    const validationResult = this.validatePayload(inputPayload);
     if (!validationResult) {
       throw new Error("Invalid payload");
     }
 
-    const signedJwt = await this.createJWT(payload, options.iss);
+    // Manually create base64url encoded payload
+    const stringPayload = Buffer.from(JSON.stringify(inputPayload)).toString("base64url");
 
-    return signedJwt;
+    const signedJwt = await this.createJWT(inputPayload, options.iss);
+    const [header, , signature] = signedJwt.split(".");
+
+    const reorderedJWT = `${header}.${stringPayload}.${signature}`;
+
+    return reorderedJWT;
   }
 
   /**
@@ -80,8 +86,26 @@ export class JwtToken {
     const signer = async (data: string | Uint8Array): Promise<string> => {
       const input = typeof data === "string" ? data : new TextDecoder().decode(data);
 
-      const signResponse = await this.wallet.signArbitrary(this.wallet.address, input);
-      return signResponse.signature.replace(/=+$/, "");
+      // Split the JWT into parts
+      const [header, payloadPart] = input.split(".");
+
+      // Parse and reorder the payload
+      const parsedPayload = JSON.parse(Buffer.from(payloadPart, "base64url").toString());
+      const reorderedPayload = {
+        ...(parsedPayload.iss && { iss: parsedPayload.iss }),
+        ...(parsedPayload.exp && { exp: parsedPayload.exp }),
+        ...(parsedPayload.iat && { iat: parsedPayload.iat }),
+        ...(parsedPayload.nbf && { nbf: parsedPayload.nbf }),
+        ...(parsedPayload.jti && { jti: parsedPayload.jti }),
+        ...(parsedPayload.version && { version: parsedPayload.version }),
+        ...(parsedPayload.leases && { leases: parsedPayload.leases })
+      };
+
+      // Reconstruct the JWT with reordered payload
+      const reorderedJWT = `${header}.${Buffer.from(JSON.stringify(reorderedPayload)).toString("base64url")}`;
+
+      const signResponse = await this.wallet.signArbitrary(this.wallet.address, reorderedJWT);
+      return signResponse.signature;
     };
 
     return createJWT(

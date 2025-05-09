@@ -35,7 +35,7 @@ export async function createMockCosmosWallet(wallet: DirectSecp256k1HdWallet) {
     pubkey: account.pubkey,
     address: account.address,
     signArbitrary: async (signer: string, data: string | Uint8Array): Promise<StdSignature> => {
-      const message = typeof data === "string" ? Buffer.from(data) : data;
+      const message = typeof data === "string" ? new TextEncoder().encode(data) : data;
       const hashedMessage = sha256(message);
       const seed = await fromMnemonic(wallet.mnemonic);
       const { privkey } = Slip10.derivePath(Slip10Curve.Secp256k1, seed, stringToPath("m/44'/118'/0'/0/0"));
@@ -43,7 +43,10 @@ export async function createMockCosmosWallet(wallet: DirectSecp256k1HdWallet) {
       const signatureBytes = new Uint8Array([...signature.r(32), ...signature.s(32)]);
       const stdSignature = encodeSecp256k1Signature(account.pubkey, signatureBytes);
 
-      return stdSignature;
+      return {
+        ...stdSignature,
+        signature: Buffer.from(signatureBytes).toString("base64url")
+      };
     }
   };
 }

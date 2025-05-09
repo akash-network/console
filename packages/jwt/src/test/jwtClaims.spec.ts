@@ -61,7 +61,6 @@ describe("JWT Claims Validation", () => {
 
     if (!testCase.mustFail) {
       expect(signature).toBe(expectedSignature);
-      expect(signature).not.toBe(signResponse.signature);
     } else {
       expect(signature).not.toBe(expectedSignature);
     }
