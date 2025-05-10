@@ -45,7 +45,11 @@ import * as schema from './model-schemas';
     NotificationRouterService,
     ContactPointRepository,
   ],
-  exports: [NotificationRouterService],
+  exports: [
+    ContactPointRepository,
+    NotificationRouterService,
+    EmailSenderService,
+  ],
 })
 export class NotificationsModule implements OnApplicationShutdown {
   constructor(

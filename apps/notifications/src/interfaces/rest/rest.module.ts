@@ -3,8 +3,10 @@ import { ConfigModule } from '@nestjs/config';
 
 import { CommonModule } from '@src/common/common.module';
 import { globalEnvSchema } from '@src/config/env.config';
+import { ContactPointController } from '@src/interfaces/rest/controllers/contact-point/contact-point.controller';
+import { RawAlertController } from '@src/interfaces/rest/controllers/raw-alert/raw-alert.controller';
 import { AlertModule } from '@src/modules/alert/alert.module';
-import { AlertController } from './controllers/alert/alert.controller';
+import { NotificationsModule } from '@src/modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -15,7 +17,8 @@ import { AlertController } from './controllers/alert/alert.controller';
     }),
     CommonModule,
     AlertModule,
+    NotificationsModule,
   ],
-  controllers: [AlertController],
+  controllers: [RawAlertController, ContactPointController],
 })
 export default class RestModule {}

@@ -1,7 +1,7 @@
 import {
   MsgCloseDeployment,
   MsgCreateDeployment,
-} from '@akashnetwork/akash-api/akash/deployment/v1beta3';
+} from '@akashnetwork/akash-api/v1beta3';
 import type { DecodedTxRaw } from '@cosmjs/proto-signing';
 import { faker } from '@faker-js/faker';
 import type { TestingModule } from '@nestjs/testing';

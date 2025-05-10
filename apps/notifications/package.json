@@ -27,7 +27,7 @@
     "test:watch": "jest --selectProjects unit functional --watch"
   },
   "dependencies": {
-    "@akashnetwork/akash-api": "^1.4.0",
+    "@akashnetwork/akash-api": "1.4.0",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/http-sdk": "*",
     "@akashnetwork/logging": "*",
