@@ -1,22 +1,23 @@
 import createHttpError from "http-errors";
 import { Transform } from "node:stream";
-import pino, { LoggerOptions } from "pino";
-import { gcpLogOptions } from "pino-cloud-logging";
+import type { LoggerOptions } from "pino";
+import pino from "pino";
 
 import { config } from "../../config";
-import { Logger, LoggerService } from "./logger.service";
+import type { Logger } from "./logger.service";
+import { LoggerService } from "./logger.service";
 
 jest.mock("pino");
-jest.mock("pino-cloud-logging");
-
-(gcpLogOptions as jest.Mock).mockImplementation(options => options);
 
 describe("LoggerService", () => {
   const defaultLogFormat = config.STD_OUT_LOG_FORMAT;
   const COMMON_EXPECTED_OPTIONS: LoggerOptions = {
     level: "info",
     mixin: undefined,
-    timestamp: expect.any(Function)
+    timestamp: expect.any(Function),
+    formatters: {
+      level: expect.any(Function)
+    }
   };
 
   afterEach(() => {
@@ -30,19 +31,13 @@ describe("LoggerService", () => {
       new LoggerService();
 
       expect(pino).toHaveBeenCalledWith(COMMON_EXPECTED_OPTIONS, expect.any(Transform));
-      expect(gcpLogOptions).not.toHaveBeenCalled();
     });
 
     it("should initialize pino without pretty formatting for other formats", () => {
       config.STD_OUT_LOG_FORMAT = "json";
       new LoggerService();
 
-      expect(pino).toHaveBeenCalledWith({
-        level: "info",
-        mixin: undefined,
-        timestamp: expect.any(Function)
-      });
-      expect(gcpLogOptions).toHaveBeenCalled();
+      expect(pino).toHaveBeenCalledWith(COMMON_EXPECTED_OPTIONS);
     });
 
     it("should initialize pino with global mixin", () => {

@@ -101,7 +101,7 @@ export type DeploymentInfo = {
   };
 };
 
-type RestAkashDeploymentInfoResponse =
+export type RestAkashDeploymentInfoResponse =
   | {
       code: number;
       message: string;

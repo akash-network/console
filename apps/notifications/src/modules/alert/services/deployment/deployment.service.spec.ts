@@ -1,10 +1,11 @@
+import type { DeploymentInfo } from '@akashnetwork/http-sdk';
+import { DeploymentHttpService } from '@akashnetwork/http-sdk';
 import { faker } from '@faker-js/faker';
 import { Test, type TestingModule } from '@nestjs/testing';
 import type { MockProxy } from 'jest-mock-extended';
 import { Ok } from 'ts-results';
 
 import { LoggerService } from '@src/common/services/logger/logger.service';
-import { BlockchainNodeHttpService } from '@src/modules/alert/services/blockchain-node-http/blockchain-node-http.service';
 import { DeploymentService } from './deployment.service';
 
 import { MockProvider } from '@test/mocks/provider.mock';
@@ -13,62 +14,54 @@ import { mockAkashAddress } from '@test/seeders/akash-address.seeder';
 describe(DeploymentService.name, () => {
   describe('getDeploymentBalance', () => {
     it('should return the deployment balance', async () => {
-      const { service, blockchainNodeHttpService } = await setup();
-      blockchainNodeHttpService.get.mockResolvedValue({
-        data: {
-          deployment: {
-            state: 'active',
+      const { service, deploymentHttpService } = await setup();
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({
+        deployment: {
+          state: 'active',
+        },
+        escrow_account: {
+          state: 'overdrawn',
+          balance: {
+            denom: 'uakt',
+            amount: '1000',
           },
-          escrow_account: {
-            state: 'overdrawn',
-            balance: {
-              denom: 'uakt',
-              amount: '1000',
-            },
-            funds: {
-              denom: 'uakt',
-              amount: '1000',
-            },
+          funds: {
+            denom: 'uakt',
+            amount: '1000',
           },
         },
-      });
+      } as DeploymentInfo);
       const owner = mockAkashAddress();
       const dseq = faker.string.alphanumeric(6);
 
       const balance = await service.getDeploymentBalance(owner, dseq);
 
       expect(balance).toEqual(Ok({ balance: 2000 }));
-      expect(blockchainNodeHttpService.get).toHaveBeenCalledWith(
-        '/akash/deployment/v1beta3/deployments/info',
-        {
-          params: {
-            'id.owner': owner,
-            'id.dseq': dseq,
-          },
-        },
+
+      expect(deploymentHttpService.findByOwnerAndDseq).toHaveBeenCalledWith(
+        owner,
+        dseq,
       );
     });
 
     it('should return null if deployment is closed', async () => {
-      const { service, blockchainNodeHttpService } = await setup();
-      blockchainNodeHttpService.get.mockResolvedValue({
-        data: {
-          deployment: {
-            state: 'closed',
+      const { service, deploymentHttpService } = await setup();
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({
+        deployment: {
+          state: 'closed',
+        },
+        escrow_account: {
+          state: 'overdrawn',
+          balance: {
+            denom: 'uakt',
+            amount: '1000',
           },
-          escrow_account: {
-            state: 'overdrawn',
-            balance: {
-              denom: 'uakt',
-              amount: '1000',
-            },
-            funds: {
-              denom: 'uakt',
-              amount: '1000',
-            },
+          funds: {
+            denom: 'uakt',
+            amount: '1000',
           },
         },
-      });
+      } as DeploymentInfo);
       const owner = mockAkashAddress();
       const dseq = faker.string.alphanumeric(6);
 
@@ -81,14 +74,9 @@ describe(DeploymentService.name, () => {
           code: 'DEPLOYMENT_CLOSED',
         },
       });
-      expect(blockchainNodeHttpService.get).toHaveBeenCalledWith(
-        '/akash/deployment/v1beta3/deployments/info',
-        {
-          params: {
-            'id.owner': owner,
-            'id.dseq': dseq,
-          },
-        },
+      expect(deploymentHttpService.findByOwnerAndDseq).toHaveBeenCalledWith(
+        owner,
+        dseq,
       );
     });
   });
@@ -96,13 +84,13 @@ describe(DeploymentService.name, () => {
   async function setup(): Promise<{
     module: TestingModule;
     service: DeploymentService;
-    blockchainNodeHttpService: MockProxy<BlockchainNodeHttpService>;
+    deploymentHttpService: MockProxy<DeploymentHttpService>;
     loggerService: MockProxy<LoggerService>;
   }> {
     const module = await Test.createTestingModule({
       providers: [
         DeploymentService,
-        MockProvider(BlockchainNodeHttpService),
+        MockProvider(DeploymentHttpService),
         MockProvider(LoggerService),
       ],
     }).compile();
@@ -111,9 +99,9 @@ describe(DeploymentService.name, () => {
       module,
       service: module.get<DeploymentService>(DeploymentService),
       loggerService: module.get<MockProxy<LoggerService>>(LoggerService),
-      blockchainNodeHttpService: module.get<
-        MockProxy<BlockchainNodeHttpService>
-      >(BlockchainNodeHttpService),
+      deploymentHttpService: module.get<MockProxy<DeploymentHttpService>>(
+        DeploymentHttpService,
+      ),
     };
   }
 });
