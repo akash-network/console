@@ -1,0 +1,12 @@
+import { singleton } from "tsyringe";
+
+import { ProviderAttributesSchemaService } from "@src/provider/services/provider-attributes-schema/provider-attributes-schema.service";
+
+@singleton()
+export class ProviderAttributesSchemaController {
+  constructor(private readonly providerAttributesSchemaService: ProviderAttributesSchemaService) {}
+
+  async getProviderAttributesSchema() {
+    return await this.providerAttributesSchemaService.getProviderAttributesSchema();
+  }
+}

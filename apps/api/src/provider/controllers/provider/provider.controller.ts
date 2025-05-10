@@ -31,4 +31,8 @@ export class ProviderController {
       true
     );
   }
+
+  async getProvider(address: string) {
+    return this.providerService.getProvider(address);
+  }
 }
