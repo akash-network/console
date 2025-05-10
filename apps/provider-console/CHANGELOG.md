@@ -1,5 +1,12 @@
 
 
+## [1.9.6](https://github.com/akash-network/console/compare/provider-console/v1.9.5...provider-console/v1.9.6) (2025-05-10)
+
+
+### Code Refactoring
+
+* uses logger and http sdk from local pkgs for notification service ([fe3539b](https://github.com/akash-network/console/commit/fe3539b5995aca4f88fe281da5ac282779ee3f8e))
+
 ## [1.9.5](https://github.com/akash-network/console/compare/provider-console/v1.9.4...provider-console/v1.9.5) (2025-05-01)
 
 

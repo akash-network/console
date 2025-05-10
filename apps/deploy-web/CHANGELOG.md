@@ -1,5 +1,19 @@
 
 
+## [2.72.1](https://github.com/akash-network/console/compare/console-web/v2.72.0...console-web/v2.72.1) (2025-05-10)
+
+
+### Bug Fixes
+
+* manifest forbidden error ([#1295](https://github.com/akash-network/console/issues/1295)) ([80171b2](https://github.com/akash-network/console/commit/80171b23a25ded7c0998319cce87cf167d5deb0d))
+
+
+### Code Refactoring
+
+* move provider listing to its service ([#1291](https://github.com/akash-network/console/issues/1291)) ([1a44de4](https://github.com/akash-network/console/commit/1a44de4f46e52d68e2bda6f4c1b906d8cf7724b6)), closes [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272)
+* unify methods listing leases ([#1302](https://github.com/akash-network/console/issues/1302)) ([2876f9c](https://github.com/akash-network/console/commit/2876f9ccffc66d85537e6574ec3d6ad5b9399b70)), closes [#1272](https://github.com/akash-network/console/issues/1272)
+* uses logger and http sdk from local pkgs for notification service ([fe3539b](https://github.com/akash-network/console/commit/fe3539b5995aca4f88fe281da5ac282779ee3f8e))
+
 ## [2.72.0](https://github.com/akash-network/console/compare/console-web/v2.71.0...console-web/v2.72.0) (2025-05-01)
 
 

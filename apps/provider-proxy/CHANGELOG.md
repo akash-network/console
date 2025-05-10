@@ -1,5 +1,12 @@
 
 
+## [1.6.4](https://github.com/akash-network/console/compare/provider-proxy/v1.6.3...provider-proxy/v1.6.4) (2025-05-10)
+
+
+### Code Refactoring
+
+* uses logger and http sdk from local pkgs for notification service ([fe3539b](https://github.com/akash-network/console/commit/fe3539b5995aca4f88fe281da5ac282779ee3f8e))
+
 ## [1.6.3](https://github.com/akash-network/console/compare/provider-proxy/v1.6.2...provider-proxy/v1.6.3) (2025-05-01)
 
 

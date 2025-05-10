@@ -1,5 +1,12 @@
 
 
+## [0.22.5](https://github.com/akash-network/console/compare/stats-web/v0.22.4...stats-web/v0.22.5) (2025-05-10)
+
+
+### Code Refactoring
+
+* uses logger and http sdk from local pkgs for notification service ([fe3539b](https://github.com/akash-network/console/commit/fe3539b5995aca4f88fe281da5ac282779ee3f8e))
+
 ## [0.22.4](https://github.com/akash-network/console/compare/stats-web/v0.22.3...stats-web/v0.22.4) (2025-05-01)
 
 
