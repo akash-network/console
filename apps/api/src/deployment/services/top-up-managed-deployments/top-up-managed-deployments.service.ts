@@ -1,10 +1,12 @@
 import { LoggerService } from "@akashnetwork/logging";
 import groupBy from "lodash/groupBy";
+import { Err, Ok, Result } from "ts-results";
 import { singleton } from "tsyringe";
 
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { DepositDeploymentMsg, DepositDeploymentMsgOptions, RpcMessageService, Wallet } from "@src/billing/services";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { TopUpSummarizer } from "@src/deployment/lib/top-up-summarizer/top-up-summarizer";
@@ -32,19 +34,37 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
     @InjectWallet("MANAGED") private readonly managedMasterWallet: Wallet,
     private readonly rpcClientService: RpcMessageService,
     private readonly cachedBalanceService: CachedBalanceService,
-    private readonly blockHttpService: BlockHttpService
+    private readonly blockHttpService: BlockHttpService,
+    private readonly chainErrorService: ChainErrorService
   ) {}
 
-  async topUpDeployments(options: TopUpDeploymentsOptions): Promise<void> {
+  async topUpDeployments(options: TopUpDeploymentsOptions): Promise<Result<void, Error[]>> {
     const startBlockHeight = await this.blockHttpService.getCurrentHeight();
     this.summarizer.set("startBlockHeight", startBlockHeight);
 
-    await this.drainingDeploymentService.paginate({ limit: options.concurrency || 10 }, async deployments => {
+    for await (const deployments of this.drainingDeploymentService.paginate({ limit: options.concurrency || 10 })) {
       const messageInputs = await this.collectMessages(deployments, options);
       const byOwner = groupBy(messageInputs, "deployment.address");
-      await Promise.all(Object.values(byOwner).map(ownerInputs => this.topUpForOwner(ownerInputs, options)));
-    });
+      const results = await Promise.allSettled(Object.values(byOwner).map(ownerInputs => this.topUpForOwner(ownerInputs, options)));
 
+      const rejectedErrors = results
+        .filter((result: PromiseSettledResult<unknown>): result is PromiseRejectedResult => {
+          return result.status === "rejected";
+        })
+        .map(result => result.reason);
+
+      if (rejectedErrors.length) {
+        this.finalizeSummary(options);
+        return Err(rejectedErrors);
+      }
+    }
+
+    this.finalizeSummary(options);
+
+    return Ok(undefined);
+  }
+
+  private async finalizeSummary(options: TopUpDeploymentsOptions) {
     const endBlockHeight = await this.blockHttpService.getCurrentHeight();
     this.summarizer.set("endBlockHeight", endBlockHeight);
 
@@ -145,8 +165,25 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
         dryRun: options.dryRun,
         data: error.data
       });
+
       this.summarizer.inc("deploymentTopUpErrorCount", ownerInputs.length);
       this.summarizer.trackFailedWallet(owner);
+
+      if (await this.chainErrorService.isMasterWalletInsufficientFundsError(error)) {
+        this.logger.error({
+          event: "MASTER_WALLET_INSUFFICIENT_FUNDS",
+          owner,
+          items: logItems,
+          message: error.message,
+          stack: error.stack,
+          dryRun: options.dryRun,
+          data: error.data
+        });
+
+        throw error;
+      } else if (error.message?.startsWith("insufficient funds")) {
+        this.summarizer.inc("insufficientBalanceCount");
+      }
     }
   }
 
