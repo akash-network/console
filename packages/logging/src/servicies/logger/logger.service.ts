@@ -1,13 +1,14 @@
 import { isHttpError } from "http-errors";
 import pino from "pino";
-import { gcpLogOptions } from "pino-cloud-logging";
 import type { PinoPretty } from "pino-pretty";
 
 import type { Config } from "../../config";
 import { config as envConfig } from "../../config";
 import { collectFullErrorStack } from "../../utils/collect-full-error-stack/collect-full-error-stack";
 
-export type Logger = Pick<pino.Logger, "info" | "error" | "warn" | "debug">;
+export interface Logger extends Pick<pino.Logger, "info" | "error" | "warn" | "debug"> {
+  setContext(context: string): void;
+}
 
 interface Bindings extends pino.Bindings {
   context?: string;
@@ -15,7 +16,12 @@ interface Bindings extends pino.Bindings {
 
 export interface LoggerOptions extends pino.LoggerOptions {
   base?: Bindings | null;
+  context?: string;
 }
+
+export const CUSTOM_LEVELS: Record<string, string> = {
+  fatal: "critical"
+};
 
 export class LoggerService implements Logger {
   static config: Config = envConfig;
@@ -28,7 +34,10 @@ export class LoggerService implements Logger {
   }
 
   static forContext(context: string) {
-    return new LoggerService().setContext(context);
+    const logger = new LoggerService();
+    logger.setContext(context);
+
+    return logger;
   }
 
   static mixin?: (mergeObject: object) => object;
@@ -37,6 +46,10 @@ export class LoggerService implements Logger {
 
   constructor(private readonly options?: LoggerOptions) {
     this.pino = this.initPino();
+
+    if (options?.context) {
+      this.setContext(options.context);
+    }
   }
 
   private initPino(): pino.Logger {
@@ -44,6 +57,11 @@ export class LoggerService implements Logger {
       level: LoggerService.config.LOG_LEVEL,
       mixin: LoggerService.mixin,
       timestamp: () => `,"time":"${new Date().toISOString()}"`,
+      formatters: {
+        level(label) {
+          return { level: CUSTOM_LEVELS[label] || label };
+        }
+      },
       ...this.options
     };
 
@@ -53,10 +71,7 @@ export class LoggerService implements Logger {
       return pino(options, pretty);
     }
 
-    // pino-cloud-logging uses pino@8.x but we are using pino@9.x
-    const gcpOptions = gcpLogOptions(options as any);
-    // pino-cloud-logging uses pino@8.x but we are using pino@9.x
-    return pino(gcpOptions as any);
+    return pino(options);
   }
 
   private getPrettyIfPresent(): PinoPretty.PrettyStream | undefined {
@@ -66,21 +81,22 @@ export class LoggerService implements Logger {
         return require("pino-pretty")({ colorize: true, sync: true });
       } catch (e) {
         this.debug({ context: LoggerService.name, message: "Failed to load pino-pretty", error: e });
-        /* empty */
       }
     }
   }
 
-  setContext(context: string): this {
+  setContext(context: string) {
     this.bind({ context });
-
-    return this;
   }
 
   bind(bindings: pino.Bindings): this {
     this.pino = this.pino.child(bindings);
 
     return this;
+  }
+
+  log(message: any): void {
+    return this.pino.info(message);
   }
 
   info(message: any): void {

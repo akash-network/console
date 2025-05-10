@@ -27,7 +27,7 @@ export class WebsocketServer {
     private readonly appServer: http.Server,
     private readonly certificateValidator: CertificateValidator,
     private readonly wsStats: WebsocketStats,
-    private readonly createLogger?: LoggerService["setContext"]
+    private readonly createLogger?: (context: string) => LoggerService
   ) {}
 
   close(): void {
