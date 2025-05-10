@@ -22,8 +22,8 @@ export class DrainingDeploymentService {
     private readonly config: DeploymentConfigService
   ) {}
 
-  async paginate(params: { limit: number }, cb: (page: DrainingDeployment[]) => Promise<void>) {
-    await this.deploymentSettingRepository.paginateAutoTopUpDeployments({ limit: params.limit }, async deploymentSettings => {
+  async *paginate(params: { limit: number }): AsyncGenerator<DrainingDeployment[]> {
+    for await (const deploymentSettings of this.deploymentSettingRepository.paginateAutoTopUpDeployments({ limit: params.limit })) {
       const currentHeight = await this.blockHttpService.getCurrentHeight();
       const expectedClosureHeight = Math.floor(currentHeight + averageBlockCountInAnHour * 2 * this.config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H"));
 
@@ -34,7 +34,7 @@ export class DrainingDeploymentService {
 
       if (drainingDeployments.length) {
         const byDseqOwner = keyBy(drainingDeployments, ({ dseq, owner }) => `${dseq}-${owner}`);
-        const [active, missingIds] = deploymentSettings.reduce(
+        const [active, missingIds] = deploymentSettings.reduce<[DrainingDeployment[], string[]]>(
           (acc, deploymentSetting) => {
             const deployment = byDseqOwner[`${deploymentSetting.dseq}-${deploymentSetting.address}`];
 
@@ -60,9 +60,9 @@ export class DrainingDeploymentService {
           await this.deploymentSettingRepository.updateManyById(missingIds, { closed: true });
         }
 
-        await cb(active);
+        yield active;
       }
-    });
+    }
   }
 
   async calculateTopUpAmountForDseqAndUserId(dseq: string, userId: string): Promise<number> {
