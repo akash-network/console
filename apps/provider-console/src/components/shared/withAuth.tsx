@@ -2,16 +2,19 @@ import React, { useEffect, useState } from "react";
 import { Spinner } from "@akashnetwork/ui/components";
 import { useRouter } from "next/router";
 
+import { useProvider } from "@src/context/ProviderContext";
 import { useWallet } from "@src/context/WalletProvider";
 
 interface WithAuthProps {
   WrappedComponent: React.ComponentType;
-  authLevel: "wallet" | "provider" | "onlineProvider";
+  authLevel: "wallet" | "provider";
 }
 
 export const withAuth = ({ WrappedComponent, authLevel = "wallet" }: WithAuthProps) => {
   const AuthComponent: React.FC = props => {
-    const { isWalletConnected, isProvider, isProviderStatusFetched, isProviderOnlineStatusFetched, isOnline } = useWallet();
+    const { isWalletConnected } = useWallet();
+    const { providerDetails, isLoadingProviderDetails } = useProvider();
+    const { isOnline, isLoadingOnlineStatus } = useProvider();
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [loadingMessage, setLoadingMessage] = useState("Checking wallet connection...");
@@ -47,12 +50,14 @@ export const withAuth = ({ WrappedComponent, authLevel = "wallet" }: WithAuthPro
           return;
         }
 
-        if (!isProviderStatusFetched || (authLevel === "onlineProvider" && !isProviderOnlineStatusFetched)) {
-          setLoadingMessage("Checking provider status...");
+        if (isLoadingProviderDetails) {
+          setLoadingMessage("Checking provider...");
           return;
         }
 
-        const isAuthorized = authLevel === "provider" ? isProvider : isProvider || isOnline;
+        const isAuthorized = authLevel === "provider" ? !!providerDetails : true;
+
+        // const isAuthorized = authLevel === "provider" ? providerDetails : providerDetails || isOnline;
 
         if (!isAuthorized) {
           const message = authLevel === "provider" ? "Not a provider, redirecting to home page..." : "Provider is offline, redirecting to home page...";
@@ -71,7 +76,7 @@ export const withAuth = ({ WrappedComponent, authLevel = "wallet" }: WithAuthPro
       return () => {
         isMounted = false;
       };
-    }, [isWalletConnected, isProvider, isProviderStatusFetched, isProviderOnlineStatusFetched, isOnline, router, walletCheckCount]);
+    }, [isWalletConnected, providerDetails, isLoadingOnlineStatus, isLoadingProviderDetails, isOnline, router, walletCheckCount]);
 
     if (loading) {
       return (
