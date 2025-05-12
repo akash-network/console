@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/console-api",
-  "version": "2.88.0",
+  "version": "2.89.0",
   "description": "Api providing data to the deploy tool",
   "repository": {
     "type": "git",
@@ -98,6 +98,7 @@
     "sequelize-typescript": "^2.1.5",
     "sql-formatter": "^15.3.2",
     "stripe": "^16.8.0",
+    "ts-results": "^3.3.0",
     "tsyringe": "^4.8.0",
     "uuid": "^9.0.1",
     "zod": "3.*"

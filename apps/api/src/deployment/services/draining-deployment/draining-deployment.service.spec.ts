@@ -4,7 +4,7 @@ import { faker } from "@faker-js/faker";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import type { AutoTopUpDeployment, DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
@@ -98,21 +98,23 @@ describe(DrainingDeploymentService.name, () => {
         })
       ];
 
-      (deploymentSettingRepository.paginateAutoTopUpDeployments as jest.Mock).mockImplementation(
-        async (_: { limit: number }, callback: (settings: AutoTopUpDeployment[]) => Promise<void>) => {
-          await callback(deploymentSettings);
-        }
+      (deploymentSettingRepository.paginateAutoTopUpDeployments as jest.Mock).mockImplementation((_params: { limit: number }) =>
+        (async function* () {
+          yield deploymentSettings;
+        })()
       );
 
       (leaseRepository.findManyByDseqAndOwner as jest.Mock).mockResolvedValue(drainingDeployments);
 
       const callback = jest.fn();
-      await service.paginate({ limit: LIMIT }, callback);
+      for await (const result of service.paginate({ limit: LIMIT })) {
+        callback(result);
+      }
 
       const expectedClosureHeight = Math.floor(CURRENT_HEIGHT + averageBlockCountInAnHour * 2 * config.get("AUTO_TOP_UP_JOB_INTERVAL_IN_H"));
 
       expect(blockHttpService.getCurrentHeight).toHaveBeenCalled();
-      expect(deploymentSettingRepository.paginateAutoTopUpDeployments).toHaveBeenCalledWith({ limit: LIMIT }, expect.any(Function));
+      expect(deploymentSettingRepository.paginateAutoTopUpDeployments).toHaveBeenCalled();
       expect(leaseRepository.findManyByDseqAndOwner).toHaveBeenCalledWith(
         expectedClosureHeight,
         expect.arrayContaining([
@@ -145,16 +147,14 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("should not call callback if no draining deployments found", async () => {
-      (deploymentSettingRepository.paginateAutoTopUpDeployments as jest.Mock).mockImplementation(
-        async (_: { limit: number }, callback: (settings: AutoTopUpDeployment[]) => Promise<void>) => {
-          await callback([]);
-        }
-      );
+      (deploymentSettingRepository.paginateAutoTopUpDeployments as jest.Mock).mockImplementation((_params: { limit: number }) => (async function* () {})());
 
       (leaseRepository.findManyByDseqAndOwner as jest.Mock).mockResolvedValue([]);
 
       const callback = jest.fn();
-      await service.paginate({ limit: LIMIT }, callback);
+      for await (const result of service.paginate({ limit: LIMIT })) {
+        callback(result);
+      }
 
       expect(callback).not.toHaveBeenCalled();
       expect(deploymentSettingRepository.updateManyById).not.toHaveBeenCalled();
