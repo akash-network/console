@@ -99,7 +99,7 @@ export function ControlMachineProvider({ children }: Props) {
   }, [address]);
 
   useEffect(() => {
-    if (isWalletArbitrarySigned) {
+    if (isWalletArbitrarySigned || address) {
       setActiveControlMachine(null);
       const controlMachine = controlMachines.find(machine => machine.address === address);
 

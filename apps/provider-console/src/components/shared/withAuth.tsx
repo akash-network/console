@@ -7,7 +7,7 @@ import { useWallet } from "@src/context/WalletProvider";
 
 interface WithAuthProps {
   WrappedComponent: React.ComponentType;
-  authLevel: "wallet" | "provider" | "onlineProvider";
+  authLevel: "wallet" | "provider";
 }
 
 export const withAuth = ({ WrappedComponent, authLevel = "wallet" }: WithAuthProps) => {
@@ -50,12 +50,14 @@ export const withAuth = ({ WrappedComponent, authLevel = "wallet" }: WithAuthPro
           return;
         }
 
-        if (isLoadingProviderDetails || (authLevel === "onlineProvider" && isLoadingOnlineStatus)) {
-          setLoadingMessage("Checking provider status...");
+        if (isLoadingProviderDetails) {
+          setLoadingMessage("Checking provider...");
           return;
         }
 
-        const isAuthorized = authLevel === "provider" ? providerDetails : providerDetails || isOnline;
+        const isAuthorized = authLevel === "provider" ? !!providerDetails : true;
+
+        // const isAuthorized = authLevel === "provider" ? providerDetails : providerDetails || isOnline;
 
         if (!isAuthorized) {
           const message = authLevel === "provider" ? "Not a provider, redirecting to home page..." : "Provider is offline, redirecting to home page...";
