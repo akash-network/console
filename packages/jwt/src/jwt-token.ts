@@ -26,6 +26,16 @@ export class JwtToken {
    * });
    * const akashWallet = await createSignArbitraryAkashWallet(wallet);
    * const jwtToken = new JwtToken(akashWallet);
+   * OR ON FRONTEND
+   * const { getAccount, signArbitrary } = useSelectedChain();
+   * const { address, pubkey } = await getAccount();
+   * const jwt = new JwtToken(
+   *   {
+   *     signArbitrary,
+   *     address,
+   *     pubkey
+   *   }
+   * );
    * const token = await jwtToken.createToken({
    *   iss: "https://example.com",
    *   exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
