@@ -1,125 +1,34 @@
+import { Lease } from "@akashnetwork/database/dbSchemas/akash";
 import { faker } from "@faker-js/faker";
-
-import { AkashAddressSeeder } from "./akash-address.seeder";
-import { DenomSeeder } from "./denom.seeder";
-
-export interface LeaseInput {
-  owner?: string;
-  dseq?: string;
-  gseq?: number;
-  oseq?: number;
-  provider?: string;
-  state?: string;
-  price?: {
-    denom?: string;
-    amount?: string;
-  };
-  created_at?: string;
-  closed_on?: string;
-}
-
-export interface LeaseOutput {
-  lease: {
-    lease_id: {
-      owner: string;
-      dseq: string;
-      gseq: number;
-      oseq: number;
-      provider: string;
-    };
-    state: string;
-    price: {
-      denom: string;
-      amount: string;
-    };
-    created_at: string;
-    closed_on: string;
-  };
-  escrow_payment: {
-    account_id: {
-      scope: string;
-      xid: string;
-    };
-    payment_id: string;
-    owner: string;
-    state: string;
-    rate: {
-      denom: string;
-      amount: string;
-    };
-    balance: {
-      denom: string;
-      amount: string;
-    };
-    withdrawn: {
-      denom: string;
-      amount: string;
-    };
-  };
-}
+import type { CreationAttributes } from "sequelize";
 
 export class LeaseSeeder {
-  static create(input: LeaseInput = {}): LeaseOutput {
-    const {
-      owner = AkashAddressSeeder.create(),
-      dseq = faker.string.numeric(10),
-      gseq = faker.number.int({ min: 1, max: 10 }),
-      oseq = faker.number.int({ min: 1, max: 10 }),
-      provider = AkashAddressSeeder.create(),
-      state = faker.helpers.arrayElement(["active", "closed", "insufficient_funds"]),
-      price = {
-        denom: DenomSeeder.create(),
-        amount: faker.string.numeric(6)
-      },
-      created_at = faker.date.past().toISOString(),
-      closed_on = state === "closed" ? faker.date.recent().toISOString() : undefined
-    } = input;
-
-    const denom = price.denom || DenomSeeder.create();
-    const amount = price.amount || faker.string.numeric(6);
-
+  static create(overrides: Partial<CreationAttributes<Lease>> = {}): CreationAttributes<Lease> {
     return {
-      lease: {
-        lease_id: {
-          owner,
-          dseq,
-          gseq,
-          oseq,
-          provider
-        },
-        state,
-        price: {
-          denom,
-          amount
-        },
-        created_at,
-        closed_on
-      },
-      escrow_payment: {
-        account_id: {
-          scope: "lease",
-          xid: `${owner}/${dseq}/${gseq}/${oseq}/${provider}`
-        },
-        payment_id: faker.string.uuid(),
-        owner,
-        state: state === "active" ? "open" : "closed",
-        rate: {
-          denom,
-          amount
-        },
-        balance: {
-          denom,
-          amount: faker.string.numeric(6)
-        },
-        withdrawn: {
-          denom,
-          amount: faker.string.numeric(6)
-        }
-      }
+      id: overrides.id || faker.string.uuid(),
+      deploymentId: overrides.deploymentId || faker.string.uuid(),
+      deploymentGroupId: overrides.deploymentGroupId || faker.string.uuid(),
+      owner: overrides.owner || faker.string.alphanumeric(44),
+      dseq: overrides.dseq || faker.string.numeric(20),
+      oseq: overrides.oseq || faker.number.int({ min: 1, max: 100 }),
+      gseq: overrides.gseq || faker.number.int({ min: 1, max: 100 }),
+      providerAddress: overrides.providerAddress || faker.string.alphanumeric(44),
+      createdHeight: overrides.createdHeight || faker.number.int({ min: 1, max: 10000000 }),
+      closedHeight: overrides.closedHeight,
+      predictedClosedHeight: overrides.predictedClosedHeight || faker.number.int({ min: 1, max: 10000000 }).toString(),
+      price: overrides.price || faker.number.float({ min: 0, max: 100, multipleOf: 0.000001 }),
+      withdrawnAmount: overrides.withdrawnAmount || faker.number.float({ min: 0, max: 100, multipleOf: 0.000001 }),
+      denom: overrides.denom || faker.helpers.arrayElement(["uakt", "uusdc"]),
+      cpuUnits: overrides.cpuUnits || faker.number.int({ min: 1000, max: 10000 }),
+      gpuUnits: overrides.gpuUnits || faker.number.int({ min: 0, max: 8 }),
+      memoryQuantity: overrides.memoryQuantity || faker.number.int({ min: 1024 * 1024 * 1024, max: 16 * 1024 * 1024 * 1024 }),
+      ephemeralStorageQuantity: overrides.ephemeralStorageQuantity || faker.number.int({ min: 1024 * 1024 * 1024, max: 100 * 1024 * 1024 * 1024 }),
+      persistentStorageQuantity: overrides.persistentStorageQuantity || faker.number.int({ min: 1024 * 1024 * 1024, max: 1000 * 1024 * 1024 * 1024 })
     };
   }
 
-  static createMany(count: number, input: LeaseInput = {}): LeaseOutput[] {
-    return Array.from({ length: count }, () => this.create(input));
+  static async createInDatabase(overrides: Partial<CreationAttributes<Lease>> = {}): Promise<Lease> {
+    const seed = this.create(overrides);
+    return await Lease.create(seed);
   }
 }
