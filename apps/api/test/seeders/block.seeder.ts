@@ -1,3 +1,4 @@
+import { Block } from "@akashnetwork/database/dbSchemas";
 import type { AkashBlock } from "@akashnetwork/database/dbSchemas/akash";
 import { faker } from "@faker-js/faker";
 import type { CreationAttributes } from "sequelize";
@@ -14,7 +15,12 @@ export class BlockSeeder {
       dayId: input.dayId || faker.string.uuid(),
       txCount: input.txCount || faker.number.int({ min: 0, max: 10000000 }),
       isProcessed: input.isProcessed || faker.datatype.boolean(),
-      totalTxCount: input.totalTxCount || faker.number.int({ min: 0, max: 10000000 })
+      totalTxCount: input.totalTxCount || faker.number.int({ min: 0, max: 10000000 }),
+      totalUUsdSpent: input.totalUUsdSpent || faker.number.int({ min: 0, max: 10000000 })
     };
+  }
+
+  static async createInDatabase(input: Partial<CreationAttributes<AkashBlock>> = {}): Promise<AkashBlock> {
+    return await Block.create(BlockSeeder.create(input));
   }
 }
