@@ -26,7 +26,7 @@ export class JwtToken {
    * });
    * const akashWallet = await createSignArbitraryAkashWallet(wallet);
    * const jwtToken = new JwtToken(akashWallet);
-   * OR ON FRONTEND
+   * // OR ON FRONTEND
    * const { getAccount, signArbitrary } = useSelectedChain();
    * const { address, pubkey } = await getAccount();
    * const jwt = new JwtToken(
