@@ -3,7 +3,12 @@ import { container } from "tsyringe";
 
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
-import { ProviderListQuerySchema, ProviderListResponseSchema } from "@src/provider/http-schemas/provider.schema";
+import {
+  ProviderActiveLeasesGraphDataParamsSchema,
+  ProviderActiveLeasesGraphDataResponseSchema,
+  ProviderListQuerySchema,
+  ProviderListResponseSchema
+} from "@src/provider/http-schemas/provider.schema";
 
 const route = createRoute({
   method: "get",
@@ -25,6 +30,28 @@ const route = createRoute({
   }
 });
 
+const activeLeasesGraphDataRoute = createRoute({
+  method: "get",
+  path: "/v1/providers/{providerAddress}/active-leases-graph-data",
+  tags: ["Analytics", "Providers"],
+  request: {
+    params: ProviderActiveLeasesGraphDataParamsSchema
+  },
+  responses: {
+    200: {
+      description: "Returns a provider's active leases graph data",
+      content: {
+        "application/json": {
+          schema: ProviderActiveLeasesGraphDataResponseSchema
+        }
+      }
+    },
+    400: {
+      description: "Invalid address"
+    }
+  }
+});
+
 export const providersRouter = new OpenApiHonoHandler();
 
 providersRouter.openapi(route, async function routeListProviders(c) {
@@ -32,4 +59,11 @@ providersRouter.openapi(route, async function routeListProviders(c) {
   const providers = await container.resolve(ProviderController).getProviderList(scope);
 
   return c.json(providers);
+});
+
+providersRouter.openapi(activeLeasesGraphDataRoute, async function routeProviderActiveLeasesGraphData(c) {
+  const providerAddress = c.req.valid("param").providerAddress;
+  const graphData = await container.resolve(ProviderController).getProviderActiveLeasesGraphData(providerAddress);
+
+  return c.json(graphData);
 });
