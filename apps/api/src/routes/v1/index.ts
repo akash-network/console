@@ -33,7 +33,6 @@ import networkCapacity from "./networkCapacity";
 import predictedBlockDate from "./predictedBlockDate";
 import predictedDateHeight from "./predictedDateHeight";
 import pricing from "./pricing";
-import providerActiveLeasesGraphData from "./providerActiveLeasesGraphData";
 import providerAttributesSchema from "./providerAttributesSchema";
 import providerDashboard from "./providerDashboard";
 import providerGraphData from "./providerGraphData";
@@ -75,7 +74,6 @@ export default [
   deploymentByOwnerDseq,
   providerGraphData,
   graphData,
-  providerActiveLeasesGraphData,
   trialProviders,
   leasesDuration,
   providerDashboard,

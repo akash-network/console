@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/tx.schema";
-import { isValidBech32Address } from "@src/utils/addresses";
 import { openApiExampleAddress } from "@src/utils/constants";
+import { AkashAddressSchema } from "@src/utils/schema";
 import { LeaseStatusResponseSchema } from "./lease.schema";
 
 export const DeploymentResponseSchema = z.object({
@@ -132,13 +132,10 @@ export const ListDeploymentsResponseSchema = z.object({
 export const deploymentListMaxLimit = 100;
 
 export const ListWithResourcesParamsSchema = z.object({
-  address: z
-    .string()
-    .refine(val => isValidBech32Address(val, "akash"), { message: "Invalid address" })
-    .openapi({
-      description: "Wallet Address",
-      example: openApiExampleAddress
-    }),
+  address: AkashAddressSchema.openapi({
+    description: "Wallet Address",
+    example: openApiExampleAddress
+  }),
   skip: z.coerce.number().min(0).openapi({
     description: "Deployments to skip",
     example: 10
