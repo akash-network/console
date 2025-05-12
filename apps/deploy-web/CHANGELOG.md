@@ -1,5 +1,17 @@
 
 
+## [2.73.0](https://github.com/akash-network/console/compare/console-web/v2.72.1...console-web/v2.73.0) (2025-05-12)
+
+
+### Features
+
+* **analytics:** removes amplitude sampling ([dedff8a](https://github.com/akash-network/console/commit/dedff8a062b182e3408a2d6bfc5915da90791a6c))
+
+
+### Code Refactoring
+
+* move provider-active-leases-graph-data to modules ([#1301](https://github.com/akash-network/console/issues/1301)) ([f1c004f](https://github.com/akash-network/console/commit/f1c004fb8379c1d6301c3cb1209924fcc64a8021)), closes [#1272](https://github.com/akash-network/console/issues/1272)
+
 ## [2.72.1](https://github.com/akash-network/console/compare/console-web/v2.72.0...console-web/v2.72.1) (2025-05-10)
 
 
