@@ -23,17 +23,17 @@ async function main() {
     await fsp.mkdir(OUT_DIR, { recursive: true });
 
     await Promise.all([
-      fsp.writeFile(joinPath(OUT_DIR, "jwtSchemaData.ts"), `export const jwtSchemaData = ${JSON.stringify(schema, null, 2)}`),
+      fsp.writeFile(joinPath(OUT_DIR, "jwt-schema-data.ts"), `export const jwtSchemaData = ${JSON.stringify(schema, null, 2)}`),
       fsp.writeFile(
-        joinPath(OUT_DIR, "jwtSigningTestCases.ts"),
+        joinPath(OUT_DIR, "jwt-signing-test-cases.ts"),
         `// This file contains test cases for JWT signing validation\nexport const jwtSigningTestCases = ${JSON.stringify(signingTestCases, null, 2)};`
       ),
       fsp.writeFile(
-        joinPath(OUT_DIR, "jwtClaimsTestCases.ts"),
+        joinPath(OUT_DIR, "jwt-claims-test-cases.ts"),
         `// This file contains test cases for JWT claims validation\nexport const jwtClaimsTestCases = ${JSON.stringify(claimsTestCases, null, 2)};`
       ),
       fsp.writeFile(
-        joinPath(OUT_DIR, "jwtMnemonic.ts"),
+        joinPath(OUT_DIR, "jwt-mnemonic.ts"),
         `// This file contains the test mnemonic for JWT signing\nexport const jwtMnemonic = "${mnemonic.trim()}";`
       )
     ]);

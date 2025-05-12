@@ -5,13 +5,15 @@ import type { DirectSecp256k1HdWallet, DirectSecp256k1HdWalletOptions } from "@c
 export interface SignArbitraryAkashWallet {
   pubkey: Uint8Array;
   address: string;
-  signArbitrary: (signer: string, data: string | Uint8Array) => Promise<StdSignature>;
+  signArbitrary: (signer: string, data: string | Uint8Array, accountIndex?: number) => Promise<StdSignature>;
 }
+
+const BASE_HD_PATH = "m/44'/118'/0'/0/";
 
 /**
  * Create a custom wallet that can sign arbitrary data
  * @param wallet - The DirectSecp256k1HdWallet instance to use for signing
- * @returns A CosmosWallet interface implementation
+ * @returns An Akash Wallet interface implementation
  */
 export async function createSignArbitraryAkashWallet(wallet: DirectSecp256k1HdWallet): Promise<SignArbitraryAkashWallet> {
   const [account] = await wallet.getAccounts();
@@ -19,11 +21,11 @@ export async function createSignArbitraryAkashWallet(wallet: DirectSecp256k1HdWa
   return {
     pubkey: account.pubkey,
     address: account.address,
-    signArbitrary: async (signer: string, data: string | Uint8Array): Promise<StdSignature> => {
+    signArbitrary: async (signer: string, data: string | Uint8Array, accountIndex: number = 0): Promise<StdSignature> => {
       const message = typeof data === "string" ? new TextEncoder().encode(data) : data;
       const hashedMessage = sha256(message);
       const seed = await fromMnemonic(wallet.mnemonic);
-      const { privkey } = Slip10.derivePath(Slip10Curve.Secp256k1, seed, stringToPath("m/44'/118'/0'/0/0"));
+      const { privkey } = Slip10.derivePath(Slip10Curve.Secp256k1, seed, stringToPath(`${BASE_HD_PATH}${accountIndex}`));
       const signature = await Secp256k1.createSignature(hashedMessage, privkey);
       const signatureBytes = new Uint8Array([...signature.r(32), ...signature.s(32)]);
       const stdSignature = encodeSecp256k1Signature(account.pubkey, signatureBytes);

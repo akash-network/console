@@ -2,11 +2,8 @@ import { JwtValidator } from "./jwt-validator";
 import type { JWTPayload, JwtTokenOptions } from "./types";
 import type { SignArbitraryAkashWallet } from "./wallet-utils";
 
-// Helper function for base64url encoding
 function base64UrlEncode(str: string): string {
-  // First encode to base64
   const base64 = btoa(str);
-  // Then convert to base64url format
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
@@ -20,9 +17,21 @@ export class JwtToken {
   }
 
   /**
-   * Creates a new JWT token with ES256K signature using a Cosmos SDK wallet
+   * Creates a new JWT token with ES256K signature using a custom signArbitrary method with the current wallet
    * @param options - JWT token options
    * @returns The signed JWT token
+   * @example
+   * const wallet = await DirectSecp256k1HdWallet.fromMnemonic(jwtMnemonic, {
+   *   prefix: "akash"
+   * });
+   * const akashWallet = await createSignArbitraryAkashWallet(wallet);
+   * const jwtToken = new JwtToken(akashWallet);
+   * const token = await jwtToken.createToken({
+   *   iss: "https://example.com",
+   *   exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
+   *   iat: Math.floor(Date.now() / 1000), // current timestamp
+   * });
+   * console.log(token);
    */
   async createToken(options: JwtTokenOptions): Promise<string> {
     const now = Math.floor(Date.now() / 1000);

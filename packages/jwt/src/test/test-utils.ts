@@ -1,4 +1,4 @@
-import type { jwtClaimsTestCases } from "../generated/jwtClaimsTestCases";
+import type { jwtClaimsTestCases } from "../generated/jwt-claims-test-cases";
 import type { JWTPayload } from "../types";
 import { AkashAddressSeeder } from "./seeders/akash-address.seeder";
 

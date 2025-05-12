@@ -1,8 +1,8 @@
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 
-import { jwtClaimsTestCases } from "./generated/jwtClaimsTestCases";
-import { jwtMnemonic } from "./generated/jwtMnemonic";
-import { jwtSigningTestCases } from "./generated/jwtSigningTestCases";
+import { jwtClaimsTestCases } from "./generated/jwt-claims-test-cases";
+import { jwtMnemonic } from "./generated/jwt-mnemonic";
+import { jwtSigningTestCases } from "./generated/jwt-signing-test-cases";
 import { replaceTemplateValues } from "./test/test-utils";
 import { JwtToken } from "./jwt-token";
 import { createSignArbitraryAkashWallet, type SignArbitraryAkashWallet } from "./wallet-utils";

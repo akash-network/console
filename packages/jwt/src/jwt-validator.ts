@@ -1,7 +1,7 @@
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 
-import { jwtSchemaData } from "./generated/jwtSchemaData";
+import { jwtSchemaData } from "./generated/jwt-schema-data";
 import type { JWTPayload } from "./types";
 
 export interface JwtValidationResult {
