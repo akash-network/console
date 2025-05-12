@@ -1,5 +1,12 @@
 
 
+## [1.9.7](https://github.com/akash-network/console/compare/provider-console/v1.9.6...provider-console/v1.9.7) (2025-05-12)
+
+
+### Bug Fixes
+
+* **provider:** online status changed and control-machine changed ([#1310](https://github.com/akash-network/console/issues/1310)) ([0566fb2](https://github.com/akash-network/console/commit/0566fb24916c8c60144661fd8ef6f47bd180ef05))
+
 ## [1.9.6](https://github.com/akash-network/console/compare/provider-console/v1.9.5...provider-console/v1.9.6) (2025-05-10)
 
 
