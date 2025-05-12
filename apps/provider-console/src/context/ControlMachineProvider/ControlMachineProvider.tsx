@@ -5,8 +5,9 @@ import { Drawer, DrawerContent } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { useAtom } from "jotai";
 
-import { ServerForm } from "@src/components/become-provider/ServerForm";
+import { MachineAccessForm } from "@src/components/machine/MachineAccessForm";
 import { useWallet } from "@src/context/WalletProvider";
+import { useMachineAccessForm } from "@src/hooks/useMachineAccessForm";
 import controlMachineStore from "@src/store/controlMachineStore";
 import type { ControlMachineWithAddress } from "@src/types/controlMachine";
 import { processKeyfile } from "@src/utils/nodeVerification";
@@ -30,24 +31,23 @@ export function ControlMachineProvider({ children }: Props) {
   const [controlMachineLoading, setControlMachineLoading] = useState(false);
   const [controlMachines, setControlMachines] = useAtom(controlMachineStore.controlMachineAtom);
   const [activeControlMachine, setActiveControlMachine] = useState<ControlMachineWithAddress | null>(null);
-  const { address, isWalletArbitrarySigned, isProvider } = useWallet();
+  const { address, isWalletArbitrarySigned } = useWallet();
   const [controlMachineDrawerOpen, setControlMachineDrawerOpen] = useState(false);
 
-  // Define the migration function within the component
+  const { isVerifying, error, verifyMachine } = useMachineAccessForm({
+    isControlPlane: true
+  });
+
   const migrateKeyfileOneTime = () => {
-    // Skip if already migrated
     if (localStorage.getItem("keyfileMigrationComplete")) {
       return;
     }
 
     try {
-      // Create backup before making any changes
       const controlMachinesString = localStorage.getItem("controlMachines");
       if (controlMachinesString) {
-        // Store backup
         localStorage.setItem("controlMachines_backup", controlMachinesString);
 
-        // Parse and update data
         const controlMachines = JSON.parse(controlMachinesString);
         let migrationPerformed = false;
 
@@ -91,8 +91,15 @@ export function ControlMachineProvider({ children }: Props) {
     migrateKeyfileOneTime();
   }, []);
 
+  // Reset control machine states when wallet logs out
   useEffect(() => {
-    if (isWalletArbitrarySigned || isProvider) {
+    if (!address) {
+      setActiveControlMachine(null);
+    }
+  }, [address]);
+
+  useEffect(() => {
+    if (isWalletArbitrarySigned || address) {
       setActiveControlMachine(null);
       const controlMachine = controlMachines.find(machine => machine.address === address);
 
@@ -125,7 +132,7 @@ export function ControlMachineProvider({ children }: Props) {
     } else if (!address) {
       setActiveControlMachine(null);
     }
-  }, [isWalletArbitrarySigned, address, controlMachines, isProvider]);
+  }, [isWalletArbitrarySigned, address, controlMachines]);
 
   async function setControlMachine(controlMachine: ControlMachineWithAddress) {
     setControlMachines(prev => {
@@ -152,6 +159,39 @@ export function ControlMachineProvider({ children }: Props) {
     setActiveControlMachine(null);
   }
 
+  const handleMachineSubmit = async (formData: any) => {
+    try {
+      const result = await verifyMachine(formData);
+      if (!result) return;
+
+      const machineInfo = {
+        access: {
+          hostname: formData.hostname,
+          port: formData.port || 22,
+          username: formData.username,
+          password: formData.password || null,
+          file: formData.file || null,
+          keyfile: formData.keyfile || null,
+          passphrase: formData.passphrase || null
+        },
+        systemInfo: result.systemInfo
+      };
+
+      if (!address) {
+        console.error("No wallet address found – aborting control-machine save.");
+        return;
+      }
+
+      setControlMachine({
+        address,
+        ...machineInfo
+      });
+      setControlMachineDrawerOpen(false);
+    } catch (error) {
+      console.error("Form submission error:", error);
+    }
+  };
+
   return (
     <ControlMachineContext.Provider
       value={{
@@ -167,7 +207,24 @@ export function ControlMachineProvider({ children }: Props) {
         <Drawer open={controlMachineDrawerOpen} onOpenChange={setControlMachineDrawerOpen}>
           <DrawerContent className="z-[200] flex items-center">
             <div className={cn("mb-10 flex max-w-[500px] justify-center")}>
-              <ServerForm _currentServerNumber={0} onComplete={() => {}} editMode={true} controlMachine={activeControlMachine} />
+              <MachineAccessForm
+                onSubmit={handleMachineSubmit}
+                defaultValues={{
+                  hostname: activeControlMachine?.access.hostname || "",
+                  port: activeControlMachine?.access.port || 22,
+                  username: activeControlMachine?.access.username || "root",
+                  password: activeControlMachine?.access.password || undefined,
+                  keyfile: activeControlMachine?.access.keyfile || undefined,
+                  file: activeControlMachine?.access.file || undefined,
+                  passphrase: activeControlMachine?.access.passphrase || undefined
+                }}
+                submitLabel="Update"
+                showSaveConfig={false}
+                isPublicIP={true}
+                disabled={false}
+                isVerifying={isVerifying}
+                error={error}
+              />
             </div>
           </DrawerContent>
         </Drawer>

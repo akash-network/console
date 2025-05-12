@@ -4,15 +4,7 @@ import type { AxiosError } from "axios";
 
 import type { ControlMachineWithAddress } from "@src/types/controlMachine";
 import type { DeploymentDetail, ProviderDeployments } from "@src/types/deployment";
-import type {
-  ActionList,
-  ActionStatus,
-  PersistentStorageResponse,
-  ProviderDashoard,
-  ProviderDetails,
-  ProviderOnChainStatus,
-  ProviderStatus
-} from "@src/types/provider";
+import type { ActionList, ActionStatus, PersistentStorageResponse, ProviderDashoard, ProviderDetails, ProviderOnChainStatus } from "@src/types/provider";
 import type { GpuPricesResponse } from "@src/types/providerPricing";
 import consoleClient from "@src/utils/consoleClient";
 import { findTotalAmountSpentOnLeases, totalDeploymentCost, totalDeploymentTimeLeft } from "@src/utils/deploymentUtils";
@@ -202,7 +194,6 @@ export const useProviderStatus = (chainId: string, enabled = true) => {
       try {
         const response: ProviderOnChainStatus = await restClient.get(`/provider/status/onchain?chainid=${chainId}`);
         return {
-          isProvider: response.provider ? true : false,
           provider: response.provider
         };
       } catch (error: unknown) {
@@ -214,19 +205,24 @@ export const useProviderStatus = (chainId: string, enabled = true) => {
   });
 };
 
-export const useProviderOnlineStatus = (chainId: string, isProvider: boolean) => {
+export const useProviderOnlineStatus = (providerUri: string | undefined, chainId: string | undefined, enabled = true) => {
   const { toast } = useToast();
   return useQuery({
-    queryKey: ["providerOnlineStatus", chainId],
+    queryKey: ["providerOnlineStatus", providerUri, chainId],
     queryFn: async () => {
+      if (!providerUri || !chainId) return null;
       try {
-        const response: ProviderStatus = await restClient.get(`/provider/status/online?chainid=${chainId}`);
-        return response.online;
+        const res: { online: boolean } = await restClient.get(
+          `/provider/status/v2/online?provider_uri=${encodeURIComponent(providerUri)}&chainid=${encodeURIComponent(chainId)}`
+        );
+        return res.online;
       } catch (error: unknown) {
         return handleQueryError(error as AxiosError, toast, "Failed to fetch provider online status");
       }
     },
-    enabled: isProvider,
+    enabled: !!providerUri && !!chainId && enabled,
+    refetchInterval: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false,
     retry: 3
   });
 };

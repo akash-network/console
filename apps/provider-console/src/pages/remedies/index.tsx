@@ -12,7 +12,7 @@ import { Title } from "@src/components/shared/Title";
 import { withAuth } from "@src/components/shared/withAuth";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
-import { useWallet } from "@src/context/WalletProvider";
+import { useProvider } from "@src/context/ProviderContext";
 import { useProviderDetails } from "@src/queries/useProviderQuery";
 import providerProcessStore from "@src/store/providerProcessStore";
 
@@ -22,7 +22,7 @@ const Remedies: React.FC = () => {
   const [isChecking, setIsChecking] = useState(false);
   const [, resetProviderProcess] = useAtom(providerProcessStore.resetProviderProcess);
   const { address } = useSelectedChain();
-  const { isOnline } = useWallet();
+  const { isOnline } = useProvider();
   const { activeControlMachine } = useControlMachine();
   const { data: providerDetails, refetch: refetchProviderDetails } = useProviderDetails(address);
 
