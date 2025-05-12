@@ -1,5 +1,20 @@
 
 
+## [2.89.0](https://github.com/akash-network/console/compare/console-api/v2.88.0...console-api/v2.89.0) (2025-05-10)
+
+
+### Features
+
+* **deployment:** differ insufficient funds error for user and master wallet in top up job ([65db33a](https://github.com/akash-network/console/commit/65db33a4c11e45fa8f2f5bee0385fb0b4eaebf50)), closes [#1107](https://github.com/akash-network/console/issues/1107)
+* **notifications:** refactors app structure to separate concerts ([9d64416](https://github.com/akash-network/console/commit/9d64416e2edd0843fdf31cbde975ae2ea75e17fc))
+
+
+### Code Refactoring
+
+* move provider listing to its service ([#1291](https://github.com/akash-network/console/issues/1291)) ([1a44de4](https://github.com/akash-network/console/commit/1a44de4f46e52d68e2bda6f4c1b906d8cf7724b6)), closes [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272)
+* unify methods listing leases ([#1302](https://github.com/akash-network/console/issues/1302)) ([2876f9c](https://github.com/akash-network/console/commit/2876f9ccffc66d85537e6574ec3d6ad5b9399b70)), closes [#1272](https://github.com/akash-network/console/issues/1272)
+* uses logger and http sdk from local pkgs for notification service ([fe3539b](https://github.com/akash-network/console/commit/fe3539b5995aca4f88fe281da5ac282779ee3f8e))
+
 ## [2.88.0](https://github.com/akash-network/console/compare/console-api/v2.87.1...console-api/v2.88.0) (2025-05-01)
 
 
