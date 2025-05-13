@@ -146,7 +146,7 @@ export class JwtValidator {
                 if (scopes.has(scope)) {
                   result.errors.push("Duplicate scope in permission");
                   valid = false;
-                  break;
+                  continue;
                 }
                 scopes.add(scope);
               }
@@ -155,46 +155,8 @@ export class JwtValidator {
             // Check for duplicate services and validate deployment dependencies
             if (perm.deployments) {
               for (const deployment of perm.deployments) {
-                // Check for duplicate scopes within deployment
-                const scopes = new Set<string>();
-                for (const scope of deployment.scope) {
-                  if (scopes.has(scope)) {
-                    result.errors.push("Duplicate scope in deployment");
-                    valid = false;
-                    break;
-                  }
-                  scopes.add(scope);
-                }
-
-                // Validate deployment dependencies
-                if (deployment.gseq && !deployment.dseq) {
-                  result.errors.push("gseq requires dseq");
+                if (!this.validateDeployment(deployment, result)) {
                   valid = false;
-                }
-                if (deployment.oseq && (!deployment.dseq || !deployment.gseq)) {
-                  result.errors.push("oseq requires dseq and gseq");
-                  valid = false;
-                }
-                if (deployment.dseq && !deployment.services) {
-                  result.errors.push("services required when dseq is present");
-                  valid = false;
-                }
-                if (deployment.services && !deployment.dseq) {
-                  result.errors.push("services requires dseq");
-                  valid = false;
-                }
-
-                // Check for duplicate services
-                if (deployment.services) {
-                  const services = new Set<string>();
-                  for (const service of deployment.services) {
-                    if (services.has(service)) {
-                      result.errors.push("Duplicate service in deployment");
-                      valid = false;
-                      break;
-                    }
-                    services.add(service);
-                  }
                 }
               }
             }
@@ -207,9 +169,66 @@ export class JwtValidator {
 
       result.isValid = result.errors.length === 0;
     } catch (error) {
-      result.errors.push(`Error validating token: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      result.errors.push(`Error during JWT validation: ${errorMessage}`);
+      // Optionally log the error for debugging
+      console.error("JWT validation error:", error);
     }
 
     return result;
+  }
+
+  /**
+   * Validates deployment structure and dependencies
+   * @param deployment The deployment to validate
+   * @param result The validation result to update
+   * @returns Whether the validation passed
+   */
+  private validateDeployment(deployment: any, result: JwtValidationResult): boolean {
+    let valid = true;
+
+    // Check for duplicate scopes within deployment
+    const scopes = new Set<string>();
+    for (const scope of deployment.scope) {
+      if (scopes.has(scope)) {
+        result.errors.push("Duplicate scope in deployment");
+        valid = false;
+        break;
+      }
+      scopes.add(scope);
+    }
+
+    // Validate deployment dependencies
+    if (deployment.gseq && !deployment.dseq) {
+      result.errors.push("gseq requires dseq");
+      valid = false;
+    }
+    if (deployment.oseq && (!deployment.dseq || !deployment.gseq)) {
+      result.errors.push("oseq requires dseq and gseq");
+      valid = false;
+    }
+    if (deployment.dseq && !deployment.services) {
+      result.errors.push("services required when dseq is present");
+      valid = false;
+    }
+    if (deployment.services && !deployment.dseq) {
+      result.errors.push("services requires dseq");
+      valid = false;
+    }
+
+    // Check for duplicate services
+    if (deployment.services) {
+      const services = new Set<string>();
+      for (const service of deployment.services) {
+        if (services.has(service)) {
+          result.errors.push("Duplicate service in deployment");
+          valid = false;
+          break;
+        }
+        services.add(service);
+      }
+    }
+
+    return valid;
   }
 }
