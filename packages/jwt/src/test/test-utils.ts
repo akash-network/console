@@ -1,16 +1,25 @@
 import type { jwtClaimsTestCases } from "../generated/jwt-claims-test-cases";
 import type { JWTPayload } from "../types";
-import { AkashAddressSeeder } from "./seeders/akash-address.seeder";
+import { createAkashAddress } from "./seeders/akash-address.seeder";
 
 /**
  * Replaces template values in JWT test cases with actual values
+ *
+ * Supports the following template patterns:
+ * - {{.Issuer}} - Replaced with a generated Akash address for the issuer
+ * - {{.Provider}} - Replaced with a generated Akash address for the provider
+ * - {{.IatCurr}} - Replaced with the current timestamp
+ * - {{.Iat24h}} - Replaced with a timestamp 24 hours in the past
+ * - {{.NbfCurr}} - Replaced with the current timestamp
+ * - {{.Nbf24h}} - Replaced with a timestamp 24 hours in the past
+ * - {{.Exp48h}} - Replaced with a timestamp 48 hours in the future
  * @param testCase - The test case containing template values
  * @returns The test case with template values replaced
  */
 export function replaceTemplateValues(testCase: (typeof jwtClaimsTestCases)[0]) {
   const now = Math.floor(Date.now() / 1000);
-  const issuer = AkashAddressSeeder.create();
-  const provider = AkashAddressSeeder.create();
+  const issuer = createAkashAddress();
+  const provider = createAkashAddress();
 
   const claims = { ...testCase.claims } as any;
   if (claims.iss === "{{.Issuer}}") claims.iss = issuer;

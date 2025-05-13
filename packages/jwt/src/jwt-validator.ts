@@ -85,7 +85,13 @@ export class JwtValidator {
             if (error.keyword === "additionalProperties") {
               return "Additional properties are not allowed";
             }
-            return `${error.instancePath.slice(1)} ${error.message}`;
+            if (error.keyword === "type") {
+              return `${error.instancePath.slice(1) || "Field"} should be ${error.params.type}`;
+            }
+            if (error.keyword === "enum") {
+              return `${error.instancePath.slice(1) || "Field"} should be one of: ${error.params.allowedValues.join(", ")}`;
+            }
+            return `${error.instancePath.slice(1) || "Field"}: ${error.message}`;
           }) || [];
       }
 

@@ -4,10 +4,11 @@ import { join as joinPath, normalize } from "path";
 const PROJECT_DIR = normalize(joinPath(__dirname, "..", "..", ".."));
 const PACKAGE_DIR = normalize(joinPath(__dirname, ".."));
 const OUT_DIR = joinPath(PACKAGE_DIR, "src", "generated");
-const JWT_SCHEMA_URL = "https://raw.githubusercontent.com/akash-network/akash-api/refs/heads/main/specs/jwt-schema.json";
-const JWT_SIGNING_TEST_CASES_URL = "https://raw.githubusercontent.com/akash-network/akash-api/refs/heads/main/testdata/jwt/cases_es256k.json";
-const JWT_CLAIMS_TEST_CASES_URL = "https://raw.githubusercontent.com/akash-network/akash-api/refs/heads/main/testdata/jwt/cases_jwt.json.tmpl";
-const JWT_MNEMONIC_URL = "https://raw.githubusercontent.com/akash-network/akash-api/refs/heads/main/testdata/jwt/mnemonic";
+const BRANCH = process.env.AKASH_API_BRANCH || "refs/heads/main";
+const JWT_SCHEMA_URL = `https://raw.githubusercontent.com/akash-network/akash-api/${BRANCH}/specs/jwt-schema.json`;
+const JWT_SIGNING_TEST_CASES_URL = `https://raw.githubusercontent.com/akash-network/akash-api/${BRANCH}/testdata/jwt/cases_es256k.json`;
+const JWT_CLAIMS_TEST_CASES_URL = `https://raw.githubusercontent.com/akash-network/akash-api/${BRANCH}/testdata/jwt/cases_jwt.json.tmpl`;
+const JWT_MNEMONIC_URL = `https://raw.githubusercontent.com/akash-network/akash-api/${BRANCH}/testdata/jwt/mnemonic`;
 
 async function main() {
   console.log(`Generating JWT schema and test cases`);

@@ -51,7 +51,7 @@ export class JwtToken {
       leases: options.leases || { access: "full" }
     };
 
-    const validationResult = await this.validatePayload(inputPayload);
+    const validationResult = this.validatePayload(inputPayload);
     if (!validationResult.isValid) {
       throw new Error(`Invalid payload: ${validationResult.errors?.join(", ")}`);
     }
@@ -91,7 +91,7 @@ export class JwtToken {
    * @param payload - The JWT payload to validate
    * @returns A boolean indicating whether the payload is valid
    */
-  public async validatePayload(payload: JWTPayload): Promise<{ isValid: boolean; errors?: string[] }> {
+  public validatePayload(payload: JWTPayload): { isValid: boolean; errors?: string[] } {
     const result = this.validator.validateToken(payload);
     if (!result.isValid) {
       return { isValid: false, errors: result.errors };

@@ -5,6 +5,7 @@ import { jwtMnemonic } from "./generated/jwt-mnemonic";
 import { jwtSigningTestCases } from "./generated/jwt-signing-test-cases";
 import { replaceTemplateValues } from "./test/test-utils";
 import { JwtToken } from "./jwt-token";
+import type { JwtTokenOptions } from "./types";
 import { createSignArbitraryAkashWallet, type SignArbitraryAkashWallet } from "./wallet-utils";
 
 describe("JWT Claims Validation", () => {
@@ -25,7 +26,7 @@ describe("JWT Claims Validation", () => {
 
     // For test cases that should fail, we need to validate the payload first
     if (testCase.expected.signFail || testCase.expected.verifyFail) {
-      const validationResult = await jwtToken.validatePayload(claims as any);
+      const validationResult = jwtToken.validatePayload(claims);
       expect(validationResult.isValid).toBe(false);
 
       if (validationResult.isValid) {
@@ -36,7 +37,7 @@ describe("JWT Claims Validation", () => {
     }
 
     // For test cases that should pass, create and verify the token
-    const token = await jwtToken.createToken(claims as any);
+    const token = await jwtToken.createToken(claims as JwtTokenOptions);
     const decoded = jwtToken.decodeToken(token);
     expect(decoded).toBeDefined();
 

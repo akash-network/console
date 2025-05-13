@@ -1,3 +1,6 @@
+export type Scope = "send-manifest" | "get-manifest" | "logs" | "shell" | "events" | "status" | "restart" | "hostname-migrate" | "ip-migrate";
+export type Access = "full" | "granular" | "scoped";
+
 export interface JwtTokenOptions {
   /** Akash address of the lease(s) owner, e.g., akash1abcd... (44 characters) */
   iss: string;
@@ -14,23 +17,23 @@ export interface JwtTokenOptions {
   /** Access control configuration for leases */
   leases: {
     /** Access level for the lease: 'full' for unrestricted access to all actions, 'granular' for provider-specific permissions. */
-    access: "full" | "granular";
+    access: Access;
     /** Global list of permitted actions across all owned leases (no duplicates). Applies when access is 'full'. */
-    scope?: Array<"send-manifest" | "get-manifest" | "logs" | "shell" | "events" | "status" | "restart" | "hostname-migrate" | "ip-migrate">;
+    scope?: Scope[];
     /** Required if leases.access is 'granular'; defines provider-specific permissions. */
     permissions?: Array<{
       /** Provider address, e.g., akash1xyz... (44 characters). */
       provider: string;
       /** Provider-level access: 'full' for all actions, 'scoped' for specific actions across all provider leases, 'granular' for deployment-specific actions. */
-      access: "full" | "scoped" | "granular";
+      access: Access;
       /** Provider-level list of permitted actions for 'scoped' access (no duplicates). */
-      scope?: Array<"send-manifest" | "get-manifest" | "logs" | "shell" | "events" | "status" | "restart" | "hostname-migrate" | "ip-migrate">;
+      scope?: Scope[];
       /** Deployment-specific permissions for 'granular' access. */
       deployments?: Array<{
         /** Deployment sequence number. */
         dseq: number;
         /** Deployment-level list of permitted actions (no duplicates). */
-        scope: Array<"send-manifest" | "get-manifest" | "logs" | "shell" | "events" | "status" | "restart" | "hostname-migrate" | "ip-migrate">;
+        scope: Scope[];
         /** Group sequence number (requires dseq). */
         gseq?: number;
         /** Order sequence number (requires dseq and gseq). */
@@ -49,11 +52,11 @@ export interface JWTHeader {
 
 export interface Permission {
   provider: string;
-  access: "full" | "scoped" | "granular";
-  scope?: Array<"send-manifest" | "get-manifest" | "logs" | "shell" | "events" | "status" | "restart" | "hostname-migrate" | "ip-migrate">;
+  access: Access;
+  scope?: Scope[];
   deployments?: Array<{
     dseq: number;
-    scope: Array<"send-manifest" | "get-manifest" | "logs" | "shell" | "events" | "status" | "restart" | "hostname-migrate" | "ip-migrate">;
+    scope: Scope[];
     gseq?: number;
     oseq?: number;
     services?: Array<string>;
@@ -61,8 +64,8 @@ export interface Permission {
 }
 
 export interface Leases {
-  access: "full" | "granular" | "scoped";
-  scope?: Array<"send-manifest" | "get-manifest" | "logs" | "shell" | "events" | "status" | "restart" | "hostname-migrate" | "ip-migrate">;
+  access: Access;
+  scope?: Scope[];
   permissions?: Permission[];
 }
 

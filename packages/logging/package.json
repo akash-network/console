@@ -2,8 +2,12 @@
   "name": "@akashnetwork/logging",
   "version": "2.0.4",
   "description": "Package containing logging tools",
-  "license": "ISC",
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akash-network/console"
+  },
+  "license": "Apache-2.0",
+  "author": "Akash Network",
   "exports": {
     ".": "./src/index.ts",
     "./hono": "./src/hono/index.ts"

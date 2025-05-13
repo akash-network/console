@@ -2,8 +2,12 @@
   "name": "@akashnetwork/ui",
   "version": "1.0.0",
   "description": "",
-  "license": "ISC",
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akash-network/console"
+  },
+  "license": "Apache-2.0",
+  "author": "Akash Network",
   "exports": {
     "./components": "./components/index.tsx",
     "./hooks": "./hooks/index.tsx",
