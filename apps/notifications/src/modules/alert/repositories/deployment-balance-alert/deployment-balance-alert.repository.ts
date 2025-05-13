@@ -1,43 +1,34 @@
-import { InjectDrizzle } from '@knaadh/nestjs-drizzle-pg';
-import { Injectable } from '@nestjs/common';
-import { and, eq, gt, lte } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { z } from 'zod';
+import { InjectDrizzle } from "@knaadh/nestjs-drizzle-pg";
+import { Injectable } from "@nestjs/common";
+import { and, eq, gt, lte } from "drizzle-orm";
+import { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { z } from "zod";
 
-import { DRIZZLE_PROVIDER_TOKEN } from '@src/config/db.config';
-import * as schema from '../../model-schemas';
+import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
+import * as schema from "../../model-schemas";
 
 const baseConditionSchema = z.object({
-  operator: z.union([
-    z.literal('eq'),
-    z.literal('lt'),
-    z.literal('gt'),
-    z.literal('lte'),
-    z.literal('gte'),
-  ]),
-  field: z.literal('balance'),
-  value: z.number(),
+  operator: z.union([z.literal("eq"), z.literal("lt"), z.literal("gt"), z.literal("lte"), z.literal("gte")]),
+  field: z.literal("balance"),
+  value: z.number()
 });
 
 export const conditionSchema: z.ZodType<any> = z.union([
   z.object({
-    operator: z.literal('and'),
-    value: z.array(baseConditionSchema).min(2),
+    operator: z.literal("and"),
+    value: z.array(baseConditionSchema).min(2)
   }),
   z.object({
-    operator: z.literal('or'),
-    value: z.array(baseConditionSchema).min(2),
+    operator: z.literal("or"),
+    value: z.array(baseConditionSchema).min(2)
   }),
-  baseConditionSchema,
+  baseConditionSchema
 ]);
 
 export type Conditions = z.infer<typeof conditionSchema>;
 
 type InternalAlertOutput = typeof schema.DeploymentBalanceAlert.$inferSelect;
-export type DeploymentBalanceAlertOutput = Omit<
-  InternalAlertOutput,
-  'conditions'
-> & {
+export type DeploymentBalanceAlertOutput = Omit<InternalAlertOutput, "conditions"> & {
   conditions: Conditions;
 };
 
@@ -45,27 +36,21 @@ export type DeploymentBalanceAlertOutput = Omit<
 export class DeploymentBalanceAlertRepository {
   constructor(
     @InjectDrizzle(DRIZZLE_PROVIDER_TOKEN)
-    private readonly db: NodePgDatabase<typeof schema>,
+    private readonly db: NodePgDatabase<typeof schema>
   ) {}
 
-  async updateById(
-    id: string,
-    alert: Partial<DeploymentBalanceAlertOutput>,
-  ): Promise<void> {
+  async updateById(id: string, alert: Partial<DeploymentBalanceAlertOutput>): Promise<void> {
     if (!alert.updatedAt) {
       alert.updatedAt = new Date();
     }
 
-    await this.db
-      .update(schema.DeploymentBalanceAlert)
-      .set(alert)
-      .where(eq(schema.DeploymentBalanceAlert.id, id));
+    await this.db.update(schema.DeploymentBalanceAlert).set(alert).where(eq(schema.DeploymentBalanceAlert.id, id));
   }
 
   async paginate({
     query,
     limit,
-    callback,
+    callback
   }: {
     query: { block: number };
     limit: number;
@@ -75,16 +60,9 @@ export class DeploymentBalanceAlertRepository {
     let hasMore = true;
 
     while (hasMore) {
-      const cursor = this.db
-        .select()
-        .from(schema.DeploymentBalanceAlert)
-        .orderBy(schema.DeploymentBalanceAlert.id)
-        .limit(limit);
+      const cursor = this.db.select().from(schema.DeploymentBalanceAlert).orderBy(schema.DeploymentBalanceAlert.id).limit(limit);
 
-      const clauses = [
-        lte(schema.DeploymentBalanceAlert.minBlockHeight, query.block),
-        eq(schema.DeploymentBalanceAlert.enabled, true),
-      ];
+      const clauses = [lte(schema.DeploymentBalanceAlert.minBlockHeight, query.block), eq(schema.DeploymentBalanceAlert.enabled, true)];
 
       if (lastId) {
         clauses.push(gt(schema.DeploymentBalanceAlert.id, lastId));
@@ -108,16 +86,14 @@ export class DeploymentBalanceAlertRepository {
     }
   }
 
-  private toOutputList(
-    alerts: InternalAlertOutput[],
-  ): DeploymentBalanceAlertOutput[] {
+  private toOutputList(alerts: InternalAlertOutput[]): DeploymentBalanceAlertOutput[] {
     return alerts.map(this.toOutput);
   }
 
   private toOutput(alert: InternalAlertOutput): DeploymentBalanceAlertOutput {
     return {
       ...alert,
-      conditions: conditionSchema.parse(alert.conditions),
+      conditions: conditionSchema.parse(alert.conditions)
     };
   }
 }

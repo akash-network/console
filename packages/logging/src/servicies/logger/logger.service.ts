@@ -8,6 +8,7 @@ import { collectFullErrorStack } from "../../utils/collect-full-error-stack/coll
 
 export interface Logger extends Pick<pino.Logger, "info" | "error" | "warn" | "debug"> {
   setContext(context: string): void;
+  log: pino.Logger["info"];
 }
 
 interface Bindings extends pino.Bindings {

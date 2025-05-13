@@ -1,23 +1,18 @@
-import { generateMock } from '@anatine/zod-mock';
-import { faker } from '@faker-js/faker';
-import type { TestingModule } from '@nestjs/testing';
-import { Test } from '@nestjs/testing';
-import type { MockProxy } from 'jest-mock-extended';
-import { Ok } from 'ts-results';
+import { generateMock } from "@anatine/zod-mock";
+import { faker } from "@faker-js/faker";
+import type { TestingModule } from "@nestjs/testing";
+import { Test } from "@nestjs/testing";
+import type { MockProxy } from "jest-mock-extended";
+import { Ok } from "ts-results";
 
-import { ContactPointRepository } from '@src/modules/notifications/repositories/contact-point/contact-point.repository';
-import {
-  ContactPointController,
-  contactPointCreateInputSchema,
-  contactPointOutputSchema,
-  contactPointPatchInputSchema,
-} from './contact-point.controller';
+import { ContactPointRepository } from "@src/modules/notifications/repositories/contact-point/contact-point.repository";
+import { ContactPointController, contactPointCreateInputSchema, contactPointOutputSchema, contactPointPatchInputSchema } from "./contact-point.controller";
 
-import { MockProvider } from '@test/mocks/provider.mock';
+import { MockProvider } from "@test/mocks/provider.mock";
 
 describe(ContactPointController.name, () => {
-  describe('createContactPoint', () => {
-    it('should call contactPointRepository.create() and return the created contact point', async () => {
+  describe("createContactPoint", () => {
+    it("should call contactPointRepository.create() and return the created contact point", async () => {
       const { controller, contactPointRepository } = await setup();
       const input = generateMock(contactPointCreateInputSchema);
       const output = generateMock(contactPointOutputSchema);
@@ -31,8 +26,8 @@ describe(ContactPointController.name, () => {
     });
   });
 
-  describe('patchContactPoint', () => {
-    it('should call contactPointRepository.updateById() and return the updated contact point', async () => {
+  describe("patchContactPoint", () => {
+    it("should call contactPointRepository.updateById() and return the updated contact point", async () => {
       const { controller, contactPointRepository } = await setup();
       const id = faker.string.uuid();
       const input = generateMock(contactPointPatchInputSchema);
@@ -46,27 +41,25 @@ describe(ContactPointController.name, () => {
       expect(result).toEqual(Ok({ data: output }));
     });
 
-    it('should return an error if contact point is not found', async () => {
+    it("should return an error if contact point is not found", async () => {
       const { controller, contactPointRepository } = await setup();
       const id = faker.string.uuid();
       const input = generateMock(contactPointPatchInputSchema);
 
       contactPointRepository.updateById.mockResolvedValue(undefined);
 
-      await expect(
-        controller.patchContactPoint(id, { data: input }),
-      ).resolves.toMatchObject({
+      await expect(controller.patchContactPoint(id, { data: input })).resolves.toMatchObject({
         err: true,
         val: expect.objectContaining({
-          message: 'Contact point not found',
-        }),
+          message: "Contact point not found"
+        })
       });
       expect(contactPointRepository.updateById).toHaveBeenCalledWith(id, input);
     });
   });
 
-  describe('getContactPoint', () => {
-    it('should call contactPointRepository.findById() and return the contact point', async () => {
+  describe("getContactPoint", () => {
+    it("should call contactPointRepository.findById() and return the contact point", async () => {
       const { controller, contactPointRepository } = await setup();
       const id = faker.string.uuid();
       const output = generateMock(contactPointOutputSchema);
@@ -79,7 +72,7 @@ describe(ContactPointController.name, () => {
       expect(result).toEqual(Ok({ data: output }));
     });
 
-    it('should return an error if contact point is not found', async () => {
+    it("should return an error if contact point is not found", async () => {
       const { controller, contactPointRepository } = await setup();
       const id = faker.string.uuid();
 
@@ -88,15 +81,15 @@ describe(ContactPointController.name, () => {
       await expect(controller.getContactPoint(id)).resolves.toMatchObject({
         err: true,
         val: expect.objectContaining({
-          message: 'Contact point not found',
-        }),
+          message: "Contact point not found"
+        })
       });
       expect(contactPointRepository.findById).toHaveBeenCalledWith(id);
     });
   });
 
-  describe('deleteContactPoint', () => {
-    it('should call contactPointRepository.deleteById() and return the deleted contact point', async () => {
+  describe("deleteContactPoint", () => {
+    it("should call contactPointRepository.deleteById() and return the deleted contact point", async () => {
       const { controller, contactPointRepository } = await setup();
       const id = faker.string.uuid();
       const output = generateMock(contactPointOutputSchema);
@@ -109,7 +102,7 @@ describe(ContactPointController.name, () => {
       expect(result).toEqual(Ok({ data: output }));
     });
 
-    it('should return an error if contact point is not found', async () => {
+    it("should return an error if contact point is not found", async () => {
       const { controller, contactPointRepository } = await setup();
       const id = faker.string.uuid();
 
@@ -118,8 +111,8 @@ describe(ContactPointController.name, () => {
       await expect(controller.deleteContactPoint(id)).resolves.toMatchObject({
         err: true,
         val: expect.objectContaining({
-          message: 'Contact point not found',
-        }),
+          message: "Contact point not found"
+        })
       });
       expect(contactPointRepository.deleteById).toHaveBeenCalledWith(id);
     });
@@ -131,12 +124,12 @@ describe(ContactPointController.name, () => {
   }> {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ContactPointController],
-      providers: [MockProvider(ContactPointRepository)],
+      providers: [MockProvider(ContactPointRepository)]
     }).compile();
 
     return {
       controller: module.get(ContactPointController),
-      contactPointRepository: module.get(ContactPointRepository),
+      contactPointRepository: module.get(ContactPointRepository)
     };
   }
 });

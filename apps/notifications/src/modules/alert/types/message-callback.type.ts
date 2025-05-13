@@ -1,4 +1,4 @@
-import type { AlertMessagePayload } from '@src/modules/alert/services/alert-message/alert-message.service';
+import type { AlertMessagePayload } from "@src/modules/alert/services/alert-message/alert-message.service";
 
 export type AlertMessage = {
   payload: AlertMessagePayload;

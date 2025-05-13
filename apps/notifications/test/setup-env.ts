@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
-import dotenvExpand from 'dotenv-expand';
+import dotenv from "dotenv";
+import dotenvExpand from "dotenv-expand";
 
-dotenvExpand.expand(dotenv.config({ path: 'env/.env.test' }));
+dotenvExpand.expand(dotenv.config({ path: "env/.env.test" }));

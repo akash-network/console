@@ -1,7 +1,7 @@
-import { ShutdownService } from './shutdown.service';
+import { ShutdownService } from "./shutdown.service";
 
 describe(ShutdownService.name, () => {
-  it('should call the registered shutdown function when shutdown is triggered', () => {
+  it("should call the registered shutdown function when shutdown is triggered", () => {
     const shutdownFn = jest.fn();
     const service = new ShutdownService();
     service.onShutdown(shutdownFn);
@@ -10,7 +10,7 @@ describe(ShutdownService.name, () => {
     expect(shutdownFn).toHaveBeenCalledTimes(1);
   });
 
-  it('should support multiple shutdown handlers', () => {
+  it("should support multiple shutdown handlers", () => {
     const fn1 = jest.fn();
     const fn2 = jest.fn();
     const service = new ShutdownService();
@@ -22,7 +22,7 @@ describe(ShutdownService.name, () => {
     expect(fn2).toHaveBeenCalled();
   });
 
-  it('should not call the shutdown function if shutdown was not triggered', () => {
+  it("should not call the shutdown function if shutdown was not triggered", () => {
     const shutdownFn = jest.fn();
     const service = new ShutdownService();
     service.onShutdown(shutdownFn);

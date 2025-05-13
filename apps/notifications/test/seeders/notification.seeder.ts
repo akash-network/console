@@ -1,6 +1,6 @@
-import { faker } from '@faker-js/faker';
+import { faker } from "@faker-js/faker";
 
-import type { NotificationParams } from '@src/event-routing/services/event-matching/event-matching.service';
+import type { NotificationParams } from "@src/event-routing/services/event-matching/event-matching.service";
 
 /**
  * Generates a mock notification parameter object
@@ -10,21 +10,21 @@ export function generateMockNotificationParams(
     userId?: string;
     email?: string;
     payload?: Record<string, unknown>;
-  } = {},
+  } = {}
 ): NotificationParams {
   return {
     channel: {
-      type: 'email',
-      address: options.email || faker.internet.email(),
+      type: "email",
+      address: options.email || faker.internet.email()
     },
     userId: options.userId || faker.string.uuid(),
     payload: JSON.stringify(
       options.payload || {
         deploymentId: faker.string.numeric(6),
         owner: faker.finance.ethereumAddress(),
-        timestamp: faker.date.recent().toISOString(),
-      },
-    ),
+        timestamp: faker.date.recent().toISOString()
+      }
+    )
   };
 }
 
@@ -37,9 +37,7 @@ export function generateMockNotificationsParams(
     userId?: string;
     email?: string;
     payload?: Record<string, unknown>;
-  } = {},
+  } = {}
 ): NotificationParams[] {
-  return Array.from({ length: count }, () =>
-    generateMockNotificationParams(options),
-  );
+  return Array.from({ length: count }, () => generateMockNotificationParams(options));
 }

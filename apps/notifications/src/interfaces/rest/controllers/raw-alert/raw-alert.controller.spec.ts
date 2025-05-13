@@ -1,23 +1,18 @@
-import { generateMock } from '@anatine/zod-mock';
-import { faker } from '@faker-js/faker';
-import type { TestingModule } from '@nestjs/testing';
-import { Test } from '@nestjs/testing';
-import type { MockProxy } from 'jest-mock-extended';
-import { Ok } from 'ts-results';
+import { generateMock } from "@anatine/zod-mock";
+import { faker } from "@faker-js/faker";
+import type { TestingModule } from "@nestjs/testing";
+import { Test } from "@nestjs/testing";
+import type { MockProxy } from "jest-mock-extended";
+import { Ok } from "ts-results";
 
-import { RawAlertRepository } from '@src/modules/alert/repositories/raw-alert/raw-alert.repository';
-import {
-  alertCreateInputSchema,
-  alertOutputSchema,
-  alertPatchInputSchema,
-  RawAlertController,
-} from './raw-alert.controller';
+import { RawAlertRepository } from "@src/modules/alert/repositories/raw-alert/raw-alert.repository";
+import { alertCreateInputSchema, alertOutputSchema, alertPatchInputSchema, RawAlertController } from "./raw-alert.controller";
 
-import { MockProvider } from '@test/mocks/provider.mock';
+import { MockProvider } from "@test/mocks/provider.mock";
 
 describe(RawAlertController.name, () => {
-  describe('createAlert', () => {
-    it('should call rawAlertRepository.create() and return the created alert', async () => {
+  describe("createAlert", () => {
+    it("should call rawAlertRepository.create() and return the created alert", async () => {
       const { controller, rawAlertRepository } = await setup();
 
       const input = generateMock(alertCreateInputSchema);
@@ -32,8 +27,8 @@ describe(RawAlertController.name, () => {
     });
   });
 
-  describe('patchAlert', () => {
-    it('should call rawAlertRepository.updateById() and return the updated alert', async () => {
+  describe("patchAlert", () => {
+    it("should call rawAlertRepository.updateById() and return the updated alert", async () => {
       const { controller, rawAlertRepository } = await setup();
 
       const id = faker.string.uuid();
@@ -48,7 +43,7 @@ describe(RawAlertController.name, () => {
       expect(result).toEqual(Ok({ data: output }));
     });
 
-    it('should throw NotFoundException if alert is not found', async () => {
+    it("should throw NotFoundException if alert is not found", async () => {
       const { controller, rawAlertRepository } = await setup();
 
       const id = faker.string.uuid();
@@ -56,18 +51,16 @@ describe(RawAlertController.name, () => {
 
       rawAlertRepository.updateById.mockResolvedValue(undefined);
 
-      await expect(
-        controller.patchAlert(id, { data: input }),
-      ).resolves.toMatchObject({
+      await expect(controller.patchAlert(id, { data: input })).resolves.toMatchObject({
         err: true,
-        val: expect.objectContaining({ message: 'Alert not found' }),
+        val: expect.objectContaining({ message: "Alert not found" })
       });
       expect(rawAlertRepository.updateById).toHaveBeenCalledWith(id, input);
     });
   });
 
-  describe('getAlert', () => {
-    it('should call rawAlertRepository.findOneById() and return the alert', async () => {
+  describe("getAlert", () => {
+    it("should call rawAlertRepository.findOneById() and return the alert", async () => {
       const { controller, rawAlertRepository } = await setup();
 
       const id = faker.string.uuid();
@@ -81,7 +74,7 @@ describe(RawAlertController.name, () => {
       expect(result).toEqual(Ok({ data: output }));
     });
 
-    it('should throw NotFoundException if alert is not found', async () => {
+    it("should throw NotFoundException if alert is not found", async () => {
       const { controller, rawAlertRepository } = await setup();
 
       const id = faker.string.uuid();
@@ -90,14 +83,14 @@ describe(RawAlertController.name, () => {
 
       await expect(controller.getAlert(id)).resolves.toMatchObject({
         err: true,
-        val: expect.objectContaining({ message: 'Alert not found' }),
+        val: expect.objectContaining({ message: "Alert not found" })
       });
       expect(rawAlertRepository.findOneById).toHaveBeenCalledWith(id);
     });
   });
 
-  describe('deleteAlert', () => {
-    it('should call rawAlertRepository.deleteOneById() and return the deleted alert', async () => {
+  describe("deleteAlert", () => {
+    it("should call rawAlertRepository.deleteOneById() and return the deleted alert", async () => {
       const { controller, rawAlertRepository } = await setup();
 
       const id = faker.string.uuid();
@@ -111,7 +104,7 @@ describe(RawAlertController.name, () => {
       expect(result).toEqual(Ok({ data: output }));
     });
 
-    it('should throw NotFoundException if alert is not found', async () => {
+    it("should throw NotFoundException if alert is not found", async () => {
       const { controller, rawAlertRepository } = await setup();
 
       const id = faker.string.uuid();
@@ -120,7 +113,7 @@ describe(RawAlertController.name, () => {
 
       await expect(controller.deleteAlert(id)).resolves.toMatchObject({
         err: true,
-        val: expect.objectContaining({ message: 'Alert not found' }),
+        val: expect.objectContaining({ message: "Alert not found" })
       });
       expect(rawAlertRepository.deleteOneById).toHaveBeenCalledWith(id);
     });
@@ -132,12 +125,12 @@ describe(RawAlertController.name, () => {
   }> {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RawAlertController],
-      providers: [MockProvider(RawAlertRepository)],
+      providers: [MockProvider(RawAlertRepository)]
     }).compile();
 
     return {
       controller: module.get(RawAlertController),
-      rawAlertRepository: module.get(RawAlertRepository),
+      rawAlertRepository: module.get(RawAlertRepository)
     };
   }
 });

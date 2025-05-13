@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { CompoundCondition, FieldCondition } from '@ucast/core';
-import { interpret } from '@ucast/js';
+import { Injectable } from "@nestjs/common";
+import { CompoundCondition, FieldCondition } from "@ucast/core";
+import { interpret } from "@ucast/js";
 
 export type BaseCondition = {
   operator: string;
@@ -9,7 +9,7 @@ export type BaseCondition = {
 };
 
 export type CompoundConditionNode = {
-  operator: 'and' | 'or';
+  operator: "and" | "or";
   value: Conditions[];
 };
 
@@ -25,17 +25,14 @@ export class ConditionsMatcherService {
   }
 
   private toConditions(ast: Conditions): CompoundCondition | FieldCondition {
-    if (ast.operator === 'and' || ast.operator === 'or') {
-      return new CompoundCondition(
-        ast.operator,
-        ast.value.map(this.toConditions.bind(this)),
-      );
+    if (ast.operator === "and" || ast.operator === "or") {
+      return new CompoundCondition(ast.operator, ast.value.map(this.toConditions.bind(this)));
     }
 
-    if ('field' in ast && 'value' in ast) {
+    if ("field" in ast && "value" in ast) {
       return new FieldCondition(ast.operator, ast.field, ast.value);
     }
 
-    throw new Error('Invalid condition structure');
+    throw new Error("Invalid condition structure");
   }
 }

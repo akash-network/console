@@ -1,8 +1,8 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import path from 'path';
-import { join } from 'path';
-import { Client } from 'pg';
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import path from "path";
+import { join } from "path";
+import { Client } from "pg";
 
 export class TestDatabaseService {
   private readonly testFileName: string;
@@ -13,16 +13,14 @@ export class TestDatabaseService {
   private readonly postgresUri: string;
 
   constructor(testPath: string) {
-    this.testFileName = path.basename(testPath, '.spec.ts');
+    this.testFileName = path.basename(testPath, ".spec.ts");
     const timestamp = Date.now();
 
-    this.eventBrokerDbName =
-      `test_event_broker_${timestamp}_${this.testFileName}`.replace(/-/g, '_');
-    this.notificationsDbName =
-      `test_notifications_${timestamp}_${this.testFileName}`.replace(/-/g, '_');
+    this.eventBrokerDbName = `test_event_broker_${timestamp}_${this.testFileName}`.replace(/-/g, "_");
+    this.notificationsDbName = `test_notifications_${timestamp}_${this.testFileName}`.replace(/-/g, "_");
 
     if (!process.env.POSTGRES_BASE_URL) {
-      throw new Error('POSTGRES_BASE_URL environment variable is not set');
+      throw new Error("POSTGRES_BASE_URL environment variable is not set");
     }
 
     this.postgresUri = process.env.POSTGRES_BASE_URL;
@@ -32,22 +30,15 @@ export class TestDatabaseService {
   }
 
   async setup(): Promise<void> {
-    console.log(
-      `🧪 Setting up test DBs for ${this.testFileName}: ${this.eventBrokerDbName}, ${this.notificationsDbName}`,
-    );
+    console.log(`🧪 Setting up test DBs for ${this.testFileName}: ${this.eventBrokerDbName}, ${this.notificationsDbName}`);
 
-    await Promise.all([
-      this.createDatabase(this.eventBrokerDbName),
-      this.createDatabase(this.notificationsDbName),
-    ]);
+    await Promise.all([this.createDatabase(this.eventBrokerDbName), this.createDatabase(this.notificationsDbName)]);
 
     await this.runMigrations(`${this.postgresUri}/${this.notificationsDbName}`);
   }
 
   async teardown(): Promise<void> {
-    console.log(
-      `🧹 Dropping test DBs: ${this.eventBrokerDbName}, ${this.notificationsDbName}`,
-    );
+    console.log(`🧹 Dropping test DBs: ${this.eventBrokerDbName}, ${this.notificationsDbName}`);
     const client = new Client({ connectionString: this.postgresUri });
     await client.connect();
 
@@ -56,7 +47,7 @@ export class TestDatabaseService {
         await client.query(`DROP DATABASE IF EXISTS "${dbName}"`);
       }
     } catch (error) {
-      console.error('❌ Error during teardown:', error);
+      console.error("❌ Error during teardown:", error);
     } finally {
       await client.end();
     }
@@ -67,10 +58,7 @@ export class TestDatabaseService {
     await client.connect();
 
     try {
-      const result = await client.query(
-        `SELECT 1 FROM pg_database WHERE datname = $1`,
-        [dbName],
-      );
+      const result = await client.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]);
 
       if (result.rowCount === 0) {
         await client.query(`CREATE DATABASE "${dbName}"`);
@@ -90,7 +78,7 @@ export class TestDatabaseService {
     await client.connect();
 
     const db = drizzle(client);
-    const migrationsFolder = join(process.cwd(), 'drizzle');
+    const migrationsFolder = join(process.cwd(), "drizzle");
 
     try {
       await migrate(db, { migrationsFolder });
