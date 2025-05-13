@@ -2,6 +2,7 @@ import Ajv from "ajv";
 import addFormats from "ajv-formats";
 
 import { jwtSchemaData } from "./generated/jwt-schema-data";
+import { base64Decode } from "./base64";
 import type { JWTPayload } from "./types";
 
 export interface JwtValidationResult {
@@ -42,7 +43,6 @@ export class JwtValidator {
       let payload: Record<string, any>;
 
       if (typeof token === "string") {
-        // Split token into parts
         const parts = token.split(".");
         if (parts.length !== 3) {
           result.errors.push("Error validating token: Invalid token format");
@@ -51,9 +51,8 @@ export class JwtValidator {
 
         const [headerB64, payloadB64, signature] = parts;
 
-        // Decode header and payload
-        const header = this.base64Decode(headerB64);
-        payload = this.base64Decode(payloadB64);
+        const header = base64Decode(headerB64);
+        payload = base64Decode(payloadB64);
 
         result.decodedToken = {
           header,
@@ -70,7 +69,7 @@ export class JwtValidator {
         payload = token;
       }
 
-      // Use the schema directly from jwtSchemaData
+      // Validate payload with the schema
       const validate = this.ajv.compile(jwtSchemaData);
       let valid = validate(payload);
 
@@ -186,25 +185,9 @@ export class JwtValidator {
             }
           }
         }
-      } else if (payload.leases?.access === "full") {
-        if (!payload.leases?.scope) {
-          result.errors.push("Missing required field: scope for full access");
-          valid = false;
-        } else if (payload.leases?.permissions) {
-          result.errors.push("Permissions not allowed for full access");
-          valid = false;
-        } else {
-          // Check for duplicate scopes
-          const scopes = new Set<string>();
-          for (const scope of payload.leases.scope) {
-            if (scopes.has(scope)) {
-              result.errors.push("Duplicate scope in full access");
-              valid = false;
-              break;
-            }
-            scopes.add(scope);
-          }
-        }
+      } else if (payload.leases?.access === "full" && payload.leases?.permissions) {
+        result.errors.push("Permissions not allowed for full access");
+        valid = false;
       }
 
       result.isValid = result.errors.length === 0;
@@ -213,15 +196,5 @@ export class JwtValidator {
     }
 
     return result;
-  }
-
-  /**
-   * Decode a base64 string
-   * @param base64String The base64 string to decode
-   * @returns The decoded object
-   */
-  private base64Decode(base64String: string): Record<string, any> {
-    const decoded = Buffer.from(base64String, "base64").toString("utf8");
-    return JSON.parse(decoded);
   }
 }

@@ -14,7 +14,10 @@ export function replaceTemplateValues(testCase: (typeof jwtClaimsTestCases)[0]) 
 
   const claims = { ...testCase.claims } as any;
   if (claims.iss === "{{.Issuer}}") claims.iss = issuer;
-  if (claims.iat === "{{.Iat24h}}") claims.iat = now - 86400; // 24 hours ago
+  if (claims.iat === "{{.IatCurr}}") claims.iat = now;
+  if (claims.iat === "{{.Iat24h}}") claims.iat = now + 86400; // 24 hours from now
+  if (claims.nbf === "{{.NbfCurr}}") claims.nbf = now;
+  if (claims.nbf === "{{.Nbf24h}}") claims.nbf = now + 86400; // 24 hours from now
   if (claims.exp === "{{.Exp48h}}") claims.exp = now + 172800; // 48 hours from now
 
   // Convert string timestamps to numbers
@@ -23,7 +26,7 @@ export function replaceTemplateValues(testCase: (typeof jwtClaimsTestCases)[0]) 
   if (typeof claims.nbf === "string") claims.nbf = parseInt(claims.nbf, 10);
 
   // Replace provider address in permissions if present
-  if (claims.leases?.permissions) {
+  if (claims.leases && Array.isArray(claims.leases.permissions) && claims.leases.permissions.length > 0) {
     claims.leases.permissions = claims.leases.permissions.map((perm: { provider: string; [key: string]: any }) => ({
       ...perm,
       provider: perm.provider === "{{.Provider}}" ? provider : perm.provider

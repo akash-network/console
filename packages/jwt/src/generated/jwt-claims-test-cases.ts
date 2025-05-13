@@ -27,10 +27,11 @@ export const jwtClaimsTestCases = [
   {
     description: "sign valid/verify against static token string",
     tokenString:
-      "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJha2FzaDFxdWZhM3h6cmYzNHF2d3llamtodm5jNHBzZjQ5ZmZ0YXcwYXNtaCIsImV4cCI6MjA0NjY2NzEwMywiaWF0IjoxNzQ2NjY2MTAzLCJ2ZXJzaW9uIjoidjEiLCJsZWFzZXMiOnsiYWNjZXNzIjoiZnVsbCJ9fQ.HHeMUBJplkyQdkG6IgJtPxFyhyIG8EvcjW7k8btrYJxW_3mr5j-ZPQbjKbOkcXx75xm4pT_wEBeR6W39Ekcqng",
+      "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJha2FzaDFxdWZhM3h6cmYzNHF2d3llamtodm5jNHBzZjQ5ZmZ0YXcwYXNtaCIsImV4cCI6MjA0NjY2NzEwMywibmJmIjoxNzQ2NjY2MTAzLCJpYXQiOjE3NDY2NjYxMDMsInZlcnNpb24iOiJ2MSIsImxlYXNlcyI6eyJhY2Nlc3MiOiJmdWxsIn19.MZr8b9Q-hcnAUAFbdAVcZpetppP0YDFxJwkRncgE8mEM20woFB2yJuFbfv6YMAUZk8DNORoLaP8hUP8q2FnznQ",
     claims: {
       iss: "akash1qufa3xzrf34qvwyejkhvnc4psf49fftaw0asmh",
       iat: "1746666103",
+      nbf: "1746666103",
       exp: "2046667103",
       version: "v1",
       leases: {
@@ -38,7 +39,6 @@ export const jwtClaimsTestCases = [
       }
     },
     expected: {
-      error: "token has invalid claims",
       signFail: false,
       verifyFail: false
     }
@@ -47,7 +47,20 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify fail with invalid exp",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}"
+      iat: "{{.IatCurr}}"
+    },
+    expected: {
+      error: "token has invalid claims",
+      signFail: false,
+      verifyFail: true
+    }
+  },
+  {
+    description: "sign valid/verify fail with invalid nbf",
+    claims: {
+      iss: "{{.Issuer}}",
+      iat: "{{.IatCurr}}",
+      exp: "{{.Exp48h}}"
     },
     expected: {
       error: "token has invalid claims",
@@ -59,7 +72,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify fail with invalid version",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}"
     },
     expected: {
@@ -72,7 +86,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify fail with invalid access type",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1"
     },
@@ -88,6 +103,7 @@ export const jwtClaimsTestCases = [
       iss: "{{.Issuer}}",
       iat: "{{.Iat24h}}",
       exp: "{{.Exp48h}}",
+      nbf: "{{.Nbf24h}}",
       version: "v1",
       leases: {
         access: "unknown"
@@ -103,7 +119,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify valid full access",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -116,10 +133,47 @@ export const jwtClaimsTestCases = [
     }
   },
   {
+    description: "sign valid/verify fail expired",
+    claims: {
+      iss: "{{.Issuer}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
+      exp: "{{.IatCurr}}",
+      version: "v1",
+      leases: {
+        access: "full"
+      }
+    },
+    expected: {
+      signFail: false,
+      verifyFail: true,
+      bypassSchemaValidation: true
+    }
+  },
+  {
+    description: "sign valid/verify fail not yet valid",
+    claims: {
+      iss: "{{.Issuer}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.Nbf24h}}",
+      exp: "{{.Exp48h}}",
+      version: "v1",
+      leases: {
+        access: "full"
+      }
+    },
+    expected: {
+      signFail: false,
+      verifyFail: true,
+      bypassSchemaValidation: true
+    }
+  },
+  {
     description: "sign valid/verify fail granular access",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -136,7 +190,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify fail granular access/specific provider/missing access",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -158,7 +213,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify pass/specific provider/full access",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -181,7 +237,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify fail/specific provider/scoped access",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -204,7 +261,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify pass/specific provider/scoped access",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -228,7 +286,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify fail/specific provider/scoped access/duplicate",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -252,7 +311,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify fail/specific provider/granular access with scope",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -276,7 +336,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify fail granular access/duplicate provider",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -298,14 +359,16 @@ export const jwtClaimsTestCases = [
     expected: {
       error: "token has invalid claims",
       signFail: false,
-      verifyFail: true
+      verifyFail: true,
+      bypassSchemaValidation: true
     }
   },
   {
     description: "sign valid/verify fail granular access/specific provider/unknown scope",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -329,7 +392,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify fail granular access/specific provider/deployment/missing scope",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -356,7 +420,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify fail granular access/specific provider/deployment/duplicate scope",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -383,7 +448,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify fail granular access/specific provider/deployment/invalid scope",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -410,7 +476,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify fail granular access/specific provider/deployment/missing dseq",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -437,7 +504,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify fail granular access/specific provider/deployment/no services",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -465,7 +533,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify pass granular access/specific provider/deployment",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -494,7 +563,8 @@ export const jwtClaimsTestCases = [
     description: "sign valid/verify fail granular access/specific provider/deployment/duplicate service",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {
@@ -517,14 +587,16 @@ export const jwtClaimsTestCases = [
     expected: {
       error: "token has invalid claims",
       signFail: false,
-      verifyFail: true
+      verifyFail: true,
+      bypassSchemaValidation: true
     }
   },
   {
     description: "sign valid/verify fail granular access/specific provider/deployment/oseq",
     claims: {
       iss: "{{.Issuer}}",
-      iat: "{{.Iat24h}}",
+      iat: "{{.IatCurr}}",
+      nbf: "{{.NbfCurr}}",
       exp: "{{.Exp48h}}",
       version: "v1",
       leases: {

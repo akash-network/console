@@ -1,11 +1,7 @@
+import { base64UrlEncode } from "./base64";
 import { JwtValidator } from "./jwt-validator";
 import type { JWTPayload, JwtTokenOptions } from "./types";
 import type { SignArbitraryAkashWallet } from "./wallet-utils";
-
-function base64UrlEncode(str: string): string {
-  const base64 = btoa(str);
-  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
 
 export class JwtToken {
   private validator: JwtValidator;
@@ -48,16 +44,16 @@ export class JwtToken {
     const inputPayload: JWTPayload = {
       iss: options.iss,
       exp: options.exp ? options.exp : now + 3600, // Default to 1 hour expiration
-      iat: options.iat,
       nbf: options.nbf,
+      iat: options.iat,
       jti: options.jti,
       version: options.version || "v1",
       leases: options.leases || { access: "full" }
     };
 
-    const validationResult = this.validatePayload(inputPayload);
-    if (!validationResult) {
-      throw new Error("Invalid payload");
+    const validationResult = await this.validatePayload(inputPayload);
+    if (!validationResult.isValid) {
+      throw new Error(`Invalid payload: ${validationResult.errors?.join(", ")}`);
     }
 
     const header = base64UrlEncode(JSON.stringify({ alg: "ES256K", typ: "JWT" }));
@@ -83,10 +79,8 @@ export class JwtToken {
 
     try {
       const [, payload] = parts;
-      // Convert base64url to base64 and decode
-      const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
-      const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
-      return JSON.parse(atob(padded));
+      const json = Buffer.from(payload, "base64url").toString("utf8");
+      return JSON.parse(json);
     } catch (error) {
       throw new Error("Failed to decode JWT token");
     }
@@ -97,24 +91,28 @@ export class JwtToken {
    * @param payload - The JWT payload to validate
    * @returns A boolean indicating whether the payload is valid
    */
-  public async validatePayload(payload: JWTPayload): Promise<boolean> {
+  public async validatePayload(payload: JWTPayload): Promise<{ isValid: boolean; errors?: string[] }> {
     const result = this.validator.validateToken(payload);
     if (!result.isValid) {
-      return false;
+      return { isValid: false, errors: result.errors };
     }
 
     const now = Math.floor(Date.now() / 1000);
+    const errors: string[] = [];
 
     // Check expiration
     if (payload.exp && payload.exp <= now) {
-      return false;
+      errors.push("Token has expired");
     }
 
     // Check not-before time
     if (payload.nbf && payload.nbf > now) {
-      return false;
+      errors.push("Token is not yet valid (nbf check failed)");
     }
 
-    return true;
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined
+    };
   }
 }

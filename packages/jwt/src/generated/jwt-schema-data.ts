@@ -55,11 +55,12 @@ export const jwtSchemaData = {
             type: "string",
             enum: ["send-manifest", "get-manifest", "logs", "shell", "events", "status", "restart", "hostname-migrate", "ip-migrate"]
           },
-          description: "Global list of permitted actions across all owned leases (no duplicates). Applies when access is 'full'."
+          description: "Global list of permitted actions across all owned leases (no duplicates). Optional when access is 'full'."
         },
         permissions: {
           type: "array",
-          description: "Required if leases.access is 'granular'; defines provider-specific permissions.",
+          description:
+            "Required if leases.access is 'granular'; defines provider-specific permissions. The provider address must be unique across all permissions entries.",
           minItems: 1,
           items: {
             type: "object",
@@ -93,7 +94,7 @@ export const jwtSchemaData = {
                 items: {
                   type: "object",
                   additionalProperties: false,
-                  required: ["dseq", "scope"],
+                  required: ["dseq", "scope", "services"],
                   properties: {
                     dseq: {
                       type: "integer",
@@ -201,7 +202,6 @@ export const jwtSchemaData = {
             }
           },
           then: {
-            required: ["scope"],
             properties: {
               permissions: false
             }

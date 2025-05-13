@@ -25,10 +25,10 @@ describe("JWT Claims Validation", () => {
 
     // For test cases that should fail, we need to validate the payload first
     if (testCase.expected.signFail || testCase.expected.verifyFail) {
-      const isValid = await jwtToken.validatePayload(claims as any);
-      expect(isValid).toBe(false);
+      const validationResult = await jwtToken.validatePayload(claims as any);
+      expect(validationResult.isValid).toBe(false);
 
-      if (isValid) {
+      if (validationResult.isValid) {
         throw new Error("Validation should have failed", { cause: testCase });
       }
 
