@@ -40,6 +40,15 @@ export class JwtValidator {
     };
 
     try {
+      // Check for empty or null input
+      if (typeof token === "string" && !token.trim()) {
+        result.errors.push("Error validating token: Empty token provided");
+        return result;
+      } else if (typeof token !== "string" && (!token || Object.keys(token).length === 0)) {
+        result.errors.push("Error validating token: Empty payload provided");
+        return result;
+      }
+
       let payload: Record<string, any>;
 
       if (typeof token === "string") {
