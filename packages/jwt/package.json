@@ -7,7 +7,7 @@
   "main": "src/index.ts",
   "scripts": {
     "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
-    "generate": "ts-node scripts/generate.ts",
+    "generate": "ts-node scripts/generate.ts && npm run format",
     "lint": "eslint .",
     "test": "npm run generate && jest",
     "test:cov": "npm run test -- --coverage",
