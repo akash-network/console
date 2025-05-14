@@ -1,4 +1,4 @@
-import axios, { Axios, AxiosRequestConfig, AxiosResponse } from "axios";
+import axios, { Axios, type AxiosRequestConfig, type AxiosResponse } from "axios";
 
 export class HttpService extends Axios {
   constructor(config?: AxiosRequestConfig) {

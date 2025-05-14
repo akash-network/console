@@ -1,4 +1,4 @@
-import { AxiosRequestConfig } from "axios";
+import type { AxiosRequestConfig } from "axios";
 import { isFuture } from "date-fns";
 
 import { HttpService } from "../http/http.service";
@@ -35,6 +35,10 @@ export interface DepositDeploymentGrant extends ExactDepositDeploymentGrant {
 
 interface FeeAllowanceListResponse {
   allowances: FeeAllowance[];
+  pagination?: {
+    next_key: string | null;
+    total: string;
+  };
 }
 
 interface FeeAllowanceResponse {
@@ -66,6 +70,26 @@ export class AuthzHttpService extends HttpService {
   async getValidFeeAllowancesForGrantee(address: string) {
     const allowances = await this.getFeeAllowancesForGrantee(address);
     return allowances.filter(allowance => this.isValidFeeAllowance(allowance));
+  }
+
+  async getPaginatedFeeAllowancesForGranter(address: string, limit: number, offset: number) {
+    const allowances = this.extractData(
+      await this.get<FeeAllowanceListResponse>(`cosmos/feegrant/v1beta1/issued/${address}`, {
+        params: {
+          "pagination.limit": limit,
+          "pagination.offset": offset,
+          "pagination.count_total": true
+        }
+      })
+    );
+
+    return {
+      ...allowances,
+      pagination: {
+        next_key: allowances.pagination?.next_key ?? null,
+        total: parseInt(allowances.pagination?.total || "0")
+      }
+    };
   }
 
   async getFeeAllowanceForGranterAndGrantee(granter: string, grantee: string): Promise<FeeAllowance | undefined> {

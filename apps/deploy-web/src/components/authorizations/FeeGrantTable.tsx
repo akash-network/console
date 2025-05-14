@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import React, { useState } from "react";
+import React from "react";
 import { Button, CustomPagination, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 
 import type { AllowanceType } from "@src/types/grant";
@@ -9,18 +9,27 @@ import { AllowanceIssuedRow } from "./AllowanceIssuedRow";
 interface Props {
   allowances: AllowanceType[];
   selectedAllowances: AllowanceType[];
+  pageIndex: number;
+  pageSize: number;
+  totalCount: number;
   onEditAllowance: (feeAllowance: AllowanceType) => void;
   setDeletingAllowances: Dispatch<SetStateAction<AllowanceType[] | null>>;
   setSelectedAllowances: Dispatch<SetStateAction<AllowanceType[]>>;
+  onPageChange: (pageIndex: number, pageSize: number) => void;
 }
 
-export const FeeGrantTable: React.FC<Props> = ({ allowances, selectedAllowances, onEditAllowance, setDeletingAllowances, setSelectedAllowances }) => {
-  const [pageIndex, setPageIndex] = useState(0);
-  const [pageSize, setPageSize] = useState<number>(10);
-  const start = pageIndex * pageSize;
-  const end = start + pageSize;
-  const currentPageGrants = allowances.slice(start, end);
-  const pageCount = Math.ceil(allowances.length / pageSize);
+export const FeeGrantTable: React.FC<Props> = ({
+  allowances,
+  selectedAllowances,
+  onEditAllowance,
+  setDeletingAllowances,
+  setSelectedAllowances,
+  pageIndex,
+  pageSize,
+  totalCount,
+  onPageChange
+}) => {
+  const pageCount = Math.ceil(totalCount / pageSize);
 
   const onSelectGrant = (checked: boolean, grant: AllowanceType) => {
     setSelectedAllowances(prev => {
@@ -45,12 +54,11 @@ export const FeeGrantTable: React.FC<Props> = ({ allowances, selectedAllowances,
   };
 
   const handleChangePage = (newPage: number) => {
-    setPageIndex(newPage);
+    onPageChange(newPage, pageSize);
   };
 
   const onPageSizeChange = (value: number) => {
-    setPageSize(value);
-    setPageIndex(0);
+    onPageChange(0, value);
   };
 
   return (
@@ -85,7 +93,7 @@ export const FeeGrantTable: React.FC<Props> = ({ allowances, selectedAllowances,
         </TableHeader>
 
         <TableBody>
-          {currentPageGrants.map(grant => (
+          {allowances.map(grant => (
             <AllowanceIssuedRow
               key={grant.grantee}
               allowance={grant}

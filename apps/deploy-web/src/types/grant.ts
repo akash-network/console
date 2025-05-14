@@ -23,3 +23,11 @@ export type AllowanceType = {
     }[];
   };
 };
+
+export type PaginatedAllowanceType = {
+  allowances: AllowanceType[];
+  pagination?: {
+    next_key: string | null;
+    total: number;
+  };
+};
