@@ -1,16 +1,16 @@
 "use client";
 import type { ReactNode } from "react";
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import type { ClassValue } from "clsx";
-import { Discord, Github, HeadsetHelp, Menu, MenuScale, MessageAlert, Rocket, X as TwitterX, Youtube } from "iconoir-react";
+import { HeadsetHelp, MessageAlert, Rocket, SidebarCollapse, SidebarExpand } from "iconoir-react";
 import { Cloud, HelpCircle, Home, MultiplePages, OpenInWindow, Server, Settings, Tools } from "iconoir-react";
 import { useAtom } from "jotai";
-import getConfig from "next/config";
+// import getConfig from "next/config";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -20,11 +20,11 @@ import sdlStore from "@src/store/sdlStore";
 import type { ISidebarGroupMenu, ISidebarRoute } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import { MobileSidebarUser } from "./MobileSidebarUser";
-import { ModeToggle } from "./ModeToggle";
-import { NodeStatusBar } from "./NodeStatusBar";
+// import { ModeToggle } from "./ModeToggle";
+// import { NodeStatusBar } from "./NodeStatusBar";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
 
-const { publicRuntimeConfig } = getConfig();
+// const { publicRuntimeConfig } = getConfig();
 
 type Props = {
   children?: ReactNode;
@@ -39,8 +39,6 @@ const DRAWER_WIDTH = 240;
 const CLOSED_DRAWER_WIDTH = 57;
 
 export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick, mdDrawerClassName }) => {
-  const [isHovering, setIsHovering] = useState(false);
-  const _isNavOpen = isNavOpen || isHovering;
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
@@ -171,15 +169,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   ];
 
   const onToggleMenuClick = () => {
-    setIsHovering(false);
-
     onOpenMenuClick();
-  };
-
-  const onDrawerHover = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!isHovering && !(event.relatedTarget instanceof Window)) {
-      setIsHovering(true);
-    }
   };
 
   const onDeployClick = () => {
@@ -188,38 +178,38 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
 
   const drawer = (
     <div
-      style={{ width: _isNavOpen ? DRAWER_WIDTH : CLOSED_DRAWER_WIDTH }}
+      style={{ width: isNavOpen ? DRAWER_WIDTH : CLOSED_DRAWER_WIDTH }}
       className="box-border flex h-full flex-shrink-0 flex-col items-center justify-between overflow-y-auto overflow-x-hidden border-r-[1px] border-muted-foreground/20 bg-popover transition-[width] duration-300 ease-in-out md:h-[calc(100%-57px)] dark:bg-background"
     >
-      <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: _isNavOpen, ["pb-2 pt-2"]: !_isNavOpen })}>
+      <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: isNavOpen, ["pb-2 pt-2"]: !isNavOpen })}>
         <Link
-          className={cn(buttonVariants({ variant: "default", size: _isNavOpen ? "lg" : "icon" }), "h-[45px] w-full leading-4", {
-            ["h-[45px] w-[45px] min-w-0 pb-2 pt-2"]: !_isNavOpen
+          className={cn(buttonVariants({ variant: "default", size: isNavOpen ? "lg" : "icon" }), "h-[45px] w-full leading-4", {
+            ["h-[45px] w-[45px] min-w-0 pb-2 pt-2"]: !isNavOpen
           })}
           href={UrlService.newDeployment()}
           onClick={onDeployClick}
           data-testid="sidebar-deploy-button"
         >
-          {_isNavOpen && "Deploy "}
-          <Rocket className={cn("rotate-45", { ["ml-4"]: _isNavOpen })} fontSize="small" />
+          {isNavOpen && "Deploy "}
+          <Rocket className={cn("rotate-45", { ["ml-4"]: isNavOpen })} fontSize="small" />
         </Link>
 
         {routeGroups.map((g, i) => (
-          <SidebarGroupMenu key={i} group={g} hasDivider={g.hasDivider} isNavOpen={_isNavOpen} />
+          <SidebarGroupMenu key={i} group={g} hasDivider={g.hasDivider} isNavOpen={isNavOpen} />
         ))}
         <Separator className="mt-2" />
       </div>
 
       <div className="w-full">
         {extraRoutes.map((g, i) => (
-          <SidebarGroupMenu key={i} group={g} hasDivider={g.hasDivider} isNavOpen={_isNavOpen} />
+          <SidebarGroupMenu key={i} group={g} hasDivider={g.hasDivider} isNavOpen={isNavOpen} />
         ))}
 
         <Separator className="mt-2" />
 
         {smallScreen && <MobileSidebarUser />}
 
-        {_isNavOpen && (
+        {/* {isNavOpen && (
           <div className="space-y-2 pb-4 pl-4 pr-4">
             {wallet.isWalletConnected && !wallet.isManaged && <NodeStatusBar />}
 
@@ -267,18 +257,19 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
               <ModeToggle />
             </div>
 
-            {publicRuntimeConfig?.version && _isNavOpen && (
+            {publicRuntimeConfig?.version && isNavOpen && (
               <div className="flex flex-row items-center justify-center space-x-4 text-xs font-bold text-muted-foreground">
                 <small>v{publicRuntimeConfig?.version}</small>
               </div>
             )}
           </div>
-        )}
+        )} */}
 
         {!smallScreen && (
-          <div className="flex items-center justify-between border-t border-muted-foreground/20 px-3 py-1">
-            <Button size="icon" variant="ghost" onClick={onToggleMenuClick}>
-              {isNavOpen ? <MenuScale /> : <Menu />}
+          <div className="flex items-center px-3 py-1">
+            <Button size="icon" variant="ghost" onClick={onToggleMenuClick} className="flex w-full items-center justify-start gap-2 px-2">
+              {isNavOpen ? <SidebarCollapse /> : <SidebarExpand />}
+              {isNavOpen && <span>Collapse</span>}
             </Button>
           </div>
         )}
@@ -289,8 +280,8 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   return (
     <nav
       className={cn("ease fixed z-[100] bg-header/95 md:flex-shrink-0", {
-        ["md:w-[240px]"]: _isNavOpen || isHovering,
-        ["md:w-[57px]"]: !(_isNavOpen || isHovering)
+        ["md:w-[240px]"]: isNavOpen,
+        ["md:w-[57px]"]: !isNavOpen
       })}
     >
       {/* Mobile Drawer */}
@@ -321,14 +312,12 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       <Drawer
         className="hidden md:block"
         variant="permanent"
-        onMouseEnter={onDrawerHover}
-        onMouseLeave={() => setIsHovering(false)}
         PaperProps={{
           className: cn(
             "border-none ease z-[1000] bg-header/95 transition-[width] duration-300 box-border overflow-hidden mt-[57px]",
             {
-              ["md:w-[240px]"]: _isNavOpen,
-              ["md:w-[57px]"]: !_isNavOpen
+              ["md:w-[240px]"]: isNavOpen,
+              ["md:w-[57px]"]: !isNavOpen
             },
             mdDrawerClassName
           )
