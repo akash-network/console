@@ -1,9 +1,8 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-const schema = z.object({
+export const schema = z.object({
   NOVU_SECRET_KEY: z.string(),
-  NOVU_MAILER_WORKFLOW_ID: z.string(),
+  NOVU_MAILER_WORKFLOW_ID: z.string()
 });
 
 export type NotificationEnvConfig = z.infer<typeof schema>;
-export const envConfig = schema.parse(process.env);

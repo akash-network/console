@@ -1,17 +1,12 @@
-import {
-  MsgCloseDeployment,
-  MsgCreateDeployment,
-} from '@akashnetwork/akash-api/v1beta3';
-import type { Block } from '@cosmjs/stargate';
-import { Injectable } from '@nestjs/common';
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
+import type { Block } from "@cosmjs/stargate";
+import { Injectable } from "@nestjs/common";
 
-import { LoggerService } from '@src/common/services/logger/logger.service';
-import { CosmjsDecodingService } from '../cosmjs-decoding/cosmjs-decoding.service';
-import { MessageDecoderService } from '../message-decoder/message-decoder.service';
+import { LoggerService } from "@src/common/services/logger/logger.service";
+import { CosmjsDecodingService } from "../cosmjs-decoding/cosmjs-decoding.service";
+import { MessageDecoderService } from "../message-decoder/message-decoder.service";
 
-export type MessageTypeFilter =
-  | (typeof MsgCreateDeployment)['$type']
-  | (typeof MsgCloseDeployment)['$type'];
+export type MessageTypeFilter = (typeof MsgCreateDeployment)["$type"] | (typeof MsgCloseDeployment)["$type"];
 
 export interface DecodedMessageValue {
   [key: string]: unknown;
@@ -47,7 +42,7 @@ export class BlockMessageParserService {
   constructor(
     private readonly messageDecoder: MessageDecoderService,
     private readonly cosmjsDecodingService: CosmjsDecodingService,
-    private readonly loggerService: LoggerService,
+    private readonly loggerService: LoggerService
   ) {
     this.loggerService.setContext(BlockMessageParserService.name);
   }
@@ -58,21 +53,15 @@ export class BlockMessageParserService {
    * @param messageTypes Optional array of message types to filter for
    * @returns The parsed block data with messages
    */
-  parseBlockMessages(
-    block: Block,
-    messageTypes?: MessageTypeFilter[],
-  ): BlockData {
+  parseBlockMessages(block: Block, messageTypes?: MessageTypeFilter[]): BlockData {
     const parsedTxs = this.parseTransactionsFromBlock(block);
-    const messages = this.extractMessagesFromTransactions(
-      parsedTxs,
-      messageTypes,
-    );
+    const messages = this.extractMessagesFromTransactions(parsedTxs, messageTypes);
 
     return {
       height: block.header.height,
       hash: block.id,
       time: new Date(block.header.time).toISOString(),
-      messages,
+      messages
     };
   }
 
@@ -84,16 +73,16 @@ export class BlockMessageParserService {
   private parseTransactionsFromBlock(block: Block): ParsedTransaction[] {
     if (!block.txs || block.txs.length === 0) {
       this.loggerService.debug({
-        event: 'NO_TRANSACTIONS_IN_BLOCK',
-        height: block.header.height,
+        event: "NO_TRANSACTIONS_IN_BLOCK",
+        height: block.header.height
       });
       return [];
     }
 
     this.loggerService.debug({
-      event: 'PARSING_TRANSACTIONS_FROM_BLOCK',
+      event: "PARSING_TRANSACTIONS_FROM_BLOCK",
       height: block.header.height,
-      txCount: block.txs.length,
+      txCount: block.txs.length
     });
 
     return Array.from(block.txs).reduce((acc, txBytes, index) => {
@@ -104,19 +93,18 @@ export class BlockMessageParserService {
           hash: this.calculateTxHash(txBytes),
           height: block.header.height,
           messages: body.messages,
-          memo: body.memo,
+          memo: body.memo
         });
 
         return acc;
       } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
         this.loggerService.error({
-          event: 'ERROR_PARSING_TRANSACTION',
+          event: "ERROR_PARSING_TRANSACTION",
           height: block.header.height,
           index,
           error: errorMessage,
-          stack: error instanceof Error ? error.stack : undefined,
+          stack: error instanceof Error ? error.stack : undefined
         });
         return acc;
       }
@@ -129,9 +117,7 @@ export class BlockMessageParserService {
    * @returns The transaction hash as a hex string
    */
   private calculateTxHash(txBytes: Uint8Array): string {
-    return this.cosmjsDecodingService
-      .toHex(this.cosmjsDecodingService.sha256(txBytes))
-      .toUpperCase();
+    return this.cosmjsDecodingService.toHex(this.cosmjsDecodingService.sha256(txBytes)).toUpperCase();
   }
 
   /**
@@ -140,17 +126,12 @@ export class BlockMessageParserService {
    * @param messageTypes Optional array of message types to filter for
    * @returns Array of block messages
    */
-  private extractMessagesFromTransactions(
-    transactions: ParsedTransaction[],
-    messageTypes?: MessageTypeFilter[],
-  ): BlockMessage[] {
-    return transactions.flatMap((tx) => {
-      return tx.messages.flatMap((msg) => {
+  private extractMessagesFromTransactions(transactions: ParsedTransaction[], messageTypes?: MessageTypeFilter[]): BlockMessage[] {
+    return transactions.flatMap(tx => {
+      return tx.messages.flatMap(msg => {
         try {
           if (messageTypes && messageTypes.length > 0) {
-            const matchesAny = messageTypes.some((filterType) =>
-              this.messageMatchesType(msg.typeUrl, filterType),
-            );
+            const matchesAny = messageTypes.some(filterType => this.messageMatchesType(msg.typeUrl, filterType));
 
             if (!matchesAny) {
               return [];
@@ -163,16 +144,15 @@ export class BlockMessageParserService {
             {
               typeUrl: msg.typeUrl,
               type: msg.typeUrl.slice(1),
-              value: decodedValue,
-            },
+              value: decodedValue
+            }
           ];
         } catch (error: unknown) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
           this.loggerService.error({
-            event: 'ERROR_EXTRACTING_MESSAGE',
+            event: "ERROR_EXTRACTING_MESSAGE",
             error: errorMessage,
-            stack: error instanceof Error ? error.stack : undefined,
+            stack: error instanceof Error ? error.stack : undefined
           });
           return [];
         }
@@ -186,14 +166,11 @@ export class BlockMessageParserService {
    * @param typeUrl The message type URL
    * @returns The decoded value
    */
-  private decodeMessageValue(
-    value: Uint8Array,
-    typeUrl: string,
-  ): DecodedMessageValue {
+  private decodeMessageValue(value: Uint8Array, typeUrl: string): DecodedMessageValue {
     const decodedValue = this.messageDecoder.decodeMsg(typeUrl, value);
 
     if (!decodedValue) {
-      throw new Error('Failed to decode message value');
+      throw new Error("Failed to decode message value");
     }
 
     return decodedValue;
@@ -205,16 +182,9 @@ export class BlockMessageParserService {
    * @param filter The filter to match against
    * @returns True if the message type matches the filter
    */
-  private messageMatchesType(
-    messageTypeUrl: string,
-    filter: MessageTypeFilter,
-  ): boolean {
-    const normalizedUrl = messageTypeUrl.startsWith('/')
-      ? messageTypeUrl.slice(1)
-      : messageTypeUrl;
-    const normalizedFilter = String(filter).startsWith('/')
-      ? String(filter).slice(1)
-      : String(filter);
+  private messageMatchesType(messageTypeUrl: string, filter: MessageTypeFilter): boolean {
+    const normalizedUrl = messageTypeUrl.startsWith("/") ? messageTypeUrl.slice(1) : messageTypeUrl;
+    const normalizedFilter = String(filter).startsWith("/") ? String(filter).slice(1) : String(filter);
 
     return normalizedUrl.toLowerCase() === normalizedFilter.toLowerCase();
   }

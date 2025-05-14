@@ -1,17 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 
-import {
-  BlockData,
-  BlockMessageParserService,
-  MessageTypeFilter,
-} from '../block-message-parser/block-message-parser.service';
-import { BlockchainClientService } from '../blockchain-client/blockchain-client.service';
+import { BlockData, BlockMessageParserService, MessageTypeFilter } from "../block-message-parser/block-message-parser.service";
+import { BlockchainClientService } from "../blockchain-client/blockchain-client.service";
 
 @Injectable()
 export class BlockMessageService {
   constructor(
     private readonly blockchainClient: BlockchainClientService,
-    private readonly blockMessageParser: BlockMessageParserService,
+    private readonly blockMessageParser: BlockMessageParserService
   ) {}
 
   /**
@@ -20,10 +16,7 @@ export class BlockMessageService {
    * @param messageTypes Optional array of message types to filter for
    * @returns The block data with messages
    */
-  async getMessages(
-    height: number | 'latest',
-    messageTypes?: MessageTypeFilter[],
-  ): Promise<BlockData> {
+  async getMessages(height: number | "latest", messageTypes?: MessageTypeFilter[]): Promise<BlockData> {
     const block = await this.blockchainClient.getBlock(height);
     return this.blockMessageParser.parseBlockMessages(block, messageTypes);
   }

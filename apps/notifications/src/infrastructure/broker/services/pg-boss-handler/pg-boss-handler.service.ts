@@ -1,19 +1,17 @@
-import { DiscoveryService } from '@golevelup/nestjs-discovery';
-import { Injectable } from '@nestjs/common';
-import { validate, ZodDto } from 'nestjs-zod';
-import PgBoss from 'pg-boss';
-import { Err, Result } from 'ts-results';
+import { DiscoveryService } from "@golevelup/nestjs-discovery";
+import { Injectable } from "@nestjs/common";
+import { validate, ZodDto } from "nestjs-zod";
+import PgBoss from "pg-boss";
+import { Err, Result } from "ts-results";
 
-import { LoggerService } from '@src/common/services/logger/logger.service';
-import { PG_BOSS_HANDLER } from '../../decorators/handler.decorator';
-import { BrokerService } from '../broker/broker.service';
+import { LoggerService } from "@src/common/services/logger/logger.service";
+import { PG_BOSS_HANDLER } from "../../decorators/handler.decorator";
+import { BrokerService } from "../broker/broker.service";
 
 export interface HandlerConfig<T> {
   key: string;
   dto: ZodDto<T>;
-  handler: (
-    message: PgBoss.Job<T>['data'],
-  ) => Promise<void | Result<unknown, unknown>>;
+  handler: (message: PgBoss.Job<T>["data"]) => Promise<void | Result<unknown, unknown>>;
 }
 
 @Injectable()
@@ -23,7 +21,7 @@ export class PgBossHandlerService {
   constructor(
     private readonly discoveryService: DiscoveryService,
     private readonly broker: BrokerService,
-    private readonly loggerService: LoggerService,
+    private readonly loggerService: LoggerService
   ) {
     this.loggerService.setContext(PgBossHandlerService.name);
   }
@@ -34,17 +32,12 @@ export class PgBossHandlerService {
     }
     PgBossHandlerService.isInitialized = true;
 
-    const methods =
-      await this.discoveryService.providerMethodsWithMetaAtKey<
-        HandlerConfig<unknown>
-      >(PG_BOSS_HANDLER);
+    const methods = await this.discoveryService.providerMethodsWithMetaAtKey<HandlerConfig<unknown>>(PG_BOSS_HANDLER);
 
     const handleAll = methods.map(async ({ meta, discoveredMethod }) => {
       await this.handle({
         ...meta,
-        handler: discoveredMethod.handler.bind(
-          discoveredMethod.parentClass.instance,
-        ),
+        handler: discoveredMethod.handler.bind(discoveredMethod.parentClass.instance)
       });
     });
 
@@ -52,32 +45,28 @@ export class PgBossHandlerService {
   }
 
   private async handle<T>(config: HandlerConfig<T>) {
-    await this.broker.subscribe(
-      config.key,
-      { prefetchCount: 10 },
-      async (job) => {
-        try {
-          const msg = validate(job.data, config.dto);
-          const result = await config.handler(msg);
+    await this.broker.subscribe(config.key, { prefetchCount: 10 }, async job => {
+      try {
+        const msg = validate(job.data, config.dto);
+        const result = await config.handler(msg);
 
-          if (result instanceof Err) {
-            result.unwrap();
-          }
-
-          this.loggerService.log({
-            event: 'MESSAGE_WORKER_SUCCESS',
-            key: config.key,
-          });
-        } catch (error) {
-          this.loggerService.error({
-            event: 'MESSAGE_WORKER_FAILURE',
-            key: config.key,
-            job,
-            error,
-          });
-          throw error;
+        if (result instanceof Err) {
+          result.unwrap();
         }
-      },
-    );
+
+        this.loggerService.log({
+          event: "MESSAGE_WORKER_SUCCESS",
+          key: config.key
+        });
+      } catch (error) {
+        this.loggerService.error({
+          event: "MESSAGE_WORKER_FAILURE",
+          key: config.key,
+          job,
+          error
+        });
+        throw error;
+      }
+    });
   }
 }

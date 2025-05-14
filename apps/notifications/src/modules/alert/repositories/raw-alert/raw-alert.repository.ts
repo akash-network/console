@@ -1,49 +1,43 @@
-import type { AnyAbility } from '@casl/ability';
-import { InjectDrizzle } from '@knaadh/nestjs-drizzle-pg';
-import { Injectable } from '@nestjs/common';
-import { eq, gt } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { SQL } from 'drizzle-orm/sql/sql';
-import { z } from 'zod';
+import type { AnyAbility } from "@casl/ability";
+import { InjectDrizzle } from "@knaadh/nestjs-drizzle-pg";
+import { Injectable } from "@nestjs/common";
+import { eq, gt } from "drizzle-orm";
+import { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { SQL } from "drizzle-orm/sql/sql";
+import { z } from "zod";
 
-import { DRIZZLE_PROVIDER_TOKEN } from '@src/config/db.config';
-import { DrizzleAbility } from '@src/lib/drizzle-ability/drizzle-ability';
-import * as schema from '../../model-schemas';
+import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
+import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
+import * as schema from "../../model-schemas";
 
-export type AbilityParams = [AnyAbility, Parameters<AnyAbility['can']>[0]];
+export type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];
 
 const baseConditionSchema = z.object({
-  operator: z.union([
-    z.literal('eq'),
-    z.literal('lt'),
-    z.literal('gt'),
-    z.literal('lte'),
-    z.literal('gte'),
-  ]),
+  operator: z.union([z.literal("eq"), z.literal("lt"), z.literal("gt"), z.literal("lte"), z.literal("gte")]),
   field: z.string(),
-  value: z.union([z.string(), z.number(), z.boolean()]),
+  value: z.union([z.string(), z.number(), z.boolean()])
 });
 
 export const conditionSchema = z.union([
   z.object({
-    operator: z.literal('and'),
-    value: z.array(baseConditionSchema).min(2),
+    operator: z.literal("and"),
+    value: z.array(baseConditionSchema).min(2)
   }),
   z.object({
-    operator: z.literal('or'),
-    value: z.array(baseConditionSchema).min(2),
+    operator: z.literal("or"),
+    value: z.array(baseConditionSchema).min(2)
   }),
-  baseConditionSchema,
+  baseConditionSchema
 ]);
 
 export type Conditions = z.infer<typeof conditionSchema>;
 
 type InternalAlertInput = typeof schema.RawAlert.$inferInsert;
-export type AlertInput = Omit<InternalAlertInput, 'conditions'> & {
+export type AlertInput = Omit<InternalAlertInput, "conditions"> & {
   conditions: Conditions;
 };
 type InternalAlertOutput = typeof schema.RawAlert.$inferSelect;
-export type AlertOutput = Omit<InternalAlertOutput, 'conditions'> & {
+export type AlertOutput = Omit<InternalAlertOutput, "conditions"> & {
   conditions: Conditions;
 };
 
@@ -53,25 +47,15 @@ export class RawAlertRepository {
 
   constructor(
     @InjectDrizzle(DRIZZLE_PROVIDER_TOKEN)
-    private readonly db: NodePgDatabase<typeof schema>,
+    private readonly db: NodePgDatabase<typeof schema>
   ) {}
 
   accessibleBy(...abilityParams: AbilityParams) {
-    return new RawAlertRepository(this.db).withAbility(
-      ...abilityParams,
-    ) as this;
+    return new RawAlertRepository(this.db).withAbility(...abilityParams) as this;
   }
 
-  protected withAbility(
-    ability: AnyAbility,
-    action: Parameters<AnyAbility['can']>[0],
-  ) {
-    this.ability = new DrizzleAbility(
-      schema.RawAlert,
-      ability,
-      action,
-      'RawAlert',
-    );
+  protected withAbility(ability: AnyAbility, action: Parameters<AnyAbility["can"]>[0]) {
+    this.ability = new DrizzleAbility(schema.RawAlert, ability, action, "RawAlert");
     return this;
   }
 
@@ -81,18 +65,12 @@ export class RawAlertRepository {
 
   async create(input: AlertInput): Promise<AlertOutput> {
     this.ability?.throwUnlessCanExecute(input);
-    const [result] = await this.db
-      .insert(schema.RawAlert)
-      .values(this.toInput(input))
-      .returning();
+    const [result] = await this.db.insert(schema.RawAlert).values(this.toInput(input)).returning();
 
     return this.toOutput(result);
   }
 
-  async updateById(
-    id: string,
-    input: Partial<AlertInput>,
-  ): Promise<AlertOutput | undefined> {
+  async updateById(id: string, input: Partial<AlertInput>): Promise<AlertOutput | undefined> {
     const [alert] = await this.db
       .update(schema.RawAlert)
       .set(this.toInput(input))
@@ -104,7 +82,7 @@ export class RawAlertRepository {
 
   async findOneById(id: string): Promise<AlertOutput | undefined> {
     const alert = await this.db.query.RawAlert.findFirst({
-      where: this.whereAccessibleBy(eq(schema.RawAlert.id, id)),
+      where: this.whereAccessibleBy(eq(schema.RawAlert.id, id))
     });
 
     return alert && this.toOutput(alert);
@@ -119,22 +97,12 @@ export class RawAlertRepository {
     return alert && this.toOutput(alert);
   }
 
-  async paginate({
-    limit,
-    callback,
-  }: {
-    limit: number;
-    callback: (alert: AlertOutput[]) => Promise<void> | void;
-  }): Promise<void> {
+  async paginate({ limit, callback }: { limit: number; callback: (alert: AlertOutput[]) => Promise<void> | void }): Promise<void> {
     let lastId: string | undefined;
     let hasMore = true;
 
     while (hasMore) {
-      const query = this.db
-        .select()
-        .from(schema.RawAlert)
-        .orderBy(schema.RawAlert.id)
-        .limit(limit);
+      const query = this.db.select().from(schema.RawAlert).orderBy(schema.RawAlert.id).limit(limit);
 
       if (lastId) {
         query.where(gt(schema.RawAlert.id, lastId));
@@ -165,7 +133,7 @@ export class RawAlertRepository {
     if (alert.conditions) {
       return {
         ...alert,
-        conditions: conditionSchema.parse(alert.conditions),
+        conditions: conditionSchema.parse(alert.conditions)
       };
     }
 
@@ -175,7 +143,7 @@ export class RawAlertRepository {
   private toOutput(alert: InternalAlertOutput): AlertOutput {
     return {
       ...alert,
-      conditions: conditionSchema.parse(alert.conditions),
+      conditions: conditionSchema.parse(alert.conditions)
     };
   }
 }

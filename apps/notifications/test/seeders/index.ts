@@ -1,2 +1,2 @@
-export * from './block.seeder';
-export * from './message.seeder';
+export * from "./block.seeder";
+export * from "./message.seeder";

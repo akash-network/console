@@ -1,47 +1,47 @@
-import type { ZodTypeAny } from 'zod';
-import { ZodFirstPartyTypeKind } from 'zod';
+import type { ZodTypeAny } from "zod";
+import { ZodFirstPartyTypeKind } from "zod";
 
 export function toAST(schema: ZodTypeAny): Record<string, any> {
   const def = schema._def;
 
   const base = {
-    label: schema.description || undefined,
+    label: schema.description || undefined
   };
 
   switch (def.typeName) {
     case ZodFirstPartyTypeKind.ZodString:
-      return { ...base, type: 'string' };
+      return { ...base, type: "string" };
 
     case ZodFirstPartyTypeKind.ZodNumber:
-      return { ...base, type: 'number' };
+      return { ...base, type: "number" };
 
     case ZodFirstPartyTypeKind.ZodBoolean:
-      return { ...base, type: 'boolean' };
+      return { ...base, type: "boolean" };
 
     case ZodFirstPartyTypeKind.ZodLiteral:
       return {
         ...base,
-        type: 'select',
-        options: [def.value],
+        type: "select",
+        options: [def.value]
       };
 
     case ZodFirstPartyTypeKind.ZodOptional:
       return {
         ...toAST(def.innerType),
-        optional: true,
+        optional: true
       };
 
     case ZodFirstPartyTypeKind.ZodDefault:
       return {
         ...toAST(def.innerType),
-        default: def.defaultValue(),
+        default: def.defaultValue()
       };
 
     case ZodFirstPartyTypeKind.ZodArray:
       return {
         ...base,
-        type: 'array',
-        items: toAST(def.type),
+        type: "array",
+        items: toAST(def.type)
       };
 
     case ZodFirstPartyTypeKind.ZodObject: {
@@ -50,35 +50,31 @@ export function toAST(schema: ZodTypeAny): Record<string, any> {
       for (const key in shape) {
         fields[key] = toAST(shape[key]);
       }
-      return { ...base, type: 'object', fields };
+      return { ...base, type: "object", fields };
     }
 
     case ZodFirstPartyTypeKind.ZodUnion: {
       const options = def.options as ZodTypeAny[];
 
-      const allAreLiterals = options.every(
-        (opt) => opt._def.typeName === ZodFirstPartyTypeKind.ZodLiteral,
-      );
+      const allAreLiterals = options.every(opt => opt._def.typeName === ZodFirstPartyTypeKind.ZodLiteral);
 
       if (allAreLiterals) {
         return {
           ...base,
-          type: 'select',
-          options: options.map((opt) => opt._def.value),
+          type: "select",
+          options: options.map(opt => opt._def.value)
         };
       }
 
       return {
         ...base,
-        type: 'union',
-        options: options.map(toAST),
+        type: "union",
+        options: options.map(toAST)
       };
     }
 
     case ZodFirstPartyTypeKind.ZodDiscriminatedUnion: {
-      const options = Array.from(
-        (def.options as Map<string, ZodTypeAny>).values(),
-      );
+      const options = Array.from((def.options as Map<string, ZodTypeAny>).values());
 
       const mapping: Record<string, any> = {};
       const typeOptions: string[] = [];
@@ -90,27 +86,24 @@ export function toAST(schema: ZodTypeAny): Record<string, any> {
         const typeField = shape?.type;
         const typeValue = typeField?._def?.value;
 
-        if (typeof typeValue === 'string') {
+        if (typeof typeValue === "string") {
           mapping[typeValue] = subAST;
           typeOptions.push(typeValue);
         } else {
-          console.warn(
-            'DiscriminatedUnion: skipping invalid type field',
-            typeField,
-          );
+          console.warn("DiscriminatedUnion: skipping invalid type field", typeField);
         }
       }
 
       return {
         ...base,
-        type: 'discriminatedUnion',
+        type: "discriminatedUnion",
         discriminator: def.discriminator,
         select: {
-          type: 'select',
+          type: "select",
           discriminator: true,
-          options: typeOptions,
+          options: typeOptions
         },
-        mapping,
+        mapping
       };
     }
 
@@ -118,18 +111,18 @@ export function toAST(schema: ZodTypeAny): Record<string, any> {
       const left = toAST(def.left);
       const right = toAST(def.right);
 
-      if (left.type === 'object' && right.type === 'discriminatedUnion') {
+      if (left.type === "object" && right.type === "discriminatedUnion") {
         return {
-          type: 'form',
+          type: "form",
           fields: left.fields,
-          discriminator: right,
+          discriminator: right
         };
       }
 
       return {
-        type: 'intersection',
+        type: "intersection",
         left,
-        right,
+        right
       };
     }
 

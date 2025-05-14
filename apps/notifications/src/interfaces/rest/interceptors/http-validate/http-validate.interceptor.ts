@@ -7,16 +7,16 @@ import {
   InternalServerErrorException,
   NestInterceptor,
   Optional,
-  UseInterceptors,
-} from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { map, Observable, of } from 'rxjs';
-import { Err, Ok, Result } from 'ts-results';
-import { ZodTypeAny } from 'zod';
+  UseInterceptors
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { map, Observable, of } from "rxjs";
+import { Err, Ok, Result } from "ts-results";
+import { ZodTypeAny } from "zod";
 
-import { LoggerService } from '@src/common/services/logger/logger.service';
+import { LoggerService } from "@src/common/services/logger/logger.service";
 
-const VALIDATION_META_KEY = Symbol('HttpValidation');
+const VALIDATION_META_KEY = Symbol("HttpValidation");
 
 export interface ValidateHttpOptions {
   body?: ZodTypeAny;
@@ -29,16 +29,9 @@ export interface ValidateHttpOptions {
  * Decorator to apply Zod-based HTTP validation.
  */
 export function ValidateHttp(options: ValidateHttpOptions) {
-  return applyDecorators(
-    UseInterceptors(HttpValidateInterceptor),
-    (target: any, key?: string | symbol) => {
-      Reflect.defineMetadata(
-        VALIDATION_META_KEY,
-        options,
-        key ? target[key] : target,
-      );
-    },
-  );
+  return applyDecorators(UseInterceptors(HttpValidateInterceptor), (target: any, key?: string | symbol) => {
+    Reflect.defineMetadata(VALIDATION_META_KEY, options, key ? target[key] : target);
+  });
 }
 
 /**
@@ -49,22 +42,14 @@ export class HttpValidateInterceptor implements NestInterceptor {
   constructor(
     private readonly reflector: Reflector,
     @Optional()
-    private readonly loggerService: LoggerService = new LoggerService(),
+    private readonly loggerService: LoggerService = new LoggerService()
   ) {
     loggerService.setContext(HttpValidateInterceptor.name);
   }
 
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Observable<
-    Result<unknown, BadRequestException | InternalServerErrorException>
-  > {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<Result<unknown, BadRequestException | InternalServerErrorException>> {
     const handler = context.getHandler();
-    const options = this.reflector.get<ValidateHttpOptions>(
-      VALIDATION_META_KEY,
-      handler,
-    );
+    const options = this.reflector.get<ValidateHttpOptions>(VALIDATION_META_KEY, handler);
 
     if (!options) return next.handle();
 
@@ -75,11 +60,11 @@ export class HttpValidateInterceptor implements NestInterceptor {
       if (!result.success) {
         return of(
           Err(
-            new BadRequestException('Invalid body', {
+            new BadRequestException("Invalid body", {
               description: result.error.message,
-              cause: result.error.errors,
-            }),
-          ),
+              cause: result.error.errors
+            })
+          )
         );
       }
       request.body = result.data;
@@ -90,11 +75,11 @@ export class HttpValidateInterceptor implements NestInterceptor {
       if (!result.success) {
         return of(
           Err(
-            new BadRequestException('Invalid query', {
-              description: 'Invalid query',
-              cause: result.error.errors,
-            }),
-          ),
+            new BadRequestException("Invalid query", {
+              description: "Invalid query",
+              cause: result.error.errors
+            })
+          )
         );
       }
       Object.assign(request.query, result.data);
@@ -105,11 +90,11 @@ export class HttpValidateInterceptor implements NestInterceptor {
       if (!result.success) {
         return of(
           Err(
-            new BadRequestException('Invalid params', {
-              description: 'Invalid params',
-              cause: result.error.errors,
-            }),
-          ),
+            new BadRequestException("Invalid params", {
+              description: "Invalid params",
+              cause: result.error.errors
+            })
+          )
         );
       }
       Object.assign(request.params, result.data);
@@ -117,7 +102,7 @@ export class HttpValidateInterceptor implements NestInterceptor {
 
     if (options.response) {
       return next.handle().pipe(
-        map((data) => {
+        map(data => {
           if (!options.response || data instanceof Err) {
             return data;
           }
@@ -125,13 +110,13 @@ export class HttpValidateInterceptor implements NestInterceptor {
           const result = options.response.safeParse(unwrapped);
           if (!result.success) {
             this.loggerService.error({
-              event: 'HTTP_RESPONSE_VALIDATION_FAILED',
-              error: result.error,
+              event: "HTTP_RESPONSE_VALIDATION_FAILED",
+              error: result.error
             });
             return Err(new InternalServerErrorException());
           }
           return result.data;
-        }),
+        })
       );
     }
 
