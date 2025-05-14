@@ -40,7 +40,6 @@ jobs:
           directory: ./apps/deploy-web/coverage
           flags: deploy-web
           token: ${{ secrets.CODECOV_TOKEN }}
-          base_sha: ${{ github.event.pull_request.base.sha }}
 
   test-deploy-web-build:
     runs-on: ubuntu-latest

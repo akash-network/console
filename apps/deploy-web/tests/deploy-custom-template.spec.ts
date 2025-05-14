@@ -1,6 +1,5 @@
-import { expect, test } from "@playwright/test";
-
 import { SSH_VM_IMAGES } from "@src/utils/sdl/data";
+import { expect, test } from "./fixture/base-test";
 import { DeployCustomTemplatePage } from "./pages/DeployCustomTemplatePage";
 
 test("create custom template deployment", async ({ page, context }) => {
