@@ -49,6 +49,7 @@ interface DepositDeploymentGrantResponse<T extends ExactDepositDeploymentGrant =
   grants: T[];
   pagination?: {
     next_key: string | null;
+    total: string;
   };
 }
 
@@ -175,6 +176,33 @@ export class AuthzHttpService extends HttpService {
     });
 
     return result;
+  }
+
+  async getPaginatedDepositDeploymentGrants(options: ({ granter: string } | { grantee: string }) & { limit: number; offset: number }) {
+    const side = "granter" in options ? "granter" : "grantee";
+    const address = "granter" in options ? options.granter : options.grantee;
+    const limit = options.limit;
+    const offset = options.offset;
+
+    console.log("DEBUG", address, limit, offset);
+
+    const grants = this.extractData(
+      await this.get<DepositDeploymentGrantResponse>(`cosmos/authz/v1beta1/grants/${side}/${address}`, {
+        params: {
+          "pagination.limit": limit,
+          "pagination.offset": offset,
+          "pagination.count_total": true
+        }
+      })
+    );
+
+    return {
+      ...grants,
+      pagination: {
+        next_key: grants.pagination?.next_key ?? null,
+        total: parseInt(grants.pagination?.total || "0")
+      }
+    };
   }
 
   private isValidFeeAllowance(allowance: FeeAllowance) {

@@ -31,3 +31,11 @@ export type PaginatedAllowanceType = {
     total: number;
   };
 };
+
+export type PaginatedGrantType = {
+  grants: GrantType[];
+  pagination?: {
+    next_key: string | null;
+    total: number;
+  };
+};
