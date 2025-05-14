@@ -1,20 +1,12 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  NestInterceptor,
-} from '@nestjs/common';
-import { map, Observable } from 'rxjs';
-import { Err, Ok } from 'ts-results';
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from "@nestjs/common";
+import { map, Observable } from "rxjs";
+import { Err, Ok } from "ts-results";
 
 @Injectable()
 export class HttpResultInterceptor implements NestInterceptor {
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler<any>,
-  ): Observable<any> | Promise<Observable<any>> {
+  intercept(context: ExecutionContext, next: CallHandler<any>): Observable<any> | Promise<Observable<any>> {
     return next.handle().pipe(
-      map((result) => {
+      map(result => {
         if (result instanceof Err) {
           throw result.val;
         }
@@ -24,7 +16,7 @@ export class HttpResultInterceptor implements NestInterceptor {
         }
 
         return result;
-      }),
+      })
     );
   }
 }

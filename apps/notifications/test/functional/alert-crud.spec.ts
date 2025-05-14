@@ -1,21 +1,21 @@
-import { generateMock } from '@anatine/zod-mock';
-import { faker } from '@faker-js/faker';
-import { INestApplication, Module } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import request from 'supertest';
+import { generateMock } from "@anatine/zod-mock";
+import { faker } from "@faker-js/faker";
+import { INestApplication, Module } from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import request from "supertest";
 
-import { DRIZZLE_PROVIDER_TOKEN } from '@src/config/db.config';
-import { alertCreateInputSchema } from '@src/interfaces/rest/controllers/raw-alert/raw-alert.controller';
-import { HttpExceptionFilter } from '@src/interfaces/rest/filters/http-exception/http-exception.filter';
-import { HttpResultInterceptor } from '@src/interfaces/rest/interceptors/http-result/http-result.interceptor';
-import RestModule from '@src/interfaces/rest/rest.module';
-import * as schema from '@src/modules/alert/model-schemas';
+import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
+import { alertCreateInputSchema } from "@src/interfaces/rest/controllers/raw-alert/raw-alert.controller";
+import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
+import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
+import RestModule from "@src/interfaces/rest/rest.module";
+import * as schema from "@src/modules/alert/model-schemas";
 
-import { generateContactPoint } from '@test/seeders/contact-point.seeder';
+import { generateContactPoint } from "@test/seeders/contact-point.seeder";
 
-describe('Raw Alerts CRUD', () => {
-  it('should perform all CRUD operations against raw alerts', async () => {
+describe("Raw Alerts CRUD", () => {
+  it("should perform all CRUD operations against raw alerts", async () => {
     const { app, userId, contactPointId } = await setup();
 
     const alertId = await shouldCreate(userId, contactPointId, app);
@@ -26,26 +26,20 @@ describe('Raw Alerts CRUD', () => {
     await app.close();
   });
 
-  async function shouldCreate(
-    userId: string,
-    contactPointId: string,
-    app: INestApplication,
-  ): Promise<string> {
+  async function shouldCreate(userId: string, contactPointId: string, app: INestApplication): Promise<string> {
     const input = generateMock(alertCreateInputSchema);
     input.userId = userId;
     input.contactPointId = contactPointId;
     input.enabled = true;
 
-    const res = await request(app.getHttpServer())
-      .post('/v1/alerts/raw')
-      .send({ data: input });
+    const res = await request(app.getHttpServer()).post("/v1/alerts/raw").send({ data: input });
 
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({
       ...input,
       id: expect.any(String),
       createdAt: expect.any(String),
-      updatedAt: expect.any(String),
+      updatedAt: expect.any(String)
     });
 
     return res.body.data.id;
@@ -61,21 +55,15 @@ describe('Raw Alerts CRUD', () => {
   }
 
   async function shouldRead(alertId: string, app: INestApplication) {
-    const res = await request(app.getHttpServer()).get(
-      `/v1/alerts/raw/${alertId}`,
-    );
+    const res = await request(app.getHttpServer()).get(`/v1/alerts/raw/${alertId}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(alertId);
   }
 
   async function shouldDelete(alertId: string, app: INestApplication) {
-    const deleteRes = await request(app.getHttpServer()).delete(
-      `/v1/alerts/raw/${alertId}`,
-    );
-    const getRes = await request(app.getHttpServer()).get(
-      `/v1/alerts/raw/${alertId}`,
-    );
+    const deleteRes = await request(app.getHttpServer()).delete(`/v1/alerts/raw/${alertId}`);
+    const getRes = await request(app.getHttpServer()).get(`/v1/alerts/raw/${alertId}`);
 
     expect(deleteRes.status).toBe(200);
     expect(deleteRes.body.data.id).toBe(alertId);
@@ -89,12 +77,12 @@ describe('Raw Alerts CRUD', () => {
     userId: string;
   }> {
     @Module({
-      imports: [RestModule],
+      imports: [RestModule]
     })
     class TestModule {}
 
     const module: TestingModule = await Test.createTestingModule({
-      imports: [TestModule],
+      imports: [TestModule]
     }).compile();
 
     const app = module.createNestApplication();
@@ -105,9 +93,7 @@ describe('Raw Alerts CRUD', () => {
     await app.init();
 
     const userId = faker.string.uuid();
-    const db = module.get<NodePgDatabase<typeof schema>>(
-      DRIZZLE_PROVIDER_TOKEN,
-    );
+    const db = module.get<NodePgDatabase<typeof schema>>(DRIZZLE_PROVIDER_TOKEN);
     const [contactPoint] = await db
       .insert(schema.ContactPoint)
       .values([generateContactPoint({ userId })])

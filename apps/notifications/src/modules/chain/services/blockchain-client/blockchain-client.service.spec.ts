@@ -1,22 +1,22 @@
-import { StargateClient } from '@cosmjs/stargate';
-import { faker } from '@faker-js/faker';
-import type { TestingModule } from '@nestjs/testing';
-import { Test } from '@nestjs/testing';
-import type { MockProxy } from 'jest-mock-extended';
-import { mock } from 'jest-mock-extended';
+import { StargateClient } from "@cosmjs/stargate";
+import { faker } from "@faker-js/faker";
+import type { TestingModule } from "@nestjs/testing";
+import { Test } from "@nestjs/testing";
+import type { MockProxy } from "jest-mock-extended";
+import { mock } from "jest-mock-extended";
 
-import { BlockchainClientService } from './blockchain-client.service';
+import { BlockchainClientService } from "./blockchain-client.service";
 
-import { generateSimpleMockBlock } from '@test/seeders';
+import { generateSimpleMockBlock } from "@test/seeders";
 
 describe(BlockchainClientService.name, () => {
-  it('should be defined', async () => {
+  it("should be defined", async () => {
     const { service } = await setup();
     expect(service).toBeDefined();
   });
 
-  describe('getBlock', () => {
-    it('should fetch a block by height', async () => {
+  describe("getBlock", () => {
+    it("should fetch a block by height", async () => {
       const { service, stargateClient } = await setup();
 
       const height = faker.number.int({ min: 1, max: 1000000 });
@@ -39,7 +39,7 @@ describe(BlockchainClientService.name, () => {
       stargateClient.getHeight.mockResolvedValue(currentHeight);
       stargateClient.getBlock.mockResolvedValue(mockBlock);
 
-      const result = await service.getBlock('latest');
+      const result = await service.getBlock("latest");
 
       expect(stargateClient.getHeight).toHaveBeenCalled();
       expect(stargateClient.getBlock).toHaveBeenCalledWith(currentHeight);
@@ -53,16 +53,13 @@ describe(BlockchainClientService.name, () => {
     stargateClient: MockProxy<StargateClient>;
   }> {
     const module = await Test.createTestingModule({
-      providers: [
-        BlockchainClientService,
-        { provide: StargateClient, useValue: mock<StargateClient>() },
-      ],
+      providers: [BlockchainClientService, { provide: StargateClient, useValue: mock<StargateClient>() }]
     }).compile();
 
     return {
       module,
       service: module.get<BlockchainClientService>(BlockchainClientService),
-      stargateClient: module.get<MockProxy<StargateClient>>(StargateClient),
+      stargateClient: module.get<MockProxy<StargateClient>>(StargateClient)
     };
   }
 });

@@ -1,20 +1,20 @@
-import { generateMock } from '@anatine/zod-mock';
-import { faker } from '@faker-js/faker';
-import { Test } from '@nestjs/testing';
+import { generateMock } from "@anatine/zod-mock";
+import { faker } from "@faker-js/faker";
+import { Test } from "@nestjs/testing";
 
-import { DRIZZLE_PROVIDER_TOKEN } from '@src/config/db.config';
-import { BrokerService } from '@src/infrastructure/broker';
-import AlertEventsModule from '@src/interfaces/alert-events/alert-events.module';
-import { ChainEventsHandler } from '@src/interfaces/alert-events/handlers/chain-events/chain-events.handler';
-import { MsgCloseDeploymentDto } from '@src/modules/alert/dto/msg-close-deployment.dto';
-import * as schema from '@src/modules/alert/model-schemas';
+import { BrokerService } from "@src/infrastructure/broker";
+import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
+import AlertEventsModule from "@src/interfaces/alert-events/alert-events.module";
+import { ChainEventsHandler } from "@src/interfaces/alert-events/handlers/chain-events/chain-events.handler";
+import { MsgCloseDeploymentDto } from "@src/modules/alert/dto/msg-close-deployment.dto";
+import * as schema from "@src/modules/alert/model-schemas";
 
-import { mockAkashAddress } from '@test/seeders/akash-address.seeder';
-import { generateContactPoint } from '@test/seeders/contact-point.seeder';
-import { generateRawAlert } from '@test/seeders/raw-alert.seeder';
+import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
+import { generateContactPoint } from "@test/seeders/contact-point.seeder";
+import { generateRawAlert } from "@test/seeders/raw-alert.seeder";
 
-describe('raw alerts', () => {
-  it('should send an alert based on conditions', async () => {
+describe("raw alerts", () => {
+  it("should send an alert based on conditions", async () => {
     const { module } = await setup();
     const controller = module.get(ChainEventsHandler);
     const brokerService = module.get(BrokerService);
@@ -23,7 +23,7 @@ describe('raw alerts', () => {
     const owner = mockAkashAddress();
     const dseq = faker.number.int({ min: 0, max: 999999 });
 
-    jest.spyOn(brokerService, 'publish').mockResolvedValue(undefined);
+    jest.spyOn(brokerService, "publish").mockResolvedValue(undefined);
 
     const [contactPoint] = await db
       .insert(schema.ContactPoint)
@@ -35,20 +35,20 @@ describe('raw alerts', () => {
       conditions: {
         value: [
           {
-            field: 'value.id.owner',
+            field: "value.id.owner",
             value: owner,
-            operator: 'eq',
+            operator: "eq"
           },
           {
-            field: 'type',
-            value: 'akash.deployment.v1beta3.MsgCloseDeployment',
-            operator: 'eq',
-          },
+            field: "type",
+            value: "akash.deployment.v1beta3.MsgCloseDeployment",
+            operator: "eq"
+          }
         ],
-        operator: 'and',
+        operator: "and"
       },
-      summary: 'deployment {{value.id.dseq.low}} closed',
-      description: 'deployment {{value.id.dseq.low}} is closed',
+      summary: "deployment {{value.id.dseq.low}} closed",
+      description: "deployment {{value.id.dseq.low}} is closed"
     });
 
     const mismatchingAlert = generateRawAlert({
@@ -56,20 +56,20 @@ describe('raw alerts', () => {
       conditions: {
         value: [
           {
-            field: 'value.id.owner',
+            field: "value.id.owner",
             value: mockAkashAddress(),
-            operator: 'eq',
+            operator: "eq"
           },
           {
-            field: 'type',
-            value: 'akash.deployment.v1beta3.MsgCloseDeployment',
-            operator: 'eq',
-          },
+            field: "type",
+            value: "akash.deployment.v1beta3.MsgCloseDeployment",
+            operator: "eq"
+          }
         ],
-        operator: 'and',
+        operator: "and"
       },
-      summary: 'deployment {{value.id.dseq.low}} closed',
-      description: 'deployment {{value.id.dseq.low}} is closed',
+      summary: "deployment {{value.id.dseq.low}} closed",
+      description: "deployment {{value.id.dseq.low}} is closed"
     });
 
     await db.insert(schema.RawAlert).values([matchingAlert, mismatchingAlert]);
@@ -81,12 +81,12 @@ describe('raw alerts', () => {
     await controller.processDeploymentClosed(message);
 
     expect(brokerService.publish).toHaveBeenCalledTimes(1);
-    expect(brokerService.publish).toHaveBeenCalledWith('notification.v1.send', {
+    expect(brokerService.publish).toHaveBeenCalledWith("notifications.v1.notification.send", {
       contactPointId: contactPoint.id,
       payload: {
         summary: `deployment ${dseq} closed`,
-        description: `deployment ${dseq} is closed`,
-      },
+        description: `deployment ${dseq} is closed`
+      }
     });
 
     await module.close();
@@ -94,11 +94,11 @@ describe('raw alerts', () => {
 
   async function setup() {
     const module = await Test.createTestingModule({
-      imports: [AlertEventsModule],
+      imports: [AlertEventsModule]
     }).compile();
 
     return {
-      module,
+      module
     };
   }
 });

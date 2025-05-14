@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 
-const BLOCKED_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+const BLOCKED_KEYS = new Set(["__proto__", "prototype", "constructor"]);
 
 @Injectable()
 export class TemplateService {
@@ -17,23 +17,23 @@ export class TemplateService {
   interpolate(template: string, context: object): string {
     return template.replace(/{{\s*([^{}]+?)\s*}}/g, (_, key: string) => {
       if (!this.isSafeVariableName(key)) {
-        return '';
+        return "";
       }
 
-      const parts = key.split('.');
+      const parts = key.split(".");
 
       if (this.hasDangerousKeys(parts)) {
-        return '';
+        return "";
       }
 
       const value = parts.reduce((acc, part) => {
-        if (acc && typeof acc === 'object' && part in acc) {
+        if (acc && typeof acc === "object" && part in acc) {
           return acc[part];
         }
         return undefined;
       }, context as any);
 
-      return value !== undefined && value !== null ? String(value) : '';
+      return value !== undefined && value !== null ? String(value) : "";
     });
   }
 
@@ -42,6 +42,6 @@ export class TemplateService {
   }
 
   private hasDangerousKeys(keys: string[]): boolean {
-    return keys.some((key) => BLOCKED_KEYS.has(key));
+    return keys.some(key => BLOCKED_KEYS.has(key));
   }
 }

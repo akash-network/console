@@ -1,38 +1,36 @@
-import { generateMock } from '@anatine/zod-mock';
-import { faker } from '@faker-js/faker';
-import { ConfigService } from '@nestjs/config';
-import type { TestingModule } from '@nestjs/testing';
-import { Test } from '@nestjs/testing';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import nock from 'nock';
+import { generateMock } from "@anatine/zod-mock";
+import { faker } from "@faker-js/faker";
+import { ConfigService } from "@nestjs/config";
+import type { TestingModule } from "@nestjs/testing";
+import { Test } from "@nestjs/testing";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import nock from "nock";
 
-import { DRIZZLE_PROVIDER_TOKEN } from '@src/config/db.config';
-import { BrokerService } from '@src/infrastructure/broker';
-import AlertEventsModule from '@src/interfaces/alert-events/alert-events.module';
-import { ChainEventsHandler } from '@src/interfaces/alert-events/handlers/chain-events/chain-events.handler';
-import { ChainBlockCreatedDto } from '@src/modules/alert/dto/chain-block-created.dto';
-import * as schema from '@src/modules/alert/model-schemas';
+import { BrokerService } from "@src/infrastructure/broker";
+import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
+import AlertEventsModule from "@src/interfaces/alert-events/alert-events.module";
+import { ChainEventsHandler } from "@src/interfaces/alert-events/handlers/chain-events/chain-events.handler";
+import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created.dto";
+import * as schema from "@src/modules/alert/model-schemas";
 
-import { mockAkashAddress } from '@test/seeders/akash-address.seeder';
-import { generateContactPoint } from '@test/seeders/contact-point.seeder';
-import { generateDeploymentBalanceAlert } from '@test/seeders/deployment-balance-alert.seeder';
-import { generateDeploymentBalanceResponse } from '@test/seeders/deployment-balance-response.seeder';
+import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
+import { generateContactPoint } from "@test/seeders/contact-point.seeder";
+import { generateDeploymentBalanceAlert } from "@test/seeders/deployment-balance-alert.seeder";
+import { generateDeploymentBalanceResponse } from "@test/seeders/deployment-balance-response.seeder";
 
-describe('balance alerts', () => {
-  it('should send an alert based on conditions', async () => {
+describe("balance alerts", () => {
+  it("should send an alert based on conditions", async () => {
     const { module, chainApi } = await setup();
     const controller = module.get(ChainEventsHandler);
     const brokerService = module.get(BrokerService);
-    const db = module.get<NodePgDatabase<typeof schema>>(
-      DRIZZLE_PROVIDER_TOKEN,
-    );
+    const db = module.get<NodePgDatabase<typeof schema>>(DRIZZLE_PROVIDER_TOKEN);
 
     const owner = mockAkashAddress();
     const matchingDseq = faker.number.int({ min: 0, max: 999999 });
     const throttlingDseq = faker.number.int({ min: 0, max: 999999 });
     const CURRENT_HEIGHT = 1000;
 
-    jest.spyOn(brokerService, 'publish').mockResolvedValue(undefined);
+    jest.spyOn(brokerService, "publish").mockResolvedValue(undefined);
 
     const [contactPoint] = await db
       .insert(schema.ContactPoint)
@@ -42,15 +40,15 @@ describe('balance alerts', () => {
     const matchingAlert = generateDeploymentBalanceAlert({
       contactPointId: contactPoint.id,
       conditions: {
-        field: 'balance',
+        field: "balance",
         value: 10000000,
-        operator: 'lt',
+        operator: "lt"
       },
       dseq: String(matchingDseq),
       owner,
       summary: `deployment low: ${matchingDseq}`,
       description: `deployment ${matchingDseq} balance is {{balance}} < 10000000 uAKT`,
-      minBlockHeight: CURRENT_HEIGHT,
+      minBlockHeight: CURRENT_HEIGHT
     });
 
     const throttlingAlert = generateDeploymentBalanceAlert({
@@ -58,35 +56,33 @@ describe('balance alerts', () => {
       conditions: {
         value: [
           {
-            field: 'balance',
+            field: "balance",
             value: 10000000,
-            operator: 'lt',
-          },
+            operator: "lt"
+          }
         ],
-        operator: 'and',
+        operator: "and"
       },
       dseq: String(throttlingDseq),
       owner: mockAkashAddress(),
       summary: `deployment low: ${matchingDseq}`,
       description: `deployment ${matchingDseq} balance is {{balance}} < 10000000 uAKT`,
-      minBlockHeight: CURRENT_HEIGHT + 10,
+      minBlockHeight: CURRENT_HEIGHT + 10
     });
 
-    await db
-      .insert(schema.DeploymentBalanceAlert)
-      .values([matchingAlert, throttlingAlert]);
+    await db.insert(schema.DeploymentBalanceAlert).values([matchingAlert, throttlingAlert]);
 
     const balanceResponse = generateDeploymentBalanceResponse({
       fundsAmount: 400000,
       escrowAmount: 400000,
-      state: 'active',
+      state: "active"
     });
 
     chainApi
-      .get('/akash/deployment/v1beta3/deployments/info')
+      .get("/akash/deployment/v1beta3/deployments/info")
       .query({
-        'id.owner': owner,
-        'id.dseq': String(matchingDseq),
+        "id.owner": owner,
+        "id.dseq": String(matchingDseq)
       })
       .reply(200, balanceResponse);
 
@@ -97,12 +93,12 @@ describe('balance alerts', () => {
     await controller.processBlock(message);
 
     expect(brokerService.publish).toHaveBeenCalledTimes(1);
-    expect(brokerService.publish).toHaveBeenCalledWith('notification.v1.send', {
+    expect(brokerService.publish).toHaveBeenCalledWith("notifications.v1.notification.send", {
       contactPointId: contactPoint.id,
       payload: {
         summary: `[FIRING] deployment low: ${matchingDseq}`,
-        description: `deployment ${matchingDseq} balance is 800000 < 10000000 uAKT`,
-      },
+        description: `deployment ${matchingDseq} balance is 800000 < 10000000 uAKT`
+      }
     });
 
     await module.close();
@@ -110,16 +106,14 @@ describe('balance alerts', () => {
 
   async function setup() {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [AlertEventsModule],
+      imports: [AlertEventsModule]
     }).compile();
 
-    const chainApi = nock(
-      module.get(ConfigService).getOrThrow('API_NODE_ENDPOINT'),
-    ).persist();
+    const chainApi = nock(module.get(ConfigService).getOrThrow("API_NODE_ENDPOINT")).persist();
 
     return {
       module,
-      chainApi,
+      chainApi
     };
   }
 });

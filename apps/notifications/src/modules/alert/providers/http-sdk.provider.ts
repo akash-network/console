@@ -1,16 +1,16 @@
-import { DeploymentHttpService } from '@akashnetwork/http-sdk';
-import type { Provider } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { DeploymentHttpService } from "@akashnetwork/http-sdk";
+import type { Provider } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 
-import type { GlobalEnvConfig } from '@src/config/env.config';
+import type { AlertConfig } from "@src/modules/alert/config";
 
 export const HTTP_SDK_PROVIDERS: Provider[] = [
   {
     provide: DeploymentHttpService,
     inject: [ConfigService],
-    useFactory: (configService: ConfigService<GlobalEnvConfig>) =>
+    useFactory: (configService: ConfigService<AlertConfig>) =>
       new DeploymentHttpService({
-        baseURL: configService.getOrThrow('API_NODE_ENDPOINT'),
-      }),
-  },
+        baseURL: configService.getOrThrow("alert.API_NODE_ENDPOINT")
+      })
+  }
 ];

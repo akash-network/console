@@ -1,1 +1,1 @@
-export * from './block-cursor.schema';
+export * from "./block-cursor.schema";

@@ -1,54 +1,26 @@
 import '@akashnetwork/env-loader';
 
-import { NestFactory } from '@nestjs/core';
-
 import { Logger } from '@src/common/providers/logger.provider';
-import { ShutdownService } from '@src/common/services/shutdown/shutdown.service';
-import { HttpExceptionFilter } from '@src/interfaces/rest/filters/http-exception/http-exception.filter';
-import { HttpResultInterceptor } from '@src/interfaces/rest/interceptors/http-result/http-result.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(loadInterface(), {
-    logger: new Logger({ context: 'APP' }),
-  });
-
-  app.enableShutdownHooks();
-  app.get(ShutdownService).onShutdown(() => app.close());
-
-  app.enableVersioning();
-  app.useGlobalInterceptors(new HttpResultInterceptor());
-  app.useGlobalFilters(new HttpExceptionFilter());
-
-  await app.init();
-  await app.listen(process.env.PORT ?? 3000);
-}
-
-function loadInterface() {
   const module = process.env.INTERFACE || 'all';
 
-  /* eslint-disable */
-  if (module === 'all') {
-    return require('./interfaces/all/all.module').default;
+  try {
+    const { bootstrap } = await import(`./interfaces/${module}`);
+    await bootstrap();
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes('Cannot find module')
+    ) {
+      new Logger({ context: 'BOOTSTRAP' }).error(
+        `Unsupported interface "${module}"`,
+      );
+      process.exit(1);
+    } else {
+      throw error;
+    }
   }
-
-  if (module === 'chain-events') {
-    return require('./interfaces/chain-events/chain-events.module').default;
-  }
-
-  if (module === 'alert-events') {
-    return require('./interfaces/alert-events/alert-events.module').default;
-  }
-
-  if (module === 'notifications-events') {
-    return require('./interfaces/notifications-events/notifications-events.module')
-      .default;
-  }
-
-  if (module === 'rest') {
-    return require('./interfaces/rest/rest.module').default;
-  }
-
-  throw new Error(`Unknown INTERFACE: "${module}"`);
 }
 
 bootstrap();

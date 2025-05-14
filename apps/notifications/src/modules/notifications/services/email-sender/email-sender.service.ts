@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Novu } from '@novu/api';
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Novu } from "@novu/api";
 
-import { Namespaced } from '@src/lib/types/namespaced-config.type';
-import { NotificationEnvConfig } from '@src/modules/notifications/config/env.config';
+import { Namespaced } from "@src/lib/types/namespaced-config.type";
+import { NotificationEnvConfig } from "@src/modules/notifications/config/env.config";
 
 type EmailSendOptions = {
   addresses: string[];
@@ -16,26 +16,22 @@ type EmailSendOptions = {
 export class EmailSenderService {
   constructor(
     private readonly novu: Novu,
-    private readonly configService: ConfigService<
-      Namespaced<'notifications', NotificationEnvConfig>
-    >,
+    private readonly configService: ConfigService<Namespaced<"notifications", NotificationEnvConfig>>
   ) {}
 
   async send({ addresses, userId, ...payload }: EmailSendOptions) {
     await this.novu.trigger({
-      workflowId: this.configService.getOrThrow(
-        'notifications.NOVU_MAILER_WORKFLOW_ID',
-      ),
+      workflowId: this.configService.getOrThrow("notifications.NOVU_MAILER_WORKFLOW_ID"),
       to: {
         subscriberId: userId,
-        email: addresses[0],
+        email: addresses[0]
       },
       payload,
       overrides: {
         email: {
-          to: addresses,
-        },
-      },
+          to: addresses
+        }
+      }
     });
   }
 }

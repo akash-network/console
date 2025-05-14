@@ -1,6 +1,6 @@
-import { faker } from '@faker-js/faker';
+import { faker } from "@faker-js/faker";
 
-import type { BlockMessage } from '@src/modules/chain/services/block-message-parser/block-message-parser.service';
+import type { BlockMessage } from "@src/modules/chain/services/block-message-parser/block-message-parser.service";
 
 /**
  * Generates a simplified mock Block object for testing
@@ -13,31 +13,22 @@ export function generateSimpleMockBlock(
     time?: string;
     chainId?: string;
     txCount?: number;
-  } = {},
+  } = {}
 ) {
   const height = options.height || faker.number.int({ min: 1, max: 1000000 });
   const txCount = options.txCount || faker.number.int({ min: 0, max: 10 });
 
-  const txs = Array.from(
-    { length: txCount },
-    () => new Uint8Array(faker.number.int({ min: 10, max: 100 })),
-  );
+  const txs = Array.from({ length: txCount }, () => new Uint8Array(faker.number.int({ min: 10, max: 100 })));
 
   return {
     id: options.id || faker.string.alphanumeric(64).toLowerCase(),
     header: {
       height,
       time: options.time || faker.date.recent().toISOString(),
-      chainId:
-        options.chainId ||
-        faker.helpers.arrayElement([
-          'akash-testnet',
-          'akash-mainnet',
-          'akashnet-2',
-        ]),
-      version: { block: '11', app: '0' },
+      chainId: options.chainId || faker.helpers.arrayElement(["akash-testnet", "akash-mainnet", "akashnet-2"]),
+      version: { block: "11", app: "0" }
     },
-    txs,
+    txs
   };
 }
 
@@ -52,7 +43,7 @@ export function generateMockBlockData(
     time?: string;
     hash?: string;
     messages?: BlockMessage[];
-  } = {},
+  } = {}
 ) {
   const height = options.height || faker.number.int({ min: 1, max: 1000000 });
   const time = options.time || faker.date.recent().toISOString();
@@ -61,6 +52,6 @@ export function generateMockBlockData(
     height,
     hash: options.hash || faker.string.alphanumeric(64).toLowerCase(),
     time,
-    messages: options.messages || [],
+    messages: options.messages || []
   };
 }
