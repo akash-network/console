@@ -62,7 +62,7 @@ export const useAutoTopUpLimits = () => {
   };
 };
 
-function extractDeploymentLimit(deploymentGrant?: ExactDepositDeploymentGrant) {
+function extractDeploymentLimit(deploymentGrant?: (ExactDepositDeploymentGrant & { granter: string; grantee: string }) | null) {
   if (!deploymentGrant) {
     return undefined;
   }
@@ -73,7 +73,9 @@ function extractDeploymentLimit(deploymentGrant?: ExactDepositDeploymentGrant) {
     return undefined;
   }
 
-  return parseFloat(deploymentGrant?.authorization.spend_limit.amount);
+  return {
+    amount: parseFloat(deploymentGrant?.authorization.spend_limit.amount)
+  };
 }
 
 function extractFeeLimit(feeLimit?: FeeAllowance) {
