@@ -3,10 +3,7 @@ import { Injectable } from "@nestjs/common";
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { RichError } from "@src/lib/rich-error/rich-error";
 import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created.dto";
-import {
-  DeploymentBalanceAlertOutput,
-  DeploymentBalanceAlertRepository
-} from "@src/modules/alert/repositories/deployment-balance-alert/deployment-balance-alert.repository";
+import { AlertRepository, DeploymentBalanceAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertMessagePayload, AlertMessageService, SendOptions } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { ConditionsMatcherService } from "@src/modules/alert/services/conditions-matcher/conditions-matcher.service";
 import { DeploymentService } from "@src/modules/alert/services/deployment/deployment.service";
@@ -17,7 +14,7 @@ type AlertCallback = (alert: DeploymentBalanceAlertOutput) => Promise<void> | vo
 @Injectable()
 export class DeploymentBalanceAlertsService {
   constructor(
-    private readonly alertRepository: DeploymentBalanceAlertRepository,
+    private readonly alertRepository: AlertRepository,
     private readonly conditionsMatcher: ConditionsMatcherService,
     private readonly deploymentService: DeploymentService,
     private readonly alertMessageService: AlertMessageService,
@@ -35,9 +32,9 @@ export class DeploymentBalanceAlertsService {
   private async forEachAlert(block: number, onAlert: AlertCallback) {
     try {
       await this.alertRepository.paginate({
-        query: { block },
+        query: { block, type: "DEPLOYMENT_BALANCE" },
         limit: 10,
-        callback: async (alerts: DeploymentBalanceAlertOutput[]) => {
+        callback: async alerts => {
           await Promise.all(alerts.map(async alert => onAlert(alert)));
         }
       });
@@ -53,7 +50,7 @@ export class DeploymentBalanceAlertsService {
 
   private async processSingleAlert(block: ChainBlockCreatedDto, alert: DeploymentBalanceAlertOutput, onMessage: MessageCallback) {
     try {
-      const balanceResult = await this.deploymentService.getDeploymentBalance(alert.owner, alert.dseq);
+      const balanceResult = await this.deploymentService.getDeploymentBalance(alert.params.owner, alert.params.dseq);
 
       if (balanceResult.err) {
         const payload = await this.suspendErroneousAlert(balanceResult.val, alert);
@@ -71,12 +68,12 @@ export class DeploymentBalanceAlertsService {
       };
       let summaryPrefix: SendOptions["summaryPrefix"];
 
-      if (isMatching && alert.status === "normal") {
+      if (isMatching && alert.status === "NORMAL") {
         summaryPrefix = `FIRING`;
-        update.status = "firing";
-      } else if (!isMatching && alert.status === "firing") {
+        update.status = "FIRING";
+      } else if (!isMatching && alert.status === "FIRING") {
         summaryPrefix = `RECOVERED`;
-        update.status = "normal";
+        update.status = "NORMAL";
       }
 
       await this.alertRepository.updateById(alert.id, update);

@@ -1,8 +1,10 @@
 import { faker } from "@faker-js/faker";
+import type z from "zod";
 
-import type { AlertOutput, Conditions } from "@src/modules/alert/repositories/raw-alert/raw-alert.repository";
+import type { ChainMessageAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
+import type { chainMessageConditionsSchema } from "@src/modules/alert/repositories/alert/alert-json-fields.schema";
 
-export const generateRawAlert = ({
+export const generateChainMessageAlert = ({
   id = faker.string.uuid(),
   userId = faker.string.uuid(),
   contactPointId = faker.string.uuid(),
@@ -12,12 +14,13 @@ export const generateRawAlert = ({
     field: "type",
     value: "default",
     operator: "eq"
-  } as Conditions,
+  } as z.infer<typeof chainMessageConditionsSchema>,
   enabled = true,
   createdAt = faker.date.recent(),
   updatedAt = faker.date.recent()
-}: Partial<AlertOutput>): AlertOutput => {
+}: Partial<ChainMessageAlertOutput>): ChainMessageAlertOutput => {
   return {
+    type: "CHAIN_MESSAGE",
     id,
     userId,
     contactPointId,
@@ -25,6 +28,8 @@ export const generateRawAlert = ({
     description,
     conditions,
     enabled,
+    status: "NORMAL",
+    minBlockHeight: 0,
     createdAt,
     updatedAt
   };
