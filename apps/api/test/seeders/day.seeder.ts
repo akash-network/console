@@ -16,7 +16,7 @@ export class DaySeeder {
   }
 
   static async createInDatabase(overrides: Partial<CreationAttributes<Day>> = {}): Promise<Day> {
-    const seed = this.create(overrides);
+    const seed = DaySeeder.create(overrides);
     return await Day.create(seed);
   }
 }
