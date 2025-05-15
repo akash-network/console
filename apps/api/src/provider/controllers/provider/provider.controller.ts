@@ -34,6 +34,10 @@ export class ProviderController {
     );
   }
 
+  async getProvider(address: string) {
+    return this.providerService.getProvider(address);
+  }
+
   async getProviderActiveLeasesGraphData(providerAddress: string) {
     return await this.providerStatsService.getProviderActiveLeasesGraphData(providerAddress);
   }

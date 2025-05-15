@@ -8,7 +8,6 @@ import nodesSandbox from "./nodes/sandbox";
 import nodesTestnet from "./nodes/testnet";
 import proposalById from "./proposals/byId";
 import proposals from "./proposals/list";
-import providerByAddress from "./providers/byAddress";
 import providerDeployments from "./providers/deployments";
 import templateById from "./templates/byId";
 import templateList from "./templates/list";
@@ -20,7 +19,6 @@ import validators from "./validators/list";
 import versionMainnet from "./version/mainnet";
 import versionSandbox from "./version/sandbox";
 import versionTestnet from "./version/testnet";
-import auditors from "./auditors";
 import dashboardData from "./dashboardData";
 import gpu from "./gpu";
 import gpuBreakdown from "./gpuBreakdown";
@@ -33,10 +31,8 @@ import networkCapacity from "./networkCapacity";
 import predictedBlockDate from "./predictedBlockDate";
 import predictedDateHeight from "./predictedDateHeight";
 import pricing from "./pricing";
-import providerAttributesSchema from "./providerAttributesSchema";
 import providerDashboard from "./providerDashboard";
 import providerGraphData from "./providerGraphData";
-import providerRegions from "./providerRegions";
 import providerVersions from "./providerVersions";
 import trialProviders from "./trialProviders";
 
@@ -49,10 +45,7 @@ export default [
   transactionByHash,
   address,
   addressTransactions,
-  providerByAddress,
   providerDeployments,
-  providerAttributesSchema,
-  providerRegions,
   validators,
   validatorByAddress,
   proposals,
@@ -64,7 +57,6 @@ export default [
   marketData,
   dashboardData,
   pricing,
-  auditors,
   nodesMainnet,
   nodesSandbox,
   nodesTestnet,
