@@ -32,7 +32,6 @@ import predictedBlockDate from "./predictedBlockDate";
 import predictedDateHeight from "./predictedDateHeight";
 import pricing from "./pricing";
 import providerGraphData from "./providerGraphData";
-import providerVersions from "./providerVersions";
 import trialProviders from "./trialProviders";
 
 export default [
@@ -67,7 +66,6 @@ export default [
   graphData,
   trialProviders,
   leasesDuration,
-  providerVersions,
   gpu,
   gpuModels,
   gpuPrices,

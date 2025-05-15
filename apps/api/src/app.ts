@@ -42,7 +42,14 @@ import {
   stripePricesRouter,
   stripeWebhook
 } from "./billing";
-import { auditorsRouter, providerAttributesSchemaRouter, providerDashboardRouter, providerRegionsRouter, providersRouter } from "./provider";
+import {
+  auditorsRouter,
+  providerAttributesSchemaRouter,
+  providerDashboardRouter,
+  providerRegionsRouter,
+  providersRouter,
+  providerVersionsRouter
+} from "./provider";
 import { Scheduler } from "./scheduler";
 import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
 
@@ -103,6 +110,7 @@ appHono.route("/", auditorsRouter);
 appHono.route("/", providerAttributesSchemaRouter);
 appHono.route("/", providerRegionsRouter);
 appHono.route("/", providerDashboardRouter);
+appHono.route("/", providerVersionsRouter);
 
 appHono.route("/", healthzRouter);
 
