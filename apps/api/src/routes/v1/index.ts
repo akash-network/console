@@ -31,7 +31,6 @@ import networkCapacity from "./networkCapacity";
 import predictedBlockDate from "./predictedBlockDate";
 import predictedDateHeight from "./predictedDateHeight";
 import pricing from "./pricing";
-import providerDashboard from "./providerDashboard";
 import providerGraphData from "./providerGraphData";
 import providerVersions from "./providerVersions";
 import trialProviders from "./trialProviders";
@@ -68,7 +67,6 @@ export default [
   graphData,
   trialProviders,
   leasesDuration,
-  providerDashboard,
   providerVersions,
   gpu,
   gpuModels,

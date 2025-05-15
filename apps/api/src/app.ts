@@ -23,8 +23,6 @@ import { leasesRouter } from "./deployment/routes/leases/leases.router";
 import { featuresRouter } from "./features/routes/features/features.router";
 import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
-import { providerRegionsRouter } from "./provider/routes/provider-regions/provider-regions.router";
-import { providersRouter } from "./provider/routes/providers/providers.router";
 import { apiRouter } from "./routers/apiRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
 import { deploymentRouter } from "./routers/deploymentApiRouter";
@@ -44,7 +42,7 @@ import {
   stripePricesRouter,
   stripeWebhook
 } from "./billing";
-import { auditorsRouter, providerAttributesSchemaRouter } from "./provider";
+import { auditorsRouter, providerAttributesSchemaRouter, providerDashboardRouter, providerRegionsRouter, providersRouter } from "./provider";
 import { Scheduler } from "./scheduler";
 import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
 
@@ -104,6 +102,7 @@ appHono.route("/", providersRouter);
 appHono.route("/", auditorsRouter);
 appHono.route("/", providerAttributesSchemaRouter);
 appHono.route("/", providerRegionsRouter);
+appHono.route("/", providerDashboardRouter);
 
 appHono.route("/", healthzRouter);
 
