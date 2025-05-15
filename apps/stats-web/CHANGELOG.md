@@ -1,5 +1,12 @@
 
 
+## [0.22.6](https://github.com/akash-network/console/compare/stats-web/v0.22.5...stats-web/v0.22.6) (2025-05-15)
+
+
+### Code Refactoring
+
+* **notifications:** implement modular configuration architecture ([ead91e4](https://github.com/akash-network/console/commit/ead91e4fdc04a799b32f0d9725bcb62fbaeeb8fd))
+
 ## [0.22.5](https://github.com/akash-network/console/compare/stats-web/v0.22.4...stats-web/v0.22.5) (2025-05-10)
 
 

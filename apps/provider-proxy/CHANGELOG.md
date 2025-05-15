@@ -1,5 +1,12 @@
 
 
+## [1.6.5](https://github.com/akash-network/console/compare/provider-proxy/v1.6.4...provider-proxy/v1.6.5) (2025-05-15)
+
+
+### Code Refactoring
+
+* **notifications:** implement modular configuration architecture ([ead91e4](https://github.com/akash-network/console/commit/ead91e4fdc04a799b32f0d9725bcb62fbaeeb8fd))
+
 ## [1.6.4](https://github.com/akash-network/console/compare/provider-proxy/v1.6.3...provider-proxy/v1.6.4) (2025-05-10)
 
 
