@@ -44,8 +44,10 @@ describe("balance alerts", () => {
         value: 10000000,
         operator: "lt"
       },
-      dseq: String(matchingDseq),
-      owner,
+      params: {
+        dseq: String(matchingDseq),
+        owner
+      },
       summary: `deployment low: ${matchingDseq}`,
       description: `deployment ${matchingDseq} balance is {{balance}} < 10000000 uAKT`,
       minBlockHeight: CURRENT_HEIGHT
@@ -54,29 +56,27 @@ describe("balance alerts", () => {
     const throttlingAlert = generateDeploymentBalanceAlert({
       contactPointId: contactPoint.id,
       conditions: {
-        value: [
-          {
-            field: "balance",
-            value: 10000000,
-            operator: "lt"
-          }
-        ],
-        operator: "and"
+        field: "balance",
+        value: 10000000,
+        operator: "lt"
       },
-      dseq: String(throttlingDseq),
-      owner: mockAkashAddress(),
+      params: {
+        dseq: String(throttlingDseq),
+        owner: mockAkashAddress()
+      },
       summary: `deployment low: ${matchingDseq}`,
       description: `deployment ${matchingDseq} balance is {{balance}} < 10000000 uAKT`,
       minBlockHeight: CURRENT_HEIGHT + 10
     });
 
-    await db.insert(schema.DeploymentBalanceAlert).values([matchingAlert, throttlingAlert]);
+    await db.insert(schema.Alert).values([matchingAlert, throttlingAlert]);
 
     const balanceResponse = generateDeploymentBalanceResponse({
       fundsAmount: 400000,
       escrowAmount: 400000,
       state: "active"
     });
+    let alertsProcessed = 0;
 
     chainApi
       .get("/akash/deployment/v1beta3/deployments/info")
@@ -84,7 +84,10 @@ describe("balance alerts", () => {
         "id.owner": owner,
         "id.dseq": String(matchingDseq)
       })
-      .reply(200, balanceResponse);
+      .reply(200, () => {
+        alertsProcessed++;
+        return balanceResponse;
+      });
 
     const message = generateMock(ChainBlockCreatedDto.schema);
     message.height = CURRENT_HEIGHT;
@@ -92,6 +95,7 @@ describe("balance alerts", () => {
     await controller.processBlock(message);
     await controller.processBlock(message);
 
+    expect(alertsProcessed).toBe(1);
     expect(brokerService.publish).toHaveBeenCalledTimes(1);
     expect(brokerService.publish).toHaveBeenCalledWith("notifications.v1.notification.send", {
       contactPointId: contactPoint.id,

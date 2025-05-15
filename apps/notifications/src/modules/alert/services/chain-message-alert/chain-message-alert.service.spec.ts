@@ -4,25 +4,25 @@ import type { MockProxy } from "jest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { MsgCloseDeploymentDto } from "@src/modules/alert/dto/msg-close-deployment.dto";
-import type { AlertOutput } from "@src/modules/alert/repositories/raw-alert/raw-alert.repository";
-import { RawAlertRepository } from "@src/modules/alert/repositories/raw-alert/raw-alert.repository";
 import { AlertMessageService } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { TemplateService } from "@src/modules/alert/services/template/template.service";
+import type { AlertOutput } from "../../repositories/alert/alert.repository";
+import { AlertRepository } from "../../repositories/alert/alert.repository";
 import { ConditionsMatcherService } from "../conditions-matcher/conditions-matcher.service";
-import { RawAlertsService } from "./raw-alerts.service";
+import { ChainMessageAlertService } from "./chain-message-alert.service";
 
 import { MockProvider } from "@test/mocks/provider.mock";
 import { generateAlertMessage } from "@test/seeders/alert-message.seeder";
-import { generateRawAlert } from "@test/seeders/raw-alert.seeder";
+import { generateChainMessageAlert } from "@test/seeders/chain-message-alert.seeder";
 
-describe(RawAlertsService.name, () => {
+describe(ChainMessageAlertService.name, () => {
   describe("alertFor", () => {
     it("should send notification when event conditions match", async () => {
       const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage } = await setup();
 
       const event = generateMock(MsgCloseDeploymentDto.schema);
 
-      const alert = generateRawAlert({
+      const alert = generateChainMessageAlert({
         conditions: {
           field: "type",
           value: "akash.deployment.v1beta3.MsgCloseDeployment",
@@ -32,7 +32,7 @@ describe(RawAlertsService.name, () => {
 
       const alerts: AlertOutput[] = [alert];
       alertRepository.paginate.mockImplementation(async options => {
-        options.callback(alerts);
+        options.callback(alerts as any);
       });
 
       conditionsMatcher.isMatching.mockReturnValue(true);
@@ -57,7 +57,7 @@ describe(RawAlertsService.name, () => {
 
       const event = generateMock(MsgCloseDeploymentDto.schema);
 
-      const alert = generateRawAlert({
+      const alert = generateChainMessageAlert({
         conditions: {
           field: "type",
           value: "different.message.type",
@@ -67,7 +67,7 @@ describe(RawAlertsService.name, () => {
 
       const alerts: AlertOutput[] = [alert];
       alertRepository.paginate.mockImplementation(async options => {
-        options.callback(alerts);
+        options.callback(alerts as any);
       });
 
       conditionsMatcher.isMatching.mockReturnValue(false);
@@ -84,7 +84,7 @@ describe(RawAlertsService.name, () => {
 
       const event = generateMock(MsgCloseDeploymentDto.schema);
 
-      const alert = generateRawAlert({
+      const alert = generateChainMessageAlert({
         conditions: {
           field: "type",
           value: "akash.deployment.v1beta3.MsgCloseDeployment",
@@ -94,7 +94,7 @@ describe(RawAlertsService.name, () => {
 
       const alerts: AlertOutput[] = [alert];
       alertRepository.paginate.mockImplementation(async options => {
-        options.callback(alerts);
+        options.callback(alerts as any);
       });
 
       const error = new Error("test");
@@ -137,7 +137,7 @@ describe(RawAlertsService.name, () => {
 
       const event = generateMock(MsgCloseDeploymentDto.schema);
 
-      const alert1 = generateRawAlert({
+      const alert1 = generateChainMessageAlert({
         conditions: {
           field: "type",
           value: "akash.deployment.v1beta3.MsgCloseDeployment",
@@ -145,7 +145,7 @@ describe(RawAlertsService.name, () => {
         }
       });
 
-      const alert2 = generateRawAlert({
+      const alert2 = generateChainMessageAlert({
         conditions: {
           field: "type",
           value: "akash.deployment.v1beta3.MsgCloseDeployment",
@@ -155,7 +155,7 @@ describe(RawAlertsService.name, () => {
 
       const alerts: AlertOutput[] = [alert1, alert2];
       alertRepository.paginate.mockImplementation(async options => {
-        options.callback(alerts);
+        options.callback(alerts as any);
       });
 
       conditionsMatcher.isMatching.mockReturnValue(true);
@@ -190,7 +190,7 @@ describe(RawAlertsService.name, () => {
       const event = generateMock(MsgCloseDeploymentDto.schema);
       const owner = event.value.id.owner;
 
-      const alert = generateRawAlert({
+      const alert = generateChainMessageAlert({
         conditions: {
           operator: "and",
           value: [
@@ -210,7 +210,7 @@ describe(RawAlertsService.name, () => {
 
       const alerts: AlertOutput[] = [alert];
       alertRepository.paginate.mockImplementation(async options => {
-        options.callback(alerts);
+        options.callback(alerts as any);
       });
 
       conditionsMatcher.isMatching.mockReturnValue(true);
@@ -232,18 +232,18 @@ describe(RawAlertsService.name, () => {
   });
 
   async function setup(): Promise<{
-    service: RawAlertsService;
+    service: ChainMessageAlertService;
     loggerService: MockProxy<LoggerService>;
-    alertRepository: MockProxy<RawAlertRepository>;
+    alertRepository: MockProxy<AlertRepository>;
     conditionsMatcher: MockProxy<ConditionsMatcherService>;
     alertMessageService: MockProxy<AlertMessageService>;
     onMessage: jest.Mock;
   }> {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        RawAlertsService,
+        ChainMessageAlertService,
         TemplateService,
-        MockProvider(RawAlertRepository),
+        MockProvider(AlertRepository),
         MockProvider(ConditionsMatcherService),
         MockProvider(LoggerService),
         MockProvider(AlertMessageService)
@@ -252,9 +252,9 @@ describe(RawAlertsService.name, () => {
     const onMessage = jest.fn();
 
     return {
-      service: module.get<RawAlertsService>(RawAlertsService),
+      service: module.get<ChainMessageAlertService>(ChainMessageAlertService),
       loggerService: module.get<MockProxy<LoggerService>>(LoggerService),
-      alertRepository: module.get<MockProxy<RawAlertRepository>>(RawAlertRepository),
+      alertRepository: module.get<MockProxy<AlertRepository>>(AlertRepository),
       conditionsMatcher: module.get<MockProxy<ConditionsMatcherService>>(ConditionsMatcherService),
       alertMessageService: module.get<MockProxy<AlertMessageService>>(AlertMessageService),
       onMessage

@@ -10,10 +10,10 @@ import { MsgCloseDeploymentDto } from "@src/modules/alert/dto/msg-close-deployme
 import * as schema from "@src/modules/alert/model-schemas";
 
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
+import { generateChainMessageAlert } from "@test/seeders/chain-message-alert.seeder";
 import { generateContactPoint } from "@test/seeders/contact-point.seeder";
-import { generateRawAlert } from "@test/seeders/raw-alert.seeder";
 
-describe("raw alerts", () => {
+describe("chain message alerts", () => {
   it("should send an alert based on conditions", async () => {
     const { module } = await setup();
     const controller = module.get(ChainEventsHandler);
@@ -30,7 +30,7 @@ describe("raw alerts", () => {
       .values([generateContactPoint({})])
       .returning();
 
-    const matchingAlert = generateRawAlert({
+    const matchingAlert = generateChainMessageAlert({
       contactPointId: contactPoint.id,
       conditions: {
         value: [
@@ -51,7 +51,7 @@ describe("raw alerts", () => {
       description: "deployment {{value.id.dseq.low}} is closed"
     });
 
-    const mismatchingAlert = generateRawAlert({
+    const mismatchingAlert = generateChainMessageAlert({
       contactPointId: contactPoint.id,
       conditions: {
         value: [
@@ -72,7 +72,7 @@ describe("raw alerts", () => {
       description: "deployment {{value.id.dseq.low}} is closed"
     });
 
-    await db.insert(schema.RawAlert).values([matchingAlert, mismatchingAlert]);
+    await db.insert(schema.Alert).values([matchingAlert, mismatchingAlert]);
 
     const message = generateMock(MsgCloseDeploymentDto.schema);
     message.value.id.owner = owner;
