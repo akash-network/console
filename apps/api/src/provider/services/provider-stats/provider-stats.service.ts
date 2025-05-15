@@ -53,8 +53,6 @@ export class ProviderStatsService {
         date: day.date,
         value: day.count
       })),
-
-      // To compare from previous day
       now: {
         count: currentValue.count
       },
