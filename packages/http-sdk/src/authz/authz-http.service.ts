@@ -184,8 +184,6 @@ export class AuthzHttpService extends HttpService {
     const limit = options.limit;
     const offset = options.offset;
 
-    console.log("DEBUG", address, limit, offset);
-
     const grants = this.extractData(
       await this.get<DepositDeploymentGrantResponse>(`cosmos/authz/v1beta1/grants/${side}/${address}`, {
         params: {

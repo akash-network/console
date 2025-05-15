@@ -188,13 +188,19 @@ export const Authorizations: React.FunctionComponent = () => {
   }
 
   function onAllowancePageChange(newPageIndex: number, newPageSize: number) {
-    setPageIndex({ ...pageIndex, fee: newPageIndex });
-    setPageSize({ ...pageSize, fee: newPageSize });
+    setPageIndex(prev => ({ ...prev, fee: newPageIndex }));
+    setPageSize(prev => ({ ...prev, fee: newPageSize }));
   }
 
   function onDeploymentPageChange(newPageIndex: number, newPageSize: number) {
-    setPageIndex({ ...pageIndex, deployment: newPageIndex });
-    setPageSize({ ...pageSize, deployment: newPageSize });
+    setPageIndex(prev => ({ ...prev, deployment: newPageIndex }));
+    setPageSize(prev => ({ ...prev, deployment: newPageSize }));
+  }
+
+  function onRefreshSearchClick() {
+    if (!searchError && debouncedSearchGrantee) {
+      refetchGranterGranteeGrants();
+    }
   }
 
   return (
@@ -237,12 +243,19 @@ export const Authorizations: React.FunctionComponent = () => {
                   className="max-w-md flex-grow"
                   error={!!searchError}
                   endIcon={
-                    <Button variant="text" size="icon" onClick={() => setSearchGrantee("")}>
+                    <Button
+                      variant="text"
+                      size="icon"
+                      onClick={() => {
+                        setSearchGrantee("");
+                        setSearchError(null);
+                      }}
+                    >
                       <Xmark />
                     </Button>
                   }
                 />
-                <Button variant="ghost" size="icon" className="rounded-full" onClick={() => refetchGranterGranteeGrants()}>
+                <Button variant="ghost" size="icon" className="rounded-full" onClick={onRefreshSearchClick}>
                   <Refresh className="text-xs" />
                 </Button>
               </div>

@@ -106,7 +106,7 @@ export const FeeGrantTable: React.FC<Props> = ({
         </TableBody>
       </Table>
 
-      {(allowances?.length || 0) > 0 && (
+      {pageCount > 1 && (
         <div className="flex items-center justify-center pt-6">
           <CustomPagination
             totalPageCount={pageCount}
