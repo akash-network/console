@@ -21,12 +21,15 @@ export type ISidebarGroupMenu = {
 };
 
 export type ISidebarRoute = {
-  title: string;
+  title?: string;
   icon?: (props: Record<string, unknown>) => React.ReactNode;
-  url: string;
-  activeRoutes: string[];
+  url?: string;
+  activeRoutes?: string[];
   isNew?: boolean;
   rel?: string;
   target?: string;
   testId?: string;
+  hoveredRoutes?: ISidebarGroupMenu[];
+  hasDivider?: boolean;
+  customComponent?: React.ReactNode;
 };
