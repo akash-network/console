@@ -20,7 +20,7 @@ describe("JwtValidator", () => {
     const result = validator.validateToken("not.a.valid.token");
     expect(result.isValid).toBe(false);
     expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.errors[0]).toContain("Error validating token");
+    expect(result.errors[0]).toContain("Error during JWT validation");
   });
 
   it("should validate required fields in header", () => {

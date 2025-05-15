@@ -2,6 +2,9 @@ import type { jwtClaimsTestCases } from "../generated/jwt-claims-test-cases";
 import type { JWTPayload } from "../types";
 import { createAkashAddress } from "./seeders/akash-address.seeder";
 
+const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
+const TWO_DAYS_IN_SECONDS = 2 * ONE_DAY_IN_SECONDS;
+
 /**
  * Replaces template values in JWT test cases with actual values
  *
@@ -24,10 +27,10 @@ export function replaceTemplateValues(testCase: (typeof jwtClaimsTestCases)[0]) 
   const claims = { ...testCase.claims } as any;
   if (claims.iss === "{{.Issuer}}") claims.iss = issuer;
   if (claims.iat === "{{.IatCurr}}") claims.iat = now;
-  if (claims.iat === "{{.Iat24h}}") claims.iat = now + 86400; // 24 hours from now
+  if (claims.iat === "{{.Iat24h}}") claims.iat = now + ONE_DAY_IN_SECONDS;
   if (claims.nbf === "{{.NbfCurr}}") claims.nbf = now;
-  if (claims.nbf === "{{.Nbf24h}}") claims.nbf = now + 86400; // 24 hours from now
-  if (claims.exp === "{{.Exp48h}}") claims.exp = now + 172800; // 48 hours from now
+  if (claims.nbf === "{{.Nbf24h}}") claims.nbf = now + ONE_DAY_IN_SECONDS;
+  if (claims.exp === "{{.Exp48h}}") claims.exp = now + TWO_DAYS_IN_SECONDS;
 
   // Convert string timestamps to numbers
   if (typeof claims.iat === "string") claims.iat = parseInt(claims.iat, 10);

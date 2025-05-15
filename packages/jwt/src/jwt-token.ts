@@ -82,7 +82,7 @@ export class JwtToken {
       const json = Buffer.from(payload, "base64url").toString("utf8");
       return JSON.parse(json);
     } catch (error) {
-      throw new Error("Failed to decode JWT token");
+      throw new Error("Failed to decode JWT token", { cause: error });
     }
   }
 

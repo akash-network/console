@@ -1,3 +1,4 @@
+import type { ErrorObject, ValidateFunction } from "ajv";
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 
@@ -17,6 +18,7 @@ export interface JwtValidationResult {
 
 export class JwtValidator {
   private ajv: Ajv;
+  private compiledSchema: ValidateFunction;
 
   constructor() {
     this.ajv = new Ajv({
@@ -26,6 +28,7 @@ export class JwtValidator {
       strictSchema: false
     });
     addFormats(this.ajv);
+    this.compiledSchema = this.ajv.compile(jwtSchemaData);
   }
 
   /**
@@ -52,7 +55,7 @@ export class JwtValidator {
       let payload: Record<string, any>;
 
       if (typeof token === "string") {
-        const parts = token.split(".");
+        const parts = token.split(".", 3);
         if (parts.length !== 3) {
           result.errors.push("Error validating token: Invalid token format");
           return result;
@@ -79,28 +82,27 @@ export class JwtValidator {
       }
 
       // Validate payload with the schema
-      const validate = this.ajv.compile(jwtSchemaData);
-      let valid = validate(payload);
+      let valid = this.compiledSchema(payload);
 
       if (!valid) {
         result.errors =
-          validate.errors?.map(error => {
+          this.compiledSchema.errors?.map((error: ErrorObject) => {
             if (error.keyword === "required") {
-              return `Missing required field: ${error.params.missingProperty}`;
+              return `Missing required field: ${(error.params as { missingProperty: string }).missingProperty}`;
             }
             if (error.keyword === "pattern") {
-              return `Invalid format: ${error.instancePath.slice(1)} does not match pattern "${error.params.pattern}"`;
+              return `Invalid format: ${error.schemaPath.slice(1)} does not match pattern "${(error.params as { pattern: string }).pattern}"`;
             }
             if (error.keyword === "additionalProperties") {
               return "Additional properties are not allowed";
             }
             if (error.keyword === "type") {
-              return `${error.instancePath.slice(1) || "Field"} should be ${error.params.type}`;
+              return `${error.schemaPath.slice(1) || "Field"} should be ${(error.params as { type: string }).type}`;
             }
             if (error.keyword === "enum") {
-              return `${error.instancePath.slice(1) || "Field"} should be one of: ${error.params.allowedValues.join(", ")}`;
+              return `${error.schemaPath.slice(1) || "Field"} should be one of: ${(error.params as { allowedValues: string[] }).allowedValues.join(", ")}`;
             }
-            return `${error.instancePath.slice(1) || "Field"}: ${error.message}`;
+            return `${error.schemaPath.slice(1) || "Field"}: ${error.message}`;
           }) || [];
       }
 
@@ -144,7 +146,7 @@ export class JwtValidator {
               const scopes = new Set<string>();
               for (const scope of perm.scope) {
                 if (scopes.has(scope)) {
-                  result.errors.push("Duplicate scope in permission");
+                  result.errors.push(`Duplicate scope in permission: ${scope}`);
                   valid = false;
                   continue;
                 }
@@ -171,8 +173,6 @@ export class JwtValidator {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       result.errors.push(`Error during JWT validation: ${errorMessage}`);
-      // Optionally log the error for debugging
-      console.error("JWT validation error:", error);
     }
 
     return result;
