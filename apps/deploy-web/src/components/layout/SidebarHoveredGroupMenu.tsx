@@ -4,7 +4,6 @@ import { Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 
 import type { ISidebarGroupMenu } from "@src/types";
-import { SidebarGroupMenuPopover } from "./SidebarGroupMenuPopover";
 import { SidebarRouteButton } from "./SidebarRouteButton";
 
 type Props = {
@@ -14,13 +13,13 @@ type Props = {
   group: ISidebarGroupMenu;
 };
 
-export const SidebarGroupMenu: React.FunctionComponent<Props> = ({ group, hasDivider = true, isNavOpen }) => {
+export const SidebarHoveredGroupMenu: React.FunctionComponent<Props> = ({ group, hasDivider = true, isNavOpen }) => {
   return (
-    <div className="mt-4 w-full">
+    <div className="p-1">
       {hasDivider && <Separator className="mb-2" />}
 
       <nav className={cn("flex flex-1 flex-col", { ["items-center"]: !isNavOpen })} aria-label="Sidebar">
-        <ul role="list" className="space-y-1">
+        <ul role="list" className="w-full space-y-1">
           {!!group.title && isNavOpen && (
             <li>
               <span className="text-sm font-light">{group.title}</span>
@@ -28,11 +27,7 @@ export const SidebarGroupMenu: React.FunctionComponent<Props> = ({ group, hasDiv
           )}
 
           {group.routes.map(route => {
-            return !route.hoveredRoutes ? (
-              <SidebarRouteButton key={route.title} route={route} isNavOpen={isNavOpen} />
-            ) : (
-              <SidebarGroupMenuPopover key={route.title} route={route} isNavOpen={isNavOpen} />
-            );
+            return route.customComponent ? <li key={route.title}>{route.customComponent}</li> : <SidebarRouteButton key={route.title} route={route} />;
           })}
         </ul>
       </nav>

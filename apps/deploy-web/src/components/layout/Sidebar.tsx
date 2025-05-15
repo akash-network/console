@@ -7,10 +7,33 @@ import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import type { ClassValue } from "clsx";
-import { HeadsetHelp, MessageAlert, Rocket, SidebarCollapse, SidebarExpand } from "iconoir-react";
-import { Cloud, HelpCircle, Home, MultiplePages, OpenInWindow, Server, Settings, Tools } from "iconoir-react";
+import {
+  Book,
+  Cloud,
+  Discord,
+  EvPlug,
+  Github,
+  HeadsetHelp,
+  Heart,
+  Home,
+  InfoCircle,
+  MessageAlert,
+  MoneySquare,
+  MoreHorizCircle,
+  MultiplePages,
+  Page,
+  Rocket,
+  Server,
+  Settings,
+  SidebarCollapse,
+  SidebarExpand,
+  StatsUpSquare,
+  Tools,
+  X as TwitterX,
+  Youtube
+} from "iconoir-react";
 import { useAtom } from "jotai";
-// import getConfig from "next/config";
+import getConfig from "next/config";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -20,11 +43,12 @@ import sdlStore from "@src/store/sdlStore";
 import type { ISidebarGroupMenu, ISidebarRoute } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import { MobileSidebarUser } from "./MobileSidebarUser";
+import { NodeStatusBar } from "./NodeStatusBar";
 // import { ModeToggle } from "./ModeToggle";
 // import { NodeStatusBar } from "./NodeStatusBar";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
 
-// const { publicRuntimeConfig } = getConfig();
+const { publicRuntimeConfig } = getConfig();
 
 type Props = {
   children?: ReactNode;
@@ -77,12 +101,6 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         icon: props => <Server {...props} />,
         url: UrlService.providers(),
         activeRoutes: [UrlService.providers()]
-      },
-      {
-        title: "FAQ",
-        icon: props => <HelpCircle {...props} />,
-        url: UrlService.faq(),
-        activeRoutes: [UrlService.faq()]
       }
     ];
 
@@ -95,17 +113,8 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       });
     }
 
-    if (wallet.isWalletConnected && !wallet.isManaged) {
-      routes.push({
-        title: "App Settings",
-        icon: props => <Settings {...props} />,
-        url: UrlService.settings(),
-        activeRoutes: [UrlService.settings()]
-      });
-    }
-
     return routes;
-  }, [isAlertsEnabled, wallet.isManaged, wallet.isWalletConnected]);
+  }, [isAlertsEnabled]);
 
   const routeGroups: ISidebarGroupMenu[] = useMemo(
     () => [
@@ -117,56 +126,166 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
     [mainRoutes]
   );
 
-  const extraRoutes: ISidebarGroupMenu[] = [
-    {
-      hasDivider: false,
-      routes: [
-        {
-          title: "Akash Network",
-          icon: props => <Image src="/images/akash-logo.svg" alt="Akash Logo" quality={100} width={20} height={20} {...props} />,
-          url: "https://akash.network",
-          activeRoutes: [],
-          target: "_blank"
-        },
-        {
-          title: "Deploy with Expert",
-          icon: props => <HeadsetHelp {...props} />,
-          url: "https://share.hsforms.com/1gQOaeJXgQ-GMc7MnsTOmsAsaima",
-          activeRoutes: [],
-          target: "_blank",
-          isNew: true
-        },
-        {
-          title: "Stats",
-          icon: props => <OpenInWindow {...props} />,
-          url: "https://stats.akash.network",
-          activeRoutes: [],
-          target: "_blank"
-        },
-        {
-          title: "Price Compare",
-          icon: props => <OpenInWindow {...props} />,
-          url: "https://akash.network/about/pricing/custom/",
-          activeRoutes: [],
-          target: "_blank"
-        },
-        {
-          title: "API",
-          icon: props => <OpenInWindow {...props} />,
-          url: "https://console-api.akash.network/v1/swagger",
-          activeRoutes: [],
-          target: "_blank"
-        },
-        {
-          title: "Docs",
-          icon: props => <OpenInWindow {...props} />,
-          url: "https://akash.network/docs",
-          activeRoutes: [],
-          target: "_blank"
-        }
-      ]
-    }
-  ];
+  const extraRoutes: ISidebarGroupMenu[] = useMemo(() => {
+    const routes: ISidebarGroupMenu[] = [
+      {
+        hasDivider: false,
+        routes: [
+          {
+            title: "Follow Akash",
+            icon: props => <Heart {...props} />,
+            hoveredRoutes: [
+              {
+                hasDivider: false,
+                routes: [
+                  {
+                    title: "Akash Github",
+                    icon: props => <Github {...props} />,
+                    url: "https://github.com/akash-network/console",
+                    target: "_blank",
+                    rel: "noreferrer"
+                  },
+                  {
+                    title: "Akash on X",
+                    icon: props => <TwitterX {...props} />,
+                    url: "https://twitter.com/akashnet_",
+                    target: "_blank",
+                    rel: "noreferrer"
+                  },
+
+                  {
+                    title: "Akash Youtube",
+                    icon: props => <Youtube {...props} />,
+                    url: "https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X?sub_confirmation=1",
+                    target: "_blank",
+                    rel: "noreferrer"
+                  },
+                  {
+                    title: "Akash Discord",
+                    icon: props => <Discord {...props} />,
+                    url: "https://discord.akash.network",
+                    target: "_blank",
+                    rel: "noreferrer"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            title: "Resrouces",
+            icon: props => <InfoCircle {...props} />,
+            hoveredRoutes: [
+              {
+                hasDivider: false,
+                routes: [
+                  {
+                    title: "Akash Network",
+                    icon: props => <Image src="/images/akash-logo.svg" alt="Akash Logo" quality={100} width={20} height={20} {...props} />,
+                    url: "https://akash.network",
+                    activeRoutes: [],
+                    target: "_blank"
+                  },
+                  {
+                    title: "Stats",
+                    icon: props => <StatsUpSquare {...props} />,
+                    url: "https://stats.akash.network",
+                    activeRoutes: [],
+                    target: "_blank",
+                    hasDivider: true
+                  },
+                  {
+                    title: "Price Compare",
+                    icon: props => <MoneySquare {...props} />,
+                    url: "https://akash.network/about/pricing/custom/",
+                    activeRoutes: [],
+                    target: "_blank"
+                  },
+                  {
+                    title: "Akash Console API",
+                    icon: props => <EvPlug {...props} />,
+                    url: "https://console-api.akash.network/v1/swagger",
+                    activeRoutes: [],
+                    target: "_blank"
+                  },
+                  {
+                    title: "Docs",
+                    icon: props => <Book {...props} />,
+                    url: "https://akash.network/docs",
+                    activeRoutes: [],
+                    target: "_blank"
+                  },
+                  {
+                    title: "FAQ",
+                    icon: props => <Page {...props} />,
+                    url: UrlService.faq(),
+                    activeRoutes: [UrlService.faq()]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            title: "Help from Expert",
+            icon: props => <HeadsetHelp {...props} />,
+            url: "https://share.hsforms.com/1gQOaeJXgQ-GMc7MnsTOmsAsaima",
+            activeRoutes: [],
+            target: "_blank",
+            isNew: true
+          },
+          ...(wallet.isWalletConnected && !wallet.isManaged
+            ? [
+                {
+                  title: "App Settings",
+                  icon: props => <Settings {...props} />,
+                  url: UrlService.settings(),
+                  activeRoutes: [UrlService.settings()]
+                } as ISidebarRoute
+              ]
+            : []),
+          {
+            title: "More Info",
+            icon: props => <MoreHorizCircle {...props} />,
+            hoveredRoutes: [
+              {
+                hasDivider: false,
+                routes: [
+                  ...(wallet.isWalletConnected && !wallet.isManaged
+                    ? [
+                        {
+                          customComponent: <NodeStatusBar />
+                        } as ISidebarRoute
+                      ]
+                    : []),
+                  {
+                    title: "Privacy Policy",
+                    url: UrlService.privacyPolicy()
+                  },
+                  {
+                    title: "Terms of Service",
+                    url: UrlService.termsOfService()
+                  },
+                  {
+                    title: "Contact",
+                    url: UrlService.contact()
+                  },
+                  {
+                    customComponent: (
+                      <div className="text-muted-foreground">
+                        <Separator className="my-1" />
+                        <div className="px-4 py-2 text-sm">Version {publicRuntimeConfig?.version}</div>
+                      </div>
+                    )
+                  }
+                ]
+              }
+            ]
+          } as ISidebarRoute
+        ]
+      }
+    ];
+
+    return routes;
+  }, [wallet]);
 
   const onToggleMenuClick = () => {
     onOpenMenuClick();
@@ -197,10 +316,9 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         {routeGroups.map((g, i) => (
           <SidebarGroupMenu key={i} group={g} hasDivider={g.hasDivider} isNavOpen={isNavOpen} />
         ))}
-        <Separator className="mt-2" />
       </div>
 
-      <div className="w-full">
+      <div className={cn("flex w-full flex-col items-center justify-between", { ["p-2"]: isNavOpen, ["pb-2 pt-2"]: !isNavOpen })}>
         {extraRoutes.map((g, i) => (
           <SidebarGroupMenu key={i} group={g} hasDivider={g.hasDivider} isNavOpen={isNavOpen} />
         ))}
@@ -266,8 +384,13 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
         )} */}
 
         {!smallScreen && (
-          <div className="flex items-center px-3 py-1">
-            <Button size="icon" variant="ghost" onClick={onToggleMenuClick} className="flex w-full items-center justify-start gap-2 px-2">
+          <div className="flex w-full items-center justify-center pt-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onToggleMenuClick}
+              className={cn("flex w-full items-center justify-start gap-2 px-4", { ["w-[45px] min-w-0 justify-center p-2"]: !isNavOpen })}
+            >
               {isNavOpen ? <SidebarCollapse /> : <SidebarExpand />}
               {isNavOpen && <span>Collapse</span>}
             </Button>

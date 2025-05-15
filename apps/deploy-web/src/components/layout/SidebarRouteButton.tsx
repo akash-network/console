@@ -1,7 +1,7 @@
 "use client";
 import type { ReactNode } from "react";
 import React from "react";
-import { Badge, buttonVariants } from "@akashnetwork/ui/components";
+import { Badge, buttonVariants, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -19,12 +19,12 @@ type Props = {
 
 export const SidebarRouteButton: React.FunctionComponent<Props> = ({ route, className = "", isNavOpen = true, useNextLinkTag = true }) => {
   const pathname = usePathname();
-  const isSelected = route.url === UrlService.home() ? pathname === "/" : route.activeRoutes.some(x => pathname?.startsWith(x));
+  const isSelected = route.url === UrlService.home() ? pathname === "/" : route.activeRoutes?.some(x => pathname?.startsWith(x));
 
   const linkProps: React.ComponentProps<typeof Link> & React.ComponentProps<"a"> & { "data-testid": string | undefined } = {
     target: route.target ?? "_self",
     rel: route.rel ? route.rel : "",
-    href: route.url,
+    href: route.url ?? "",
     className: cn(
       buttonVariants({ variant: isSelected ? "secondary" : "ghost", size: "sm" }),
       "flex w-full items-center justify-start text-current hover:no-underline",
@@ -51,5 +51,10 @@ export const SidebarRouteButton: React.FunctionComponent<Props> = ({ route, clas
     </>
   );
 
-  return <li className={className}>{useNextLinkTag ? <Link {...linkProps}>{innerContent}</Link> : <a {...linkProps}>{innerContent}</a>}</li>;
+  return (
+    <li className={className}>
+      {route.hasDivider && <Separator className="my-1" />}
+      {route.url && useNextLinkTag ? <Link {...linkProps}>{innerContent}</Link> : <a {...linkProps}>{innerContent}</a>}
+    </li>
+  );
 };
