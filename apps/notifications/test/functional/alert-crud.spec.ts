@@ -6,15 +6,15 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import request from "supertest";
 
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
-import { alertCreateInputSchema } from "@src/interfaces/rest/controllers/raw-alert/raw-alert.controller";
 import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
+import { chainMessageCreateInputSchema } from "@src/interfaces/rest/http-schemas/alert.http-schema";
 import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
 import RestModule from "@src/interfaces/rest/rest.module";
 import * as schema from "@src/modules/alert/model-schemas";
 
 import { generateContactPoint } from "@test/seeders/contact-point.seeder";
 
-describe("Raw Alerts CRUD", () => {
+describe("Alerts CRUD", () => {
   it("should perform all CRUD operations against raw alerts", async () => {
     const { app, userId, contactPointId } = await setup();
 
@@ -27,17 +27,18 @@ describe("Raw Alerts CRUD", () => {
   });
 
   async function shouldCreate(userId: string, contactPointId: string, app: INestApplication): Promise<string> {
-    const input = generateMock(alertCreateInputSchema);
+    const input = generateMock(chainMessageCreateInputSchema);
     input.userId = userId;
     input.contactPointId = contactPointId;
     input.enabled = true;
 
-    const res = await request(app.getHttpServer()).post("/v1/alerts/raw").send({ data: input });
+    const res = await request(app.getHttpServer()).post("/v1/alerts").send({ data: input });
 
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({
       ...input,
       id: expect.any(String),
+      status: "NORMAL",
       createdAt: expect.any(String),
       updatedAt: expect.any(String)
     });
@@ -47,23 +48,23 @@ describe("Raw Alerts CRUD", () => {
 
   async function shouldUpdate(alertId: string, app: INestApplication) {
     const res = await request(app.getHttpServer())
-      .patch(`/v1/alerts/raw/${alertId}`)
-      .send({ data: { enabled: true } });
+      .patch(`/v1/alerts/${alertId}`)
+      .send({ data: { enabled: false } });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.enabled).toBe(true);
+    expect(res.body.data.enabled).toBe(false);
   }
 
   async function shouldRead(alertId: string, app: INestApplication) {
-    const res = await request(app.getHttpServer()).get(`/v1/alerts/raw/${alertId}`);
+    const res = await request(app.getHttpServer()).get(`/v1/alerts/${alertId}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(alertId);
   }
 
   async function shouldDelete(alertId: string, app: INestApplication) {
-    const deleteRes = await request(app.getHttpServer()).delete(`/v1/alerts/raw/${alertId}`);
-    const getRes = await request(app.getHttpServer()).get(`/v1/alerts/raw/${alertId}`);
+    const deleteRes = await request(app.getHttpServer()).delete(`/v1/alerts/${alertId}`);
+    const getRes = await request(app.getHttpServer()).get(`/v1/alerts/${alertId}`);
 
     expect(deleteRes.status).toBe(200);
     expect(deleteRes.body.data.id).toBe(alertId);

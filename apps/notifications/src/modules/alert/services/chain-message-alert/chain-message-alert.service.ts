@@ -1,22 +1,22 @@
 import { Injectable } from "@nestjs/common";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
-import { AlertOutput, RawAlertRepository } from "@src/modules/alert/repositories/raw-alert/raw-alert.repository";
+import { AlertRepository, ChainMessageAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertMessageService } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { ConditionsMatcherService } from "@src/modules/alert/services/conditions-matcher/conditions-matcher.service";
 import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
 
-type AlertCallback = (alert: AlertOutput) => Promise<void> | void;
+type AlertCallback = (alert: ChainMessageAlertOutput) => Promise<void> | void;
 
 @Injectable()
-export class RawAlertsService {
+export class ChainMessageAlertService {
   constructor(
-    private readonly alertRepository: RawAlertRepository,
+    private readonly alertRepository: AlertRepository,
     private readonly conditionsMatcher: ConditionsMatcherService,
     private readonly alertMessageService: AlertMessageService,
     private readonly loggerService: LoggerService
   ) {
-    this.loggerService.setContext(RawAlertsService.name);
+    this.loggerService.setContext(ChainMessageAlertService.name);
   }
 
   async alertFor(event: object, onMessage: MessageCallback): Promise<void> {
@@ -47,8 +47,9 @@ export class RawAlertsService {
   private async forEachAlert(onAlert: AlertCallback) {
     try {
       await this.alertRepository.paginate({
+        query: { type: "CHAIN_MESSAGE" },
         limit: 10,
-        callback: async (alerts: AlertOutput[]) => {
+        callback: async alerts => {
           await Promise.all(alerts.map(async alert => onAlert(alert)));
         }
       });

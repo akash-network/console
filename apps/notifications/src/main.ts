@@ -1,21 +1,16 @@
-import '@akashnetwork/env-loader';
+import "@akashnetwork/env-loader";
 
-import { Logger } from '@src/common/providers/logger.provider';
+import { Logger } from "@src/common/providers/logger.provider";
 
 async function bootstrap() {
-  const module = process.env.INTERFACE || 'all';
+  const interfaceModule = process.env.INTERFACE || "all";
 
   try {
-    const { bootstrap } = await import(`./interfaces/${module}`);
+    const { bootstrap } = await import(`./interfaces/${interfaceModule}`);
     await bootstrap();
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes('Cannot find module')
-    ) {
-      new Logger({ context: 'BOOTSTRAP' }).error(
-        `Unsupported interface "${module}"`,
-      );
+    if (error instanceof Error && error.message.includes("Cannot find module")) {
+      new Logger({ context: "BOOTSTRAP" }).error(`Unsupported interface "${interfaceModule}"`);
       process.exit(1);
     } else {
       throw error;

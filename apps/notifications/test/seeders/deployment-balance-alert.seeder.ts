@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 
-import type { DeploymentBalanceAlertOutput } from "@src/modules/alert/repositories/deployment-balance-alert/deployment-balance-alert.repository";
+import type { DeploymentBalanceAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
 
@@ -16,14 +16,17 @@ export const generateDeploymentBalanceAlert = ({
     operator: "lt"
   },
   enabled = true,
-  status = "normal",
-  dseq = faker.string.alphanumeric(6),
-  owner = mockAkashAddress(),
+  status = "NORMAL",
+  params = {
+    dseq: faker.string.alphanumeric(6),
+    owner: mockAkashAddress()
+  },
   minBlockHeight = faker.number.int({ min: 0, max: 1000000 }),
   createdAt = faker.date.recent(),
   updatedAt = faker.date.recent()
 }: Partial<DeploymentBalanceAlertOutput>): DeploymentBalanceAlertOutput => {
   return {
+    type: "DEPLOYMENT_BALANCE",
     id,
     userId,
     contactPointId,
@@ -32,8 +35,7 @@ export const generateDeploymentBalanceAlert = ({
     conditions,
     enabled,
     status,
-    dseq,
-    owner,
+    params,
     minBlockHeight,
     createdAt,
     updatedAt

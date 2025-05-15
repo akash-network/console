@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1744291316245,
-      "tag": "0000_cultured_kingpin",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1744640958108,
-      "tag": "0001_foamy_amazoness",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1745409668188,
-      "tag": "0002_tiresome_power_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1746442125844,
-      "tag": "0003_regular_ezekiel",
+      "when": 1747225817053,
+      "tag": "0000_striped_vin_gonzales",
       "breakpoints": true
     }
   ]

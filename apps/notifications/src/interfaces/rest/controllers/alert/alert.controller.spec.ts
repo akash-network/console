@@ -5,132 +5,134 @@ import { Test } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
 import { Ok } from "ts-results";
 
-import { RawAlertRepository } from "@src/modules/alert/repositories/raw-alert/raw-alert.repository";
-import { alertCreateInputSchema, alertOutputSchema, alertPatchInputSchema, RawAlertController } from "./raw-alert.controller";
+import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+import { chainMessageCreateInputSchema } from "../../http-schemas/alert.http-schema";
+import { AlertController } from "./alert.controller";
 
 import { MockProvider } from "@test/mocks/provider.mock";
+import { generateChainMessageAlert } from "@test/seeders/chain-message-alert.seeder";
 
-describe(RawAlertController.name, () => {
+describe(AlertController.name, () => {
   describe("createAlert", () => {
     it("should call rawAlertRepository.create() and return the created alert", async () => {
-      const { controller, rawAlertRepository } = await setup();
+      const { controller, alertRepository } = await setup();
 
-      const input = generateMock(alertCreateInputSchema);
-      const output = generateMock(alertOutputSchema);
+      const input = generateMock(chainMessageCreateInputSchema);
+      const output = generateChainMessageAlert({});
 
-      rawAlertRepository.create.mockResolvedValue(output);
+      alertRepository.create.mockResolvedValue(output);
 
       const result = await controller.createAlert({ data: input });
 
-      expect(rawAlertRepository.create).toHaveBeenCalledWith(input);
+      expect(alertRepository.create).toHaveBeenCalledWith(input);
       expect(result).toEqual(Ok({ data: output }));
     });
   });
 
   describe("patchAlert", () => {
     it("should call rawAlertRepository.updateById() and return the updated alert", async () => {
-      const { controller, rawAlertRepository } = await setup();
+      const { controller, alertRepository } = await setup();
 
       const id = faker.string.uuid();
-      const input = generateMock(alertPatchInputSchema);
-      const output = generateMock(alertOutputSchema);
+      const input = generateMock(chainMessageCreateInputSchema);
+      const output = generateChainMessageAlert({});
 
-      rawAlertRepository.updateById.mockResolvedValue(output);
+      alertRepository.updateById.mockResolvedValue(output);
 
       const result = await controller.patchAlert(id, { data: input });
 
-      expect(rawAlertRepository.updateById).toHaveBeenCalledWith(id, input);
+      expect(alertRepository.updateById).toHaveBeenCalledWith(id, input);
       expect(result).toEqual(Ok({ data: output }));
     });
 
     it("should throw NotFoundException if alert is not found", async () => {
-      const { controller, rawAlertRepository } = await setup();
+      const { controller, alertRepository } = await setup();
 
       const id = faker.string.uuid();
-      const input = generateMock(alertPatchInputSchema);
+      const input = generateMock(chainMessageCreateInputSchema);
 
-      rawAlertRepository.updateById.mockResolvedValue(undefined);
+      alertRepository.updateById.mockResolvedValue(undefined);
 
       await expect(controller.patchAlert(id, { data: input })).resolves.toMatchObject({
         err: true,
         val: expect.objectContaining({ message: "Alert not found" })
       });
-      expect(rawAlertRepository.updateById).toHaveBeenCalledWith(id, input);
+      expect(alertRepository.updateById).toHaveBeenCalledWith(id, input);
     });
   });
 
   describe("getAlert", () => {
     it("should call rawAlertRepository.findOneById() and return the alert", async () => {
-      const { controller, rawAlertRepository } = await setup();
+      const { controller, alertRepository } = await setup();
 
       const id = faker.string.uuid();
-      const output = generateMock(alertOutputSchema);
+      const output = generateChainMessageAlert({});
 
-      rawAlertRepository.findOneById.mockResolvedValue(output);
+      alertRepository.findOneById.mockResolvedValue(output);
 
       const result = await controller.getAlert(id);
 
-      expect(rawAlertRepository.findOneById).toHaveBeenCalledWith(id);
+      expect(alertRepository.findOneById).toHaveBeenCalledWith(id);
       expect(result).toEqual(Ok({ data: output }));
     });
 
     it("should throw NotFoundException if alert is not found", async () => {
-      const { controller, rawAlertRepository } = await setup();
+      const { controller, alertRepository } = await setup();
 
       const id = faker.string.uuid();
 
-      rawAlertRepository.findOneById.mockResolvedValue(undefined);
+      alertRepository.findOneById.mockResolvedValue(undefined);
 
       await expect(controller.getAlert(id)).resolves.toMatchObject({
         err: true,
         val: expect.objectContaining({ message: "Alert not found" })
       });
-      expect(rawAlertRepository.findOneById).toHaveBeenCalledWith(id);
+      expect(alertRepository.findOneById).toHaveBeenCalledWith(id);
     });
   });
 
   describe("deleteAlert", () => {
     it("should call rawAlertRepository.deleteOneById() and return the deleted alert", async () => {
-      const { controller, rawAlertRepository } = await setup();
+      const { controller, alertRepository } = await setup();
 
       const id = faker.string.uuid();
-      const output = generateMock(alertOutputSchema);
+      const output = generateChainMessageAlert({});
 
-      rawAlertRepository.deleteOneById.mockResolvedValue(output);
+      alertRepository.deleteOneById.mockResolvedValue(output);
 
       const result = await controller.deleteAlert(id);
 
-      expect(rawAlertRepository.deleteOneById).toHaveBeenCalledWith(id);
+      expect(alertRepository.deleteOneById).toHaveBeenCalledWith(id);
       expect(result).toEqual(Ok({ data: output }));
     });
 
     it("should throw NotFoundException if alert is not found", async () => {
-      const { controller, rawAlertRepository } = await setup();
+      const { controller, alertRepository } = await setup();
 
       const id = faker.string.uuid();
 
-      rawAlertRepository.deleteOneById.mockResolvedValue(undefined);
+      alertRepository.deleteOneById.mockResolvedValue(undefined);
 
       await expect(controller.deleteAlert(id)).resolves.toMatchObject({
         err: true,
         val: expect.objectContaining({ message: "Alert not found" })
       });
-      expect(rawAlertRepository.deleteOneById).toHaveBeenCalledWith(id);
+      expect(alertRepository.deleteOneById).toHaveBeenCalledWith(id);
     });
   });
 
   async function setup(): Promise<{
-    controller: RawAlertController;
-    rawAlertRepository: MockProxy<RawAlertRepository>;
+    controller: AlertController;
+    alertRepository: MockProxy<AlertRepository>;
   }> {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [RawAlertController],
-      providers: [MockProvider(RawAlertRepository)]
+      controllers: [AlertController],
+      providers: [MockProvider(AlertRepository)]
     }).compile();
 
     return {
-      controller: module.get(RawAlertController),
-      rawAlertRepository: module.get(RawAlertRepository)
+      controller: module.get(AlertController),
+      alertRepository: module.get(AlertRepository)
     };
   }
 });

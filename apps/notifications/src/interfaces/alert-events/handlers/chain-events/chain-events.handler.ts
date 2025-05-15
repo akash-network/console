@@ -4,13 +4,13 @@ import { Injectable } from "@nestjs/common";
 import { BrokerService, Handler } from "@src/infrastructure/broker";
 import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created.dto";
 import { MsgCloseDeploymentDto } from "@src/modules/alert/dto/msg-close-deployment.dto";
+import { ChainMessageAlertService } from "@src/modules/alert/services/chain-message-alert/chain-message-alert.service";
 import { DeploymentBalanceAlertsService } from "@src/modules/alert/services/deployment-balance-alerts/deployment-balance-alerts.service";
-import { RawAlertsService } from "@src/modules/alert/services/raw-alerts/raw-alerts.service";
 
 @Injectable()
 export class ChainEventsHandler {
   constructor(
-    private readonly rawAlertsService: RawAlertsService,
+    private readonly chainMessageAlertService: ChainMessageAlertService,
     private readonly deploymentBalanceAlertsService: DeploymentBalanceAlertsService,
     private readonly brokerService: BrokerService
   ) {}
@@ -28,6 +28,6 @@ export class ChainEventsHandler {
     dto: MsgCloseDeploymentDto
   })
   async processDeploymentClosed(event: MsgCloseDeploymentDto) {
-    await this.rawAlertsService.alertFor(event, message => this.brokerService.publish("notifications.v1.notification.send", message));
+    await this.chainMessageAlertService.alertFor(event, message => this.brokerService.publish("notifications.v1.notification.send", message));
   }
 }

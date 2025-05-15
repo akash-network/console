@@ -5,8 +5,8 @@ import { Err, Ok } from "ts-results";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { RichError } from "@src/lib/rich-error/rich-error";
-import type { DeploymentBalanceAlertOutput } from "@src/modules/alert/repositories/deployment-balance-alert/deployment-balance-alert.repository";
-import { DeploymentBalanceAlertRepository } from "@src/modules/alert/repositories/deployment-balance-alert/deployment-balance-alert.repository";
+import type { DeploymentBalanceAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
+import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertMessageService } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { TemplateService } from "@src/modules/alert/services/template/template.service";
 import { ConditionsMatcherService } from "../conditions-matcher/conditions-matcher.service";
@@ -25,14 +25,16 @@ describe(DeploymentBalanceAlertsService.name, () => {
       const owner = mockAkashAddress();
       const dseq = faker.string.numeric(6);
       const alert = generateDeploymentBalanceAlert({
-        owner,
-        dseq,
+        params: {
+          owner,
+          dseq
+        },
         conditions: { field: "balance", value: 10000000, operator: "lt" },
         minBlockHeight: 1000
       });
       const alerts: DeploymentBalanceAlertOutput[] = [alert];
       alertRepository.paginate.mockImplementation(async options => {
-        options.callback(alerts);
+        await options.callback(alerts as any);
       });
       const balance = { balance: 9000000 };
       deploymentService.getDeploymentBalance.mockResolvedValue(Ok(balance));
@@ -52,7 +54,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
       expect(alertRepository.updateById).toHaveBeenCalledWith(alert.id, {
         minBlockHeight: 1010,
-        status: "firing"
+        status: "FIRING"
       });
     });
 
@@ -61,15 +63,17 @@ describe(DeploymentBalanceAlertsService.name, () => {
       const owner = mockAkashAddress();
       const dseq = faker.string.numeric(6);
       const alert = generateDeploymentBalanceAlert({
-        owner,
-        dseq,
+        params: {
+          owner,
+          dseq
+        },
         conditions: { field: "balance", value: 10000000, operator: "lt" },
         minBlockHeight: 1000,
-        status: "firing"
+        status: "FIRING"
       });
       const alerts: DeploymentBalanceAlertOutput[] = [alert];
       alertRepository.paginate.mockImplementation(async options => {
-        options.callback(alerts);
+        await options.callback(alerts as any);
       });
 
       const balance = { balance: 11000000 };
@@ -90,7 +94,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
       expect(alertRepository.updateById).toHaveBeenCalledWith(alert.id, {
         minBlockHeight: 1010,
-        status: "normal"
+        status: "NORMAL"
       });
     });
 
@@ -99,15 +103,17 @@ describe(DeploymentBalanceAlertsService.name, () => {
       const owner = mockAkashAddress();
       const dseq = faker.string.numeric(6);
       const alert = generateDeploymentBalanceAlert({
-        owner,
-        dseq,
+        params: {
+          owner,
+          dseq
+        },
         conditions: { field: "balance", value: 10000000, operator: "lt" },
         minBlockHeight: 1000,
-        status: "firing"
+        status: "FIRING"
       });
       const alerts: DeploymentBalanceAlertOutput[] = [alert];
       alertRepository.paginate.mockImplementation(async options => {
-        options.callback(alerts);
+        await options.callback(alerts as any);
       });
 
       const balance = { balance: 9000000 };
@@ -128,12 +134,14 @@ describe(DeploymentBalanceAlertsService.name, () => {
       const owner = mockAkashAddress();
       const dseq = faker.string.numeric(6);
       const alert = generateDeploymentBalanceAlert({
-        owner,
-        dseq
+        params: {
+          owner,
+          dseq
+        }
       });
       const alerts: DeploymentBalanceAlertOutput[] = [alert];
       alertRepository.paginate.mockImplementation(async options => {
-        options.callback(alerts);
+        await options.callback(alerts as any);
       });
 
       deploymentService.getDeploymentBalance.mockResolvedValue(Err(new RichError("Deployment closed", "DEPLOYMENT_CLOSED")));
@@ -180,7 +188,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
       const alert = generateDeploymentBalanceAlert({});
       const alerts: DeploymentBalanceAlertOutput[] = [alert];
       alertRepository.paginate.mockImplementation(async options => {
-        options.callback(alerts);
+        await options.callback(alerts as any);
       });
       const error = new Error("test");
       deploymentService.getDeploymentBalance.mockRejectedValue(error);
@@ -201,7 +209,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
   async function setup(): Promise<{
     service: DeploymentBalanceAlertsService;
     loggerService: MockProxy<LoggerService>;
-    alertRepository: MockProxy<DeploymentBalanceAlertRepository>;
+    alertRepository: MockProxy<AlertRepository>;
     conditionsMatcherService: ConditionsMatcherService;
     alertMessageService: MockProxy<AlertMessageService>;
     deploymentService: MockProxy<DeploymentService>;
@@ -212,7 +220,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
         DeploymentBalanceAlertsService,
         ConditionsMatcherService,
         TemplateService,
-        MockProvider(DeploymentBalanceAlertRepository),
+        MockProvider(AlertRepository),
         MockProvider(AlertMessageService),
         MockProvider(DeploymentService),
         MockProvider(LoggerService)
@@ -223,7 +231,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
     return {
       service: module.get<DeploymentBalanceAlertsService>(DeploymentBalanceAlertsService),
       loggerService: module.get<MockProxy<LoggerService>>(LoggerService),
-      alertRepository: module.get<MockProxy<DeploymentBalanceAlertRepository>>(DeploymentBalanceAlertRepository),
+      alertRepository: module.get<MockProxy<AlertRepository>>(AlertRepository),
       conditionsMatcherService: module.get<ConditionsMatcherService>(ConditionsMatcherService),
       alertMessageService: module.get<MockProxy<AlertMessageService>>(AlertMessageService),
       deploymentService: module.get<MockProxy<DeploymentService>>(DeploymentService),
