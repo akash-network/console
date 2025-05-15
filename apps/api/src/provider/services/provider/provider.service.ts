@@ -2,6 +2,8 @@ import { Provider, ProviderAttribute, ProviderAttributeSignature, ProviderSnapsh
 import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
 import { ProviderHttpService } from "@akashnetwork/http-sdk";
 import { SupportedChainNetworks } from "@akashnetwork/net";
+import { add } from "date-fns";
+import { Op } from "sequelize";
 import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
@@ -10,8 +12,10 @@ import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
 import { ProviderIdentity } from "@src/provider/services/provider/provider-proxy.service";
-import { getAuditors, getProviderAttributesSchema } from "@src/services/external/githubService";
+import { toUTC } from "@src/utils";
 import { mapProviderToList } from "@src/utils/map/provider";
+import { AuditorService } from "../auditors/auditors.service";
+import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
 
 @singleton()
 export class ProviderService {
@@ -22,6 +26,8 @@ export class ProviderService {
   constructor(
     private readonly providerProxy: ProviderProxyService,
     private readonly providerHttpService: ProviderHttpService,
+    private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
+    private readonly auditorsService: AuditorService,
     @InjectBillingConfig() private readonly config: BillingConfig
   ) {
     this.chainNetwork = this.config.NETWORK as SupportedChainNetworks;
@@ -140,13 +146,80 @@ export class ProviderService {
       ]
     });
 
-    const distinctProviders = providersWithAttributesAndAuditors.filter((value, index, self) => self.map(x => x.hostUri).lastIndexOf(value.hostUri) === index);
+    const distinctProviders = Object.values(
+      providersWithAttributesAndAuditors.reduce((acc: Record<string, Provider>, provider: Provider) => {
+        acc[provider.hostUri] = provider;
+        return acc;
+      }, {})
+    );
 
-    const [auditors, providerAttributeSchema] = await Promise.all([getAuditors(), getProviderAttributesSchema()]);
+    const [auditors, providerAttributeSchema] = await Promise.all([
+      this.auditorsService.getAuditors(),
+      this.providerAttributesSchemaService.getProviderAttributesSchema()
+    ]);
 
     return distinctProviders.map(x => {
       const lastSuccessfulSnapshot = providerWithNodes.find(p => p.owner === x.owner)?.lastSuccessfulSnapshot;
       return mapProviderToList(x, providerAttributeSchema, auditors, lastSuccessfulSnapshot);
     });
+  }
+
+  async getProvider(address: string) {
+    const nowUtc = toUTC(new Date());
+    const provider = await Provider.findOne({
+      where: {
+        deletedHeight: null,
+        owner: address
+      },
+      include: [
+        {
+          model: ProviderAttribute
+        },
+        {
+          model: ProviderAttributeSignature
+        }
+      ]
+    });
+
+    if (!provider) return null;
+
+    const uptimeSnapshots = await ProviderSnapshot.findAll({
+      attributes: ["isOnline", "id", "checkDate"],
+      where: {
+        owner: provider.owner,
+        checkDate: {
+          [Op.gte]: add(nowUtc, { days: -1 })
+        }
+      }
+    });
+
+    const lastSuccessfulSnapshot = provider.lastSuccessfulSnapshotId
+      ? await ProviderSnapshot.findOne({
+          where: {
+            id: provider.lastSuccessfulSnapshotId
+          },
+          order: [["checkDate", "DESC"]],
+          include: [
+            {
+              model: ProviderSnapshotNode,
+              include: [{ model: ProviderSnapshotNodeGPU }]
+            }
+          ]
+        })
+      : null;
+
+    const [auditors, providerAttributeSchema] = await Promise.all([
+      this.auditorsService.getAuditors(),
+      this.providerAttributesSchemaService.getProviderAttributesSchema()
+    ]);
+
+    return {
+      ...mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot),
+      uptime: uptimeSnapshots.map(ps => ({
+        id: ps.id,
+        isOnline: ps.isOnline,
+        checkDate: ps.checkDate
+      }))
+    };
   }
 }

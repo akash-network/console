@@ -130,6 +130,23 @@ describe("Providers", () => {
     });
   });
 
+  describe("GET /v1/providers/:address", () => {
+    it("returns a provider by address", async () => {
+      const response = await app.request(`/v1/providers/${providers[0].owner}`);
+
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.owner).toEqual(providers[0].owner);
+    });
+
+    it("returns a 404 when provider is not found", async () => {
+      const response = await app.request(`/v1/providers/not-found`);
+
+      expect(response.status).toBe(404);
+    });
+  });
+
   describe("GET /v1/providers/{providerAddress}/active-leases-graph-data", () => {
     it("returns the active leases graph data for a provider", async () => {
       const providerAddress = "akash18ga02jzaq8cw52anyhzkwta5wygufgu6zsz6xc";
