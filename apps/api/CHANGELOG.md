@@ -1,5 +1,13 @@
 
 
+## [2.90.1](https://github.com/akash-network/console/compare/console-api/v2.90.0...console-api/v2.90.1) (2025-05-15)
+
+
+### Code Refactoring
+
+* move provider endpoints to modules ([#1309](https://github.com/akash-network/console/issues/1309)) ([6c5a434](https://github.com/akash-network/console/commit/6c5a4343c50b49b35833cfbce810a65ae3c75ed7)), closes [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272)
+* **notifications:** implement modular configuration architecture ([ead91e4](https://github.com/akash-network/console/commit/ead91e4fdc04a799b32f0d9725bcb62fbaeeb8fd))
+
 ## [2.90.0](https://github.com/akash-network/console/compare/console-api/v2.89.0...console-api/v2.90.0) (2025-05-12)
 
 
