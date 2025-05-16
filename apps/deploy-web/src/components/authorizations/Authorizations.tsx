@@ -1,15 +1,18 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Button, Popup, Spinner, Table, TableBody, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
-import { Bank } from "iconoir-react";
+import React from "react";
+import { Button, Input, Popup, Spinner, Table, TableBody, TableHead, TableHeader, TableRow, useDebounce } from "@akashnetwork/ui/components";
+import { Bank, Refresh, Xmark } from "iconoir-react";
 import { NextSeo } from "next-seo";
 
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllowance } from "@src/hooks/useAllowance";
+import { useExactDeploymentGrantsQuery } from "@src/queries/useExactDeploymentGrantsQuery";
 import { useAllowancesIssued, useGranteeGrants, useGranterGrants } from "@src/queries/useGrantsQuery";
-import type { AllowanceType, GrantType } from "@src/types/grant";
+import type { AllowanceType, GrantType, PaginatedAllowanceType, PaginatedGrantType } from "@src/types/grant";
+import { isValidBech32Address } from "@src/utils/address";
 import { averageBlockTime } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import Layout from "../layout/Layout";
@@ -32,7 +35,15 @@ const MASTER_WALLETS = new Set([
   browserEnvConfig.NEXT_PUBLIC_UAKT_TOP_UP_MASTER_WALLET_ADDRESS
 ]);
 
-const selectNonMaster = <T extends GrantType | AllowanceType>(records: T[]) => records.filter(({ grantee }) => !MASTER_WALLETS.has(grantee));
+const selectNonMasterGrants = (data: PaginatedGrantType) => ({
+  ...data,
+  grants: data.grants.filter(({ grantee }) => !MASTER_WALLETS.has(grantee))
+});
+
+const selectNonMasterAllowances = (data: PaginatedAllowanceType) => ({
+  ...data,
+  allowances: data.allowances.filter(({ grantee }) => !MASTER_WALLETS.has(grantee))
+});
 
 export const Authorizations: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx, isManaged } = useWallet();
@@ -48,17 +59,39 @@ export const Authorizations: React.FunctionComponent = () => {
   const [isRefreshing, setIsRefreshing] = useState<RefreshingType>(null);
   const [selectedGrants, setSelectedGrants] = useState<GrantType[]>([]);
   const [selectedAllowances, setSelectedAllowances] = useState<AllowanceType[]>([]);
-  const { data: granterGrants, isLoading: isLoadingGranterGrants } = useGranterGrants(address, {
+  const [searchGrantee, setSearchGrantee] = useState("");
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [pageIndex, setPageIndex] = useState({ deployment: 0, fee: 0 });
+  const [pageSize, setPageSize] = useState({ deployment: 10, fee: 10 });
+  const debouncedSearchGrantee = useDebounce(searchGrantee, 500);
+  const { data: granterGrants, isLoading: isLoadingGranterGrants } = useGranterGrants(address, pageIndex.deployment, pageSize.deployment, {
     refetchInterval: isRefreshing === "granterGrants" ? refreshingInterval : defaultRefetchInterval,
-    select: selectNonMaster
+    select: selectNonMasterGrants,
+    enabled: !debouncedSearchGrantee
   });
   const { data: granteeGrants, isLoading: isLoadingGranteeGrants } = useGranteeGrants(address, {
     refetchInterval: isRefreshing === "granteeGrants" ? refreshingInterval : defaultRefetchInterval
   });
-  const { data: allowancesIssued, isLoading: isLoadingAllowancesIssued } = useAllowancesIssued(address, {
+  const { data: allowancesIssued, isLoading: isLoadingAllowancesIssued } = useAllowancesIssued(address, pageIndex.fee, pageSize.fee, {
     refetchInterval: isRefreshing === "allowancesIssued" ? refreshingInterval : defaultRefetchInterval,
-    select: selectNonMaster
+    select: selectNonMasterAllowances
   });
+  const {
+    data: specificGranteeGrants,
+    isLoading: isLoadingGranterGranteeGrants,
+    refetch: refetchGranterGranteeGrants
+  } = useExactDeploymentGrantsQuery(address, searchGrantee, {
+    enabled: false
+  });
+  const filteredGranterGrants =
+    !!debouncedSearchGrantee && !!specificGranteeGrants ? { grants: [specificGranteeGrants], pagination: { total: 1 } } : granterGrants;
+  const isLoading =
+    !!isRefreshing ||
+    isLoadingAllowancesIssued ||
+    isLoadingAllowancesGranted ||
+    isLoadingGranteeGrants ||
+    isLoadingGranterGrants ||
+    isLoadingGranterGranteeGrants;
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
@@ -74,6 +107,12 @@ export const Authorizations: React.FunctionComponent = () => {
       }
     };
   }, [isRefreshing]);
+
+  useEffect(() => {
+    if (debouncedSearchGrantee && !searchError) {
+      refetchGranterGranteeGrants();
+    }
+  }, [debouncedSearchGrantee, searchError, refetchGranterGranteeGrants]);
 
   async function onDeleteGrantsConfirmed() {
     if (!deletingGrants) return;
@@ -131,8 +170,41 @@ export const Authorizations: React.FunctionComponent = () => {
     setShowAllowanceModal(true);
   }
 
+  function onSearchGranteeChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value?.trim();
+    setSearchGrantee(value);
+
+    if (!value) {
+      setSearchError(null);
+      return;
+    }
+
+    if (!isValidBech32Address(value, "akash")) {
+      setSearchError("Invalid Akash address");
+      return;
+    }
+
+    setSearchError(null);
+  }
+
+  function onAllowancePageChange(newPageIndex: number, newPageSize: number) {
+    setPageIndex(prev => ({ ...prev, fee: newPageIndex }));
+    setPageSize(prev => ({ ...prev, fee: newPageSize }));
+  }
+
+  function onDeploymentPageChange(newPageIndex: number, newPageSize: number) {
+    setPageIndex(prev => ({ ...prev, deployment: newPageIndex }));
+    setPageSize(prev => ({ ...prev, deployment: newPageSize }));
+  }
+
+  function onRefreshSearchClick() {
+    if (!searchError && debouncedSearchGrantee) {
+      refetchGranterGranteeGrants();
+    }
+  }
+
   return (
-    <Layout isLoading={!!isRefreshing || isLoadingAllowancesIssued || isLoadingAllowancesGranted || isLoadingGranteeGrants || isLoadingGranterGrants}>
+    <Layout isLoading={isLoading}>
       <NextSeo title="Settings Authorizations" />
 
       <SettingsLayout
@@ -162,22 +234,51 @@ export const Authorizations: React.FunctionComponent = () => {
               authorizations at any time.
             </h3>
             <Fieldset label="Authorizations Given" className="mb-4">
-              {isLoadingGranterGrants || !granterGrants ? (
+              <div className="mb-4 flex items-center gap-2">
+                <Input
+                  type="text"
+                  placeholder="Search by grantee address..."
+                  value={searchGrantee}
+                  onChange={onSearchGranteeChange}
+                  className="max-w-md flex-grow"
+                  error={!!searchError}
+                  endIcon={
+                    <Button
+                      variant="text"
+                      size="icon"
+                      onClick={() => {
+                        setSearchGrantee("");
+                        setSearchError(null);
+                      }}
+                    >
+                      <Xmark />
+                    </Button>
+                  }
+                />
+                <Button variant="ghost" size="icon" className="rounded-full" onClick={onRefreshSearchClick}>
+                  <Refresh className="text-xs" />
+                </Button>
+              </div>
+              {isLoadingGranterGrants || !filteredGranterGrants ? (
                 <div className="flex items-center justify-center">
                   <Spinner size="large" />
                 </div>
               ) : (
                 <>
-                  {granterGrants.length > 0 ? (
+                  {filteredGranterGrants?.grants?.length > 0 ? (
                     <DeploymentGrantTable
-                      grants={granterGrants}
+                      grants={filteredGranterGrants.grants}
+                      totalCount={filteredGranterGrants?.pagination?.total || 0}
                       selectedGrants={selectedGrants}
                       onEditGrant={onEditGrant}
+                      onPageChange={onDeploymentPageChange}
                       setDeletingGrants={setDeletingGrants}
                       setSelectedGrants={setSelectedGrants}
                     />
                   ) : (
-                    <p className="text-sm text-muted-foreground">No authorizations given.</p>
+                    <p className="text-sm text-muted-foreground">
+                      {searchGrantee ? (searchError ? "Please enter a valid Akash address" : "No matching authorizations found.") : "No authorizations given."}
+                    </p>
                   )}
                 </>
               )}
@@ -245,13 +346,17 @@ export const Authorizations: React.FunctionComponent = () => {
                 </div>
               ) : (
                 <>
-                  {allowancesIssued.length > 0 ? (
+                  {allowancesIssued.allowances.length > 0 ? (
                     <FeeGrantTable
-                      allowances={allowancesIssued}
+                      allowances={allowancesIssued.allowances}
                       selectedAllowances={selectedAllowances}
                       onEditAllowance={onEditAllowance}
                       setDeletingAllowances={setDeletingAllowances}
                       setSelectedAllowances={setSelectedAllowances}
+                      pageIndex={pageIndex.fee}
+                      pageSize={pageSize.fee}
+                      onPageChange={onAllowancePageChange}
+                      totalCount={allowancesIssued.pagination?.total || 0}
                     />
                   ) : (
                     <p className="text-sm text-muted-foreground">No allowances issued.</p>

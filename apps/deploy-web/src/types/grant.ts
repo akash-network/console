@@ -23,3 +23,19 @@ export type AllowanceType = {
     }[];
   };
 };
+
+export type PaginatedAllowanceType = {
+  allowances: AllowanceType[];
+  pagination?: {
+    next_key: string | null;
+    total: number;
+  };
+};
+
+export type PaginatedGrantType = {
+  grants: GrantType[];
+  pagination?: {
+    next_key: string | null;
+    total: number;
+  };
+};

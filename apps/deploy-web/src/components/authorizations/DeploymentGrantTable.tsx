@@ -1,5 +1,4 @@
 import type { Dispatch, SetStateAction } from "react";
-import { useMemo } from "react";
 import React from "react";
 import { FormattedTime } from "react-intl";
 import { LoggerService } from "@akashnetwork/logging";
@@ -27,14 +26,24 @@ import { LinkTo } from "../shared/LinkTo";
 interface Props {
   grants: GrantType[];
   selectedGrants: GrantType[];
+  totalCount: number;
   onEditGrant: (grant: GrantType) => void;
   setDeletingGrants: Dispatch<SetStateAction<GrantType[] | null>>;
   setSelectedGrants: Dispatch<SetStateAction<GrantType[]>>;
+  onPageChange: (pageIndex: number, pageSize: number) => void;
 }
 
 const logger = LoggerService.forContext("DeploymentGrantTable");
 
-export const DeploymentGrantTable: React.FC<Props> = ({ grants, onEditGrant, setDeletingGrants, setSelectedGrants, selectedGrants }) => {
+export const DeploymentGrantTable: React.FC<Props> = ({
+  grants,
+  totalCount,
+  onEditGrant,
+  onPageChange,
+  setDeletingGrants,
+  setSelectedGrants,
+  selectedGrants
+}) => {
   const selectGrants = (checked: boolean, grant: GrantType) => {
     setSelectedGrants(prev => {
       return checked ? prev.concat([grant]) : prev.filter(x => x.grantee !== grant.grantee);
@@ -77,7 +86,7 @@ export const DeploymentGrantTable: React.FC<Props> = ({ grants, onEditGrant, set
     columnHelper.display({
       id: "actions",
       header: () => (
-        <div className="w-1/4 text-center">
+        <div>
           {selectedGrants.length > 0 && (
             <div className="flex items-center justify-end space-x-4">
               <LinkTo onClick={() => setSelectedGrants([])} className="text-xs">
@@ -133,10 +142,14 @@ export const DeploymentGrantTable: React.FC<Props> = ({ grants, onEditGrant, set
     data: grants,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel()
+    getPaginationRowModel: getPaginationRowModel(),
+    onPaginationChange: updaterOrValue => {
+      const pagination = typeof updaterOrValue === "function" ? updaterOrValue(table.getState().pagination) : updaterOrValue;
+      onPageChange(pagination.pageIndex, pagination.pageSize);
+    }
   });
   const pagination = table.getState().pagination;
-  const pageCount = useMemo(() => Math.ceil(grants.length / pagination.pageSize), [grants.length, pagination.pageSize]);
+  const pageCount = Math.ceil(totalCount / pagination.pageSize);
 
   return (
     <div>
@@ -155,7 +168,7 @@ export const DeploymentGrantTable: React.FC<Props> = ({ grants, onEditGrant, set
 
         <TableBody>
           {table.getRowModel().rows.map(row => (
-            <TableRow key={row.id}>
+            <TableRow key={row.id} className="[&>td]:px-2 [&>td]:py-1">
               {row.getVisibleCells().map(cell => (
                 <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
               ))}
@@ -164,7 +177,7 @@ export const DeploymentGrantTable: React.FC<Props> = ({ grants, onEditGrant, set
         </TableBody>
       </Table>
 
-      {(grants?.length || 0) > MIN_PAGE_SIZE && (
+      {pageCount > MIN_PAGE_SIZE && (
         <div className="flex items-center justify-center pt-6">
           <CustomPagination
             totalPageCount={pageCount}
