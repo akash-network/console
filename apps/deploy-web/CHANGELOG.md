@@ -1,5 +1,12 @@
 
 
+## [2.73.2](https://github.com/akash-network/console/compare/console-web/v2.73.1...console-web/v2.73.2) (2025-05-16)
+
+
+### Code Refactoring
+
+* fetches turnstile sitekey from api ([#1318](https://github.com/akash-network/console/issues/1318)) ([eff83d0](https://github.com/akash-network/console/commit/eff83d0bca34c386658f93d01ded072f663aac08))
+
 ## [2.73.1](https://github.com/akash-network/console/compare/console-web/v2.73.0...console-web/v2.73.1) (2025-05-15)
 
 

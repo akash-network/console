@@ -1,5 +1,13 @@
 
 
+## [2.90.2](https://github.com/akash-network/console/compare/console-api/v2.90.1...console-api/v2.90.2) (2025-05-16)
+
+
+### Code Refactoring
+
+* move /v1/provider-versions to modules ([#1317](https://github.com/akash-network/console/issues/1317)) ([162f732](https://github.com/akash-network/console/commit/162f732f78fd73459e2a34e14d701109dc2b49f4)), closes [#1272](https://github.com/akash-network/console/issues/1272)
+* move provider dashboard to modules ([#1315](https://github.com/akash-network/console/issues/1315)) ([841fdb8](https://github.com/akash-network/console/commit/841fdb8683d748a824a500eedb5b1908d1ebddac)), closes [#1272](https://github.com/akash-network/console/issues/1272)
+
 ## [2.90.1](https://github.com/akash-network/console/compare/console-api/v2.90.0...console-api/v2.90.1) (2025-05-15)
 
 
