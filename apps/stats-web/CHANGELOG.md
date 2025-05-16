@@ -1,5 +1,12 @@
 
 
+## [0.23.0](https://github.com/akash-network/console/compare/stats-web/v0.22.6...stats-web/v0.23.0) (2025-05-16)
+
+
+### Features
+
+* jwt provider schema ([#1312](https://github.com/akash-network/console/issues/1312)) ([379a2d3](https://github.com/akash-network/console/commit/379a2d3ceb519e8b49c75373b8aa7a4a735bf599))
+
 ## [0.22.6](https://github.com/akash-network/console/compare/stats-web/v0.22.5...stats-web/v0.22.6) (2025-05-15)
 
 
