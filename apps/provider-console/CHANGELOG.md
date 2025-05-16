@@ -1,5 +1,12 @@
 
 
+## [1.10.0](https://github.com/akash-network/console/compare/provider-console/v1.9.7...provider-console/v1.10.0) (2025-05-16)
+
+
+### Features
+
+* jwt provider schema ([#1312](https://github.com/akash-network/console/issues/1312)) ([379a2d3](https://github.com/akash-network/console/commit/379a2d3ceb519e8b49c75373b8aa7a4a735bf599))
+
 ## [1.9.7](https://github.com/akash-network/console/compare/provider-console/v1.9.6...provider-console/v1.9.7) (2025-05-12)
 
 

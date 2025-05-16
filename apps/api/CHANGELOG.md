@@ -1,5 +1,13 @@
 
 
+## [2.91.0](https://github.com/akash-network/console/compare/console-api/v2.90.2...console-api/v2.91.0) (2025-05-16)
+
+
+### Features
+
+* jwt provider schema ([#1312](https://github.com/akash-network/console/issues/1312)) ([379a2d3](https://github.com/akash-network/console/commit/379a2d3ceb519e8b49c75373b8aa7a4a735bf599))
+* **wallet:** authz manager improve ([#1321](https://github.com/akash-network/console/issues/1321)) ([5d2d726](https://github.com/akash-network/console/commit/5d2d7262a931a3f2cc962a36c2b644258d025d5a))
+
 ## [2.90.2](https://github.com/akash-network/console/compare/console-api/v2.90.1...console-api/v2.90.2) (2025-05-16)
 
 
