@@ -1,0 +1,54 @@
+import "@akashnetwork/env-loader";
+
+import type { INestApplication, Type } from "@nestjs/common";
+import { NestFactory } from "@nestjs/core";
+
+import { LoggerService } from "@src/common/services/logger/logger.service";
+import { ShutdownService } from "@src/common/services/shutdown/shutdown.service";
+import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
+import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
+
+export class Bootstrapper {
+  private app!: INestApplication;
+
+  constructor(
+    private readonly module: Type<any>,
+    private readonly loggerService: LoggerService = new LoggerService(),
+    private nestFactory: typeof NestFactory = NestFactory
+  ) {
+    loggerService.setContext(Bootstrapper.name);
+  }
+
+  async createApp() {
+    this.app = await this.nestFactory.create(this.module, { logger: this.loggerService });
+    this.app.enableShutdownHooks();
+    const shutdownService = await this.app.resolve(ShutdownService);
+    shutdownService.onShutdown(() => this.app.close());
+
+    return this.app;
+  }
+
+  async startWorker() {
+    this.assertApp();
+    await this.app.init();
+  }
+
+  async startHttp(port = process.env.PORT ?? 3000) {
+    this.assertApp();
+    this.app.enableVersioning();
+    this.app.useGlobalInterceptors(new HttpResultInterceptor());
+    this.app.useGlobalFilters(new HttpExceptionFilter(await this.app.resolve(LoggerService)));
+    this.app.enableCors();
+
+    await this.startWorker();
+    await this.app.listen(port);
+
+    this.loggerService.log(`Server started on port ${port}`);
+  }
+
+  private assertApp() {
+    if (!this.app) {
+      throw new Error("App not initialised");
+    }
+  }
+}

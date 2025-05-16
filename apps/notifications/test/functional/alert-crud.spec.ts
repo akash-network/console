@@ -5,6 +5,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import request from "supertest";
 
+import { LoggerService } from "@src/common/services/logger/logger.service";
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
 import { chainMessageCreateInputSchema } from "@src/interfaces/rest/http-schemas/alert.http-schema";
@@ -89,7 +90,7 @@ describe("Alerts CRUD", () => {
     const app = module.createNestApplication();
     app.enableVersioning();
     app.useGlobalInterceptors(new HttpResultInterceptor());
-    app.useGlobalFilters(new HttpExceptionFilter());
+    app.useGlobalFilters(new HttpExceptionFilter(await app.resolve(LoggerService)));
 
     await app.init();
 

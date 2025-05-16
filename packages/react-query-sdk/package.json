@@ -1,0 +1,20 @@
+{
+  "name": "@akashnetwork/react-query-sdk",
+  "version": "1.0.0",
+  "description": "Package containing code generated react queries for Akash Network",
+  "keywords": [],
+  "license": "Apache-2.0",
+  "author": "",
+  "exports": {
+    "./notifications": "./src/notifications/index.ts"
+  },
+  "main": "src/index.ts",
+  "scripts": {
+    "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
+    "lint": "eslint .",
+    "validate:types": "tsc --noEmit && echo"
+  },
+  "dependencies": {
+    "@openapi-qraft/react": "^2.5.0"
+  }
+}

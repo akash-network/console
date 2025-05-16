@@ -10,7 +10,7 @@ export const ContactPoint = pgTable("contact_points", {
     .primaryKey()
     .notNull()
     .default(sql`uuid_generate_v4()`),
-  userId: uuid("user_id").notNull().unique(),
+  userId: uuid("user_id").notNull(),
   type: ContactPointType("type").notNull(),
   config: jsonb("config").notNull(),
 

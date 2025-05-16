@@ -1,16 +1,17 @@
 import { faker } from "@faker-js/faker";
-import { Controller, INestApplication, Module, Post } from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
+import { Body, Controller, INestApplication, Module, Post, Query } from "@nestjs/common";
+import { APP_INTERCEPTOR, Reflector } from "@nestjs/core";
 import { Test, TestingModule } from "@nestjs/testing";
 import { MockProxy } from "jest-mock-extended";
+import { createZodDto, ZodSerializerInterceptor } from "nestjs-zod";
 import request from "supertest";
 import { Ok } from "ts-results";
 import { z } from "zod";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
+import { ValidateHttp } from "@src/interfaces/rest/decorators/http-validate/http-validate.decorator";
 import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
 import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
-import { HttpValidateInterceptor, ValidateHttp } from "@src/interfaces/rest/interceptors/http-validate/http-validate.interceptor";
 
 import { MockProvider } from "@test/mocks/provider.mock";
 
@@ -33,7 +34,7 @@ describe("HTTP Tools", () => {
       const res = await request(app.getHttpServer()).post("/test/validate").query({ bar: faker.lorem.word() }).send({ bar: 123 });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe("Invalid body");
+      expect(res.body.message).toBe("Validation failed");
     });
 
     it("should fail with invalid query", async () => {
@@ -42,7 +43,7 @@ describe("HTTP Tools", () => {
       const res = await request(app.getHttpServer()).post("/test/validate").query({ bar: "f" }).send({ foo: faker.lorem.word() });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe("Invalid query");
+      expect(res.body.message).toBe("Validation failed");
     });
 
     it("should return 500 on invalid response schema", async () => {
@@ -62,36 +63,34 @@ describe("HTTP Tools", () => {
     app: INestApplication;
     logger: MockProxy<LoggerService>;
   }> {
-    const bodySchema = z.object({ foo: z.string() });
-    const querySchema = z.object({ bar: z.string().min(3) });
-    const responseSchema = z.object({ baz: z.number() });
+    class BodyDto extends createZodDto(z.object({ foo: z.string() })) {}
+    class QueryDto extends createZodDto(z.object({ bar: z.string().min(3) })) {}
+    class ResponseDto extends createZodDto(z.object({ baz: z.number() })) {}
 
     @Controller("test")
     class TestController {
       @Post("validate")
       @ValidateHttp({
-        body: bodySchema,
-        query: querySchema,
-        response: responseSchema
+        response: ResponseDto
       })
-      validate() {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      validate(@Query() query: QueryDto, @Body() body: BodyDto) {
         return Ok({ baz: 123 });
       }
 
       @Post("bad-response")
       @ValidateHttp({
-        body: bodySchema,
-        query: querySchema,
-        response: responseSchema
+        response: ResponseDto
       })
-      badResponse() {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      badResponse(@Query() query: QueryDto, @Body() body: BodyDto) {
         return Ok({ baz: "wrong" });
       }
     }
 
     @Module({
       controllers: [TestController],
-      providers: [Reflector, HttpValidateInterceptor, MockProvider(LoggerService)]
+      providers: [Reflector, MockProvider(LoggerService), { provide: APP_INTERCEPTOR, useClass: ZodSerializerInterceptor }]
     })
     class TestModule {}
 
@@ -100,12 +99,12 @@ describe("HTTP Tools", () => {
     }).compile();
 
     const app = module.createNestApplication();
+    const logger = app.get<MockProxy<LoggerService>>(LoggerService);
+
     app.useGlobalInterceptors(new HttpResultInterceptor());
-    app.useGlobalFilters(new HttpExceptionFilter());
+    app.useGlobalFilters(new HttpExceptionFilter(logger));
 
     await app.init();
-
-    const logger = app.get<MockProxy<LoggerService>>(LoggerService);
 
     return { app, logger };
   }
