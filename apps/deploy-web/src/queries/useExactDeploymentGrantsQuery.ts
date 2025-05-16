@@ -7,7 +7,10 @@ export function useExactDeploymentGrantsQuery(granter: string, grantee: string, 
   const allowanceHttpService = useAuthZService();
   return useQuery({
     queryKey: QueryKeys.getDeploymentGrantsKey(granter, grantee),
-    queryFn: () => allowanceHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(granter, grantee),
+    queryFn: async () => {
+      const grant = await allowanceHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(granter, grantee);
+      return grant ? { ...grant, granter, grantee } : null;
+    },
     enabled
   });
 }

@@ -62,7 +62,7 @@ export const useAutoTopUpLimits = () => {
   };
 };
 
-function extractDeploymentLimit(deploymentGrant?: ExactDepositDeploymentGrant) {
+function extractDeploymentLimit(deploymentGrant?: (ExactDepositDeploymentGrant & { granter: string; grantee: string }) | null) {
   if (!deploymentGrant) {
     return undefined;
   }
