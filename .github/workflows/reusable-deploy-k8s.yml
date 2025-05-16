@@ -104,7 +104,7 @@ jobs:
         run: |
           echo "$KUBECONFIG" > kubeconfig
 
-          release_name=${{ inputs.app }}
+          release_name="${{ inputs.app }}"
 
           values_file_path=".helm/${{ inputs.app }}-${{ inputs.environment }}"
 
@@ -119,9 +119,10 @@ jobs:
             values_file_arg="--values $values_file_path"
           fi
 
-          chart_name=akash/${{ inputs.app }}
+          chart_name="akash/${{ inputs.app }}"
 
           helm repo add akash https://akash-network.github.io/helm-charts
 
           echo "executing: helm upgrade $release_name $chart_name --install --atomic -n ${{ inputs.environment }} --set appVersion=${{ inputs.appVersion }} --debug --kubeconfig kubeconfig $values_file_arg"
-          helm upgrade $release_name $chart_name --install --atomic -n ${{ inputs.environment }} --set appVersion=${{ inputs.appVersion }} --debug --kubeconfig kubeconfig $values_file_arg
+          # shellcheck disable=SC2086
+          helm upgrade "$release_name" "$chart_name" --install --atomic -n "${{ inputs.environment }}" --set "appVersion=${{ inputs.appVersion }}" --debug --kubeconfig kubeconfig $values_file_arg

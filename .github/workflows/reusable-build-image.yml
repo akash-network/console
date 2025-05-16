@@ -59,25 +59,24 @@ jobs:
       - name: Determine registry and app
         id: determine
         run: |
-          tag=${{ inputs.tag }}
-          force_build=""
+          tag="${{ inputs.tag }}"
 
           if [[ "$tag" == console-api/* ]]; then
-            echo "registry=${{ vars.API_REGISTRY }}" >> $GITHUB_ENV
-            echo "app=api" >> $GITHUB_ENV
+            echo "registry=${{ vars.API_REGISTRY }}" >> "$GITHUB_ENV"
+            echo "app=api" >> "$GITHUB_ENV"
           elif [[ "$tag" == console-web/* ]]; then
-            echo "registry=${{ vars.WEB_REGISTRY }}" >> $GITHUB_ENV
-            echo "app=deploy-web" >> $GITHUB_ENV
-            echo "force_build=-f" >> $GITHUB_ENV
+            echo "registry=${{ vars.WEB_REGISTRY }}" >> "$GITHUB_ENV"
+            echo "app=deploy-web" >> "$GITHUB_ENV"
+            echo "force_build=-f" >> "$GITHUB_ENV"
           elif [[ "$tag" == provider-proxy/* ]]; then
-            echo "registry=${{ vars.PROVIDER_PROXY_REGISTRY }}" >> $GITHUB_ENV
-            echo "app=provider-proxy" >> $GITHUB_ENV
+            echo "registry=${{ vars.PROVIDER_PROXY_REGISTRY }}" >> "$GITHUB_ENV"
+            echo "app=provider-proxy" >> "$GITHUB_ENV"
           elif [[ "$tag" == provider-console/* ]]; then
-            echo "registry=${{ vars.PROVIDER_CONSOLE_REGISTRY }}" >> $GITHUB_ENV
-            echo "app=provider-console" >> $GITHUB_ENV
+            echo "registry=${{ vars.PROVIDER_CONSOLE_REGISTRY }}" >> "$GITHUB_ENV"
+            echo "app=provider-console" >> "$GITHUB_ENV"
           elif [[ "$tag" == stats-web/* ]]; then
-            echo "registry=${{ vars.STATS_WEB_REGISTRY }}" >> $GITHUB_ENV
-            echo "app=stats-web" >> $GITHUB_ENV
+            echo "registry=${{ vars.STATS_WEB_REGISTRY }}" >> "$GITHUB_ENV"
+            echo "app=stats-web" >> "$GITHUB_ENV"
           else
             echo "Error: Unknown tag format = $tag"
             exit 1
@@ -85,13 +84,14 @@ jobs:
 
           tag="${tag#*/}"
           tag="${tag#v}"
-          echo "tag=$tag" >> $GITHUB_ENV
-          echo "tag=$tag" >> $GITHUB_OUTPUT
-          echo "base_tag=${tag%-*}" >> $GITHUB_OUTPUT
+          echo "tag=$tag" >> "$GITHUB_ENV"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "base_tag=${tag%-*}" >> "$GITHUB_OUTPUT"
 
       - name: Build Docker image
         env:
           DEPLOYMENT_ENV: ${{ inputs.deployment-env }}
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }} # used by console-api to fetch Akash templates
         run: |
+          # shellcheck disable=SC2086
           ./packages/docker/script/build.sh -r ${{ env.registry }} -t ${{ env.tag }} -a ${{ env.app }} ${{ env.force_build }}
