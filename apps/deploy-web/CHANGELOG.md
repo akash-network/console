@@ -1,5 +1,12 @@
 
 
+## [2.73.3](https://github.com/akash-network/console/compare/console-web/v2.73.2...console-web/v2.73.3) (2025-05-16)
+
+
+### Bug Fixes
+
+* comment for test token in deploy-web ([#1328](https://github.com/akash-network/console/issues/1328)) ([1c9baff](https://github.com/akash-network/console/commit/1c9baff2b6c30b428be89c52a99d81e76f971a99))
+
 ## [2.73.2](https://github.com/akash-network/console/compare/console-web/v2.73.1...console-web/v2.73.2) (2025-05-16)
 
 
