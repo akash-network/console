@@ -4,7 +4,7 @@ import { testEnvConfig } from "./fixture/test-env.config";
 import { connectWalletViaLeap, setupWallet } from "./fixture/wallet-setup";
 import { DeployHelloWorldPage } from "./pages/DeployHelloWorldPage";
 
-test("deploy hello world", async ({ context, extPage: page }) => {
+test("deploy hello world", async ({ context, page }) => {
   test.setTimeout(300_000);
 
   await setupWallet(context, page);
