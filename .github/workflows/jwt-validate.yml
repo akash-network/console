@@ -1,0 +1,29 @@
+name: JWT Package Validation
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "packages/jwt/**"
+      - ".github/workflows/jwt-validate.yml"
+
+jobs:
+  validate:
+    name: Validate JWT Package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.14.0"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run JWT package tests
+        run: npm run test -w @akashnetwork/jwt
