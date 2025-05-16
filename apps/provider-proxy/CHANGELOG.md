@@ -1,5 +1,12 @@
 
 
+## [1.7.0](https://github.com/akash-network/console/compare/provider-proxy/v1.6.5...provider-proxy/v1.7.0) (2025-05-16)
+
+
+### Features
+
+* jwt provider schema ([#1312](https://github.com/akash-network/console/issues/1312)) ([379a2d3](https://github.com/akash-network/console/commit/379a2d3ceb519e8b49c75373b8aa7a4a735bf599))
+
 ## [1.6.5](https://github.com/akash-network/console/compare/provider-proxy/v1.6.4...provider-proxy/v1.6.5) (2025-05-15)
 
 
