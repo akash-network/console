@@ -31,7 +31,6 @@ import networkCapacity from "./networkCapacity";
 import predictedBlockDate from "./predictedBlockDate";
 import predictedDateHeight from "./predictedDateHeight";
 import pricing from "./pricing";
-import providerGraphData from "./providerGraphData";
 import trialProviders from "./trialProviders";
 
 export default [
@@ -62,7 +61,6 @@ export default [
   versionSandbox,
   versionTestnet,
   deploymentByOwnerDseq,
-  providerGraphData,
   graphData,
   trialProviders,
   leasesDuration,

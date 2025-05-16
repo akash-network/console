@@ -46,6 +46,7 @@ import {
   auditorsRouter,
   providerAttributesSchemaRouter,
   providerDashboardRouter,
+  providerGraphDataRouter,
   providerRegionsRouter,
   providersRouter,
   providerVersionsRouter
@@ -111,6 +112,7 @@ appHono.route("/", providerAttributesSchemaRouter);
 appHono.route("/", providerRegionsRouter);
 appHono.route("/", providerDashboardRouter);
 appHono.route("/", providerVersionsRouter);
+appHono.route("/", providerGraphDataRouter);
 
 appHono.route("/", healthzRouter);
 
