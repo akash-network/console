@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  "/alerts": {
+  "/v1/alerts": {
     parameters: {
       query?: never;
       header?: never;
@@ -20,7 +20,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/alerts/{id}": {
+  "/v1/alerts/{id}": {
     parameters: {
       query?: never;
       header?: never;
@@ -36,7 +36,7 @@ export interface paths {
     patch: operations["patchAlert"];
     trace?: never;
   };
-  "/contact-points": {
+  "/v1/contact-points": {
     parameters: {
       query?: never;
       header?: never;
@@ -52,7 +52,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/contact-points/{id}": {
+  "/v1/contact-points/{id}": {
     parameters: {
       query?: never;
       header?: never;
@@ -312,6 +312,7 @@ export interface components {
     };
     ContactPointCreateInput: {
       data: {
+        name: string;
         /** Format: uuid */
         userId: string;
         /** @enum {string} */
@@ -323,6 +324,7 @@ export interface components {
     };
     ContactPointOutput: {
       data: {
+        name: string;
         /** Format: uuid */
         userId: string;
         /** @enum {string} */

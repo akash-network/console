@@ -33,13 +33,16 @@ export class Bootstrapper {
     await this.app.init();
   }
 
-  async startHttp(port = process.env.PORT ?? 3000) {
+  async configureHttp() {
     this.assertApp();
     this.app.enableVersioning();
     this.app.useGlobalInterceptors(new HttpResultInterceptor());
     this.app.useGlobalFilters(new HttpExceptionFilter(await this.app.resolve(LoggerService)));
     this.app.enableCors();
+  }
 
+  async startHttp(port = process.env.PORT ?? 3000) {
+    this.assertApp();
     await this.startWorker();
     await this.app.listen(port);
 

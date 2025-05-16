@@ -71,10 +71,10 @@ Then use the API client in your components:
 // Example of querying and mutating data
 function MyComponent() {
   // Use mutation hook
-  const mutation = api.contactPoints.createContactPoint.useMutation();
+  const mutation = api.v1.createContactPoint.useMutation();
 
   // Use query hook with dependencies
-  api.contactPoints.getContactPoint.useQuery(
+  api.v1.getContactPoint.useQuery(
     {
       path: {
         id: mutation.data?.data?.id || ""

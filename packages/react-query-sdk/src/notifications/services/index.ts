@@ -3,15 +3,11 @@
  * Do not make direct changes to the file.
  */
 
-import type { AlertsService } from "./AlertsService";
-import { alertsService } from "./AlertsService";
-import type { ContactPointsService } from "./ContactPointsService";
-import { contactPointsService } from "./ContactPointsService";
+import type { V1Service } from "./V1Service";
+import { v1Service } from "./V1Service";
 export type Services = {
-  alerts: AlertsService;
-  contactPoints: ContactPointsService;
+  v1: V1Service;
 };
 export const services = {
-  alerts: alertsService,
-  contactPoints: contactPointsService
+  v1: v1Service
 } as const;

@@ -1,0 +1,18 @@
+import { z } from "zod";
+
+{{#if imports}}
+    {{#each imports}}
+        import { {{{@key}}} } from "./{{{this}}}"
+    {{/each}}
+{{/if}}
+
+
+{{#if types}}
+    {{#each types}}
+        {{{this}}};
+    {{/each}}
+{{/if}}
+
+{{#each schemas}}
+export    const {{@key}}{{#if (lookup ../emittedType @key)}}: z.ZodType<{{@key}}>{{/if}} = {{{this}}};
+{{/each}}

@@ -66,6 +66,7 @@
     "@tanstack/react-query": "^5.67.2",
     "@tanstack/react-table": "^8.20.6",
     "@textea/json-viewer": "^3.0.0",
+    "@unleash/nextjs": "^1.6.2",
     "auth0": "^4.3.1",
     "axios": "^1.7.2",
     "chain-registry": "^1.69.31",

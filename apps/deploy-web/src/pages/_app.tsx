@@ -8,6 +8,7 @@ import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context"
 import { cn } from "@akashnetwork/ui/utils";
 import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
 import { dehydrate, HydrationBoundary, QueryClientProvider } from "@tanstack/react-query";
+import { FlagProvider } from "@unleash/nextjs";
 import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
 import type { AppProps } from "next/app";
@@ -54,7 +55,7 @@ const App: React.FunctionComponent<Props> = props => {
   const { Component, pageProps } = props;
 
   return (
-    <>
+    <FlagProvider>
       <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
         <PageHead pageSeo={pageProps.seo} />
 
@@ -102,7 +103,7 @@ const App: React.FunctionComponent<Props> = props => {
           </CustomIntlProvider>
         </AppCacheProvider>
       </main>
-    </>
+    </FlagProvider>
   );
 };
 

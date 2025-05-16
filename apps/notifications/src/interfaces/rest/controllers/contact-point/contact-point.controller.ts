@@ -11,6 +11,7 @@ import {
 } from "@src/modules/notifications/repositories/contact-point/contact-point.repository";
 
 export const contactPointCreateInputSchema = z.object({
+  name: z.string(),
   userId: z.string().uuid(),
   type: z.literal("email"),
   config: contactPointConfigSchema

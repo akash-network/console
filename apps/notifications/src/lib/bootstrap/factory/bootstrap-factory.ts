@@ -6,6 +6,7 @@ import { SwaggerSetup } from "@src/lib/bootstrap/swagger-setup/swagger-setup";
 export async function bootstrapHttp(module: Type<any>) {
   const bootstrapper = new Bootstrapper(module);
   const app = await bootstrapper.createApp();
+  await bootstrapper.configureHttp();
   SwaggerSetup.serveSwagger(app);
   await bootstrapper.startHttp();
 }
