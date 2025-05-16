@@ -95,6 +95,23 @@ jobs:
               exit 1
           fi
 
+      - name: Wait for node1-console-akash-network node to be online
+        run: |
+          echo "Waiting for node1-console-akash-network to be online..."
+          for i in {1..30}; do
+            ONLINE=$(tailscale status --json | jq -e '.Peer[] | select(.DNSName | contains("node1-console-akash-network")) | .Online')
+            if [[ "$ONLINE" == "true" ]]; then
+              echo "✅ Peer is online."
+              exit 0
+            fi
+            echo "⏳ Still waiting... ($i)"
+            sleep 5
+          done
+
+          echo "❌ Timed out waiting for peer node to be online."
+          tailscale status
+          exit 1
+
       - name: Set up Helm
         uses: azure/setup-helm@v4.3.0
         with:
