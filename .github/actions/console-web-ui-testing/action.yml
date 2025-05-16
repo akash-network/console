@@ -15,6 +15,13 @@ inputs:
     description: GitHub user to Slack user mapping
     required: false
     default: "{}"
+  doppler-token:
+    description: Doppler token for GH actions
+    required: true
+  ui-tests-token-name:
+    description: Name of env variable for the UI tests token
+    required: true
+
 
 runs:
   using: "composite"
@@ -35,11 +42,21 @@ runs:
       if: steps.cache-playwright.outputs.cache-hit != 'true'
       shell: bash
       run: npx playwright install chromium
+    - name: Install Doppler CLI
+      uses: dopplerhq/cli-action@v3
+    - name: Get UI Tests Token
+      id: get-ui-tests-token
+      env:
+        DOPPLER_TOKEN: ${{ inputs.doppler-token }}
+      run: |
+        ui_tests_token=$(doppler secrets get ${{ inputs.ui-tests-token-name }} --project=console-web --plain)
+        echo "token=${ui_tests_token}" >> $GITHUB_OUTPUT
     - name: Run e2e tests
       id: e2e-tests
       env:
         TEST_WALLET_MNEMONIC: ${{ inputs.test-wallet-mnemonic }}
         BASE_URL: ${{ inputs.url }}
+        UI_TESTS_TOKEN: ${{ steps.get-ui-tests-token.outputs.token }}
       shell: bash
       continue-on-error: true
       run: npm run test:e2e --workspace=apps/deploy-web
@@ -70,7 +87,6 @@ runs:
             pr = response.data[0];
           }
 
-          core.setOutput('test', pr);
           core.setOutput('number', pr.number);
           core.setOutput('title', pr.title);
 
@@ -79,6 +95,11 @@ runs:
 
           const userMapping = JSON.parse(process.env.GH_USER_TO_SLACK_USER || '{}');
           core.setOutput('slack-user', userMapping[author] || "");
+
+    - name: DEBUG
+      env:
+        PR_DETAILS: ${{ toJson(github.event.pull_request) }}
+      run: echo "$PR_DETAILS"
 
     - name: Notify in Slack if tests failed
       if: steps.e2e-tests.outcome == 'failure'

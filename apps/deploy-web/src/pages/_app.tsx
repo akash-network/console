@@ -55,13 +55,13 @@ const App: React.FunctionComponent<Props> = props => {
 
   return (
     <>
-      <ClientOnlyTurnstile />
       <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
         <PageHead pageSeo={pageProps.seo} />
 
         <AppCacheProvider {...props}>
           <CustomIntlProvider>
             <QueryClientProvider client={queryClient}>
+              <ClientOnlyTurnstile />
               <HydrationBoundary state={pageProps.dehydratedState}>
                 <JotaiProvider store={store}>
                   <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
