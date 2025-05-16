@@ -113,6 +113,10 @@ export const GpuFormControl: React.FunctionComponent<Props> = ({ gpuModels, cont
                             if (checked && formGpuModels.length === 0) {
                               onAddGpuModel();
                             }
+
+                            if (checked && currentService.profile.gpu === 0) {
+                              setValue(`services.${serviceIndex}.profile.gpu`, 1);
+                            }
                           }}
                           className="ml-2"
                         />
