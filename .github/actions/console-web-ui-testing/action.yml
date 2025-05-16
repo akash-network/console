@@ -98,6 +98,7 @@ runs:
           core.setOutput('slack-user', userMapping[author] || "");
 
     - name: DEBUG
+      shell: bash
       env:
         PR_DETAILS: ${{ toJson(github.event.pull_request) }}
       run: echo "$PR_DETAILS"
