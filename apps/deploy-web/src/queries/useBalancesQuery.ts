@@ -66,7 +66,8 @@ export function useBalances(address?: string, options?: Omit<UseQueryOptions<Bal
   return useQuery({
     queryKey: QueryKeys.getBalancesKey(address) as QueryKey,
     queryFn: () => getBalances(settings.apiEndpoint, address),
-    enabled: !!address,
+    enabled: !!address && !!settings.apiEndpoint,
+
     ...options
   });
 }
