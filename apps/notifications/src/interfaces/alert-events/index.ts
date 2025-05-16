@@ -1,6 +1,4 @@
 import AlertEventsModule from "@src/interfaces/alert-events/alert-events.module";
-import { bootstrapHandler } from "@src/lib/bootstrap/bootstrap";
+import { createWorkerBootstrapper } from "@src/lib/bootstrap/factory/bootstrap-factory";
 
-export async function bootstrap() {
-  await bootstrapHandler(AlertEventsModule);
-}
+export const bootstrap = createWorkerBootstrapper(AlertEventsModule);

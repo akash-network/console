@@ -24,6 +24,9 @@ The Notifications Service is a key component of the Akash Console application, r
 $ npm install
 ```
 
+## Docs and OpenAPI
+[More details here](./docs/codegen.md)
+
 ## Compile and Run the Project
 
 ```bash
