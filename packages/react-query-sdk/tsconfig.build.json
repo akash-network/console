@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noImplicitAny": true,
+    "strict": true
+  },
+  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
+}

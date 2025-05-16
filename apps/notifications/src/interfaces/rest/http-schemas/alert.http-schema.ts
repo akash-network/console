@@ -1,3 +1,4 @@
+import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 import {
@@ -34,11 +35,15 @@ export const deploymentBalanceCreateInputSchema = alertCreateCommonInputSchema
 
 export const alertCreateInputSchema = z.discriminatedUnion("type", [chainMessageCreateInputSchema, deploymentBalanceCreateInputSchema]);
 
+export class AlertCreateInput extends createZodDto(z.object({ data: alertCreateInputSchema })) {}
+
 export const alertPatchInputSchema = alertCreateCommonInputSchema
   .extend({
     conditions: z.union([chainMessageConditionsSchema, deploymentBalanceConditionsSchema])
   })
   .partial();
+
+export class AlertPatchInput extends createZodDto(z.object({ data: alertPatchInputSchema })) {}
 
 export const alertCommonOutputSchema = alertCreateCommonInputSchema.extend({
   id: z.string().uuid(),
@@ -62,4 +67,4 @@ export const deploymentBalanceOutputSchema = alertCommonOutputSchema.extend({
 export const alertOutputSchema = z.discriminatedUnion("type", [chainMessageOutputSchema, deploymentBalanceOutputSchema]);
 
 export const alertOutputResponseSchema = z.object({ data: alertOutputSchema });
-export type AlertOutputResponse = z.infer<typeof alertOutputResponseSchema>;
+export class AlertOutputResponse extends createZodDto(alertOutputResponseSchema) {}

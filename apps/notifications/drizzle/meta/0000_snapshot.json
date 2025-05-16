@@ -1,5 +1,5 @@
 {
-  "id": "f8258c6d-f569-4d01-8d38-560a35389eec",
+  "id": "8d0b0169-b61f-4ed5-bac1-344d7f2c063e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -165,15 +165,7 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "contact_points_user_id_unique": {
-          "name": "contact_points_user_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
