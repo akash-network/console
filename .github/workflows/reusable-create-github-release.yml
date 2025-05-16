@@ -44,7 +44,7 @@ jobs:
           fi
 
           current_version=$(jq -r '.version' "$package_file")
-          git_tag=$current_version
+          git_tag="$current_version"
 
           if [ "${{ inputs.app }}" = "deploy-web" ]; then
             git_tag="console-web/v$git_tag"
@@ -64,16 +64,16 @@ jobs:
           tag_exists=$(git rev-parse "$git_tag" >/dev/null 2>&1 && echo "true" || echo "false")
 
           if [ "$tag_exists" = "false" ]; then
-            echo "git_tag=$git_tag" >> $GITHUB_OUTPUT
+            echo "git_tag=$git_tag" >> "$GITHUB_OUTPUT"
             echo "git_tag=$git_tag"
 
             changelog=$(script/extract-changelog.sh "$current_version" "apps/${{ inputs.app }}/CHANGELOG.md")
 
             if [ -n "$changelog" ]; then
               echo "changelog=$changelog"
-              echo "changelog<<EOF" >> $GITHUB_OUTPUT
-              echo "$changelog" >> $GITHUB_OUTPUT
-              echo "EOF" >> $GITHUB_OUTPUT
+              echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
+              echo "$changelog" >> "$GITHUB_OUTPUT"
+              echo "EOF" >> "$GITHUB_OUTPUT"
             fi
           fi
 

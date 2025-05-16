@@ -1,0 +1,25 @@
+name: GitHub Actions Linting
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/actions/**
+      - .github/workflows/**
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: gh extension install https://github.com/cschleiden/gh-actionlint --pin v1.0.3
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          gh actionlint \
+            -ignore 'description is required in metadata' \
+            -ignore 'input "[^"]+" is not defined in action "codecov/codecov-action@v5"' \
+            -ignore 'the runner of "[^"]+" action is too old'
+        env:
+          SHELLCHECK_OPTS: >-
+            -e SC2129 # exclude Consider using { cmd1; cmd2; } >> file instead of individual redirects

@@ -46,6 +46,7 @@ runs:
       uses: dopplerhq/cli-action@v3
     - name: Get UI Tests Token
       id: get-ui-tests-token
+      shell: bash
       env:
         DOPPLER_TOKEN: ${{ inputs.doppler-token }}
       run: |

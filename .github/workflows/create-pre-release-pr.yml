@@ -32,10 +32,10 @@ jobs:
         id: check-commit
         run: |
           last_commit=$(git log -1 --pretty=%B)
-          if [[ $last_commit =~ ^"chore(release): update versions and changelogs" ]]; then
-            echo "is-releasable=false" >> $GITHUB_OUTPUT
+          if [[ "$last_commit" =~ ^"chore(release): update versions and changelogs" ]]; then
+            echo "is-releasable=false" >> "$GITHUB_OUTPUT"
           else
-            echo "is-releasable=true" >> $GITHUB_OUTPUT
+            echo "is-releasable=true" >> "$GITHUB_OUTPUT"
           fi
 
   create-release-pr:
@@ -58,7 +58,7 @@ jobs:
         id: get-base-sha
         run: |
           echo "Getting base branch SHA..."
-          echo "base_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "base_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -102,7 +102,7 @@ jobs:
             --limit 1 \
             --json number \
             --jq ".[0].number")
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_ENV
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_ENV"
 
       - name: Commit Changes
         run: |
@@ -113,7 +113,7 @@ jobs:
           COMMA=""
           for file in $FILES_CHANGED; do
             MODE=$(git ls-files --stage "$file" | awk '{print $1}' || echo "100644")
-            CONTENT=$(cat "$file" | jq -Rs .)
+            CONTENT=$(jq -Rs . < "$file")
             TREE_ITEMS="${TREE_ITEMS}${COMMA}{\"path\":\"$file\",\"mode\":\"${MODE}\",\"type\":\"blob\",\"content\":${CONTENT}}"
             COMMA=","
           done
@@ -141,7 +141,7 @@ jobs:
             echo "Updated release branch"
           fi
 
-          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_ENV
+          echo "commit_sha=$COMMIT_SHA" >> "$GITHUB_ENV"
 
       - name: Create Pull Request
         if: env.pr_number == ''
