@@ -1,9 +1,11 @@
 import type { BrowserContext, Page } from "@playwright/test";
-import { chromium, test as baseTest } from "@playwright/test";
+import { chromium } from "@playwright/test";
 import fs from "fs";
 import { nanoid } from "nanoid";
 import path from "path";
 import { setTimeout as delay } from "timers/promises";
+
+import { test as baseTest } from "./base-test";
 
 // @see https://github.com/microsoft/playwright/issues/14949
 export async function restoreExtensionStorage(page: Page): Promise<void> {

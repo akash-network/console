@@ -1,5 +1,4 @@
-import { expect, test } from "@playwright/test";
-
+import { expect, test } from "./fixture/base-test";
 import { PlainLinuxPage } from "./pages/PlainLinuxPage";
 
 test("ssh keys generation", async ({ page, context }) => {

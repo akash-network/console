@@ -1,5 +1,4 @@
-import { expect, test } from "@playwright/test";
-
+import { expect, test } from "./fixture/base-test";
 import { BuildTemplatePage } from "./pages/BuildTemplatePage";
 
 test("ssh function absence", async ({ page, context }) => {

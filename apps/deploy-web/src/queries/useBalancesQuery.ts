@@ -14,8 +14,8 @@ import { deploymentToDto } from "@src/utils/deploymentDetailUtils"; // eslint-di
 import { useSettings } from "../context/SettingsProvider";
 import { QueryKeys } from "./queryKeys";
 
-async function getBalances(apiEndpoint: string, address?: string): Promise<Balances | undefined> {
-  if (!address || !apiEndpoint) return undefined;
+async function getBalances(apiEndpoint: string, address?: string): Promise<Balances | null> {
+  if (!address || !apiEndpoint) return null;
   const usdcIbcDenom = getUsdcDenom();
   const authzHttpService = new AuthzHttpService({ baseURL: apiEndpoint });
 
@@ -61,7 +61,7 @@ async function getBalances(apiEndpoint: string, address?: string): Promise<Balan
   };
 }
 
-export function useBalances(address?: string, options?: Omit<UseQueryOptions<Balances | undefined>, "queryKey" | "queryFn">) {
+export function useBalances(address?: string, options?: Omit<UseQueryOptions<Balances | null>, "queryKey" | "queryFn">) {
   const { settings } = useSettings();
   return useQuery({
     queryKey: QueryKeys.getBalancesKey(address) as QueryKey,
