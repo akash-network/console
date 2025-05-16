@@ -1,5 +1,12 @@
 
 
+## [2.74.2](https://github.com/akash-network/console/compare/console-web/v2.74.1...console-web/v2.74.2) (2025-05-16)
+
+
+### Bug Fixes
+
+* **jwt:** add prettier file ([#1336](https://github.com/akash-network/console/issues/1336)) ([7460fd6](https://github.com/akash-network/console/commit/7460fd67750d916d1ee7b69aa97eee079b5da090))
+
 ## [2.74.1](https://github.com/akash-network/console/compare/console-web/v2.74.0...console-web/v2.74.1) (2025-05-16)
 
 
