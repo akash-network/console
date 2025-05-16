@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noImplicitAny": true,
+    "strict": true,
+    "moduleResolution": "node",
+    "module": "CommonJS"
+  },
+  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
+}
