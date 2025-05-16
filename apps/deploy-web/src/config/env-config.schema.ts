@@ -64,7 +64,7 @@ export const serverEnvSchema = browserEnvSchema.extend({
   TURNSTILE_TEST_SITE_KEY: z
     .string()
     .optional()
-    // always pass: https://developers.cloudflare.com/turnstile/troubleshooting/testing/#dummy-sitekeys-and-secret-keys
+    // always pass token: https://developers.cloudflare.com/turnstile/troubleshooting/testing/#dummy-sitekeys-and-secret-keys
     .default("1x00000000000000000000AA"),
   UI_TESTS_TOKEN: z.string().optional()
 });
