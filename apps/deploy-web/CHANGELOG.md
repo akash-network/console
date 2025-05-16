@@ -1,5 +1,12 @@
 
 
+## [2.74.1](https://github.com/akash-network/console/compare/console-web/v2.74.0...console-web/v2.74.1) (2025-05-16)
+
+
+### Bug Fixes
+
+* shows wallet balance on intial rendering ([#1333](https://github.com/akash-network/console/issues/1333)) ([0dc01ba](https://github.com/akash-network/console/commit/0dc01bace3d635d89ab833c464fba80f0401cec2)), closes [#1235](https://github.com/akash-network/console/issues/1235)
+
 ## [2.74.0](https://github.com/akash-network/console/compare/console-web/v2.73.3...console-web/v2.74.0) (2025-05-16)
 
 
