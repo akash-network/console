@@ -1,6 +1,4 @@
 import ChainEventsModule from "@src/interfaces/chain-events/chain-events.module";
-import { bootstrapHandler } from "@src/lib/bootstrap/bootstrap";
+import { createWorkerBootstrapper } from "@src/lib/bootstrap/factory/bootstrap-factory";
 
-export async function bootstrap() {
-  await bootstrapHandler(ChainEventsModule);
-}
+export const bootstrap = createWorkerBootstrapper(ChainEventsModule);
