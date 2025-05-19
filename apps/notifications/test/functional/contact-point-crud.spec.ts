@@ -4,6 +4,7 @@ import { INestApplication, Module } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import request from "supertest";
 
+import { LoggerService } from "@src/common/services/logger/logger.service";
 import { contactPointCreateInputSchema } from "@src/interfaces/rest/controllers/contact-point/contact-point.controller";
 import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
 import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
@@ -86,7 +87,7 @@ describe("Contact Points CRUD", () => {
     const app = module.createNestApplication();
     app.enableVersioning();
     app.useGlobalInterceptors(new HttpResultInterceptor());
-    app.useGlobalFilters(new HttpExceptionFilter());
+    app.useGlobalFilters(new HttpExceptionFilter(await app.resolve(LoggerService)));
 
     await app.init();
 

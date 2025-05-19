@@ -1,14 +1,8 @@
 import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post } from "@nestjs/common";
 import { Err, Ok, Result } from "ts-results";
-import { z } from "zod";
 
-import {
-  alertCreateInputSchema,
-  AlertOutputResponse,
-  alertOutputResponseSchema,
-  alertPatchInputSchema
-} from "@src/interfaces/rest/http-schemas/alert.http-schema";
-import { ValidateHttp } from "@src/interfaces/rest/interceptors/http-validate/http-validate.interceptor";
+import { ValidateHttp } from "@src/interfaces/rest/decorators/http-validate/http-validate.decorator";
+import { AlertCreateInput, AlertOutputResponse, AlertPatchInput } from "@src/interfaces/rest/http-schemas/alert.http-schema";
 import { AlertOutput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 
 @Controller({
@@ -20,10 +14,9 @@ export class AlertController {
 
   @Post()
   @ValidateHttp({
-    body: z.object({ data: alertCreateInputSchema }),
-    response: alertOutputResponseSchema
+    response: AlertOutputResponse
   })
-  async createAlert(@Body() { data }: { data: z.infer<typeof alertCreateInputSchema> }): Promise<Result<AlertOutputResponse, unknown>> {
+  async createAlert(@Body() { data }: AlertCreateInput): Promise<Result<AlertOutputResponse, unknown>> {
     return Ok({
       data: await this.alertRepository.create(data)
     });
@@ -31,7 +24,7 @@ export class AlertController {
 
   @Get(":id")
   @ValidateHttp({
-    response: alertOutputResponseSchema
+    response: AlertOutputResponse
   })
   async getAlert(@Param("id") id: string): Promise<Result<AlertOutputResponse, NotFoundException>> {
     const alert = await this.alertRepository.findOneById(id);
@@ -40,20 +33,16 @@ export class AlertController {
 
   @Patch(":id")
   @ValidateHttp({
-    body: z.object({ data: alertPatchInputSchema }),
-    response: alertOutputResponseSchema
+    response: AlertOutputResponse
   })
-  async patchAlert(
-    @Param("id") id: string,
-    @Body() { data }: { data: z.infer<typeof alertPatchInputSchema> }
-  ): Promise<Result<AlertOutputResponse, NotFoundException | BadRequestException>> {
+  async patchAlert(@Param("id") id: string, @Body() { data }: AlertPatchInput): Promise<Result<AlertOutputResponse, NotFoundException | BadRequestException>> {
     const alert = await this.alertRepository.updateById(id, data);
     return this.toResponse(alert);
   }
 
   @Delete(":id")
   @ValidateHttp({
-    response: alertOutputResponseSchema
+    response: AlertOutputResponse
   })
   async deleteAlert(@Param("id") id: string): Promise<Result<AlertOutputResponse, NotFoundException>> {
     const alert = await this.alertRepository.deleteOneById(id);

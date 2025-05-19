@@ -1,8 +1,4 @@
-import "@akashnetwork/env-loader";
-
 import RestModule from "@src/interfaces/rest/rest.module";
-import { bootstrapHttp } from "@src/lib/bootstrap/bootstrap";
+import { createHttpBootstrapper } from "@src/lib/bootstrap/factory/bootstrap-factory";
 
-export async function bootstrap() {
-  await bootstrapHttp(RestModule);
-}
+export const bootstrap = createHttpBootstrapper(RestModule);
