@@ -43,9 +43,8 @@ import sdlStore from "@src/store/sdlStore";
 import type { ISidebarGroupMenu, ISidebarRoute } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import { MobileSidebarUser } from "./MobileSidebarUser";
+import { ModeToggle } from "./ModeToggle";
 import { NodeStatusBar } from "./NodeStatusBar";
-// import { ModeToggle } from "./ModeToggle";
-// import { NodeStatusBar } from "./NodeStatusBar";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
 
 const { publicRuntimeConfig } = getConfig();
@@ -172,7 +171,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
             ]
           },
           {
-            title: "Resrouces",
+            title: "Resources",
             icon: props => <InfoCircle {...props} />,
             hoveredRoutes: [
               {
@@ -273,6 +272,10 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
                       <div className="text-muted-foreground">
                         <Separator className="my-1" />
                         <div className="px-4 py-2 text-sm">Version {publicRuntimeConfig?.version}</div>
+
+                        <div className="px-4 py-2">
+                          <ModeToggle />
+                        </div>
                       </div>
                     )
                   }
@@ -323,65 +326,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           <SidebarGroupMenu key={i} group={g} hasDivider={g.hasDivider} isNavOpen={isNavOpen} />
         ))}
 
-        <Separator className="mt-2" />
-
         {smallScreen && <MobileSidebarUser />}
-
-        {/* {isNavOpen && (
-          <div className="space-y-2 pb-4 pl-4 pr-4">
-            {wallet.isWalletConnected && !wallet.isManaged && <NodeStatusBar />}
-
-            <div className="flex items-center justify-center space-x-1 pt-4">
-              <Link
-                target="_blank"
-                rel="noreferrer"
-                href="https://discord.akash.network"
-                className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
-              >
-                <Discord className="h-5 w-5" />
-                <span className="sr-only">Discord</span>
-              </Link>
-
-              <Link
-                target="_blank"
-                rel="noreferrer"
-                href="https://twitter.com/akashnet_"
-                className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
-              >
-                <TwitterX className="h-5 w-5" />
-                <span className="sr-only">Twitter</span>
-              </Link>
-
-              <Link
-                target="_blank"
-                rel="noreferrer"
-                href="https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X?sub_confirmation=1"
-                className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
-              >
-                <Youtube className="h-5 w-5" />
-                <span className="sr-only">Youtube</span>
-              </Link>
-
-              <Link
-                target="_blank"
-                rel="noreferrer"
-                href="https://github.com/akash-network/console"
-                className={cn(buttonVariants({ variant: "text", size: "icon" }), "h-8 w-8")}
-              >
-                <Github className="h-5 w-5" />
-                <span className="sr-only">GitHub</span>
-              </Link>
-
-              <ModeToggle />
-            </div>
-
-            {publicRuntimeConfig?.version && isNavOpen && (
-              <div className="flex flex-row items-center justify-center space-x-4 text-xs font-bold text-muted-foreground">
-                <small>v{publicRuntimeConfig?.version}</small>
-              </div>
-            )}
-          </div>
-        )} */}
 
         {!smallScreen && (
           <div className="flex w-full items-center justify-center pt-2">
