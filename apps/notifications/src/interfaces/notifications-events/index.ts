@@ -1,6 +1,4 @@
 import NotificationsEventsModule from "@src/interfaces/notifications-events/notifications-events.module";
-import { bootstrapHandler } from "@src/lib/bootstrap/bootstrap";
+import { createWorkerBootstrapper } from "@src/lib/bootstrap/factory/bootstrap-factory";
 
-export async function bootstrap() {
-  await bootstrapHandler(NotificationsEventsModule);
-}
+export const bootstrap = createWorkerBootstrapper(NotificationsEventsModule);

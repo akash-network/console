@@ -1,11 +1,12 @@
 import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post } from "@nestjs/common";
+import { createZodDto } from "nestjs-zod";
 import { Err, Ok, Result } from "ts-results";
 import { z } from "zod";
 
-import { ValidateHttp } from "@src/interfaces/rest/interceptors/http-validate/http-validate.interceptor";
+import { ValidateHttp } from "@src/interfaces/rest/decorators/http-validate/http-validate.decorator";
 import {
   contactPointConfigSchema,
-  ContactPointOutput,
+  ContactPointOutput as RepoContactPointOutput,
   ContactPointRepository
 } from "@src/modules/notifications/repositories/contact-point/contact-point.repository";
 
@@ -31,6 +32,10 @@ export const contactPointPatchInputSchema = z.object({
   config: contactPointConfigSchema.optional()
 });
 
+class ContactPointCreateInput extends createZodDto(z.object({ data: contactPointCreateInputSchema })) {}
+class ContactPointPatchInput extends createZodDto(z.object({ data: contactPointPatchInputSchema })) {}
+class ContactPointOutput extends createZodDto(contactPointOutputResponseSchema) {}
+
 @Controller({
   version: "1",
   path: "contact-points"
@@ -40,10 +45,9 @@ export class ContactPointController {
 
   @Post()
   @ValidateHttp({
-    body: z.object({ data: contactPointCreateInputSchema }),
-    response: contactPointOutputResponseSchema
+    response: ContactPointOutput
   })
-  async createContactPoint(@Body() { data }: { data: z.infer<typeof contactPointCreateInputSchema> }): Promise<Result<ContactPointOutputResponse, unknown>> {
+  async createContactPoint(@Body() { data }: ContactPointCreateInput): Promise<Result<ContactPointOutputResponse, unknown>> {
     return Ok({
       data: await this.contactPointRepository.create(data)
     });
@@ -51,7 +55,7 @@ export class ContactPointController {
 
   @Get(":id")
   @ValidateHttp({
-    response: contactPointOutputResponseSchema
+    response: ContactPointOutput
   })
   async getContactPoint(@Param("id") id: string): Promise<Result<ContactPointOutputResponse, NotFoundException>> {
     const contactPoint = await this.contactPointRepository.findById(id);
@@ -60,27 +64,23 @@ export class ContactPointController {
 
   @Patch(":id")
   @ValidateHttp({
-    body: z.object({ data: contactPointPatchInputSchema }),
-    response: contactPointOutputResponseSchema
+    response: ContactPointOutput
   })
-  async patchContactPoint(
-    @Param("id") id: string,
-    @Body() { data }: { data: z.infer<typeof contactPointPatchInputSchema> }
-  ): Promise<Result<ContactPointOutputResponse, NotFoundException>> {
+  async patchContactPoint(@Param("id") id: string, @Body() { data }: ContactPointPatchInput): Promise<Result<ContactPointOutputResponse, NotFoundException>> {
     const contactPoint = await this.contactPointRepository.updateById(id, data);
     return this.toResponse(contactPoint);
   }
 
   @Delete(":id")
   @ValidateHttp({
-    response: contactPointOutputResponseSchema
+    response: ContactPointOutput
   })
   async deleteContactPoint(@Param("id") id: string): Promise<Result<ContactPointOutputResponse, NotFoundException>> {
     const contactPoint = await this.contactPointRepository.deleteById(id);
     return this.toResponse(contactPoint);
   }
 
-  private toResponse(contactPoint: ContactPointOutput | undefined): Result<ContactPointOutputResponse, NotFoundException> {
+  private toResponse(contactPoint: RepoContactPointOutput | undefined): Result<ContactPointOutputResponse, NotFoundException> {
     return contactPoint ? Ok({ data: contactPoint }) : Err(new NotFoundException("Contact point not found"));
   }
 }
