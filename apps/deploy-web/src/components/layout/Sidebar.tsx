@@ -142,29 +142,29 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
                     icon: props => <Github {...props} />,
                     url: "https://github.com/akash-network/console",
                     target: "_blank",
-                    rel: "noreferrer"
+                    rel: "noreferrer noopener"
                   },
                   {
                     title: "Akash on X",
                     icon: props => <TwitterX {...props} />,
                     url: "https://twitter.com/akashnet_",
                     target: "_blank",
-                    rel: "noreferrer"
+                    rel: "noreferrer noopener"
                   },
 
                   {
                     title: "Akash Youtube",
                     icon: props => <Youtube {...props} />,
-                    url: "https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X?sub_confirmation=1",
+                    url: "https://youtube.com/@AkashNetwork?si=cd2P3ZlAa4gNQw0X&sub_confirmation=1",
                     target: "_blank",
-                    rel: "noreferrer"
+                    rel: "noreferrer noopener"
                   },
                   {
                     title: "Akash Discord",
                     icon: props => <Discord {...props} />,
                     url: "https://discord.akash.network",
                     target: "_blank",
-                    rel: "noreferrer"
+                    rel: "noreferrer noopener"
                   }
                 ]
               }
