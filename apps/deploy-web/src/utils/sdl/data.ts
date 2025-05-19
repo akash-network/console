@@ -63,7 +63,7 @@ export const defaultService: ServiceType = {
   placement: {
     name: "dcloud",
     pricing: {
-      amount: 10000,
+      amount: 100000,
       denom: "uakt"
     },
     signedBy: {
@@ -160,7 +160,7 @@ export const defaultRentGpuService: ServiceType = {
   placement: {
     name: "dcloud",
     pricing: {
-      amount: 10000,
+      amount: 100000,
       denom: "uakt"
     },
     signedBy: {
