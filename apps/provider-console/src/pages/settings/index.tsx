@@ -60,6 +60,7 @@ const SettingsPage: React.FC = () => {
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [isUninstallModalOpen, setIsUninstallModalOpen] = useState(false);
   const [isUninstalling, setIsUninstalling] = useState(false);
+  const [uninstallError, setUninstallError] = useState<string | null>(null);
 
   const { providerDetails } = useProvider();
   const { activeControlMachine } = useControlMachine();
@@ -305,8 +306,8 @@ const SettingsPage: React.FC = () => {
 
   const handleUninstallProvider = async () => {
     if (!activeControlMachine) return;
-
     try {
+      setUninstallError(null);
       setIsUninstalling(true);
       const request = {
         control_machine: sanitizeMachineAccess(activeControlMachine)
@@ -314,12 +315,12 @@ const SettingsPage: React.FC = () => {
       const response: { message: string; action_id: string } = await restClient.post("/uninstall-provider", request);
 
       if (response.action_id) {
-        // Navigate to activity logs page with the action ID
         router.push(`/activity-logs/${response.action_id}`);
       }
       setIsUninstallModalOpen(false);
     } catch (error) {
       console.error("Failed to uninstall provider:", error);
+      setUninstallError("Failed to uninstall provider. Please try again.");
     } finally {
       setIsUninstalling(false);
     }
@@ -635,6 +636,11 @@ const SettingsPage: React.FC = () => {
               </ul>
               <p className="text-foreground font-medium">Are you absolutely sure you want to proceed?</p>
             </>
+          )}
+          {uninstallError && (
+            <div className="rounded-md border border-red-500 bg-red-50 p-4 dark:border-red-400 dark:bg-red-900/30">
+              <p className="text-red-700 dark:text-red-200">{uninstallError}</p>
+            </div>
           )}
         </div>
       </Popup>
