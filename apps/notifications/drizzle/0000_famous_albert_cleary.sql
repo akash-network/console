@@ -24,8 +24,7 @@ CREATE TABLE "contact_points" (
 	"type" "contact_point_type" NOT NULL,
 	"config" jsonb NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "contact_points_user_id_unique" UNIQUE("user_id")
+	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "block_cursor" (
