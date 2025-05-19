@@ -2,9 +2,8 @@
 
 import * as React from "react";
 import { useEffect, useState } from "react";
+import type { AccessorColumnDef, ColumnFiltersState, PaginationState, SortingState, Updater, VisibilityState } from "@tanstack/react-table";
 import {
-  AccessorColumnDef,
-  ColumnFiltersState,
   flexRender,
   getCoreRowModel,
   getFacetedRowModel,
@@ -12,15 +11,12 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  PaginationState,
-  SortingState,
-  Updater,
-  useReactTable,
-  VisibilityState
+  useReactTable
 } from "@tanstack/react-table";
 import { SearchX } from "lucide-react";
 
-import { Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../index";
+import { Spinner } from "../spinner";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../table";
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
 

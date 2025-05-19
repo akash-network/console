@@ -14,7 +14,7 @@ export class AlertController {
 
   @Post()
   @ValidateHttp({
-    response: AlertOutputResponse
+    201: { schema: AlertOutputResponse, description: "Returns the created alert" }
   })
   async createAlert(@Body() { data }: AlertCreateInput): Promise<Result<AlertOutputResponse, unknown>> {
     return Ok({
@@ -24,7 +24,7 @@ export class AlertController {
 
   @Get(":id")
   @ValidateHttp({
-    response: AlertOutputResponse
+    200: { schema: AlertOutputResponse, description: "Returns the requested alert by id" }
   })
   async getAlert(@Param("id") id: string): Promise<Result<AlertOutputResponse, NotFoundException>> {
     const alert = await this.alertRepository.findOneById(id);
@@ -33,7 +33,7 @@ export class AlertController {
 
   @Patch(":id")
   @ValidateHttp({
-    response: AlertOutputResponse
+    200: { schema: AlertOutputResponse, description: "Returns the updated alert" }
   })
   async patchAlert(@Param("id") id: string, @Body() { data }: AlertPatchInput): Promise<Result<AlertOutputResponse, NotFoundException | BadRequestException>> {
     const alert = await this.alertRepository.updateById(id, data);
@@ -42,7 +42,7 @@ export class AlertController {
 
   @Delete(":id")
   @ValidateHttp({
-    response: AlertOutputResponse
+    200: { schema: AlertOutputResponse, description: "Returns the deleted alert" }
   })
   async deleteAlert(@Param("id") id: string): Promise<Result<AlertOutputResponse, NotFoundException>> {
     const alert = await this.alertRepository.deleteOneById(id);

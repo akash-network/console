@@ -2,6 +2,7 @@
 
 - [How to run](#how-to-run)
 - [Environment Variables](#environment-variables)
+- [Feature flags](#feature-flags)
 
 ## How to run
 
@@ -12,3 +13,6 @@
 
 The website should be accessible: [http://localhost:3000/](http://localhost:3000/)
 
+## Feature flags
+This app uses [Unleash](https://www.getunleash.io/) for feature flagging. Locally, feature flagging can be bypassed by setting the environment variable `NEXT_PUBLIC_UNLEASH_ENABLE_ALL=true` in your `.env.local` file. This disables remote evaluation and treats all flags as enabled, which is useful for local development.
+Please use the patched `useFlag` hook provided in this codebase to ensure consistent behavior when bypassing remote flag checks.

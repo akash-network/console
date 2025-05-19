@@ -2,29 +2,17 @@
 import * as React from "react";
 import { useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { DialogProps } from "@radix-ui/react-dialog";
+import type { DialogProps } from "@radix-ui/react-dialog";
 
 import { cn } from "../../utils";
-import {
-  Button,
-  ButtonProps,
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle as _DialogTitle,
-  Input,
-  Label,
-  ScrollArea,
-  ScrollBar,
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Spinner
-} from "../index";
+import { Button } from "../button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle as _DialogTitle } from "../dialog";
+import type { ButtonProps } from "../index";
+import { Input } from "../input";
+import { Label } from "../label";
+import { ScrollArea, ScrollBar } from "../scroll-area";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../select";
+import { Spinner } from "../spinner";
 import { ErrorFallback } from "./error-fallback";
 
 type MessageProps = {

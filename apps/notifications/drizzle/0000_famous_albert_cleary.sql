@@ -21,6 +21,7 @@ CREATE TABLE "alerts" (
 CREATE TABLE "contact_points" (
 	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
 	"user_id" uuid NOT NULL,
+	"name" varchar NOT NULL,
 	"type" "contact_point_type" NOT NULL,
 	"config" jsonb NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,

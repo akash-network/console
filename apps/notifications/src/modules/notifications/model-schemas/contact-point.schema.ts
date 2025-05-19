@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { jsonb, pgEnum, pgTable, uuid } from "drizzle-orm/pg-core";
+import { jsonb, pgEnum, pgTable, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { timestamps } from "@src/lib/db/timestamps";
 
@@ -11,6 +11,7 @@ export const ContactPoint = pgTable("contact_points", {
     .notNull()
     .default(sql`uuid_generate_v4()`),
   userId: uuid("user_id").notNull(),
+  name: varchar("name").notNull(),
   type: ContactPointType("type").notNull(),
   config: jsonb("config").notNull(),
 

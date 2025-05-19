@@ -1,7 +1,9 @@
 "use client";
-import React, { ChangeEvent,useRef } from "react";
+import type { ChangeEvent } from "react";
+import React, { useRef } from "react";
 
-import { Button, ButtonProps } from "../button";
+import type { ButtonProps } from "../button";
+import { Button } from "../button";
 
 interface FileButtonProps extends Omit<ButtonProps, "onChange"> {
   onFileSelect?: (file: File | null) => void;
