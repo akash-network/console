@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, AlertDescription, AlertTitle, Button, Input } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, AlertTitle, Button, Input, Popup } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, CheckCircle, Refresh, WarningTriangle } from "iconoir-react";
@@ -13,6 +13,7 @@ import { withAuth } from "@src/components/shared/withAuth";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useProvider } from "@src/context/ProviderContext";
+import { useKubeNodesQuery } from "@src/queries/useKubeNodesQuery";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
 import { stripProviderPrefixAndPort } from "@src/utils/urlUtils";
@@ -57,6 +58,9 @@ const SettingsPage: React.FC = () => {
   const [emailSuccess, setEmailSuccess] = useState(false);
   const [isEmailLoading, setIsEmailLoading] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [isUninstallModalOpen, setIsUninstallModalOpen] = useState(false);
+  const [isUninstalling, setIsUninstalling] = useState(false);
+  const [uninstallError, setUninstallError] = useState<string | null>(null);
 
   const { providerDetails } = useProvider();
   const { activeControlMachine } = useControlMachine();
@@ -64,6 +68,10 @@ const SettingsPage: React.FC = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { address } = useSelectedChain();
+
+  const { data: kubeNodesResponse, isLoading: isNodesLoading } = useKubeNodesQuery();
+  const nodes = kubeNodesResponse?.nodes || [];
+  const hasMultipleNodes = nodes.length > 1;
 
   const isDisabled = !activeControlMachine;
 
@@ -293,6 +301,28 @@ const SettingsPage: React.FC = () => {
       }
     } finally {
       setIsEmailLoading(false);
+    }
+  };
+
+  const handleUninstallProvider = async () => {
+    if (!activeControlMachine) return;
+    try {
+      setUninstallError(null);
+      setIsUninstalling(true);
+      const request = {
+        control_machine: sanitizeMachineAccess(activeControlMachine)
+      };
+      const response: { message: string; action_id: string } = await restClient.post("/uninstall-provider", request);
+
+      if (response.action_id) {
+        router.push(`/activity-logs/${response.action_id}`);
+      }
+      setIsUninstallModalOpen(false);
+    } catch (error) {
+      console.error("Failed to uninstall provider:", error);
+      setUninstallError("Failed to uninstall provider. Please try again.");
+    } finally {
+      setIsUninstalling(false);
     }
   };
 
@@ -535,7 +565,85 @@ const SettingsPage: React.FC = () => {
           )}
           {isEditingEmail && providerDetails?.email && <p className="text-muted-foreground mt-2 text-sm">Current email: {providerDetails.email}</p>}
         </div>
+
+        <div className="border-destructive/20 bg-destructive/5 dark:border-destructive/30 dark:bg-destructive/10 rounded-lg border p-6">
+          <h2 className="text-xl font-semibold text-red-500 dark:text-red-400">Danger Zone</h2>
+          <p className="text-muted-foreground mt-2">
+            Actions in this section can lead to permanent data loss and service disruption. Please proceed with caution.
+          </p>
+          <div className="mt-4">
+            <Button variant="destructive" onClick={() => setIsUninstallModalOpen(true)} disabled={isDisabled || isUninstalling}>
+              {isUninstalling ? "Uninstalling..." : "Uninstall Provider"}
+            </Button>
+            <p className="text-muted-foreground mt-2 text-sm">
+              This will remove all provider services, additional nodes, and K3S services. This action cannot be undone.
+            </p>
+          </div>
+        </div>
       </div>
+
+      <Popup
+        open={isUninstallModalOpen}
+        onClose={() => setIsUninstallModalOpen(false)}
+        variant="custom"
+        title="Uninstall Provider"
+        maxWidth="sm"
+        actions={[
+          {
+            label: "Cancel",
+            variant: "outline",
+            side: "left",
+            onClick: () => setIsUninstallModalOpen(false),
+            disabled: isUninstalling
+          },
+          {
+            label: isUninstalling ? (
+              <>
+                <Refresh className="mr-2 h-4 w-4 animate-spin" />
+                Uninstalling...
+              </>
+            ) : (
+              "Uninstall Provider"
+            ),
+            variant: "destructive",
+            side: "right",
+            onClick: handleUninstallProvider,
+            disabled: isUninstalling || hasMultipleNodes || isNodesLoading
+          }
+        ]}
+      >
+        <div className="space-y-4">
+          {hasMultipleNodes ? (
+            <div className="rounded-md border border-yellow-500 bg-yellow-50 p-4 dark:border-yellow-400 dark:bg-yellow-900/30">
+              <div className="mb-2 font-semibold text-yellow-700 dark:text-yellow-300">Multiple Nodes Detected</div>
+              <div className="text-yellow-700 dark:text-yellow-200">
+                Please remove all additional nodes from <span className="font-semibold">Node Management</span> before uninstalling the provider.
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-md border border-red-500 p-4 dark:border-red-400">
+                <div className="flex items-center gap-2">
+                  <WarningTriangle className="h-4 w-4 text-red-500 dark:text-red-400" />
+                  <span className="font-semibold text-red-500 dark:text-red-400">Warning</span>
+                </div>
+                <div className="mt-1 text-red-500 dark:text-red-400">This action is irreversible and will result in:</div>
+              </div>
+              <ul className="text-muted-foreground list-inside list-disc space-y-2">
+                <li>Deletion of all provider services</li>
+                <li>Removal of K3S services</li>
+                <li>Loss of all provider configurations and settings</li>
+              </ul>
+              <p className="text-foreground font-medium">Are you absolutely sure you want to proceed?</p>
+            </>
+          )}
+          {uninstallError && (
+            <div className="rounded-md border border-red-500 bg-red-50 p-4 dark:border-red-400 dark:bg-red-900/30">
+              <p className="text-red-700 dark:text-red-200">{uninstallError}</p>
+            </div>
+          )}
+        </div>
+      </Popup>
     </Layout>
   );
 };
