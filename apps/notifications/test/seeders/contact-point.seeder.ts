@@ -6,6 +6,7 @@ import { contactPointConfigSchema } from "@src/modules/notifications/repositorie
 
 export const generateContactPoint = ({
   id = faker.string.uuid(),
+  name = faker.lorem.word(),
   userId = faker.string.uuid(),
   type = faker.helpers.arrayElement<ContactPointOutput["type"]>(["email"]),
   config = generateMock(contactPointConfigSchema),
@@ -15,6 +16,7 @@ export const generateContactPoint = ({
   return {
     id,
     userId,
+    name,
     type,
     config,
     createdAt,

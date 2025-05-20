@@ -244,6 +244,17 @@ export interface components {
             };
           };
     };
+    ValidationErrorResponse: {
+      statusCode: number;
+      message: string;
+      errors: {
+        issues: Record<string, never>[];
+      };
+    };
+    InternalServerErrorResponse: {
+      statusCode: number;
+      message: string;
+    };
     AlertPatchInput: {
       data: {
         /** Format: uuid */
@@ -312,6 +323,7 @@ export interface components {
     };
     ContactPointCreateInput: {
       data: {
+        name: string;
         /** Format: uuid */
         userId: string;
         /** @enum {string} */
@@ -323,6 +335,7 @@ export interface components {
     };
     ContactPointOutput: {
       data: {
+        name: string;
         /** Format: uuid */
         userId: string;
         /** @enum {string} */
@@ -336,8 +349,13 @@ export interface components {
         updatedAt: unknown;
       };
     };
+    NotFoundErrorResponse: {
+      statusCode: number;
+      message: string;
+    };
     ContactPointPatchInput: {
       data: {
+        name?: string;
         /** @enum {string} */
         type?: "email";
         config?: {
@@ -367,12 +385,31 @@ export interface operations {
       };
     };
     responses: {
+      /** @description Returns the created alert */
       201: {
         headers: {
           [name: string]: unknown;
         };
         content: {
           "application/json": components["schemas"]["AlertOutputResponse"];
+        };
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
         };
       };
     };
@@ -388,12 +425,31 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      201: {
+      /** @description Returns the requested alert by id */
+      200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
           "application/json": components["schemas"]["AlertOutputResponse"];
+        };
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
         };
       };
     };
@@ -409,12 +465,31 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      201: {
+      /** @description Returns the deleted alert */
+      200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
           "application/json": components["schemas"]["AlertOutputResponse"];
+        };
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
         };
       };
     };
@@ -434,12 +509,31 @@ export interface operations {
       };
     };
     responses: {
-      201: {
+      /** @description Returns the updated alert */
+      200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
           "application/json": components["schemas"]["AlertOutputResponse"];
+        };
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
         };
       };
     };
@@ -457,12 +551,31 @@ export interface operations {
       };
     };
     responses: {
+      /** @description Returns the created contact point */
       201: {
         headers: {
           [name: string]: unknown;
         };
         content: {
           "application/json": components["schemas"]["ContactPointOutput"];
+        };
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
         };
       };
     };
@@ -478,12 +591,40 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      201: {
+      /** @description Returns the requested contact point by id */
+      200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
           "application/json": components["schemas"]["ContactPointOutput"];
+        };
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Returns 404 if the contact point is not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotFoundErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
         };
       };
     };
@@ -499,12 +640,40 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      201: {
+      /** @description Returns the deleted contact point */
+      200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
           "application/json": components["schemas"]["ContactPointOutput"];
+        };
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Returns 404 if the contact point is not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotFoundErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
         };
       };
     };
@@ -524,12 +693,40 @@ export interface operations {
       };
     };
     responses: {
-      201: {
+      /** @description Returns the updated contact point */
+      200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
           "application/json": components["schemas"]["ContactPointOutput"];
+        };
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Returns 404 if the contact point is not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotFoundErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
         };
       };
     };

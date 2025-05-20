@@ -71,7 +71,9 @@ describe("HTTP Tools", () => {
     class TestController {
       @Post("validate")
       @ValidateHttp({
-        response: ResponseDto
+        201: {
+          schema: ResponseDto
+        }
       })
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       validate(@Query() query: QueryDto, @Body() body: BodyDto) {
@@ -80,7 +82,9 @@ describe("HTTP Tools", () => {
 
       @Post("bad-response")
       @ValidateHttp({
-        response: ResponseDto
+        201: {
+          schema: ResponseDto
+        }
       })
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       badResponse(@Query() query: QueryDto, @Body() body: BodyDto) {

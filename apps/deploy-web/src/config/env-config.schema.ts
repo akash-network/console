@@ -13,6 +13,7 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_DEFAULT_NETWORK_ID: networkId.optional().default("mainnet"),
   NEXT_PUBLIC_MANAGED_WALLET_DENOM: z.enum(["uakt", "usdc"]).optional().default("usdc"),
   NEXT_PUBLIC_API_BASE_URL: z.string(),
+  NEXT_PUBLIC_NOTIFICATIONS_API_BASE_URL: z.string(),
   NEXT_PUBLIC_STATS_APP_URL: z.string().url(),
   NEXT_PUBLIC_PROVIDER_PROXY_URL: z.string(),
   NEXT_PUBLIC_PROVIDER_PROXY_URL_WS: z.string(),
@@ -39,7 +40,8 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_MAINTENANCE_BANNER_MESSAGE_DATE: z.string().optional(),
   NEXT_PUBLIC_TRACKING_ENABLED: coercedBoolean().optional().default("false"),
   NEXT_PUBLIC_LINKEDIN_TRACKING_ENABLED: coercedBoolean().optional().default("false"),
-  NEXT_PUBLIC_GROWTH_CHANNEL_TRACKING_ENABLED: coercedBoolean().optional().default("false")
+  NEXT_PUBLIC_GROWTH_CHANNEL_TRACKING_ENABLED: coercedBoolean().optional().default("false"),
+  NEXT_PUBLIC_UNLEASH_ENABLE_ALL: coercedBoolean().optional().default("false")
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({
@@ -61,6 +63,7 @@ export const serverEnvSchema = browserEnvSchema.extend({
   GITLAB_CLIENT_SECRET: z.string(),
   NEXT_PUBLIC_CI_CD_IMAGE_NAME: z.string(),
   NEXT_PUBLIC_PROVIDER_PROXY_URL: z.string(),
+  NEXT_PUBLIC_UNLEASH_ENABLE_ALL: coercedBoolean().optional().default("false"),
   TURNSTILE_TEST_SITE_KEY: z
     .string()
     .optional()
