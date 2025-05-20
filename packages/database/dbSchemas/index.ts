@@ -1,4 +1,4 @@
-import { Model, ModelCtor } from "sequelize-typescript";
+import type { Model, ModelCtor } from "sequelize-typescript";
 
 import { activeChain, chainDefinitions } from "../chainDefinitions";
 import {
@@ -8,9 +8,9 @@ import {
   Message as BaseMessage,
   MonitoredValue,
   Transaction,
-  Validator,
   TransactionEvent,
-  TransactionEventAttribute
+  TransactionEventAttribute,
+  Validator
 } from "./base";
 import { Template, TemplateFavorite, UserSetting } from "./user";
 

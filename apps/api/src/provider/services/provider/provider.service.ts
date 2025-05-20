@@ -2,19 +2,21 @@ import { Provider, ProviderAttribute, ProviderAttributeSignature, ProviderSnapsh
 import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
 import { ProviderHttpService } from "@akashnetwork/http-sdk";
 import { SupportedChainNetworks } from "@akashnetwork/net";
+import axios from "axios";
 import { add } from "date-fns";
 import { Op } from "sequelize";
 import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { UserWalletOutput } from "@src/billing/repositories";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
-import { ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
 import { ProviderIdentity } from "@src/provider/services/provider/provider-proxy.service";
 import { toUTC } from "@src/utils";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { AuditorService } from "../auditors/auditors.service";
+import { JwtService } from "../jwt/jwt.service";
 import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
 
 @singleton()
@@ -24,16 +26,16 @@ export class ProviderService {
   private readonly chainNetwork: SupportedChainNetworks;
 
   constructor(
-    private readonly providerProxy: ProviderProxyService,
     private readonly providerHttpService: ProviderHttpService,
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
+    private readonly jwtService: JwtService,
     @InjectBillingConfig() private readonly config: BillingConfig
   ) {
     this.chainNetwork = this.config.NETWORK as SupportedChainNetworks;
   }
 
-  async sendManifest(provider: string, dseq: string, manifest: string, options: { certPem: string; keyPem: string }) {
+  async sendManifest(currentWallet: UserWalletOutput, provider: string, dseq: string, manifest: string) {
     const jsonStr = manifest.replace(/"quantity":{"val/g, '"size":{"val');
 
     const providerResponse = await this.providerHttpService.getProvider(provider);
@@ -46,21 +48,23 @@ export class ProviderService {
       hostUri: providerResponse.provider.host_uri
     };
 
-    const response = await this.sendManifestToProvider(dseq, jsonStr, options, providerIdentity);
+    // Generate JWT token for provider authentication
+    const token = await this.jwtService.generateProviderToken(currentWallet, provider, dseq);
+
+    const response = await this.sendManifestToProvider(dseq, jsonStr, { token }, providerIdentity);
 
     return response;
   }
 
-  private async sendManifestToProvider(dseq: string, jsonStr: string, options: { certPem: string; keyPem: string }, providerIdentity: ProviderIdentity) {
+  private async sendManifestToProvider(dseq: string, jsonStr: string, options: { token: string }, providerIdentity: ProviderIdentity) {
     for (let i = 1; i <= this.MANIFEST_SEND_MAX_RETRIES; i++) {
       try {
-        const result = await this.providerProxy.fetchProviderUrl(`/deployment/${dseq}/manifest`, {
+        const result = await axios.put(`${providerIdentity.hostUri}/deployment/${dseq}/manifest`, {
           method: "PUT",
           body: jsonStr,
-          certPem: options.certPem,
-          keyPem: options.keyPem,
-          chainNetwork: this.chainNetwork,
-          providerIdentity,
+          headers: {
+            Authorization: `Bearer ${options.token}`
+          },
           timeout: 60000
         });
 
@@ -75,7 +79,7 @@ export class ProviderService {
     }
   }
 
-  async getLeaseStatus(provider: string, dseq: string, gseq: number, oseq: number, options: { certPem: string; keyPem: string }): Promise<LeaseStatusResponse> {
+  async getLeaseStatus(currentWallet: UserWalletOutput, provider: string, dseq: string, gseq: number, oseq: number): Promise<LeaseStatusResponse> {
     const providerResponse = await this.providerHttpService.getProvider(provider);
     if (!providerResponse) {
       throw new Error(`Provider ${provider} not found`);
@@ -86,16 +90,17 @@ export class ProviderService {
       hostUri: providerResponse.provider.host_uri
     };
 
-    const response = await this.providerProxy.fetchProviderUrl<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
-      method: "GET",
-      certPem: options.certPem,
-      keyPem: options.keyPem,
-      chainNetwork: this.chainNetwork,
-      providerIdentity,
+    // Generate JWT token for provider authentication
+    const token = await this.jwtService.generateProviderToken(currentWallet, provider, dseq);
+
+    const response = await axios.get(`${providerIdentity.hostUri}/lease/${dseq}/${gseq}/${oseq}/status`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
       timeout: 30000
     });
 
-    return response;
+    return response.data;
   }
 
   async getProviderList({ trial = false }: { trial?: boolean } = {}) {

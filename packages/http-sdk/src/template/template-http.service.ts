@@ -1,6 +1,7 @@
 import type { AxiosRequestConfig } from "axios";
 
-import { ApiHttpService, ApiOutput } from "../api-http/api-http.service";
+import type { ApiOutput } from "../api-http/api-http.service";
+import { ApiHttpService } from "../api-http/api-http.service";
 
 export interface TemplateOutput {
   id: string;
@@ -41,7 +42,6 @@ export class TemplateHttpService extends ApiHttpService {
   }
 
   async findGroupedByCategory(): Promise<ApiOutput<TemplateCategory[]>> {
-     return this.extractData(await this.get<TemplateCategory[]>('/v1/templates-list'));
+    return this.extractData(await this.get<TemplateCategory[]>("/v1/templates-list"));
   }
 }
-

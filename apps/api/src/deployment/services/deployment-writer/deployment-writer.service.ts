@@ -92,7 +92,7 @@ export class DeploymentWriterService {
   }
 
   public async update(wallet: UserWalletOutput, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
-    const { sdl, certificate } = input;
+    const { sdl } = input;
 
     assert(this.sdlService.validateSdl(sdl), 400, "Invalid SDL");
 
@@ -101,11 +101,9 @@ export class DeploymentWriterService {
     const manifest = this.sdlService.getManifest(sdl, "beta3", true) as string;
 
     await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
-    await this.sendManifestToProviders(dseq, manifest, certificate as { certPem: string; keyPem: string }, deployment.leases);
+    await this.sendManifestToProviders(wallet, dseq, manifest, deployment.leases);
 
-    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq, {
-      certificate: { certPem: certificate.certPem, keyPem: certificate.keyPem }
-    });
+    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq);
   }
 
   private async ensureDeploymentIsUpToDate(
@@ -126,19 +124,14 @@ export class DeploymentWriterService {
   }
 
   private async sendManifestToProviders(
+    wallet: UserWalletOutput,
     dseq: string,
     manifest: string,
-    certificate: { certPem: string; keyPem: string },
     leases: GetDeploymentResponse["data"]["leases"]
   ): Promise<void> {
-    assert(certificate.certPem && certificate.keyPem, 400, "Certificate must include both certPem and keyPem");
-
     const leaseProviders = leases.map(lease => lease.lease_id.provider).filter((v, i, s) => s.indexOf(v) === i);
     for (const provider of leaseProviders) {
-      await this.providerService.sendManifest(provider, dseq, manifest, {
-        certPem: certificate.certPem,
-        keyPem: certificate.keyPem
-      });
+      await this.providerService.sendManifest(wallet, provider, dseq, manifest);
     }
   }
 }

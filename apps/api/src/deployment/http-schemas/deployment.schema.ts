@@ -100,11 +100,7 @@ export const DepositDeploymentResponseSchema = z.object({
 
 export const UpdateDeploymentRequestSchema = z.object({
   data: z.object({
-    sdl: z.string(),
-    certificate: z.object({
-      certPem: z.string(),
-      keyPem: z.string()
-    })
+    sdl: z.string()
   })
 });
 
