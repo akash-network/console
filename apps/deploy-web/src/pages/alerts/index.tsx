@@ -1,6 +1,6 @@
 import { AlertsPage } from "@src/components/alerts/AlertsPage";
-import { showIfEnabled } from "@src/services/feature-flag/feature-flag.service";
+import { featureFlagService } from "@src/services/feature-flag";
 
 export default AlertsPage;
 
-export const getServerSideProps = showIfEnabled("alerts");
+export const getServerSideProps = featureFlagService.showIfEnabled("alerts");

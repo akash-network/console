@@ -12,13 +12,14 @@ type Props = {
   iconVariant?: IconVariant;
   showLoading?: boolean;
   children?: ReactNode;
+  ["data-testid"]?: string;
 };
 
-export const Snackbar: React.FunctionComponent<Props> = ({ title, subTitle, iconVariant, showLoading = false }) => {
+export const Snackbar: React.FunctionComponent<Props> = ({ title, subTitle, iconVariant, showLoading = false, "data-testid": dataTestId }) => {
   const icon = getIcon(iconVariant);
 
   return (
-    <div>
+    <div data-testid={dataTestId}>
       <div className={cn({ ["mb-2"]: !!subTitle }, "flex items-center space-x-2")}>
         {!!icon && <div className="flex items-center">{icon}</div>}
 

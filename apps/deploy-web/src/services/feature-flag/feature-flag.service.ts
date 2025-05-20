@@ -1,54 +1,45 @@
-import { evaluateFlags, flagsClient, getDefinitions } from "@unleash/nextjs";
-import type { GetServerSideProps } from "next";
-import type { GetServerSidePropsContext } from "next/types";
+import type * as unleashModule from "@unleash/nextjs";
+import type { GetServerSideProps, GetServerSidePropsContext } from "next";
 
-import { serverEnvConfig } from "@src/config/server-env.config";
+import type { ServerEnvConfig } from "@src/config/env-config.schema";
 
-export const getFlag = async (name: string, sessionId?: string) => {
-  if (serverEnvConfig.NEXT_PUBLIC_UNLEASH_ENABLE_ALL) {
-    return true;
+export class FeatureFlagService {
+  private readonly UNLEASH_COOKIE_KEY = "unleash-session-id=";
+
+  constructor(
+    private readonly unleash: typeof unleashModule,
+    private readonly config: ServerEnvConfig
+  ) {}
+
+  async getFlag(name: string, sessionId?: string): Promise<boolean> {
+    if (this.config.NEXT_PUBLIC_UNLEASH_ENABLE_ALL) return true;
+
+    const definitions = await this.unleash.getDefinitions({
+      fetchOptions: { next: { revalidate: 15 } }
+    });
+
+    const { toggles } = this.unleash.evaluateFlags(definitions, { sessionId });
+    const flags = this.unleash.flagsClient(toggles);
+
+    return flags.isEnabled(name);
   }
 
-  const definitions = await getDefinitions({
-    fetchOptions: {
-      next: { revalidate: 15 }
-    }
-  });
+  extractSessionId(ctx: GetServerSidePropsContext): string | undefined {
+    const cookies = ctx.req.headers.cookie?.split(";").map(c => c.trim());
+    const unleashCookie = cookies?.find(c => c.startsWith(this.UNLEASH_COOKIE_KEY));
+    return unleashCookie?.replace(this.UNLEASH_COOKIE_KEY, "");
+  }
 
-  const { toggles } = evaluateFlags(definitions, {
-    sessionId
-  });
-  const flags = flagsClient(toggles);
+  showIfEnabled(name: string): GetServerSideProps {
+    return async ctx => {
+      if (this.config.NEXT_PUBLIC_UNLEASH_ENABLE_ALL) return { props: {} };
 
-  return flags.isEnabled(name);
-};
+      const sessionId = this.extractSessionId(ctx);
+      const isEnabled = await this.getFlag(name, sessionId);
 
-const UNLEASH_COOKIE_KEY = "unleash-session-id=";
+      if (!isEnabled) return { notFound: true };
 
-export const extractSessionId = ({ req }: GetServerSidePropsContext) => {
-  const cookies = req.headers.cookie?.split(";").map(c => c.trim());
-  const unleashCookie = cookies?.find(c => c.startsWith(UNLEASH_COOKIE_KEY));
-
-  return unleashCookie?.replace(UNLEASH_COOKIE_KEY, "");
-};
-
-export const showIfEnabled =
-  (name: string): GetServerSideProps =>
-  async ctx => {
-    if (serverEnvConfig.NEXT_PUBLIC_UNLEASH_ENABLE_ALL) {
-      return {
-        props: {}
-      };
-    }
-
-    const sessionId = extractSessionId(ctx);
-    const isEnabled = await getFlag(name, sessionId);
-
-    if (!isEnabled) {
-      return { notFound: true };
-    }
-
-    return {
-      props: {}
+      return { props: {} };
     };
-  };
+  }
+}

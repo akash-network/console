@@ -40,7 +40,7 @@ type FormValues = z.infer<typeof formSchema>;
 export interface ContactPointFormProps {
   values?: FormValues;
   onSubmit: (data: FormValues) => void;
-  onCancel?: () => void | Promise<void>;
+  onCancel?: () => void;
   isLoading?: boolean;
 }
 
@@ -105,6 +105,7 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
               name="name"
               render={({ field }) => (
                 <FormInput
+                  data-testid="contact-point-form-name"
                   label="Name"
                   value={field.value}
                   placeholder="Contact point name..."
@@ -121,6 +122,7 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
               render={({ field, fieldState }) => (
                 <>
                   <Textarea
+                    data-testid="contact-point-form-emails"
                     rows={4}
                     label="Emails"
                     value={field.value}
@@ -128,7 +130,7 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
                     onChange={event => field.onChange(event.target.value)}
                     disabled={isLoading}
                   />
-                  <FormMessage className={cn({ "pt-2": !!fieldState.error })} />
+                  <FormMessage data-testid="contact-point-form-emails-error" className={cn({ "pt-2": !!fieldState.error })} />
                 </>
               )}
             />
@@ -137,12 +139,12 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
           {error && <Alert variant="destructive">{error}</Alert>}
 
           <div className="flex justify-end gap-2 pt-4">
-            <LoadingButton disabled={isLoading} loading={isLoading} type="submit">
+            <LoadingButton data-testid="contact-point-form-submit" disabled={isLoading} loading={isLoading} type="submit">
               Save
             </LoadingButton>
 
             {onCancel && (
-              <Button disabled={isLoading} type="button" variant="secondary" onClick={cancel}>
+              <Button data-testid="contact-point-form-cancel" disabled={isLoading} type="button" variant="secondary" onClick={cancel}>
                 Cancel
               </Button>
             )}

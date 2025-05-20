@@ -15,14 +15,14 @@ const notFoundErrorResponseSchema = z.object({
 export class NotFoundErrorResponse extends createZodDto(notFoundErrorResponseSchema) {}
 
 const internalServerErrorResponseSchema = z.object({
-  statusCode: z.literal(404),
+  statusCode: z.literal(500),
   message: z.string()
 });
 
 export class InternalServerErrorResponse extends createZodDto(internalServerErrorResponseSchema) {}
 
 const validationErrorResponseSchema = z.object({
-  statusCode: z.literal(404),
+  statusCode: z.literal(400),
   message: z.string(),
   errors: z.object({
     issues: z.array(z.object({}))

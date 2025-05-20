@@ -5,28 +5,24 @@ import React from "react";
 import { useCallback } from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import { Snackbar } from "@akashnetwork/ui/components";
-import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
-import type { ContactPointFormProps } from "../ContactPointForm";
 
 type ContactPointCreateInput = components["schemas"]["ContactPointCreateInput"]["data"];
-type ContainerCreateInput = Pick<ContactPointCreateInput, "name"> & {
+export type ContainerCreateInput = Pick<ContactPointCreateInput, "name"> & {
   emails: ContactPointCreateInput["config"]["addresses"];
 };
 
 type ChildrenProps = {
   create: (input: ContainerCreateInput) => void;
-  goBack: ContactPointFormProps["onCancel"];
   isLoading: boolean;
 };
 
-export const ContactPointCreateContainer: FC<{ children: (props: ChildrenProps) => ReactNode }> = ({ children }) => {
-  const router = useRouter();
+export const ContactPointCreateContainer: FC<{ children: (props: ChildrenProps) => ReactNode; onCreate: () => void }> = ({ children, onCreate }) => {
   const { notificationsApi } = useServices();
   const mutation = notificationsApi.v1.createContactPoint.useMutation();
   const user = useUser();
@@ -49,20 +45,18 @@ export const ContactPointCreateContainer: FC<{ children: (props: ChildrenProps) 
           }
         });
       } else {
-        enqueueSnackbar(<Snackbar title="Login required" />, { variant: "error" });
+        enqueueSnackbar(<Snackbar data-testid="contact-point-create-login-required-notification" title="Login required" />, { variant: "error" });
       }
     },
-    [enqueueSnackbar, mutation, user?.id]
+    [enqueueSnackbar, mutation, user]
   );
 
   useWhen(mutation.isSuccess, () => {
-    notificator.success("Contact point created!");
-    router.push("./");
+    notificator.success("Contact point created!", { dataTestId: "contact-point-create-success-notification" });
+    onCreate();
   });
 
-  useWhen(mutation.isError, () => notificator.error("Failed to create contact point..."));
+  useWhen(mutation.isError, () => notificator.error("Failed to create contact point...", { dataTestId: "contact-point-create-error-notification" }));
 
-  const goBack: ContactPointFormProps["onCancel"] = useCallback(() => router.push("./"), [router]);
-
-  return <>{children({ create, goBack, isLoading: mutation.isPending })}</>;
+  return <>{children({ create, isLoading: mutation.isPending })}</>;
 };

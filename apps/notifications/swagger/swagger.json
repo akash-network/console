@@ -1554,8 +1554,8 @@
         "properties": {
           "statusCode": {
             "type": "number",
-            "minimum": 404,
-            "maximum": 404
+            "minimum": 400,
+            "maximum": 400
           },
           "message": {
             "type": "string"
@@ -1587,8 +1587,8 @@
         "properties": {
           "statusCode": {
             "type": "number",
-            "minimum": 404,
-            "maximum": 404
+            "minimum": 500,
+            "maximum": 500
           },
           "message": {
             "type": "string"

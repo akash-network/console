@@ -1,6 +1,6 @@
 import { CreateContactPointPage } from "@src/components/alerts/CreateContactPointPage";
-import { showIfEnabled } from "@src/services/feature-flag/feature-flag.service";
+import { featureFlagService } from "@src/services/feature-flag";
 
 export default CreateContactPointPage;
 
-export const getServerSideProps = showIfEnabled("alerts");
+export const getServerSideProps = featureFlagService.showIfEnabled("alerts");
