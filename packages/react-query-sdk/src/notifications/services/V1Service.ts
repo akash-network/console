@@ -2085,31 +2085,39 @@ type CreateAlertParameters = {
   path?: never;
 };
 type CreateAlertData = paths["/v1/alerts"]["post"]["responses"]["201"]["content"]["application/json"];
-type CreateAlertError = unknown;
+type CreateAlertError =
+  | paths["/v1/alerts"]["post"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/alerts"]["post"]["responses"]["500"]["content"]["application/json"];
 type CreateAlertBody = paths["/v1/alerts"]["post"]["requestBody"]["content"]["application/json"];
 type GetAlertSchema = {
   method: "get";
   url: "/v1/alerts/{id}";
 };
 type GetAlertParameters = paths["/v1/alerts/{id}"]["get"]["parameters"];
-type GetAlertData = paths["/v1/alerts/{id}"]["get"]["responses"]["201"]["content"]["application/json"];
-type GetAlertError = unknown;
+type GetAlertData = paths["/v1/alerts/{id}"]["get"]["responses"]["200"]["content"]["application/json"];
+type GetAlertError =
+  | paths["/v1/alerts/{id}"]["get"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/alerts/{id}"]["get"]["responses"]["500"]["content"]["application/json"];
 type PatchAlertSchema = {
   method: "patch";
   url: "/v1/alerts/{id}";
   mediaType: ["application/json"];
 };
 type PatchAlertParameters = paths["/v1/alerts/{id}"]["patch"]["parameters"];
-type PatchAlertData = paths["/v1/alerts/{id}"]["patch"]["responses"]["201"]["content"]["application/json"];
-type PatchAlertError = unknown;
+type PatchAlertData = paths["/v1/alerts/{id}"]["patch"]["responses"]["200"]["content"]["application/json"];
+type PatchAlertError =
+  | paths["/v1/alerts/{id}"]["patch"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/alerts/{id}"]["patch"]["responses"]["500"]["content"]["application/json"];
 type PatchAlertBody = paths["/v1/alerts/{id}"]["patch"]["requestBody"]["content"]["application/json"];
 type DeleteAlertSchema = {
   method: "delete";
   url: "/v1/alerts/{id}";
 };
 type DeleteAlertParameters = paths["/v1/alerts/{id}"]["delete"]["parameters"];
-type DeleteAlertData = paths["/v1/alerts/{id}"]["delete"]["responses"]["201"]["content"]["application/json"];
-type DeleteAlertError = unknown;
+type DeleteAlertData = paths["/v1/alerts/{id}"]["delete"]["responses"]["200"]["content"]["application/json"];
+type DeleteAlertError =
+  | paths["/v1/alerts/{id}"]["delete"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/alerts/{id}"]["delete"]["responses"]["500"]["content"]["application/json"];
 type DeleteAlertBody = undefined;
 type CreateContactPointSchema = {
   method: "post";
@@ -2122,29 +2130,40 @@ type CreateContactPointParameters = {
   path?: never;
 };
 type CreateContactPointData = paths["/v1/contact-points"]["post"]["responses"]["201"]["content"]["application/json"];
-type CreateContactPointError = unknown;
+type CreateContactPointError =
+  | paths["/v1/contact-points"]["post"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/contact-points"]["post"]["responses"]["500"]["content"]["application/json"];
 type CreateContactPointBody = paths["/v1/contact-points"]["post"]["requestBody"]["content"]["application/json"];
 type GetContactPointSchema = {
   method: "get";
   url: "/v1/contact-points/{id}";
 };
 type GetContactPointParameters = paths["/v1/contact-points/{id}"]["get"]["parameters"];
-type GetContactPointData = paths["/v1/contact-points/{id}"]["get"]["responses"]["201"]["content"]["application/json"];
-type GetContactPointError = unknown;
+type GetContactPointData = paths["/v1/contact-points/{id}"]["get"]["responses"]["200"]["content"]["application/json"];
+type GetContactPointError =
+  | paths["/v1/contact-points/{id}"]["get"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/contact-points/{id}"]["get"]["responses"]["404"]["content"]["application/json"]
+  | paths["/v1/contact-points/{id}"]["get"]["responses"]["500"]["content"]["application/json"];
 type PatchContactPointSchema = {
   method: "patch";
   url: "/v1/contact-points/{id}";
   mediaType: ["application/json"];
 };
 type PatchContactPointParameters = paths["/v1/contact-points/{id}"]["patch"]["parameters"];
-type PatchContactPointData = paths["/v1/contact-points/{id}"]["patch"]["responses"]["201"]["content"]["application/json"];
-type PatchContactPointError = unknown;
+type PatchContactPointData = paths["/v1/contact-points/{id}"]["patch"]["responses"]["200"]["content"]["application/json"];
+type PatchContactPointError =
+  | paths["/v1/contact-points/{id}"]["patch"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/contact-points/{id}"]["patch"]["responses"]["404"]["content"]["application/json"]
+  | paths["/v1/contact-points/{id}"]["patch"]["responses"]["500"]["content"]["application/json"];
 type PatchContactPointBody = paths["/v1/contact-points/{id}"]["patch"]["requestBody"]["content"]["application/json"];
 type DeleteContactPointSchema = {
   method: "delete";
   url: "/v1/contact-points/{id}";
 };
 type DeleteContactPointParameters = paths["/v1/contact-points/{id}"]["delete"]["parameters"];
-type DeleteContactPointData = paths["/v1/contact-points/{id}"]["delete"]["responses"]["201"]["content"]["application/json"];
-type DeleteContactPointError = unknown;
+type DeleteContactPointData = paths["/v1/contact-points/{id}"]["delete"]["responses"]["200"]["content"]["application/json"];
+type DeleteContactPointError =
+  | paths["/v1/contact-points/{id}"]["delete"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/contact-points/{id}"]["delete"]["responses"]["404"]["content"]["application/json"]
+  | paths["/v1/contact-points/{id}"]["delete"]["responses"]["500"]["content"]["application/json"];
 type DeleteContactPointBody = undefined;

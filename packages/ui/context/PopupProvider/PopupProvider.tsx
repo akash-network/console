@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { CommonProps, ConfirmProps, CustomPrompt, Popup, PopupProps, SelectOption, SelectProps } from "@akashnetwork/ui/components";
+import type { CommonProps, ConfirmProps, CustomPrompt, PopupProps, SelectOption, SelectProps } from "@akashnetwork/ui/components";
+import { Popup } from "@akashnetwork/ui/components";
 import { firstValueFrom, Subject } from "rxjs";
 
 type ConfirmPopupProps = string | (Omit<CommonProps, "onClose" | "open"> & Omit<ConfirmProps, "onValidate" | "onCancel" | "variant">);

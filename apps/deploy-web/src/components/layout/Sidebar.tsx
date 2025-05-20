@@ -7,7 +7,7 @@ import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import type { ClassValue } from "clsx";
-import { Discord, Github, HeadsetHelp, Menu, MenuScale, Rocket, X as TwitterX, Youtube } from "iconoir-react";
+import { Discord, Github, HeadsetHelp, Menu, MenuScale, MessageAlert, Rocket, X as TwitterX, Youtube } from "iconoir-react";
 import { Cloud, HelpCircle, Home, MultiplePages, OpenInWindow, Server, Settings, Tools } from "iconoir-react";
 import { useAtom } from "jotai";
 import getConfig from "next/config";
@@ -15,6 +15,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import sdlStore from "@src/store/sdlStore";
 import type { ISidebarGroupMenu, ISidebarRoute } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
@@ -44,6 +45,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const wallet = useWallet();
+  const isAlertsEnabled = useFlag("alerts");
 
   const mainRoutes = useMemo(() => {
     const routes: ISidebarRoute[] = [
@@ -86,6 +88,15 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       }
     ];
 
+    if (isAlertsEnabled) {
+      routes.push({
+        title: "Alerts",
+        icon: props => <MessageAlert {...props} />,
+        url: UrlService.alerts(),
+        activeRoutes: [UrlService.alerts()]
+      });
+    }
+
     if (wallet.isWalletConnected && !wallet.isManaged) {
       routes.push({
         title: "App Settings",
@@ -96,7 +107,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
     }
 
     return routes;
-  }, [wallet]);
+  }, [isAlertsEnabled, wallet.isManaged, wallet.isWalletConnected]);
 
   const routeGroups: ISidebarGroupMenu[] = useMemo(
     () => [

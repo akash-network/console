@@ -2,7 +2,8 @@
 import React, { useRef } from "react";
 import { styled } from "@mui/material/styles";
 import { Xmark } from "iconoir-react";
-import { MaterialDesignContent, SnackbarKey, SnackbarProvider } from "notistack";
+import type { SnackbarKey } from "notistack";
+import { MaterialDesignContent, SnackbarProvider } from "notistack";
 import { blue, green } from "tailwindcss/colors";
 
 import { Button } from "../../components/button";

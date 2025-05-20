@@ -2,7 +2,8 @@
 
 import { DotsHorizontalIcon } from "@radix-ui/react-icons";
 
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuTrigger } from "../index";
+import { Button } from "../button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuTrigger } from "../dropdown-menu";
 
 export function DataTableRowActions() {
   return (

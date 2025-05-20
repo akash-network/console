@@ -26,6 +26,7 @@ import { CertificateProvider } from "@src/context/CertificateProvider";
 import { ChainParamProvider } from "@src/context/ChainParamProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
+import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
@@ -54,7 +55,7 @@ const App: React.FunctionComponent<Props> = props => {
   const { Component, pageProps } = props;
 
   return (
-    <>
+    <FlagProvider>
       <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
         <PageHead pageSeo={pageProps.seo} />
 
@@ -102,7 +103,7 @@ const App: React.FunctionComponent<Props> = props => {
           </CustomIntlProvider>
         </AppCacheProvider>
       </main>
-    </>
+    </FlagProvider>
   );
 };
 
