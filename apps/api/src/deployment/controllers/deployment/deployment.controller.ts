@@ -37,7 +37,7 @@ export class DeploymentController {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(userWallet.address, dseq);
+    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(userWallet, dseq);
 
     return {
       data: deployment

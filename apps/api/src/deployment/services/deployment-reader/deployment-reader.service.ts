@@ -4,6 +4,7 @@ import assert from "http-assert";
 import { InternalServerError } from "http-errors";
 import { singleton } from "tsyringe";
 
+import { UserWalletOutput } from "@src/billing/repositories";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
@@ -16,12 +17,8 @@ export class DeploymentReaderService {
     private readonly leaseHttpService: LeaseHttpService
   ) {}
 
-  public async findByOwnerAndDseq(
-    owner: string,
-    dseq: string,
-    options?: { certificate?: { certPem: string; keyPem: string } }
-  ): Promise<GetDeploymentResponse["data"]> {
-    const deploymentResponse = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
+  public async findByOwnerAndDseq(wallet: UserWalletOutput, dseq: string): Promise<GetDeploymentResponse["data"]> {
+    const deploymentResponse = await this.deploymentHttpService.findByOwnerAndDseq(wallet.address, dseq);
 
     if ("code" in deploymentResponse) {
       assert(!deploymentResponse.message?.toLowerCase().includes("deployment not found"), 404, "Deployment not found");
@@ -29,24 +26,17 @@ export class DeploymentReaderService {
       throw new InternalServerError(deploymentResponse.message);
     }
 
-    const { leases } = await this.leaseHttpService.list({ owner, dseq });
+    const { leases } = await this.leaseHttpService.list({ owner: wallet.address, dseq });
 
     const leasesWithStatus = await Promise.all(
       leases.map(async ({ lease }) => {
-        if (!options?.certificate) {
-          return {
-            lease,
-            status: null
-          };
-        }
-
         try {
           const leaseStatus = await this.providerService.getLeaseStatus(
+            wallet,
             lease.lease_id.provider,
             lease.lease_id.dseq,
             lease.lease_id.gseq,
-            lease.lease_id.oseq,
-            options.certificate
+            lease.lease_id.oseq
           );
           return {
             lease,

@@ -2,7 +2,6 @@ import { Provider, ProviderAttribute, ProviderAttributeSignature, ProviderSnapsh
 import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
 import { ProviderHttpService } from "@akashnetwork/http-sdk";
 import { SupportedChainNetworks } from "@akashnetwork/net";
-import axios from "axios";
 import { add } from "date-fns";
 import { Op } from "sequelize";
 import { setTimeout as delay } from "timers/promises";
@@ -12,7 +11,7 @@ import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletOutput } from "@src/billing/repositories";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
-import { ProviderIdentity } from "@src/provider/services/provider/provider-proxy.service";
+import { ProviderIdentity, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
 import { toUTC } from "@src/utils";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { AuditorService } from "../auditors/auditors.service";
@@ -26,6 +25,7 @@ export class ProviderService {
   private readonly chainNetwork: SupportedChainNetworks;
 
   constructor(
+    private readonly providerProxy: ProviderProxyService,
     private readonly providerHttpService: ProviderHttpService,
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
@@ -59,9 +59,11 @@ export class ProviderService {
   private async sendManifestToProvider(dseq: string, jsonStr: string, options: { token: string }, providerIdentity: ProviderIdentity) {
     for (let i = 1; i <= this.MANIFEST_SEND_MAX_RETRIES; i++) {
       try {
-        const result = await axios.put(`${providerIdentity.hostUri}/deployment/${dseq}/manifest`, {
+        const result = await this.providerProxy.fetchProviderUrl(`/deployment/${dseq}/manifest`, {
           method: "PUT",
           body: jsonStr,
+          chainNetwork: this.chainNetwork,
+          providerIdentity,
           headers: {
             Authorization: `Bearer ${options.token}`
           },
@@ -93,14 +95,17 @@ export class ProviderService {
     // Generate JWT token for provider authentication
     const token = await this.jwtService.generateProviderToken(currentWallet, provider, dseq);
 
-    const response = await axios.get(`${providerIdentity.hostUri}/lease/${dseq}/${gseq}/${oseq}/status`, {
+    const response = await this.providerProxy.fetchProviderUrl<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
+      method: "GET",
+      chainNetwork: this.chainNetwork,
+      providerIdentity,
       headers: {
         Authorization: `Bearer ${token}`
       },
       timeout: 30000
     });
 
-    return response.data;
+    return response;
   }
 
   async getProviderList({ trial = false }: { trial?: boolean } = {}) {

@@ -33,6 +33,6 @@ export class LeaseService {
       await this.providerService.sendManifest(wallet, lease.provider, lease.dseq, input.manifest);
     }
 
-    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, input.leases[0].dseq);
+    return await this.deploymentReaderService.findByOwnerAndDseq(wallet, input.leases[0].dseq);
   }
 }

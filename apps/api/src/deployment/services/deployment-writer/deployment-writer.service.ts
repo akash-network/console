@@ -66,7 +66,7 @@ export class DeploymentWriterService {
   }
 
   public async close(wallet: UserWalletOutput, dseq: string): Promise<{ success: boolean }> {
-    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq);
+    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet, dseq);
     const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.deployment_id.dseq);
     await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
 
@@ -74,7 +74,7 @@ export class DeploymentWriterService {
   }
 
   public async deposit(wallet: UserWalletOutput, dseq: string, amount: number): Promise<GetDeploymentResponse["data"]> {
-    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq);
+    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet, dseq);
     const deploymentGrantDenom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
     const depositor = await this.masterWallet.getFirstAddress();
 
@@ -88,7 +88,7 @@ export class DeploymentWriterService {
 
     await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
 
-    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq);
+    return await this.deploymentReaderService.findByOwnerAndDseq(wallet, dseq);
   }
 
   public async update(wallet: UserWalletOutput, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
@@ -96,14 +96,14 @@ export class DeploymentWriterService {
 
     assert(this.sdlService.validateSdl(sdl), 400, "Invalid SDL");
 
-    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq);
+    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet, dseq);
     const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");
     const manifest = this.sdlService.getManifest(sdl, "beta3", true) as string;
 
     await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
     await this.sendManifestToProviders(wallet, dseq, manifest, deployment.leases);
 
-    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq);
+    return await this.deploymentReaderService.findByOwnerAndDseq(wallet, dseq);
   }
 
   private async ensureDeploymentIsUpToDate(
