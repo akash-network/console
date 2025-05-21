@@ -1,3 +1,5 @@
+import { UserProvider } from "@auth0/nextjs-auth0/client";
+import { faker } from "@faker-js/faker";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { AxiosStatic } from "axios";
 
@@ -40,12 +42,19 @@ describe(ProviderRawData.name, () => {
         return new Promise(() => {});
       })
     } as unknown as ProviderProxyService;
+    const user = {
+      id: faker.string.uuid()
+    };
+    const getProfile = jest.fn();
+
     const result = render(
-      <ServicesProvider services={{ axios, providerProxy }}>
-        <QueryClientProvider client={queryClient}>
-          <ProviderRawData owner={props?.provider?.owner || "test"} components={MockComponents(COMPONENTS, props?.components)} />
-        </QueryClientProvider>
-      </ServicesProvider>
+      <UserProvider user={user} fetcher={getProfile}>
+        <ServicesProvider services={{ axios, providerProxy }}>
+          <QueryClientProvider client={queryClient}>
+            <ProviderRawData owner={props?.provider?.owner || "test"} components={MockComponents(COMPONENTS, props?.components)} />
+          </QueryClientProvider>
+        </ServicesProvider>
+      </UserProvider>
     );
 
     await act(() => Promise.resolve());

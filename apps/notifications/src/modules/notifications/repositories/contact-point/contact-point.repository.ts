@@ -1,6 +1,6 @@
 import { InjectDrizzle } from "@knaadh/nestjs-drizzle-pg";
 import { Injectable } from "@nestjs/common";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { z } from "zod";
 
@@ -23,6 +23,23 @@ export type ContactPointOutput = Omit<InternalContactPointOutput, "config"> & {
   config: ContactPointConfig;
 };
 
+export type PaginateOptions = {
+  limit?: number;
+  page?: number;
+};
+
+export type PaginatedResult<T> = {
+  data: T[];
+  pagination: {
+    total: number;
+    limit: number;
+    page: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+};
+
 @Injectable()
 export class ContactPointRepository {
   constructor(
@@ -36,6 +53,35 @@ export class ContactPointRepository {
     });
 
     return contactPoint && this.toOutput(contactPoint);
+  }
+
+  async paginate(options: PaginateOptions): Promise<PaginatedResult<ContactPointOutput>> {
+    const page = options.page || 1;
+    const limit = options.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const contactPoints = await this.db.query.ContactPoint.findMany({
+      limit,
+      offset,
+      orderBy: schema.ContactPoint.createdAt
+    });
+
+    const countResult = await this.db.select({ count: count(schema.ContactPoint.id) }).from(schema.ContactPoint);
+
+    const total = Number(countResult[0].count);
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: this.toOutputList(contactPoints),
+      pagination: {
+        total,
+        limit,
+        page,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      }
+    };
   }
 
   async create(input: ContactPointInput): Promise<ContactPointOutput> {
@@ -65,6 +111,10 @@ export class ContactPointRepository {
     }
 
     return alert;
+  }
+
+  private toOutputList(contactPoints: InternalContactPointOutput[]): ContactPointOutput[] {
+    return contactPoints.map(contactPoint => this.toOutput(contactPoint));
   }
 
   private toOutput(contactPoint: InternalContactPointOutput): ContactPointOutput {

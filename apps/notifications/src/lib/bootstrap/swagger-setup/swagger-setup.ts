@@ -63,6 +63,15 @@ export class SwaggerSetup {
       .setVersion("1.0")
       .addTag("ContactPoint")
       .addTag("Alert")
+      .addApiKey(
+        {
+          type: "apiKey",
+          name: "x-user-id",
+          in: "header"
+        },
+        "x-user-id"
+      )
+      .addSecurityRequirements({ "x-user-id": [] })
       .build();
 
     return () =>

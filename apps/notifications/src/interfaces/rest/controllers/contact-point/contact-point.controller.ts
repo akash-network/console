@@ -1,9 +1,11 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
+import { ApiQuery } from "@nestjs/swagger";
 import { createZodDto } from "nestjs-zod";
 import { Err, Ok, Result } from "ts-results";
 import { z } from "zod";
 
 import { NotFoundErrorResponse, ValidateHttp } from "@src/interfaces/rest/decorators/http-validate/http-validate.decorator";
+import { toPaginatedQuery, toPaginatedResponse } from "@src/lib/http-schema/http-schema";
 import {
   contactPointConfigSchema,
   ContactPointOutput as RepoContactPointOutput,
@@ -37,6 +39,8 @@ export const contactPointPatchInputSchema = z.object({
 class ContactPointCreateInput extends createZodDto(z.object({ data: contactPointCreateInputSchema })) {}
 class ContactPointPatchInput extends createZodDto(z.object({ data: contactPointPatchInputSchema })) {}
 class ContactPointOutput extends createZodDto(contactPointOutputResponseSchema) {}
+class ContactPointListQuery extends createZodDto(toPaginatedQuery()) {}
+class ContactPointListOutput extends createZodDto(toPaginatedResponse(contactPointOutputSchema)) {}
 
 @Controller({
   version: "1",
@@ -72,6 +76,31 @@ export class ContactPointController {
   async getContactPoint(@Param("id") id: string): Promise<Result<ContactPointOutputResponse, NotFoundException>> {
     const contactPoint = await this.contactPointRepository.findById(id);
     return this.toResponse(contactPoint);
+  }
+
+  @Get()
+  @ValidateHttp({
+    200: {
+      schema: ContactPointListOutput,
+      description: "Returns a paginated list of contact points"
+    }
+  })
+  // TODO: upgrade nestjs-zod to v5 and remove these defs
+  //  Issue: https://github.com/BenLorantfy/nestjs-zod/issues/120
+  @ApiQuery({
+    name: "page",
+    required: false,
+    type: Number,
+    description: "Page number"
+  })
+  @ApiQuery({
+    name: "limit",
+    required: false,
+    type: Number,
+    description: "Number of items per page"
+  })
+  async getContactPoints(@Query() query: ContactPointListQuery): Promise<Result<ContactPointListOutput, unknown>> {
+    return Ok(await this.contactPointRepository.paginate(query));
   }
 
   @Patch(":id")

@@ -12,28 +12,31 @@ import { chainMessageCreateInputSchema } from "@src/interfaces/rest/http-schemas
 import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
 import RestModule from "@src/interfaces/rest/rest.module";
 import * as schema from "@src/modules/alert/model-schemas";
+import { AlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 
 import { generateContactPoint } from "@test/seeders/contact-point.seeder";
+
+type AlertOutputMeta = Pick<AlertOutput, "id" | "userId">;
 
 describe("Alerts CRUD", () => {
   it("should perform all CRUD operations against raw alerts", async () => {
     const { app, userId, contactPointId } = await setup();
 
-    const alertId = await shouldCreate(userId, contactPointId, app);
-    await shouldUpdate(alertId, app);
-    await shouldRead(alertId, app);
-    await shouldDelete(alertId, app);
+    const alert = await shouldCreate(userId, contactPointId, app);
+    await shouldUpdate(alert, app);
+    await shouldRead(alert, app);
+    await shouldDelete(alert, app);
 
     await app.close();
   });
 
-  async function shouldCreate(userId: string, contactPointId: string, app: INestApplication): Promise<string> {
+  async function shouldCreate(userId: string, contactPointId: string, app: INestApplication): Promise<AlertOutputMeta> {
     const input = generateMock(chainMessageCreateInputSchema);
     input.userId = userId;
     input.contactPointId = contactPointId;
     input.enabled = true;
 
-    const res = await request(app.getHttpServer()).post("/v1/alerts").send({ data: input });
+    const res = await request(app.getHttpServer()).post("/v1/alerts").set("x-user-id", userId).send({ data: input });
 
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({
@@ -44,31 +47,35 @@ describe("Alerts CRUD", () => {
       updatedAt: expect.any(String)
     });
 
-    return res.body.data.id;
+    return {
+      id: res.body.data.id,
+      userId
+    };
   }
 
-  async function shouldUpdate(alertId: string, app: INestApplication) {
+  async function shouldUpdate(alert: AlertOutputMeta, app: INestApplication) {
     const res = await request(app.getHttpServer())
-      .patch(`/v1/alerts/${alertId}`)
+      .patch(`/v1/alerts/${alert.id}`)
+      .set("x-user-id", alert.userId)
       .send({ data: { enabled: false } });
 
     expect(res.status).toBe(200);
     expect(res.body.data.enabled).toBe(false);
   }
 
-  async function shouldRead(alertId: string, app: INestApplication) {
-    const res = await request(app.getHttpServer()).get(`/v1/alerts/${alertId}`);
+  async function shouldRead(alert: AlertOutputMeta, app: INestApplication) {
+    const res = await request(app.getHttpServer()).get(`/v1/alerts/${alert.id}`).set("x-user-id", alert.userId);
 
     expect(res.status).toBe(200);
-    expect(res.body.data.id).toBe(alertId);
+    expect(res.body.data.id).toBe(alert.id);
   }
 
-  async function shouldDelete(alertId: string, app: INestApplication) {
-    const deleteRes = await request(app.getHttpServer()).delete(`/v1/alerts/${alertId}`);
-    const getRes = await request(app.getHttpServer()).get(`/v1/alerts/${alertId}`);
+  async function shouldDelete(alert: AlertOutputMeta, app: INestApplication) {
+    const deleteRes = await request(app.getHttpServer()).delete(`/v1/alerts/${alert.id}`).set("x-user-id", alert.userId);
+    const getRes = await request(app.getHttpServer()).get(`/v1/alerts/${alert.id}`).set("x-user-id", alert.userId);
 
     expect(deleteRes.status).toBe(200);
-    expect(deleteRes.body.data.id).toBe(alertId);
+    expect(deleteRes.body.data.id).toBe(alert.id);
 
     expect(getRes.status).toBe(404);
   }

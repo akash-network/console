@@ -9,26 +9,30 @@ import { contactPointCreateInputSchema } from "@src/interfaces/rest/controllers/
 import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
 import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
 import RestModule from "@src/interfaces/rest/rest.module";
+import { ContactPointOutput } from "@src/modules/notifications/repositories/contact-point/contact-point.repository";
+
+type ContactPointMeta = Pick<ContactPointOutput, "id" | "userId">;
 
 describe("Contact Points CRUD", () => {
   it("should perform all CRUD operations against contact points", async () => {
     const { app } = await setup();
 
-    const contactPointId = await shouldCreate(app);
-    await shouldUpdate(contactPointId, app);
-    await shouldRead(contactPointId, app);
-    await shouldDelete(contactPointId, app);
+    const contactPoint = await shouldCreate(app);
+    await shouldUpdate(contactPoint, app);
+    await shouldRead(contactPoint, app);
+    await shouldDelete(contactPoint, app);
 
     await app.close();
   });
 
-  async function shouldCreate(app: INestApplication): Promise<string> {
+  async function shouldCreate(app: INestApplication): Promise<ContactPointMeta> {
     const input = generateMock(contactPointCreateInputSchema);
-    input.userId = faker.string.uuid();
+    const userId = faker.string.uuid();
+    input.userId = userId;
     input.type = "email";
     input.config = { addresses: [faker.internet.email()] };
 
-    const res = await request(app.getHttpServer()).post("/v1/contact-points").send({ data: input });
+    const res = await request(app.getHttpServer()).post("/v1/contact-points").set("x-user-id", userId).send({ data: input });
 
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({
@@ -38,13 +42,17 @@ describe("Contact Points CRUD", () => {
       updatedAt: expect.any(String)
     });
 
-    return res.body.data.id;
+    return {
+      id: res.body.data.id,
+      userId
+    };
   }
 
-  async function shouldUpdate(contactPointId: string, app: INestApplication): Promise<void> {
+  async function shouldUpdate(contactPoint: ContactPointMeta, app: INestApplication): Promise<void> {
     const newEmail = faker.internet.email();
     const res = await request(app.getHttpServer())
-      .patch(`/v1/contact-points/${contactPointId}`)
+      .patch(`/v1/contact-points/${contactPoint.id}`)
+      .set("x-user-id", contactPoint.userId)
       .send({
         data: {
           config: { addresses: [newEmail] }
@@ -55,19 +63,34 @@ describe("Contact Points CRUD", () => {
     expect(res.body.data.config.addresses).toContain(newEmail);
   }
 
-  async function shouldRead(contactPointId: string, app: INestApplication): Promise<void> {
-    const res = await request(app.getHttpServer()).get(`/v1/contact-points/${contactPointId}`);
+  async function shouldRead(contactPoint: ContactPointMeta, app: INestApplication): Promise<void> {
+    const [singleRes, listRes] = await Promise.all([
+      request(app.getHttpServer()).get(`/v1/contact-points/${contactPoint.id}`).set("x-user-id", contactPoint.userId),
+      request(app.getHttpServer()).get(`/v1/contact-points`).set("x-user-id", contactPoint.userId)
+    ]);
 
-    expect(res.status).toBe(200);
-    expect(res.body.data.id).toBe(contactPointId);
+    expect(singleRes.status).toBe(200);
+    expect(singleRes.body.data.id).toBe(contactPoint.id);
+
+    expect(listRes.status).toBe(200);
+    expect(listRes.body).toMatchObject({
+      data: [expect.objectContaining(contactPoint)],
+      pagination: {
+        total: 1,
+        page: 1,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false
+      }
+    });
   }
 
-  async function shouldDelete(contactPointId: string, app: INestApplication): Promise<void> {
-    const deleteRes = await request(app.getHttpServer()).delete(`/v1/contact-points/${contactPointId}`);
-    const getRes = await request(app.getHttpServer()).get(`/v1/contact-points/${contactPointId}`);
+  async function shouldDelete(contactPoint: ContactPointMeta, app: INestApplication): Promise<void> {
+    const deleteRes = await request(app.getHttpServer()).delete(`/v1/contact-points/${contactPoint.id}`).set("x-user-id", contactPoint.userId);
+    const getRes = await request(app.getHttpServer()).get(`/v1/contact-points/${contactPoint.id}`).set("x-user-id", contactPoint.userId);
 
     expect(deleteRes.status).toBe(200);
-    expect(deleteRes.body.data.id).toBe(contactPointId);
+    expect(deleteRes.body.data.id).toBe(contactPoint.id);
 
     expect(getRes.status).toBe(404);
   }
