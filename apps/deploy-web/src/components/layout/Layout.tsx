@@ -141,7 +141,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
         </div>
       </div>
 
-      <Suspense>
+      <Suspense fallback={null}>
         <TrackingScripts />
       </Suspense>
     </div>
