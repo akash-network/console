@@ -38,7 +38,7 @@ export function addScriptToHead(options: ScriptOptions): HTMLScriptElement | nul
   }
 
   const script = createScriptElement(options);
-  document.head.appendChild(script);
+  document.head.insertBefore(script, document.head.firstChild);
   return script;
 }
 
@@ -53,6 +53,6 @@ export function addScriptToBody(options: ScriptOptions): HTMLScriptElement | nul
   }
 
   const script = createScriptElement(options);
-  document.body.appendChild(script);
+  document.body.insertBefore(script, document.body.firstChild);
   return script;
 }

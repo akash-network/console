@@ -1,6 +1,6 @@
 "use client";
 import type { ReactNode } from "react";
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { IntlProvider } from "react-intl";
 import { ErrorFallback, Spinner } from "@akashnetwork/ui/components";
@@ -141,7 +141,9 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
         </div>
       </div>
 
-      <TrackingScripts />
+      <Suspense>
+        <TrackingScripts />
+      </Suspense>
     </div>
   );
 };
