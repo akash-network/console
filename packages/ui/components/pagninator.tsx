@@ -30,6 +30,7 @@ export default function Paginator({ currentPage, totalPages, onPageChange, showP
 
 const generatePaginationLinks = (currentPage: number, totalPages: number, onPageChange: (page: number) => void) => {
   const pages: JSX.Element[] = [];
+
   if (totalPages <= 6) {
     for (let i = 1; i <= totalPages; i++) {
       pages.push(
@@ -40,46 +41,44 @@ const generatePaginationLinks = (currentPage: number, totalPages: number, onPage
         </PaginationItem>
       );
     }
-  } else {
-    for (let i = 1; i <= (currentPage > 4 ? 1 : 5); i++) {
-      pages.push(
-        <PaginationItem key={i}>
-          <PaginationLink onClick={() => onPageChange(i)} isActive={i === currentPage}>
-            {i}
-          </PaginationLink>
-        </PaginationItem>
-      );
-    }
-    if (currentPage > 4 && currentPage < totalPages - 3) {
-      pages.push(<PaginationEllipsis key="ellipsis-1" />);
-      pages.push(
-        <PaginationItem key={currentPage - 1}>
-          <PaginationLink onClick={() => onPageChange(currentPage - 1)}>{currentPage - 1}</PaginationLink>
-        </PaginationItem>
-      );
-      pages.push(
-        <PaginationItem key={currentPage}>
-          <PaginationLink onClick={() => onPageChange(currentPage)} isActive={true}>
-            {currentPage}
-          </PaginationLink>
-        </PaginationItem>
-      );
-      pages.push(
-        <PaginationItem key={currentPage + 1}>
-          <PaginationLink onClick={() => onPageChange(currentPage + 1)}>{currentPage + 1}</PaginationLink>
-        </PaginationItem>
-      );
-    }
-    pages.push(<PaginationEllipsis key="ellipsis-2" />);
-    for (let i = currentPage > totalPages - 4 ? totalPages - 4 : totalPages; i <= totalPages; i++) {
-      pages.push(
-        <PaginationItem key={i}>
-          <PaginationLink onClick={() => onPageChange(i)} isActive={i === currentPage}>
-            {i}
-          </PaginationLink>
-        </PaginationItem>
-      );
-    }
+    return pages;
   }
+
+  pages.push(
+    <PaginationItem key={1}>
+      <PaginationLink onClick={() => onPageChange(1)} isActive={currentPage === 1}>
+        1
+      </PaginationLink>
+    </PaginationItem>
+  );
+
+  if (currentPage > 4) {
+    pages.push(<PaginationEllipsis key="ellipsis-start" />);
+  }
+
+  const startPage = Math.max(2, currentPage - 2);
+  const endPage = Math.min(totalPages - 1, currentPage + 2);
+  for (let i = startPage; i <= endPage; i++) {
+    pages.push(
+      <PaginationItem key={i}>
+        <PaginationLink onClick={() => onPageChange(i)} isActive={i === currentPage}>
+          {i}
+        </PaginationLink>
+      </PaginationItem>
+    );
+  }
+
+  if (currentPage < totalPages - 3) {
+    pages.push(<PaginationEllipsis key="ellipsis-end" />);
+  }
+
+  pages.push(
+    <PaginationItem key={totalPages}>
+      <PaginationLink onClick={() => onPageChange(totalPages)} isActive={currentPage === totalPages}>
+        {totalPages}
+      </PaginationLink>
+    </PaginationItem>
+  );
+
   return pages;
 };
