@@ -53,7 +53,7 @@ export const SidebarGroupMenuPopover: React.FunctionComponent<Props> = ({ route,
           }}
         >
           <div className="w-full">
-            {route.hoveredRoutes?.map(route => <SidebarHoveredGroupMenu key={route.title} group={route} hasDivider={route.hasDivider} isNavOpen={isNavOpen} />)}
+            {route.hoveredRoutes?.map((route, i) => <SidebarHoveredGroupMenu key={i} group={route} hasDivider={route.hasDivider} isNavOpen={isNavOpen} />)}
           </div>
         </ClickAwayListener>
       </PopoverContent>

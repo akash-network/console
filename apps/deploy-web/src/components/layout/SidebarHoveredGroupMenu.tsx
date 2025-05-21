@@ -26,12 +26,8 @@ export const SidebarHoveredGroupMenu: React.FunctionComponent<Props> = ({ group,
             </li>
           )}
 
-          {group.routes.map(route => {
-            return route.customComponent ? (
-              <li key={route.title}>{route.customComponent}</li>
-            ) : (
-              <SidebarRouteButton key={route.title} route={route} isHovered />
-            );
+          {group.routes.map((route, i) => {
+            return route.customComponent ? <li key={i}>{route.customComponent}</li> : <SidebarRouteButton key={i} route={route} isHovered />;
           })}
         </ul>
       </nav>
