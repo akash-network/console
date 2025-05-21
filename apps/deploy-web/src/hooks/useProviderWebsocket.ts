@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { Options as WebsocketOptions } from "react-use-websocket";
 import useWebSocket from "react-use-websocket";
 import type { WebSocketHook as LibWebSocketHook } from "react-use-websocket/dist/lib/types";
@@ -16,6 +16,11 @@ const WS_ERRORS = {
 export function useProviderWebsocket(provider: ProviderInfo | undefined, options: ProviderWebsocketOptions): WebSocketHook {
   const chainNetwork = networkStore.useSelectedNetworkId();
   const { localCert } = useCertificate();
+  const providerRef = useRef<{ owner: string | undefined; hostUri: string | undefined }>({ owner: provider?.owner, hostUri: provider?.hostUri });
+
+  useEffect(() => {
+    providerRef.current = { owner: provider?.owner, hostUri: provider?.hostUri };
+  }, [provider]);
 
   const wsHook = useWebSocket(providerProxyUrlWs, {
     reconnectAttempts: 5,
@@ -40,11 +45,16 @@ export function useProviderWebsocket(provider: ProviderInfo | undefined, options
     sendJsonMessage(message, keep) {
       if (message.type === "ping") return wsHook.sendJsonMessage(message, keep);
 
+      const { owner, hostUri } = providerRef.current;
+      if (!owner || !hostUri) {
+        throw new Error("Provider owner and hostUri must be defined to send WebSocket messages");
+      }
+
       return wsHook.sendJsonMessage(
         {
           ...message,
-          providerAddress: provider?.owner,
-          url: `${provider?.hostUri}${message.url}`,
+          providerAddress: owner,
+          url: `${hostUri}${message.url}`,
           chainNetwork,
           certPem: localCert?.certPem,
           keyPem: localCert?.keyPem
