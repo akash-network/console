@@ -1,5 +1,12 @@
 
 
+## [2.92.0](https://github.com/akash-network/console/compare/console-api/v2.91.0...console-api/v2.92.0) (2025-05-21)
+
+
+### Features
+
+* **notifications:** implements swagger and code generation  ([ed61a3a](https://github.com/akash-network/console/commit/ed61a3a7730ef088dd31f4db9006b106eac4c6c4))
+
 ## [2.91.0](https://github.com/akash-network/console/compare/console-api/v2.90.2...console-api/v2.91.0) (2025-05-16)
 
 
