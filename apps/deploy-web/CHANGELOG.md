@@ -1,5 +1,19 @@
 
 
+## [2.75.0](https://github.com/akash-network/console/compare/console-web/v2.74.2...console-web/v2.75.0) (2025-05-21)
+
+
+### Features
+
+* **contact-point:** implements unleash feature flagging and contact creation ui ([6ad02ce](https://github.com/akash-network/console/commit/6ad02ce382dc76b9d317aa3934416da3605ad53b))
+* **notifications:** implements swagger and code generation  ([ed61a3a](https://github.com/akash-network/console/commit/ed61a3a7730ef088dd31f4db9006b106eac4c6c4))
+* **styling:** improve sidebar ([#1344](https://github.com/akash-network/console/issues/1344)) ([77e88dd](https://github.com/akash-network/console/commit/77e88dd9a61b0d38ded8e108a58a6de093a29de7))
+
+
+### Bug Fixes
+
+* **provider:** websocket closure bug ([#1346](https://github.com/akash-network/console/issues/1346)) ([fe9803b](https://github.com/akash-network/console/commit/fe9803b49e02632bddc4f925d0a1bc5f8cd6ab14))
+
 ## [2.74.2](https://github.com/akash-network/console/compare/console-web/v2.74.1...console-web/v2.74.2) (2025-05-16)
 
 
