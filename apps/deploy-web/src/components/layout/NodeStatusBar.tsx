@@ -1,5 +1,5 @@
 "use client";
-import { Button } from "@akashnetwork/ui/components";
+import { Button, Separator } from "@akashnetwork/ui/components";
 import { useRouter } from "next/navigation";
 
 import { useSettings } from "@src/context/SettingsProvider";
@@ -17,15 +17,15 @@ export const NodeStatusBar = () => {
   const selectedNetwork = networkStore.useSelectedNetwork();
 
   return (
-    <div className="mb-4">
-      <div className="text-center">
-        <span className="text-sm font-bold text-primary">{selectedNetwork.title}</span>
+    <div>
+      <div className="flex items-center px-2 py-2">
+        <span className="text-sm font-bold">{selectedNetwork.title}</span>
       </div>
 
       <LinearLoadingSkeleton isLoading={isRefreshingNodeStatus} />
-      <div className="flex items-center justify-center">
+      <div className="flex items-center">
         {shownNode && (
-          <Button size="sm" className="w-full text-xs" variant="outline" onClick={() => router.push(UrlService.settings())}>
+          <Button size="sm" className="flex w-full items-center justify-between text-xs" variant="secondary" onClick={() => router.push(UrlService.settings())}>
             <div className="ml-2">{shownNode?.id?.length > 15 ? getSplitText(shownNode?.id, 0, 15) : shownNode?.id}</div>
 
             <div className="ml-2 text-xs">
@@ -40,6 +40,8 @@ export const NodeStatusBar = () => {
           </Button>
         )}
       </div>
+
+      <Separator className="my-2" />
     </div>
   );
 };

@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import React from "react";
 import dynamic from "next/dynamic";
 
-import { Footer } from "@src/components/layout/Footer";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -88,8 +87,6 @@ export function HomeContainer() {
           />
         )}
       </div>
-
-      <Footer />
     </Layout>
   );
 }

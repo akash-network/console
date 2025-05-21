@@ -57,22 +57,24 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
 
 const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName = "" }) => {
   const muiTheme = useMuiTheme();
-  const [isNavOpen, setIsNavOpen] = useState(true);
+  const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
+  const [isNavOpen, setIsNavOpen] = useState(() => {
+    const _isNavOpen = localStorage.getItem("isNavOpen");
+
+    if (_isNavOpen !== null && !smallScreen) {
+      return _isNavOpen === "true";
+    }
+
+    return true;
+  });
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useState(withMaintenanceBanner);
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
-  const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const hasCreditCardBanner = useHasCreditCardBanner(isMaintenanceBannerOpen);
   const hasBanner = hasCreditCardBanner || isMaintenanceBannerOpen;
 
   useEffect(() => {
-    const _isNavOpen = localStorage.getItem("isNavOpen");
-
-    if (_isNavOpen !== null && !smallScreen) {
-      setIsNavOpen(_isNavOpen === "true");
-    }
-
     const refreshNodeIntervalId = setInterval(async () => {
       await refreshNodeStatuses();
     }, millisecondsInMinute);
@@ -81,6 +83,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
       clearInterval(refreshNodeIntervalId);
     };
   }, [refreshNodeStatuses]);
+
   const onOpenMenuClick = () => {
     setIsNavOpen(prev => {
       const newValue = !prev;
