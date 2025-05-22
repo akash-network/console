@@ -14,8 +14,8 @@ export const toPaginatedResponse = <T extends ZodTypeAny>(schema: T): ZodObject<
   z.object({ data: z.array(schema), pagination: paginationSchema });
 
 export const paginationQuerySchema = z.object({
-  page: z.number().optional(),
-  limit: z.number().optional()
+  page: z.number({ coerce: true }).optional(),
+  limit: z.number({ coerce: true }).optional()
 });
 
 export function toPaginatedQuery(): typeof paginationQuerySchema;
