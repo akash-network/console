@@ -1,5 +1,12 @@
 
 
+## [2.76.0](https://github.com/akash-network/console/compare/console-web/v2.75.0...console-web/v2.76.0) (2025-05-22)
+
+
+### Features
+
+* **analytics:** add gtm ([#1351](https://github.com/akash-network/console/issues/1351)) ([312899b](https://github.com/akash-network/console/commit/312899b9b2fe7ad7e3a1b93e79f37cb06e4eb6e3))
+
 ## [2.75.0](https://github.com/akash-network/console/compare/console-web/v2.74.2...console-web/v2.75.0) (2025-05-21)
 
 
