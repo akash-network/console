@@ -6,6 +6,7 @@ import { AlertsLayout, AlertTabs } from "@src/components/alerts/AlertsLayout";
 import { ContactPointCreateContainer } from "@src/components/alerts/ContactPointCreateContainer/ContactPointCreateContainer";
 import { ContactPointForm } from "@src/components/alerts/ContactPointForm/ContactPointForm";
 import Layout from "@src/components/layout/Layout";
+import { UrlService } from "@src/utils/urlUtils";
 
 export const CreateContactPointPage: React.FunctionComponent = () => {
   const router = useRouter();
@@ -15,7 +16,7 @@ export const CreateContactPointPage: React.FunctionComponent = () => {
       <NextSeo title="Create Contact Point" />
       <AlertsLayout page={AlertTabs.CONTACT_POINTS} title="Create Contact Point" returnable>
         <ContactPointCreateContainer onCreate={router.back}>
-          {props => <ContactPointForm isLoading={props.isLoading} onSubmit={props.create} onCancel={() => router.push("/alerts/contact-points")} />}
+          {props => <ContactPointForm isLoading={props.isLoading} onSubmit={props.create} onCancel={() => router.push(UrlService.contactPoints())} />}
         </ContactPointCreateContainer>
       </AlertsLayout>
     </Layout>
