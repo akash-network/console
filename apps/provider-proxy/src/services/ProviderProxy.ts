@@ -21,8 +21,12 @@ export class ProviderProxy {
     const agentOptions: TLSChainAgentOptions = {
       timeout: options.timeout,
       rejectUnauthorized: false,
-      cert: options.cert,
-      key: options.key,
+      ...(options.cert && options.key
+        ? {
+            cert: options.cert,
+            key: options.key
+          }
+        : {}),
       chainNetwork: options.network,
       providerAddress: options.providerAddress
     };

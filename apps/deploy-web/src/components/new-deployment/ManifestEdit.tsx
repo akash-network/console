@@ -91,7 +91,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const services = useImportSimpleSdl(editedManifest);
 
   useWhen(
-    wallet.isManaged && sdlDenom === "uakt" && editedManifest,
+    wallet.isManaged && sdlDenom === "uakt" && editedManifest && browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_DENOM !== "uakt",
     () => {
       setEditedManifest(prev => (prev ? prev.replace(/uakt/g, managedDenom) : prev));
       setSdlDenom(managedDenom);
