@@ -2,7 +2,7 @@ import "@akashnetwork/ui/styles";
 import "nprogress/nprogress.css";
 import "../styles/index.css";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
@@ -18,9 +18,12 @@ import NProgress from "nprogress";
 
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
+import { Loading } from "@src/components/layout/Layout";
 import { PageHead } from "@src/components/layout/PageHead";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { UserProviders } from "@src/components/user/UserProviders";
+import type { BrowserEnvConfig } from "@src/config/browser-env.config";
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 import { CertificateProvider } from "@src/context/CertificateProvider";
 import { ChainParamProvider } from "@src/context/ChainParamProvider";
@@ -36,6 +39,7 @@ import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePro
 import { queryClient } from "@src/queries";
 import { prefetchFeatureFlags } from "@src/queries/featureFlags";
 import { serverApiUrlService } from "@src/services/api-url/server-api-url.service";
+import { decodeInjectedConfig } from "@src/services/decodeInjectedConfig/decodeInjectedConfig";
 import { store } from "@src/store/global-store";
 
 interface Props extends AppProps {
@@ -53,16 +57,31 @@ Router.events.on("routeChangeError", () => NProgress.done());
 
 const App: React.FunctionComponent<Props> = props => {
   const { Component, pageProps } = props;
+  const [isResolvedConfig, setIsResolvedConfig] = useState(false);
+  const [config, setConfig] = useState<Partial<BrowserEnvConfig> | null>(null);
+
+  useEffect(() => {
+    decodeInjectedConfig()
+      .then(setConfig)
+      .finally(() => setIsResolvedConfig(true));
+  }, []);
+
+  if (!isResolvedConfig) {
+    return <Loading text="Loading config..." />;
+  }
 
   return (
     <FlagProvider>
+      <ClientOnlyTurnstile
+        enabled={config?.NEXT_PUBLIC_TURNSTILE_ENABLED || browserEnvConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
+        siteKey={config?.NEXT_PUBLIC_TURNSTILE_SITE_KEY || browserEnvConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+      />
       <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
         <PageHead pageSeo={pageProps.seo} />
 
         <AppCacheProvider {...props}>
           <CustomIntlProvider>
             <QueryClientProvider client={queryClient}>
-              <ClientOnlyTurnstile />
               <HydrationBoundary state={pageProps.dehydratedState}>
                 <JotaiProvider store={store}>
                   <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>

@@ -140,7 +140,7 @@
     "@keplr-wallet/types": "^0.12.111",
     "@next/bundle-analyzer": "^14.0.1",
     "@octokit/openapi-types": "^22.2.0",
-    "@playwright/test": "^1.45.0",
+    "@playwright/test": "^1.52.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",

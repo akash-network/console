@@ -39,3 +39,5 @@ export const browserEnvConfig = validateStaticEnvVars({
   NEXT_PUBLIC_UNLEASH_ENABLE_ALL: process.env.NEXT_PUBLIC_UNLEASH_ENABLE_ALL,
   NEXT_PUBLIC_GTM_ID: process.env.NEXT_PUBLIC_GTM_ID
 });
+
+export type BrowserEnvConfig = typeof browserEnvConfig;
