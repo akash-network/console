@@ -3,6 +3,7 @@ import { Err, Ok, Result } from "ts-results";
 
 import { ValidateHttp } from "@src/interfaces/rest/decorators/http-validate/http-validate.decorator";
 import { AlertCreateInput, AlertOutputResponse, AlertPatchInput } from "@src/interfaces/rest/http-schemas/alert.http-schema";
+import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { AlertOutput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 
 @Controller({
@@ -10,7 +11,10 @@ import { AlertOutput, AlertRepository } from "@src/modules/alert/repositories/al
   path: "alerts"
 })
 export class AlertController {
-  constructor(private readonly alertRepository: AlertRepository) {}
+  constructor(
+    private readonly alertRepository: AlertRepository,
+    private readonly authService: AuthService
+  ) {}
 
   @Post()
   @ValidateHttp({
@@ -18,7 +22,7 @@ export class AlertController {
   })
   async createAlert(@Body() { data }: AlertCreateInput): Promise<Result<AlertOutputResponse, unknown>> {
     return Ok({
-      data: await this.alertRepository.create(data)
+      data: await this.alertRepository.accessibleBy(this.authService.ability, "create").create(data)
     });
   }
 
@@ -27,7 +31,7 @@ export class AlertController {
     200: { schema: AlertOutputResponse, description: "Returns the requested alert by id" }
   })
   async getAlert(@Param("id") id: string): Promise<Result<AlertOutputResponse, NotFoundException>> {
-    const alert = await this.alertRepository.findOneById(id);
+    const alert = await this.alertRepository.accessibleBy(this.authService.ability, "read").findOneById(id);
     return this.toResponse(alert);
   }
 
@@ -36,7 +40,7 @@ export class AlertController {
     200: { schema: AlertOutputResponse, description: "Returns the updated alert" }
   })
   async patchAlert(@Param("id") id: string, @Body() { data }: AlertPatchInput): Promise<Result<AlertOutputResponse, NotFoundException | BadRequestException>> {
-    const alert = await this.alertRepository.updateById(id, data);
+    const alert = await this.alertRepository.accessibleBy(this.authService.ability, "update").updateById(id, data);
     return this.toResponse(alert);
   }
 
@@ -45,7 +49,7 @@ export class AlertController {
     200: { schema: AlertOutputResponse, description: "Returns the deleted alert" }
   })
   async deleteAlert(@Param("id") id: string): Promise<Result<AlertOutputResponse, NotFoundException>> {
-    const alert = await this.alertRepository.deleteOneById(id);
+    const alert = await this.alertRepository.accessibleBy(this.authService.ability, "delete").deleteOneById(id);
     return this.toResponse(alert);
   }
 

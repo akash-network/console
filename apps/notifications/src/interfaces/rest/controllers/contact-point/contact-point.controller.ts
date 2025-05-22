@@ -5,6 +5,7 @@ import { Err, Ok, Result } from "ts-results";
 import { z } from "zod";
 
 import { NotFoundErrorResponse, ValidateHttp } from "@src/interfaces/rest/decorators/http-validate/http-validate.decorator";
+import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { toPaginatedQuery, toPaginatedResponse } from "@src/lib/http-schema/http-schema";
 import {
   contactPointConfigSchema,
@@ -47,7 +48,10 @@ class ContactPointListOutput extends createZodDto(toPaginatedResponse(contactPoi
   path: "contact-points"
 })
 export class ContactPointController {
-  constructor(private readonly contactPointRepository: ContactPointRepository) {}
+  constructor(
+    private readonly contactPointRepository: ContactPointRepository,
+    private readonly authService: AuthService
+  ) {}
 
   @Post()
   @ValidateHttp({
@@ -58,7 +62,7 @@ export class ContactPointController {
   })
   async createContactPoint(@Body() { data }: ContactPointCreateInput): Promise<Result<ContactPointOutputResponse, unknown>> {
     return Ok({
-      data: await this.contactPointRepository.create(data)
+      data: await this.contactPointRepository.accessibleBy(this.authService.ability, "create").create(data)
     });
   }
 
@@ -74,7 +78,7 @@ export class ContactPointController {
     }
   })
   async getContactPoint(@Param("id") id: string): Promise<Result<ContactPointOutputResponse, NotFoundException>> {
-    const contactPoint = await this.contactPointRepository.findById(id);
+    const contactPoint = await this.contactPointRepository.accessibleBy(this.authService.ability, "read").findById(id);
     return this.toResponse(contactPoint);
   }
 
@@ -100,7 +104,7 @@ export class ContactPointController {
     description: "Number of items per page"
   })
   async getContactPoints(@Query() query: ContactPointListQuery): Promise<Result<ContactPointListOutput, unknown>> {
-    return Ok(await this.contactPointRepository.paginate(query));
+    return Ok(await this.contactPointRepository.accessibleBy(this.authService.ability, "read").paginate(query));
   }
 
   @Patch(":id")
@@ -109,7 +113,7 @@ export class ContactPointController {
     404: { schema: NotFoundErrorResponse, description: "Returns 404 if the contact point is not found" }
   })
   async patchContactPoint(@Param("id") id: string, @Body() { data }: ContactPointPatchInput): Promise<Result<ContactPointOutputResponse, NotFoundException>> {
-    const contactPoint = await this.contactPointRepository.updateById(id, data);
+    const contactPoint = await this.contactPointRepository.accessibleBy(this.authService.ability, "update").updateById(id, data);
     return this.toResponse(contactPoint);
   }
 
@@ -119,7 +123,7 @@ export class ContactPointController {
     404: { schema: NotFoundErrorResponse, description: "Returns 404 if the contact point is not found" }
   })
   async deleteContactPoint(@Param("id") id: string): Promise<Result<ContactPointOutputResponse, NotFoundException>> {
-    const contactPoint = await this.contactPointRepository.deleteById(id);
+    const contactPoint = await this.contactPointRepository.accessibleBy(this.authService.ability, "delete").deleteById(id);
     return this.toResponse(contactPoint);
   }
 

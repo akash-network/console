@@ -5,6 +5,7 @@ import { Test } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
 import { Ok } from "ts-results";
 
+import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { ContactPointRepository } from "@src/modules/notifications/repositories/contact-point/contact-point.repository";
 import { ContactPointController, contactPointCreateInputSchema, contactPointOutputSchema, contactPointPatchInputSchema } from "./contact-point.controller";
 
@@ -124,12 +125,15 @@ describe(ContactPointController.name, () => {
   }> {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ContactPointController],
-      providers: [MockProvider(ContactPointRepository)]
+      providers: [MockProvider(ContactPointRepository), MockProvider(AuthService)]
     }).compile();
+
+    const contactPointRepository = module.get<MockProxy<ContactPointRepository>>(ContactPointRepository);
+    contactPointRepository.accessibleBy.mockReturnValue(contactPointRepository);
 
     return {
       controller: module.get(ContactPointController),
-      contactPointRepository: module.get(ContactPointRepository)
+      contactPointRepository
     };
   }
 });

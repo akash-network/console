@@ -5,6 +5,7 @@ import { Test } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
 import { Ok } from "ts-results";
 
+import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import { chainMessageCreateInputSchema } from "../../http-schemas/alert.http-schema";
 import { AlertController } from "./alert.controller";
@@ -127,12 +128,15 @@ describe(AlertController.name, () => {
   }> {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AlertController],
-      providers: [MockProvider(AlertRepository)]
+      providers: [MockProvider(AlertRepository), MockProvider(AuthService)]
     }).compile();
+
+    const alertRepository = module.get<MockProxy<AlertRepository>>(AlertRepository);
+    alertRepository.accessibleBy.mockReturnValue(alertRepository);
 
     return {
       controller: module.get(AlertController),
-      alertRepository: module.get(AlertRepository)
+      alertRepository
     };
   }
 });

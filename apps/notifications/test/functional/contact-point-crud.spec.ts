@@ -7,7 +7,6 @@ import request from "supertest";
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { contactPointCreateInputSchema } from "@src/interfaces/rest/controllers/contact-point/contact-point.controller";
 import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
-import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
 import RestModule from "@src/interfaces/rest/rest.module";
 import { ContactPointOutput } from "@src/modules/notifications/repositories/contact-point/contact-point.repository";
 
@@ -69,9 +68,6 @@ describe("Contact Points CRUD", () => {
       request(app.getHttpServer()).get(`/v1/contact-points`).set("x-user-id", contactPoint.userId)
     ]);
 
-    expect(singleRes.status).toBe(200);
-    expect(singleRes.body.data.id).toBe(contactPoint.id);
-
     expect(listRes.status).toBe(200);
     expect(listRes.body).toMatchObject({
       data: [expect.objectContaining(contactPoint)],
@@ -83,6 +79,9 @@ describe("Contact Points CRUD", () => {
         hasPreviousPage: false
       }
     });
+
+    expect(singleRes.status).toBe(200);
+    expect(singleRes.body.data.id).toBe(contactPoint.id);
   }
 
   async function shouldDelete(contactPoint: ContactPointMeta, app: INestApplication): Promise<void> {
@@ -109,7 +108,6 @@ describe("Contact Points CRUD", () => {
 
     const app = module.createNestApplication();
     app.enableVersioning();
-    app.useGlobalInterceptors(new HttpResultInterceptor());
     app.useGlobalFilters(new HttpExceptionFilter(await app.resolve(LoggerService)));
 
     await app.init();
