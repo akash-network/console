@@ -15,15 +15,16 @@ declare module "express" {
   scope: Scope.REQUEST
 })
 export class AuthService {
-  get userId() {
+  get userId(): string {
     if (!this.request.headers["x-user-id"]) {
       this.loggerService.error("User is not authorized");
       throw new UnauthorizedException();
     }
-    return this.request.headers["x-user-id"];
+
+    return this.request.headers["x-user-id"] as string;
   }
 
-  get ability() {
+  get ability(): MongoAbility {
     if (!this.request.ability) {
       this.loggerService.error("User is not authorized");
       throw new UnauthorizedException();

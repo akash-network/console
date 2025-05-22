@@ -12,7 +12,7 @@ import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
 import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
 import { RequestContextInterceptor } from "@src/core/services/request-context-interceptor/request-context.interceptor";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
-import { notificationsApiProxy } from "@src/notifications/routes/proxy";
+import { notificationsApiProxy } from "@src/notifications/routes/proxy/proxy.route";
 import packageJson from "../package.json";
 import { apiKeysRouter } from "./auth/routes/api-keys/api-keys.router";
 import { bidsRouter } from "./bid/routes/bids/bids.router";

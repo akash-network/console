@@ -81,15 +81,19 @@ export class ContactPointRepository {
     const page = options.page || 1;
     const limit = options.limit || 10;
     const offset = (page - 1) * limit;
+    const where = this.whereAccessibleBy();
 
     const contactPoints = await this.db.query.ContactPoint.findMany({
-      where: this.whereAccessibleBy(),
+      where,
       limit,
       offset,
       orderBy: schema.ContactPoint.createdAt
     });
 
-    const countResult = await this.db.select({ count: count(schema.ContactPoint.id) }).from(schema.ContactPoint);
+    const countResult = await this.db
+      .select({ count: count(schema.ContactPoint.id) })
+      .from(schema.ContactPoint)
+      .where(where);
 
     const total = Number(countResult[0].count);
     const totalPages = Math.ceil(total / limit);

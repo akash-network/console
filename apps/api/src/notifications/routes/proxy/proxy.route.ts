@@ -2,14 +2,14 @@ import { Hono } from "hono";
 import { container } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import type { NotificationsConfig } from "@src/notifications/config";
 import { config } from "@src/notifications/config";
 
 const notificationsApiProxy = new Hono();
 
-const proxy = async (c: any) => {
+export const createProxy = (authService: AuthService, config: NotificationsConfig, fetchFn: typeof fetch) => async (c: any) => {
   const { req } = c;
 
-  const authService = container.resolve(AuthService);
   const subject = req.url.includes("/v1/contact-points") ? "ContactPoint" : "Alert";
   authService.throwUnlessCan("manage", subject);
 
@@ -19,7 +19,7 @@ const proxy = async (c: any) => {
   const isBodyAllowed = !["GET", "HEAD"].includes(req.method);
 
   const headers = Object.fromEntries(req.raw.headers.entries());
-  headers["x-user-id"] = authService.currentUser.userId;
+  headers["x-user-id"] = authService.currentUser.id;
 
   if (isBodyAllowed && !headers["content-type"]) {
     headers["content-type"] = "application/json";
@@ -27,16 +27,18 @@ const proxy = async (c: any) => {
 
   const body = isBodyAllowed ? await req.text() : undefined;
 
-  return fetch(targetUrl, {
+  return fetchFn(targetUrl, {
     method: req.method,
     headers,
     body
   });
 };
 
-notificationsApiProxy.all("/v1/contact-points/*", proxy);
-notificationsApiProxy.all("/v1/contact-points", proxy);
-notificationsApiProxy.all("/v1/alerts/*", proxy);
-notificationsApiProxy.all("/v1/alerts", proxy);
+const proxyRoute = createProxy(container.resolve(AuthService), config, fetch);
+
+notificationsApiProxy.all("/v1/contact-points/*", proxyRoute);
+notificationsApiProxy.all("/v1/contact-points", proxyRoute);
+notificationsApiProxy.all("/v1/alerts/*", proxyRoute);
+notificationsApiProxy.all("/v1/alerts", proxyRoute);
 
 export { notificationsApiProxy };

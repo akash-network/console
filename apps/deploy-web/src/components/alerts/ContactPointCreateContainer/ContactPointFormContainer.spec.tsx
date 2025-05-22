@@ -3,7 +3,6 @@ import "@testing-library/jest-dom";
 import React from "react";
 import { type components, createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
-import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { faker } from "@faker-js/faker";
 import type { RequestFnResponse } from "@openapi-qraft/react/src/lib/requestFn";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -14,9 +13,9 @@ import { queryClient } from "@src/queries";
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-describe("ContactPointForm", () => {
+describe("ContactPointCreateContainer", () => {
   it("triggers a contact point creation with the correct values", async () => {
-    const { requestFn, input, user } = setup();
+    const { requestFn, input } = setup();
 
     fireEvent.click(screen.getByText("Create"));
 
@@ -33,8 +32,7 @@ describe("ContactPointForm", () => {
                 addresses: input.emails
               },
               name: input.name,
-              type: "email",
-              userId: user.id
+              type: "email"
             }
           }
         })
@@ -44,7 +42,7 @@ describe("ContactPointForm", () => {
   });
 
   it("triggers a contact point creation and shows error message on error", async () => {
-    const { requestFn, input, user } = setup();
+    const { requestFn, input } = setup();
 
     fireEvent.click(screen.getByText("Create"));
 
@@ -63,8 +61,7 @@ describe("ContactPointForm", () => {
                 addresses: input.emails
               },
               name: input.name,
-              type: "email",
-              userId: user.id
+              type: "email"
             }
           }
         })
@@ -74,10 +71,6 @@ describe("ContactPointForm", () => {
   });
 
   function setup() {
-    const user = {
-      id: faker.string.uuid()
-    };
-    const getProfile = jest.fn();
     const input = {
       name: faker.lorem.word(),
       emails: [faker.internet.email()]
@@ -91,7 +84,7 @@ describe("ContactPointForm", () => {
             },
             name: input.name,
             type: "email",
-            userId: user.id
+            userId: faker.string.uuid()
           }
         }) as Promise<RequestFnResponse<components["schemas"]["ContactPointOutput"]["data"], unknown>>
     );
@@ -104,19 +97,17 @@ describe("ContactPointForm", () => {
     };
 
     render(
-      <UserProvider user={user} fetcher={getProfile}>
+      <CustomSnackbarProvider>
         <ServicesProvider services={services}>
           <QueryClientProvider client={queryClient}>
-            <CustomSnackbarProvider>
-              <ContactPointCreateContainer onCreate={jest.fn()}>
-                {({ create }) => <button onClick={() => create(input)}>Create</button>}
-              </ContactPointCreateContainer>
-            </CustomSnackbarProvider>
+            <ContactPointCreateContainer onCreate={jest.fn()}>
+              {({ create }) => <button onClick={() => create(input)}>Create</button>}
+            </ContactPointCreateContainer>
           </QueryClientProvider>
         </ServicesProvider>
-      </UserProvider>
+      </CustomSnackbarProvider>
     );
 
-    return { requestFn, input, user };
+    return { requestFn, input };
   }
 });

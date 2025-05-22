@@ -32,7 +32,6 @@ describe("Alerts CRUD", () => {
 
   async function shouldCreate(userId: string, contactPointId: string, app: INestApplication): Promise<AlertOutputMeta> {
     const input = generateMock(chainMessageCreateInputSchema);
-    input.userId = userId;
     input.contactPointId = contactPointId;
     input.enabled = true;
 
@@ -41,6 +40,7 @@ describe("Alerts CRUD", () => {
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({
       ...input,
+      userId,
       id: expect.any(String),
       status: "NORMAL",
       createdAt: expect.any(String),

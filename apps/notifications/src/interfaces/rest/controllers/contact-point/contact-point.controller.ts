@@ -15,13 +15,13 @@ import {
 
 export const contactPointCreateInputSchema = z.object({
   name: z.string(),
-  userId: z.string().uuid(),
   type: z.literal("email"),
   config: contactPointConfigSchema
 });
 
 export const contactPointOutputSchema = contactPointCreateInputSchema.extend({
   id: z.string().uuid(),
+  userId: z.string().uuid(),
   createdAt: z.date(),
   updatedAt: z.date()
 });
@@ -62,7 +62,10 @@ export class ContactPointController {
   })
   async createContactPoint(@Body() { data }: ContactPointCreateInput): Promise<Result<ContactPointOutputResponse, unknown>> {
     return Ok({
-      data: await this.contactPointRepository.accessibleBy(this.authService.ability, "create").create(data)
+      data: await this.contactPointRepository.accessibleBy(this.authService.ability, "create").create({
+        ...data,
+        userId: this.authService.userId
+      })
     });
   }
 

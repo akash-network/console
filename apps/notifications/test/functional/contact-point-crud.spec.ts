@@ -27,7 +27,6 @@ describe("Contact Points CRUD", () => {
   async function shouldCreate(app: INestApplication): Promise<ContactPointMeta> {
     const input = generateMock(contactPointCreateInputSchema);
     const userId = faker.string.uuid();
-    input.userId = userId;
     input.type = "email";
     input.config = { addresses: [faker.internet.email()] };
 
@@ -36,6 +35,7 @@ describe("Contact Points CRUD", () => {
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({
       ...input,
+      userId,
       id: expect.any(String),
       createdAt: expect.any(String),
       updatedAt: expect.any(String)

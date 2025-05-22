@@ -22,7 +22,10 @@ export class AlertController {
   })
   async createAlert(@Body() { data }: AlertCreateInput): Promise<Result<AlertOutputResponse, unknown>> {
     return Ok({
-      data: await this.alertRepository.accessibleBy(this.authService.ability, "create").create(data)
+      data: await this.alertRepository.accessibleBy(this.authService.ability, "create").create({
+        ...data,
+        userId: this.authService.userId
+      })
     });
   }
 

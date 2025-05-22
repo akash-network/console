@@ -718,10 +718,6 @@
               {
                 "type": "object",
                 "properties": {
-                  "userId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
                   "contactPointId": {
                     "type": "string",
                     "format": "uuid"
@@ -968,7 +964,6 @@
                   }
                 },
                 "required": [
-                  "userId",
                   "contactPointId",
                   "summary",
                   "description",
@@ -979,10 +974,6 @@
               {
                 "type": "object",
                 "properties": {
-                  "userId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
                   "contactPointId": {
                     "type": "string",
                     "format": "uuid"
@@ -1223,7 +1214,6 @@
                   }
                 },
                 "required": [
-                  "userId",
                   "contactPointId",
                   "summary",
                   "description",
@@ -1247,10 +1237,6 @@
               {
                 "type": "object",
                 "properties": {
-                  "userId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
                   "contactPointId": {
                     "type": "string",
                     "format": "uuid"
@@ -1267,6 +1253,10 @@
                     "minLength": 3
                   },
                   "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "userId": {
                     "type": "string",
                     "format": "uuid"
                   },
@@ -1505,12 +1495,12 @@
                   }
                 },
                 "required": [
-                  "userId",
                   "contactPointId",
                   "enabled",
                   "summary",
                   "description",
                   "id",
+                  "userId",
                   "status",
                   "createdAt",
                   "updatedAt",
@@ -1521,10 +1511,6 @@
               {
                 "type": "object",
                 "properties": {
-                  "userId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
                   "contactPointId": {
                     "type": "string",
                     "format": "uuid"
@@ -1541,6 +1527,10 @@
                     "minLength": 3
                   },
                   "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "userId": {
                     "type": "string",
                     "format": "uuid"
                   },
@@ -1773,12 +1763,12 @@
                   }
                 },
                 "required": [
-                  "userId",
                   "contactPointId",
                   "enabled",
                   "summary",
                   "description",
                   "id",
+                  "userId",
                   "status",
                   "createdAt",
                   "updatedAt",
@@ -1884,10 +1874,6 @@
           "data": {
             "type": "object",
             "properties": {
-              "userId": {
-                "type": "string",
-                "format": "uuid"
-              },
               "contactPointId": {
                 "type": "string",
                 "format": "uuid"
@@ -2347,10 +2333,6 @@
               "name": {
                 "type": "string"
               },
-              "userId": {
-                "type": "string",
-                "format": "uuid"
-              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -2375,7 +2357,6 @@
             },
             "required": [
               "name",
-              "userId",
               "type",
               "config"
             ]
@@ -2393,10 +2374,6 @@
             "properties": {
               "name": {
                 "type": "string"
-              },
-              "userId": {
-                "type": "string",
-                "format": "uuid"
               },
               "type": {
                 "type": "string",
@@ -2423,15 +2400,19 @@
                 "type": "string",
                 "format": "uuid"
               },
+              "userId": {
+                "type": "string",
+                "format": "uuid"
+              },
               "createdAt": {},
               "updatedAt": {}
             },
             "required": [
               "name",
-              "userId",
               "type",
               "config",
               "id",
+              "userId",
               "createdAt",
               "updatedAt"
             ]
@@ -2469,10 +2450,6 @@
                 "name": {
                   "type": "string"
                 },
-                "userId": {
-                  "type": "string",
-                  "format": "uuid"
-                },
                 "type": {
                   "type": "string",
                   "enum": [
@@ -2498,15 +2475,19 @@
                   "type": "string",
                   "format": "uuid"
                 },
+                "userId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
                 "createdAt": {},
                 "updatedAt": {}
               },
               "required": [
                 "name",
-                "userId",
                 "type",
                 "config",
                 "id",
+                "userId",
                 "createdAt",
                 "updatedAt"
               ]

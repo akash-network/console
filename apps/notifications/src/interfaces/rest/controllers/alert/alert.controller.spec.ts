@@ -5,6 +5,7 @@ import { Test } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
 import { Ok } from "ts-results";
 
+import { LoggerService } from "@src/common/services/logger/logger.service";
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import { chainMessageCreateInputSchema } from "../../http-schemas/alert.http-schema";
@@ -16,7 +17,7 @@ import { generateChainMessageAlert } from "@test/seeders/chain-message-alert.see
 describe(AlertController.name, () => {
   describe("createAlert", () => {
     it("should call rawAlertRepository.create() and return the created alert", async () => {
-      const { controller, alertRepository } = await setup();
+      const { controller, alertRepository, userId } = await setup();
 
       const input = generateMock(chainMessageCreateInputSchema);
       const output = generateChainMessageAlert({});
@@ -25,7 +26,10 @@ describe(AlertController.name, () => {
 
       const result = await controller.createAlert({ data: input });
 
-      expect(alertRepository.create).toHaveBeenCalledWith(input);
+      expect(alertRepository.create).toHaveBeenCalledWith({
+        ...input,
+        userId
+      });
       expect(result).toEqual(Ok({ data: output }));
     });
   });
@@ -125,10 +129,21 @@ describe(AlertController.name, () => {
   async function setup(): Promise<{
     controller: AlertController;
     alertRepository: MockProxy<AlertRepository>;
+    userId: string;
   }> {
+    const userId = faker.string.uuid();
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AlertController],
-      providers: [MockProvider(AlertRepository), MockProvider(AuthService)]
+      providers: [
+        {
+          provide: AuthService,
+          useValue: {
+            userId
+          }
+        },
+        MockProvider(AlertRepository),
+        MockProvider(LoggerService)
+      ]
     }).compile();
 
     const alertRepository = module.get<MockProxy<AlertRepository>>(AlertRepository);
@@ -136,6 +151,7 @@ describe(AlertController.name, () => {
 
     return {
       controller: module.get(AlertController),
+      userId,
       alertRepository
     };
   }

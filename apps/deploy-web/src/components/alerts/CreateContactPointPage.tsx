@@ -15,7 +15,7 @@ export const CreateContactPointPage: React.FunctionComponent = () => {
       <NextSeo title="Create Contact Point" />
       <AlertsLayout page={AlertTabs.CONTACT_POINTS} title="Create Contact Point" returnable>
         <ContactPointCreateContainer onCreate={router.back}>
-          {props => <ContactPointForm isLoading={props.isLoading} onSubmit={props.create} onCancel={router.back} />}
+          {props => <ContactPointForm isLoading={props.isLoading} onSubmit={props.create} onCancel={() => router.push("/alerts/contact-points")} />}
         </ContactPointCreateContainer>
       </AlertsLayout>
     </Layout>

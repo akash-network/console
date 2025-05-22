@@ -5,6 +5,7 @@ import { Test } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
 import { Ok } from "ts-results";
 
+import { LoggerService } from "@src/common/services/logger/logger.service";
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { ContactPointRepository } from "@src/modules/notifications/repositories/contact-point/contact-point.repository";
 import { ContactPointController, contactPointCreateInputSchema, contactPointOutputSchema, contactPointPatchInputSchema } from "./contact-point.controller";
@@ -14,7 +15,7 @@ import { MockProvider } from "@test/mocks/provider.mock";
 describe(ContactPointController.name, () => {
   describe("createContactPoint", () => {
     it("should call contactPointRepository.create() and return the created contact point", async () => {
-      const { controller, contactPointRepository } = await setup();
+      const { controller, contactPointRepository, userId } = await setup();
       const input = generateMock(contactPointCreateInputSchema);
       const output = generateMock(contactPointOutputSchema);
 
@@ -22,7 +23,10 @@ describe(ContactPointController.name, () => {
 
       const result = await controller.createContactPoint({ data: input });
 
-      expect(contactPointRepository.create).toHaveBeenCalledWith(input);
+      expect(contactPointRepository.create).toHaveBeenCalledWith({
+        ...input,
+        userId
+      });
       expect(result).toEqual(Ok({ data: output }));
     });
   });
@@ -122,10 +126,21 @@ describe(ContactPointController.name, () => {
   async function setup(): Promise<{
     controller: ContactPointController;
     contactPointRepository: MockProxy<ContactPointRepository>;
+    userId: string;
   }> {
+    const userId = faker.string.uuid();
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ContactPointController],
-      providers: [MockProvider(ContactPointRepository), MockProvider(AuthService)]
+      providers: [
+        {
+          provide: AuthService,
+          useValue: {
+            userId
+          }
+        },
+        MockProvider(ContactPointRepository),
+        MockProvider(LoggerService)
+      ]
     }).compile();
 
     const contactPointRepository = module.get<MockProxy<ContactPointRepository>>(ContactPointRepository);
@@ -133,7 +148,8 @@ describe(ContactPointController.name, () => {
 
     return {
       controller: module.get(ContactPointController),
-      contactPointRepository
+      contactPointRepository,
+      userId
     };
   }
 });

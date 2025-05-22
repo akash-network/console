@@ -76,8 +76,6 @@ export interface components {
       data:
         | {
             /** Format: uuid */
-            userId: string;
-            /** Format: uuid */
             contactPointId: string;
             /** @default true */
             enabled: boolean;
@@ -111,8 +109,6 @@ export interface components {
                 };
           }
         | {
-            /** Format: uuid */
-            userId: string;
             /** Format: uuid */
             contactPointId: string;
             /** @default true */
@@ -158,14 +154,14 @@ export interface components {
       data:
         | {
             /** Format: uuid */
-            userId: string;
-            /** Format: uuid */
             contactPointId: string;
             enabled: boolean;
             summary: string;
             description: string;
             /** Format: uuid */
             id: string;
+            /** Format: uuid */
+            userId: string;
             status: string;
             createdAt: unknown;
             updatedAt: unknown;
@@ -198,14 +194,14 @@ export interface components {
           }
         | {
             /** Format: uuid */
-            userId: string;
-            /** Format: uuid */
             contactPointId: string;
             enabled: boolean;
             summary: string;
             description: string;
             /** Format: uuid */
             id: string;
+            /** Format: uuid */
+            userId: string;
             status: string;
             createdAt: unknown;
             updatedAt: unknown;
@@ -265,8 +261,6 @@ export interface components {
     };
     AlertPatchInput: {
       data: {
-        /** Format: uuid */
-        userId?: string;
         /** Format: uuid */
         contactPointId?: string;
         /** @default true */
@@ -332,8 +326,6 @@ export interface components {
     ContactPointCreateInput: {
       data: {
         name: string;
-        /** Format: uuid */
-        userId: string;
         /** @enum {string} */
         type: "email";
         config: {
@@ -344,8 +336,6 @@ export interface components {
     ContactPointOutput: {
       data: {
         name: string;
-        /** Format: uuid */
-        userId: string;
         /** @enum {string} */
         type: "email";
         config: {
@@ -353,6 +343,8 @@ export interface components {
         };
         /** Format: uuid */
         id: string;
+        /** Format: uuid */
+        userId: string;
         createdAt: unknown;
         updatedAt: unknown;
       };
@@ -364,8 +356,6 @@ export interface components {
     ContactPointListOutput: {
       data: {
         name: string;
-        /** Format: uuid */
-        userId: string;
         /** @enum {string} */
         type: "email";
         config: {
@@ -373,6 +363,8 @@ export interface components {
         };
         /** Format: uuid */
         id: string;
+        /** Format: uuid */
+        userId: string;
         createdAt: unknown;
         updatedAt: unknown;
       }[];
