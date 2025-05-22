@@ -10,8 +10,6 @@ import {
 } from "@src/modules/alert/repositories/alert/alert-json-fields.schema";
 
 export const alertCreateCommonInputSchema = z.object({
-  // TODO: receive user from the auth instead
-  userId: z.string().uuid(),
   contactPointId: z.string().uuid(),
   enabled: z.boolean().optional().default(true),
   summary: z.string().min(3),
@@ -47,6 +45,7 @@ export class AlertPatchInput extends createZodDto(z.object({ data: alertPatchInp
 
 export const alertCommonOutputSchema = alertCreateCommonInputSchema.extend({
   id: z.string().uuid(),
+  userId: z.string().uuid(),
   enabled: z.boolean(),
   status: z.string(),
   createdAt: z.date(),

@@ -1,7 +1,6 @@
 import { applyDecorators, UsePipes } from "@nestjs/common";
 import { ApiResponse } from "@nestjs/swagger";
 import type { ZodDto } from "nestjs-zod";
-import { ZodValidationException } from "nestjs-zod";
 import { createZodDto } from "nestjs-zod";
 import { ZodSerializerDto, ZodValidationPipe } from "nestjs-zod";
 import type { ZodTypeDef } from "zod";
@@ -13,6 +12,20 @@ const notFoundErrorResponseSchema = z.object({
 });
 
 export class NotFoundErrorResponse extends createZodDto(notFoundErrorResponseSchema) {}
+
+const unauthorizedErrorResponseSchema = z.object({
+  statusCode: z.literal(401),
+  message: z.string()
+});
+
+export class UnauthorizedErrorResponse extends createZodDto(unauthorizedErrorResponseSchema) {}
+
+const forbiddenErrorResponseSchema = z.object({
+  statusCode: z.literal(403),
+  message: z.string()
+});
+
+export class ForbiddenErrorResponse extends createZodDto(forbiddenErrorResponseSchema) {}
 
 const internalServerErrorResponseSchema = z.object({
   statusCode: z.literal(500),
@@ -30,8 +43,8 @@ const validationErrorResponseSchema = z.object({
 });
 
 export class ValidationErrorResponse extends createZodDto(validationErrorResponseSchema) {}
-ZodValidationException;
-type ResponseDefinitionOptions = Record<
+
+export type ResponseDefinitionOptions = Record<
   number,
   {
     description?: string;
@@ -70,6 +83,26 @@ export function ValidateHttp(options: ResponseDefinitionOptions) {
         status: 400,
         type: ValidationErrorResponse,
         description: "Validation error responded when some request parameters are invalid"
+      })
+    );
+  }
+
+  if (!options[401]) {
+    decorators.push(
+      ApiResponse({
+        status: 401,
+        type: UnauthorizedErrorResponse,
+        description: "Unauthorized error responded when the user is not authenticated"
+      })
+    );
+  }
+
+  if (!options[403]) {
+    decorators.push(
+      ApiResponse({
+        status: 403,
+        type: ForbiddenErrorResponse,
+        description: "Forbidden error responded when the user is not authorized"
       })
     );
   }
