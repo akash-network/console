@@ -10,7 +10,6 @@ export const useUser = (): CustomUserProfile => {
   const { user: anonymousUser } = useStoredAnonymousUser();
 
   const user = useMemo(() => registeredUser || anonymousUser, [registeredUser, anonymousUser]);
-
   useEffect(() => {
     if (user?.id) {
       analyticsService.identify({
