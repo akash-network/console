@@ -27,22 +27,32 @@ export class DrizzleAbility<T extends PgTableWithColumns<any>, A extends AnyAbil
     in: "nin",
     nin: "in"
   };
-  private readonly abilityClause = this.toDrizzleWhereClause();
+  private readonly abilityClause: SQL | undefined;
 
   constructor(
     private readonly table: T,
     private readonly ability: A,
     private readonly action: CanParameters<Abilities>[0],
     private readonly subjectType: CanParameters<Abilities>[1]
-  ) {}
+  ) {
+    this.abilityClause = this.toDrizzleWhereClause();
+  }
 
   throwUnlessCanExecute(payload: Record<string, any>) {
     const params = [this.action, subject(this.subjectType as string, payload)] as unknown as Parameters<A["can"]>;
     ForbiddenError.from(this.ability).throwUnlessCan(...params);
   }
 
-  whereAccessibleBy(where: SQL) {
-    return this.abilityClause ? and(where, this.abilityClause) : where;
+  whereAccessibleBy(where?: SQL) {
+    if (!where && this.abilityClause) {
+      return this.abilityClause;
+    }
+    if (where && !this.abilityClause) {
+      return where;
+    }
+    if (where && this.abilityClause) {
+      return and(where, this.abilityClause);
+    }
   }
 
   private toDrizzleWhereClause() {

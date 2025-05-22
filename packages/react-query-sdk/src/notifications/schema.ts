@@ -43,7 +43,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    get: operations["getContactPoints"];
     put?: never;
     post: operations["createContactPoint"];
     delete?: never;
@@ -75,8 +75,6 @@ export interface components {
     AlertCreateInput: {
       data:
         | {
-            /** Format: uuid */
-            userId: string;
             /** Format: uuid */
             contactPointId: string;
             /** @default true */
@@ -111,8 +109,6 @@ export interface components {
                 };
           }
         | {
-            /** Format: uuid */
-            userId: string;
             /** Format: uuid */
             contactPointId: string;
             /** @default true */
@@ -158,14 +154,14 @@ export interface components {
       data:
         | {
             /** Format: uuid */
-            userId: string;
-            /** Format: uuid */
             contactPointId: string;
             enabled: boolean;
             summary: string;
             description: string;
             /** Format: uuid */
             id: string;
+            /** Format: uuid */
+            userId: string;
             status: string;
             createdAt: unknown;
             updatedAt: unknown;
@@ -198,14 +194,14 @@ export interface components {
           }
         | {
             /** Format: uuid */
-            userId: string;
-            /** Format: uuid */
             contactPointId: string;
             enabled: boolean;
             summary: string;
             description: string;
             /** Format: uuid */
             id: string;
+            /** Format: uuid */
+            userId: string;
             status: string;
             createdAt: unknown;
             updatedAt: unknown;
@@ -251,14 +247,20 @@ export interface components {
         issues: Record<string, never>[];
       };
     };
+    UnauthorizedErrorResponse: {
+      statusCode: number;
+      message: string;
+    };
+    ForbiddenErrorResponse: {
+      statusCode: number;
+      message: string;
+    };
     InternalServerErrorResponse: {
       statusCode: number;
       message: string;
     };
     AlertPatchInput: {
       data: {
-        /** Format: uuid */
-        userId?: string;
         /** Format: uuid */
         contactPointId?: string;
         /** @default true */
@@ -324,8 +326,6 @@ export interface components {
     ContactPointCreateInput: {
       data: {
         name: string;
-        /** Format: uuid */
-        userId: string;
         /** @enum {string} */
         type: "email";
         config: {
@@ -336,8 +336,6 @@ export interface components {
     ContactPointOutput: {
       data: {
         name: string;
-        /** Format: uuid */
-        userId: string;
         /** @enum {string} */
         type: "email";
         config: {
@@ -345,6 +343,8 @@ export interface components {
         };
         /** Format: uuid */
         id: string;
+        /** Format: uuid */
+        userId: string;
         createdAt: unknown;
         updatedAt: unknown;
       };
@@ -352,6 +352,30 @@ export interface components {
     NotFoundErrorResponse: {
       statusCode: number;
       message: string;
+    };
+    ContactPointListOutput: {
+      data: {
+        name: string;
+        /** @enum {string} */
+        type: "email";
+        config: {
+          addresses: string[];
+        };
+        /** Format: uuid */
+        id: string;
+        /** Format: uuid */
+        userId: string;
+        createdAt: unknown;
+        updatedAt: unknown;
+      }[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+        hasNextPage: boolean;
+        hasPreviousPage: boolean;
+      };
     };
     ContactPointPatchInput: {
       data: {
@@ -403,6 +427,24 @@ export interface operations {
           "application/json": components["schemas"]["ValidationErrorResponse"];
         };
       };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
+        };
+      };
       /** @description Internal server error, should probably be reported */
       500: {
         headers: {
@@ -443,6 +485,24 @@ export interface operations {
           "application/json": components["schemas"]["ValidationErrorResponse"];
         };
       };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
+        };
+      };
       /** @description Internal server error, should probably be reported */
       500: {
         headers: {
@@ -481,6 +541,24 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
         };
       };
       /** @description Internal server error, should probably be reported */
@@ -527,6 +605,85 @@ export interface operations {
           "application/json": components["schemas"]["ValidationErrorResponse"];
         };
       };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
+        };
+      };
+    };
+  };
+  getContactPoints: {
+    parameters: {
+      query?: {
+        /** @description Number of items per page */
+        limit?: number;
+        /** @description Page number */
+        page?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns a paginated list of contact points */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ContactPointListOutput"];
+        };
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
+        };
+      };
       /** @description Internal server error, should probably be reported */
       500: {
         headers: {
@@ -569,6 +726,24 @@ export interface operations {
           "application/json": components["schemas"]["ValidationErrorResponse"];
         };
       };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
+        };
+      };
       /** @description Internal server error, should probably be reported */
       500: {
         headers: {
@@ -607,6 +782,24 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
         };
       };
       /** @description Returns 404 if the contact point is not found */
@@ -656,6 +849,24 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
         };
       };
       /** @description Returns 404 if the contact point is not found */
@@ -709,6 +920,24 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
         };
       };
       /** @description Returns 404 if the contact point is not found */

@@ -71,15 +71,15 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
     async (values: FormValues) => {
       try {
         props.onSubmit(values);
-        form.reset(values);
       } catch (err) {
         setError("Failed to create contact point. Please try again.");
       }
     },
-    [props, form]
+    [props]
   );
 
   const currentValues = useWatch({ control });
+
   const hasChanges = useMemo(() => {
     const fields = Object.keys(initialValues) as (keyof FormValues)[];
     return fields.some(key => !isEqual(initialValues[key], currentValues[key]));

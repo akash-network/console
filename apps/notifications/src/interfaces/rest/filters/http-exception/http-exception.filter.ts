@@ -1,10 +1,11 @@
+import { ForbiddenError } from "@casl/ability";
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from "@nestjs/common";
 import { Response } from "express";
 import { ZodSerializationException, ZodValidationException } from "nestjs-zod";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 
-@Catch(HttpException)
+@Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   constructor(private readonly logger: LoggerService) {
     logger.setContext(HttpExceptionFilter.name);
@@ -26,6 +27,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
       const statusCode = exception.getStatus();
       response.status(statusCode).json({
         statusCode,
+        message: exception.message,
+        errors: exception.cause
+      });
+    } else if (exception instanceof ForbiddenError) {
+      response.status(403).json({
+        statusCode: 403,
         message: exception.message,
         errors: exception.cause
       });

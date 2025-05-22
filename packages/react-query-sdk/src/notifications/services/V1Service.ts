@@ -1089,6 +1089,555 @@ export interface V1Service {
       body: CreateContactPointBody;
     };
   };
+  getContactPoints: {
+    /**/
+    cancelQueries<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>,
+      options?: CancelOptions
+    ): Promise<void>;
+    /**/
+    getQueryKey(parameters: DeepReadonly<GetContactPointsParameters> | void): ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>;
+    /**
+     * Performs asynchronous data fetching, manages loading states and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
+     * @example Query without parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery()
+     * ```
+     * @example Query with parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery({
+     *     query: {
+     *         limit: limit
+     *     }
+     * })
+     * ```
+     */
+    useQuery<TData = GetContactPointsData>(
+      parameters: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+      options?: Omit<
+        UndefinedInitialDataOptions<
+          GetContactPointsData,
+          GetContactPointsError,
+          TData,
+          ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>
+        >,
+        "queryKey"
+      >
+    ): UseQueryResult<TData, GetContactPointsError | Error>;
+    /**
+     * Performs asynchronous data fetching, manages loading states and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
+     * @example Query without parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery()
+     * ```
+     * @example Query with parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery({
+     *     query: {
+     *         limit: limit
+     *     }
+     * })
+     * ```
+     */
+    useQuery<TData = GetContactPointsData>(
+      parameters: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+      options: Omit<
+        DefinedInitialDataOptions<
+          GetContactPointsData,
+          GetContactPointsError,
+          TData,
+          ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>
+        >,
+        "queryKey"
+      >
+    ): DefinedUseQueryResult<TData, GetContactPointsError | Error>;
+    /**/
+    fetchInfiniteQuery<TPageParam extends GetContactPointsParameters>(
+      options: ServiceOperationFetchInfiniteQueryOptions<
+        GetContactPointsSchema,
+        GetContactPointsData,
+        GetContactPointsParameters,
+        DeepReadonly<TPageParam>,
+        GetContactPointsError
+      > | void
+    ): Promise<OperationInfiniteData<GetContactPointsData, GetContactPointsParameters>>;
+    /**/
+    prefetchInfiniteQuery<TPageParam extends GetContactPointsParameters>(
+      options: ServiceOperationFetchInfiniteQueryOptions<
+        GetContactPointsSchema,
+        GetContactPointsData,
+        GetContactPointsParameters,
+        DeepReadonly<TPageParam>,
+        GetContactPointsError
+      > | void
+    ): Promise<void>;
+    /**/
+    ensureInfiniteQueryData<TPageParam extends GetContactPointsParameters>(
+      options: ServiceOperationEnsureInfiniteQueryDataOptions<
+        GetContactPointsSchema,
+        GetContactPointsData,
+        GetContactPointsParameters,
+        DeepReadonly<TPageParam>,
+        GetContactPointsError
+      > | void
+    ): Promise<OperationInfiniteData<GetContactPointsData, GetContactPointsParameters>>;
+    /**/
+    fetchQuery(
+      options: ServiceOperationFetchQueryOptions<GetContactPointsSchema, GetContactPointsData, GetContactPointsParameters, GetContactPointsError> | void
+    ): Promise<GetContactPointsData>;
+    /**/
+    prefetchQuery(
+      options: ServiceOperationFetchQueryOptions<GetContactPointsSchema, GetContactPointsData, GetContactPointsParameters, GetContactPointsError> | void
+    ): Promise<void>;
+    /**/
+    ensureQueryData(
+      options: ServiceOperationEnsureQueryDataOptions<GetContactPointsSchema, GetContactPointsData, GetContactPointsParameters, GetContactPointsError> | void
+    ): Promise<GetContactPointsData>;
+    /**/
+    getInfiniteQueryData(
+      parameters: ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void)
+    ): OperationInfiniteData<GetContactPointsData, GetContactPointsParameters> | undefined;
+    /**/
+    getQueriesData<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+    ): TInfinite extends true
+      ? Array<
+          [
+            queryKey: ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters>,
+            data: NoInfer<OperationInfiniteData<GetContactPointsData, GetContactPointsParameters>> | undefined
+          ]
+        >
+      : Array<[queryKey: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>, data: GetContactPointsData | undefined]>;
+    /**/
+    getQueryData(
+      parameters: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void)
+    ): GetContactPointsData | undefined;
+    /**/
+    getQueryState(
+      parameters: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void)
+    ): QueryState<GetContactPointsData, GetContactPointsError> | undefined;
+    /**/
+    getInfiniteQueryState(
+      parameters: DeepReadonly<GetContactPointsParameters> | ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters> | void
+    ): QueryState<OperationInfiniteData<GetContactPointsData, GetContactPointsParameters>, GetContactPointsError> | undefined;
+    /**/
+    invalidateQueries<TInfinite extends boolean = false>(
+      filters?: InvalidateQueryFilters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>,
+      options?: InvalidateOptions
+    ): Promise<void>;
+    /**/
+    isFetching<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+    ): number;
+    /**/
+    <TMeta extends Record<string, any>, TSignal extends AbortSignal = AbortSignal>(
+      options:
+        | QueryFnOptionsByQueryKey<GetContactPointsSchema, GetContactPointsParameters, TMeta, TSignal>
+        | (QueryFnOptionsByParameters<GetContactPointsParameters, TMeta, TSignal> | void),
+      client?: (
+        schema: GetContactPointsSchema,
+        options: {
+          parameters: GetContactPointsParameters;
+          signal?: TSignal;
+          meta?: TMeta;
+        }
+      ) => Promise<RequestFnResponse<GetContactPointsData, GetContactPointsError>>
+    ): Promise<RequestFnResponse<GetContactPointsData, GetContactPointsError>>;
+    /**/
+    refetchQueries<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>,
+      options?: RefetchOptions
+    ): Promise<void>;
+    /**/
+    removeQueries<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+    ): void;
+    /**/
+    resetQueries<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>,
+      options?: ResetOptions
+    ): Promise<void>;
+    /**/
+    setInfiniteQueryData(
+      parameters: (DeepReadonly<GetContactPointsParameters> | undefined) | ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters>,
+      updater: Updater<
+        NoInfer<OperationInfiniteData<GetContactPointsData, GetContactPointsParameters>> | undefined,
+        NoInfer<DeepReadonly<OperationInfiniteData<GetContactPointsData, GetContactPointsParameters>>> | undefined
+      >,
+      options?: SetDataOptions
+    ): OperationInfiniteData<GetContactPointsData, GetContactPointsParameters> | undefined;
+    /**/
+    setQueriesData<TInfinite extends boolean = false>(
+      filters:
+        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>,
+      updater: Updater<NoInfer<GetContactPointsData> | undefined, NoInfer<GetContactPointsData> | undefined>,
+      options?: SetDataOptions
+    ): Array<GetContactPointsData | undefined>;
+    /**/
+    setQueryData(
+      parameters: (DeepReadonly<GetContactPointsParameters> | undefined) | ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>,
+      updater: Updater<NoInfer<GetContactPointsData> | undefined, NoInfer<DeepReadonly<GetContactPointsData>> | undefined>,
+      options?: SetDataOptions
+    ): GetContactPointsData | undefined;
+    /**/
+    getInfiniteQueryKey(
+      parameters: DeepReadonly<GetContactPointsParameters> | void
+    ): ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters>;
+    /**
+     * Performs asynchronous data fetching with support for infinite scrolling scenarios.
+     * Manages paginated data and provides utilities for fetching additional pages.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useInfiniteQuery|`useInfiniteQuery(...)` documentation}
+     *
+     * @example Infinite Query
+     * ```ts
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoints.useInfiniteQuery({}, {
+     *     initialPageParam: {
+     *         query: {
+     *             limit: initialLimit
+     *         }
+     *     },
+     *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
+     * })
+     *
+     * console.log(data);
+     * fetchNextPage(); // Fetch the next page
+     * ```
+     */
+    useInfiniteQuery<
+      TPageParam extends GetContactPointsParameters,
+      TQueryFnData = GetContactPointsData,
+      TData = OperationInfiniteData<TQueryFnData, GetContactPointsParameters>
+    >(
+      parameters: ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+      options: Omit<
+        UndefinedInitialDataInfiniteOptions<
+          TQueryFnData,
+          GetContactPointsError,
+          TData,
+          ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters>,
+          PartialParameters<DeepReadonly<TPageParam>>
+        >,
+        "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
+      > &
+        InfiniteQueryPageParamsOptions<TQueryFnData, PartialParameters<DeepReadonly<TPageParam>>>
+    ): UseInfiniteQueryResult<TData, GetContactPointsError | Error>;
+    /**
+     * Performs asynchronous data fetching with support for infinite scrolling scenarios.
+     * Manages paginated data and provides utilities for fetching additional pages.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useInfiniteQuery|`useInfiniteQuery(...)` documentation}
+     *
+     * @example Infinite Query
+     * ```ts
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoints.useInfiniteQuery({}, {
+     *     initialPageParam: {
+     *         query: {
+     *             limit: initialLimit
+     *         }
+     *     },
+     *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
+     * })
+     *
+     * console.log(data);
+     * fetchNextPage(); // Fetch the next page
+     * ```
+     */
+    useInfiniteQuery<
+      TPageParam extends GetContactPointsParameters,
+      TQueryFnData = GetContactPointsData,
+      TData = OperationInfiniteData<TQueryFnData, GetContactPointsParameters>
+    >(
+      parameters: ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+      options: Omit<
+        DefinedInitialDataInfiniteOptions<
+          TQueryFnData,
+          GetContactPointsError,
+          TData,
+          ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters>,
+          PartialParameters<DeepReadonly<TPageParam>>
+        >,
+        "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
+      > &
+        InfiniteQueryPageParamsOptions<GetContactPointsData, PartialParameters<DeepReadonly<TPageParam>>>
+    ): DefinedUseInfiniteQueryResult<TData, GetContactPointsError | Error>;
+    /**
+     * Monitors the number of queries currently fetching, matching the provided filters.
+     * Useful for creating loading indicators or performing actions based on active requests.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useIsFetching|`useIsFetching(...)` documentation}
+     * @example Checks the total number of queries fetching from the specified service method,
+     * both normal and infinite. If no parameters are provided, no filtering is applied.
+     * ```ts
+     * const getContactPointsTotal = qraft.v1Service.getContactPoints.useIsFetching()
+     * ```
+     * @example Checks the number of normal queries fetching with the specified parameters.
+     * ```ts
+     * const getContactPointsByParametersTotal = qraft.v1Service.getContactPoints.useIsFetching({
+     *     infinite: false,
+     *     parameters: {
+     *         query: {
+     *             limit: limit
+     *         }
+     *     }
+     * })
+     * ```
+     */
+    useIsFetching<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+    ): number;
+    /**
+     * Allows you to execute multiple asynchronous data fetching operations concurrently. This is especially useful for managing complex data dependencies in parallel.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQueries|`useQueries(...)` documentation}
+     * @example Multiple queries. Returns `data`, `error`, `isSuccess` and other properties.
+     * ```ts
+     * const getContactPointsResults = qraft.v1Service.getContactPoints.useQueries({
+     *     queries: [
+     *         {
+     *             query: {
+     *                 limit: limit1
+     *             }
+     *         },
+     *         {
+     *             query: {
+     *                 limit: limit2
+     *             }
+     *         }
+     *     ]
+     * });
+     * getContactPointsResults.forEach(({ isSuccess, data, error }) => console.log({ isSuccess, data, error }));
+     * ```
+     * @example Combined results. Only the data will be returned.
+     * ```ts
+     * const getContactPointsCombinedResults = qraft.v1Service.getContactPoints.useQueries({
+     *     combine: results => results.map(result => result.data),
+     *     queries: [
+     *         {
+     *             query: {
+     *                 limit: limit1
+     *             }
+     *         },
+     *         {
+     *             query: {
+     *                 limit: limit2
+     *             }
+     *         }
+     *     ]
+     * });
+     * getContactPointsCombinedResults.forEach(data => console.log({ data }));
+     * ```
+     */
+    useQueries<
+      T extends Array<UseQueryOptionsForUseQueries<GetContactPointsSchema, GetContactPointsParameters, GetContactPointsData, GetContactPointsError>>,
+      TCombinedResult = Array<UseQueryResult<GetContactPointsData, GetContactPointsError>>
+    >(options: {
+      queries: T;
+      combine?: (results: Array<UseQueryResult<GetContactPointsData, GetContactPointsError>>) => TCombinedResult;
+    }): TCombinedResult;
+    /**/
+    getQueryKey(parameters: DeepReadonly<GetContactPointsParameters> | void): ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>;
+    /**
+     * Performs asynchronous data fetching, manages loading states and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
+     * @example Query without parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery()
+     * ```
+     * @example Query with parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery({
+     *     query: {
+     *         limit: limit
+     *     }
+     * })
+     * ```
+     */
+    useQuery<TData = GetContactPointsData>(
+      parameters: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+      options?: Omit<
+        UndefinedInitialDataOptions<
+          GetContactPointsData,
+          GetContactPointsError,
+          TData,
+          ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>
+        >,
+        "queryKey"
+      >
+    ): UseQueryResult<TData, GetContactPointsError | Error>;
+    /**
+     * Performs asynchronous data fetching, manages loading states and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
+     * @example Query without parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery()
+     * ```
+     * @example Query with parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery({
+     *     query: {
+     *         limit: limit
+     *     }
+     * })
+     * ```
+     */
+    useQuery<TData = GetContactPointsData>(
+      parameters: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+      options: Omit<
+        DefinedInitialDataOptions<
+          GetContactPointsData,
+          GetContactPointsError,
+          TData,
+          ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>
+        >,
+        "queryKey"
+      >
+    ): DefinedUseQueryResult<TData, GetContactPointsError | Error>;
+    /**
+     * Performs asynchronous data fetching with support for infinite scrolling scenarios.
+     * Manages paginated data and provides utilities for fetching additional pages.
+     * It functions similarly to `useInfiniteQuery`, but with added support for React Suspense.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useSuspenseInfiniteQuery|`useSuspenseInfiniteQuery(...)` documentation}
+     *
+     * @example Suspense Infinite Query
+     * ```ts
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoints.useSuspenseInfiniteQuery({}, {
+     *     initialPageParam: {
+     *         query: {
+     *             limit: initialLimit
+     *         }
+     *     },
+     *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
+     * })
+     *
+     * console.log(data);
+     * fetchNextPage(); // Fetch the next page
+     * ```
+     */
+    useSuspenseInfiniteQuery<TPageParam extends GetContactPointsParameters, TData = GetContactPointsData>(
+      parameters: ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+      options: Omit<
+        UseSuspenseInfiniteQueryOptions<
+          GetContactPointsData,
+          GetContactPointsError,
+          OperationInfiniteData<TData, GetContactPointsParameters>,
+          GetContactPointsData,
+          ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters>,
+          PartialParameters<DeepReadonly<TPageParam>>
+        >,
+        "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
+      > &
+        InfiniteQueryPageParamsOptions<GetContactPointsData, PartialParameters<DeepReadonly<TPageParam>>>
+    ): UseSuspenseInfiniteQueryResult<OperationInfiniteData<TData, GetContactPointsParameters>, GetContactPointsError | Error>;
+    /**
+     * Allows you to execute multiple asynchronous data fetching operations concurrently with Suspense support.
+     * Similar to useQueries but integrates with React Suspense for loading states.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useSuspenseQueries|`useSuspenseQueries(...)` documentation}
+     * @example Basic usage with Suspense
+     * ```ts
+     * const getContactPointsData = qraft.v1Service.getContactPoints.useSuspenseQueries({
+     *     queries: [
+     *         {
+     *             query: {
+     *                 limit: limit1
+     *             }
+     *         },
+     *         {
+     *             query: {
+     *                 limit: limit2
+     *             }
+     *         }
+     *     ]
+     * });
+     * getContactPointsResults.forEach(({ isSuccess, data, error }) => console.log({ isSuccess, data, error }));
+     * ```
+     * @example With data transformation using combine
+     * ```ts
+     * const getContactPointsCombinedData = qraft.v1Service.getContactPoints.useSuspenseQueries({
+     *     combine: results => results.map(result => result.data),
+     *     queries: [
+     *         {
+     *             query: {
+     *                 limit: limit1
+     *             }
+     *         },
+     *         {
+     *             query: {
+     *                 limit: limit2
+     *             }
+     *         }
+     *     ]
+     * });
+     * getContactPointsCombinedData.forEach(data => console.log({ data }));
+     * ```
+     */
+    useSuspenseQueries<
+      T extends Array<UseQueryOptionsForUseSuspenseQuery<GetContactPointsSchema, GetContactPointsParameters, GetContactPointsData, GetContactPointsError>>,
+      TCombinedResult = Array<UseSuspenseQueryResult<GetContactPointsData, GetContactPointsError>>
+    >(options: {
+      queries: T;
+      combine?: (results: Array<WithOptional<UseSuspenseQueryResult<GetContactPointsData, GetContactPointsError>, "data">>) => TCombinedResult;
+    }): TCombinedResult;
+    /**
+     * Performs asynchronous data fetching with Suspense support.
+     * Similar to useQuery but integrates with React Suspense for loading states.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useSuspenseQuery|`useSuspenseQuery(...)` documentation}
+     * @example Suspense Query without parameters
+     * ```ts
+     * const data = qraft.v1Service.getContactPoints.useSuspenseQuery()
+     * ```
+     * @example Suspense Query with parameters
+     * ```ts
+     * const data = qraft.v1Service.getContactPoints.useSuspenseQuery({
+     *     query: {
+     *         limit: limit
+     *     }
+     * })
+     * ```
+     */
+    useSuspenseQuery<TData = GetContactPointsData>(
+      parameters: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+      options?: Omit<
+        UseSuspenseQueryOptions<
+          GetContactPointsData,
+          GetContactPointsError,
+          TData,
+          ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>
+        >,
+        "queryKey"
+      >
+    ): UseSuspenseQueryResult<TData, GetContactPointsError | Error>;
+    schema: GetContactPointsSchema;
+    types: {
+      parameters: GetContactPointsParameters;
+      data: GetContactPointsData;
+      error: GetContactPointsError;
+    };
+  };
   getContactPoint: {
     /**/
     cancelQueries<TInfinite extends boolean = false>(
@@ -2036,6 +2585,15 @@ export const createContactPoint = {
   schema: CreateContactPointSchema;
   [QraftServiceOperationsToken]: V1Service["createContactPoint"];
 };
+export const getContactPoints = {
+  schema: {
+    method: "get",
+    url: "/v1/contact-points"
+  }
+} as {
+  schema: GetContactPointsSchema;
+  [QraftServiceOperationsToken]: V1Service["getContactPoints"];
+};
 export const getContactPoint = {
   schema: {
     method: "get",
@@ -2070,6 +2628,7 @@ export const v1Service = {
   patchAlert,
   deleteAlert,
   createContactPoint,
+  getContactPoints,
   getContactPoint,
   patchContactPoint,
   deleteContactPoint
@@ -2087,6 +2646,8 @@ type CreateAlertParameters = {
 type CreateAlertData = paths["/v1/alerts"]["post"]["responses"]["201"]["content"]["application/json"];
 type CreateAlertError =
   | paths["/v1/alerts"]["post"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/alerts"]["post"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/alerts"]["post"]["responses"]["403"]["content"]["application/json"]
   | paths["/v1/alerts"]["post"]["responses"]["500"]["content"]["application/json"];
 type CreateAlertBody = paths["/v1/alerts"]["post"]["requestBody"]["content"]["application/json"];
 type GetAlertSchema = {
@@ -2097,6 +2658,8 @@ type GetAlertParameters = paths["/v1/alerts/{id}"]["get"]["parameters"];
 type GetAlertData = paths["/v1/alerts/{id}"]["get"]["responses"]["200"]["content"]["application/json"];
 type GetAlertError =
   | paths["/v1/alerts/{id}"]["get"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/alerts/{id}"]["get"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/alerts/{id}"]["get"]["responses"]["403"]["content"]["application/json"]
   | paths["/v1/alerts/{id}"]["get"]["responses"]["500"]["content"]["application/json"];
 type PatchAlertSchema = {
   method: "patch";
@@ -2107,6 +2670,8 @@ type PatchAlertParameters = paths["/v1/alerts/{id}"]["patch"]["parameters"];
 type PatchAlertData = paths["/v1/alerts/{id}"]["patch"]["responses"]["200"]["content"]["application/json"];
 type PatchAlertError =
   | paths["/v1/alerts/{id}"]["patch"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/alerts/{id}"]["patch"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/alerts/{id}"]["patch"]["responses"]["403"]["content"]["application/json"]
   | paths["/v1/alerts/{id}"]["patch"]["responses"]["500"]["content"]["application/json"];
 type PatchAlertBody = paths["/v1/alerts/{id}"]["patch"]["requestBody"]["content"]["application/json"];
 type DeleteAlertSchema = {
@@ -2117,6 +2682,8 @@ type DeleteAlertParameters = paths["/v1/alerts/{id}"]["delete"]["parameters"];
 type DeleteAlertData = paths["/v1/alerts/{id}"]["delete"]["responses"]["200"]["content"]["application/json"];
 type DeleteAlertError =
   | paths["/v1/alerts/{id}"]["delete"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/alerts/{id}"]["delete"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/alerts/{id}"]["delete"]["responses"]["403"]["content"]["application/json"]
   | paths["/v1/alerts/{id}"]["delete"]["responses"]["500"]["content"]["application/json"];
 type DeleteAlertBody = undefined;
 type CreateContactPointSchema = {
@@ -2132,8 +2699,21 @@ type CreateContactPointParameters = {
 type CreateContactPointData = paths["/v1/contact-points"]["post"]["responses"]["201"]["content"]["application/json"];
 type CreateContactPointError =
   | paths["/v1/contact-points"]["post"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/contact-points"]["post"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/contact-points"]["post"]["responses"]["403"]["content"]["application/json"]
   | paths["/v1/contact-points"]["post"]["responses"]["500"]["content"]["application/json"];
 type CreateContactPointBody = paths["/v1/contact-points"]["post"]["requestBody"]["content"]["application/json"];
+type GetContactPointsSchema = {
+  method: "get";
+  url: "/v1/contact-points";
+};
+type GetContactPointsParameters = paths["/v1/contact-points"]["get"]["parameters"];
+type GetContactPointsData = paths["/v1/contact-points"]["get"]["responses"]["200"]["content"]["application/json"];
+type GetContactPointsError =
+  | paths["/v1/contact-points"]["get"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/contact-points"]["get"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/contact-points"]["get"]["responses"]["403"]["content"]["application/json"]
+  | paths["/v1/contact-points"]["get"]["responses"]["500"]["content"]["application/json"];
 type GetContactPointSchema = {
   method: "get";
   url: "/v1/contact-points/{id}";
@@ -2142,6 +2722,8 @@ type GetContactPointParameters = paths["/v1/contact-points/{id}"]["get"]["parame
 type GetContactPointData = paths["/v1/contact-points/{id}"]["get"]["responses"]["200"]["content"]["application/json"];
 type GetContactPointError =
   | paths["/v1/contact-points/{id}"]["get"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/contact-points/{id}"]["get"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/contact-points/{id}"]["get"]["responses"]["403"]["content"]["application/json"]
   | paths["/v1/contact-points/{id}"]["get"]["responses"]["404"]["content"]["application/json"]
   | paths["/v1/contact-points/{id}"]["get"]["responses"]["500"]["content"]["application/json"];
 type PatchContactPointSchema = {
@@ -2153,6 +2735,8 @@ type PatchContactPointParameters = paths["/v1/contact-points/{id}"]["patch"]["pa
 type PatchContactPointData = paths["/v1/contact-points/{id}"]["patch"]["responses"]["200"]["content"]["application/json"];
 type PatchContactPointError =
   | paths["/v1/contact-points/{id}"]["patch"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/contact-points/{id}"]["patch"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/contact-points/{id}"]["patch"]["responses"]["403"]["content"]["application/json"]
   | paths["/v1/contact-points/{id}"]["patch"]["responses"]["404"]["content"]["application/json"]
   | paths["/v1/contact-points/{id}"]["patch"]["responses"]["500"]["content"]["application/json"];
 type PatchContactPointBody = paths["/v1/contact-points/{id}"]["patch"]["requestBody"]["content"]["application/json"];
@@ -2164,6 +2748,8 @@ type DeleteContactPointParameters = paths["/v1/contact-points/{id}"]["delete"]["
 type DeleteContactPointData = paths["/v1/contact-points/{id}"]["delete"]["responses"]["200"]["content"]["application/json"];
 type DeleteContactPointError =
   | paths["/v1/contact-points/{id}"]["delete"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/contact-points/{id}"]["delete"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/contact-points/{id}"]["delete"]["responses"]["403"]["content"]["application/json"]
   | paths["/v1/contact-points/{id}"]["delete"]["responses"]["404"]["content"]["application/json"]
   | paths["/v1/contact-points/{id}"]["delete"]["responses"]["500"]["content"]["application/json"];
 type DeleteContactPointBody = undefined;

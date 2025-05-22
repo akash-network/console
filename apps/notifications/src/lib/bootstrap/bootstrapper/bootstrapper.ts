@@ -6,7 +6,6 @@ import { NestFactory } from "@nestjs/core";
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { ShutdownService } from "@src/common/services/shutdown/shutdown.service";
 import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
-import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
 
 export class Bootstrapper {
   private app!: INestApplication;
@@ -36,7 +35,6 @@ export class Bootstrapper {
   async configureHttp() {
     this.assertApp();
     this.app.enableVersioning();
-    this.app.useGlobalInterceptors(new HttpResultInterceptor());
     this.app.useGlobalFilters(new HttpExceptionFilter(await this.app.resolve(LoggerService)));
     this.app.enableCors();
   }

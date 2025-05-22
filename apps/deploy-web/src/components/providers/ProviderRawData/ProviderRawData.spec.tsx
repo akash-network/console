@@ -40,6 +40,7 @@ describe(ProviderRawData.name, () => {
         return new Promise(() => {});
       })
     } as unknown as ProviderProxyService;
+
     const result = render(
       <ServicesProvider services={{ axios, providerProxy }}>
         <QueryClientProvider client={queryClient}>

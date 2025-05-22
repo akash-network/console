@@ -26,7 +26,9 @@ export class AbilityService {
       { action: "read", subject: "User", conditions: { id: "${user.id}" } },
       { action: "read", subject: "StripePrice" },
       { action: "create", subject: "VerificationEmail", conditions: { id: "${user.id}" } },
-      { action: "manage", subject: "DeploymentSetting", conditions: { userId: "${user.id}" } }
+      { action: "manage", subject: "DeploymentSetting", conditions: { userId: "${user.id}" } },
+      { action: "manage", subject: "Alert", conditions: { userId: "${user.id}" } },
+      { action: "manage", subject: "ContactPoint", conditions: { userId: "${user.id}" } }
     ],
     REGULAR_PAYING_USER: [
       { action: ["create", "read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
@@ -34,7 +36,9 @@ export class AbilityService {
       { action: "read", subject: "StripePrice" },
       { action: "create", subject: "VerificationEmail", conditions: { id: "${user.id}" } },
       { action: "manage", subject: "DeploymentSetting", conditions: { userId: "${user.id}" } },
-      { action: "manage", subject: "ApiKey", conditions: { userId: "${user.id}" } }
+      { action: "manage", subject: "ApiKey", conditions: { userId: "${user.id}" } },
+      { action: "manage", subject: "Alert", conditions: { userId: "${user.id}" } },
+      { action: "manage", subject: "ContactPoint", conditions: { userId: "${user.id}" } }
     ],
     SUPER_USER: [{ action: "manage", subject: "all" }]
   };
