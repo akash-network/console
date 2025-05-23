@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import React from "react";
+import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import {
   Button,
   CustomPagination,
@@ -14,12 +15,26 @@ import {
   TableHeader,
   TableRow
 } from "@akashnetwork/ui/components";
-import { createColumnHelper, flexRender, getCoreRowModel, getPaginationRowModel, useReactTable } from "@tanstack/react-table";
+import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Bin, Edit } from "iconoir-react";
 
-import type { ContactPoint, ContactPointsListViewProps } from "@src/components/alerts/ContactPointsListContainer/ContactPointsListContainer";
+import type { ContactPoint } from "@src/components/alerts/ContactPointsListContainer/ContactPointsListContainer";
 
-export const ContactPointsListView: FC<ContactPointsListViewProps> = ({ data, totalCount, page, limit, onPageChange, isLoading, edit, remove, isError }) => {
+type ContactPointsInput = components["schemas"]["ContactPointListOutput"]["data"];
+type ContactPointsPagination = components["schemas"]["ContactPointListOutput"]["pagination"];
+
+export type ContactPointsListViewProps = {
+  data: ContactPointsInput;
+  pagination: Pick<ContactPointsPagination, "page" | "limit" | "total" | "totalPages">;
+  isLoading: boolean;
+  onEdit: (id: ContactPoint["id"]) => void;
+  onRemove: (id: ContactPoint["id"]) => void;
+  isRemoving: boolean;
+  onPageChange: (page: number, limit: number) => void;
+  isError: boolean;
+};
+
+export const ContactPointsListView: FC<ContactPointsListViewProps> = ({ data, pagination, onPageChange, isLoading, onEdit, onRemove, isRemoving, isError }) => {
   const [contactPointIdToRemove, setContactPointIdToRemove] = React.useState<string | null>(null);
   const columnHelper = createColumnHelper<ContactPoint>();
 
@@ -49,7 +64,7 @@ export const ContactPointsListView: FC<ContactPointsListViewProps> = ({ data, to
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => edit(info.row.original.id)}
+              onClick={() => onEdit(info.row.original.id)}
               className="text-sm text-gray-500 hover:text-gray-700"
               data-testid="edit-contact-point-button"
             >
@@ -76,7 +91,13 @@ export const ContactPointsListView: FC<ContactPointsListViewProps> = ({ data, to
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: true,
+    state: {
+      pagination: {
+        pageIndex: pagination.page - 1,
+        pageSize: pagination.limit
+      }
+    },
     onPaginationChange: updaterOrValue => {
       const tablePagination = typeof updaterOrValue === "function" ? updaterOrValue(table.getState().pagination) : updaterOrValue;
       onPageChange(tablePagination.pageIndex, tablePagination.pageSize);
@@ -107,9 +128,6 @@ export const ContactPointsListView: FC<ContactPointsListViewProps> = ({ data, to
     );
   }
 
-  const pagination = table.getState().pagination;
-  const pageCount = Math.ceil(totalCount / pagination.pageSize);
-
   return (
     <>
       <Table>
@@ -138,27 +156,44 @@ export const ContactPointsListView: FC<ContactPointsListViewProps> = ({ data, to
         </TableBody>
       </Table>
 
-      {totalCount > MIN_PAGE_SIZE && (
+      {pagination.total > MIN_PAGE_SIZE && (
         <div className="flex items-center justify-center pt-6">
           <CustomPagination
-            totalPageCount={pageCount}
-            pageIndex={page - 1}
-            pageSize={limit}
+            totalPageCount={pagination.totalPages}
+            pageIndex={pagination.page - 1}
+            pageSize={pagination.limit}
             setPageIndex={table.setPageIndex}
             setPageSize={table.setPageSize}
           />
         </div>
       )}
 
-      {contactPointIdToRemove && (
+      {(contactPointIdToRemove || isRemoving) && (
         <Popup
           open
           title="Are you sure you want to remove this contact point?"
-          variant="confirm"
-          onClose={() => setContactPointIdToRemove(null)}
-          onCancel={() => setContactPointIdToRemove(null)}
-          onValidate={() => remove(contactPointIdToRemove)}
+          variant="custom"
           enableCloseOnBackdropClick
+          actions={[
+            {
+              label: "Cancel",
+              color: "primary",
+              variant: "secondary",
+              side: "right",
+              onClick: () => setContactPointIdToRemove(null)
+            },
+            {
+              label: "Remove",
+              color: "secondary",
+              variant: "default",
+              side: "right",
+              isLoading: isRemoving,
+              onClick: () => {
+                contactPointIdToRemove && onRemove(contactPointIdToRemove);
+                setContactPointIdToRemove(null);
+              }
+            }
+          ]}
         >
           This action cannot be undone.
         </Popup>

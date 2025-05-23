@@ -10,12 +10,13 @@ import { AlertsLayout, AlertTabs } from "@src/components/alerts/AlertsLayout";
 import { type ContactPoint, ContactPointsListContainer } from "@src/components/alerts/ContactPointsListContainer/ContactPointsListContainer";
 import { ContactPointsListView } from "@src/components/alerts/ContactPointsListView/ContactPointsListView";
 import Layout from "@src/components/layout/Layout";
+import { UrlService } from "@src/utils/urlUtils";
 
 export const ContactPointsPage: React.FunctionComponent = () => {
   const router = useRouter();
 
   const edit = (id: ContactPoint["id"]) => {
-    router.push(`/alerts/contact-points/${id}`);
+    router.push(UrlService.contactPointDetails(id));
   };
 
   return (
@@ -33,7 +34,7 @@ export const ContactPointsPage: React.FunctionComponent = () => {
           </div>
         }
       >
-        <ContactPointsListContainer edit={edit}>{props => <ContactPointsListView {...props} />}</ContactPointsListContainer>
+        <ContactPointsListContainer onEdit={edit}>{props => <ContactPointsListView {...props} />}</ContactPointsListContainer>
       </AlertsLayout>
     </Layout>
   );

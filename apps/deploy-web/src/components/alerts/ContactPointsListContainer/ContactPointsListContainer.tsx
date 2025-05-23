@@ -1,36 +1,25 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { type FC, useCallback, useState } from "react";
+import type { FC, ReactNode } from "react";
+import { useCallback, useState } from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 
+import type { ContactPointsListViewProps } from "@src/components/alerts/ContactPointsListView/ContactPointsListView";
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
 import { useWhen } from "@src/hooks/useWhen";
 
 export type ContactPoint = components["schemas"]["ContactPointOutput"]["data"];
-export type ContactPointsInput = components["schemas"]["ContactPointListOutput"]["data"];
-
-export type ContactPointsListViewProps = {
-  data: ContactPointsInput;
-  totalCount: number;
-  page: number;
-  limit: number;
-  isLoading: boolean;
-  edit: (id: ContactPoint["id"]) => void;
-  remove: (id: ContactPoint["id"]) => void;
-  onPageChange: (page: number, limit: number) => void;
-  isError: boolean;
-};
 
 type ContactPointsListContainerProps = {
   children: (props: ContactPointsListViewProps) => ReactNode;
-  edit: (id: ContactPoint["id"]) => void;
+  onEdit: (id: ContactPoint["id"]) => void;
 };
 
-export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = ({ children, edit }) => {
+export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = ({ children, onEdit }) => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  const [isRemoving, setIsRemoving] = useState(false);
   const { notificationsApi } = useServices();
   const { data, isError, isLoading, refetch } = notificationsApi.v1.getContactPoints.useQuery({
     query: {
@@ -41,8 +30,9 @@ export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = (
   const mutation = notificationsApi.v1.deleteContactPoint.useMutation();
   const notificator = useNotificator();
 
-  const remove = useCallback(
+  const handleRemove = useCallback(
     (id: ContactPoint["id"]) => {
+      setIsRemoving(true);
       mutation.mutate({
         path: {
           id
@@ -59,25 +49,31 @@ export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = (
 
   useWhen(mutation.isError, () => {
     notificator.error("Failed to remove contact point", { dataTestId: "contact-point-remove-error-notification" });
+    setIsRemoving(false);
   });
 
   useWhen(mutation.isSuccess, () => {
     notificator.success("Contact point removed", { dataTestId: "contact-point-remove-success-notification" });
     refetch();
+    setIsRemoving(false);
   });
 
   return (
     <>
       {children({
         data: data?.data || [],
-        totalCount: data?.pagination.total || 0,
-        page,
-        limit,
+        pagination: {
+          page,
+          limit,
+          total: data?.pagination.total ?? 0,
+          totalPages: data?.pagination.totalPages ?? 0
+        },
         onPageChange: handlePageChange,
         isLoading,
         isError,
-        edit,
-        remove
+        onEdit,
+        isRemoving,
+        onRemove: handleRemove
       })}
     </>
   );
