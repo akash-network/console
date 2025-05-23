@@ -24,22 +24,24 @@ describe(ProviderRawData.name, () => {
   });
 
   async function setup(props?: Props) {
-    const axios = {
-      get: jest.fn(async url => {
-        if (url.includes("/leases/")) return new Promise(() => {});
-        if (url.includes("/providers/"))
-          return {
-            data: props?.provider || buildProvider()
-          };
+    const axios = () =>
+      ({
+        get: jest.fn(async url => {
+          if (url.includes("/leases/")) return new Promise(() => {});
+          if (url.includes("/providers/"))
+            return {
+              data: props?.provider || buildProvider()
+            };
 
-        throw new Error(`unexpected request: ${url}`);
-      })
-    } as unknown as AxiosStatic;
-    const providerProxy = {
-      fetchProviderUrl: jest.fn(() => {
-        return new Promise(() => {});
-      })
-    } as unknown as ProviderProxyService;
+          throw new Error(`unexpected request: ${url}`);
+        })
+      }) as unknown as AxiosStatic;
+    const providerProxy = () =>
+      ({
+        fetchProviderUrl: jest.fn(() => {
+          return new Promise(() => {});
+        })
+      }) as unknown as ProviderProxyService;
 
     const result = render(
       <ServicesProvider services={{ axios, providerProxy }}>

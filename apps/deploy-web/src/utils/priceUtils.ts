@@ -3,7 +3,6 @@ import add from "date-fns/add";
 
 import { READABLE_DENOMS, UAKT_DENOM } from "@src/config/denom.config";
 import { getUsdcDenom } from "@src/hooks/useDenom";
-import { useBlock } from "@src/queries/useBlocksQuery"; // eslint-disable-line import-x/no-cycle
 import { averageDaysInMonth } from "./dateUtils";
 import { denomToUdenom } from "./mathHelpers";
 
@@ -55,26 +54,6 @@ export function getTimeLeft(pricePerBlock: number, balance: number) {
   const blocksLeft = balance / pricePerBlock;
   const timestamp = new Date().getTime();
   return add(new Date(timestamp), { seconds: blocksLeft * averageBlockTime });
-}
-
-export function useRealTimeLeft(pricePerBlock: number, balance: number, settledAt: number, createdAt: number) {
-  const { data: latestBlock } = useBlock("latest", {
-    refetchInterval: 30000
-  });
-  if (!latestBlock) return;
-
-  const latestBlockHeight = latestBlock.block.header.height;
-  const blocksPassed = Math.abs(settledAt - latestBlockHeight);
-  const blocksSinceCreation = Math.abs(createdAt - latestBlockHeight);
-
-  const blocksLeft = balance / pricePerBlock - blocksPassed;
-  const timestamp = new Date().getTime();
-
-  return {
-    timeLeft: add(new Date(timestamp), { seconds: blocksLeft * averageBlockTime }),
-    escrow: Math.max(blocksLeft * pricePerBlock, 0),
-    amountSpent: Math.min(blocksSinceCreation * pricePerBlock, balance)
-  };
 }
 
 export function toReadableDenom(denom: string) {

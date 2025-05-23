@@ -3,7 +3,7 @@ import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useWallet } from "@src/context/WalletProvider"; // eslint-disable-line import-x/no-cycle
+import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "./queryKeys";
 

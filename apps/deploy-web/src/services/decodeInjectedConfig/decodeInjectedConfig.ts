@@ -1,5 +1,9 @@
 import type { BrowserEnvConfig } from "@src/config/env-config.schema";
 
+export function hasInjectedConfig(): boolean {
+  return typeof window !== "undefined" && !!(window as any)?.__AK_INJECTED_CONFIG__;
+}
+
 export async function decodeInjectedConfig(publicPem = process.env.NEXT_PUBLIC_UI_CONFIG_PUBLIC_KEY): Promise<Partial<BrowserEnvConfig> | null> {
   if (!publicPem) return null;
 
