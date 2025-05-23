@@ -2,7 +2,7 @@ import type { DepositDeploymentGrant } from "@akashnetwork/http-sdk";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 
-import { useSettings } from "@src/context/SettingsProvider"; // eslint-disable-line import-x/no-cycle
+import { useSettings } from "@src/context/SettingsProvider";
 import { useAuthZService } from "@src/hooks/useAuthZService";
 import type { AllowanceType, PaginatedAllowanceType, PaginatedGrantType } from "@src/types/grant";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";

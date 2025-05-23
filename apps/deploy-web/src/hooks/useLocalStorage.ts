@@ -1,25 +1,25 @@
-import { useWallet } from "@src/context/WalletProvider"; // eslint-disable-line import-x/no-cycle
+import { useMemo } from "react";
+import { useAtom } from "jotai";
+
+import { settingsIdAtom } from "@src/context/SettingsProvider/settingsStore";
 import networkStore from "@src/store/networkStore";
 
 export const useLocalStorage = () => {
-  const { address } = useWallet();
+  const [settingsId] = useAtom(settingsIdAtom);
   const selectedNetworkId = networkStore.useSelectedNetworkId();
 
-  const getLocalStorageItem = (key: string) => {
-    return localStorage.getItem(`${selectedNetworkId}${address ? "/" + address : ""}/${key}`);
-  };
-
-  const setLocalStorageItem = (key: string, value: string) => {
-    localStorage.setItem(`${selectedNetworkId}${address ? "/" + address : ""}/${key}`, value);
-  };
-
-  const removeLocalStorageItem = (key: string) => {
-    localStorage.removeItem(`${selectedNetworkId}${address ? "/" + address : ""}/${key}`);
-  };
-
-  return {
-    removeLocalStorageItem,
-    setLocalStorageItem,
-    getLocalStorageItem
-  };
+  return useMemo(
+    () => ({
+      removeLocalStorageItem(key: string) {
+        localStorage.removeItem(`${selectedNetworkId}${settingsId ? "/" + settingsId : ""}/${key}`);
+      },
+      setLocalStorageItem(key: string, value: string) {
+        localStorage.setItem(`${selectedNetworkId}${settingsId ? "/" + settingsId : ""}/${key}`, value);
+      },
+      getLocalStorageItem(key: string) {
+        return localStorage.getItem(`${selectedNetworkId}${settingsId ? "/" + settingsId : ""}/${key}`);
+      }
+    }),
+    [selectedNetworkId, settingsId]
+  );
 };

@@ -89,11 +89,12 @@ describe("ContactPointCreateContainer", () => {
         }) as Promise<RequestFnResponse<components["schemas"]["ContactPointOutput"]["data"], unknown>>
     );
     const services = {
-      notificationsApi: createAPIClient({
-        requestFn,
-        baseUrl: "",
-        queryClient
-      })
+      notificationsApi: () =>
+        createAPIClient({
+          requestFn,
+          baseUrl: "",
+          queryClient
+        })
     };
 
     render(

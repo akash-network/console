@@ -39,7 +39,7 @@ import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePro
 import { queryClient } from "@src/queries";
 import { prefetchFeatureFlags } from "@src/queries/featureFlags";
 import { serverApiUrlService } from "@src/services/api-url/server-api-url.service";
-import { decodeInjectedConfig } from "@src/services/decodeInjectedConfig/decodeInjectedConfig";
+import { decodeInjectedConfig, hasInjectedConfig } from "@src/services/decodeInjectedConfig/decodeInjectedConfig";
 import { store } from "@src/store/global-store";
 
 interface Props extends AppProps {
@@ -61,12 +61,14 @@ const App: React.FunctionComponent<Props> = props => {
   const [config, setConfig] = useState<Partial<BrowserEnvConfig> | null>(null);
 
   useEffect(() => {
-    decodeInjectedConfig()
-      .then(setConfig)
-      .finally(() => setIsResolvedConfig(true));
+    if (hasInjectedConfig()) {
+      decodeInjectedConfig()
+        .then(setConfig)
+        .finally(() => setIsResolvedConfig(true));
+    }
   }, []);
 
-  if (!isResolvedConfig) {
+  if (hasInjectedConfig() && !isResolvedConfig) {
     return <Loading text="Loading config..." />;
   }
 
@@ -92,23 +94,23 @@ const App: React.FunctionComponent<Props> = props => {
                           <PricingProvider>
                             <TooltipProvider>
                               <SettingsProvider>
-                                <CustomChainProvider>
-                                  <PopupProvider>
-                                    <WalletProvider>
-                                      <ChainParamProvider>
-                                        <CertificateProvider>
-                                          <BackgroundTaskProvider>
-                                            <LocalNoteProvider>
-                                              <ServicesProvider>
+                                <ServicesProvider>
+                                  <CustomChainProvider>
+                                    <PopupProvider>
+                                      <WalletProvider>
+                                        <ChainParamProvider>
+                                          <CertificateProvider>
+                                            <BackgroundTaskProvider>
+                                              <LocalNoteProvider>
                                                 <Component {...pageProps} />
-                                              </ServicesProvider>
-                                            </LocalNoteProvider>
-                                          </BackgroundTaskProvider>
-                                        </CertificateProvider>
-                                      </ChainParamProvider>
-                                    </WalletProvider>
-                                  </PopupProvider>
-                                </CustomChainProvider>
+                                              </LocalNoteProvider>
+                                            </BackgroundTaskProvider>
+                                          </CertificateProvider>
+                                        </ChainParamProvider>
+                                      </WalletProvider>
+                                    </PopupProvider>
+                                  </CustomChainProvider>
+                                </ServicesProvider>
                               </SettingsProvider>
                             </TooltipProvider>
                           </PricingProvider>
