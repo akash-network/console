@@ -6,7 +6,6 @@ import axios from "axios";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import { authService } from "@src/services/auth/auth.service";
 import { customRegistry } from "@src/utils/customRegistry";
-import { ConfigService } from "../config/config.service";
 import { createContainer } from "../container/createContainer";
 import { ProviderProxyService } from "../provider-proxy/provider-proxy.service";
 
@@ -55,10 +54,6 @@ export const createServices = (config: ServicesConfig) => {
       }),
     axios: () =>
       withInterceptors(axios.create(), {
-        request: [config.globalRequestMiddleware]
-      }),
-    config: () =>
-      withInterceptors(new ConfigService(), {
         request: [config.globalRequestMiddleware]
       })
   });
