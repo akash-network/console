@@ -1,5 +1,12 @@
 
 
+## [2.93.0](https://github.com/akash-network/console/compare/console-api/v2.92.0...console-api/v2.93.0) (2025-05-23)
+
+
+### Features
+
+* **contact-point:** implements list endpoint and auth ([0f11115](https://github.com/akash-network/console/commit/0f11115622a6cf58623f33e35902e4814793d9a8))
+
 ## [2.92.0](https://github.com/akash-network/console/compare/console-api/v2.91.0...console-api/v2.92.0) (2025-05-21)
 
 
