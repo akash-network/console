@@ -1,6 +1,7 @@
 import type { BrowserContext as Context, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
-import { testEnvConfig } from "tests/fixture/test-env.config";
+
+import { testEnvConfig } from "../fixture/test-env.config";
 
 export type FeeType = "low" | "medium" | "high";
 export class DeployBasePage {

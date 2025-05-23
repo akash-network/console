@@ -62,13 +62,7 @@ export const serverEnvSchema = browserEnvSchema.extend({
   GITLAB_CLIENT_SECRET: z.string(),
   NEXT_PUBLIC_CI_CD_IMAGE_NAME: z.string(),
   NEXT_PUBLIC_PROVIDER_PROXY_URL: z.string(),
-  NEXT_PUBLIC_UNLEASH_ENABLE_ALL: coercedBoolean().optional().default("false"),
-  TURNSTILE_TEST_SITE_KEY: z
-    .string()
-    .optional()
-    // always pass token: https://developers.cloudflare.com/turnstile/troubleshooting/testing/#dummy-sitekeys-and-secret-keys
-    .default("1x00000000000000000000AA"),
-  UI_TESTS_TOKEN: z.string().optional()
+  NEXT_PUBLIC_UNLEASH_ENABLE_ALL: coercedBoolean().optional().default("false")
 });
 
 export type BrowserEnvConfig = z.infer<typeof browserEnvSchema>;

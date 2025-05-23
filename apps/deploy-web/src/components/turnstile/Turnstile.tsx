@@ -12,9 +12,7 @@ import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import { firstValueFrom, Subject } from "rxjs";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWhen } from "@src/hooks/useWhen";
-import { useAppConfig } from "@src/queries/useAppConfig";
 import { services } from "@src/services/http/http-browser.service";
 import { managedWalletHttpService } from "@src/services/managed-wallet-http/managed-wallet-http.service";
 
@@ -41,15 +39,15 @@ type TurnstileStatus = "uninitialized" | "solved" | "interactive" | "expired" | 
 const VISIBILITY_STATUSES: TurnstileStatus[] = ["interactive", "error"];
 
 type TurnstileProps = {
-  enabled?: boolean;
+  enabled: boolean;
+  siteKey: string;
 };
 
-export const Turnstile: FC<TurnstileProps> = ({ enabled = browserEnvConfig.NEXT_PUBLIC_TURNSTILE_ENABLED }) => {
+export const Turnstile: FC<TurnstileProps> = ({ enabled, siteKey }) => {
   const turnstileRef = useRef<TurnstileInstance>();
   const [status, setStatus] = useState<TurnstileStatus>("uninitialized");
   const isVisible = useMemo(() => enabled && VISIBILITY_STATUSES.includes(status), [enabled, status]);
   const dismissedSubject = useRef(new Subject<void>());
-  const appConfig = useAppConfig({ enabled });
 
   useEffect(() => {
     if (!enabled) return;
@@ -110,7 +108,7 @@ export const Turnstile: FC<TurnstileProps> = ({ enabled = browserEnvConfig.NEXT_
     resetWidget();
   });
 
-  if (!enabled || !appConfig?.TURNSTILE_SITE_KEY) {
+  if (!enabled) {
     return null;
   }
 
@@ -132,7 +130,7 @@ export const Turnstile: FC<TurnstileProps> = ({ enabled = browserEnvConfig.NEXT_
           <div className="h-[66px]">
             <ReactTurnstile
               ref={turnstileRef}
-              siteKey={appConfig.TURNSTILE_SITE_KEY}
+              siteKey={siteKey}
               options={{ execution: "execute" }}
               onError={() => setStatus("error")}
               onExpire={() => setStatus("expired")}
