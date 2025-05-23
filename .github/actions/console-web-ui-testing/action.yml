@@ -15,9 +15,6 @@ inputs:
     description: GitHub user to Slack user mapping
     required: false
     default: "{}"
-  doppler-token:
-    description: Doppler token for GH actions
-    required: true
   ui-config-signature-private-key:
     description: Private key for the UI config signature
     required: true
