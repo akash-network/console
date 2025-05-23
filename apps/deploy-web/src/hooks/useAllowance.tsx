@@ -10,7 +10,7 @@ import { useSnackbar } from "notistack";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useWhen } from "@src/hooks/useWhen";
-import { useAllowancesGranted } from "@src/queries/useGrantsQuery"; // eslint-disable-line import-x/no-cycle
+import { useAllowancesGranted } from "@src/queries/useGrantsQuery";
 
 const persisted: Record<string, string[]> = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("fee-granters") || "{}") : {};
 

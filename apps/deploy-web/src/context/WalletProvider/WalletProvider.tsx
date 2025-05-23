@@ -15,7 +15,7 @@ import { useSnackbar } from "notistack";
 import type { LoadingState } from "@src/components/layout/TransactionModal";
 import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { useAllowance } from "@src/hooks/useAllowance"; // eslint-disable-line import-x/no-cycle
+import { useAllowance } from "@src/hooks/useAllowance";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
@@ -28,6 +28,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
 import { useSettings } from "../SettingsProvider";
+import { settingsIdAtom } from "../SettingsProvider/settingsStore";
 
 const ERROR_MESSAGES = {
   5: "Insufficient funds",
@@ -68,6 +69,7 @@ const MESSAGE_STATES: Record<string, LoadingState> = {
 };
 
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [, setSettingsId] = useAtom(settingsIdAtom);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
   const [loadingState, setLoadingState] = useState<LoadingState | undefined>(undefined);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
@@ -121,6 +123,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       "akash-testnet": { rest: [settings.apiEndpoint], rpc: [settings.rpcEndpoint] }
     });
   }, [addEndpoints, settings.apiEndpoint, settings.rpcEndpoint]);
+
+  useEffect(() => {
+    setSettingsId(walletAddress || null);
+  }, [walletAddress]);
 
   function switchWalletType() {
     if (selectedWalletType === "custodial" && !managedWallet) {
