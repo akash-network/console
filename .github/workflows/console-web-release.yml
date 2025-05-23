@@ -50,8 +50,7 @@ jobs:
           slack-webhook-url: ${{ secrets.FAILED_E2E_TESTS_SLACK_WEBHOOK_URL }}
           test-wallet-mnemonic: ${{ secrets.CONSOLE_WEB_E2E_TEST_WALLET_MNEMONIC }}
           gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
-          doppler-token: ${{ secrets.CONSOLE_WEB_E2E_TESTS_DOPPLER_TOKEN }}
-          ui-tests-token-name: UI_TESTS_BETA_TOKEN
+          ui-config-signature-private-key: ${{ secrets.CONSOLE_WEB_E2E_TEST_UI_CONFIG_SIGNATURE_PRIVATE_KEY_BETA }}
   build-prod:
     needs: release
     name: Build Prod Docker image

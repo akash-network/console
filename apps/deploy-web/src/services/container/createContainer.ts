@@ -1,4 +1,4 @@
-export function createContainer<T extends Record<string, (di: DIContainer<T>) => any>>(factories: T): DIContainer<T> {
+export function createContainer<T extends Factories>(factories: T): DIContainer<T> {
   const accessor = {} as DIContainer<T>;
   const resolvePath: string[] = [];
 
@@ -10,11 +10,11 @@ export function createContainer<T extends Record<string, (di: DIContainer<T>) =>
       get: () => {
         if (!instance) {
           if (resolvePath.includes(key)) {
-            throw new Error(`Circular dependency detected: ${resolvePath.join(" -> ")}`);
+            throw new Error(`Circular dependency detected: ${resolvePath.concat(key).join(" -> ")}`);
           }
           resolvePath.push(key);
           try {
-            instance = factories[key](accessor);
+            instance = factories[key]();
           } finally {
             resolvePath.pop();
           }
@@ -27,6 +27,14 @@ export function createContainer<T extends Record<string, (di: DIContainer<T>) =>
   return accessor;
 }
 
-export type DIContainer<T> = {
-  [K in keyof T]: T[K] extends () => infer U ? U : never;
+export function createChildContainer<T extends Factories, U extends Factories>(parent: DIContainer<T>, factories: U): DIContainer<T & U> {
+  const child = createContainer(factories as any);
+  Object.setPrototypeOf(child, parent);
+  return child;
+}
+
+export type DIContainer<T extends Factories> = {
+  [K in keyof T]: ReturnType<T[K]>;
 };
+
+export type Factories = Record<string, () => any>;

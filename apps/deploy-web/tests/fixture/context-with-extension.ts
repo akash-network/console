@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import path from "path";
 import { setTimeout as delay } from "timers/promises";
 
-import { addUITestsToken, test as baseTest } from "./base-test";
+import { injectUIConfig, test as baseTest } from "./base-test";
 
 // @see https://github.com/microsoft/playwright/issues/14949
 export async function restoreExtensionStorage(page: Page): Promise<void> {
@@ -36,9 +36,8 @@ export const test = baseTest.extend<{
       headless,
       args
     });
-    await use(context);
 
-    // await context.close();
+    await use(context);
   },
   extensionId: async ({ context }, use) => {
     const extensions = context.backgroundPages();
@@ -63,8 +62,7 @@ export const test = baseTest.extend<{
     const extPage = await context.newPage();
     await extPage.goto(`chrome-extension://${extensionId}/index.html`);
     await extPage.waitForLoadState("domcontentloaded");
-    await addUITestsToken(extPage);
-
+    await injectUIConfig(extPage);
     await use(extPage);
   }
 });

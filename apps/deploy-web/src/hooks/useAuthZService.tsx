@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { AuthzHttpService } from "@akashnetwork/http-sdk";
 
-import { useSettings } from "@src/context/SettingsProvider"; // eslint-disable-line import-x/no-cycle
+import { useSettings } from "@src/context/SettingsProvider";
 
 export const useAuthZService = () => {
   const { settings } = useSettings();

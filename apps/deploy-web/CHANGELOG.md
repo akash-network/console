@@ -1,5 +1,18 @@
 
 
+## [2.77.0](https://github.com/akash-network/console/compare/console-web/v2.76.0...console-web/v2.77.0) (2025-05-23)
+
+
+### Features
+
+* **contact-point:** implements list endpoint and auth ([0f11115](https://github.com/akash-network/console/commit/0f11115622a6cf58623f33e35902e4814793d9a8))
+* integrates child di container ([#1358](https://github.com/akash-network/console/issues/1358)) ([554ea1e](https://github.com/akash-network/console/commit/554ea1e077ad4cad628311576bb9e4ced6a91f5a))
+
+
+### Code Refactoring
+
+* replaces server side turnstile config provision with injected config ([#1353](https://github.com/akash-network/console/issues/1353)) ([dafe16a](https://github.com/akash-network/console/commit/dafe16a02769ea638e837395f68829f42ccb93d5))
+
 ## [2.76.0](https://github.com/akash-network/console/compare/console-web/v2.75.0...console-web/v2.76.0) (2025-05-22)
 
 
