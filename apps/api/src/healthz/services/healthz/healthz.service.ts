@@ -19,7 +19,6 @@ export class HealthzService {
   }
 
   async getReadinessStatus(): Promise<HealthzResponse & { status: "ok" | "error" }> {
-    this.logger.info("foooo");
     const isPostgresReady = await this.isPostgresReady();
 
     return {
