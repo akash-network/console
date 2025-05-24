@@ -92,43 +92,43 @@ export const getWeb3IndexRevenue = async (debug?: boolean) => {
 
     if (date <= ninetyDaysAgo) {
       ninetyDaysAgoRevenue += b.revenue;
-      ninetyDaysAgoRevenueUAkt += b.revenueUAkt;
-      ninetyDaysAgoRevenueUUsdc += b.revenueUUsdc;
+      ninetyDaysAgoRevenueUAkt += b.revenueUAkt || 0;
+      ninetyDaysAgoRevenueUUsdc += b.revenueUUsdc || 0;
     }
     if (date <= sixtyDaysAgo) {
       sixtyDaysAgoRevenue += b.revenue;
-      sixtyDaysAgoRevenueUAkt += b.revenueUAkt;
-      sixtyDaysAgoRevenueUUsdc += b.revenueUUsdc;
+      sixtyDaysAgoRevenueUAkt += b.revenueUAkt || 0;
+      sixtyDaysAgoRevenueUUsdc += b.revenueUUsdc || 0;
     }
     if (date <= thirtyDaysAgo) {
       thirtyDaysAgoRevenue += b.revenue;
-      thirtyDaysAgoRevenueUAkt += b.revenueUAkt;
-      thirtyDaysAgoRevenueUUsdc += b.revenueUUsdc;
+      thirtyDaysAgoRevenueUAkt += b.revenueUAkt || 0;
+      thirtyDaysAgoRevenueUUsdc += b.revenueUUsdc || 0;
     }
     if (date <= twoWeeksAgo) {
       twoWeeksAgoRevenue += b.revenue;
-      twoWeeksAgoRevenueUAkt += b.revenueUAkt;
-      twoWeeksAgoRevenueUUsdc += b.revenueUUsdc;
+      twoWeeksAgoRevenueUAkt += b.revenueUAkt || 0;
+      twoWeeksAgoRevenueUUsdc += b.revenueUUsdc || 0;
     }
     if (date <= oneWeekAgo) {
       oneWeekAgoRevenue += b.revenue;
-      oneWeekAgoRevenueUAkt += b.revenueUAkt;
-      oneWeekAgoRevenueUUsdc += b.revenueUUsdc;
+      oneWeekAgoRevenueUAkt += b.revenueUAkt || 0;
+      oneWeekAgoRevenueUUsdc += b.revenueUUsdc || 0;
     }
     if (date <= twoDaysAgo) {
       twoDaysAgoRevenue += b.revenue;
-      twoDaysAgoRevenueUAkt += b.revenueUAkt;
-      twoDaysAgoRevenueUUsdc += b.revenueUUsdc;
+      twoDaysAgoRevenueUAkt += b.revenueUAkt || 0;
+      twoDaysAgoRevenueUUsdc += b.revenueUUsdc || 0;
     }
     if (date <= oneDayAgo) {
       oneDayAgoRevenue += b.revenue;
-      oneDayAgoRevenueUAkt += b.revenueUAkt;
-      oneDayAgoRevenueUUsdc += b.revenueUUsdc;
+      oneDayAgoRevenueUAkt += b.revenueUAkt || 0;
+      oneDayAgoRevenueUUsdc += b.revenueUUsdc || 0;
     }
 
     totalRevenue += b.revenue;
-    totalRevenueUAkt += b.revenueUAkt;
-    totalRevenueUUsdc += b.revenueUUsdc;
+    totalRevenueUAkt += b.revenueUAkt || 0;
+    totalRevenueUUsdc += b.revenueUUsdc || 0;
   }, 0);
 
   if (!debug) {
@@ -195,12 +195,12 @@ export async function getDailyRevenue() {
 
   const stats = result.map(day => ({
     date: day.date,
-    totalUAktSpent: (day.lastBlockYet as Block).totalUAktSpent,
-    totalUUsdcSpent: (day.lastBlockYet as Block).totalUUsdcSpent,
-    aktPrice: day.aktPrice // TODO handle no price
+    totalUAktSpent: (day.lastBlockYet as Block).totalUAktSpent || 0,
+    totalUUsdcSpent: (day.lastBlockYet as Block).totalUUsdcSpent || 0,
+    aktPrice: day.aktPrice || 0 // TODO handle no price
   }));
 
-  const relativeStats: { date: Date; uakt: number; uusdc: number; aktPrice: number }[] = stats.reduce((arr, dataPoint, index) => {
+  const relativeStats = stats.reduce<{ date: Date; uakt: number; uusdc: number; aktPrice: number }[]>((arr, dataPoint, index) => {
     arr[index] = {
       date: dataPoint.date,
       uakt: dataPoint.totalUAktSpent - (index > 0 ? stats[index - 1].totalUAktSpent : 0),

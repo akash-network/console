@@ -43,8 +43,8 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
   logger.debug(`Request for key: ${key}`);
 
   // If first time or expired, must refresh data if not already refreshing
-  const cacheExpired = Math.abs(differenceInSeconds(cachedObject?.date, new Date())) > seconds;
-  if ((!cachedObject || cacheExpired) && !(key in pendingRequests)) {
+  const requiresRefresh = !cachedObject || Math.abs(differenceInSeconds(cachedObject.date, new Date())) > seconds;
+  if (requiresRefresh && !(key in pendingRequests)) {
     logger.debug(`Object was not in cache or is expired, making new request for key: ${key}`);
     pendingRequests[key] = refreshRequest()
       .then(data => {
