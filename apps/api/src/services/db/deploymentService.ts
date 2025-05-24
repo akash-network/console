@@ -54,9 +54,9 @@ export async function getDeploymentRelatedMessages(owner: string, dseq: string) 
   const acceptedBids = createBidMsgs.filter(createBidMsg =>
     createLeaseMsgs.some(
       l =>
-        l.bidId.gseq === createBidMsg.decoded.order.gseq &&
-        l.bidId.oseq === createBidMsg.decoded.order.oseq &&
-        l.bidId.provider === createBidMsg.decoded.provider
+        l.bidId?.gseq === createBidMsg.decoded.order?.gseq &&
+        l.bidId?.oseq === createBidMsg.decoded.order?.oseq &&
+        l.bidId?.provider === createBidMsg.decoded.provider
     )
   );
 
@@ -75,7 +75,8 @@ export async function getDeploymentRelatedMessages(owner: string, dseq: string) 
 export async function getProviderDeploymentsCount(provider: string, status?: "active" | "closed") {
   const leaseFilter: WhereOptions<Lease> = { providerAddress: provider };
   if (status) {
-    leaseFilter.closedHeight = status === "active" ? null : { [Op.ne]: null };
+    const op = status === "active" ? Op.is : Op.ne;
+    leaseFilter.closedHeight = { [op]: null };
   }
 
   const result = await Deployment.count({
@@ -89,7 +90,8 @@ export async function getProviderDeployments(provider: string, skip: number, lim
   const leaseFilter: WhereOptions<Lease> = { providerAddress: provider };
 
   if (status) {
-    leaseFilter.closedHeight = status === "active" ? null : { [Op.ne]: null };
+    const op = status === "active" ? Op.is : Op.ne;
+    leaseFilter.closedHeight = { [op]: null };
   }
 
   const deploymentDseqs = await Deployment.findAll({

@@ -5,6 +5,17 @@
     "noEmit": true
   },
   "include": [
-    "src/utils/**/*.ts"
+    "src/utils/**/*.ts",
+    "src/verify-rsa-jwt-cloudflare-worker-main/**/*.ts",
+    "src/types/**/*.ts",
+    "src/lib/**/*.ts",
+    "src/core/**/*.ts",
+    "src/db/**/*.ts",
+    "src/healthz/**/*.ts",
+    "src/middlewares/**/*.ts",
+    "src/features/**/*.ts",
+    "src/chain/**/*.ts",
+    "src/notifications/**/*.ts",
+    "src/services/**/*.ts"
   ]
 }

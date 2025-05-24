@@ -1,6 +1,4 @@
 import { and, count, eq, inArray, lte } from "drizzle-orm";
-import first from "lodash/first";
-import omit from "lodash/omit";
 import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
@@ -50,8 +48,9 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     };
 
     this.ability?.throwUnlessCanExecute(value);
+    const [item] = await this.cursor.insert(this.table).values(value).returning();
 
-    return this.toOutput(first(await this.cursor.insert(this.table).values(value).returning()));
+    return this.toOutput(item);
   }
 
   async findDrainingWallets(thresholds = { fee: 0 }) {
@@ -65,11 +64,16 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
   }
 
   async findOneByUserId(userId: UserWalletOutput["userId"]) {
-    return this.toOutput(await this.cursor.query.UserWallets.findFirst({ where: this.whereAccessibleBy(eq(this.table.userId, userId)) }));
+    if (!userId) return undefined;
+
+    const userWallet = await this.cursor.query.UserWallets.findFirst({ where: this.whereAccessibleBy(eq(this.table.userId, userId)) });
+    if (!userWallet) return undefined;
+
+    return this.toOutput(userWallet);
   }
 
   async findByUserId(userId: UserWalletOutput["userId"] | UserWalletOutput["userId"][]) {
-    const where = Array.isArray(userId) ? inArray(this.table.userId, userId) : eq(this.table.userId, userId);
+    const where = Array.isArray(userId) ? inArray(this.table.userId, userId as string[]) : eq(this.table.userId, userId as string);
     return this.toOutputList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(where) }));
   }
 
@@ -81,14 +85,12 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
   protected toOutput(dbOutput: DbUserWalletOutput): UserWalletOutput {
     const deploymentAllowance = dbOutput?.deploymentAllowance && parseFloat(dbOutput.deploymentAllowance);
 
-    return (
-      dbOutput && {
-        ...omit(dbOutput, ["feeAllowance", "deploymentAllowance"]),
-        creditAmount: deploymentAllowance,
-        deploymentAllowance,
-        feeAllowance: parseFloat(dbOutput.feeAllowance)
-      }
-    );
+    return {
+      ...dbOutput,
+      creditAmount: deploymentAllowance || 0,
+      deploymentAllowance: deploymentAllowance || 0,
+      feeAllowance: parseFloat(dbOutput.feeAllowance)
+    };
   }
 
   protected toInput({ deploymentAllowance, feeAllowance, ...input }: UserWalletInput): DbUserWalletInput {

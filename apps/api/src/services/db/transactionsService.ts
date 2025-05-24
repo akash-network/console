@@ -35,10 +35,10 @@ export async function getTransactions(limit: number) {
     gasWanted: tx.gasWanted,
     fee: parseInt(tx.fee),
     memo: tx.memo,
-    messages: tx.messages.map(msg => ({
+    messages: (tx.messages || []).map(msg => ({
       id: msg.id,
       type: msg.type,
-      amount: parseInt(msg.amount)
+      amount: parseInt(msg.amount || "0")
     }))
   }));
 }
@@ -80,8 +80,8 @@ export async function getTransaction(hash: string): Promise<ApiTransactionRespon
     hash: tx.hash,
     isSuccess: !tx.hasProcessingError,
     multisigThreshold: tx.multisigThreshold,
-    signers: tx.addressReferences.filter(x => x.type === "Signer").map(x => x.address),
-    error: tx.hasProcessingError ? tx.log : null,
+    signers: (tx.addressReferences || []).filter(x => x.type === "Signer").map(x => x.address),
+    error: tx.hasProcessingError ? tx.log || null : null,
     gasUsed: tx.gasUsed,
     gasWanted: tx.gasWanted,
     fee: parseInt(tx.fee),
@@ -90,7 +90,7 @@ export async function getTransaction(hash: string): Promise<ApiTransactionRespon
       id: msg.id,
       type: msg.type,
       data: msgToJSON(msg.type, msg.data),
-      relatedDeploymentId: (msg as Message).relatedDeploymentId
+      relatedDeploymentId: (msg as Message).relatedDeploymentId || null
     }))
   };
 }
@@ -140,12 +140,12 @@ export async function getTransactionByAddress(address: string, skip: number, lim
       gasWanted: tx.gasWanted,
       fee: parseInt(tx.fee),
       memo: tx.memo,
-      isSigner: tx.addressReferences.some(ar => ar.type === "Signer"),
-      messages: tx.messages.map(msg => ({
+      isSigner: (tx.addressReferences || []).some(ar => ar.type === "Signer"),
+      messages: (tx.messages || []).map(msg => ({
         id: msg.id,
         type: msg.type,
         amount: msg.amount,
-        isReceiver: tx.addressReferences.some(ar => ar.messageId === msg.id && ar.type === "Receiver")
+        isReceiver: (tx.addressReferences || []).some(ar => ar.messageId === msg.id && ar.type === "Receiver")
       }))
     }))
   };

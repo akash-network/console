@@ -1,7 +1,5 @@
 import subDays from "date-fns/subDays";
 import { and, desc, eq, isNull, lt, lte, SQL, sql } from "drizzle-orm";
-import first from "lodash/first";
-import last from "lodash/last";
 import { singleton } from "tsyringe";
 
 import { ApiPgDatabase, ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -27,23 +25,24 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     return new UserRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  async create(input: Partial<UserInput> = {}) {
-    return first(await this.cursor.insert(this.table).values(input).returning());
+  async create(input: UserInput = {}): Promise<UserOutput> {
+    const [item] = await this.cursor.insert(this.table).values(input).returning();
+    return this.toOutput(item);
   }
 
-  async findById(id: UserOutput["id"]): Promise<UserOutput> {
+  async findById(id: UserOutput["id"]): Promise<UserOutput | undefined> {
     return this.findUserWithWallet(eq(this.table.id, id));
   }
 
-  async findByUserId(userId: UserOutput["userId"]): Promise<UserOutput> {
-    return this.findUserWithWallet(eq(this.table.userId, userId));
+  async findByUserId(userId: UserOutput["userId"]): Promise<UserOutput | undefined> {
+    return this.findUserWithWallet(eq(this.table.userId, userId!));
   }
 
   async findAnonymousById(id: UserOutput["id"]) {
     return await this.cursor.query.Users.findFirst({ where: this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.userId))) });
   }
 
-  async markAsActive(id: UserOutput["id"], throttleTimeSeconds: number) {
+  async markAsActive(id: UserOutput["id"], throttleTimeSeconds: number): Promise<void> {
     await this.cursor
       .update(this.table)
       .set({ lastActiveAt: sql`now()` })
@@ -70,7 +69,7 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
       }
 
       const items = this.toOutputList(await this.cursor.query.Users.findMany({ where: and(...clauses), limit, orderBy: [desc(this.table.id)] }));
-      lastId = last(items)?.id;
+      lastId = items.at(-1)?.id;
 
       if (items.length) {
         await cb(items);

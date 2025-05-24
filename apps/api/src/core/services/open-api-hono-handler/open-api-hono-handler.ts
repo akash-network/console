@@ -4,7 +4,7 @@ import type { Env, Hono, Schema } from "hono";
 import { container } from "tsyringe";
 
 import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
-import type { AppEnv } from "@src/core/types/app-context";
+import type { AppContext, AppEnv } from "@src/core/types/app-context";
 
 type HonoInit<E extends Env> = ConstructorParameters<typeof Hono>[0] & OpenAPIHonoOptions<E>;
 
@@ -18,7 +18,7 @@ export class OpenApiHonoHandler<E extends AppEnv = AppEnv, S extends Schema = Re
       ...init,
       defaultHook: (result, c) => {
         if (!result.success && "error" in result) {
-          return container.resolve(HonoErrorHandlerService).handle(result.error, c);
+          return container.resolve(HonoErrorHandlerService).handle(result.error, c as unknown as AppContext);
         }
       }
     });

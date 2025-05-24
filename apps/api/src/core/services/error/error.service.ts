@@ -5,7 +5,7 @@ import { singleton } from "tsyringe";
 export class ErrorService {
   private readonly logger = LoggerService.forContext(ErrorService.name);
 
-  async execWithErrorHandler<T>(extraLog: Record<string, unknown>, cb: () => Promise<T>, onError?: (error: unknown) => void): Promise<T> {
+  async execWithErrorHandler<T>(extraLog: Record<string, unknown>, cb: () => Promise<T>, onError?: (error: unknown) => void): Promise<T | undefined> {
     try {
       return await cb();
     } catch (error) {

@@ -69,10 +69,10 @@ export async function getBlock(height: number) {
       error: tx.hasProcessingError ? tx.log : null,
       fee: parseInt(tx.fee),
       datetime: block.datetime,
-      messages: tx.messages.map(message => ({
+      messages: (tx.messages || []).map(message => ({
         id: message.id,
         type: message.type,
-        amount: parseInt(message.amount)
+        amount: parseInt(message.amount || "0")
       }))
     }))
   };
@@ -92,6 +92,9 @@ async function calculateAverageBlockTime(latestBlock: Block, blockCount: number)
       height: Math.max(latestBlock.height - blockCount, 1)
     }
   });
+  if (!earlierBlock) {
+    throw new Error(`Cannot calculate average block time because there is no earlier block for ${latestBlock.height}`);
+  }
 
   const realBlockCount = latestBlock.height - earlierBlock.height;
 
@@ -107,6 +110,7 @@ async function calculateAverageBlockTime(latestBlock: Block, blockCount: number)
 export async function getPredictedDateHeight(date: Date, blockWindow: number) {
   const latestBlock = await Block.findOne({ order: [["height", "DESC"]] });
 
+  if (!latestBlock) throw new Error("No blocks found");
   if (date <= latestBlock.datetime) throw new Error("Date must be in the future");
 
   const averageBlockTime = await calculateAverageBlockTime(latestBlock, blockWindow);
@@ -125,6 +129,7 @@ export async function getPredictedDateHeight(date: Date, blockWindow: number) {
 export async function getPredictedBlockDate(height: number, blockWindow: number) {
   const latestBlock = await Block.findOne({ order: [["height", "DESC"]] });
 
+  if (!latestBlock) throw new Error("No blocks found");
   if (height <= latestBlock.height) throw new Error("Height must be in the future");
 
   const averageBlockTime = await calculateAverageBlockTime(latestBlock, blockWindow);

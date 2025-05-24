@@ -41,7 +41,7 @@ export class DrizzleAbility<T extends PgTableWithColumns<any>, A extends AnyAbil
     ForbiddenError.from(this.ability).throwUnlessCan(...params);
   }
 
-  whereAccessibleBy(where: SQL) {
+  whereAccessibleBy(where: SQL | undefined) {
     return this.abilityClause ? and(where, this.abilityClause) : where;
   }
 
