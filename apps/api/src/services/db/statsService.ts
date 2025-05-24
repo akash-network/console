@@ -1,12 +1,9 @@
 import { AkashBlock as Block } from "@akashnetwork/database/dbSchemas/akash";
 import { Day } from "@akashnetwork/database/dbSchemas/base";
-import { isSameDay, subHours } from "date-fns";
+import { subHours } from "date-fns";
 import { Op, QueryTypes } from "sequelize";
 
-import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
-import type { ProviderStats, ProviderStatsKey } from "@src/types/graph";
-import { env } from "@src/utils/env";
 import { getGpuUtilization } from "./gpuBreakdownService";
 
 type GraphData = {
@@ -196,110 +193,6 @@ export async function getGraphData(dataName: AuthorizedGraphDataName): Promise<G
     snapshots: stats
   };
 }
-
-export const getProviderGraphData = async (dataName: ProviderStatsKey) => {
-  console.log("getProviderGraphData: " + dataName);
-
-  const getter = (block: ProviderStats) => (typeof block[dataName] === "number" ? (block[dataName] as number) : parseInt(block[dataName] as string) || 0);
-
-  const result = await cacheResponse(
-    60 * 5, // 5 minutes
-    cacheKeys.getProviderGraphData,
-    async () => {
-      return removeLastAroundMidnight(
-        await chainDb.query<ProviderStats>(
-          `SELECT d."date", (SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU")) AS "cpu", (SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU")) AS "gpu", (SUM("activeMemory") + SUM("pendingMemory") + SUM("availableMemory")) AS memory, (SUM("activeStorage") + SUM("pendingStorage") + SUM("availableStorage")) as storage, COUNT(*) as count
-            FROM "day" d
-            INNER JOIN (
-            SELECT DISTINCT ON("hostUri",DATE("checkDate"))
-              DATE("checkDate") AS date,
-              ps."activeCPU", ps."pendingCPU", ps."availableCPU",
-              ps."activeGPU", ps."pendingGPU", ps."availableGPU",
-              ps."activeMemory", ps."pendingMemory", ps."availableMemory",
-              ps."activeEphemeralStorage" + COALESCE(ps."activePersistentStorage", 0) AS "activeStorage", ps."pendingEphemeralStorage" + COALESCE(ps."pendingPersistentStorage", 0) AS "pendingStorage", ps."availableEphemeralStorage" + COALESCE(ps."availablePersistentStorage", 0) AS "availableStorage",
-              ps."isOnline"
-            FROM "providerSnapshot" ps
-            INNER JOIN "day" d ON d."date" = DATE(ps."checkDate")
-            INNER JOIN "block" b ON b.height=d."lastBlockHeightYet"
-            INNER JOIN "provider" ON "provider"."owner"=ps."owner"
-            WHERE ps."isLastSuccessOfDay" = TRUE AND ps."checkDate" >= b."datetime" - (:grace_duration * INTERVAL '1 minutes')
-            ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
-          ) "dailyProviderStats"
-          ON DATE(d."date")="dailyProviderStats"."date"
-          GROUP BY d."date"
-          ORDER BY d."date" ASC`,
-          {
-            type: QueryTypes.SELECT,
-            replacements: {
-              grace_duration: env.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES
-            }
-          }
-        )
-      );
-    },
-    true
-  );
-
-  if (result.length < 2) {
-    return {
-      currentValue: 0,
-      compareValue: 0,
-      snapshots: [] as {
-        date: string;
-        value: number;
-      }[]
-    };
-  }
-
-  const currentValue = result[result.length - 1];
-  const compareValue = result[result.length - 2];
-
-  const stats = result.map(day => ({
-    date: day.date,
-    value: getter(day)
-  }));
-
-  return {
-    currentValue: typeof currentValue[dataName] === "number" ? currentValue[dataName] : parseInt(currentValue[dataName] as string),
-    compareValue: typeof compareValue[dataName] === "number" ? compareValue[dataName] : parseInt(compareValue[dataName] as string),
-    snapshots: stats,
-
-    // To compare from previous day
-    now: {
-      count: currentValue.count,
-      cpu: parseInt(currentValue.cpu),
-      gpu: parseInt(currentValue.gpu),
-      memory: parseInt(currentValue.memory),
-      storage: parseInt(currentValue.storage)
-    },
-    compare: {
-      count: compareValue.count,
-      cpu: parseInt(compareValue.cpu),
-      gpu: parseInt(compareValue.gpu),
-      memory: parseInt(compareValue.memory),
-      storage: parseInt(compareValue.storage)
-    }
-  };
-};
-
-const removeLastAroundMidnight = (stats: ProviderStats[]) => {
-  const now = new Date();
-  const isFirstFifteenMinuesOfDay = now.getHours() === 0 && now.getMinutes() <= 15;
-  const lastItem = stats.length > 0 ? stats[stats.length - 1] : null;
-  if (lastItem && typeof lastItem.date !== "string") {
-    console.error(
-      `removeLastAroundMidnight: lastItem.date is not a string: ` +
-        `type = ${typeof lastItem.date} value = ${lastItem.date} constructor = ${(lastItem.date as any)?.constructor?.name}` +
-        JSON.stringify(lastItem)
-    );
-  }
-  const lastItemIsForToday = lastItem && isSameDay(lastItem.date, now);
-  if (isFirstFifteenMinuesOfDay && lastItemIsForToday) {
-    return stats.slice(0, stats.length - 1);
-  }
-
-  return stats;
-};
 
 export async function getProviderTotalLeaseCountAtHeight(provider: string, height: number) {
   const [{ count: totalLeaseCount }] = await chainDb.query<{ count: number }>(

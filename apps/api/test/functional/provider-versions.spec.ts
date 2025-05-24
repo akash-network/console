@@ -1,9 +1,9 @@
-import { type Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
+import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 
 import { app, initDb } from "@src/app";
 
 import { ProviderSeeder } from "@test/seeders/provider.seeder";
-import { generateProviderSnapshot } from "@test/seeders/provider-snapshot.seeder";
+import { ProviderSnapshotSeeder } from "@test/seeders/provider-snapshot.seeder";
 
 describe("Provider Dashboard", () => {
   let providers: Provider[];
@@ -34,30 +34,28 @@ describe("Provider Dashboard", () => {
       })
     ]);
 
-    const providerSnapshotSeeds = [
-      generateProviderSnapshot({
+    const providerSnapshots = await Promise.all([
+      ProviderSnapshotSeeder.createInDatabase({
         owner: providers[0].owner,
         checkDate: Date.now()
       }),
-      generateProviderSnapshot({
+      ProviderSnapshotSeeder.createInDatabase({
         owner: providers[1].owner,
         checkDate: Date.now()
       }),
-      generateProviderSnapshot({
+      ProviderSnapshotSeeder.createInDatabase({
         owner: providers[2].owner,
         checkDate: Date.now()
       }),
-      generateProviderSnapshot({
+      ProviderSnapshotSeeder.createInDatabase({
         owner: providers[3].owner,
         checkDate: Date.now()
       }),
-      generateProviderSnapshot({
+      ProviderSnapshotSeeder.createInDatabase({
         owner: providers[4].owner,
         checkDate: Date.now()
       })
-    ];
-
-    const providerSnapshots = await Promise.all(providerSnapshotSeeds.map(async seed => ProviderSnapshot.create(seed)));
+    ]);
 
     await providers[4].update({
       akashVersion: null
