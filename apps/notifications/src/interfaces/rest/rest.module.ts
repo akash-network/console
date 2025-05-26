@@ -4,6 +4,7 @@ import { APP_INTERCEPTOR } from "@nestjs/core";
 import { ZodSerializerInterceptor } from "nestjs-zod";
 
 import { CommonModule } from "@src/common/common.module";
+import { HealthzController } from "@src/interfaces/rest/controllers/healthz/healthz.controller";
 import { AlertModule } from "@src/modules/alert/alert.module";
 import { NotificationsModule } from "@src/modules/notifications/notifications.module";
 import { AlertController } from "./controllers/alert/alert.controller";
@@ -21,7 +22,7 @@ import { AuthService } from "./services/auth/auth.service";
     { provide: APP_INTERCEPTOR, useClass: AuthInterceptor },
     AuthService
   ],
-  controllers: [AlertController, ContactPointController]
+  controllers: [AlertController, ContactPointController, HealthzController]
 })
 export default class RestModule {
   configure(consumer: MiddlewareConsumer) {

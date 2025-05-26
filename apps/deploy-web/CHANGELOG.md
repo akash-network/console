@@ -1,5 +1,12 @@
 
 
+## [2.77.1](https://github.com/akash-network/console/compare/console-web/v2.77.0...console-web/v2.77.1) (2025-05-26)
+
+
+### Bug Fixes
+
+* ensure balances are not fetched before chain node API is selected ([#1365](https://github.com/akash-network/console/issues/1365)) ([e0109dc](https://github.com/akash-network/console/commit/e0109dcc5e5eca142693625e42e820f52171844b))
+
 ## [2.77.0](https://github.com/akash-network/console/compare/console-web/v2.76.0...console-web/v2.77.0) (2025-05-23)
 
 

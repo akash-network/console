@@ -77,6 +77,9 @@ jobs:
           elif [[ "$tag" == stats-web/* ]]; then
             echo "registry=${{ vars.STATS_WEB_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=stats-web" >> "$GITHUB_ENV"
+          elif [[ "$tag" == notifications/* ]]; then
+            echo "registry=${{ vars.NOTIFICATIONS_REGISTRY }}" >> "$GITHUB_ENV"
+            echo "app=notifications" >> "$GITHUB_ENV"
           else
             echo "Error: Unknown tag format = $tag"
             exit 1

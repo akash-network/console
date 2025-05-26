@@ -2,9 +2,9 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import type { BrowserContext, Page } from "@playwright/test";
 import { selectors } from "@playwright/test";
 
+import { isWalletConnected } from "../uiState/isWalletConnected";
 import { restoreExtensionStorage } from "./context-with-extension";
 import { testEnvConfig } from "./test-env.config";
-
 const WALLET_PASSWORD = "12345678";
 
 export async function setupWallet(context: BrowserContext, page: Page) {
@@ -47,7 +47,7 @@ export async function connectWalletViaLeap(context: BrowserContext, page: Page) 
     }
   }
 
-  await page.getByLabel("Connected wallet name and balance").waitFor({ state: "visible" });
+  await isWalletConnected(page);
 }
 
 async function importWalletToLeap(context: BrowserContext, page: Page) {
@@ -61,7 +61,6 @@ async function importWalletToLeap(context: BrowserContext, page: Page) {
     throw new Error("TEST_WALLET_MNEMONIC should have 12 words");
   }
 
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.getByText(/recovery phrase/i).click();
 
   try {
