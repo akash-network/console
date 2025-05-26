@@ -1,5 +1,17 @@
 
 
+## [2.94.1](https://github.com/akash-network/console/compare/console-api/v2.94.0...console-api/v2.94.1) (2025-05-26)
+
+
+### Bug Fixes
+
+* **release:** adds notifications to docker setup  ([6951faf](https://github.com/akash-network/console/commit/6951faf46850643515757c7c16c328bbf622fa76))
+
+
+### Code Refactoring
+
+* move /v1/provider-graph-data to modules ([#1324](https://github.com/akash-network/console/issues/1324)) ([9b9df22](https://github.com/akash-network/console/commit/9b9df22632ca61ba772a89be56091dc1a2231164)), closes [#1272](https://github.com/akash-network/console/issues/1272)
+
 ## [2.94.0](https://github.com/akash-network/console/compare/console-api/v2.93.0...console-api/v2.94.0) (2025-05-26)
 
 

@@ -1,5 +1,12 @@
 
 
+## [2.77.2](https://github.com/akash-network/console/compare/console-web/v2.77.1...console-web/v2.77.2) (2025-05-26)
+
+
+### Bug Fixes
+
+* **release:** adds notifications to docker setup  ([6951faf](https://github.com/akash-network/console/commit/6951faf46850643515757c7c16c328bbf622fa76))
+
 ## [2.77.1](https://github.com/akash-network/console/compare/console-web/v2.77.0...console-web/v2.77.1) (2025-05-26)
 
 

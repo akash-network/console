@@ -1,5 +1,12 @@
 
 
+## [1.7.1](https://github.com/akash-network/console/compare/provider-proxy/v1.7.0...provider-proxy/v1.7.1) (2025-05-26)
+
+
+### Bug Fixes
+
+* **release:** adds notifications to docker setup  ([6951faf](https://github.com/akash-network/console/commit/6951faf46850643515757c7c16c328bbf622fa76))
+
 ## [1.7.0](https://github.com/akash-network/console/compare/provider-proxy/v1.6.5...provider-proxy/v1.7.0) (2025-05-16)
 
 
