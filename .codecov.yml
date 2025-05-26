@@ -7,7 +7,7 @@ coverage:
         flags:
           - api
       deploy-web:
-        target: 9%
+        target: 14%
         flags:
           - deploy-web
       notifications:
@@ -25,7 +25,7 @@ coverage:
         flags:
           - api
       deploy-web:
-        target: 30%
+        target: 50%
         flags:
           - deploy-web
       notifications:
