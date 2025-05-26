@@ -1,9 +1,12 @@
 import { LoggerService } from "@akashnetwork/logging";
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { container } from "tsyringe";
 
+import type { ProviderGraphDataResponse } from "@src/provider/http-schemas/provider-graph-data.schema";
+import { ProviderGraphDataService } from "@src/provider/services/provider-graph-data/provider-graph-data.service";
 import { getBlocks } from "@src/services/db/blocksService";
 import { getNetworkCapacity } from "@src/services/db/providerStatusService";
-import { getDashboardData, getProviderGraphData } from "@src/services/db/statsService";
+import { getDashboardData } from "@src/services/db/statsService";
 import { getTransactions } from "@src/services/db/transactionsService";
 import { getChainStats } from "@src/services/external/apiNodeService";
 import { createLoggingExecutor } from "@src/utils/logging";
@@ -159,7 +162,7 @@ export default new OpenAPIHono().openapi(route, async c => {
       stakingAPR: undefined
     }),
     runOrLog(getNetworkCapacity, {} as Awaited<ReturnType<typeof getNetworkCapacity>>),
-    runOrLog(() => getProviderGraphData("count"), {} as Awaited<ReturnType<typeof getProviderGraphData>>),
+    runOrLog(() => container.resolve(ProviderGraphDataService).getProviderGraphData("count"), {} as Awaited<ProviderGraphDataResponse>),
     runOrLog(() => getBlocks(5), []),
     runOrLog(() => getTransactions(5), [])
   ]);
