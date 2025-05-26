@@ -1,4 +1,5 @@
-import { Provider, ProviderAttributeSignature, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
+import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
+import { ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
 import subDays from "date-fns/subDays";
 import map from "lodash/map";
 import mcache from "memory-cache";
@@ -13,57 +14,54 @@ import { DeploymentSeeder } from "@test/seeders/deployment.seeder";
 import { DeploymentGroupSeeder } from "@test/seeders/deployment-group.seeder";
 import { LeaseSeeder } from "@test/seeders/lease.seeder";
 import { ProviderSeeder } from "@test/seeders/provider.seeder";
-import { generateProviderSnapshot } from "@test/seeders/provider-snapshot.seeder";
+import { ProviderSnapshotSeeder } from "@test/seeders/provider-snapshot.seeder";
 
 describe("Providers", () => {
-  const providerSeeds = [ProviderSeeder.create(), ProviderSeeder.create(), ProviderSeeder.create()];
-  const providerSnapshotSeeds = [
-    generateProviderSnapshot({
-      owner: providerSeeds[0].owner,
-      checkDate: subDays(new Date("2025-01-01T00:00:00.000Z"), 1),
-      availableCPU: 1,
-      availableGPU: 2,
-      availableMemory: 3,
-      availablePersistentStorage: 4,
-      availableEphemeralStorage: 5
-    }),
-    generateProviderSnapshot({
-      owner: providerSeeds[0].owner,
-      checkDate: subDays(new Date("2025-01-01T00:00:00.000Z"), 2),
-      availableCPU: 11,
-      availableGPU: 12,
-      availableMemory: 13,
-      availablePersistentStorage: 14,
-      availableEphemeralStorage: 15
-    }),
-    generateProviderSnapshot({
-      owner: providerSeeds[1].owner,
-      checkDate: subDays(new Date("2025-01-01T00:00:00.000Z"), 1),
-      availableCPU: 21,
-      availableGPU: 22,
-      availableMemory: 23,
-      availablePersistentStorage: 24,
-      availableEphemeralStorage: 25
-    }),
-    generateProviderSnapshot({
-      owner: providerSeeds[1].owner,
-      checkDate: subDays(new Date("2025-01-01T00:00:00.000Z"), 2),
-      availableCPU: 31,
-      availableGPU: 32,
-      availableMemory: 33,
-      availablePersistentStorage: 34,
-      availableEphemeralStorage: 35
-    })
-  ];
-
   let providers: Provider[];
+  let providerSnapshots: ProviderSnapshot[];
 
   beforeAll(async () => {
     await initDb();
 
-    providers = await Promise.all(providerSeeds.map(async provider => Provider.create(provider)));
-    const providerSnapshots = await Promise.all(providerSnapshotSeeds.map(async providerSnapshot => ProviderSnapshot.create(providerSnapshot)));
-
+    providers = await Promise.all([ProviderSeeder.createInDatabase(), ProviderSeeder.createInDatabase(), ProviderSeeder.createInDatabase()]);
+    providerSnapshots = await Promise.all([
+      ProviderSnapshotSeeder.createInDatabase({
+        owner: providers[0].owner,
+        checkDate: subDays(new Date("2025-01-01T00:00:00.000Z"), 1),
+        availableCPU: 1,
+        availableGPU: 2,
+        availableMemory: 3,
+        availablePersistentStorage: 4,
+        availableEphemeralStorage: 5
+      }),
+      ProviderSnapshotSeeder.createInDatabase({
+        owner: providers[0].owner,
+        checkDate: subDays(new Date("2025-01-01T00:00:00.000Z"), 2),
+        availableCPU: 11,
+        availableGPU: 12,
+        availableMemory: 13,
+        availablePersistentStorage: 14,
+        availableEphemeralStorage: 15
+      }),
+      ProviderSnapshotSeeder.createInDatabase({
+        owner: providers[1].owner,
+        checkDate: subDays(new Date("2025-01-01T00:00:00.000Z"), 1),
+        availableCPU: 21,
+        availableGPU: 22,
+        availableMemory: 23,
+        availablePersistentStorage: 24,
+        availableEphemeralStorage: 25
+      }),
+      ProviderSnapshotSeeder.createInDatabase({
+        owner: providers[1].owner,
+        checkDate: subDays(new Date("2025-01-01T00:00:00.000Z"), 2),
+        availableCPU: 31,
+        availableGPU: 32,
+        availableMemory: 33,
+        availablePersistentStorage: 34,
+        availableEphemeralStorage: 35
+      })
+    ]);
     providers[0].update({
       lastSuccessfulSnapshotId: providerSnapshots[0].id
     });

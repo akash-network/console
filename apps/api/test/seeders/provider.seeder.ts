@@ -36,7 +36,7 @@ export class ProviderSeeder {
   }
 
   static async createInDatabase(overrides: Partial<CreationAttributes<Provider>> = {}): Promise<Provider> {
-    const seed = this.create(overrides);
+    const seed = ProviderSeeder.create(overrides);
     return await Provider.create(seed);
   }
 }

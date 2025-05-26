@@ -8,6 +8,15 @@ services:
       - /app/node_modules
       - /app/apps/api/node_modules
 
+  notifications:
+    build:
+      target: development
+    volumes:
+      - ../../apps/notifications:/app/apps/notifications
+      - ../../packages:/app/packages
+      - /app/node_modules
+      - /app/apps/notifications/node_modules
+
   indexer:
     build:
       target: development

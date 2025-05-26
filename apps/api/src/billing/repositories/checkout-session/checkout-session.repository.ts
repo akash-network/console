@@ -38,7 +38,7 @@ export class CheckoutSessionRepository extends BaseRepository<Table, CheckoutSes
         },
         { jitter: "full", maxDelay: 5000, numOfAttempts: 20 }
       );
-    } catch (error) {
+    } catch (error: any) {
       if (error.message === "Session is still active") {
         this.logger.warn({ event: "SESSION_STILL_ACTIVE", sessionId });
         return;

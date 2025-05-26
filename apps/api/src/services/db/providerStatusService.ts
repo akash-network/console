@@ -25,25 +25,25 @@ export async function getNetworkCapacity() {
   const filteredProviders = uniqBy(providers, provider => provider.hostUri);
   const stats = filteredProviders.reduce(
     (all, provider) => {
-      all.activeCPU += provider.lastSuccessfulSnapshot.activeCPU;
-      all.pendingCPU += provider.lastSuccessfulSnapshot.pendingCPU;
-      all.availableCPU += provider.lastSuccessfulSnapshot.availableCPU;
+      all.activeCPU += provider.lastSuccessfulSnapshot.activeCPU || 0;
+      all.pendingCPU += provider.lastSuccessfulSnapshot.pendingCPU || 0;
+      all.availableCPU += provider.lastSuccessfulSnapshot.availableCPU || 0;
 
-      all.activeGPU += provider.lastSuccessfulSnapshot.activeGPU;
-      all.pendingGPU += provider.lastSuccessfulSnapshot.pendingGPU;
-      all.availableGPU += provider.lastSuccessfulSnapshot.availableGPU;
+      all.activeGPU += provider.lastSuccessfulSnapshot.activeGPU || 0;
+      all.pendingGPU += provider.lastSuccessfulSnapshot.pendingGPU || 0;
+      all.availableGPU += provider.lastSuccessfulSnapshot.availableGPU || 0;
 
-      all.activeMemory += provider.lastSuccessfulSnapshot.activeMemory;
-      all.pendingMemory += provider.lastSuccessfulSnapshot.pendingMemory;
-      all.availableMemory += provider.lastSuccessfulSnapshot.availableMemory;
+      all.activeMemory += provider.lastSuccessfulSnapshot.activeMemory || 0;
+      all.pendingMemory += provider.lastSuccessfulSnapshot.pendingMemory || 0;
+      all.availableMemory += provider.lastSuccessfulSnapshot.availableMemory || 0;
 
-      all.activeEphemeralStorage += provider.lastSuccessfulSnapshot.activeEphemeralStorage;
-      all.pendingEphemeralStorage += provider.lastSuccessfulSnapshot.pendingEphemeralStorage;
-      all.availableEphemeralStorage += provider.lastSuccessfulSnapshot.availableEphemeralStorage;
+      all.activeEphemeralStorage += provider.lastSuccessfulSnapshot.activeEphemeralStorage || 0;
+      all.pendingEphemeralStorage += provider.lastSuccessfulSnapshot.pendingEphemeralStorage || 0;
+      all.availableEphemeralStorage += provider.lastSuccessfulSnapshot.availableEphemeralStorage || 0;
 
-      all.activePersistentStorage += provider.lastSuccessfulSnapshot.activePersistentStorage;
-      all.pendingPersistentStorage += provider.lastSuccessfulSnapshot.pendingPersistentStorage;
-      all.availablePersistentStorage += provider.lastSuccessfulSnapshot.availablePersistentStorage;
+      all.activePersistentStorage += provider.lastSuccessfulSnapshot.activePersistentStorage || 0;
+      all.pendingPersistentStorage += provider.lastSuccessfulSnapshot.pendingPersistentStorage || 0;
+      all.availablePersistentStorage += provider.lastSuccessfulSnapshot.availablePersistentStorage || 0;
 
       return all;
     },

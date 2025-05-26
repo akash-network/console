@@ -3,11 +3,19 @@ services:
     restart: always
     environment:
       PORT: 3000
-      DB_HOST: db
     env_file:
       - .env.sandbox.docker-compose-dev
     ports:
       - '3080:3000'
+
+  notifications:
+    restart: always
+    environment:
+      PORT: 3000
+    env_file:
+      - .env.sandbox.docker-compose-dev
+    ports:
+      - '3081:3000'
 
   indexer:
     restart: always
@@ -31,6 +39,7 @@ services:
       - '3000:3000'
     depends_on:
       - api
+      - notifications
       - provider-proxy
 
   stats-web:
