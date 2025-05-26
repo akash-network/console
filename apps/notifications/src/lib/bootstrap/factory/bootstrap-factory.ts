@@ -14,7 +14,7 @@ export async function bootstrapHttp(module: Type<any>) {
 export async function bootstrapWorker(module: Type<any>) {
   const bootstrapper = new Bootstrapper(module);
   await bootstrapper.createApp();
-  await bootstrapper.startWorker();
+  await bootstrapper.startHttp();
 }
 
 export const createHttpBootstrapper = (module: Type<any>) => () => bootstrapHttp(module);

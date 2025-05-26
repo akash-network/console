@@ -7,6 +7,7 @@ import type { Client } from "pg";
 import { CommonModule } from "@src/common/common.module";
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import { register } from "@src/infrastructure/db/db.module";
+import { DbHealthzService } from "@src/infrastructure/db/services/db-healthz/db-healthz.service";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import { ChainMessageAlertService } from "@src/modules/alert/services/chain-message-alert/chain-message-alert.service";
 import { HTTP_SDK_PROVIDERS } from "./providers/http-sdk.provider";
@@ -28,9 +29,10 @@ import * as schema from "./model-schemas";
     AlertMessageService,
     DeploymentService,
     TemplateService,
+    DbHealthzService,
     ...HTTP_SDK_PROVIDERS
   ],
-  exports: [ChainMessageAlertService, DeploymentBalanceAlertsService, AlertRepository]
+  exports: [ChainMessageAlertService, DeploymentBalanceAlertsService, AlertRepository, DbHealthzService]
 })
 export class AlertModule implements OnApplicationShutdown {
   constructor(@InjectDrizzle(DRIZZLE_PROVIDER_TOKEN) private readonly db: NodePgDatabase) {}
