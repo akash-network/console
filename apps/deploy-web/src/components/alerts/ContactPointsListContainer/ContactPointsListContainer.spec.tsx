@@ -53,7 +53,6 @@ describe("ContactPointsListContainer", () => {
 
   it("calls delete endpoint and shows success notification when removing a contact point", async () => {
     const { mockData, requestFn } = setup();
-    console.log("mockData: ", mockData);
 
     await waitFor(() => {
       expect(screen.getByTestId(`remove-contact-point-${mockData.data[0].id}`)).toBeInTheDocument();
