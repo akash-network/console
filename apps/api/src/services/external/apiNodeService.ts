@@ -131,7 +131,7 @@ export async function getAddressBalance(address: string) {
 
     return {
       validator: {
-        address: validator.accountAddress,
+        address: validator?.accountAddress,
         moniker: validator?.moniker,
         operatorAddress: validator?.operatorAddress,
         avatarUrl: validator?.keybaseAvatarUrl
@@ -143,7 +143,7 @@ export async function getAddressBalance(address: string) {
 
   for (const reward of rewardsResponse.data.rewards) {
     const delegation = delegations.find(x => x.validator.operatorAddress === reward.validator_address);
-    const rewardAmount = reward.reward.length > 0 ? parseFloat(reward.reward.find(x => x.denom === "uakt").amount) : 0;
+    const rewardAmount = reward.reward.length > 0 ? parseFloat(reward.reward.find(x => x.denom === "uakt")?.amount || "0") : 0;
 
     if (delegation) {
       delegation.reward = rewardAmount;
@@ -151,7 +151,7 @@ export async function getAddressBalance(address: string) {
       const validator = validatorsFromDb.find(v => v.operatorAddress === reward.validator_address);
       delegations.push({
         validator: {
-          address: validator.accountAddress,
+          address: validator?.accountAddress,
           moniker: validator?.moniker,
           operatorAddress: validator?.operatorAddress,
           avatarUrl: validator?.keybaseAvatarUrl
@@ -164,20 +164,20 @@ export async function getAddressBalance(address: string) {
 
   const available = balancesResponse.data.balances.filter(x => x.denom === "uakt").reduce((acc, cur) => acc + parseInt(cur.amount), 0);
   const delegated = delegations.reduce((acc, cur) => acc + cur.amount, 0);
-  const rewards = rewardsResponse.data.total.length > 0 ? parseInt(rewardsResponse.data.total.find(x => x.denom === "uakt").amount) : 0;
+  const rewards = rewardsResponse.data.total.length > 0 ? parseInt(rewardsResponse.data.total.find(x => x.denom === "uakt")?.amount || "0") : 0;
   const redelegations = redelegationsResponse.data.redelegation_responses.map(x => {
     const srcValidator = validatorsFromDb.find(v => v.operatorAddress === x.redelegation.validator_src_address);
     const destValidator = validatorsFromDb.find(v => v.operatorAddress === x.redelegation.validator_dst_address);
 
     return {
       srcAddress: {
-        address: srcValidator.accountAddress,
+        address: srcValidator?.accountAddress,
         moniker: srcValidator?.moniker,
         operatorAddress: srcValidator?.operatorAddress,
         avatarUrl: srcValidator?.keybaseAvatarUrl
       },
       dstAddress: {
-        address: destValidator.accountAddress,
+        address: destValidator?.accountAddress,
         moniker: destValidator?.moniker,
         operatorAddress: destValidator?.operatorAddress,
         avatarUrl: destValidator?.keybaseAvatarUrl
@@ -322,10 +322,10 @@ export async function getProposal(id: number) {
       };
     } else {
       tally = {
-        yes: parseInt(data.proposal.final_tally_result.yes) || 0,
-        abstain: parseInt(data.proposal.final_tally_result.abstain) || 0,
-        no: parseInt(data.proposal.final_tally_result.no) || 0,
-        noWithVeto: parseInt(data.proposal.final_tally_result.no_with_veto) || 0
+        yes: parseInt(data.proposal.final_tally_result?.yes || "0") || 0,
+        abstain: parseInt(data.proposal.final_tally_result?.abstain || "0") || 0,
+        no: parseInt(data.proposal.final_tally_result?.no || "0") || 0,
+        noWithVeto: parseInt(data.proposal.final_tally_result?.no_with_veto || "0") || 0
       };
     }
 
@@ -425,22 +425,23 @@ export async function getDeployment(owner: string, dseq: string) {
       closedHeight: dbLease?.closedHeight,
       closedDate: dbLease?.closedBlock?.datetime,
       provider: {
-        address: provider.owner,
-        hostUri: provider.hostUri,
-        isDeleted: !!provider.deletedHeight,
-        attributes: provider.providerAttributes.map(attr => ({
+        address: provider?.owner,
+        hostUri: provider?.hostUri,
+        isDeleted: !!provider?.deletedHeight,
+        attributes: provider?.providerAttributes.map(attr => ({
           key: attr.key,
           value: attr.value
         }))
       },
       status: x.lease.state,
       monthlyCostUDenom: Math.round(parseFloat(x.lease.price.amount) * averageBlockCountInAMonth),
-      cpuUnits: group.group_spec.resources.map(r => parseInt(r.resource.cpu.units.val) * r.count).reduce((a, b) => a + b, 0),
-      gpuUnits: group.group_spec.resources.map(r => parseInt(r.resource.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0),
-      memoryQuantity: group.group_spec.resources.map(r => parseInt(r.resource.memory.quantity.val) * r.count).reduce((a, b) => a + b, 0),
-      storageQuantity: group.group_spec.resources
-        .map(r => r.resource.storage.map(s => parseInt(s.quantity.val)).reduce((a, b) => a + b, 0) * r.count)
-        .reduce((a, b) => a + b, 0)
+      cpuUnits: group?.group_spec.resources.map(r => parseInt(r.resource.cpu.units.val) * r.count).reduce((a, b) => a + b, 0) || 0,
+      gpuUnits: group?.group_spec.resources.map(r => parseInt(r.resource.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0) || 0,
+      memoryQuantity: group?.group_spec.resources.map(r => parseInt(r.resource.memory.quantity.val) * r.count).reduce((a, b) => a + b, 0) || 0,
+      storageQuantity:
+        group?.group_spec.resources
+          .map(r => r.resource.storage.map(s => parseInt(s.quantity.val)).reduce((a, b) => a + b, 0) * r.count)
+          .reduce((a, b) => a + b, 0) || 0
     };
   });
 

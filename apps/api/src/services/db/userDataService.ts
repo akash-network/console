@@ -90,7 +90,7 @@ export async function getSettingsOrInit({
   userAgent,
   fingerprint
 }: UserInput) {
-  let userSettings: UserSetting;
+  let userSettings: UserSetting | null = null;
   let isAnonymous = false;
 
   if (anonymousUserId) {
@@ -117,7 +117,7 @@ export async function getSettingsOrInit({
         analyticsService.track(anonymousUserId, "user_registered");
         logger.info({ event: "ANONYMOUS_USER_REGISTERED", id: anonymousUserId, userId });
       }
-    } catch (error) {
+    } catch (error: any) {
       if (error.name !== "SequelizeUniqueConstraintError") {
         throw error;
       }
@@ -189,7 +189,7 @@ async function tryToTransferWallet(prevUserId: string, nextUserId: string) {
 
   try {
     await userWalletRepository.updateBy({ userId: prevUserId }, { userId: nextUserId });
-  } catch (error) {
+  } catch (error: any) {
     if (!error.message.includes("user_wallets_user_id_unique")) {
       throw error;
     }

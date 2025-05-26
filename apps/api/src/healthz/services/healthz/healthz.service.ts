@@ -49,7 +49,7 @@ export class HealthzService {
       return true;
     }
 
-    const dbFailingFor = differenceInMilliseconds(new Date(), this.dbFailedAt);
+    const dbFailingFor = this.dbFailedAt ? differenceInMilliseconds(new Date(), this.dbFailedAt) : 0;
 
     return dbFailingFor < threshold;
   }

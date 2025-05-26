@@ -12,6 +12,7 @@ type GraphData = {
   snapshots: { date: Date; value: number }[];
 };
 
+const numberOrZero = (x: number | undefined | null) => (typeof x === "number" ? x : 0);
 export const getDashboardData = async () => {
   const latestBlockStats = await Block.findOne({
     where: {
@@ -20,6 +21,9 @@ export const getDashboardData = async () => {
     },
     order: [["height", "DESC"]]
   });
+  if (!latestBlockStats) {
+    throw new Error("No blocks stats found");
+  }
 
   const compareDate = subHours(latestBlockStats.datetime, 24);
   const compareBlockStats = await Block.findOne({
@@ -43,34 +47,34 @@ export const getDashboardData = async () => {
       height: latestBlockStats.height,
       activeLeaseCount: latestBlockStats.activeLeaseCount,
       totalLeaseCount: latestBlockStats.totalLeaseCount,
-      dailyLeaseCount: latestBlockStats.totalLeaseCount - compareBlockStats.totalLeaseCount,
+      dailyLeaseCount: numberOrZero(latestBlockStats.totalLeaseCount) - numberOrZero(compareBlockStats?.totalLeaseCount),
       totalUAktSpent: latestBlockStats.totalUAktSpent,
-      dailyUAktSpent: latestBlockStats.totalUAktSpent - compareBlockStats.totalUAktSpent,
+      dailyUAktSpent: numberOrZero(latestBlockStats.totalUAktSpent) - numberOrZero(compareBlockStats?.totalUAktSpent),
       totalUUsdcSpent: latestBlockStats.totalUUsdcSpent,
-      dailyUUsdcSpent: latestBlockStats.totalUUsdcSpent - compareBlockStats.totalUUsdcSpent,
+      dailyUUsdcSpent: numberOrZero(latestBlockStats.totalUUsdcSpent) - numberOrZero(compareBlockStats?.totalUUsdcSpent),
       totalUUsdSpent: latestBlockStats.totalUUsdSpent,
-      dailyUUsdSpent: latestBlockStats.totalUUsdSpent - compareBlockStats.totalUUsdSpent,
+      dailyUUsdSpent: numberOrZero(latestBlockStats.totalUUsdSpent) - numberOrZero(compareBlockStats?.totalUUsdSpent),
       activeCPU: latestBlockStats.activeCPU,
       activeGPU: latestBlockStats.activeGPU,
       activeMemory: latestBlockStats.activeMemory,
-      activeStorage: latestBlockStats.activeEphemeralStorage + latestBlockStats.activePersistentStorage
+      activeStorage: numberOrZero(latestBlockStats.activeEphemeralStorage) + numberOrZero(latestBlockStats.activePersistentStorage)
     },
     compare: {
-      date: compareBlockStats.datetime,
-      height: compareBlockStats.height,
-      activeLeaseCount: compareBlockStats.activeLeaseCount,
-      totalLeaseCount: compareBlockStats.totalLeaseCount,
-      dailyLeaseCount: compareBlockStats.totalLeaseCount - secondCompareBlockStats.totalLeaseCount,
-      totalUAktSpent: compareBlockStats.totalUAktSpent,
-      dailyUAktSpent: compareBlockStats.totalUAktSpent - secondCompareBlockStats.totalUAktSpent,
-      totalUUsdcSpent: compareBlockStats.totalUUsdcSpent,
-      dailyUUsdcSpent: compareBlockStats.totalUUsdcSpent - secondCompareBlockStats.totalUUsdcSpent,
-      totalUUsdSpent: compareBlockStats.totalUUsdSpent,
-      dailyUUsdSpent: compareBlockStats.totalUUsdSpent - secondCompareBlockStats.totalUUsdSpent,
-      activeCPU: compareBlockStats.activeCPU,
-      activeGPU: compareBlockStats.activeGPU,
-      activeMemory: compareBlockStats.activeMemory,
-      activeStorage: compareBlockStats.activeEphemeralStorage + compareBlockStats.activePersistentStorage
+      date: compareBlockStats?.datetime,
+      height: compareBlockStats?.height,
+      activeLeaseCount: compareBlockStats?.activeLeaseCount,
+      totalLeaseCount: compareBlockStats?.totalLeaseCount,
+      dailyLeaseCount: numberOrZero(compareBlockStats?.totalLeaseCount) - numberOrZero(secondCompareBlockStats?.totalLeaseCount),
+      totalUAktSpent: compareBlockStats?.totalUAktSpent,
+      dailyUAktSpent: numberOrZero(compareBlockStats?.totalUAktSpent) - numberOrZero(secondCompareBlockStats?.totalUAktSpent),
+      totalUUsdcSpent: compareBlockStats?.totalUUsdcSpent,
+      dailyUUsdcSpent: numberOrZero(compareBlockStats?.totalUUsdcSpent) - numberOrZero(secondCompareBlockStats?.totalUUsdcSpent),
+      totalUUsdSpent: compareBlockStats?.totalUUsdSpent,
+      dailyUUsdSpent: numberOrZero(compareBlockStats?.totalUUsdSpent) - numberOrZero(secondCompareBlockStats?.totalUUsdSpent),
+      activeCPU: compareBlockStats?.activeCPU,
+      activeGPU: compareBlockStats?.activeGPU,
+      activeMemory: compareBlockStats?.activeMemory,
+      activeStorage: numberOrZero(compareBlockStats?.activeEphemeralStorage) + numberOrZero(compareBlockStats?.activePersistentStorage)
     }
   };
 };
@@ -115,38 +119,38 @@ export function isValidGraphDataName(x: string): x is AuthorizedGraphDataName {
 export async function getGraphData(dataName: AuthorizedGraphDataName): Promise<GraphData> {
   let attributes: (keyof Block)[] = [];
   let isRelative = false;
-  let getter: (block: Block) => number = null;
+  let getter: (block: Block) => number;
 
   switch (dataName) {
     case "dailyUAktSpent":
       attributes = ["totalUAktSpent"];
-      getter = (block: Block) => block.totalUAktSpent;
+      getter = (block: Block) => numberOrZero(block.totalUAktSpent);
       isRelative = true;
       break;
     case "dailyUUsdcSpent":
       attributes = ["totalUUsdcSpent"];
-      getter = (block: Block) => block.totalUUsdcSpent;
+      getter = (block: Block) => numberOrZero(block.totalUUsdcSpent);
       isRelative = true;
       break;
     case "dailyUUsdSpent":
       attributes = ["totalUUsdSpent"];
-      getter = (block: Block) => block.totalUUsdSpent;
+      getter = (block: Block) => numberOrZero(block.totalUUsdSpent);
       isRelative = true;
       break;
     case "dailyLeaseCount":
       attributes = ["totalLeaseCount"];
-      getter = (block: Block) => block.totalLeaseCount;
+      getter = (block: Block) => numberOrZero(block.totalLeaseCount);
       isRelative = true;
       break;
     case "activeStorage":
       attributes = ["activeEphemeralStorage", "activePersistentStorage"];
-      getter = (block: Block) => block.activeEphemeralStorage + block.activePersistentStorage;
+      getter = (block: Block) => numberOrZero(block.activeEphemeralStorage) + numberOrZero(block.activePersistentStorage);
       break;
     case "gpuUtilization":
       return await getGpuUtilization();
     default:
       attributes = [dataName];
-      getter = (block: Block) => block[dataName];
+      getter = (block: Block) => numberOrZero(block[dataName]);
   }
 
   const result = await Day.findAll({
@@ -164,7 +168,7 @@ export async function getGraphData(dataName: AuthorizedGraphDataName): Promise<G
 
   let stats = result.map(day => ({
     date: day.date,
-    value: getter(day.lastBlock)
+    value: getter(day.lastBlock!)
   }));
 
   if (dataName === "activeGPU") {
@@ -173,7 +177,7 @@ export async function getGraphData(dataName: AuthorizedGraphDataName): Promise<G
   }
 
   if (isRelative) {
-    const relativeStats = stats.reduce((arr, dataPoint, index) => {
+    const relativeStats = stats.reduce<{ date: Date; value: number }[]>((arr, dataPoint, index) => {
       arr[index] = {
         date: dataPoint.date,
         value: dataPoint.value - (index > 0 ? stats[index - 1].value : 0)
@@ -188,8 +192,8 @@ export async function getGraphData(dataName: AuthorizedGraphDataName): Promise<G
   const dashboardData = await getDashboardData();
 
   return {
-    currentValue: dashboardData.now[dataName],
-    compareValue: dashboardData.compare[dataName],
+    currentValue: numberOrZero(dashboardData.now[dataName]),
+    compareValue: numberOrZero(dashboardData.compare[dataName]),
     snapshots: stats
   };
 }
