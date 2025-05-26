@@ -42,7 +42,6 @@ export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = (
   }, [mutation, contactPointIdToRemove]);
 
   const handlePageChange = useCallback((page: number, pageSize: number) => {
-    console.log("handlePageChange called");
     setPage(page + 1);
     setLimit(pageSize);
   }, []);

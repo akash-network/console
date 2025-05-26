@@ -31,7 +31,7 @@ describe("ContactPointsListContainer", () => {
     const { mockData, onEditMock } = setup();
 
     await waitFor(() => {
-      expect(screen.getByText(mockData.data[0].name)).toBeInTheDocument();
+      expect(screen.getByTestId(`edit-contact-point-${mockData.data[0].id}`)).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByTestId(`edit-contact-point-${mockData.data[0].id}`));
@@ -43,7 +43,7 @@ describe("ContactPointsListContainer", () => {
     const { mockData } = setup();
 
     await waitFor(() => {
-      expect(screen.getByText(mockData.data[0].name)).toBeInTheDocument();
+      expect(screen.getByTestId(`remove-contact-point-${mockData.data[0].id}`)).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByTestId(`remove-contact-point-${mockData.data[0].id}`));
@@ -168,7 +168,7 @@ describe("ContactPointsListContainer", () => {
                     <span>
                       Page {pagination.page} of {pagination.totalPages}
                     </span>
-                    <button data-testid="prev-page-button" onClick={() => onPageChange(pagination.page - 2, pagination.limit)} disabled={pagination.page <= 1}>
+                    <button data-testid="prev-page-button" onClick={() => onPageChange(pagination.page - 1, pagination.limit)} disabled={pagination.page <= 1}>
                       Previous
                     </button>
                     <button
