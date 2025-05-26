@@ -1,5 +1,5 @@
 import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
-import { format, subDays } from "date-fns";
+import { format, subHours } from "date-fns";
 
 import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/core";
@@ -9,44 +9,42 @@ import { DaySeeder } from "@test/seeders/day.seeder";
 import { ProviderSeeder } from "@test/seeders/provider.seeder";
 import { ProviderSnapshotSeeder } from "@test/seeders/provider-snapshot.seeder";
 
-describe("Provider Graph Data", () => {
+describe("Network Capacity", () => {
   let providers: Provider[];
   let providerSnapshots: ProviderSnapshot[];
-  const date = new Date();
-  date.setHours(12, 0, 0, 0);
-  const yesterday = subDays(date, 1);
-  const twoDaysAgo = subDays(date, 2);
-  const threeDaysAgo = subDays(date, 3);
+  const now = new Date();
+  const yesterday = subHours(now, 24);
+  const twoDaysAgo = subHours(now, 48);
 
   beforeAll(async () => {
     await initDb();
 
     await Promise.all([
       DaySeeder.createInDatabase({
-        date: format(threeDaysAgo, "yyyy-MM-dd"),
+        date: format(twoDaysAgo, "yyyy-MM-dd"),
         firstBlockHeight: 1,
         lastBlockHeight: 100,
         lastBlockHeightYet: 100
       }),
       DaySeeder.createInDatabase({
-        date: format(twoDaysAgo, "yyyy-MM-dd"),
+        date: format(yesterday, "yyyy-MM-dd"),
         firstBlockHeight: 101,
         lastBlockHeight: 200,
         lastBlockHeightYet: 200
       }),
       DaySeeder.createInDatabase({
-        date: format(yesterday, "yyyy-MM-dd"),
+        date: format(now, "yyyy-MM-dd"),
         firstBlockHeight: 201,
         lastBlockHeight: 300,
         lastBlockHeightYet: 300
       })
     ]);
 
-    providers = await Promise.all([ProviderSeeder.createInDatabase(), ProviderSeeder.createInDatabase()]);
+    providers = await Promise.all([ProviderSeeder.createInDatabase({ deletedHeight: null }), ProviderSeeder.createInDatabase({ deletedHeight: null })]);
     providerSnapshots = await Promise.all([
       ProviderSnapshotSeeder.createInDatabase({
         owner: providers[0].owner,
-        checkDate: threeDaysAgo,
+        checkDate: twoDaysAgo,
         isOnline: true,
         isLastSuccessOfDay: true,
         activeCPU: 101,
@@ -67,7 +65,7 @@ describe("Provider Graph Data", () => {
       }),
       ProviderSnapshotSeeder.createInDatabase({
         owner: providers[0].owner,
-        checkDate: twoDaysAgo,
+        checkDate: yesterday,
         isOnline: true,
         isLastSuccessOfDay: true,
         activeCPU: 201,
@@ -88,7 +86,7 @@ describe("Provider Graph Data", () => {
       }),
       ProviderSnapshotSeeder.createInDatabase({
         owner: providers[0].owner,
-        checkDate: yesterday,
+        checkDate: now,
         isOnline: true,
         isLastSuccessOfDay: true,
         activeCPU: 301,
@@ -109,7 +107,7 @@ describe("Provider Graph Data", () => {
       }),
       ProviderSnapshotSeeder.createInDatabase({
         owner: providers[1].owner,
-        checkDate: threeDaysAgo,
+        checkDate: twoDaysAgo,
         isOnline: true,
         isLastSuccessOfDay: true,
         activeCPU: 401,
@@ -130,7 +128,7 @@ describe("Provider Graph Data", () => {
       }),
       ProviderSnapshotSeeder.createInDatabase({
         owner: providers[1].owner,
-        checkDate: twoDaysAgo,
+        checkDate: yesterday,
         isOnline: true,
         isLastSuccessOfDay: true,
         activeCPU: 501,
@@ -151,7 +149,7 @@ describe("Provider Graph Data", () => {
       }),
       ProviderSnapshotSeeder.createInDatabase({
         owner: providers[1].owner,
-        checkDate: yesterday,
+        checkDate: now,
         isOnline: true,
         isLastSuccessOfDay: true,
         activeCPU: 601,
@@ -182,15 +180,15 @@ describe("Provider Graph Data", () => {
 
     await Promise.all([
       BlockSeeder.createInDatabase({
-        datetime: threeDaysAgo,
+        datetime: twoDaysAgo,
         height: 100
       }),
       BlockSeeder.createInDatabase({
-        datetime: twoDaysAgo,
+        datetime: yesterday,
         height: 200
       }),
       BlockSeeder.createInDatabase({
-        datetime: yesterday,
+        datetime: now,
         height: 300,
         isProcessed: true
       })
@@ -201,91 +199,38 @@ describe("Provider Graph Data", () => {
     await closeConnections();
   });
 
-  describe("GET /v1/provider-graph-data/{dataName}", () => {
-    ["count", "cpu", "gpu", "memory", "storage"].forEach(dataName => {
-      it(`returns provider graph data for ${dataName}`, async () => {
-        const response = await app.request(`/v1/provider-graph-data/${dataName}`);
+  describe("GET /v1/network-capacity", () => {
+    it("returns network capacity stats", async () => {
+      const response = await app.request("/v1/network-capacity");
 
-        const data = await response.json();
-
-        expect(response.status).toBe(200);
-
-        expect(data).toEqual({
-          currentValue: data.now[dataName],
-          compareValue: data.compare[dataName],
-          snapshots: [
-            { date: format(threeDaysAgo, "yyyy-MM-dd") + "T00:00:00.000Z", value: expect.any(Number) },
-            { date: format(twoDaysAgo, "yyyy-MM-dd") + "T00:00:00.000Z", value: data.compare[dataName] },
-            { date: format(yesterday, "yyyy-MM-dd") + "T00:00:00.000Z", value: data.now[dataName] }
-          ],
-          now: {
-            count: 2,
-            cpu: 2736,
-            gpu: 2742,
-            memory: 2748,
-            storage: 5514
-          },
-          compare: {
-            count: 2,
-            cpu: 2136,
-            gpu: 2142,
-            memory: 2148,
-            storage: 4314
-          }
-        });
-      });
-    });
-
-    it("returns 404 for an invalid data name", async () => {
-      const response = await app.request("/v1/provider-graph-data/foo");
-
-      expect(response.status).toBe(404);
-    });
-
-    it("drops data from first 15 minutes of the day", async () => {
-      const today = new Date();
-      today.setHours(0, 14, 59, 999);
-
-      await ProviderSnapshotSeeder.createInDatabase({
-        owner: providers[0].owner,
-        checkDate: today,
-        isOnline: true,
-        isLastSuccessOfDay: true,
-        activeCPU: 1000,
-        activeGPU: 1000,
-        activeMemory: 1000,
-        activePersistentStorage: 1000,
-        activeEphemeralStorage: 1000,
-        pendingCPU: 1000,
-        pendingGPU: 1000,
-        pendingMemory: 1000,
-        pendingPersistentStorage: 1000,
-        pendingEphemeralStorage: 1000,
-        availableCPU: 1000,
-        availableGPU: 1000,
-        availableMemory: 1000,
-        availablePersistentStorage: 1000,
-        availableEphemeralStorage: 1000
-      });
-
-      await DaySeeder.createInDatabase({
-        date: format(today, "yyyy-MM-dd"),
-        firstBlockHeight: 301,
-        lastBlockHeight: 400,
-        lastBlockHeightYet: 400
-      });
-
-      await BlockSeeder.createInDatabase({
-        datetime: today,
-        height: 400
-      });
-
-      const response = await app.request("/v1/provider-graph-data/count");
       const data = await response.json();
 
       expect(response.status).toBe(200);
-
-      expect(data.snapshots[data.snapshots.length - 1].date).toBe(format(yesterday, "yyyy-MM-dd") + "T00:00:00.000Z");
+      expect(data).toEqual({
+        activeProviderCount: 2,
+        activeCPU: 902,
+        pendingCPU: 912,
+        availableCPU: 922,
+        activeGPU: 904,
+        pendingGPU: 914,
+        availableGPU: 924,
+        activeMemory: 906,
+        pendingMemory: 916,
+        availableMemory: 926,
+        activeStorage: 1818,
+        pendingStorage: 1838,
+        availableStorage: 1858,
+        activeEphemeralStorage: 910,
+        pendingEphemeralStorage: 920,
+        availableEphemeralStorage: 930,
+        activePersistentStorage: 908,
+        pendingPersistentStorage: 918,
+        availablePersistentStorage: 928,
+        totalCPU: 2736,
+        totalGPU: 2742,
+        totalMemory: 2748,
+        totalStorage: 5514
+      });
     });
   });
 });
