@@ -1,5 +1,12 @@
 
 
+## [2.94.0](https://github.com/akash-network/console/compare/console-api/v2.93.0...console-api/v2.94.0) (2025-05-26)
+
+
+### Features
+
+* **notifications:** implements healthz ([973acd3](https://github.com/akash-network/console/commit/973acd384beff2998d265ecfff17d0f4dbdc7f37))
+
 ## [2.93.0](https://github.com/akash-network/console/compare/console-api/v2.92.0...console-api/v2.93.0) (2025-05-23)
 
 
