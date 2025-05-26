@@ -12,24 +12,51 @@ import type { ApiProviderList } from "@src/types/provider";
 import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { hasSomeParentTheClass } from "@src/utils/domUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
-import { AuditorButton } from "../providers/AuditorButton";
-import { Uptime } from "../providers/Uptime";
-import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
-import { FavoriteButton } from "../shared/FavoriteButton";
-import { PriceEstimateTooltip } from "../shared/PriceEstimateTooltip";
-import { PricePerMonth } from "../shared/PricePerMonth";
-import { ProviderName } from "../shared/ProviderName";
+import { AuditorButton } from "../../providers/AuditorButton";
+import { Uptime } from "../../providers/Uptime";
+import { CopyTextToClipboardButton } from "../../shared/CopyTextToClipboardButton";
+import { FavoriteButton } from "../../shared/FavoriteButton";
+import { PriceEstimateTooltip } from "../../shared/PriceEstimateTooltip";
+import { PricePerMonth } from "../../shared/PricePerMonth";
+import { ProviderName } from "../../shared/ProviderName";
+
 type Props = {
-  testIndex: number;
   bid: BidDto;
-  selectedBid: BidDto;
+  selectedBid?: BidDto | null;
   handleBidSelected: (bid: BidDto) => void;
   disabled: boolean;
   provider: ApiProviderList;
   isSendingManifest: boolean;
+  components?: typeof COMPONENTS;
 };
 
-export const BidRow: React.FunctionComponent<Props> = ({ testIndex, bid, selectedBid, handleBidSelected, disabled, provider, isSendingManifest }) => {
+export const COMPONENTS = {
+  Badge,
+  CustomTooltip,
+  RadioGroup,
+  RadioGroupItem,
+  Spinner,
+  TableCell,
+  TableRow,
+  PricePerMonth,
+  PriceEstimateTooltip,
+  FavoriteButton,
+  ProviderName,
+  CopyTextToClipboardButton,
+  CloudXmark,
+  Uptime,
+  AuditorButton
+};
+
+export const BidRow: React.FunctionComponent<Props> = ({
+  bid,
+  selectedBid,
+  handleBidSelected,
+  disabled,
+  provider,
+  isSendingManifest,
+  components: c = COMPONENTS
+}) => {
   const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
   const isFavorite = favoriteProviders.some(x => provider.owner === x);
   const isCurrentBid = selectedBid?.id === bid.id;
@@ -66,25 +93,24 @@ export const BidRow: React.FunctionComponent<Props> = ({ testIndex, bid, selecte
   };
 
   return (
-    <TableRow
+    <c.TableRow
       key={bid.id}
       className={cn("bid-list-row [&>td]:px-2 [&>td]:py-1", {
         ["cursor-pointer hover:bg-muted-foreground/10"]: bid.state === "open",
         [`border bg-green-100 dark:bg-green-900`]: isCurrentBid
       })}
       onClick={onRowClick}
-      data-testid={`bid-list-row-${testIndex}`}
     >
-      <TableCell align="center">
+      <c.TableCell align="center">
         <div className="flex items-center justify-center whitespace-nowrap">
-          <PricePerMonth denom={bid.price.denom} perBlockValue={udenomToDenom(bid.price.amount, 10)} className="text-xl" />
-          <PriceEstimateTooltip denom={bid.price.denom} value={bid.price.amount} />
+          <c.PricePerMonth denom={bid.price.denom} perBlockValue={udenomToDenom(bid.price.amount, 10)} className="text-xl" />
+          <c.PriceEstimateTooltip denom={bid.price.denom} value={bid.price.amount} />
         </div>
-      </TableCell>
+      </c.TableCell>
 
-      <TableCell align="center">
+      <c.TableCell align="center">
         {provider.ipRegion && provider.ipCountry ? (
-          <CustomTooltip
+          <c.CustomTooltip
             title={
               <>
                 {provider.ipRegion}, {provider.ipCountry}
@@ -94,69 +120,69 @@ export const BidRow: React.FunctionComponent<Props> = ({ testIndex, bid, selecte
             <div>
               {provider.ipRegionCode}, {provider.ipCountryCode}
             </div>
-          </CustomTooltip>
+          </c.CustomTooltip>
         ) : (
           <div>-</div>
         )}
-      </TableCell>
+      </c.TableCell>
 
-      <TableCell align="center" className="font-bold">
-        {provider.uptime7d ? <Uptime value={provider.uptime7d} /> : <div>-</div>}
-      </TableCell>
+      <c.TableCell align="center" className="font-bold">
+        {provider.uptime7d ? <c.Uptime value={provider.uptime7d} /> : <div>-</div>}
+      </c.TableCell>
 
-      <TableCell align="left">
+      <c.TableCell align="left">
         <div className="flex items-center">
-          <FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
+          <c.FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
           <div className="ml-2">
-            <ProviderName provider={provider} />
+            <c.ProviderName provider={provider} />
           </div>
           <div className="pl-2">
-            <CopyTextToClipboardButton value={provider.name ?? provider.hostUri} />
+            <c.CopyTextToClipboardButton value={provider.name ?? provider.hostUri} />
           </div>
         </div>
-      </TableCell>
+      </c.TableCell>
 
       {gpuModels.length > 0 && (
-        <TableCell align="center">
+        <c.TableCell align="center">
           <div className="space-x">
             {gpuModels.map(gpu => (
-              <Badge key={`${gpu.vendor}-${gpu.model}`} className={cn("px-1 py-0 text-xs")} variant="default">
+              <c.Badge key={`${gpu.vendor}-${gpu.model}`} className={cn("px-1 py-0 text-xs")} variant="default">
                 {gpu.vendor}-{gpu.model}
-              </Badge>
+              </c.Badge>
             ))}
           </div>
-        </TableCell>
+        </c.TableCell>
       )}
 
-      <TableCell align="center">
+      <c.TableCell align="center">
         {provider.isAudited ? (
           <div className="flex items-center justify-center">
             <span className="text-sm text-muted-foreground">Yes</span>
             <div className="ml-1">
-              <AuditorButton provider={provider} />
+              <c.AuditorButton provider={provider} />
             </div>
           </div>
         ) : (
           <div className="flex items-center justify-center">
             <span className="text-sm text-muted-foreground">No</span>
 
-            <CustomTooltip title={<>This provider is not audited, which may result in a lesser quality experience.</>}>
+            <c.CustomTooltip title={<>This provider is not audited, which may result in a lesser quality experience.</>}>
               <WarningTriangle className="ml-2 text-sm text-orange-600" />
-            </CustomTooltip>
+            </c.CustomTooltip>
           </div>
         )}
-      </TableCell>
+      </c.TableCell>
 
-      <TableCell align="center">
+      <c.TableCell align="center">
         <div className="flex h-[38px] items-center justify-center">
           {isLoadingStatus && (
             <div className="flex items-center justify-center">
-              <Spinner size="small" />
+              <c.Spinner size="small" />
             </div>
           )}
           {!isLoadingStatus && !!error && !isSendingManifest && (
             <div className="mt-2 flex items-center space-x-2">
-              <CloudXmark className="text-xs text-primary" />
+              <c.CloudXmark className="text-xs text-primary" />
               <span className="text-sm text-muted-foreground">OFFLINE</span>
             </div>
           )}
@@ -165,32 +191,32 @@ export const BidRow: React.FunctionComponent<Props> = ({ testIndex, bid, selecte
             <>
               {bid.state !== "open" || disabled ? (
                 <div className="flex items-center justify-center">
-                  <Badge color={bid.state === "active" ? "success" : "error"} className="h-4 text-xs">
+                  <c.Badge color={bid.state === "active" ? "success" : "error"} className="h-4 text-xs">
                     {bid.state}
-                  </Badge>
+                  </c.Badge>
                 </div>
               ) : (
-                <RadioGroup>
-                  <RadioGroupItem
+                <c.RadioGroup>
+                  <c.RadioGroupItem
                     value={bid.id}
                     id={bid.id}
                     checked={isCurrentBid}
                     onChange={() => handleBidSelected(bid)}
                     disabled={bid.state !== "open" || disabled}
-                    data-testid={`bid-list-row-radio-${testIndex}`}
+                    aria-label={provider.name ?? provider.hostUri}
                   />
-                </RadioGroup>
+                </c.RadioGroup>
               )}
             </>
           )}
 
           {isSendingManifest && isCurrentBid && (
             <div className="flex items-center justify-center whitespace-nowrap">
-              <Badge variant="success">Deploying! 🚀</Badge>
+              <c.Badge variant="success">Deploying! 🚀</c.Badge>
             </div>
           )}
         </div>
-      </TableCell>
-    </TableRow>
+      </c.TableCell>
+    </c.TableRow>
   );
 };
