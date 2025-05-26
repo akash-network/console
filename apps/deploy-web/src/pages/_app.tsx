@@ -18,7 +18,6 @@ import NProgress from "nprogress";
 
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
-import { Loading } from "@src/components/layout/Layout";
 import { PageHead } from "@src/components/layout/PageHead";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { UserProviders } from "@src/components/user/UserProviders";
@@ -69,7 +68,7 @@ const App: React.FunctionComponent<Props> = props => {
   }, []);
 
   if (hasInjectedConfig() && !isResolvedConfig) {
-    return <Loading text="Loading config..." />;
+    return null;
   }
 
   return (

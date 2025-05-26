@@ -3,9 +3,9 @@ import type { DeepPartial } from "cosmjs-types/helpers";
 import { merge } from "lodash";
 
 import type { RpcDeployment } from "@src/types/deployment";
-
+import { genWalletAddress } from "./wallet";
 export function buildRpcDeployment(overrides?: DeepPartial<RpcDeployment>): RpcDeployment {
-  const walletAddress = overrides?.deployment?.deployment_id?.owner || `akash${faker.string.alphanumeric({ length: 39 })}`;
+  const walletAddress = overrides?.deployment?.deployment_id?.owner || genWalletAddress();
   const dseq = overrides?.deployment?.deployment_id?.dseq || faker.string.numeric({ length: 6 }).toString();
   return merge(
     {
