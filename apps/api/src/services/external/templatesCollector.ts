@@ -10,9 +10,9 @@ import { getLogoFromPath } from "@src/utils/templateReposLogos";
 import { isUrlAbsolute } from "@src/utils/urls";
 import { getOctokit } from "./githubService";
 
-const generatingTasks: { [key: string]: Promise<Category[]> } = {};
+const generatingTasks: Record<string, Promise<Category[]> | null> = {};
 let lastServedData: FinalCategory[] | null = null;
-let githubRequestsRemaining: string | null = null;
+let githubRequestsRemaining: string | null | undefined = null;
 
 const MAP_CONCURRENTLY_OPTIONS: MapConcurrentlyOptions = {
   concurrency: 30
@@ -156,7 +156,7 @@ async function fetchOmnibusTemplates(octokit: Octokit, repoVersion: string) {
     owner: "akash-network",
     repo: "cosmos-omnibus",
     ref: repoVersion,
-    path: null,
+    path: "",
     mediaType: {
       format: "raw"
     }
@@ -358,10 +358,11 @@ export async function fetchLinuxServerTemplatesInfo(octokit: Octokit, categories
             });
 
             if (!Array.isArray(response.data)) throw "Response data is not an array";
+            const directoryItems = response.data as GithubDirectoryItem[];
 
             githubRequestsRemaining = response.headers["x-ratelimit-remaining"];
 
-            const readme = await findFileContentAsync("README.md", response.data);
+            const readme = await findFileContentAsync("README.md", directoryItems);
 
             // Skip deprecated and wip images
             const ignoreList = [
@@ -371,13 +372,13 @@ export async function fetchLinuxServerTemplatesInfo(octokit: Octokit, categories
               "Not for public consumption"
             ];
 
-            if (ignoreList.map(x => x.toLowerCase()).some(x => readme.toLowerCase().includes(x))) {
+            if (ignoreList.map(x => x.toLowerCase()).some(x => readme?.toLowerCase().includes(x))) {
               return;
             }
 
             const [deploy, guide] = await Promise.all([
-              findFileContentAsync(["deploy.yaml", "deploy.yml"], response.data),
-              findFileContentAsync("GUIDE.md", response.data)
+              findFileContentAsync(["deploy.yaml", "deploy.yml"], directoryItems),
+              findFileContentAsync("GUIDE.md", directoryItems)
             ]);
 
             if (!readme || !deploy) return;
@@ -385,8 +386,8 @@ export async function fetchLinuxServerTemplatesInfo(octokit: Octokit, categories
             const template: Template = {
               name: templateSource.name,
               path: templateSource.path,
-              logoUrl: templateSource.logoUrl,
-              summary: templateSource.summary
+              logoUrl: templateSource.logoUrl || "",
+              summary: templateSource.summary || ""
             };
 
             template.readme = removeComments(
@@ -398,16 +399,16 @@ export async function fetchLinuxServerTemplatesInfo(octokit: Octokit, categories
             }
 
             template.deploy = deploy;
-            template.persistentStorageEnabled = deploy && (deploy.includes("persistent: true") || deploy.includes("persistent:true"));
-            template.guide = guide;
+            template.persistentStorageEnabled = !!deploy && (deploy.includes("persistent: true") || deploy.includes("persistent:true"));
+            template.guide = guide || undefined;
             template.githubUrl = `https://github.com/${templateSource.repoOwner}/${templateSource.repoName}/blob/${templateSource.repoVersion}/${templateSource.path}`;
 
             if (!template.logoUrl) {
-              template.logoUrl = getLogoFromPath(template.path);
+              template.logoUrl = getLogoFromPath(template.path) || "";
             }
 
             if (!template.summary) {
-              template.summary = getLinuxServerTemplateSummary(readme);
+              template.summary = getLinuxServerTemplateSummary(readme) || "";
             }
 
             template.id = `${templateSource.repoOwner}-${templateSource.repoName}-${templateSource.path}`;
@@ -415,13 +416,13 @@ export async function fetchLinuxServerTemplatesInfo(octokit: Octokit, categories
 
             console.log(category.title + " - " + template.name);
             return template;
-          } catch (err) {
+          } catch (err: any) {
             console.warn(`Skipped ${templateSource.name} because of error: ${err.message || err}`);
           }
         },
         MAP_CONCURRENTLY_OPTIONS
       );
-      category.templates = templates.filter(Boolean);
+      category.templates = templates.filter(x => !!x);
     },
     MAP_CONCURRENTLY_OPTIONS
   );
@@ -456,14 +457,15 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
             });
 
             if (!Array.isArray(response.data)) throw "Response data is not an array";
+            const directoryItems = response.data as GithubDirectoryItem[];
 
             githubRequestsRemaining = response.headers["x-ratelimit-remaining"];
 
             const [readme, deploy, guide, configJsonText] = await Promise.all([
-              findFileContentAsync("README.md", response.data),
-              findFileContentAsync(["deploy.yaml", "deploy.yml"], response.data),
-              findFileContentAsync("GUIDE.md", response.data),
-              findFileContentAsync("config.json", response.data)
+              findFileContentAsync("README.md", directoryItems),
+              findFileContentAsync(["deploy.yaml", "deploy.yml"], directoryItems),
+              findFileContentAsync("GUIDE.md", directoryItems),
+              findFileContentAsync("config.json", directoryItems)
             ]);
             // Remove templates without "README.md" and "deploy.yml"
             if (!readme || !deploy) return;
@@ -473,16 +475,16 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
             const template: Template = {
               name: templateSource.name,
               path: templateSource.path,
-              logoUrl: templateSource.logoUrl,
-              summary: templateSource.summary,
+              logoUrl: templateSource.logoUrl || "",
+              summary: templateSource.summary || "",
               config
             };
 
             template.readme =
               readme && replaceLinks(readme, templateSource.repoOwner, templateSource.repoName, templateSource.repoVersion, templateSource.path);
             template.deploy = deploy;
-            template.persistentStorageEnabled = deploy && (deploy.includes("persistent: true") || deploy.includes("persistent:true"));
-            template.guide = guide;
+            template.persistentStorageEnabled = !!deploy && (deploy.includes("persistent: true") || deploy.includes("persistent:true"));
+            template.guide = guide || undefined;
             template.githubUrl = `https://github.com/${templateSource.repoOwner}/${templateSource.repoName}/blob/${templateSource.repoVersion}/${templateSource.path}`;
 
             if (!template.logoUrl) {
@@ -492,7 +494,7 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
             }
 
             if (!template.summary) {
-              template.summary = getTemplateSummary(readme);
+              template.summary = getTemplateSummary(readme) || "";
             }
 
             template.id = `${templateSource.repoOwner}-${templateSource.repoName}-${templateSource.path}`;
@@ -500,13 +502,13 @@ export async function fetchTemplatesInfo(octokit: Octokit, categories: Category[
 
             console.log(category.title + " - " + template.name);
             return template;
-          } catch (err) {
+          } catch (err: any) {
             console.warn(`Skipped ${templateSource.name} because of error: ${err.message || err}`);
           }
         },
         MAP_CONCURRENTLY_OPTIONS
       );
-      category.templates = templates.filter(Boolean);
+      category.templates = templates.filter(x => !!x);
     },
     MAP_CONCURRENTLY_OPTIONS
   );

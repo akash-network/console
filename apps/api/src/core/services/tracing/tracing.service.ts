@@ -66,7 +66,7 @@ export function Trace(spanName?: string) {
         span.setStatus({ code: SpanStatusCode.OK });
         span.end();
         return result;
-      } catch (error) {
+      } catch (error: any) {
         span.setStatus({
           code: SpanStatusCode.ERROR,
           message: error.message
@@ -169,7 +169,7 @@ export async function withSpan<T>(spanName: string, fn: () => Promise<T>): Promi
     const result = await fn();
     span.setStatus({ code: SpanStatusCode.OK });
     return result;
-  } catch (error) {
+  } catch (error: any) {
     span.setStatus({
       code: SpanStatusCode.ERROR,
       message: error.message

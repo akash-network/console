@@ -3,7 +3,6 @@ import type { DBQueryConfig } from "drizzle-orm";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { PgTableWithColumns } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm/sql/sql";
-import first from "lodash/first";
 
 import type { ApiPgDatabase, ApiPgTables, TxService } from "@src/core";
 import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
@@ -50,33 +49,45 @@ export abstract class BaseRepository<
     return this;
   }
 
-  protected whereAccessibleBy(where: SQL) {
+  protected whereAccessibleBy(where: SQL | undefined) {
     return this.ability?.whereAccessibleBy(where) || where;
   }
 
   abstract accessibleBy(...abilityParams: AbilityParams): this;
 
-  async create(input: Input) {
+  async create(input: Input): Promise<Output> {
     this.ability?.throwUnlessCanExecute(input);
+    const [item] = await this.cursor.insert(this.table).values(input).returning();
 
-    return this.toOutput(first(await this.cursor.insert(this.table).values(input).returning()));
+    return this.toOutput(item);
   }
 
-  async findById(id: Output["id"]) {
-    return this.toOutput(await this.queryCursor.findFirst({ where: this.whereAccessibleBy(eq(this.table.id, id)) }));
+  async findById(id: Output["id"]): Promise<Output | undefined> {
+    const item = await this.queryCursor.findFirst({
+      where: this.whereAccessibleBy(eq(this.table.id, id))
+    });
+    if (!item) return undefined;
+    return this.toOutput(item);
   }
 
-  async findOneBy(query?: Partial<Output>) {
-    return await this.toOutput(
-      await this.queryCursor.findFirst({
-        where: this.queryToWhere(query)
-      })
-    );
+  async findOneBy(query?: Partial<Output>): Promise<Output | undefined> {
+    const item = await this.queryCursor.findFirst({
+      where: this.queryToWhere(query)
+    });
+    if (!item) return undefined;
+    return this.toOutput(item);
   }
 
-  async findOneByAndLock(query?: Partial<Output>) {
-    const items: T["$inferSelect"][] = await this.txManager.getPgTx()?.select().from(this.table).where(this.queryToWhere(query)).limit(1).for("update");
-    return this.toOutput(first(items));
+  async findOneByAndLock(query?: Partial<Output>): Promise<Output | undefined> {
+    const items: T["$inferSelect"][] | undefined = await this.txManager
+      .getPgTx()
+      ?.select()
+      .from(this.table)
+      .where(this.queryToWhere(query))
+      .limit(1)
+      .for("update");
+    if (!items || items.length === 0) return undefined;
+    return this.toOutput(items[0]);
   }
 
   async find(query?: Partial<Output>, options?: { select?: Array<keyof Output>; limit?: number; offset?: number }) {
@@ -147,8 +158,9 @@ export abstract class BaseRepository<
       .where(this.queryToWhere(query));
 
     if (options?.returning) {
-      const items = await cursor.returning();
-      return this.toOutput(first(items));
+      const [item] = await cursor.returning();
+      if (!item) return undefined;
+      return this.toOutput(item);
     }
 
     await cursor;
@@ -167,8 +179,9 @@ export abstract class BaseRepository<
     const cursor = this.cursor.delete(this.table).where(this.queryToWhere(query));
 
     if (options?.returning) {
-      const items = await cursor.returning();
-      return this.toOutput(first(items));
+      const [item] = await cursor.returning();
+      if (!item) return undefined;
+      return this.toOutput(item);
     }
 
     await cursor;
@@ -176,9 +189,11 @@ export abstract class BaseRepository<
     return undefined;
   }
 
-  protected queryToWhere(query: Partial<T["$inferSelect"]>) {
-    const fields = query && (Object.keys(query) as Array<keyof T["$inferSelect"]>);
-    const where = fields?.length ? and(...fields.map(field => eq(this.table[field], query[field]))) : undefined;
+  protected queryToWhere(query: Partial<T["$inferSelect"]> | undefined) {
+    if (!query) return this.whereAccessibleBy(undefined);
+
+    const fields = Object.keys(query) as Array<keyof T["$inferSelect"]>;
+    const where = fields.length ? and(...fields.map(field => eq(this.table[field], query[field]))) : undefined;
 
     return this.whereAccessibleBy(where);
   }
