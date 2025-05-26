@@ -85,6 +85,7 @@ jobs:
           npm run release -w apps/provider-proxy -- --verbose --ci
           npm run release -w apps/provider-console -- --verbose --ci
           npm run release -w apps/stats-web -- --verbose --ci
+          npm run release -w apps/notifications -- --verbose --ci
 
           # update package-lock.json with new versions
           npm install --package-lock-only
