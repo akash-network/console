@@ -4,6 +4,11 @@ services:
       db:
         condition: service_healthy
 
+  notifications:
+    depends_on:
+      db:
+        condition: service_healthy
+
   indexer:
     depends_on:
       db:
