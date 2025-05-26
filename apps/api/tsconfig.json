@@ -2,4 +2,8 @@
   "exclude": ["node_modules", "dist", "test"],
   "extends": "./tsconfig.build.json",
   "include": ["src/**/*", "../../packages/logging/src/types/pino-fluentd.d.ts"],
+  "compilerOptions": {
+    "target": "es2022",
+    "useDefineForClassFields": false
+  }
 }
