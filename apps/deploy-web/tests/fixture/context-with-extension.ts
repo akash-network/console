@@ -3,7 +3,6 @@ import { chromium } from "@playwright/test";
 import fs from "fs";
 import { nanoid } from "nanoid";
 import path from "path";
-import { setTimeout as delay } from "timers/promises";
 
 import { injectUIConfig, test as baseTest } from "./base-test";
 
@@ -40,28 +39,24 @@ export const test = baseTest.extend<{
     await use(context);
   },
   extensionId: async ({ context }, use) => {
-    const extensions = context.backgroundPages();
-
-    let background = context.serviceWorkers()[0];
+    let [background] = context.serviceWorkers();
     if (!background) {
-      for (let i = 0; i < 5; i++) {
-        background = context.serviceWorkers()[0];
-        if (background) break;
-        await delay(Math.pow(2, i) * 1000); // exponential backoff
-      }
-    }
-
-    if (!background) {
-      throw new Error("Could not find extension service worker or background page after multiple attempts. Extensions loaded: " + extensions.length);
+      background = await context.waitForEvent("serviceworker");
     }
 
     const extensionId = background.url().split("/")[2];
     await use(extensionId);
   },
   page: async ({ context, extensionId }, use) => {
-    const extPage = await context.newPage();
-    await extPage.goto(`chrome-extension://${extensionId}/index.html`);
-    await extPage.waitForLoadState("domcontentloaded");
+    const extUrl = `chrome-extension://${extensionId}/index.html`;
+    let extPage = context.pages().find(page => page.url().startsWith(extUrl));
+
+    if (!extPage) {
+      extPage = await context.newPage();
+      await extPage.goto(extUrl);
+      await extPage.waitForLoadState("domcontentloaded");
+    }
+
     await injectUIConfig(extPage);
     await use(extPage);
   }

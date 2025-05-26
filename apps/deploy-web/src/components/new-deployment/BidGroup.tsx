@@ -11,7 +11,7 @@ import { deploymentGroupResourceSum, getStorageAmount } from "@src/utils/deploym
 import { FormPaper } from "../sdl/FormPaper";
 import { LabelValueOld } from "../shared/LabelValueOld";
 import { SpecDetail } from "../shared/SpecDetail";
-import { BidRow } from "./BidRow";
+import { BidRow } from "./BidRow/BidRow";
 
 type Props = {
   bids: Array<BidDto>;
@@ -120,12 +120,11 @@ export const BidGroup: React.FunctionComponent<Props> = ({
         </TableHeader>
 
         <TableBody>
-          {fBids.map((bid, i) => {
+          {fBids.map(bid => {
             const provider = providers && providers.find(x => x.owner === bid.provider);
             const showBid = provider?.isValidVersion && (!isSendingManifest || selectedBid?.id === bid.id);
             return (showBid || selectedNetworkId !== MAINNET_ID) && provider ? (
               <BidRow
-                testIndex={i}
                 key={bid.id}
                 bid={bid}
                 provider={provider}

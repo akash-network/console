@@ -43,8 +43,8 @@ export class DeployBasePage {
     await this.page.getByTestId("deposit-modal-continue-button").click();
   }
 
-  async createLease() {
-    await this.page.getByTestId("bid-list-row-radio-0").click();
+  async createLease(providerName = "provider.europlots-sandbox.com") {
+    await this.page.getByLabel(providerName).click();
     await this.page.getByTestId("create-lease-button").click();
   }
 

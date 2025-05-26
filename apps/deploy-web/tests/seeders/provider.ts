@@ -1,10 +1,10 @@
 import { faker } from "@faker-js/faker";
 
 import type { ApiProviderDetail } from "@src/types/provider";
-
+import { genWalletAddress } from "./wallet";
 export function buildProvider(overrides?: Partial<ApiProviderDetail>): ApiProviderDetail {
   return {
-    owner: `akash${faker.string.alphanumeric({ length: 39 })}`,
+    owner: genWalletAddress(),
     name: `${faker.internet.domainWord()}.${faker.internet.domainWord()}.${faker.internet.domainName()}`,
     hostUri: `https://${faker.internet.domainName()}:8443`,
     createdHeight: faker.number.int({ min: 100000, max: 500000 }),
