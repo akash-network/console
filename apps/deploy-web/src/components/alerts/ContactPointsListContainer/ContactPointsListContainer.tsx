@@ -1,6 +1,7 @@
 "use client";
 
 import type { FC, ReactNode } from "react";
+import React from "react";
 import { useCallback, useState } from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 
@@ -19,6 +20,7 @@ type ContactPointsListContainerProps = {
 export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = ({ children, onEdit }) => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  const [contactPointIdToRemove, setContactPointIdToRemove] = React.useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
   const { notificationsApi } = useServices();
   const { data, isError, isLoading, refetch } = notificationsApi.v1.getContactPoints.useQuery({
@@ -30,19 +32,17 @@ export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = (
   const mutation = notificationsApi.v1.deleteContactPoint.useMutation();
   const notificator = useNotificator();
 
-  const handleRemove = useCallback(
-    (id: ContactPoint["id"]) => {
-      setIsRemoving(true);
-      mutation.mutate({
-        path: {
-          id
-        }
-      });
-    },
-    [mutation]
-  );
+  const handleRemove = useCallback(() => {
+    setIsRemoving(true);
+    mutation.mutate({
+      path: {
+        id: contactPointIdToRemove
+      }
+    });
+  }, [mutation, contactPointIdToRemove]);
 
   const handlePageChange = useCallback((page: number, pageSize: number) => {
+    console.log("handlePageChange called");
     setPage(page + 1);
     setLimit(pageSize);
   }, []);
@@ -54,7 +54,14 @@ export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = (
 
   useWhen(mutation.isSuccess, () => {
     notificator.success("Contact point removed", { dataTestId: "contact-point-remove-success-notification" });
-    refetch();
+
+    if (data?.data.length === 1 && page > 1) {
+      setPage(page - 1);
+    } else {
+      refetch();
+    }
+
+    setContactPointIdToRemove(null);
     setIsRemoving(false);
   });
 
@@ -73,7 +80,10 @@ export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = (
         isError,
         onEdit,
         isRemoving,
-        onRemove: handleRemove
+        contactPointIdToRemove,
+        onRemoveStart: setContactPointIdToRemove,
+        onRemoveCancel: () => setContactPointIdToRemove(null),
+        onRemoveConfirm: handleRemove
       })}
     </>
   );

@@ -28,14 +28,28 @@ export type ContactPointsListViewProps = {
   pagination: Pick<ContactPointsPagination, "page" | "limit" | "total" | "totalPages">;
   isLoading: boolean;
   onEdit: (id: ContactPoint["id"]) => void;
-  onRemove: (id: ContactPoint["id"]) => void;
+  contactPointIdToRemove: ContactPoint["id"] | null;
+  onRemoveStart: (id: ContactPoint["id"] | null) => void;
+  onRemoveCancel: () => void;
+  onRemoveConfirm: () => void;
   isRemoving: boolean;
   onPageChange: (page: number, limit: number) => void;
   isError: boolean;
 };
 
-export const ContactPointsListView: FC<ContactPointsListViewProps> = ({ data, pagination, onPageChange, isLoading, onEdit, onRemove, isRemoving, isError }) => {
-  const [contactPointIdToRemove, setContactPointIdToRemove] = React.useState<string | null>(null);
+export const ContactPointsListView: FC<ContactPointsListViewProps> = ({
+  data,
+  pagination,
+  onPageChange,
+  isLoading,
+  onEdit,
+  contactPointIdToRemove,
+  onRemoveStart,
+  onRemoveCancel,
+  onRemoveConfirm,
+  isRemoving,
+  isError
+}) => {
   const columnHelper = createColumnHelper<ContactPoint>();
 
   const columns = [
@@ -75,7 +89,7 @@ export const ContactPointsListView: FC<ContactPointsListViewProps> = ({ data, pa
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setContactPointIdToRemove(info.row.original.id)}
+              onClick={() => onRemoveStart(info.row.original.id)}
               className="text-sm text-red-500 hover:text-red-700"
               data-testid="remove-contact-point-button"
             >
@@ -180,7 +194,7 @@ export const ContactPointsListView: FC<ContactPointsListViewProps> = ({ data, pa
               color: "primary",
               variant: "secondary",
               side: "right",
-              onClick: () => setContactPointIdToRemove(null)
+              onClick: onRemoveCancel
             },
             {
               label: "Remove",
@@ -188,10 +202,7 @@ export const ContactPointsListView: FC<ContactPointsListViewProps> = ({ data, pa
               variant: "default",
               side: "right",
               isLoading: isRemoving,
-              onClick: () => {
-                contactPointIdToRemove && onRemove(contactPointIdToRemove);
-                setContactPointIdToRemove(null);
-              }
+              onClick: onRemoveConfirm
             }
           ]}
         >
