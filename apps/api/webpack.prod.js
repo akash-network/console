@@ -10,6 +10,7 @@ module.exports = {
   entry: "./src/index.ts",
   mode: NODE_ENV,
   target: "node",
+  devtool: "source-map",
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "server.js"
