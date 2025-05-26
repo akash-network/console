@@ -16,7 +16,17 @@ export class BlockSeeder {
       txCount: input.txCount || faker.number.int({ min: 0, max: 10000000 }),
       isProcessed: input.isProcessed || faker.datatype.boolean(),
       totalTxCount: input.totalTxCount || faker.number.int({ min: 0, max: 10000000 }),
-      totalUUsdSpent: input.totalUUsdSpent || faker.number.int({ min: 0, max: 10000000 })
+      totalUAktSpent: input.totalUAktSpent || faker.number.int({ min: 0, max: 10000000 }),
+      totalUUsdcSpent: input.totalUUsdcSpent || faker.number.int({ min: 0, max: 10000000 }),
+      totalUUsdSpent: input.totalUUsdSpent || faker.number.int({ min: 0, max: 10000000 }),
+      activeLeaseCount: input.activeLeaseCount || faker.number.int({ min: 0, max: 10000000 }),
+      totalLeaseCount: input.totalLeaseCount || faker.number.int({ min: 0, max: 10000000 }),
+      activeCPU: input.activeCPU || faker.number.int({ min: 0, max: 10000000 }),
+      activeGPU: input.activeGPU || faker.number.int({ min: 0, max: 10000000 }),
+      activeMemory: input.activeMemory || faker.number.int({ min: 0, max: 10000000 }),
+      activeEphemeralStorage: input.activeEphemeralStorage || faker.number.int({ min: 0, max: 10000000 }),
+      activePersistentStorage: input.activePersistentStorage || faker.number.int({ min: 0, max: 10000000 }),
+      activeProviderCount: input.activeProviderCount || faker.number.int({ min: 0, max: 10000000 })
     };
   }
 
