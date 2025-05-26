@@ -9,6 +9,15 @@ services:
         WORKSPACE: apps/api
         GITHUB_PAT: ${GITHUB_PAT}
 
+  notifications:
+    image: ${NOTIFICATIONS_REPO:-notifications}:${NOTIFICATIONS_TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: packages/docker/Dockerfile.node
+      target: production-nginx
+      args:
+        WORKSPACE: apps/notifications
+
   indexer:
     image: ${INDEXER_REPO:-console-indexer}:${INDEXER_TAG:-latest}
     build:
