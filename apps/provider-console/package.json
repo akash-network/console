@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/provider-console",
-  "version": "1.11.1",
+  "version": "1.11.2",
   "private": true,
   "scripts": {
     "build": "npm run build-env-schemas && next build",
