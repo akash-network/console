@@ -1,5 +1,17 @@
 
 
+## [2.94.2](https://github.com/akash-network/console/compare/console-api/v2.94.1...console-api/v2.94.2) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** builds notifications image w/o nginx ([d68bf9a](https://github.com/akash-network/console/commit/d68bf9a94c118aa65656e15924163ba9d54a4e2b))
+
+
+### Code Refactoring
+
+* migrates another part of console-api to strict types ([#1362](https://github.com/akash-network/console/issues/1362)) ([52daada](https://github.com/akash-network/console/commit/52daada473ef1fc45334aefc10203b3cbb8deb35))
+
 ## [2.94.1](https://github.com/akash-network/console/compare/console-api/v2.94.0...console-api/v2.94.1) (2025-05-26)
 
 

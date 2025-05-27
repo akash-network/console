@@ -1,5 +1,12 @@
 
 
+## [0.24.2](https://github.com/akash-network/console/compare/stats-web/v0.24.1...stats-web/v0.24.2) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** builds notifications image w/o nginx ([d68bf9a](https://github.com/akash-network/console/commit/d68bf9a94c118aa65656e15924163ba9d54a4e2b))
+
 ## [0.24.1](https://github.com/akash-network/console/compare/stats-web/v0.24.0...stats-web/v0.24.1) (2025-05-26)
 
 

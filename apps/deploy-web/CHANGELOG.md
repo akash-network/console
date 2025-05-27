@@ -1,5 +1,12 @@
 
 
+## [2.77.3](https://github.com/akash-network/console/compare/console-web/v2.77.2...console-web/v2.77.3) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** builds notifications image w/o nginx ([d68bf9a](https://github.com/akash-network/console/commit/d68bf9a94c118aa65656e15924163ba9d54a4e2b))
+
 ## [2.77.2](https://github.com/akash-network/console/compare/console-web/v2.77.1...console-web/v2.77.2) (2025-05-26)
 
 
