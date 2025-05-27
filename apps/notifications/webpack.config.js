@@ -23,7 +23,9 @@ module.exports = options => ({
         {
           from: dirname(require.resolve("swagger-ui-dist/package.json")),
           to: "swagger-ui-dist"
-        }
+        },
+        { from: "drizzle", to: "drizzle" },
+        { from: "drizzle.config.js", to: "drizzle/drizzle.config.js" }
       ]
     })
   ]
