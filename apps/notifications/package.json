@@ -12,7 +12,7 @@
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "migration:exec": "drizzle-kit migrate",
-    "migration:exec:prod": "INCLUDE_SCHEMAS=false drizzle-kit migrate --config dist/drizzle/drizzle.config.js",
+    "migration:exec:prod": "INCLUDE_SCHEMAS=false DRIZZLE_MIGRATIONS_FOLDER=./dist/drizzle drizzle-kit migrate --config dist/drizzle/drizzle.config.js",
     "migration:gen": "drizzle-kit generate",
     "migration:init": "node script/init-db.js",
     "preprod": "npm run migration:exec:prod",
