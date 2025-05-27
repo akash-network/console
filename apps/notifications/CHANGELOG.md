@@ -1,5 +1,12 @@
 
 
+## [1.1.4](https://github.com/akash-network/console/compare/notifications/v1.1.3...notifications/v1.1.4) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** adds db migrator to the prod deps  ([9ed7888](https://github.com/akash-network/console/commit/9ed78887e58147a493645b339f466118f977a6f9))
+
 ## [1.1.3](https://github.com/akash-network/console/compare/notifications/v1.1.2...notifications/v1.1.3) (2025-05-27)
 
 
