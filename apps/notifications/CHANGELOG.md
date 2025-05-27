@@ -1,5 +1,12 @@
 
 
+## [1.1.6](https://github.com/akash-network/console/compare/notifications/v1.1.5...notifications/v1.1.6) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** points migrator to the proper migrations dir ([f124409](https://github.com/akash-network/console/commit/f1244091492c60001e30ca9ced3c26cd926aa5f4))
+
 ## [1.1.5](https://github.com/akash-network/console/compare/notifications/v1.1.4...notifications/v1.1.5) (2025-05-27)
 
 
