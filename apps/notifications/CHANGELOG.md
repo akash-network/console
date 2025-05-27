@@ -1,5 +1,12 @@
 
 
+## [1.1.3](https://github.com/akash-network/console/compare/notifications/v1.1.2...notifications/v1.1.3) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** separates db init from migrations ([821f2f1](https://github.com/akash-network/console/commit/821f2f162e19ef3df4e61e563a569d943322763d))
+
 ## [1.1.2](https://github.com/akash-network/console/compare/notifications/v1.1.1...notifications/v1.1.2) (2025-05-27)
 
 
