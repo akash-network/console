@@ -1,5 +1,12 @@
 
 
+## [1.7.2](https://github.com/akash-network/console/compare/provider-proxy/v1.7.1...provider-proxy/v1.7.2) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** builds notifications image w/o nginx ([d68bf9a](https://github.com/akash-network/console/commit/d68bf9a94c118aa65656e15924163ba9d54a4e2b))
+
 ## [1.7.1](https://github.com/akash-network/console/compare/provider-proxy/v1.7.0...provider-proxy/v1.7.1) (2025-05-26)
 
 
