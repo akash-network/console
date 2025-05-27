@@ -1,5 +1,12 @@
 
 
+## [1.1.5](https://github.com/akash-network/console/compare/notifications/v1.1.4...notifications/v1.1.5) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** adds migrations to the build ([cf74792](https://github.com/akash-network/console/commit/cf74792f824ee7ce8cf1859c72b0e1690e8365ea))
+
 ## [1.1.4](https://github.com/akash-network/console/compare/notifications/v1.1.3...notifications/v1.1.4) (2025-05-27)
 
 
