@@ -40,16 +40,6 @@ describe("ContactPointsListView", () => {
     expect(screen.getByText(mockContactPoint.config.addresses[0])).toBeInTheDocument();
   });
 
-  it("calls onEdit when edit button is clicked", () => {
-    const onEdit = jest.fn();
-    const mockContactPoint = buildContactPoint();
-
-    setup({ data: [mockContactPoint], onEdit });
-
-    fireEvent.click(screen.getByTestId("edit-contact-point-button"));
-    expect(onEdit).toHaveBeenCalledWith(mockContactPoint.id);
-  });
-
   it("shows confirmation popup when remove button is clicked", async () => {
     const mockContactPoint = buildContactPoint();
     setup({ data: [mockContactPoint] });
@@ -117,9 +107,8 @@ describe("ContactPointsListView", () => {
       },
       data: Array.from({ length: 10 }, buildContactPoint),
       isLoading: false,
-      onEdit: jest.fn(),
       onRemove: jest.fn(),
-      idsBeingRemoved: new Set(),
+      removingIds: new Set(),
       onPageChange: jest.fn(),
       isError: false,
       ...props
