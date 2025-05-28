@@ -1,5 +1,12 @@
 
 
+## [2.77.4](https://github.com/akash-network/console/compare/console-web/v2.77.3...console-web/v2.77.4) (2025-05-28)
+
+
+### Bug Fixes
+
+* update auth0 audience and issuer ([#1382](https://github.com/akash-network/console/issues/1382)) ([6e66727](https://github.com/akash-network/console/commit/6e667277a8c4f9ed787bcdc2094377fe4ae625b1))
+
 ## [2.77.3](https://github.com/akash-network/console/compare/console-web/v2.77.2...console-web/v2.77.3) (2025-05-27)
 
 
