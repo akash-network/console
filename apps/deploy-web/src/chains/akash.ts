@@ -484,9 +484,9 @@ export const akash: Chain = {
       account_page: "https://atomscan.com/akash/accounts/${accountAddress}"
     },
     {
-      kind: "cloudmos",
-      url: "https://cloudmos.io/blocks",
-      tx_page: "https://cloudmos.io/transactions/${txHash}"
+      kind: "akash-stats",
+      url: "https://stats.akash.network/blocks",
+      tx_page: "https://stats.akash.network/transactions/${txHash}"
     },
     {
       kind: "Stakeflow",

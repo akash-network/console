@@ -19,7 +19,6 @@ export function createApp(container: Container): Hono<AppEnv> {
   const corsWhitelist = [
     "http://localhost:3001",
     "http://localhost:3000",
-    "https://cloudmos.grafana.net",
     "https://console.akash.network",
     "https://staging-console.akash.network",
     "https://akashconsole.vercel.app",
