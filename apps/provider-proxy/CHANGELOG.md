@@ -1,5 +1,12 @@
 
 
+## [1.7.4](https://github.com/akash-network/console/compare/provider-proxy/v1.7.3...provider-proxy/v1.7.4) (2025-05-28)
+
+
+### Bug Fixes
+
+* **notifications:** improves interface loading and deps management  ([c9cd03a](https://github.com/akash-network/console/commit/c9cd03aa67a5e62ac43edcc9f819600e5e179dce))
+
 ## [1.7.3](https://github.com/akash-network/console/compare/provider-proxy/v1.7.2...provider-proxy/v1.7.3) (2025-05-28)
 
 

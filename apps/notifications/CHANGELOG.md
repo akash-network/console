@@ -1,5 +1,12 @@
 
 
+## [1.1.7](https://github.com/akash-network/console/compare/notifications/v1.1.6...notifications/v1.1.7) (2025-05-28)
+
+
+### Bug Fixes
+
+* **notifications:** improves interface loading and deps management  ([c9cd03a](https://github.com/akash-network/console/commit/c9cd03aa67a5e62ac43edcc9f819600e5e179dce))
+
 ## [1.1.6](https://github.com/akash-network/console/compare/notifications/v1.1.5...notifications/v1.1.6) (2025-05-27)
 
 
