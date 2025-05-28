@@ -1,6 +1,7 @@
 import { AlertsPage } from "@src/components/alerts/AlertsPage";
-import { featureFlagService } from "@src/services/feature-flag";
+import { RegisteredUsersOnly } from "@src/hoc/registered-users-only/registered-users-only.hoc";
+import { routeProtector } from "@src/services/route-protector";
 
-export default AlertsPage;
+export default RegisteredUsersOnly(AlertsPage);
 
-export const getServerSideProps = featureFlagService.showIfEnabled("alerts");
+export const getServerSideProps = routeProtector.showToRegisteredUserIfEnabled("alerts");

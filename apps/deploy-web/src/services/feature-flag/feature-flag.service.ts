@@ -30,16 +30,18 @@ export class FeatureFlagService {
     return unleashCookie?.replace(this.UNLEASH_COOKIE_KEY, "");
   }
 
+  async isEnabledForCtx(name: string, ctx: GetServerSidePropsContext) {
+    if (this.config.NEXT_PUBLIC_UNLEASH_ENABLE_ALL) return true;
+
+    const sessionId = this.extractSessionId(ctx);
+
+    return await this.getFlag(name, sessionId);
+  }
+
   showIfEnabled(name: string): GetServerSideProps {
     return async ctx => {
-      if (this.config.NEXT_PUBLIC_UNLEASH_ENABLE_ALL) return { props: {} };
-
-      const sessionId = this.extractSessionId(ctx);
-      const isEnabled = await this.getFlag(name, sessionId);
-
-      if (!isEnabled) return { notFound: true };
-
-      return { props: {} };
+      const isEnabled = await this.isEnabledForCtx(name, ctx);
+      return isEnabled ? { props: {} } : { notFound: true };
     };
   }
 }

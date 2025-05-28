@@ -1,6 +1,7 @@
 import { CreateContactPointPage } from "@src/components/alerts/CreateContactPointPage";
-import { featureFlagService } from "@src/services/feature-flag";
+import { RegisteredUsersOnly } from "@src/hoc/registered-users-only/registered-users-only.hoc";
+import { routeProtector } from "@src/services/route-protector";
 
-export default CreateContactPointPage;
+export default RegisteredUsersOnly(CreateContactPointPage);
 
-export const getServerSideProps = featureFlagService.showIfEnabled("alerts");
+export const getServerSideProps = routeProtector.showToRegisteredUserIfEnabled("alerts");
