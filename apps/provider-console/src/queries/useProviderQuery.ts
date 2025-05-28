@@ -120,7 +120,7 @@ export const useProviderDashboard = (address: string | undefined) => {
     queryKey: ["providerDashboard", address],
     queryFn: async () => {
       try {
-        return await consoleClient.get(`/internal/provider-dashboard/${address}`);
+        return await consoleClient.get(`/v1/provider-dashboard/${address}`);
       } catch (error: unknown) {
         const axiosError = error as AxiosError;
         // Don't show toast for 404 errors as it's an expected response for non-providers
