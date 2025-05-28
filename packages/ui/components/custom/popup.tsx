@@ -180,6 +180,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
         <DialogFooter key="dialog-actions" className="justify-between">
           <Button
             variant="ghost"
+            data-testid={props.testId ? `${props.testId}-cancel-button` : "cancel-button"}
             onClick={() => {
               props.onCancel();
               onClose(null, "action");
@@ -189,7 +190,8 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
           </Button>
           <Button
             variant="default"
-            color="priamry"
+            color="primary"
+            data-testid={props.testId ? `${props.testId}-confirm-button` : "confirm-button"}
             onClick={() => {
               props.onValidate();
               onClose(null, "action");
@@ -317,6 +319,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
             ["sm:max-w-[900px]"]: props.maxWidth === "xl"
           })}
           hideCloseButton={props.hideCloseButton}
+          data-testid={props.testId}
         >
           {component}
         </DialogContent>
