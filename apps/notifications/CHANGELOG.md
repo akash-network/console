@@ -1,5 +1,12 @@
 
 
+## [1.2.1](https://github.com/akash-network/console/compare/notifications/v1.2.0...notifications/v1.2.1) (2025-05-28)
+
+
+### Bug Fixes
+
+* **notifications:** uses provided conditional logger ([fa03a17](https://github.com/akash-network/console/commit/fa03a17906e0fe82e683e3f839957cc3d9b717b7))
+
 ## [1.2.0](https://github.com/akash-network/console/compare/notifications/v1.1.7...notifications/v1.2.0) (2025-05-28)
 
 
