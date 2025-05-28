@@ -45,6 +45,7 @@ runs:
         TEST_WALLET_MNEMONIC: ${{ inputs.test-wallet-mnemonic }}
         BASE_URL: ${{ inputs.url }}
         UI_CONFIG_SIGNATURE_PRIVATE_KEY: ${{ inputs.ui-config-signature-private-key }}
+        DEBUG: "pw:browser"
       shell: bash
       continue-on-error: true
       run: npm run test:e2e --workspace=apps/deploy-web
@@ -76,11 +77,12 @@ runs:
           }
 
           if (!pr.merged_by) {
-            pr = await github.pulls.get({
+            const { data } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: pr.number,
             });
+            pr = data;
           }
 
           console.dir(pr, { depth: null });
