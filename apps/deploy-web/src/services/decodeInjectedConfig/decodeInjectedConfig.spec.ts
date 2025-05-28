@@ -14,12 +14,10 @@ describe(decodeInjectedConfig.name, () => {
   });
 
   it("returns null if public key is not provided", async () => {
-    const config = await decodeInjectedConfig(undefined);
+    let config = await decodeInjectedConfig(undefined);
     expect(config).toBeNull();
-  });
 
-  it("returns null if no config is injected", async () => {
-    const config = await decodeInjectedConfig();
+    config = await decodeInjectedConfig();
     expect(config).toBeNull();
   });
 

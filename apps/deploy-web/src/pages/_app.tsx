@@ -2,7 +2,7 @@ import "@akashnetwork/ui/styles";
 import "nprogress/nprogress.css";
 import "../styles/index.css";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
@@ -21,7 +21,6 @@ import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { PageHead } from "@src/components/layout/PageHead";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { UserProviders } from "@src/components/user/UserProviders";
-import type { BrowserEnvConfig } from "@src/config/browser-env.config";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 import { CertificateProvider } from "@src/context/CertificateProvider";
@@ -34,11 +33,11 @@ import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
+import { useInjectedConfig } from "@src/hooks/useInjectedConfig";
 import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
 import { queryClient } from "@src/queries";
 import { prefetchFeatureFlags } from "@src/queries/featureFlags";
 import { serverApiUrlService } from "@src/services/api-url/server-api-url.service";
-import { decodeInjectedConfig, hasInjectedConfig } from "@src/services/decodeInjectedConfig/decodeInjectedConfig";
 import { store } from "@src/store/global-store";
 
 interface Props extends AppProps {
@@ -56,20 +55,7 @@ Router.events.on("routeChangeError", () => NProgress.done());
 
 const App: React.FunctionComponent<Props> = props => {
   const { Component, pageProps } = props;
-  const [isResolvedConfig, setIsResolvedConfig] = useState(false);
-  const [config, setConfig] = useState<Partial<BrowserEnvConfig> | null>(null);
-
-  useEffect(() => {
-    if (hasInjectedConfig()) {
-      decodeInjectedConfig()
-        .then(setConfig)
-        .finally(() => setIsResolvedConfig(true));
-    }
-  }, []);
-
-  if (hasInjectedConfig() && !isResolvedConfig) {
-    return null;
-  }
+  const { config } = useInjectedConfig();
 
   return (
     <FlagProvider>
