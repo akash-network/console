@@ -7,17 +7,19 @@ import { faker } from "@faker-js/faker";
 import type { RequestFnResponse } from "@openapi-qraft/react/src/lib/requestFn";
 import { QueryClientProvider } from "@tanstack/react-query";
 
+import type { ChildrenProps } from "@src/components/alerts/ContactPointCreateContainer/ContactPointCreateContainer";
 import { ContactPointCreateContainer } from "@src/components/alerts/ContactPointCreateContainer/ContactPointCreateContainer";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 
 describe("ContactPointCreateContainer", () => {
   it("triggers a contact point creation with the correct values", async () => {
-    const { requestFn, input } = setup();
+    const { requestFn, input, child } = await setup();
 
-    fireEvent.click(screen.getByText("Create"));
+    child.create(input);
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
@@ -42,9 +44,9 @@ describe("ContactPointCreateContainer", () => {
   });
 
   it("triggers a contact point creation and shows error message on error", async () => {
-    const { requestFn, input } = setup();
+    const { requestFn, input, child } = await setup();
 
-    fireEvent.click(screen.getByText("Create"));
+    child.create(input);
 
     requestFn.mockRejectedValue(new Error());
 
@@ -70,7 +72,7 @@ describe("ContactPointCreateContainer", () => {
     });
   });
 
-  function setup() {
+  async function setup() {
     const input = {
       name: faker.lorem.word(),
       emails: [faker.internet.email()]
@@ -96,19 +98,18 @@ describe("ContactPointCreateContainer", () => {
           queryClient
         })
     };
+    const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
 
     render(
       <CustomSnackbarProvider>
         <ServicesProvider services={services}>
           <QueryClientProvider client={queryClient}>
-            <ContactPointCreateContainer onCreate={jest.fn()}>
-              {({ create }) => <button onClick={() => create(input)}>Create</button>}
-            </ContactPointCreateContainer>
+            <ContactPointCreateContainer onCreate={jest.fn()}>{childCapturer.renderChild}</ContactPointCreateContainer>
           </QueryClientProvider>
         </ServicesProvider>
       </CustomSnackbarProvider>
     );
 
-    return { requestFn, input };
+    return { requestFn, input, child: await childCapturer.awaitChild() };
   }
 });

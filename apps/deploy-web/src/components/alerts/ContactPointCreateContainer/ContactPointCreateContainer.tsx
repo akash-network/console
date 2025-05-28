@@ -14,7 +14,7 @@ export type ContainerCreateInput = Pick<ContactPointCreateInput, "name"> & {
   emails: ContactPointCreateInput["config"]["addresses"];
 };
 
-type ChildrenProps = {
+export type ChildrenProps = {
   create: (input: ContainerCreateInput) => void;
   isLoading: boolean;
 };
