@@ -1,12 +1,17 @@
 import { Block, StargateClient } from "@cosmjs/stargate";
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { backOff } from "exponential-backoff";
+
+import { LoggerService } from "@src/common/services/logger/logger.service";
 
 @Injectable()
 export class BlockchainClientService {
-  private readonly logger = new Logger(BlockchainClientService.name);
-
-  constructor(private readonly stargateClient: StargateClient) {}
+  constructor(
+    private readonly stargateClient: StargateClient,
+    private readonly loggerService: LoggerService
+  ) {
+    loggerService.setContext(BlockchainClientService.name);
+  }
 
   /**
    * Fetches a block by its height
@@ -15,7 +20,7 @@ export class BlockchainClientService {
    */
   async getBlock(height: number | "latest"): Promise<Block> {
     const blockHeight = await this.toBlockHeight(height);
-    this.logger.debug(`Fetching block at height: ${blockHeight}`);
+    this.loggerService.debug(`Fetching block at height: ${blockHeight}`);
     return await this.getBlockAwaited(blockHeight);
   }
 
