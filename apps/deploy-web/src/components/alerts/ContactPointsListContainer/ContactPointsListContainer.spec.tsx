@@ -3,21 +3,17 @@ import "@testing-library/jest-dom";
 import React from "react";
 import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
-import { faker } from "@faker-js/faker";
 import type { RequestFnResponse } from "@openapi-qraft/react/src/lib/requestFn";
 import { QueryClientProvider } from "@tanstack/react-query";
 
-import { type ContactPoint, ContactPointsListContainer } from "@src/components/alerts/ContactPointsListContainer/ContactPointsListContainer";
+import { ContactPointsListContainer } from "@src/components/alerts/ContactPointsListContainer/ContactPointsListContainer";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { buildContactPoint } from "@tests/seeders/contactPoint";
 
 describe("ContactPointsListContainer", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   it("renders contact points list with data", async () => {
     const { mockData } = setup();
 
@@ -39,19 +35,7 @@ describe("ContactPointsListContainer", () => {
     expect(onEditMock).toHaveBeenCalledWith(mockData.data[0].id);
   });
 
-  it("shows confirmation dialog when remove button is clicked", async () => {
-    const { mockData } = setup();
-
-    await waitFor(() => {
-      expect(screen.getByTestId(`remove-contact-point-${mockData.data[0].id}`)).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId(`remove-contact-point-${mockData.data[0].id}`));
-
-    expect(screen.getByTestId("confirm-remove-dialog")).toBeInTheDocument();
-  });
-
-  it("calls delete endpoint and shows success notification when removing a contact point", async () => {
+  it("calls delete endpoint and shows success notification when removing a contact point suceeds", async () => {
     const { mockData, requestFn } = setup();
 
     await waitFor(() => {
@@ -59,7 +43,6 @@ describe("ContactPointsListContainer", () => {
     });
 
     fireEvent.click(screen.getByTestId(`remove-contact-point-${mockData.data[0].id}`));
-    fireEvent.click(screen.getByTestId("confirm-remove-button"));
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
@@ -70,19 +53,22 @@ describe("ContactPointsListContainer", () => {
     });
   });
 
-  it("shows error notification when removing a contact point fails", async () => {
+  it("calls delete endpoint and shows error notification when removing a contact point fails", async () => {
     const { mockData, requestFn } = setup();
 
     requestFn.mockRejectedValue(new Error());
 
     await waitFor(() => {
-      expect(screen.getByText(mockData.data[0].name)).toBeInTheDocument();
+      expect(screen.getByTestId(`remove-contact-point-${mockData.data[0].id}`)).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByTestId(`remove-contact-point-${mockData.data[0].id}`));
-    fireEvent.click(screen.getByTestId("confirm-remove-button"));
 
     await waitFor(() => {
+      expect(requestFn).toHaveBeenCalledWith(
+        expect.objectContaining({ method: "delete", url: "/v1/contact-points/{id}" }),
+        expect.objectContaining({ baseUrl: "", body: undefined, parameters: { path: { id: mockData.data[0].id } } })
+      );
       expect(screen.getByTestId("contact-point-remove-error-notification")).toBeInTheDocument();
     });
   });
@@ -113,7 +99,15 @@ describe("ContactPointsListContainer", () => {
 
   function setup() {
     const onEditMock = jest.fn();
-    const mockData = createMockContactPointsResponse();
+    const mockData = {
+      data: Array.from({ length: 11 }, buildContactPoint),
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 11,
+        totalPages: 2
+      }
+    };
     const requestFn = jest.fn(
       () =>
         Promise.resolve({
@@ -134,19 +128,7 @@ describe("ContactPointsListContainer", () => {
         <ServicesProvider services={services}>
           <QueryClientProvider client={queryClient}>
             <ContactPointsListContainer onEdit={onEditMock}>
-              {({
-                data,
-                pagination,
-                onPageChange,
-                isLoading,
-                isError,
-                onEdit,
-                isRemoving,
-                contactPointIdToRemove,
-                onRemoveStart,
-                onRemoveCancel,
-                onRemoveConfirm
-              }) => (
+              {({ data, pagination, onPageChange, idsBeingRemoved, isLoading, isError, onEdit, onRemove }) => (
                 <div>
                   {isLoading && <div>Loading...</div>}
                   {isError && <div>Error loading contact points</div>}
@@ -157,8 +139,8 @@ describe("ContactPointsListContainer", () => {
                         <button data-testid={`edit-contact-point-${contactPoint.id}`} onClick={() => onEdit(contactPoint.id)}>
                           Edit
                         </button>
-                        <button data-testid={`remove-contact-point-${contactPoint.id}`} onClick={() => onRemoveStart(contactPoint.id)}>
-                          Remove
+                        <button data-testid={`remove-contact-point-${contactPoint.id}`} onClick={() => onRemove(contactPoint.id)}>
+                          {idsBeingRemoved.has(contactPoint.id) ? "Removing" : "Remove"}
                         </button>
                       </li>
                     ))}
@@ -178,17 +160,6 @@ describe("ContactPointsListContainer", () => {
                       Next
                     </button>
                   </div>
-                  {contactPointIdToRemove && (
-                    <div data-testid="confirm-remove-dialog">
-                      <p>Are you sure you want to remove this contact point?</p>
-                      <button data-testid="confirm-remove-button" onClick={onRemoveConfirm} disabled={isRemoving}>
-                        {isRemoving ? "Removing..." : "Confirm"}
-                      </button>
-                      <button data-testid="cancel-remove-button" onClick={onRemoveCancel} disabled={isRemoving}>
-                        Cancel
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </ContactPointsListContainer>
@@ -198,29 +169,5 @@ describe("ContactPointsListContainer", () => {
     );
 
     return { mockData, requestFn, onEditMock };
-  }
-
-  function createMockContactPointsResponse() {
-    const contactPoints: ContactPoint[] = Array.from({ length: 11 }, () => ({
-      id: faker.string.uuid(),
-      name: faker.string.alphanumeric(),
-      type: "email",
-      config: {
-        addresses: [faker.internet.email()]
-      },
-      userId: faker.string.uuid(),
-      createdAt: faker.date.recent(),
-      updatedAt: faker.date.recent()
-    }));
-
-    return {
-      data: contactPoints,
-      pagination: {
-        page: 1,
-        limit: 10,
-        total: 11,
-        totalPages: 2
-      }
-    };
   }
 });

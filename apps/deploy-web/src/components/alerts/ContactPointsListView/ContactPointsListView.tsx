@@ -6,7 +6,6 @@ import {
   CustomPagination,
   CustomTooltip,
   MIN_PAGE_SIZE,
-  Popup,
   Spinner,
   Table,
   TableBody,
@@ -15,6 +14,7 @@ import {
   TableHeader,
   TableRow
 } from "@akashnetwork/ui/components";
+import { usePopup } from "@akashnetwork/ui/context";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Bin, Edit } from "iconoir-react";
 
@@ -27,12 +27,9 @@ export type ContactPointsListViewProps = {
   data: ContactPointsInput;
   pagination: Pick<ContactPointsPagination, "page" | "limit" | "total" | "totalPages">;
   isLoading: boolean;
+  idsBeingRemoved: Set<ContactPoint["id"]>;
   onEdit: (id: ContactPoint["id"]) => void;
-  contactPointIdToRemove: ContactPoint["id"] | null;
-  onRemoveStart: (id: ContactPoint["id"] | null) => void;
-  onRemoveCancel: () => void;
-  onRemoveConfirm: () => void;
-  isRemoving: boolean;
+  onRemove: (id: ContactPoint["id"]) => Promise<void>;
   onPageChange: (page: number, limit: number) => void;
   isError: boolean;
 };
@@ -43,13 +40,11 @@ export const ContactPointsListView: FC<ContactPointsListViewProps> = ({
   onPageChange,
   isLoading,
   onEdit,
-  contactPointIdToRemove,
-  onRemoveStart,
-  onRemoveCancel,
-  onRemoveConfirm,
-  isRemoving,
+  idsBeingRemoved,
+  onRemove,
   isError
 }) => {
+  const { confirm } = usePopup();
   const columnHelper = createColumnHelper<ContactPoint>();
 
   const columns = [
@@ -72,32 +67,48 @@ export const ContactPointsListView: FC<ContactPointsListViewProps> = ({
     }),
     columnHelper.display({
       id: "actions",
-      cell: info => (
-        <div className="flex items-center justify-end gap-1">
-          <CustomTooltip title="Edit">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onEdit(info.row.original.id)}
-              className="text-sm text-gray-500 hover:text-gray-700"
-              data-testid="edit-contact-point-button"
-            >
-              <Edit className="text-xs" />
-            </Button>
-          </CustomTooltip>
-          <CustomTooltip title="Remove">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onRemoveStart(info.row.original.id)}
-              className="text-sm text-red-500 hover:text-red-700"
-              data-testid="remove-contact-point-button"
-            >
-              <Bin className="text-xs" />
-            </Button>
-          </CustomTooltip>
-        </div>
-      )
+      cell: info => {
+        const isBeingRemoved = idsBeingRemoved.has(info.row.original.id);
+
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <CustomTooltip title="Edit" disabled={isBeingRemoved}>
+              <Button
+                variant="ghost"
+                disabled={isBeingRemoved}
+                size="icon"
+                onClick={() => onEdit(info.row.original.id)}
+                className="text-sm text-gray-500 hover:text-gray-700"
+                data-testid="edit-contact-point-button"
+              >
+                <Edit className="text-xs" />
+              </Button>
+            </CustomTooltip>
+            <CustomTooltip title="Remove" disabled={isBeingRemoved}>
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={isBeingRemoved}
+                onClick={async () => {
+                  const isConfirmed = await confirm({
+                    title: "Are you sure you want to remove this contact point?",
+                    message: "This action cannot be undone.",
+                    testId: "remove-contact-point-confirmation-popup"
+                  });
+
+                  if (isConfirmed) {
+                    void onRemove(info.row.original.id);
+                  }
+                }}
+                className="text-sm text-red-500 hover:text-red-700"
+                data-testid="remove-contact-point-button"
+              >
+                {isBeingRemoved ? <Spinner size="small" /> : <Bin className="text-xs" />}
+              </Button>
+            </CustomTooltip>
+          </div>
+        );
+      }
     })
   ];
 
@@ -180,34 +191,6 @@ export const ContactPointsListView: FC<ContactPointsListViewProps> = ({
             setPageSize={table.setPageSize}
           />
         </div>
-      )}
-
-      {(contactPointIdToRemove || isRemoving) && (
-        <Popup
-          open
-          title="Are you sure you want to remove this contact point?"
-          variant="custom"
-          enableCloseOnBackdropClick
-          actions={[
-            {
-              label: "Cancel",
-              color: "primary",
-              variant: "secondary",
-              side: "right",
-              onClick: onRemoveCancel
-            },
-            {
-              label: "Remove",
-              color: "secondary",
-              variant: "default",
-              side: "right",
-              isLoading: isRemoving,
-              onClick: onRemoveConfirm
-            }
-          ]}
-        >
-          This action cannot be undone.
-        </Popup>
       )}
     </>
   );
