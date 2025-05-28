@@ -14,7 +14,6 @@ import { useWhen } from "@src/hooks/useWhen";
 import networkStore from "@src/store/networkStore";
 import Layout from "../layout/Layout";
 import { CertificateList } from "./CertificateList";
-import CloudmosImportPanel from "./CloudmosImportPanel";
 import { ColorModeSelect } from "./ColorModeSelect";
 import { SelectNetworkModal } from "./SelectNetworkModal";
 import { SettingsForm } from "./SettingsForm";
@@ -68,8 +67,6 @@ export const SettingsContainer: React.FunctionComponent = () => {
         <Fieldset label="Certificates" className="mb-4">
           <CertificateList />
         </Fieldset>
-
-        <CloudmosImportPanel />
       </SettingsLayout>
     </Layout>
   );
