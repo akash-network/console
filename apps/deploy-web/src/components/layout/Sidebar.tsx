@@ -39,6 +39,7 @@ import Link from "next/link";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
+import { useUser } from "@src/hooks/useUser";
 import sdlStore from "@src/store/sdlStore";
 import type { ISidebarGroupMenu, ISidebarRoute } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
@@ -66,6 +67,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const wallet = useWallet();
+  const user = useUser();
   const isAlertsEnabled = useFlag("alerts");
 
   const mainRoutes = useMemo(() => {
@@ -103,7 +105,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       }
     ];
 
-    if (isAlertsEnabled) {
+    if (isAlertsEnabled && user?.userId) {
       routes.push({
         title: "Alerts",
         icon: props => <MessageAlert {...props} />,
@@ -113,7 +115,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
     }
 
     return routes;
-  }, [isAlertsEnabled]);
+  }, [isAlertsEnabled, user?.userId]);
 
   const routeGroups: ISidebarGroupMenu[] = useMemo(
     () => [
