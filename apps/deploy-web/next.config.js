@@ -157,7 +157,7 @@ const sentryWebpackPluginOptions = {
 
   silent: true, // Suppresses all logs,
   dryRun: true,
-  release: require("./package.json").version,
+  release: version,
   unstable_sentryWebpackPluginOptions: {
     applicationKey: process.env.NEXT_PUBLIC_SENTRY_APPLICATION_KEY
   }
