@@ -5,8 +5,10 @@ import { Test } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
 
+import { LoggerService } from "@src/common/services/logger/logger.service";
 import { BlockchainClientService } from "./blockchain-client.service";
 
+import { MockProvider } from "@test/mocks/provider.mock";
 import { generateSimpleMockBlock } from "@test/seeders";
 
 describe(BlockchainClientService.name, () => {
@@ -53,7 +55,7 @@ describe(BlockchainClientService.name, () => {
     stargateClient: MockProxy<StargateClient>;
   }> {
     const module = await Test.createTestingModule({
-      providers: [BlockchainClientService, { provide: StargateClient, useValue: mock<StargateClient>() }]
+      providers: [BlockchainClientService, MockProvider(LoggerService), { provide: StargateClient, useValue: mock<StargateClient>() }]
     }).compile();
 
     return {

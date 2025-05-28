@@ -1,8 +1,10 @@
 import "@akashnetwork/env-loader";
 
+import type { Logger as LoggerBase } from "@akashnetwork/logging";
 import type { INestApplication, Type } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 
+import { Logger } from "@src/common/providers/logger.provider";
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { ShutdownService } from "@src/common/services/shutdown/shutdown.service";
 import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
@@ -12,7 +14,7 @@ export class Bootstrapper {
 
   constructor(
     private readonly module: Type<any>,
-    private readonly loggerService: LoggerService = new LoggerService(),
+    private readonly loggerService: LoggerBase = new Logger(),
     private nestFactory: typeof NestFactory = NestFactory
   ) {
     loggerService.setContext(Bootstrapper.name);

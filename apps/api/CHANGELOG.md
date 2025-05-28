@@ -1,5 +1,24 @@
 
 
+## [2.94.4](https://github.com/akash-network/console/compare/console-api/v2.94.3...console-api/v2.94.4) (2025-05-28)
+
+
+### Bug Fixes
+
+* **notifications:** improves interface loading and deps management  ([c9cd03a](https://github.com/akash-network/console/commit/c9cd03aa67a5e62ac43edcc9f819600e5e179dce))
+
+
+### Code Refactoring
+
+* move /v1/providers/{address}/deployments to modules ([#1364](https://github.com/akash-network/console/issues/1364)) ([30a6b54](https://github.com/akash-network/console/commit/30a6b5426524ec022d35d9f1ec803a6faa8e73a5)), closes [#1272](https://github.com/akash-network/console/issues/1272)
+
+## [2.94.3](https://github.com/akash-network/console/compare/console-api/v2.94.2...console-api/v2.94.3) (2025-05-28)
+
+
+### Bug Fixes
+
+* update auth0 audience and issuer ([#1382](https://github.com/akash-network/console/issues/1382)) ([6e66727](https://github.com/akash-network/console/commit/6e667277a8c4f9ed787bcdc2094377fe4ae625b1))
+
 ## [2.94.2](https://github.com/akash-network/console/compare/console-api/v2.94.1...console-api/v2.94.2) (2025-05-27)
 
 

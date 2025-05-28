@@ -1,5 +1,26 @@
 
 
+## [1.2.1](https://github.com/akash-network/console/compare/notifications/v1.2.0...notifications/v1.2.1) (2025-05-28)
+
+
+### Bug Fixes
+
+* **notifications:** uses provided conditional logger ([fa03a17](https://github.com/akash-network/console/commit/fa03a17906e0fe82e683e3f839957cc3d9b717b7))
+
+## [1.2.0](https://github.com/akash-network/console/compare/notifications/v1.1.7...notifications/v1.2.0) (2025-05-28)
+
+
+### Features
+
+* **notifications:** cleans up successful jobs ([b6f7ed0](https://github.com/akash-network/console/commit/b6f7ed0002b4c5ed4a53159b5745085aa6d72538))
+
+## [1.1.7](https://github.com/akash-network/console/compare/notifications/v1.1.6...notifications/v1.1.7) (2025-05-28)
+
+
+### Bug Fixes
+
+* **notifications:** improves interface loading and deps management  ([c9cd03a](https://github.com/akash-network/console/commit/c9cd03aa67a5e62ac43edcc9f819600e5e179dce))
+
 ## [1.1.6](https://github.com/akash-network/console/compare/notifications/v1.1.5...notifications/v1.1.6) (2025-05-27)
 
 

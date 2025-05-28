@@ -8,7 +8,6 @@ import nodesSandbox from "./nodes/sandbox";
 import nodesTestnet from "./nodes/testnet";
 import proposalById from "./proposals/byId";
 import proposals from "./proposals/list";
-import providerDeployments from "./providers/deployments";
 import templateById from "./templates/byId";
 import templateList from "./templates/list";
 import templateListFull from "./templates/list-full";
@@ -42,7 +41,6 @@ export default [
   transactionByHash,
   address,
   addressTransactions,
-  providerDeployments,
   validators,
   validatorByAddress,
   proposals,
