@@ -3,6 +3,7 @@ import React from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import {
   Button,
+  buttonVariants,
   CustomPagination,
   CustomTooltip,
   MIN_PAGE_SIZE,
@@ -15,10 +16,13 @@ import {
   TableRow
 } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
+import { cn } from "@akashnetwork/ui/utils";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Bin, Edit } from "iconoir-react";
+import Link from "next/link";
 
 import type { ContactPoint } from "@src/components/alerts/ContactPointsListContainer/ContactPointsListContainer";
+import { UrlService } from "@src/utils/urlUtils";
 
 type ContactPointsInput = components["schemas"]["ContactPointListOutput"]["data"];
 type ContactPointsPagination = components["schemas"]["ContactPointListOutput"]["pagination"];
@@ -27,23 +31,13 @@ export type ContactPointsListViewProps = {
   data: ContactPointsInput;
   pagination: Pick<ContactPointsPagination, "page" | "limit" | "total" | "totalPages">;
   isLoading: boolean;
-  idsBeingRemoved: Set<ContactPoint["id"]>;
-  onEdit: (id: ContactPoint["id"]) => void;
+  removingIds: Set<ContactPoint["id"]>;
   onRemove: (id: ContactPoint["id"]) => Promise<void>;
   onPageChange: (page: number, limit: number) => void;
   isError: boolean;
 };
 
-export const ContactPointsListView: FC<ContactPointsListViewProps> = ({
-  data,
-  pagination,
-  onPageChange,
-  isLoading,
-  onEdit,
-  idsBeingRemoved,
-  onRemove,
-  isError
-}) => {
+export const ContactPointsListView: FC<ContactPointsListViewProps> = ({ data, pagination, onPageChange, isLoading, removingIds, onRemove, isError }) => {
   const { confirm } = usePopup();
   const columnHelper = createColumnHelper<ContactPoint>();
 
@@ -68,27 +62,27 @@ export const ContactPointsListView: FC<ContactPointsListViewProps> = ({
     columnHelper.display({
       id: "actions",
       cell: info => {
-        const isBeingRemoved = idsBeingRemoved.has(info.row.original.id);
+        const isRemoving = removingIds.has(info.row.original.id);
 
         return (
           <div className="flex items-center justify-end gap-1">
-            <CustomTooltip title="Edit" disabled={isBeingRemoved}>
-              <Button
-                variant="ghost"
-                disabled={isBeingRemoved}
-                size="icon"
-                onClick={() => onEdit(info.row.original.id)}
-                className="text-sm text-gray-500 hover:text-gray-700"
+            <CustomTooltip title="Edit" disabled={isRemoving}>
+              <Link
+                href={UrlService.contactPointDetails(info.row.original.id)}
+                color="secondary"
+                type="button"
+                className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "text-gray-500 hover:text-gray-700", isRemoving && "pointer-events-none")}
+                aria-disabled={isRemoving}
                 data-testid="edit-contact-point-button"
               >
                 <Edit className="text-xs" />
-              </Button>
+              </Link>
             </CustomTooltip>
-            <CustomTooltip title="Remove" disabled={isBeingRemoved}>
+            <CustomTooltip title="Remove" disabled={isRemoving}>
               <Button
                 variant="ghost"
                 size="icon"
-                disabled={isBeingRemoved}
+                disabled={isRemoving}
                 onClick={async () => {
                   const isConfirmed = await confirm({
                     title: "Are you sure you want to remove this contact point?",
@@ -103,7 +97,7 @@ export const ContactPointsListView: FC<ContactPointsListViewProps> = ({
                 className="text-sm text-red-500 hover:text-red-700"
                 data-testid="remove-contact-point-button"
               >
-                {isBeingRemoved ? <Spinner size="small" /> : <Bin className="text-xs" />}
+                {isRemoving ? <Spinner size="small" /> : <Bin className="text-xs" />}
               </Button>
             </CustomTooltip>
           </div>

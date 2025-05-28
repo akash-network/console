@@ -23,19 +23,7 @@ describe("ContactPointsListContainer", () => {
     });
   });
 
-  it("calls onEdit with correct ID when edit button is clicked", async () => {
-    const { mockData, onEditMock } = setup();
-
-    await waitFor(() => {
-      expect(screen.getByTestId(`edit-contact-point-${mockData.data[0].id}`)).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId(`edit-contact-point-${mockData.data[0].id}`));
-
-    expect(onEditMock).toHaveBeenCalledWith(mockData.data[0].id);
-  });
-
-  it("calls delete endpoint and shows success notification when removing a contact point suceeds", async () => {
+  it("calls delete endpoint and shows success notification when removing a contact point succeeds", async () => {
     const { mockData, requestFn } = setup();
 
     await waitFor(() => {
@@ -127,8 +115,8 @@ describe("ContactPointsListContainer", () => {
       <CustomSnackbarProvider>
         <ServicesProvider services={services}>
           <QueryClientProvider client={queryClient}>
-            <ContactPointsListContainer onEdit={onEditMock}>
-              {({ data, pagination, onPageChange, idsBeingRemoved, isLoading, isError, onEdit, onRemove }) => (
+            <ContactPointsListContainer>
+              {({ data, pagination, onPageChange, removingIds, isLoading, isError, onRemove }) => (
                 <div>
                   {isLoading && <div>Loading...</div>}
                   {isError && <div>Error loading contact points</div>}
@@ -136,11 +124,8 @@ describe("ContactPointsListContainer", () => {
                     {data.map(contactPoint => (
                       <li key={contactPoint.id}>
                         <span>{contactPoint.name}</span>
-                        <button data-testid={`edit-contact-point-${contactPoint.id}`} onClick={() => onEdit(contactPoint.id)}>
-                          Edit
-                        </button>
                         <button data-testid={`remove-contact-point-${contactPoint.id}`} onClick={() => onRemove(contactPoint.id)}>
-                          {idsBeingRemoved.has(contactPoint.id) ? "Removing" : "Remove"}
+                          {removingIds.has(contactPoint.id) ? "Removing" : "Remove"}
                         </button>
                       </li>
                     ))}

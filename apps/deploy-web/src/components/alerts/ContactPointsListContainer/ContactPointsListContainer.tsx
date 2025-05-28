@@ -13,13 +13,12 @@ export type ContactPoint = components["schemas"]["ContactPointOutput"]["data"];
 
 type ContactPointsListContainerProps = {
   children: (props: ContactPointsListViewProps) => ReactNode;
-  onEdit: (id: ContactPoint["id"]) => void;
 };
 
-export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = ({ children, onEdit }) => {
+export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = ({ children }) => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [idsBeingRemoved, setIdsBeingRemoved] = React.useState<Set<ContactPoint["id"]>>(new Set());
+  const [removingIds, setRemovingIds] = React.useState<Set<ContactPoint["id"]>>(new Set());
   const { notificationsApi } = useServices();
   const { data, isError, isLoading, refetch } = notificationsApi.v1.getContactPoints.useQuery({
     query: {
@@ -33,7 +32,7 @@ export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = (
   const remove = useCallback(
     async (id: ContactPoint["id"]) => {
       try {
-        setIdsBeingRemoved(prev => new Set(prev).add(id));
+        setRemovingIds(prev => new Set(prev).add(id));
 
         await mutation.mutateAsync({
           path: {
@@ -53,7 +52,7 @@ export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = (
           dataTestId: "contact-point-remove-error-notification"
         });
       } finally {
-        setIdsBeingRemoved(prev => {
+        setRemovingIds(prev => {
           const nextSet = new Set(prev);
           nextSet.delete(id);
           return nextSet;
@@ -80,10 +79,9 @@ export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = (
         data: data?.data || [],
         onPageChange: changePage,
         onRemove: remove,
-        idsBeingRemoved,
+        removingIds,
         isLoading,
-        isError,
-        onEdit
+        isError
       })}
     </>
   );
