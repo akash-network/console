@@ -1,5 +1,12 @@
 
 
+## [0.25.0](https://github.com/akash-network/console/compare/stats-web/v0.24.3...stats-web/v0.25.0) (2025-05-28)
+
+
+### Features
+
+* **contact-point:** implements list ui ([b9d8c24](https://github.com/akash-network/console/commit/b9d8c24eb826897a4462949503b30ef6134a3bc7))
+
 ## [0.24.3](https://github.com/akash-network/console/compare/stats-web/v0.24.2...stats-web/v0.24.3) (2025-05-28)
 
 
