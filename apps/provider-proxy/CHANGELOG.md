@@ -1,5 +1,12 @@
 
 
+## [1.7.3](https://github.com/akash-network/console/compare/provider-proxy/v1.7.2...provider-proxy/v1.7.3) (2025-05-28)
+
+
+### Bug Fixes
+
+* update auth0 audience and issuer ([#1382](https://github.com/akash-network/console/issues/1382)) ([6e66727](https://github.com/akash-network/console/commit/6e667277a8c4f9ed787bcdc2094377fe4ae625b1))
+
 ## [1.7.2](https://github.com/akash-network/console/compare/provider-proxy/v1.7.1...provider-proxy/v1.7.2) (2025-05-27)
 
 
