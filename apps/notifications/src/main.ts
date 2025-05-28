@@ -3,21 +3,46 @@ import "@akashnetwork/env-loader";
 import { Logger } from "@src/common/providers/logger.provider";
 
 async function bootstrap() {
-  const interfaceModule = process.env.INTERFACE || "all";
+  const interfaceModuleName = process.env.INTERFACE || "all";
   const logger = new Logger({ context: "BOOTSTRAP" });
 
-  try {
-    const { bootstrap } = await import(`./interfaces/${interfaceModule}`);
-    await bootstrap();
-    logger.info(`Successfully started with interface "${interfaceModule}".`);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("Cannot find module")) {
-      logger.error(`Unsupported interface "${interfaceModule}"`);
-      process.exit(1);
-    } else {
-      throw error;
-    }
+  const interfaceModule = load(interfaceModuleName);
+
+  if (!interfaceModule) {
+    logger.error(`Unsupported interface "${interfaceModuleName}"`);
+    process.exit(1);
   }
+
+  await interfaceModule.bootstrap();
+  logger.info(`Successfully started with interface "${interfaceModuleName}".`);
+}
+
+function load(interfaceModule: string): { bootstrap: () => Promise<void> } | undefined {
+  if (interfaceModule === "alert-events") {
+    return require("./interfaces/alert-events");
+  }
+
+  if (interfaceModule === "all") {
+    return require("./interfaces/all");
+  }
+
+  if (interfaceModule === "chain-events") {
+    return require("./interfaces/chain-events");
+  }
+
+  if (interfaceModule === "notifications-events") {
+    return require("./interfaces/notifications-events");
+  }
+
+  if (interfaceModule === "rest") {
+    return require("./interfaces/rest");
+  }
+
+  if (interfaceModule === "swagger-gen") {
+    return require("./interfaces/swagger-gen");
+  }
+
+  return undefined;
 }
 
 bootstrap();
