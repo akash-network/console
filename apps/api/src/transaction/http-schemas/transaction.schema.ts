@@ -37,7 +37,7 @@ export const ListTransactionsResponseSchema = z.array(
 );
 
 export const GetTransactionByHashParamsSchema = z.object({
-  hash: z.string().openapi({
+  hash: z.string().min(1, "Transaction hash is required").openapi({
     description: "Transaction hash",
     example: openApiExampleTransactionHash
   })

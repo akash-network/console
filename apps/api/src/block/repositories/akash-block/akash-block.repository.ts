@@ -2,9 +2,11 @@ import { AkashBlock, AkashMessage as Message } from "@akashnetwork/database/dbSc
 import { Transaction, Validator } from "@akashnetwork/database/dbSchemas/base";
 import { singleton } from "tsyringe";
 
+import { GetBlockByHeightResponse, ListBlocksResponse } from "@src/block/http-schemas/block.schema";
+
 @singleton()
 export class AkashBlockRepository {
-  async getBlocks(limit: number) {
+  async getBlocks(limit: number): Promise<ListBlocksResponse> {
     const _limit = Math.min(limit, 100);
     const blocks = await AkashBlock.findAll({
       order: [["height", "DESC"]],
@@ -28,11 +30,11 @@ export class AkashBlockRepository {
       },
       transactionCount: block.txCount,
       totalTransactionCount: block.totalTxCount,
-      datetime: block.datetime
+      datetime: block.datetime.toISOString()
     }));
   }
 
-  async getBlockByHeight(height: number) {
+  async getBlockByHeight(height: number): Promise<GetBlockByHeightResponse> | null {
     const block = await AkashBlock.findOne({
       where: {
         height: height
@@ -55,7 +57,7 @@ export class AkashBlockRepository {
 
     return {
       height: block.height,
-      datetime: block.datetime,
+      datetime: block.datetime.toISOString(),
       proposer: {
         operatorAddress: block.proposerValidator.operatorAddress,
         moniker: block.proposerValidator.moniker,
@@ -70,7 +72,7 @@ export class AkashBlockRepository {
         isSuccess: !tx.hasProcessingError,
         error: tx.hasProcessingError ? tx.log : null,
         fee: parseInt(tx.fee),
-        datetime: block.datetime,
+        datetime: block.datetime.toISOString(),
         messages: (tx.messages || []).map(message => ({
           id: message.id,
           type: message.type,

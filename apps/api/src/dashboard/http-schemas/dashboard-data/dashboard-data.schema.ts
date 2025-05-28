@@ -98,13 +98,13 @@ export const DashboardDataResponseSchema = z.object({
       }),
       transactionCount: z.number(),
       totalTransactionCount: z.number(),
-      datetime: z.date()
+      datetime: z.string()
     })
   ),
   latestTransactions: z.array(
     z.object({
       height: z.number(),
-      datetime: z.date(),
+      datetime: z.string(),
       hash: z.string(),
       isSuccess: z.boolean(),
       error: z.string().nullable(),

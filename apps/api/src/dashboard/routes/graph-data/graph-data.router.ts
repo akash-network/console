@@ -1,3 +1,4 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
@@ -28,14 +29,16 @@ const route = createRoute({
   }
 });
 
+const logger = LoggerService.forContext("GraphDataRouter");
+
 export const graphDataRouter = new OpenApiHonoHandler();
 
 graphDataRouter.openapi(route, async function routeGraphData(c) {
   const { dataName } = c.req.valid("param");
 
   if (!isValidGraphDataName(dataName)) {
-    console.log("Rejected graph request: " + dataName);
-    return c.text("Graph not found: " + dataName, 404);
+    logger.warn(`Invalid graph data request: ${dataName}`);
+    return c.text(`Invalid graph data type: ${dataName}`, 404);
   }
 
   const graphData = await container.resolve(GraphDataController).getGraphData(dataName);

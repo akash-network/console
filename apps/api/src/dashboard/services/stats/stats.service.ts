@@ -1,7 +1,7 @@
 import { AkashBlock as Block, Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { Day } from "@akashnetwork/database/dbSchemas/base";
+import { CosmosHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
-import axios from "axios";
 import { minutesToSeconds, sub, subHours } from "date-fns";
 import uniqBy from "lodash/uniqBy";
 import { Op, QueryTypes } from "sequelize";
@@ -10,18 +10,12 @@ import { singleton } from "tsyringe";
 import { Memoize } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
 import { AuthorizedGraphDataName } from "@src/services/db/statsService";
-import { CosmosDistributionCommunityPoolResponse } from "@src/types/rest";
-import { CosmosBankSupplyResponse } from "@src/types/rest/cosmosBankSupplyResponse";
-import { CosmosDistributionParamsResponse } from "@src/types/rest/cosmosDistributionParamsResponse";
-import { CosmosMintInflationResponse } from "@src/types/rest/cosmosMintInflationResponse";
-import { CosmosStakingPoolResponse } from "@src/types/rest/cosmosStakingPoolResponse";
 import { toUTC } from "@src/utils";
-import { apiNodeUrl } from "@src/utils/constants";
 import { env } from "@src/utils/env";
 import { createLoggingExecutor } from "@src/utils/logging";
 import { GraphDataResponse } from "../../http-schemas/graph-data/graph-data.schema";
 
-const numberOrZero = (x: number | undefined | null) => (typeof x === "number" ? x : 0);
+const numberOrZero: (x: number | undefined | null) => number = (x: number | undefined | null) => (typeof x === "number" ? x : 0);
 
 const logger = LoggerService.forContext("StatsService");
 const runOrLog = createLoggingExecutor(logger);
@@ -36,8 +30,31 @@ type GpuUtilizationData = {
   node_count: number;
 };
 
+export const emptyNetworkCapacity = {
+  activeCPU: 0,
+  pendingCPU: 0,
+  availableCPU: 0,
+  activeGPU: 0,
+  pendingGPU: 0,
+  availableGPU: 0,
+  activeMemory: 0,
+  pendingMemory: 0,
+  availableMemory: 0,
+  activeStorage: 0,
+  pendingStorage: 0,
+  availableStorage: 0,
+  activeEphemeralStorage: 0,
+  pendingEphemeralStorage: 0,
+  availableEphemeralStorage: 0,
+  activePersistentStorage: 0,
+  pendingPersistentStorage: 0,
+  availablePersistentStorage: 0
+};
+
 @singleton()
 export class StatsService {
+  constructor(private readonly cosmosHttpService: CosmosHttpService) {}
+
   async getDashboardData() {
     const latestBlockStats = await Block.findOne({
       where: {
@@ -243,28 +260,31 @@ export class StatsService {
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   async getChainStats() {
     const bondedTokensAsPromised = await runOrLog(async () => {
-      const bondedTokensQuery = await axios.get<CosmosStakingPoolResponse>(`${apiNodeUrl}/cosmos/staking/v1beta1/pool`);
-      return parseInt(bondedTokensQuery.data.pool.bonded_tokens);
+      const stakingPool = await this.cosmosHttpService.getStakingPool();
+
+      return parseInt(stakingPool.bonded_tokens);
     }, 0);
 
     const totalSupplyAsPromised = await runOrLog(async () => {
-      const supplyQuery = await axios.get<CosmosBankSupplyResponse>(`${apiNodeUrl}/cosmos/bank/v1beta1/supply?pagination.limit=1000`);
-      return parseInt(supplyQuery.data.supply.find(x => x.denom === "uakt")?.amount || "0");
+      const supply = await this.cosmosHttpService.getBankSupply();
+
+      return parseInt(supply.find(x => x.denom === "uakt")?.amount || "0");
     }, 0);
 
     const communityPoolAsPromised = await runOrLog(async () => {
-      const communityPoolQuery = await axios.get<CosmosDistributionCommunityPoolResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
-      return parseFloat(communityPoolQuery.data.pool.find(x => x.denom === "uakt")?.amount || "0");
+      const pool = await this.cosmosHttpService.getCommunityPool();
+
+      return parseFloat(pool.find(x => x.denom === "uakt")?.amount || "0");
     }, 0);
 
     const inflationAsPromised = await runOrLog(async () => {
-      const inflationQuery = await axios.get<CosmosMintInflationResponse>(`${apiNodeUrl}/cosmos/mint/v1beta1/inflation`);
-      return parseFloat(inflationQuery.data.inflation || "0");
+      return await this.cosmosHttpService.getInflation();
     }, 0);
 
     const communityTaxAsPromised = await runOrLog(async () => {
-      const distributionQuery = await axios.get<CosmosDistributionParamsResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/params`);
-      return parseFloat(distributionQuery.data.params.community_tax || "0");
+      const params = await this.cosmosHttpService.getDistributionParams();
+
+      return parseFloat(params.community_tax || "0");
     }, 0);
 
     const [bondedTokens, totalSupply, communityPool, inflation, communityTax] = await Promise.all([
@@ -313,51 +333,29 @@ export class StatsService {
     });
 
     const filteredProviders = uniqBy(providers, provider => provider.hostUri);
-    const stats = filteredProviders.reduce(
-      (all, provider) => {
-        all.activeCPU += provider.lastSuccessfulSnapshot.activeCPU || 0;
-        all.pendingCPU += provider.lastSuccessfulSnapshot.pendingCPU || 0;
-        all.availableCPU += provider.lastSuccessfulSnapshot.availableCPU || 0;
+    const stats = filteredProviders.reduce((all, provider) => {
+      all.activeCPU += provider.lastSuccessfulSnapshot.activeCPU || 0;
+      all.pendingCPU += provider.lastSuccessfulSnapshot.pendingCPU || 0;
+      all.availableCPU += provider.lastSuccessfulSnapshot.availableCPU || 0;
 
-        all.activeGPU += provider.lastSuccessfulSnapshot.activeGPU || 0;
-        all.pendingGPU += provider.lastSuccessfulSnapshot.pendingGPU || 0;
-        all.availableGPU += provider.lastSuccessfulSnapshot.availableGPU || 0;
+      all.activeGPU += provider.lastSuccessfulSnapshot.activeGPU || 0;
+      all.pendingGPU += provider.lastSuccessfulSnapshot.pendingGPU || 0;
+      all.availableGPU += provider.lastSuccessfulSnapshot.availableGPU || 0;
 
-        all.activeMemory += provider.lastSuccessfulSnapshot.activeMemory || 0;
-        all.pendingMemory += provider.lastSuccessfulSnapshot.pendingMemory || 0;
-        all.availableMemory += provider.lastSuccessfulSnapshot.availableMemory || 0;
+      all.activeMemory += provider.lastSuccessfulSnapshot.activeMemory || 0;
+      all.pendingMemory += provider.lastSuccessfulSnapshot.pendingMemory || 0;
+      all.availableMemory += provider.lastSuccessfulSnapshot.availableMemory || 0;
 
-        all.activeEphemeralStorage += provider.lastSuccessfulSnapshot.activeEphemeralStorage || 0;
-        all.pendingEphemeralStorage += provider.lastSuccessfulSnapshot.pendingEphemeralStorage || 0;
-        all.availableEphemeralStorage += provider.lastSuccessfulSnapshot.availableEphemeralStorage || 0;
+      all.activeEphemeralStorage += provider.lastSuccessfulSnapshot.activeEphemeralStorage || 0;
+      all.pendingEphemeralStorage += provider.lastSuccessfulSnapshot.pendingEphemeralStorage || 0;
+      all.availableEphemeralStorage += provider.lastSuccessfulSnapshot.availableEphemeralStorage || 0;
 
-        all.activePersistentStorage += provider.lastSuccessfulSnapshot.activePersistentStorage || 0;
-        all.pendingPersistentStorage += provider.lastSuccessfulSnapshot.pendingPersistentStorage || 0;
-        all.availablePersistentStorage += provider.lastSuccessfulSnapshot.availablePersistentStorage || 0;
+      all.activePersistentStorage += provider.lastSuccessfulSnapshot.activePersistentStorage || 0;
+      all.pendingPersistentStorage += provider.lastSuccessfulSnapshot.pendingPersistentStorage || 0;
+      all.availablePersistentStorage += provider.lastSuccessfulSnapshot.availablePersistentStorage || 0;
 
-        return all;
-      },
-      {
-        activeCPU: 0,
-        pendingCPU: 0,
-        availableCPU: 0,
-        activeGPU: 0,
-        pendingGPU: 0,
-        availableGPU: 0,
-        activeMemory: 0,
-        pendingMemory: 0,
-        availableMemory: 0,
-        activeStorage: 0,
-        pendingStorage: 0,
-        availableStorage: 0,
-        activeEphemeralStorage: 0,
-        pendingEphemeralStorage: 0,
-        availableEphemeralStorage: 0,
-        activePersistentStorage: 0,
-        pendingPersistentStorage: 0,
-        availablePersistentStorage: 0
-      }
-    );
+      return all;
+    }, emptyNetworkCapacity);
 
     stats.activeStorage = stats.activeEphemeralStorage + stats.activePersistentStorage;
     stats.pendingStorage = stats.pendingEphemeralStorage + stats.pendingPersistentStorage;

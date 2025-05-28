@@ -2,11 +2,12 @@ import { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/data
 import { AddressReference, Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { singleton } from "tsyringe";
 
+import { GetTransactionByHashResponse, ListTransactionsResponse } from "@src/transaction/http-schemas/transaction.schema";
 import { msgToJSON } from "@src/utils/protobuf";
 
 @singleton()
 export class TransactionRepository {
-  async getTransactions(limit: number) {
+  async getTransactions(limit: number): Promise<ListTransactionsResponse> {
     const _limit = Math.min(limit, 100);
     const transactions = await Transaction.findAll({
       order: [
@@ -27,7 +28,7 @@ export class TransactionRepository {
 
     return transactions.map(tx => ({
       height: tx.block.height,
-      datetime: tx.block.datetime,
+      datetime: tx.block.datetime.toISOString(),
       hash: tx.hash,
       isSuccess: !tx.hasProcessingError,
       error: tx.hasProcessingError ? tx.log : null,
@@ -43,7 +44,7 @@ export class TransactionRepository {
     }));
   }
 
-  async getTransactionByHash(hash: string) {
+  async getTransactionByHash(hash: string): Promise<GetTransactionByHashResponse> | null {
     const tx = await Transaction.findOne({
       where: {
         hash
@@ -76,7 +77,7 @@ export class TransactionRepository {
 
     return {
       height: tx.block.height,
-      datetime: tx.block.datetime,
+      datetime: tx.block.datetime.toISOString(),
       hash: tx.hash,
       isSuccess: !tx.hasProcessingError,
       multisigThreshold: tx.multisigThreshold,
