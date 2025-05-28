@@ -47,6 +47,7 @@ import {
   auditorsRouter,
   providerAttributesSchemaRouter,
   providerDashboardRouter,
+  providerDeploymentsRouter,
   providerGraphDataRouter,
   providerRegionsRouter,
   providersRouter,
@@ -114,6 +115,7 @@ appHono.route("/", providerRegionsRouter);
 appHono.route("/", providerDashboardRouter);
 appHono.route("/", providerVersionsRouter);
 appHono.route("/", providerGraphDataRouter);
+appHono.route("/", providerDeploymentsRouter);
 
 appHono.route("/", notificationsApiProxy);
 
