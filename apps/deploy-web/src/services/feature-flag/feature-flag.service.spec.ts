@@ -8,50 +8,84 @@ import type { ServerEnvConfig } from "@src/config/env-config.schema";
 import { FeatureFlagService } from "./feature-flag.service";
 
 describe(FeatureFlagService.name, () => {
-  it("returns true if config enables all", async () => {
-    const { service } = setup({ enableAll: true });
-    const result = await service.getFlag("test-flag");
-    expect(result).toBe(true);
+  describe("getFlag", () => {
+    it("returns true if config enables all", async () => {
+      const { service } = setup({ enableAll: true });
+      const result = await service.getFlag("test-flag");
+      expect(result).toBe(true);
+    });
+
+    it("evaluates flag and returns true", async () => {
+      const { service, unleash, flagsClient } = setup();
+      flagsClient.isEnabled.mockReturnValue(true);
+
+      const result = await service.getFlag("feature-x", "abc123");
+
+      expect(unleash.getDefinitions).toHaveBeenCalled();
+      expect(unleash.evaluateFlags).toHaveBeenCalled();
+      expect(unleash.flagsClient).toHaveBeenCalled();
+      expect(flagsClient.isEnabled).toHaveBeenCalledWith("feature-x");
+      expect(result).toBe(true);
+    });
   });
 
-  it("evaluates flag and returns true", async () => {
-    const { service, unleash, flagsClient } = setup();
-    flagsClient.isEnabled.mockReturnValue(true);
+  describe("extractSessionId", () => {
+    it("extracts session ID from cookies", () => {
+      const { service } = setup();
+      const ctx = createCtx("unleash-session-id=session123; foo=bar");
+      expect(service.extractSessionId(ctx)).toBe("session123");
+    });
 
-    const result = await service.getFlag("feature-x", "abc123");
-
-    expect(unleash.getDefinitions).toHaveBeenCalled();
-    expect(unleash.evaluateFlags).toHaveBeenCalled();
-    expect(unleash.flagsClient).toHaveBeenCalled();
-    expect(flagsClient.isEnabled).toHaveBeenCalledWith("feature-x");
-    expect(result).toBe(true);
+    it("returns undefined when session ID is missing", () => {
+      const { service } = setup();
+      const ctx = createCtx("foo=bar; test=value");
+      expect(service.extractSessionId(ctx)).toBeUndefined();
+    });
   });
 
-  it("extracts session ID from cookies", () => {
-    const { service } = setup();
-    const ctx = createCtx("unleash-session-id=session123; foo=bar");
-    expect(service.extractSessionId(ctx)).toBe("session123");
+  describe("isEnabledForCtx", () => {
+    it("returns true if config enables all", async () => {
+      const { service } = setup({ enableAll: true });
+      const result = await service.isEnabledForCtx("my-flag", createCtx(""));
+      expect(result).toBe(true);
+    });
+
+    it("evaluates flag and returns result", async () => {
+      const { service } = setup();
+      const getFlagSpy = jest.spyOn(service, "getFlag").mockResolvedValue(true);
+      const ctx = createCtx("unleash-session-id=abc123");
+
+      const result = await service.isEnabledForCtx("my-flag", ctx);
+
+      expect(service.extractSessionId).toHaveBeenCalledWith(ctx);
+      expect(getFlagSpy).toHaveBeenCalledWith("my-flag", "abc123");
+      expect(result).toBe(true);
+    });
   });
 
-  it("returns undefined when session ID is missing", () => {
-    const { service } = setup();
-    const ctx = createCtx("foo=bar; test=value");
-    expect(service.extractSessionId(ctx)).toBeUndefined();
+  describe("showIfEnabled", () => {
+    it("returns props if flag is enabled", async () => {
+      const { service } = setup();
+      jest.spyOn(service, "isEnabledForCtx").mockResolvedValue(true);
+
+      const result = await service.showIfEnabled("my-flag")(createCtx(""));
+
+      expect(service.isEnabledForCtx).toHaveBeenCalledWith("my-flag", expect.anything());
+      expect(result).toEqual({ props: {} });
+    });
+
+    it("returns notFound if flag is disabled", async () => {
+      const { service } = setup();
+      jest.spyOn(service, "isEnabledForCtx").mockResolvedValue(false);
+
+      const result = await service.showIfEnabled("my-flag")(createCtx(""));
+
+      expect(service.isEnabledForCtx).toHaveBeenCalledWith("my-flag", expect.anything());
+      expect(result).toEqual({ notFound: true });
+    });
   });
 
-  it("returns props if flag is enabled", async () => {
-    const { service } = setup({ getFlagResult: true });
-    const result = await service.showIfEnabled("my-flag")(createCtx("unleash-session-id=abc"));
-    expect(result).toEqual({ props: {} });
-  });
-
-  it("returns notFound if flag is disabled", async () => {
-    const { service } = setup({ getFlagResult: false });
-    const result = await service.showIfEnabled("my-flag")(createCtx("unleash-session-id=abc"));
-    expect(result).toEqual({ notFound: true });
-  });
-
-  function setup(options?: { enableAll?: boolean; isEnabled?: jest.Mock; getFlagResult?: boolean }): {
+  function setup(options?: { enableAll?: boolean; isEnabled?: jest.Mock }): {
     service: FeatureFlagService;
     unleash: typeof unleashModule;
     flagsClient: MockProxy<UnleashClient>;
@@ -69,10 +103,7 @@ describe(FeatureFlagService.name, () => {
     } as ServerEnvConfig;
 
     const service = new FeatureFlagService(unleash, config);
-
-    if (typeof options?.getFlagResult === "boolean") {
-      jest.spyOn(service, "getFlag").mockResolvedValue(options.getFlagResult);
-    }
+    jest.spyOn(service, "extractSessionId");
 
     return { service, unleash, flagsClient };
   }
