@@ -1,5 +1,12 @@
 
 
+## [2.77.7](https://github.com/akash-network/console/compare/console-web/v2.77.6...console-web/v2.77.7) (2025-05-28)
+
+
+### Bug Fixes
+
+* **notifications:** allows alert pages to registered users only ([5b27148](https://github.com/akash-network/console/commit/5b271488c9e4839917dd48998ed10cf0086b1006))
+
 ## [2.77.6](https://github.com/akash-network/console/compare/console-web/v2.77.5...console-web/v2.77.6) (2025-05-28)
 
 
