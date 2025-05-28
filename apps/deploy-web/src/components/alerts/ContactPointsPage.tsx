@@ -6,6 +6,8 @@ import Link from "next/link";
 import { NextSeo } from "next-seo";
 
 import { AlertsLayout, AlertTabs } from "@src/components/alerts/AlertsLayout";
+import { ContactPointsListContainer } from "@src/components/alerts/ContactPointsListContainer/ContactPointsListContainer";
+import { ContactPointsListView } from "@src/components/alerts/ContactPointsListView/ContactPointsListView";
 import Layout from "@src/components/layout/Layout";
 
 export const ContactPointsPage: React.FunctionComponent = () => {
@@ -23,7 +25,9 @@ export const ContactPointsPage: React.FunctionComponent = () => {
             </Link>
           </div>
         }
-      />
+      >
+        <ContactPointsListContainer>{props => <ContactPointsListView {...props} />}</ContactPointsListContainer>
+      </AlertsLayout>
     </Layout>
   );
 };
