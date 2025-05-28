@@ -37,7 +37,12 @@ export class BrokerService {
     await this.boss.subscribe(eventName, queueName);
 
     await Promise.all(
-      Array.from({ length: options.prefetchCount }).map(() => this.boss.work(queueName, (messages: PgBoss.Job<ReqData>[]) => handler(messages[0])))
+      Array.from({ length: options.prefetchCount }).map(() =>
+        this.boss.work(queueName, async ([job]: PgBoss.Job<ReqData>[]) => {
+          await handler(job);
+          await this.boss.deleteJob(queueName, job.id);
+        })
+      )
     );
     this.logger.log({ event: "WORKER_STARTED", queueName, options });
   }
