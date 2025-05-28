@@ -1,5 +1,12 @@
 
 
+## [2.77.5](https://github.com/akash-network/console/compare/console-web/v2.77.4...console-web/v2.77.5) (2025-05-28)
+
+
+### Bug Fixes
+
+* **notifications:** improves interface loading and deps management  ([c9cd03a](https://github.com/akash-network/console/commit/c9cd03aa67a5e62ac43edcc9f819600e5e179dce))
+
 ## [2.77.4](https://github.com/akash-network/console/compare/console-web/v2.77.3...console-web/v2.77.4) (2025-05-28)
 
 
