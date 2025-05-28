@@ -1,5 +1,33 @@
 
 
+## [2.77.6](https://github.com/akash-network/console/compare/console-web/v2.77.5...console-web/v2.77.6) (2025-05-28)
+
+
+### Bug Fixes
+
+* extracts injected config into a hook ([#1386](https://github.com/akash-network/console/issues/1386)) ([7ecfdad](https://github.com/akash-network/console/commit/7ecfdad29a6cbbf93e872938a3c72e255f14281f))
+
+## [2.77.5](https://github.com/akash-network/console/compare/console-web/v2.77.4...console-web/v2.77.5) (2025-05-28)
+
+
+### Bug Fixes
+
+* **notifications:** improves interface loading and deps management  ([c9cd03a](https://github.com/akash-network/console/commit/c9cd03aa67a5e62ac43edcc9f819600e5e179dce))
+
+## [2.77.4](https://github.com/akash-network/console/compare/console-web/v2.77.3...console-web/v2.77.4) (2025-05-28)
+
+
+### Bug Fixes
+
+* update auth0 audience and issuer ([#1382](https://github.com/akash-network/console/issues/1382)) ([6e66727](https://github.com/akash-network/console/commit/6e667277a8c4f9ed787bcdc2094377fe4ae625b1))
+
+## [2.77.3](https://github.com/akash-network/console/compare/console-web/v2.77.2...console-web/v2.77.3) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** builds notifications image w/o nginx ([d68bf9a](https://github.com/akash-network/console/commit/d68bf9a94c118aa65656e15924163ba9d54a4e2b))
+
 ## [2.77.2](https://github.com/akash-network/console/compare/console-web/v2.77.1...console-web/v2.77.2) (2025-05-26)
 
 

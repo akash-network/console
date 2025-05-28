@@ -1,5 +1,19 @@
 
 
+## [0.24.3](https://github.com/akash-network/console/compare/stats-web/v0.24.2...stats-web/v0.24.3) (2025-05-28)
+
+
+### Bug Fixes
+
+* **notifications:** improves interface loading and deps management  ([c9cd03a](https://github.com/akash-network/console/commit/c9cd03aa67a5e62ac43edcc9f819600e5e179dce))
+
+## [0.24.2](https://github.com/akash-network/console/compare/stats-web/v0.24.1...stats-web/v0.24.2) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** builds notifications image w/o nginx ([d68bf9a](https://github.com/akash-network/console/commit/d68bf9a94c118aa65656e15924163ba9d54a4e2b))
+
 ## [0.24.1](https://github.com/akash-network/console/compare/stats-web/v0.24.0...stats-web/v0.24.1) (2025-05-26)
 
 

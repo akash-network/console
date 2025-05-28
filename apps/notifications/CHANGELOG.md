@@ -1,5 +1,54 @@
 
 
+## [1.2.0](https://github.com/akash-network/console/compare/notifications/v1.1.7...notifications/v1.2.0) (2025-05-28)
+
+
+### Features
+
+* **notifications:** cleans up successful jobs ([b6f7ed0](https://github.com/akash-network/console/commit/b6f7ed0002b4c5ed4a53159b5745085aa6d72538))
+
+## [1.1.7](https://github.com/akash-network/console/compare/notifications/v1.1.6...notifications/v1.1.7) (2025-05-28)
+
+
+### Bug Fixes
+
+* **notifications:** improves interface loading and deps management  ([c9cd03a](https://github.com/akash-network/console/commit/c9cd03aa67a5e62ac43edcc9f819600e5e179dce))
+
+## [1.1.6](https://github.com/akash-network/console/compare/notifications/v1.1.5...notifications/v1.1.6) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** points migrator to the proper migrations dir ([f124409](https://github.com/akash-network/console/commit/f1244091492c60001e30ca9ced3c26cd926aa5f4))
+
+## [1.1.5](https://github.com/akash-network/console/compare/notifications/v1.1.4...notifications/v1.1.5) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** adds migrations to the build ([cf74792](https://github.com/akash-network/console/commit/cf74792f824ee7ce8cf1859c72b0e1690e8365ea))
+
+## [1.1.4](https://github.com/akash-network/console/compare/notifications/v1.1.3...notifications/v1.1.4) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** adds db migrator to the prod deps  ([9ed7888](https://github.com/akash-network/console/commit/9ed78887e58147a493645b339f466118f977a6f9))
+
+## [1.1.3](https://github.com/akash-network/console/compare/notifications/v1.1.2...notifications/v1.1.3) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** separates db init from migrations ([821f2f1](https://github.com/akash-network/console/commit/821f2f162e19ef3df4e61e563a569d943322763d))
+
+## [1.1.2](https://github.com/akash-network/console/compare/notifications/v1.1.1...notifications/v1.1.2) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** builds notifications image w/o nginx ([d68bf9a](https://github.com/akash-network/console/commit/d68bf9a94c118aa65656e15924163ba9d54a4e2b))
+
 ## [1.1.1](https://github.com/akash-network/console/compare/notifications/v1.1.0...notifications/v1.1.1) (2025-05-26)
 
 

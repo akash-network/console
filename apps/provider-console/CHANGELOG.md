@@ -1,5 +1,19 @@
 
 
+## [1.11.3](https://github.com/akash-network/console/compare/provider-console/v1.11.2...provider-console/v1.11.3) (2025-05-28)
+
+
+### Bug Fixes
+
+* update auth0 audience and issuer ([#1382](https://github.com/akash-network/console/issues/1382)) ([6e66727](https://github.com/akash-network/console/commit/6e667277a8c4f9ed787bcdc2094377fe4ae625b1))
+
+## [1.11.2](https://github.com/akash-network/console/compare/provider-console/v1.11.1...provider-console/v1.11.2) (2025-05-27)
+
+
+### Bug Fixes
+
+* **release:** builds notifications image w/o nginx ([d68bf9a](https://github.com/akash-network/console/commit/d68bf9a94c118aa65656e15924163ba9d54a4e2b))
+
 ## [1.11.1](https://github.com/akash-network/console/compare/provider-console/v1.11.0...provider-console/v1.11.1) (2025-05-26)
 
 

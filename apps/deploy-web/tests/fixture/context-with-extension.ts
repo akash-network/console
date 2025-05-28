@@ -37,6 +37,7 @@ export const test = baseTest.extend<{
     });
 
     await use(context);
+    await context.close();
   },
   extensionId: async ({ context }, use) => {
     let [background] = context.serviceWorkers();
@@ -48,6 +49,12 @@ export const test = baseTest.extend<{
     await use(extensionId);
   },
   page: async ({ context, extensionId }, use) => {
+    try {
+      await context.waitForEvent("page", { timeout: 5000 });
+    } catch {
+      // ignore timeout error
+    }
+
     const extUrl = `chrome-extension://${extensionId}/index.html`;
     let extPage = context.pages().find(page => page.url().startsWith(extUrl));
 

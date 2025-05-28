@@ -14,7 +14,7 @@ services:
     build:
       context: ../..
       dockerfile: packages/docker/Dockerfile.node
-      target: production-nginx
+      target: production
       args:
         WORKSPACE: apps/notifications
 

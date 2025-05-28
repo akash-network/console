@@ -1,7 +1,7 @@
 const nodeExternals = require("webpack-node-externals");
 const CopyPlugin = require("copy-webpack-plugin");
 const packageDetails = require("./package.json");
-const { dirname } = require("path");
+const { dirname, join } = require("path");
 
 /**
  * @param {import('webpack').Configuration} options
@@ -13,7 +13,8 @@ module.exports = options => ({
   devtool: "source-map",
   externals: [
     nodeExternals({
-      allowlist: Object.keys(packageDetails.dependencies).filter(name => name.startsWith("@akashnetwork/") && packageDetails.dependencies[name] === "*")
+      allowlist: Object.keys(packageDetails.dependencies).filter(name => name.startsWith("@akashnetwork/") && packageDetails.dependencies[name] === "*"),
+      additionalModuleDirs: [join(__dirname, "..", "..", "node_modules")]
     })
   ],
   plugins: [
@@ -23,7 +24,9 @@ module.exports = options => ({
         {
           from: dirname(require.resolve("swagger-ui-dist/package.json")),
           to: "swagger-ui-dist"
-        }
+        },
+        { from: "drizzle", to: "drizzle" },
+        { from: "drizzle.config.js", to: "drizzle/drizzle.config.js" }
       ]
     })
   ]
