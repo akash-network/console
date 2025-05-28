@@ -1,5 +1,12 @@
 
 
+## [1.12.0](https://github.com/akash-network/console/compare/provider-console/v1.11.3...provider-console/v1.12.0) (2025-05-28)
+
+
+### Features
+
+* **contact-point:** implements list ui ([b9d8c24](https://github.com/akash-network/console/commit/b9d8c24eb826897a4462949503b30ef6134a3bc7))
+
 ## [1.11.3](https://github.com/akash-network/console/compare/provider-console/v1.11.2...provider-console/v1.11.3) (2025-05-28)
 
 
