@@ -1,5 +1,12 @@
 
 
+## [1.12.1](https://github.com/akash-network/console/compare/provider-console/v1.12.0...provider-console/v1.12.1) (2025-05-28)
+
+
+### Bug Fixes
+
+* **provider:** changed internal to v1 for provider-dashboard api call ([#1398](https://github.com/akash-network/console/issues/1398)) ([d9ee9e6](https://github.com/akash-network/console/commit/d9ee9e6cfd8c292ae24a375022689bb3a54abfab))
+
 ## [1.12.0](https://github.com/akash-network/console/compare/provider-console/v1.11.3...provider-console/v1.12.0) (2025-05-28)
 
 
