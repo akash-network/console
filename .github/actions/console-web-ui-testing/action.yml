@@ -75,6 +75,14 @@ runs:
             pr = response.data[0];
           }
 
+          if (!pr.merged_by) {
+            pr = await github.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+            });
+          }
+
           console.dir(pr, { depth: null });
           core.setOutput('number', pr.number);
           core.setOutput('title', pr.title);
