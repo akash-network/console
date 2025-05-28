@@ -1,5 +1,12 @@
 
 
+## [2.77.6](https://github.com/akash-network/console/compare/console-web/v2.77.5...console-web/v2.77.6) (2025-05-28)
+
+
+### Bug Fixes
+
+* extracts injected config into a hook ([#1386](https://github.com/akash-network/console/issues/1386)) ([7ecfdad](https://github.com/akash-network/console/commit/7ecfdad29a6cbbf93e872938a3c72e255f14281f))
+
 ## [2.77.5](https://github.com/akash-network/console/compare/console-web/v2.77.4...console-web/v2.77.5) (2025-05-28)
 
 
