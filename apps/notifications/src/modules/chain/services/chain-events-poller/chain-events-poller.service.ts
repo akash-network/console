@@ -6,6 +6,7 @@ import { backOff } from "exponential-backoff";
 import { BehaviorSubject, filter, firstValueFrom } from "rxjs";
 import { setTimeout as delay } from "timers/promises";
 
+import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { ShutdownService } from "@src/common/services/shutdown/shutdown.service";
 import { BrokerService } from "@src/infrastructure/broker";
@@ -91,7 +92,7 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
 
       await this.brokerService.publishAll([
         {
-          eventName: "blockchain.v1.block.created",
+          eventName: eventKeyRegistry.blockCreated,
           event: {
             height: block.height
           }

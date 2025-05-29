@@ -6,6 +6,7 @@ import { Test } from "@nestjs/testing";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import nock from "nock";
 
+import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService } from "@src/infrastructure/broker";
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import AlertEventsModule from "@src/interfaces/alert-events/alert-events.module";
@@ -97,7 +98,7 @@ describe("balance alerts", () => {
 
     expect(alertsProcessed).toBe(1);
     expect(brokerService.publish).toHaveBeenCalledTimes(1);
-    expect(brokerService.publish).toHaveBeenCalledWith("notifications.v1.notification.send", {
+    expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, {
       contactPointId: contactPoint.id,
       payload: {
         summary: `[FIRING] deployment low: ${matchingDseq}`,
