@@ -20,8 +20,16 @@ interface StripePrices {
 @singleton()
 export class StripeService extends Stripe {
   constructor(private readonly billingConfig: BillingConfigService) {
-    super(process.env.STRIPE_SECRET_KEY, {
+    super(billingConfig.get("STRIPE_SECRET_KEY"), {
       apiVersion: "2024-06-20"
+    });
+  }
+
+  async createSetupIntent(customerId: string) {
+    return await this.setupIntents.create({
+      customer: customerId,
+      payment_method_types: ["card"],
+      usage: "off_session"
     });
   }
 
@@ -70,5 +78,13 @@ export class StripeService extends Stripe {
     }));
 
     return orderBy(responsePrices, ["isCustom", "unitAmount"], ["asc", "asc"]);
+  }
+
+  async getPaymentMethods(customerId: string) {
+    const paymentMethods = await this.paymentMethods.list({
+      customer: customerId,
+      type: "card"
+    });
+    return paymentMethods.data;
   }
 }
