@@ -58,6 +58,8 @@ jobs:
             git_tag="stats-web/v$git_tag"
           elif [ "${{ inputs.app }}" = "notifications" ]; then
             git_tag="notifications/v$git_tag"
+          elif [ "${{ inputs.app }}" = "indexer" ]; then
+            git_tag="indexer/v$git_tag"
           else
             echo "Error: Unsupported app type '${{ inputs.app }}'."
             exit 1
