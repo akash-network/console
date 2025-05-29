@@ -66,5 +66,6 @@ export class DeployBasePage {
     await popupPage.waitForLoadState("domcontentloaded");
     await popupPage.locator(`input[name="fee"][type="radio"][value="${feeType}"]`).click();
     await popupPage.getByRole("button", { name: "Approve" }).click();
+    await this.page.getByText(/Transaction success/).waitFor({ state: "visible", timeout: 10_000 });
   }
 }
