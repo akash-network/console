@@ -1,5 +1,12 @@
 
 
+## [1.2.2](https://github.com/akash-network/console/compare/notifications/v1.2.1...notifications/v1.2.2) (2025-05-29)
+
+
+### Bug Fixes
+
+* **notifications:** properly names send queue ([dabb2e5](https://github.com/akash-network/console/commit/dabb2e51331011a765532ff20d5da90a635e2556))
+
 ## [1.2.1](https://github.com/akash-network/console/compare/notifications/v1.2.0...notifications/v1.2.1) (2025-05-28)
 
 
