@@ -1,5 +1,12 @@
 
 
+## [2.78.1](https://github.com/akash-network/console/compare/console-web/v2.78.0...console-web/v2.78.1) (2025-05-29)
+
+
+### Code Refactoring
+
+* **contact-point:** decouple list components, rename pagination methods  ([7b9d620](https://github.com/akash-network/console/commit/7b9d62072118352399debae136ae8b5554142e19))
+
 ## [2.78.0](https://github.com/akash-network/console/compare/console-web/v2.77.7...console-web/v2.78.0) (2025-05-28)
 
 
