@@ -91,7 +91,7 @@ Indexers are defined in the `/src/indexers` directory. Some are cosmos generic a
 
 To track a new data point based on incoming blocks you need to create a new indexer file and extand the `Indexer` class.
 
-Here are the properties/methods that can be overriden:
+Here are the properties/methods that can be overriden :
 
 - `msgHandlers` - Property mapping msg type (ex: `/akash.market.v1beta1.MsgCreateLease`) to a message handler. During syncing the message handlers will be called with the decoded message, the height and the Message db entity.
 - `initCache()` - Can be used to load data in cache before syncing. It will be called once at each start of the application.
