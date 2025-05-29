@@ -136,14 +136,24 @@ describe("ContactPointsListContainer", () => {
                     </span>
                     <button
                       data-testid="prev-page-button"
-                      onClick={() => onPaginationChange(pagination.page - 1, pagination.limit)}
+                      onClick={() =>
+                        onPaginationChange({
+                          page: pagination.page - 1,
+                          limit: pagination.limit
+                        })
+                      }
                       disabled={pagination.page <= 1}
                     >
                       Previous
                     </button>
                     <button
                       data-testid="next-page-button"
-                      onClick={() => onPaginationChange(pagination.page, pagination.limit)}
+                      onClick={() =>
+                        onPaginationChange({
+                          page: pagination.page + 1,
+                          limit: pagination.limit
+                        })
+                      }
                       disabled={pagination.page >= pagination.totalPages}
                     >
                       Next
