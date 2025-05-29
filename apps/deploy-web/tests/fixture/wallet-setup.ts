@@ -96,7 +96,14 @@ async function importWalletToLeap(context: BrowserContext, page: Page) {
 async function topUpWallet(wallet: DirectSecp256k1HdWallet) {
   try {
     const accounts = await wallet.getAccounts();
-    const response = await fetch("https://faucet.sandbox-01.aksh.pw/faucet", {
+    const balance = await getBalance(accounts[0].address);
+
+    if (balance > 100 * 1_000_000) {
+      // 100 AKT should be enough
+      return;
+    }
+
+    const response = await fetch(testEnvConfig.FAUCET_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
@@ -111,4 +118,10 @@ async function topUpWallet(wallet: DirectSecp256k1HdWallet) {
     console.error("Unable to top up wallet");
     console.error(error);
   }
+}
+
+async function getBalance(address: string) {
+  const response = await fetch(`${testEnvConfig.CHAIN_API_URL}/cosmos/bank/v1beta1/balances/${address}`);
+  const data = await response.json();
+  return data.balances.find((balance: Record<string, string>) => balance.denom === "uakt")?.amount || 0;
 }

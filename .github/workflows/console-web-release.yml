@@ -40,7 +40,7 @@ jobs:
       environment: staging
 
   test-beta:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: deploy-beta
     steps:
       - uses: actions/checkout@v4
@@ -51,6 +51,7 @@ jobs:
           test-wallet-mnemonic: ${{ secrets.CONSOLE_WEB_E2E_TEST_WALLET_MNEMONIC }}
           gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
           ui-config-signature-private-key: ${{ secrets.CONSOLE_WEB_E2E_TEST_UI_CONFIG_SIGNATURE_PRIVATE_KEY_BETA }}
+
   build-prod:
     needs: release
     name: Build Prod Docker image
