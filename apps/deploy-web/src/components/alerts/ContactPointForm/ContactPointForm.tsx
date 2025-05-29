@@ -1,4 +1,5 @@
 import type { FC } from "react";
+import { useEffect } from "react";
 import React from "react";
 import { useMemo } from "react";
 import { useState } from "react";
@@ -13,33 +14,33 @@ import { z } from "zod";
 
 const formSchema = z.object({
   name: z.string().min(1).max(100),
-  emails: z.preprocess(
-    value => {
-      if (typeof value !== "string") return [];
-      return value
-        .split(",")
-        .map(email => email.trim())
-        .filter(Boolean);
-    },
-    z
-      .array(z.string())
-      .min(1, "At least one email is required")
-      .superRefine((emails, ctx) => {
-        const invalids = emails.filter(email => !z.string().email().safeParse(email).success);
-        if (invalids.length > 0) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "One or more email addresses are invalid."
-          });
+  emails: z
+    .string()
+    .min(1, "At least one email is required")
+    .refine(
+      value => {
+        const emailArray = value
+          .split(",")
+          .map(email => email.trim())
+          .filter(Boolean);
+
+        if (emailArray.length === 0) {
+          return false;
         }
-      })
-  )
+
+        const invalids = emailArray.filter(email => !z.string().email().safeParse(email).success);
+        return invalids.length === 0;
+      },
+      {
+        message: "One or more email addresses are invalid."
+      }
+    )
 });
 type FormValues = z.infer<typeof formSchema>;
 
 export interface ContactPointFormProps {
   values?: FormValues;
-  onSubmit: (data: FormValues) => void;
+  onSubmit: (data: Pick<FormValues, "name"> & { emails: string[] }) => void;
   onCancel?: () => void;
   isLoading?: boolean;
 }
@@ -53,7 +54,7 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
       Object.assign(
         {
           name: "",
-          emails: []
+          emails: ""
         },
         props.values
       ),
@@ -62,15 +63,30 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
 
   const form = useForm<FormValues>({
     defaultValues: initialValues,
+    reValidateMode: "onSubmit",
     resolver: zodResolver(formSchema)
   });
+
+  useEffect(() => {
+    const isEmptyForm = Object.values(form.getValues()).every(value => !value);
+
+    if (props.values && isEmptyForm) {
+      form.reset(props.values);
+    }
+  }, [form, props.values]);
 
   const { control, handleSubmit } = form;
 
   const onSubmit = useCallback(
     async (values: FormValues) => {
       try {
-        props.onSubmit(values);
+        props.onSubmit({
+          ...values,
+          emails: values.emails
+            .split(",")
+            .map(email => email.trim())
+            .filter(Boolean)
+        });
       } catch (err) {
         setError("Failed to create contact point. Please try again.");
       }
