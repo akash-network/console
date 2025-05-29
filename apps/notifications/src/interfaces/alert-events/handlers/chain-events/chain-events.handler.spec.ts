@@ -3,6 +3,7 @@ import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
 
+import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService } from "@src/infrastructure/broker";
 import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created.dto";
 import { MsgCloseDeploymentDto } from "@src/modules/alert/dto/msg-close-deployment.dto";
@@ -25,7 +26,7 @@ describe(ChainEventsHandler.name, () => {
       await controller.processDeploymentClosed(mockEvent);
 
       expect(chainMessageAlertService.alertFor).toHaveBeenCalledWith(mockEvent, expect.any(Function));
-      expect(brokerService.publish).toHaveBeenCalledWith("notifications.v1.notification.send", alertMessage);
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, alertMessage);
     });
   });
 
@@ -40,7 +41,7 @@ describe(ChainEventsHandler.name, () => {
       await controller.processBlock(mockBlock);
 
       expect(deploymentBalanceAlertsService.alertFor).toHaveBeenCalledWith(mockBlock, expect.any(Function));
-      expect(brokerService.publish).toHaveBeenCalledWith("notifications.v1.notification.send", alertMessage);
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, alertMessage);
     });
   });
 

@@ -1,6 +1,6 @@
-import { MsgCloseDeployment } from "@akashnetwork/akash-api/v1beta3";
 import { Injectable } from "@nestjs/common";
 
+import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService, Handler } from "@src/infrastructure/broker";
 import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created.dto";
 import { MsgCloseDeploymentDto } from "@src/modules/alert/dto/msg-close-deployment.dto";
@@ -16,18 +16,18 @@ export class ChainEventsHandler {
   ) {}
 
   @Handler({
-    key: "blockchain.v1.block.created",
+    key: eventKeyRegistry.blockCreated,
     dto: ChainBlockCreatedDto
   })
   async processBlock(block: ChainBlockCreatedDto) {
-    await this.deploymentBalanceAlertsService.alertFor(block, message => this.brokerService.publish("notifications.v1.notification.send", message));
+    await this.deploymentBalanceAlertsService.alertFor(block, message => this.brokerService.publish(eventKeyRegistry.createNotification, message));
   }
 
   @Handler({
-    key: MsgCloseDeployment["$type"],
+    key: eventKeyRegistry.msgCloseDeployment,
     dto: MsgCloseDeploymentDto
   })
   async processDeploymentClosed(event: MsgCloseDeploymentDto) {
-    await this.chainMessageAlertService.alertFor(event, message => this.brokerService.publish("notifications.v1.notification.send", message));
+    await this.chainMessageAlertService.alertFor(event, message => this.brokerService.publish(eventKeyRegistry.createNotification, message));
   }
 }
