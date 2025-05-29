@@ -5,14 +5,25 @@ import React from "react";
 import { useCallback, useState } from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 
-import type { ContactPointsListViewProps } from "@src/components/alerts/ContactPointsListView/ContactPointsListView";
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
 
-export type ContactPoint = components["schemas"]["ContactPointOutput"]["data"];
+type ContactPoint = components["schemas"]["ContactPointOutput"]["data"];
+type ContactPointsInput = components["schemas"]["ContactPointListOutput"]["data"];
+type ContactPointsPagination = components["schemas"]["ContactPointListOutput"]["pagination"];
+
+type ChildrenProps = {
+  data: ContactPointsInput;
+  pagination: Pick<ContactPointsPagination, "page" | "limit" | "total" | "totalPages">;
+  isLoading: boolean;
+  removingIds: Set<ContactPoint["id"]>;
+  onRemove: (id: ContactPoint["id"]) => Promise<void>;
+  onPaginationChange: (state: { page: number; limit: number }) => void;
+  isError: boolean;
+};
 
 type ContactPointsListContainerProps = {
-  children: (props: ContactPointsListViewProps) => ReactNode;
+  children: (props: ChildrenProps) => ReactNode;
 };
 
 export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = ({ children }) => {
@@ -62,9 +73,9 @@ export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = (
     [mutation, data?.data.length, page, refetch, notificator]
   );
 
-  const changePage = useCallback((page: number, pageSize: number) => {
-    setPage(page + 1);
-    setLimit(pageSize);
+  const changePage = useCallback(({ page, limit }: { page: number; limit: number }) => {
+    setPage(page);
+    setLimit(limit);
   }, []);
 
   return (
@@ -77,7 +88,7 @@ export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = (
           totalPages: data?.pagination.totalPages ?? 0
         },
         data: data?.data || [],
-        onPageChange: changePage,
+        onPaginationChange: changePage,
         onRemove: remove,
         removingIds,
         isLoading,

@@ -116,7 +116,7 @@ describe("ContactPointsListContainer", () => {
         <ServicesProvider services={services}>
           <QueryClientProvider client={queryClient}>
             <ContactPointsListContainer>
-              {({ data, pagination, onPageChange, removingIds, isLoading, isError, onRemove }) => (
+              {({ data, pagination, onPaginationChange, removingIds, isLoading, isError, onRemove }) => (
                 <div>
                   {isLoading && <div>Loading...</div>}
                   {isError && <div>Error loading contact points</div>}
@@ -134,12 +134,16 @@ describe("ContactPointsListContainer", () => {
                     <span>
                       Page {pagination.page} of {pagination.totalPages}
                     </span>
-                    <button data-testid="prev-page-button" onClick={() => onPageChange(pagination.page - 1, pagination.limit)} disabled={pagination.page <= 1}>
+                    <button
+                      data-testid="prev-page-button"
+                      onClick={() => onPaginationChange(pagination.page - 1, pagination.limit)}
+                      disabled={pagination.page <= 1}
+                    >
                       Previous
                     </button>
                     <button
                       data-testid="next-page-button"
-                      onClick={() => onPageChange(pagination.page, pagination.limit)}
+                      onClick={() => onPaginationChange(pagination.page, pagination.limit)}
                       disabled={pagination.page >= pagination.totalPages}
                     >
                       Next

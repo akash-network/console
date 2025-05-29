@@ -21,9 +21,9 @@ import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "
 import { Bin, Edit } from "iconoir-react";
 import Link from "next/link";
 
-import type { ContactPoint } from "@src/components/alerts/ContactPointsListContainer/ContactPointsListContainer";
 import { UrlService } from "@src/utils/urlUtils";
 
+type ContactPoint = components["schemas"]["ContactPointOutput"]["data"];
 type ContactPointsInput = components["schemas"]["ContactPointListOutput"]["data"];
 type ContactPointsPagination = components["schemas"]["ContactPointListOutput"]["pagination"];
 
@@ -33,11 +33,11 @@ export type ContactPointsListViewProps = {
   isLoading: boolean;
   removingIds: Set<ContactPoint["id"]>;
   onRemove: (id: ContactPoint["id"]) => Promise<void>;
-  onPageChange: (page: number, limit: number) => void;
+  onPaginationChange: (state: { page: number; limit: number }) => void;
   isError: boolean;
 };
 
-export const ContactPointsListView: FC<ContactPointsListViewProps> = ({ data, pagination, onPageChange, isLoading, removingIds, onRemove, isError }) => {
+export const ContactPointsListView: FC<ContactPointsListViewProps> = ({ data, pagination, onPaginationChange, isLoading, removingIds, onRemove, isError }) => {
   const { confirm } = usePopup();
   const columnHelper = createColumnHelper<ContactPoint>();
 
@@ -118,8 +118,11 @@ export const ContactPointsListView: FC<ContactPointsListViewProps> = ({ data, pa
       }
     },
     onPaginationChange: updaterOrValue => {
-      const tablePagination = typeof updaterOrValue === "function" ? updaterOrValue(table.getState().pagination) : updaterOrValue;
-      onPageChange(tablePagination.pageIndex, tablePagination.pageSize);
+      const { pageIndex, pageSize } = typeof updaterOrValue === "function" ? updaterOrValue(table.getState().pagination) : updaterOrValue;
+      onPaginationChange({
+        page: pageIndex + 1,
+        limit: pageSize
+      });
     }
   });
 
