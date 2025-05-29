@@ -18,7 +18,8 @@ export const test = baseTest.extend<{
   extensionId: string;
   extPage: Page;
 }>({
-  context: async ({ headless }, use) => {
+  // eslint-disable-next-line no-empty-pattern
+  context: async ({}, use) => {
     const pathToExtension = path.join(__dirname, "Leap");
     const contextName = nanoid();
     const userDataDir = path.join(__dirname, "./testdata/tmp/" + contextName);
@@ -27,12 +28,9 @@ export const test = baseTest.extend<{
       `--disable-extensions-except=${pathToExtension}`,
       `--load-extension=${pathToExtension}`
     ];
-    if (headless) {
-      args.unshift("--headless=new");
-    }
+
     const context = await chromium.launchPersistentContext(userDataDir, {
       channel: "chromium",
-      headless,
       args
     });
 
@@ -66,6 +64,7 @@ export const test = baseTest.extend<{
 
     await injectUIConfig(extPage);
     await use(extPage);
+    await extPage.close();
   }
 });
 
