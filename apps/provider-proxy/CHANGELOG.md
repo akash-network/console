@@ -1,5 +1,12 @@
 
 
+## [1.7.5](https://github.com/akash-network/console/compare/provider-proxy/v1.7.4...provider-proxy/v1.7.5) (2025-05-29)
+
+
+### Bug Fixes
+
+* docker node permissions ([#1410](https://github.com/akash-network/console/issues/1410)) ([073b43a](https://github.com/akash-network/console/commit/073b43aa1f89192bd9f96193f7d721d34840a441))
+
 ## [1.7.4](https://github.com/akash-network/console/compare/provider-proxy/v1.7.3...provider-proxy/v1.7.4) (2025-05-28)
 
 

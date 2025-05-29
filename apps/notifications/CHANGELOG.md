@@ -1,5 +1,12 @@
 
 
+## [1.2.3](https://github.com/akash-network/console/compare/notifications/v1.2.2...notifications/v1.2.3) (2025-05-29)
+
+
+### Bug Fixes
+
+* docker node permissions ([#1410](https://github.com/akash-network/console/issues/1410)) ([073b43a](https://github.com/akash-network/console/commit/073b43aa1f89192bd9f96193f7d721d34840a441))
+
 ## [1.2.2](https://github.com/akash-network/console/compare/notifications/v1.2.1...notifications/v1.2.2) (2025-05-29)
 
 
