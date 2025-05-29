@@ -109,7 +109,7 @@ describe("ContactPointsListView", () => {
       isLoading: false,
       onRemove: jest.fn(),
       removingIds: new Set(),
-      onPageChange: jest.fn(),
+      onPaginationChange: jest.fn(),
       isError: false,
       ...props
     };
