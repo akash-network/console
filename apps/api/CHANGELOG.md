@@ -1,5 +1,12 @@
 
 
+## [2.94.5](https://github.com/akash-network/console/compare/console-api/v2.94.4...console-api/v2.94.5) (2025-05-29)
+
+
+### Bug Fixes
+
+* docker node permissions ([#1410](https://github.com/akash-network/console/issues/1410)) ([073b43a](https://github.com/akash-network/console/commit/073b43aa1f89192bd9f96193f7d721d34840a441))
+
 ## [2.94.4](https://github.com/akash-network/console/compare/console-api/v2.94.3...console-api/v2.94.4) (2025-05-28)
 
 
