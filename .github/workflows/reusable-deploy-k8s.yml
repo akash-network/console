@@ -17,6 +17,7 @@ on:
         options:
           - console-web
           - console-api
+          - indexer
           - notifications
           - provider-proxy
           - provider-console

@@ -22,6 +22,7 @@
     "migration:exec": "drizzle-kit migrate",
     "migration:pull": "drizzle-kit pull",
     "prod": "node dist/server.js",
+    "release": "release-it",
     "start": "webpack --mode development --config webpack.dev.js --watch",
     "test": "jest"
   },
@@ -61,6 +62,7 @@
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
     "@akashnetwork/docker": "*",
+    "@akashnetwork/releaser": "*",
     "@types/async": "^3.2.15",
     "@types/express": "^4.17.13",
     "@types/lodash": "^4.17.1",
