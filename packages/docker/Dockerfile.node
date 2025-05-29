@@ -56,8 +56,9 @@ COPY --from=builder /app/$WORKSPACE/dist /app/$WORKSPACE/dist
 COPY --from=builder /app/$WORKSPACE/env /app/$WORKSPACE/env
 COPY --from=builder /app/packages /app/packages
 
-RUN find /app -name node_modules -prune -o -type f -exec chown $APP_USER:$APP_GROUP '{}' \;
-RUN apk add --no-cache libcap; \
+# Set permissions for app user and add capabilities
+RUN chown -R $APP_USER:$APP_GROUP /app && \
+    apk add --no-cache libcap && \
     setcap cap_net_bind_service=+ep `readlink -f \`which node\``
 
 RUN wget -q -t3 'https://packages.doppler.com/public/cli/rsa.8004D9FF50437357.key' -O /etc/apk/keys/cli@doppler-8004D9FF50437357.rsa.pub && \
