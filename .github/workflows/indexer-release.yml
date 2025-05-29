@@ -1,0 +1,28 @@
+name: Release INDEXER
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/indexer/package.json"
+
+jobs:
+  release:
+    name: Create Release
+    uses: ./.github/workflows/reusable-create-github-release.yml
+    secrets: inherit
+    with:
+      app: indexer
+
+  build:
+    needs: release
+    name: Build Docker image
+    if: needs.release.outputs.git_tag != ''
+    uses: ./.github/workflows/reusable-build-image.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+    with:
+      tag: ${{ needs.release.outputs.git_tag }}
