@@ -41,6 +41,7 @@ import {
   signAndBroadcastTxRouter,
   startTrialRouter,
   stripePricesRouter,
+  stripeSetupRouter,
   stripeWebhook
 } from "./billing";
 import { blocksRouter } from "./block";
@@ -101,6 +102,7 @@ appHono.route("/", signAndBroadcastTxRouter);
 appHono.route("/", checkoutRouter);
 appHono.route("/", stripeWebhook);
 appHono.route("/", stripePricesRouter);
+appHono.route("/", stripeSetupRouter);
 
 appHono.route("/", createAnonymousUserRouter);
 appHono.route("/", getAnonymousUserRouter);

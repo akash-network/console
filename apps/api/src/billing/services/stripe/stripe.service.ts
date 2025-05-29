@@ -25,6 +25,14 @@ export class StripeService extends Stripe {
     });
   }
 
+  async createSetupIntent(customerId: string) {
+    return await this.setupIntents.create({
+      customer: customerId,
+      payment_method_types: ["card"],
+      usage: "off_session"
+    });
+  }
+
   async startCheckoutSession(options: CheckoutOptions) {
     const price = await this.getPrice(options.amount);
 
@@ -70,5 +78,13 @@ export class StripeService extends Stripe {
     }));
 
     return orderBy(responsePrices, ["isCustom", "unitAmount"], ["asc", "asc"]) as StripePrices[];
+  }
+
+  async getPaymentMethods(customerId: string) {
+    const paymentMethods = await this.paymentMethods.list({
+      customer: customerId,
+      type: "card"
+    });
+    return paymentMethods.data;
   }
 }

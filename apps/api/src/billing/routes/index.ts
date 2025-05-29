@@ -4,4 +4,5 @@ export * from "@src/billing/routes/checkout/checkout.router";
 export * from "@src/billing/routes/sign-and-broadcast-tx/sign-and-broadcast-tx.router";
 export * from "@src/billing/routes/stripe-webhook/stripe-webhook.router";
 export * from "@src/billing/routes/stripe-prices/stripe-prices.router";
+export * from "@src/billing/routes/stripe-setup/stripe-setup.router";
 export * from "@src/billing/routes/get-balances/get-balances.router";

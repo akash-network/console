@@ -1,7 +1,6 @@
 import type { AxiosRequestConfig } from "axios";
 
-import type { ApiOutput } from "../api-http/api-http.service";
-import { HttpService } from "../http/http.service";
+import { ApiHttpService } from "../api-http/api-http.service";
 
 interface StripePrice {
   unitAmount?: number;
@@ -9,12 +8,24 @@ interface StripePrice {
   currency: string;
 }
 
-export class StripeService extends HttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
+interface SetupIntentResponse {
+  clientSecret: string;
+}
+
+export class StripeService extends ApiHttpService {
+  constructor(config?: AxiosRequestConfig) {
     super(config);
   }
 
-  async findPrices() {
-    return this.extractData(await this.get<ApiOutput<StripePrice[]>>("/v1/stripe-prices"));
+  async findPrices(config?: AxiosRequestConfig): Promise<StripePrice[]> {
+    return this.extractData(await this.get("/v1/stripe-prices", config));
+  }
+
+  async createSetupIntent(config?: AxiosRequestConfig): Promise<SetupIntentResponse> {
+    return this.extractData(await this.post("/v1/stripe-setup", {}, config));
+  }
+
+  async getPaymentMethods() {
+    return this.extractData(await this.get("/v1/stripe-payment-methods"));
   }
 }
