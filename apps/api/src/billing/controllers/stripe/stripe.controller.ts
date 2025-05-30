@@ -60,4 +60,48 @@ export class StripeController {
     const paymentMethods = await this.stripe.getPaymentMethods(user.stripeCustomerId);
     return { data: paymentMethods };
   }
+
+  @Protected([{ action: "create", subject: "PaymentIntent" }])
+  async confirmPayment(userId: string, params: { paymentMethodId: string; amount: number; currency: string; coupon?: string }) {
+    const user = await this.userRepository.findOneBy({ userId });
+    if (!user) {
+      throw new Error("User not found");
+    }
+    if (!user.stripeCustomerId) {
+      throw new Error("User does not have a Stripe customer ID");
+    }
+    try {
+      const paymentIntent = await this.stripe.createPaymentIntent({
+        customer: user.stripeCustomerId,
+        payment_method: params.paymentMethodId,
+        amount: Math.round(params.amount * 100), // Stripe expects amount in cents
+        currency: params.currency,
+        confirm: true,
+        ...(params.coupon ? { coupon: params.coupon } : {})
+      });
+      if (paymentIntent.status !== "succeeded") {
+        return { error: { message: "Payment not successful" } };
+      }
+      return {};
+    } catch (error: any) {
+      return { error: { message: error.message || "Payment failed" } };
+    }
+  }
+
+  @Protected([{ action: "create", subject: "Coupon" }])
+  async applyCoupon(userId: string, couponId: string) {
+    const user = await this.userRepository.findOneBy({ userId });
+    if (!user) {
+      throw new Error("User not found");
+    }
+    if (!user.stripeCustomerId) {
+      throw new Error("User does not have a Stripe customer ID");
+    }
+    try {
+      const coupon = await this.stripe.applyCoupon(user.stripeCustomerId, couponId);
+      return { coupon };
+    } catch (error: any) {
+      throw new Error(error.message || "Failed to apply coupon");
+    }
+  }
 }
