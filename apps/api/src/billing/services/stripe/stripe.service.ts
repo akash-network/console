@@ -87,4 +87,27 @@ export class StripeService extends Stripe {
     });
     return paymentMethods.data;
   }
+
+  async createPaymentIntent(params: { customer: string; payment_method: string; amount: number; currency: string; confirm: boolean; coupon?: string }) {
+    // Coupon is not directly supported on PaymentIntent; you may need to handle discounts separately.
+    return await this.paymentIntents.create({
+      customer: params.customer,
+      payment_method: params.payment_method,
+      amount: params.amount,
+      currency: params.currency,
+      confirm: params.confirm
+      // If you want to handle coupon/discount, you must do so via invoice or subscription, not PaymentIntent.
+    });
+  }
+
+  async applyCoupon(customerId: string, couponId: string) {
+    const coupon = await this.coupons.retrieve(couponId);
+    if (!coupon.valid) {
+      throw new Error("Coupon is invalid or expired");
+    }
+    await this.customers.update(customerId, {
+      coupon: couponId
+    });
+    return coupon;
+  }
 }

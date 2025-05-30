@@ -57,6 +57,73 @@ const paymentMethodsRoute = createRoute({
   }
 });
 
+const confirmPaymentRoute = createRoute({
+  method: "post",
+  path: "/v1/stripe-payment",
+  summary: "Confirm a payment using a saved payment method",
+  tags: ["Payment"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            paymentMethodId: z.string(),
+            amount: z.number(),
+            currency: z.string(),
+            coupon: z.string().optional()
+          })
+        }
+      }
+    }
+  },
+  responses: {
+    200: {
+      description: "Payment processed",
+      content: {
+        "application/json": {
+          schema: z.object({
+            error: z
+              .object({
+                message: z.string()
+              })
+              .optional()
+          })
+        }
+      }
+    }
+  }
+});
+
+const applyCouponRoute = createRoute({
+  method: "post",
+  path: "/v1/stripe-coupon",
+  summary: "Apply a coupon to the current user",
+  tags: ["Payment"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            couponId: z.string()
+          })
+        }
+      }
+    }
+  },
+  responses: {
+    200: {
+      description: "Coupon applied successfully",
+      content: {
+        "application/json": {
+          schema: z.object({
+            coupon: z.any()
+          })
+        }
+      }
+    }
+  }
+});
+
 export const stripeSetupRouter = new OpenApiHonoHandler();
 
 stripeSetupRouter.openapi(setupIntentRoute, async function createSetupIntent(c) {
@@ -68,5 +135,19 @@ stripeSetupRouter.openapi(setupIntentRoute, async function createSetupIntent(c) 
 stripeSetupRouter.openapi(paymentMethodsRoute, async function getPaymentMethods(c) {
   const authService = container.resolve(AuthService);
   const response = await container.resolve(StripeController).getPaymentMethods(authService.currentUser.userId);
+  return c.json(response, 200);
+});
+
+stripeSetupRouter.openapi(confirmPaymentRoute, async function confirmPayment(c) {
+  const authService = container.resolve(AuthService);
+  const body = await c.req.json();
+  const response = await container.resolve(StripeController).confirmPayment(authService.currentUser.userId, body);
+  return c.json(response, 200);
+});
+
+stripeSetupRouter.openapi(applyCouponRoute, async function applyCoupon(c) {
+  const authService = container.resolve(AuthService);
+  const body = await c.req.json();
+  const response = await container.resolve(StripeController).applyCoupon(authService.currentUser.userId, body.couponId);
   return c.json(response, 200);
 });

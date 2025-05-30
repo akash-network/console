@@ -12,6 +12,28 @@ interface SetupIntentResponse {
   clientSecret: string;
 }
 
+interface CheckoutResponse {
+  url: string;
+}
+
+interface PaymentResponse {
+  error?: {
+    message: string;
+  };
+}
+
+export interface Coupon {
+  id: string;
+  percent_off?: number | null;
+  amount_off?: number | null;
+  valid: boolean;
+  [key: string]: any;
+}
+
+export interface CouponResponse {
+  coupon: Coupon;
+}
+
 export class StripeService extends ApiHttpService {
   constructor(config?: AxiosRequestConfig) {
     super(config);
@@ -27,5 +49,22 @@ export class StripeService extends ApiHttpService {
 
   async getPaymentMethods() {
     return this.extractData(await this.get("/v1/stripe-payment-methods"));
+  }
+
+  async checkout(amount: string, coupon?: string): Promise<CheckoutResponse> {
+    const params = new URLSearchParams();
+    params.append("amount", amount);
+    if (coupon) {
+      params.append("coupon", coupon);
+    }
+    return this.extractData(await this.get(`/v1/checkout?${params.toString()}`));
+  }
+
+  async confirmPayment(params: { paymentMethodId: string; amount: number; currency: string; coupon?: string }): Promise<PaymentResponse> {
+    return this.extractData(await this.post("/v1/stripe-payment", params));
+  }
+
+  async applyCoupon(couponId: string): Promise<CouponResponse> {
+    return this.extractData(await this.post("/v1/stripe-coupon", { couponId }));
   }
 }
