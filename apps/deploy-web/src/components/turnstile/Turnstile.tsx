@@ -6,11 +6,9 @@ import { MdInfo } from "react-icons/md";
 import { Button } from "@akashnetwork/ui/components";
 import type { TurnstileInstance } from "@marsidev/react-turnstile";
 import { Turnstile as ReactTurnstile } from "@marsidev/react-turnstile";
-import type { AxiosError, AxiosResponse } from "axios";
-import axios from "axios";
+import type { Axios, AxiosError, AxiosResponse } from "axios";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
-import { firstValueFrom, Subject } from "rxjs";
 
 import { useWhen } from "@src/hooks/useWhen";
 import { services } from "@src/services/http/http-browser.service";
@@ -18,11 +16,11 @@ import { managedWalletHttpService } from "@src/services/managed-wallet-http/mana
 
 const HTTP_SERVICES = [managedWalletHttpService, services.user, services.stripe, services.tx, services.template, services.auth, services.deploymentSetting];
 
-const originalFetch = typeof window !== "undefined" && window.fetch;
+let originalFetch: typeof fetch | undefined;
 
-const addResponseInterceptor = (interceptor: (value: AxiosError) => AxiosResponse | Promise<AxiosResponse>) => {
+const addResponseInterceptor = (intercept: (service: Axios, value: AxiosError) => AxiosResponse | Promise<AxiosResponse>) => {
   const removes = HTTP_SERVICES.map(service => {
-    const interceptorId = service.interceptors.response.use(null, interceptor);
+    const interceptorId = service.interceptors.response.use(null, error => intercept(service, error));
 
     return () => {
       service.interceptors.response.eject(interceptorId);
@@ -38,53 +36,60 @@ type TurnstileStatus = "uninitialized" | "solved" | "interactive" | "expired" | 
 
 const VISIBILITY_STATUSES: TurnstileStatus[] = ["interactive", "error"];
 
+export const COMPONENTS = {
+  ReactTurnstile,
+  Button,
+  MdInfo
+};
+
 type TurnstileProps = {
   enabled: boolean;
   siteKey: string;
+  components?: typeof COMPONENTS;
 };
 
-export const Turnstile: FC<TurnstileProps> = ({ enabled, siteKey }) => {
+export const Turnstile: FC<TurnstileProps> = ({ enabled, siteKey, components: c = COMPONENTS }) => {
   const turnstileRef = useRef<TurnstileInstance>();
   const [status, setStatus] = useState<TurnstileStatus>("uninitialized");
   const isVisible = useMemo(() => enabled && VISIBILITY_STATUSES.includes(status), [enabled, status]);
-  const dismissedSubject = useRef(new Subject<void>());
+  const abortControllerRef = useRef<AbortController>();
+
+  const resetWidget = useCallback(() => {
+    turnstileRef.current?.remove();
+    turnstileRef.current?.render();
+    turnstileRef.current?.execute();
+  }, []);
+
+  const renderTurnstileAndWaitForResponse = useCallback(async () => {
+    abortControllerRef.current = new AbortController();
+    resetWidget();
+
+    return Promise.race([
+      turnstileRef.current?.getResponsePromise(),
+      new Promise<void>(resolve => abortControllerRef.current?.signal.addEventListener("abort", () => resolve()))
+    ]);
+  }, [resetWidget]);
 
   useEffect(() => {
     if (!enabled) return;
 
-    if (originalFetch) {
-      window.fetch = async (...args) => {
-        let response = await originalFetch(...args);
+    if (typeof globalThis.fetch === "function") {
+      originalFetch = originalFetch || globalThis.fetch;
+      const fetch = originalFetch;
+      globalThis.fetch = async (resource, options) => {
+        const response = await fetch(resource, options);
 
-        if (typeof args[0] === "string" && args[0].startsWith("/") && response.status > 400 && turnstileRef.current) {
-          turnstileRef.current?.remove();
-          turnstileRef.current?.render();
-          turnstileRef.current?.execute();
-
-          const turnstileResponse = await Promise.race([turnstileRef.current.getResponsePromise(), firstValueFrom(dismissedSubject.current.asObservable())]);
-
-          if (turnstileResponse) {
-            response = await originalFetch(...args);
-          }
+        if (response.headers.get("cf-mitigated") === "challenge" && turnstileRef.current && (await renderTurnstileAndWaitForResponse())) {
+          return globalThis.fetch(resource, options);
         }
 
         return response;
       };
     }
 
-    const ejectInterceptors = addResponseInterceptor(async error => {
-      const request = error?.request;
-
-      if ((!request?.status || request?.status > 400) && turnstileRef.current) {
-        turnstileRef.current?.remove();
-        turnstileRef.current?.render();
-        turnstileRef.current?.execute();
-
-        const response = await Promise.race([turnstileRef.current.getResponsePromise(), firstValueFrom(dismissedSubject.current.asObservable())]);
-
-        if (response) {
-          return axios(error.config!);
-        }
+    const ejectInterceptors = addResponseInterceptor(async (service, error) => {
+      if (error?.response?.headers["cf-mitigated"] === "challenge" && turnstileRef.current && (await renderTurnstileAndWaitForResponse())) {
+        return service.request(error.config!);
       }
 
       return Promise.reject(error);
@@ -92,17 +97,12 @@ export const Turnstile: FC<TurnstileProps> = ({ enabled, siteKey }) => {
 
     return () => {
       ejectInterceptors();
-      if (originalFetch) {
-        window.fetch = originalFetch;
+      if (typeof originalFetch === "function") {
+        globalThis.fetch = originalFetch;
+        originalFetch = undefined;
       }
     };
   }, [enabled]);
-
-  const resetWidget = useCallback(() => {
-    turnstileRef.current?.remove();
-    turnstileRef.current?.render();
-    turnstileRef.current?.execute();
-  }, []);
 
   useWhen(status === "error", () => {
     resetWidget();
@@ -128,7 +128,7 @@ export const Turnstile: FC<TurnstileProps> = ({ enabled, siteKey }) => {
           <h3 className="mb-2 text-2xl font-bold">We are verifying you are a human. This may take a few seconds</h3>
           <p className="mb-8">Reviewing the security of your connection before proceeding</p>
           <div className="h-[66px]">
-            <ReactTurnstile
+            <c.ReactTurnstile
               ref={turnstileRef}
               siteKey={siteKey}
               options={{ execution: "execute" }}
@@ -150,23 +150,23 @@ export const Turnstile: FC<TurnstileProps> = ({ enabled, siteKey }) => {
             }}
           >
             <div className="my-8">
-              <Button onClick={resetWidget} className="mr-4">
+              <c.Button onClick={resetWidget} className="mr-4">
                 Retry
-              </Button>
-              <Button
+              </c.Button>
+              <c.Button
                 onClick={() => {
                   setStatus("dismissed");
-                  dismissedSubject.current.next();
+                  abortControllerRef.current?.abort();
                   turnstileRef.current?.remove();
                 }}
                 variant="link"
               >
                 Dismiss
-              </Button>
+              </c.Button>
             </div>
 
             <p>
-              <MdInfo className="mr-1 inline text-xl text-muted-foreground" />
+              <c.MdInfo className="mr-1 inline text-xl text-muted-foreground" />
               <small>dismissing the check might result into some features not working properly</small>
             </p>
           </motion.div>
