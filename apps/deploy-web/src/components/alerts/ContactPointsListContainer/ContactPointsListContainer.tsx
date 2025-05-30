@@ -12,7 +12,7 @@ type ContactPoint = components["schemas"]["ContactPointOutput"]["data"];
 type ContactPointsInput = components["schemas"]["ContactPointListOutput"]["data"];
 type ContactPointsPagination = components["schemas"]["ContactPointListOutput"]["pagination"];
 
-type ChildrenProps = {
+export type ChildrenProps = {
   data: ContactPointsInput;
   pagination: Pick<ContactPointsPagination, "page" | "limit" | "total" | "totalPages">;
   isLoading: boolean;
