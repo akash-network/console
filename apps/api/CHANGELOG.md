@@ -1,5 +1,12 @@
 
 
+## [2.94.7](https://github.com/akash-network/console/compare/console-api/v2.94.6...console-api/v2.94.7) (2025-05-30)
+
+
+### Code Refactoring
+
+* move /v1/dashboard-data to modules ([#1372](https://github.com/akash-network/console/issues/1372)) ([1d165ad](https://github.com/akash-network/console/commit/1d165ad2bc78ad8a18521938e3720779c8da04c4)), closes [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272)
+
 ## [2.94.6](https://github.com/akash-network/console/compare/console-api/v2.94.5...console-api/v2.94.6) (2025-05-30)
 
 

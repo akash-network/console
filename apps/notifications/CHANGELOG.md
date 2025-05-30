@@ -1,5 +1,12 @@
 
 
+## [1.2.4](https://github.com/akash-network/console/compare/notifications/v1.2.3...notifications/v1.2.4) (2025-05-30)
+
+
+### Code Refactoring
+
+* move /v1/dashboard-data to modules ([#1372](https://github.com/akash-network/console/issues/1372)) ([1d165ad](https://github.com/akash-network/console/commit/1d165ad2bc78ad8a18521938e3720779c8da04c4)), closes [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272)
+
 ## [1.2.3](https://github.com/akash-network/console/compare/notifications/v1.2.2...notifications/v1.2.3) (2025-05-29)
 
 
