@@ -3,9 +3,9 @@ import { BelongsTo, Column, Default, Model, PrimaryKey, Table } from "sequelize-
 
 import { Block } from "../base";
 import { Required } from "../decorators/requiredDecorator";
-import { Deployment } from "./deployment";
-import { DeploymentGroup } from "./deploymentGroup";
-import { Provider } from "./provider";
+import { Deployment } from "./deployment"; // eslint-disable-line import-x/no-cycle
+import { DeploymentGroup } from "./deploymentGroup"; // eslint-disable-line import-x/no-cycle
+import { Provider } from "./provider"; // eslint-disable-line import-x/no-cycle
 
 /**
  * Lease model for Akash
