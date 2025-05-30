@@ -19,15 +19,9 @@ export async function injectUIConfig(page: Page) {
   }
 
   const uiConfig = await getSignedConfig(testEnvConfig.UI_CONFIG_SIGNATURE_PRIVATE_KEY);
-  await page.addInitScript(
-    stringifiedConfig => {
-      const { uiConfig, expectedBaseUrl } = JSON.parse(stringifiedConfig);
-      if (window.location.href.startsWith(expectedBaseUrl)) {
-        (window as any).__AK_INJECTED_CONFIG__ = uiConfig;
-      }
-    },
-    JSON.stringify({ uiConfig, expectedBaseUrl: testEnvConfig.BASE_URL })
-  );
+  await page.addInitScript(stringifiedConfig => {
+    (window as any).__AK_INJECTED_CONFIG__ = stringifiedConfig;
+  }, uiConfig);
 }
 
 const signedConfigCache = new Map<string, string>();
