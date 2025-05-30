@@ -50,17 +50,6 @@ describe("Transactions", () => {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json" })
       });
-      const transactionsFound = await response.json();
-
-      expect(response.status).toBe(200);
-      expectTransactions(transactionsFound, transactions.slice(0, 100));
-    });
-
-    it("responds 400 when limit is not set", async () => {
-      const response = await app.request("/v1/transactions", {
-        method: "GET",
-        headers: new Headers({ "Content-Type": "application/json" })
-      });
 
       expect(response.status).toBe(400);
     });

@@ -2,9 +2,9 @@ import { DataTypes, UUIDV4 } from "sequelize";
 import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 
 import { Required } from "../decorators/requiredDecorator";
-import { AddressReference } from "./addressReference";
-import { Block } from "./block";
-import { Transaction } from "./transaction";
+import { AddressReference } from "./addressReference"; // eslint-disable-line import-x/no-cycle
+import { Block } from "./block"; // eslint-disable-line import-x/no-cycle
+import { Transaction } from "./transaction"; // eslint-disable-line import-x/no-cycle
 
 export const tableConfig = {
   modelName: "message",

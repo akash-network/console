@@ -1,7 +1,7 @@
-import { AxiosRequestConfig } from "axios";
+import type { AxiosRequestConfig } from "axios";
 
 import { HttpService } from "../http/http.service";
-import { GetProviderResponse } from "./types";
+import type { GetProviderResponse } from "./types";
 
 export class ProviderHttpService extends HttpService {
   constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {

@@ -2,7 +2,7 @@ import { DataTypes } from "sequelize";
 import { BelongsTo, Column, Default, Model, PrimaryKey, Table } from "sequelize-typescript";
 
 import { Required } from "../decorators/requiredDecorator";
-import { TransactionEvent } from "./transactionEvent";
+import { TransactionEvent } from "./transactionEvent"; // eslint-disable-line import-x/no-cycle
 
 @Table({
   modelName: "transaction_event_attribute",

@@ -112,27 +112,6 @@ describe("Provider Graph Data", () => {
         checkDate: threeDaysAgo,
         isOnline: true,
         isLastSuccessOfDay: true,
-        activeCPU: 301,
-        activeGPU: 302,
-        activeMemory: 303,
-        activePersistentStorage: 304,
-        activeEphemeralStorage: 305,
-        pendingCPU: 306,
-        pendingGPU: 307,
-        pendingMemory: 308,
-        pendingPersistentStorage: 309,
-        pendingEphemeralStorage: 310,
-        availableCPU: 311,
-        availableGPU: 312,
-        availableMemory: 313,
-        availablePersistentStorage: 314,
-        availableEphemeralStorage: 315
-      }),
-      ProviderSnapshotSeeder.createInDatabase({
-        owner: providers[1].owner,
-        checkDate: twoDaysAgo,
-        isOnline: true,
-        isLastSuccessOfDay: true,
         activeCPU: 401,
         activeGPU: 402,
         activeMemory: 403,
@@ -151,7 +130,7 @@ describe("Provider Graph Data", () => {
       }),
       ProviderSnapshotSeeder.createInDatabase({
         owner: providers[1].owner,
-        checkDate: yesterday,
+        checkDate: twoDaysAgo,
         isOnline: true,
         isLastSuccessOfDay: true,
         activeCPU: 501,
@@ -169,6 +148,27 @@ describe("Provider Graph Data", () => {
         availableMemory: 513,
         availablePersistentStorage: 514,
         availableEphemeralStorage: 515
+      }),
+      ProviderSnapshotSeeder.createInDatabase({
+        owner: providers[1].owner,
+        checkDate: yesterday,
+        isOnline: true,
+        isLastSuccessOfDay: true,
+        activeCPU: 601,
+        activeGPU: 602,
+        activeMemory: 603,
+        activePersistentStorage: 604,
+        activeEphemeralStorage: 605,
+        pendingCPU: 606,
+        pendingGPU: 607,
+        pendingMemory: 608,
+        pendingPersistentStorage: 609,
+        pendingEphemeralStorage: 610,
+        availableCPU: 611,
+        availableGPU: 612,
+        availableMemory: 613,
+        availablePersistentStorage: 614,
+        availableEphemeralStorage: 615
       })
     ]);
     await Promise.all([
@@ -191,7 +191,8 @@ describe("Provider Graph Data", () => {
       }),
       BlockSeeder.createInDatabase({
         datetime: yesterday,
-        height: 300
+        height: 300,
+        isProcessed: true
       })
     ]);
   });
@@ -217,8 +218,20 @@ describe("Provider Graph Data", () => {
             { date: format(twoDaysAgo, "yyyy-MM-dd") + "T00:00:00.000Z", value: data.compare[dataName] },
             { date: format(yesterday, "yyyy-MM-dd") + "T00:00:00.000Z", value: data.now[dataName] }
           ],
-          now: { count: 2, cpu: 2436, gpu: 2442, memory: 2448, storage: 4914 },
-          compare: { count: 2, cpu: 1836, gpu: 1842, memory: 1848, storage: 3714 }
+          now: {
+            count: 2,
+            cpu: 2736,
+            gpu: 2742,
+            memory: 2748,
+            storage: 5514
+          },
+          compare: {
+            count: 2,
+            cpu: 2136,
+            gpu: 2142,
+            memory: 2148,
+            storage: 4314
+          }
         });
       });
     });

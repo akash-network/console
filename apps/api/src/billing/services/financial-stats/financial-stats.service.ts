@@ -1,4 +1,5 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import { CosmosDistributionCommunityPoolResponse } from "@akashnetwork/http-sdk";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import axios from "axios";
 import { Op, QueryTypes } from "sequelize";
@@ -8,7 +9,7 @@ import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { chainDb } from "@src/db/dbConnection";
-import { CosmosDistributionCommunityPoolResponse, RestCosmosBankBalancesResponse } from "@src/types/rest";
+import { RestCosmosBankBalancesResponse } from "@src/types/rest";
 import { apiNodeUrl } from "@src/utils/constants";
 
 @singleton()
@@ -66,7 +67,7 @@ export class FinancialStatsService {
       WHERE t."memo"='managed wallet tx' AND m.type='/akash.market.v1beta4.MsgCreateLease' AND t.height > 18515430 AND m.height > 18515430 -- 18515430 is height on trial launch (2024-10-17)
   ),
   trial_leases AS (
-      SELECT 
+      SELECT
           l.owner AS "owner",
           l."createdHeight",
           l."closedHeight",

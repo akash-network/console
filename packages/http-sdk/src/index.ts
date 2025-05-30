@@ -17,3 +17,4 @@ export * from "./lease/lease-http.service";
 export * from "./provider/provider-http.service";
 export * from "./utils/isHttpError";
 export * from "./git-hub/git-hub-http.service";
+export * from "./cosmos";
