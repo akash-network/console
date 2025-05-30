@@ -10,7 +10,7 @@
   "author": "Akash Network",
   "main": "src/index.ts",
   "scripts": {
-    "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
+    "format": "prettier --write ./*.{ts,json} 'src/**/*.{ts,json}'",
     "generate": "ts-node scripts/generate.ts && npm run format",
     "lint": "eslint .",
     "test": "npm run generate && jest",

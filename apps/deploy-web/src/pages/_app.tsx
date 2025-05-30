@@ -7,7 +7,7 @@ import { TooltipProvider } from "@akashnetwork/ui/components";
 import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
 import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
-import { dehydrate, HydrationBoundary, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
 import type { AppProps } from "next/app";
@@ -18,6 +18,7 @@ import NProgress from "nprogress";
 
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
 import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
+import { Loading } from "@src/components/layout/Layout";
 import { PageHead } from "@src/components/layout/PageHead";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
 import { UserProviders } from "@src/components/user/UserProviders";
@@ -34,10 +35,7 @@ import { ServicesProvider } from "@src/context/ServicesProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
 import { useInjectedConfig } from "@src/hooks/useInjectedConfig";
-import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
 import { queryClient } from "@src/queries";
-import { prefetchFeatureFlags } from "@src/queries/featureFlags";
-import { serverApiUrlService } from "@src/services/api-url/server-api-url.service";
 import { store } from "@src/store/global-store";
 
 interface Props extends AppProps {
@@ -55,76 +53,78 @@ Router.events.on("routeChangeError", () => NProgress.done());
 
 const App: React.FunctionComponent<Props> = props => {
   const { Component, pageProps } = props;
-  const { config } = useInjectedConfig();
+  const { config, isLoaded: isLoadedInjectedConfig } = useInjectedConfig();
+
+  if (!isLoadedInjectedConfig) {
+    return (
+      <AppRoot {...props}>
+        <Loading text="Loading settings..." />
+      </AppRoot>
+    );
+  }
 
   return (
-    <FlagProvider>
-      <ClientOnlyTurnstile
-        enabled={config?.NEXT_PUBLIC_TURNSTILE_ENABLED || browserEnvConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
-        siteKey={config?.NEXT_PUBLIC_TURNSTILE_SITE_KEY || browserEnvConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-      />
-      <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
-        <PageHead pageSeo={pageProps.seo} />
+    <AppRoot {...props}>
+      <>
+        <ClientOnlyTurnstile
+          enabled={config?.NEXT_PUBLIC_TURNSTILE_ENABLED || browserEnvConfig.NEXT_PUBLIC_TURNSTILE_ENABLED}
+          siteKey={config?.NEXT_PUBLIC_TURNSTILE_SITE_KEY || browserEnvConfig.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+        />
 
-        <AppCacheProvider {...props}>
-          <CustomIntlProvider>
-            <QueryClientProvider client={queryClient}>
-              <HydrationBoundary state={pageProps.dehydratedState}>
-                <JotaiProvider store={store}>
-                  <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
-                    <ColorModeProvider>
-                      <CustomSnackbarProvider>
-                        <GoogleAnalytics />
-                        <UserProviders>
-                          <PricingProvider>
-                            <TooltipProvider>
-                              <SettingsProvider>
-                                <ServicesProvider>
-                                  <CustomChainProvider>
-                                    <PopupProvider>
-                                      <WalletProvider>
-                                        <ChainParamProvider>
-                                          <CertificateProvider>
-                                            <BackgroundTaskProvider>
-                                              <LocalNoteProvider>
-                                                <Component {...pageProps} />
-                                              </LocalNoteProvider>
-                                            </BackgroundTaskProvider>
-                                          </CertificateProvider>
-                                        </ChainParamProvider>
-                                      </WalletProvider>
-                                    </PopupProvider>
-                                  </CustomChainProvider>
-                                </ServicesProvider>
-                              </SettingsProvider>
-                            </TooltipProvider>
-                          </PricingProvider>
-                        </UserProviders>
-                      </CustomSnackbarProvider>
-                    </ColorModeProvider>
-                  </ThemeProvider>
-                </JotaiProvider>
-              </HydrationBoundary>
-            </QueryClientProvider>
-          </CustomIntlProvider>
-        </AppCacheProvider>
-      </main>
-    </FlagProvider>
+        <GoogleAnalytics />
+
+        <UserProviders>
+          <WalletProvider>
+            <Component {...pageProps} />
+          </WalletProvider>
+        </UserProviders>
+      </>
+    </AppRoot>
   );
 };
 
 export default App;
 
-export const getServerSideProps = getServerSidePropsWithServices(async ({ services }) => {
-  try {
-    await prefetchFeatureFlags(queryClient, services.axios, serverApiUrlService);
-  } catch (error) {
-    console.error(error);
-  }
+function AppRoot(props: Props & { children: React.ReactNode }) {
+  return (
+    <FlagProvider>
+      <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
+        <PageHead pageSeo={props.pageProps.seo} />
 
-  return {
-    props: {
-      dehydratedState: dehydrate(queryClient)
-    }
-  };
-});
+        <AppCacheProvider {...props}>
+          <CustomIntlProvider>
+            <JotaiProvider store={store}>
+              <QueryClientProvider client={queryClient}>
+                <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
+                  <ColorModeProvider>
+                    <CustomSnackbarProvider>
+                      <TooltipProvider>
+                        <PopupProvider>
+                          <PricingProvider>
+                            <SettingsProvider>
+                              <ServicesProvider>
+                                <CustomChainProvider>
+                                  <ChainParamProvider>
+                                    <CertificateProvider>
+                                      <BackgroundTaskProvider>
+                                        <LocalNoteProvider>{props.children}</LocalNoteProvider>
+                                      </BackgroundTaskProvider>
+                                    </CertificateProvider>
+                                  </ChainParamProvider>
+                                </CustomChainProvider>
+                              </ServicesProvider>
+                            </SettingsProvider>
+                          </PricingProvider>
+                        </PopupProvider>
+                      </TooltipProvider>
+                    </CustomSnackbarProvider>
+                  </ColorModeProvider>
+                </ThemeProvider>
+              </QueryClientProvider>
+            </JotaiProvider>
+          </CustomIntlProvider>
+        </AppCacheProvider>
+      </main>
+    </FlagProvider>
+  );
+}
