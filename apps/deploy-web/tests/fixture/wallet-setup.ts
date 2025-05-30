@@ -1,10 +1,14 @@
+import { netConfig } from "@akashnetwork/net";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import type { BrowserContext, Page } from "@playwright/test";
 import { selectors } from "@playwright/test";
+import fs from "fs";
+import path from "path";
+import { setTimeout as wait } from "timers/promises";
 
 import { isWalletConnected } from "../uiState/isWalletConnected";
-import { restoreExtensionStorage } from "./context-with-extension";
 import { testEnvConfig } from "./test-env.config";
+
 const WALLET_PASSWORD = "12345678";
 
 export async function setupWallet(context: BrowserContext, page: Page) {
@@ -15,39 +19,44 @@ export async function setupWallet(context: BrowserContext, page: Page) {
 }
 
 export async function connectWalletViaLeap(context: BrowserContext, page: Page) {
-  await page.getByTestId("connect-wallet-btn").click();
-  const [, popupPage] = await Promise.all([
-    page.getByRole("button", { name: "Leap Leap" }).click(),
-    context.waitForEvent("page", { timeout: 1000 }).catch(() => null)
-  ]);
+  if (!(await isWalletConnected(page))) {
+    await page.getByTestId("connect-wallet-btn").click();
+    const [popupPage] = await Promise.all([
+      context.waitForEvent("page", { timeout: 5_000 }).catch(() => null),
+      wait(100).then(() => page.getByRole("button", { name: "Leap Leap" }).click())
+    ]);
 
-  if (popupPage) {
-    const buttonsSelector = ['button:has-text("Approve")', 'button:has-text("Unlock wallet")', 'button:has-text("Connect")'].join(",");
-
-    await popupPage.waitForSelector(buttonsSelector, { state: "visible" });
-    // sometimes wallet extension is flikering and "Unlock wallet" button is visible for a split second
-    // so we need to wait again after a bit
-    await popupPage.waitForTimeout(500);
-    const visibleButton = await popupPage.waitForSelector(buttonsSelector, { state: "visible" });
-
-    const buttonText = await visibleButton.textContent();
-    switch (buttonText?.trim()) {
-      case "Approve":
-        await visibleButton.click();
-        break;
-      case "Unlock wallet":
-        await popupPage.locator("input").fill(WALLET_PASSWORD);
-        await visibleButton.click();
-        break;
-      case "Connect":
-        await visibleButton.click();
-        break;
-      default:
-        throw new Error("Unexpected state in wallet popup");
-    }
+    await approveWalletOperation(popupPage);
+    await isWalletConnected(page);
   }
+}
 
-  await isWalletConnected(page);
+export async function approveWalletOperation(popupPage: Page | null) {
+  if (!popupPage) return;
+  const buttonsSelector = ['button:has-text("Approve")', 'button:has-text("Unlock wallet")', 'button:has-text("Connect")'].join(",");
+
+  await popupPage.waitForSelector(buttonsSelector, { state: "visible" });
+  // sometimes wallet extension is flikering and "Unlock wallet" button is visible for a split second
+  // so we need to wait again after a bit
+  await popupPage.waitForTimeout(500);
+
+  const visibleButton = await popupPage.waitForSelector(buttonsSelector, { state: "visible" });
+  const buttonText = await visibleButton.textContent();
+
+  switch (buttonText?.trim()) {
+    case "Approve":
+      await visibleButton.click();
+      break;
+    case "Unlock wallet":
+      await popupPage.locator("input").fill(WALLET_PASSWORD);
+      await visibleButton.click();
+      break;
+    case "Connect":
+      await visibleButton.click();
+      break;
+    default:
+      throw new Error("Unexpected state in wallet popup");
+  }
 }
 
 async function importWalletToLeap(context: BrowserContext, page: Page) {
@@ -103,7 +112,13 @@ async function topUpWallet(wallet: DirectSecp256k1HdWallet) {
       return;
     }
 
-    const response = await fetch(testEnvConfig.FAUCET_URL, {
+    const faucetUrl = netConfig.getFaucetUrl(testEnvConfig.NETWORK_ID);
+    if (!faucetUrl) {
+      console.error(`Faucet URL is not set for this network: ${testEnvConfig.NETWORK_ID}. Cannot auto top up wallet`);
+      return;
+    }
+
+    const response = await fetch(faucetUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
@@ -121,7 +136,13 @@ async function topUpWallet(wallet: DirectSecp256k1HdWallet) {
 }
 
 async function getBalance(address: string) {
-  const response = await fetch(`${testEnvConfig.CHAIN_API_URL}/cosmos/bank/v1beta1/balances/${address}`);
+  const response = await fetch(`${netConfig.getBaseAPIUrl(testEnvConfig.NETWORK_ID)}/cosmos/bank/v1beta1/balances/${address}`);
   const data = await response.json();
   return data.balances.find((balance: Record<string, string>) => balance.denom === "uakt")?.amount || 0;
+}
+
+// @see https://github.com/microsoft/playwright/issues/14949
+export async function restoreExtensionStorage(page: Page): Promise<void> {
+  const extensionStorage = JSON.parse(fs.readFileSync(path.join(__dirname, "leapExtensionLocalStorage.json"), "utf8"));
+  await page.evaluate(data => chrome.storage.local.set(data), extensionStorage);
 }

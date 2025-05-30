@@ -68,6 +68,9 @@ const MESSAGE_STATES: Record<string, LoadingState> = {
   "/akash.deployment.v1beta3.MsgDepositDeployment": "depositingDeployment"
 };
 
+/**
+ * WalletProvider is a client only component
+ */
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [, setSettingsId] = useAtom(settingsIdAtom);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);

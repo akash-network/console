@@ -1,6 +1,7 @@
 "use client";
 
 import type { FC } from "react";
+import { useMemo } from "react";
 import { createRef, useEffect, useState } from "react";
 import { Alert, Button, buttonVariants, Spinner, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -49,7 +50,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     data: leases,
     isLoading: isLoadingLeases,
     refetch: getLeases,
-    remove: removeLeases
+    remove: removeLeases,
+    isSuccess: isLeasesLoaded
   } = useDeploymentLeaseList(address, deployment, {
     enabled: !!deployment,
     refetchOnWindowFocus: false
@@ -88,6 +90,39 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
 
   const isActive = deployment?.state === "active" && leases?.some(x => x.state === "active");
 
+  const tabs = useMemo(() => {
+    const tabs = [
+      {
+        value: "LEASES",
+        label: "Leases"
+      }
+    ];
+
+    if (isActive) {
+      tabs.push(
+        {
+          label: "Logs",
+          value: "LOGS"
+        },
+        {
+          label: "Shell",
+          value: "SHELL"
+        },
+        {
+          label: "Events",
+          value: "EVENTS"
+        }
+      );
+    }
+
+    tabs.push({
+      label: "Update",
+      value: "EDIT"
+    });
+
+    return tabs;
+  }, [isActive]);
+
   const searchParams = useSearchParams();
   const tabQuery = searchParams?.get("tab");
   const logsModeQuery = searchParams?.get("logsMode");
@@ -100,12 +135,17 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   }, [isWalletLoaded, isSettingsInit]);
 
   useEffect(() => {
-    if (leases && leases.some(l => l.state === "active")) {
-      if (tabQuery) {
-        setActiveTab(tabQuery);
-      }
+    if (!tabQuery) {
+      return;
     }
-  }, [tabQuery, logsModeQuery, leases]);
+
+    const tab = tabs.find(tab => tab.value === tabQuery);
+    if (tab) {
+      setActiveTab(tab.value);
+    } else if (isLeasesLoaded) {
+      router.replace(UrlService.deploymentDetails(dseq));
+    }
+  }, [tabQuery, logsModeQuery, leases, tabs, isLeasesLoaded, router, dseq]);
 
   function loadDeploymentDetail() {
     if (!isLoadingDeployment) {
@@ -121,18 +161,15 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     loadDeploymentDetail();
   }
 
-  const onChangeTab = (value: string) => {
-    setActiveTab(value);
+  const onChangeTab = (tab: string) => {
+    setActiveTab(tab);
 
-    // clear tab mode
-    if (value !== "LOGS" && (tabQuery || logsModeQuery)) {
-      router.replace(UrlService.deploymentDetails(dseq));
-    }
+    router.replace(UrlService.deploymentDetails(dseq, tab));
 
     analyticsService.track(`navigate_tab`, {
       category: "deployments",
-      label: `Navigate tab ${value} in deployment detail`,
-      tab: value
+      label: `Navigate tab ${tab} in deployment detail`,
+      tab
     });
   };
 
@@ -164,33 +201,17 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
         </div>
       )}
 
-      {deployment && (
+      {deployment && isLeasesLoaded && (
         <>
           <DeploymentSubHeader deployment={deployment} leases={leases} />
 
           <Tabs value={activeTab} onValueChange={onChangeTab}>
             <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="LEASES" data-testid="deployment-tab-leases">
-                Leases
-              </TabsTrigger>
-              {isActive && (
-                <TabsTrigger value="LOGS" data-testid="deployment-tab-logs">
-                  Logs
+              {tabs.map(tab => (
+                <TabsTrigger key={tab.value} value={tab.value} data-testid={tab.value.toLowerCase()}>
+                  {tab.label}
                 </TabsTrigger>
-              )}
-              {isActive && (
-                <TabsTrigger value="SHELL" data-testid="deployment-tab-shell">
-                  Shell
-                </TabsTrigger>
-              )}
-              {isActive && (
-                <TabsTrigger value="EVENTS" data-testid="deployment-tab-events">
-                  Events
-                </TabsTrigger>
-              )}
-              <TabsTrigger value="EDIT" data-testid="deployment-tab-update">
-                Update
-              </TabsTrigger>
+              ))}
             </TabsList>
 
             {activeTab === "EDIT" && deployment && leases && (
