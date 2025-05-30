@@ -16,6 +16,7 @@ export const Alert = pgTable("alerts", {
   contactPointId: uuid("contact_point_id")
     .notNull()
     .references(() => ContactPoint.id),
+  name: text("name").notNull(),
   summary: text("summary").notNull(),
   description: text("description").notNull(),
   conditions: jsonb("conditions").notNull(),
