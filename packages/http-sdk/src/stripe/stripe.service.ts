@@ -1,6 +1,6 @@
-import { AxiosRequestConfig } from "axios";
+import type { AxiosRequestConfig } from "axios";
 
-import { ApiOutput } from "../api-http/api-http.service";
+import type { ApiOutput } from "../api-http/api-http.service";
 import { HttpService } from "../http/http.service";
 
 interface StripePrice {

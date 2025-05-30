@@ -2,10 +2,10 @@ import { DataTypes } from "sequelize";
 import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 
 import { Required } from "../decorators/requiredDecorator";
-import { Day } from "./day";
-import { Message } from "./message";
-import { Transaction } from "./transaction";
-import { Validator } from "./validator";
+import { Day } from "./day"; // eslint-disable-line import-x/no-cycle
+import { Message } from "./message"; // eslint-disable-line import-x/no-cycle
+import { Transaction } from "./transaction"; // eslint-disable-line import-x/no-cycle
+import { Validator } from "./validator"; // eslint-disable-line import-x/no-cycle
 
 export const tableConfig = {
   modelName: "block",
