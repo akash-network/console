@@ -17,7 +17,7 @@ export const EditContactPointPage: React.FunctionComponent = () => {
     <Layout containerClassName="flex h-full flex-col justify-between">
       <NextSeo title="Edit Contact Point" />
       <AlertsLayout page={AlertTabs.CONTACT_POINTS} title="Edit Contact Point" returnable>
-        <ContactPointEditContainer id={contactPointId} onEdit={router.back}>
+        <ContactPointEditContainer id={contactPointId} onEdit={() => router.push(UrlService.contactPoints())}>
           {props => (
             <ContactPointForm
               values={props.values}

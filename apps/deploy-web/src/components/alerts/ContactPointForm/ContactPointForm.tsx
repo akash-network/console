@@ -45,18 +45,29 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
   });
 
   useEffect(() => {
-    if (props.values) {
+    form.reset();
+  }, [form]);
+
+  useEffect(() => {
+    const isEmptyForm = Object.values(form.getValues()).join("") === "";
+
+    if (props.values && isEmptyForm) {
       form.setValue("name", props.values.name || "");
       form.setValue("emails", props.values.emails?.length ? props.values.emails.join(", ") : "");
     }
-  }, [form, props.values]);
+  }, [form, props.values, props.values?.name]);
 
   const { control, handleSubmit } = form;
 
   const onSubmit = useCallback(
     async (values: FormValues) => {
       try {
-        const invalids = values.emails.split(",").filter(email => !z.string().email().safeParse(email).success);
+        const emails = values.emails
+          .split(",")
+          .map(email => email.trim())
+          .filter(Boolean);
+
+        const invalids = emails.filter(email => !z.string().email().safeParse(email).success);
 
         if (invalids.length > 0) {
           form.setError("emails", {
@@ -68,16 +79,13 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
 
         props.onSubmit({
           ...values,
-          emails: values.emails
-            .split(",")
-            .map(email => email.trim())
-            .filter(Boolean)
+          emails: Array.from(new Set(emails))
         });
       } catch (err) {
         setError("Failed to create contact point. Please try again.");
       }
     },
-    [props]
+    [props, form]
   );
 
   const currentValues = useWatch({ control });
@@ -141,7 +149,7 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
           {error && <Alert variant="destructive">{error}</Alert>}
 
           <div className="flex justify-end gap-2 pt-4">
-            <LoadingButton data-testid="contact-point-form-submit" disabled={isLoading} loading={isLoading} type="submit">
+            <LoadingButton data-testid="contact-point-form-submit" disabled={isLoading || !hasChanges} loading={isLoading} type="submit">
               Save
             </LoadingButton>
 

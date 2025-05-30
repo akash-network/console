@@ -15,7 +15,7 @@ export type ContainerPatchInput = Pick<ContactPointPatchInput, "name"> & {
 };
 
 export type ChildrenProps = {
-  values: Required<ContainerPatchInput>;
+  values?: Required<ContainerPatchInput>;
   onEdit: (input: ContainerPatchInput) => void;
   isLoading: boolean;
 };
@@ -56,11 +56,12 @@ export const ContactPointEditContainer: FC<ContactPointEditContainerProps> = ({ 
 
   useWhen(
     mutation.isSuccess,
-    () => {
+    async () => {
       notificator.success("Contact point saved!", { dataTestId: "contact-point-edit-success-notification" });
+      await query.refetch();
       onEdit();
     },
-    [mutation.isSuccess, notificator, onEdit]
+    [query, mutation.isSuccess, notificator, onEdit]
   );
 
   useWhen(mutation.isError, () => notificator.error("Failed to save contact point...", { dataTestId: "contact-point-edit-error-notification" }));
@@ -68,10 +69,12 @@ export const ContactPointEditContainer: FC<ContactPointEditContainerProps> = ({ 
   return (
     <>
       {children({
-        values: {
-          name: query.data?.data?.name ?? "",
-          emails: query.data?.data?.config.addresses ?? []
-        },
+        values: query.data?.data
+          ? {
+              name: query.data.data?.name ?? "",
+              emails: query.data.data?.config.addresses ?? []
+            }
+          : undefined,
         onEdit: edit,
         isLoading: mutation.isPending
       })}
