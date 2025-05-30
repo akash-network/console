@@ -10,8 +10,8 @@
   "author": "Akash Network",
   "main": "src/index.ts",
   "scripts": {
-    "format": "prettier --write ./*.{ts,json} **/*.{ts,json}",
-    "generate": "ts-node scripts/generate.ts",
+    "format": "prettier --write ./*.{ts,json} './src/**/*.{ts,json}'",
+    "generate": "ts-node scripts/generate.ts && npm run format",
     "lint": "eslint .",
     "test": "npm run generate && jest",
     "test:cov": "npm run test -- --coverage",

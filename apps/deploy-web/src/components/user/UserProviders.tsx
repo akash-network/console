@@ -6,6 +6,10 @@ import { AnonymousUserProvider } from "@src/context/AnonymousUserProvider/Anonym
 import { authHttpService } from "@src/services/user/user-http.service";
 import type { FCWithChildren } from "@src/types/component";
 
+/**
+ * UserProviders is a client only component because it uses the UserProvider
+ * which is a client only component.
+ */
 export const UserProviders: FCWithChildren = ({ children }) =>
   browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED ? (
     <UserProvider fetcher={authHttpService.getProfile}>
