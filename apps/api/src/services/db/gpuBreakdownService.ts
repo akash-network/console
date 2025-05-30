@@ -3,16 +3,6 @@ import { QueryTypes } from "sequelize";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
 
-type GpuUtilizationData = {
-  date: Date;
-  cpuUtilization: number;
-  cpu: number;
-  gpuUtilization: number;
-  gpu: number;
-  count: number;
-  node_count: number;
-};
-
 type GpuBreakdownData = {
   date: Date;
   vendor: string;
@@ -23,66 +13,6 @@ type GpuBreakdownData = {
   leasedGpus: number;
   gpuUtilization: number;
 };
-
-export async function getGpuUtilization() {
-  return await cacheResponse(
-    60 * 5,
-    cacheKeys.getGpuUtilization,
-    async () => {
-      const result = await chainDb.query<GpuUtilizationData>(
-        `SELECT
-          d."date",
-          ROUND(
-            COALESCE((SUM("activeCPU") + SUM("pendingCPU")) * 100.0 /
-            NULLIF(SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU"), 0), 0),
-            2
-          )::float AS "cpuUtilization",
-          COALESCE(SUM("activeCPU") + SUM("pendingCPU") + SUM("availableCPU"), 0)::integer AS "cpu",
-          ROUND(
-            COALESCE((SUM("activeGPU") + SUM("pendingGPU")) * 100.0 /
-            NULLIF(SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU"), 0), 0),
-            2
-          )::float AS "gpuUtilization",
-          COALESCE(SUM("activeGPU") + SUM("pendingGPU") + SUM("availableGPU"), 0)::integer AS "gpu",
-          COUNT(*) as provider_count,
-          COALESCE(COUNT(DISTINCT "nodeId"), 0) as node_count
-        FROM "day" d
-        INNER JOIN (
-          SELECT DISTINCT ON("hostUri",DATE("checkDate"))
-            DATE("checkDate") AS date,
-            ps."activeCPU", ps."pendingCPU", ps."availableCPU",
-            ps."activeGPU", ps."pendingGPU", ps."availableGPU",
-            ps."isOnline",
-            n.id as "nodeId"
-          FROM "providerSnapshot" ps
-          INNER JOIN "provider" ON "provider"."owner"=ps."owner"
-          INNER JOIN "providerSnapshotNode" n ON n."snapshotId"=ps.id AND n."gpuAllocatable" > 0
-          LEFT JOIN "providerSnapshotNodeGPU" gpu ON gpu."snapshotNodeId" = n.id
-          WHERE ps."isLastSuccessOfDay" = TRUE
-          ORDER BY "hostUri",DATE("checkDate"),"checkDate" DESC
-        ) "dailyProviderStats"
-        ON DATE(d."date")="dailyProviderStats"."date"
-        GROUP BY d."date"
-        ORDER BY d."date" ASC`,
-        {
-          type: QueryTypes.SELECT
-        }
-      );
-
-      const stats = result.map(day => ({
-        date: day.date,
-        value: day.gpuUtilization
-      }));
-
-      return {
-        currentValue: stats[stats.length - 1]?.value ?? 0,
-        compareValue: stats[stats.length - 2]?.value ?? 0,
-        snapshots: stats
-      };
-    },
-    true
-  );
-}
 
 export async function getGpuBreakdownByVendorAndModel(vendor?: string, model?: string): Promise<GpuBreakdownData[]> {
   return await cacheResponse(
@@ -101,7 +31,7 @@ export async function getGpuBreakdownByVendorAndModel(vendor?: string, model?: s
       }>(
         `
         WITH UTILIZATION AS (
-          SELECT 
+          SELECT
               d."date",
               COALESCE(gpu."vendor", 'Unknown') as "vendor",
               COALESCE(gpu."name", 'Unknown') as "model",
@@ -109,29 +39,29 @@ export async function getGpuBreakdownByVendorAndModel(vendor?: string, model?: s
               COALESCE(COUNT(DISTINCT n.id), 0) as node_count,
               COALESCE(COUNT(gpu.id), 0) as total_gpus,
               LEAST(COALESCE(CAST(ROUND(SUM(
-                  CAST(n."gpuAllocated" as float) / 
-                  NULLIF((SELECT COUNT(*) 
-                          FROM "providerSnapshotNodeGPU" subgpu 
+                  CAST(n."gpuAllocated" as float) /
+                  NULLIF((SELECT COUNT(*)
+                          FROM "providerSnapshotNodeGPU" subgpu
                           WHERE subgpu."snapshotNodeId" = n.id), 0)
               )) as int), 0), COUNT(gpu.id))  as leased_gpus,
               LEAST(CAST(COALESCE(
                   SUM(
-                      CAST(n."gpuAllocated" as float) / 
-                      NULLIF((SELECT COUNT(*) 
-                              FROM "providerSnapshotNodeGPU" subgpu 
+                      CAST(n."gpuAllocated" as float) /
+                      NULLIF((SELECT COUNT(*)
+                              FROM "providerSnapshotNodeGPU" subgpu
                               WHERE subgpu."snapshotNodeId" = n.id), 0)
                   ) * 100.0 / NULLIF(COUNT(gpu.id), 0)
               , 0) as numeric(10,2)), 100.00) as "gpuUtilization"
           FROM "day" d
           INNER JOIN (
-              SELECT DISTINCT ON("hostUri", DATE("checkDate")) 
+              SELECT DISTINCT ON("hostUri", DATE("checkDate"))
                   ps.id as "snapshotId",
                   "hostUri",
                   DATE("checkDate") AS date,
                   ps."isOnline"
               FROM "providerSnapshot" ps
               INNER JOIN "provider" ON "provider"."owner" = ps."owner"
-              WHERE ps."isLastSuccessOfDay" = TRUE 
+              WHERE ps."isLastSuccessOfDay" = TRUE
               ORDER BY "hostUri", DATE("checkDate"), "checkDate" DESC
           ) "dailyProviderStats" ON DATE(d."date") = "dailyProviderStats"."date"
           INNER JOIN "providerSnapshotNode" n ON n."snapshotId" = "dailyProviderStats"."snapshotId" AND n."gpuAllocatable" > 0

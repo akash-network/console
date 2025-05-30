@@ -1,11 +1,9 @@
 import { Block } from "@akashnetwork/database/dbSchemas";
 import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
 import { Validator } from "@akashnetwork/database/dbSchemas/base";
-import { LoggerService } from "@akashnetwork/logging";
 import axios from "axios";
 import { Op } from "sequelize";
 
-import { cacheKeys, cacheResponse } from "@src/caching/helpers";
 import { getTransactionByAddress } from "@src/services/db/transactionsService";
 import type {
   CosmosGovProposalResponse,
@@ -19,82 +17,10 @@ import type {
   RestCosmosStakingValidatorsResponse,
   RestGovProposalsTallyResponse
 } from "@src/types/rest";
-import type { CosmosBankSupplyResponse } from "@src/types/rest/cosmosBankSupplyResponse";
-import type { CosmosDistributionCommunityPoolResponse } from "@src/types/rest/cosmosDistributionCommunityPoolResponse";
-import type { CosmosDistributionParamsResponse } from "@src/types/rest/cosmosDistributionParamsResponse";
 import type { CosmosDistributionValidatorsCommissionResponse } from "@src/types/rest/cosmosDistributionValidatorsCommissionResponse";
-import type { CosmosMintInflationResponse } from "@src/types/rest/cosmosMintInflationResponse";
-import type { CosmosStakingPoolResponse } from "@src/types/rest/cosmosStakingPoolResponse";
 import { coinToAsset } from "@src/utils/coin";
 import { apiNodeUrl, averageBlockCountInAMonth, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/constants";
-import { createLoggingExecutor } from "@src/utils/logging";
 import { getDeploymentRelatedMessages } from "../db/deploymentService";
-
-export async function getChainStats() {
-  const logger = LoggerService.forContext("ApiNode");
-  const runOrLog = createLoggingExecutor(logger);
-
-  const result = await cacheResponse(
-    60 * 5, // 5 minutes
-    cacheKeys.getChainStats,
-    async () => {
-      const bondedTokensAsPromised = await runOrLog(async () => {
-        const bondedTokensQuery = await axios.get<CosmosStakingPoolResponse>(`${apiNodeUrl}/cosmos/staking/v1beta1/pool`);
-        return parseInt(bondedTokensQuery.data.pool.bonded_tokens);
-      }, 0);
-
-      const totalSupplyAsPromised = await runOrLog(async () => {
-        const supplyQuery = await axios.get<CosmosBankSupplyResponse>(`${apiNodeUrl}/cosmos/bank/v1beta1/supply?pagination.limit=1000`);
-        return parseInt(supplyQuery.data.supply.find(x => x.denom === "uakt")?.amount || "0");
-      }, 0);
-
-      const communityPoolAsPromised = await runOrLog(async () => {
-        const communityPoolQuery = await axios.get<CosmosDistributionCommunityPoolResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
-        return parseFloat(communityPoolQuery.data.pool.find(x => x.denom === "uakt")?.amount || "0");
-      }, 0);
-
-      const inflationAsPromised = await runOrLog(async () => {
-        const inflationQuery = await axios.get<CosmosMintInflationResponse>(`${apiNodeUrl}/cosmos/mint/v1beta1/inflation`);
-        return parseFloat(inflationQuery.data.inflation || "0");
-      }, 0);
-
-      const communityTaxAsPromised = await runOrLog(async () => {
-        const distributionQuery = await axios.get<CosmosDistributionParamsResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/params`);
-        return parseFloat(distributionQuery.data.params.community_tax || "0");
-      }, 0);
-
-      const [bondedTokens, totalSupply, communityPool, inflation, communityTax] = await Promise.all([
-        bondedTokensAsPromised,
-        totalSupplyAsPromised,
-        communityPoolAsPromised,
-        inflationAsPromised,
-        communityTaxAsPromised
-      ]);
-
-      return {
-        communityPool,
-        inflation,
-        communityTax,
-        bondedTokens,
-        totalSupply
-      };
-    },
-    true
-  );
-
-  let stakingAPR: number | undefined;
-  if (result.bondedTokens && result.bondedTokens > 0 && result.inflation && result.communityTax && result.totalSupply) {
-    stakingAPR = (result.inflation * (1 - result.communityTax) * result.totalSupply) / result.bondedTokens;
-  }
-
-  return {
-    bondedTokens: result.bondedTokens,
-    totalSupply: result.totalSupply,
-    communityPool: result.communityPool,
-    inflation: result.inflation,
-    stakingAPR
-  };
-}
 
 export async function getAddressBalance(address: string) {
   const balancesQuery = axios.get<RestCosmosBankBalancesResponse>(`${apiNodeUrl}/cosmos/bank/v1beta1/balances/${address}?pagination.limit=1000`);
