@@ -1,7 +1,7 @@
 import type { BrowserContext as Context, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-import { testEnvConfig } from "../fixture/test-env.config";
+import { PROVIDERS_WHITELIST, testEnvConfig } from "../fixture/test-env.config";
 
 export type FeeType = "low" | "medium" | "high";
 export class DeployBasePage {
@@ -43,8 +43,25 @@ export class DeployBasePage {
     await this.page.getByTestId("deposit-modal-continue-button").click();
   }
 
-  async createLease(providerName = "provider.europlots-sandbox.com") {
-    await this.page.getByLabel(providerName).click();
+  async createLease(providerName?: string) {
+    if (providerName) {
+      await this.page.getByLabel(providerName).click();
+    } else {
+      const providers = PROVIDERS_WHITELIST[testEnvConfig.NETWORK_ID];
+      if (!providers.length) {
+        await this.page.getByRole("radio", { checked: false }).click();
+      } else {
+        await Promise.race(
+          providers.map(provider =>
+            this.page
+              .getByLabel(provider)
+              .click()
+              .catch(() => null)
+          )
+        );
+      }
+    }
+
     await this.page.getByTestId("create-lease-button").click();
   }
 

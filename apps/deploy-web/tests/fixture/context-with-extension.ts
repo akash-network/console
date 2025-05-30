@@ -1,16 +1,12 @@
 import type { BrowserContext, Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
-import fs from "fs";
 import { nanoid } from "nanoid";
 import path from "path";
 
+import { selectChainNetwork } from "../actions/selectChainNetwork";
 import { injectUIConfig, test as baseTest } from "./base-test";
-
-// @see https://github.com/microsoft/playwright/issues/14949
-export async function restoreExtensionStorage(page: Page): Promise<void> {
-  const extensionStorage = JSON.parse(fs.readFileSync(path.join(__dirname, "leapExtensionLocalStorage.json"), "utf8"));
-  await page.evaluate(data => chrome.storage.local.set(data), extensionStorage);
-}
+import { testEnvConfig } from "./test-env.config";
+import { connectWalletViaLeap, setupWallet } from "./wallet-setup";
 
 // @see https://playwright.dev/docs/chrome-extensions
 export const test = baseTest.extend<{
@@ -22,7 +18,7 @@ export const test = baseTest.extend<{
   context: async ({}, use) => {
     const pathToExtension = path.join(__dirname, "Leap");
     const contextName = nanoid();
-    const userDataDir = path.join(__dirname, "./testdata/tmp/" + contextName);
+    const userDataDir = path.join(__dirname, "testdata", "tmp", contextName);
     const args = [
       // keep new line
       `--disable-extensions-except=${pathToExtension}`,
@@ -62,9 +58,19 @@ export const test = baseTest.extend<{
       await extPage.waitForLoadState("domcontentloaded");
     }
 
-    await injectUIConfig(extPage);
-    await use(extPage);
+    await setupWallet(context, extPage);
     await extPage.close();
+    const page = await context.newPage();
+    await injectUIConfig(page);
+
+    if (testEnvConfig.NETWORK_ID !== "mainnet") {
+      await page.goto(testEnvConfig.BASE_URL);
+      await connectWalletViaLeap(context, page);
+      await selectChainNetwork(page, testEnvConfig.NETWORK_ID);
+      await connectWalletViaLeap(context, page);
+    }
+
+    await use(page);
   }
 });
 
