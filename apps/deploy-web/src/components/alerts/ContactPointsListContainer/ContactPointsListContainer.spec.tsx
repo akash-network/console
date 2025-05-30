@@ -7,30 +7,23 @@ import type { RequestFnResponse } from "@openapi-qraft/react/src/lib/requestFn";
 import { QueryClientProvider } from "@tanstack/react-query";
 
 import { ContactPointsListContainer } from "@src/components/alerts/ContactPointsListContainer/ContactPointsListContainer";
+import type { ContactPointsListViewProps } from "@src/components/alerts/ContactPointsListView/ContactPointsListView";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { buildContactPoint } from "@tests/seeders/contactPoint";
+import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 
 describe("ContactPointsListContainer", () => {
   it("renders contact points list with data", async () => {
-    const { mockData } = setup();
-
-    await waitFor(() => {
-      expect(screen.getByText(mockData.data[0].name)).toBeInTheDocument();
-      expect(screen.getByText(mockData.data[1].name)).toBeInTheDocument();
-    });
+    const { mockData, child } = await setup();
+    expect(child.data).toEqual(mockData.data);
   });
 
   it("calls delete endpoint and shows success notification when removing a contact point succeeds", async () => {
-    const { mockData, requestFn } = setup();
-
-    await waitFor(() => {
-      expect(screen.getByTestId(`remove-contact-point-${mockData.data[0].id}`)).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId(`remove-contact-point-${mockData.data[0].id}`));
+    const { mockData, requestFn, child } = await setup();
+    child.onRemove(mockData.data[0].id);
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
@@ -42,15 +35,9 @@ describe("ContactPointsListContainer", () => {
   });
 
   it("calls delete endpoint and shows error notification when removing a contact point fails", async () => {
-    const { mockData, requestFn } = setup();
-
+    const { mockData, requestFn, child } = await setup();
     requestFn.mockRejectedValue(new Error());
-
-    await waitFor(() => {
-      expect(screen.getByTestId(`remove-contact-point-${mockData.data[0].id}`)).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId(`remove-contact-point-${mockData.data[0].id}`));
+    child.onRemove(mockData.data[0].id);
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
@@ -62,13 +49,8 @@ describe("ContactPointsListContainer", () => {
   });
 
   it("handles pagination correctly", async () => {
-    const { mockData, requestFn } = setup();
-
-    await waitFor(() => {
-      expect(screen.getByText(mockData.data[0].name)).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId("next-page-button"));
+    const { requestFn, child } = await setup();
+    child.onPaginationChange({ page: child.pagination.page + 1, limit: child.pagination.limit });
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
@@ -85,10 +67,10 @@ describe("ContactPointsListContainer", () => {
     });
   });
 
-  function setup() {
+  async function setup() {
     const onEditMock = jest.fn();
     const mockData = {
-      data: Array.from({ length: 11 }, buildContactPoint),
+      data: Array.from({ length: 10 }, buildContactPoint),
       pagination: {
         page: 1,
         limit: 10,
@@ -110,63 +92,20 @@ describe("ContactPointsListContainer", () => {
           queryClient
         })
     };
+    const childCapturer = createContainerTestingChildCapturer<ContactPointsListViewProps>();
 
     render(
       <CustomSnackbarProvider>
         <ServicesProvider services={services}>
           <QueryClientProvider client={queryClient}>
-            <ContactPointsListContainer>
-              {({ data, pagination, onPaginationChange, removingIds, isLoading, isError, onRemove }) => (
-                <div>
-                  {isLoading && <div>Loading...</div>}
-                  {isError && <div>Error loading contact points</div>}
-                  <ul>
-                    {data.map(contactPoint => (
-                      <li key={contactPoint.id}>
-                        <span>{contactPoint.name}</span>
-                        <button data-testid={`remove-contact-point-${contactPoint.id}`} onClick={() => onRemove(contactPoint.id)}>
-                          {removingIds.has(contactPoint.id) ? "Removing" : "Remove"}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  <div>
-                    <span>
-                      Page {pagination.page} of {pagination.totalPages}
-                    </span>
-                    <button
-                      data-testid="prev-page-button"
-                      onClick={() =>
-                        onPaginationChange({
-                          page: pagination.page - 1,
-                          limit: pagination.limit
-                        })
-                      }
-                      disabled={pagination.page <= 1}
-                    >
-                      Previous
-                    </button>
-                    <button
-                      data-testid="next-page-button"
-                      onClick={() =>
-                        onPaginationChange({
-                          page: pagination.page + 1,
-                          limit: pagination.limit
-                        })
-                      }
-                      disabled={pagination.page >= pagination.totalPages}
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
-            </ContactPointsListContainer>
+            <ContactPointsListContainer>{childCapturer.renderChild}</ContactPointsListContainer>
           </QueryClientProvider>
         </ServicesProvider>
       </CustomSnackbarProvider>
     );
 
-    return { mockData, requestFn, onEditMock };
+    const child = await childCapturer.awaitChild(({ data }) => !!data.length);
+
+    return { mockData, requestFn, onEditMock, child };
   }
 });
