@@ -1,5 +1,17 @@
 
 
+## [2.79.0](https://github.com/akash-network/console/compare/console-web/v2.78.3...console-web/v2.79.0) (2025-05-30)
+
+
+### Features
+
+* **deployment:** use persistent tab query for details page  ([baeeb07](https://github.com/akash-network/console/commit/baeeb076f0a5d60109aaabf5d1a18817e33f680a))
+
+
+### Code Refactoring
+
+* move /v1/dashboard-data to modules ([#1372](https://github.com/akash-network/console/issues/1372)) ([1d165ad](https://github.com/akash-network/console/commit/1d165ad2bc78ad8a18521938e3720779c8da04c4)), closes [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272)
+
 ## [2.78.3](https://github.com/akash-network/console/compare/console-web/v2.78.2...console-web/v2.78.3) (2025-05-30)
 
 
