@@ -14,33 +14,14 @@ import { z } from "zod";
 
 const formSchema = z.object({
   name: z.string().min(1).max(100),
-  emails: z
-    .string()
-    .min(1, "At least one email is required")
-    .refine(
-      value => {
-        const emailArray = value
-          .split(",")
-          .map(email => email.trim())
-          .filter(Boolean);
-
-        if (emailArray.length === 0) {
-          return false;
-        }
-
-        const invalids = emailArray.filter(email => !z.string().email().safeParse(email).success);
-        return invalids.length === 0;
-      },
-      {
-        message: "One or more email addresses are invalid."
-      }
-    )
+  emails: z.string().min(1, "At least one email is required")
 });
 type FormValues = z.infer<typeof formSchema>;
+type DataValues = Pick<FormValues, "name"> & { emails: string[] };
 
 export interface ContactPointFormProps {
-  values?: FormValues;
-  onSubmit: (data: Pick<FormValues, "name"> & { emails: string[] }) => void;
+  values?: DataValues;
+  onSubmit: (data: DataValues) => void;
   onCancel?: () => void;
   isLoading?: boolean;
 }
@@ -50,14 +31,10 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
   const { confirm } = usePopup();
 
   const initialValues: FormValues = useMemo(
-    () =>
-      Object.assign(
-        {
-          name: "",
-          emails: ""
-        },
-        props.values
-      ),
+    () => ({
+      name: props.values?.name || "",
+      emails: props.values?.emails?.length ? props.values.emails.join(", ") : ""
+    }),
     [props.values]
   );
 
@@ -68,10 +45,9 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
   });
 
   useEffect(() => {
-    const isEmptyForm = Object.values(form.getValues()).every(value => !value);
-
-    if (props.values && isEmptyForm) {
-      form.reset(props.values);
+    if (props.values) {
+      form.setValue("name", props.values.name || "");
+      form.setValue("emails", props.values.emails?.length ? props.values.emails.join(", ") : "");
     }
   }, [form, props.values]);
 
@@ -80,6 +56,16 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
   const onSubmit = useCallback(
     async (values: FormValues) => {
       try {
+        const invalids = values.emails.split(",").filter(email => !z.string().email().safeParse(email).success);
+
+        if (invalids.length > 0) {
+          form.setError("emails", {
+            message: `Invalid email addresses: ${invalids.join(", ")}`
+          });
+
+          return;
+        }
+
         props.onSubmit({
           ...values,
           emails: values.emails

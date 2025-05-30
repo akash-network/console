@@ -4,7 +4,6 @@ import type { FC, ReactNode } from "react";
 import React from "react";
 import { useCallback } from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
-import { useParams } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
@@ -15,15 +14,20 @@ export type ContainerPatchInput = Pick<ContactPointPatchInput, "name"> & {
   emails: Required<ContactPointPatchInput>["config"]["addresses"];
 };
 
-type ChildrenProps = {
+export type ChildrenProps = {
   values: Required<ContainerPatchInput>;
   onEdit: (input: ContainerPatchInput) => void;
   isLoading: boolean;
 };
 
-export const ContactPointEditContainer: FC<{ children: (props: ChildrenProps) => ReactNode; onEdit: () => void }> = ({ children, onEdit }) => {
+type ContactPointEditContainerProps = {
+  id: string;
+  children: (props: ChildrenProps) => ReactNode;
+  onEdit: () => void;
+};
+
+export const ContactPointEditContainer: FC<ContactPointEditContainerProps> = ({ id, children, onEdit }) => {
   const { notificationsApi } = useServices();
-  const { id } = useParams();
   const mutation = notificationsApi.v1.patchContactPoint.useMutation({
     path: {
       id
@@ -65,8 +69,8 @@ export const ContactPointEditContainer: FC<{ children: (props: ChildrenProps) =>
     <>
       {children({
         values: {
-          name: query.data?.data.name ?? "",
-          emails: query.data?.data.config.addresses.join(",") ?? ""
+          name: query.data?.data?.name ?? "",
+          emails: query.data?.data?.config.addresses ?? []
         },
         onEdit: edit,
         isLoading: mutation.isPending
