@@ -1,5 +1,12 @@
 
 
+## [2.94.6](https://github.com/akash-network/console/compare/console-api/v2.94.5...console-api/v2.94.6) (2025-05-30)
+
+
+### Bug Fixes
+
+* another attempt to stabilize e2e tests for deploy hello world case ([#1414](https://github.com/akash-network/console/issues/1414)) ([ddddf57](https://github.com/akash-network/console/commit/ddddf57c21d5eab12b2590e7546928626fc45c67))
+
 ## [2.94.5](https://github.com/akash-network/console/compare/console-api/v2.94.4...console-api/v2.94.5) (2025-05-29)
 
 
