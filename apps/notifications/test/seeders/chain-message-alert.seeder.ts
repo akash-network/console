@@ -8,6 +8,7 @@ export const generateChainMessageAlert = ({
   id = faker.string.uuid(),
   userId = faker.string.uuid(),
   contactPointId = faker.string.uuid(),
+  name = faker.lorem.word(),
   summary = "Default summary {{type}}",
   description = "Default description {{type}}",
   conditions = {
@@ -24,6 +25,7 @@ export const generateChainMessageAlert = ({
     id,
     userId,
     contactPointId,
+    name,
     summary,
     description,
     conditions,

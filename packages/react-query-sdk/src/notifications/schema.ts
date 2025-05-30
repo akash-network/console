@@ -77,6 +77,7 @@ export interface components {
         | {
             /** Format: uuid */
             contactPointId: string;
+            name: string;
             /** @default true */
             enabled: boolean;
             summary: string;
@@ -111,6 +112,7 @@ export interface components {
         | {
             /** Format: uuid */
             contactPointId: string;
+            name: string;
             /** @default true */
             enabled: boolean;
             summary: string;
@@ -155,6 +157,7 @@ export interface components {
         | {
             /** Format: uuid */
             contactPointId: string;
+            name: string;
             enabled: boolean;
             summary: string;
             description: string;
@@ -195,6 +198,7 @@ export interface components {
         | {
             /** Format: uuid */
             contactPointId: string;
+            name: string;
             enabled: boolean;
             summary: string;
             description: string;
@@ -263,6 +267,7 @@ export interface components {
       data: {
         /** Format: uuid */
         contactPointId?: string;
+        name?: string;
         /** @default true */
         enabled: boolean;
         summary?: string;
