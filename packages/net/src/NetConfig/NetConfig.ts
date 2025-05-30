@@ -11,4 +11,13 @@ export class NetConfig {
   getSupportedNetworks(): SupportedChainNetworks[] {
     return Object.keys(netConfigData) as SupportedChainNetworks[];
   }
+
+  getFaucetUrl(network: SupportedChainNetworks): string | null {
+    switch (network) {
+      case "sandbox":
+        return "https://faucet.sandbox-01.aksh.pw/faucet";
+      default:
+        return null;
+    }
+  }
 }

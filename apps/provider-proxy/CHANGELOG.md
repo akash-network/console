@@ -1,5 +1,12 @@
 
 
+## [1.7.6](https://github.com/akash-network/console/compare/provider-proxy/v1.7.5...provider-proxy/v1.7.6) (2025-05-30)
+
+
+### Bug Fixes
+
+* another attempt to stabilize e2e tests for deploy hello world case ([#1414](https://github.com/akash-network/console/issues/1414)) ([ddddf57](https://github.com/akash-network/console/commit/ddddf57c21d5eab12b2590e7546928626fc45c67))
+
 ## [1.7.5](https://github.com/akash-network/console/compare/provider-proxy/v1.7.4...provider-proxy/v1.7.5) (2025-05-29)
 
 

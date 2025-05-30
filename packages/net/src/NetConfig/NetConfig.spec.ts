@@ -15,6 +15,14 @@ describe("NetConfig", () => {
     expect(hasSupportedNetworks).toBe(true);
   });
 
+  it("returns faucet URL for sandbox network", () => {
+    const netConfig = setup();
+
+    expect(netConfig.getFaucetUrl("sandbox")).toBe("https://faucet.sandbox-01.aksh.pw/faucet");
+    expect(netConfig.getFaucetUrl("mainnet")).toBeNull();
+    expect(netConfig.getFaucetUrl("testnet-02")).toBeNull();
+  });
+
   function setup() {
     return new NetConfig();
   }

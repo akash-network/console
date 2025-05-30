@@ -1,5 +1,12 @@
 
 
+## [2.78.3](https://github.com/akash-network/console/compare/console-web/v2.78.2...console-web/v2.78.3) (2025-05-30)
+
+
+### Bug Fixes
+
+* another attempt to stabilize e2e tests for deploy hello world case ([#1414](https://github.com/akash-network/console/issues/1414)) ([ddddf57](https://github.com/akash-network/console/commit/ddddf57c21d5eab12b2590e7546928626fc45c67))
+
 ## [2.78.2](https://github.com/akash-network/console/compare/console-web/v2.78.1...console-web/v2.78.2) (2025-05-29)
 
 
