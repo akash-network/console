@@ -1,15 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Popup } from "@akashnetwork/ui/components";
+import { Alert, Button, Card, CardContent, Input, Popup } from "@akashnetwork/ui/components";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import type { Stripe } from "@stripe/stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
+import type { GetServerSideProps } from "next";
+import { useRouter } from "next/router";
 import { useTheme } from "next-themes";
 
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useUser } from "@src/hooks/useUser";
+import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
 import { stripeService } from "@src/services/http/http-browser.service";
+import { withCustomPageAuthRequired } from "@src/utils/withCustomPageAuthRequired";
 
 let stripePromise: Promise<Stripe | null>;
 
@@ -55,9 +59,9 @@ const AddPaymentMethodForm = ({ onSuccess }: { onSuccess: () => void }) => {
           {error}
         </Alert>
       )}
-      <button type="submit" className="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+      <Button type="submit" className="w-full">
         Add Card
-      </button>
+      </Button>
     </form>
   );
 };
@@ -65,6 +69,7 @@ const AddPaymentMethodForm = ({ onSuccess }: { onSuccess: () => void }) => {
 const PayPage: React.FunctionComponent = () => {
   const user = useUser();
   const { resolvedTheme } = useTheme();
+  const router = useRouter();
   const [clientSecret, setClientSecret] = useState<string>();
   const [paymentMethods, setPaymentMethods] = useState<
     Array<{
@@ -84,6 +89,9 @@ const PayPage: React.FunctionComponent = () => {
   const [amount, setAmount] = useState<string>("");
   const [coupon, setCoupon] = useState<string>("");
   const [processing, setProcessing] = useState(false);
+  const [couponError, setCouponError] = useState<string>();
+  const [couponSuccess, setCouponSuccess] = useState<string>();
+  const [setupSuccess, setSetupSuccess] = useState<string>();
 
   const setupIntent = async () => {
     try {
@@ -122,6 +130,19 @@ const PayPage: React.FunctionComponent = () => {
       window.removeEventListener("paymentMethodsUpdated", handlePaymentMethodsUpdated as EventListener);
     };
   }, []);
+
+  // Handle setup intent redirect
+  useEffect(() => {
+    const { setup_intent, redirect_status } = router.query;
+
+    if (setup_intent && redirect_status === "succeeded") {
+      setSetupSuccess("Payment method added successfully!");
+      fetchPaymentMethods();
+
+      // Clean up the URL
+      router.replace("/pay", undefined, { shallow: true });
+    }
+  }, [router.query]);
 
   const handlePayment = async (paymentMethodId: string) => {
     if (!amount) return;
@@ -169,6 +190,21 @@ const PayPage: React.FunctionComponent = () => {
     await fetchPaymentMethods();
   };
 
+  const handleClaimCoupon = async () => {
+    if (!coupon) return;
+
+    setCouponError(undefined);
+    setCouponSuccess(undefined);
+
+    try {
+      await stripeService.applyCoupon(coupon);
+      setCouponSuccess("Coupon applied successfully!");
+      setCoupon(""); // Clear the input after successful application
+    } catch (error: any) {
+      setCouponError(error.message || "Failed to apply coupon");
+    }
+  };
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -185,30 +221,37 @@ const PayPage: React.FunctionComponent = () => {
         <Title>Payment Methods</Title>
         <p className="mt-4 text-center text-gray-600">Manage your payment methods and make payments.</p>
         <div className="mx-auto max-w-md p-6">
+          {setupSuccess && (
+            <Alert className="mb-4" variant="success">
+              {setupSuccess}
+            </Alert>
+          )}
           <div className="mb-6">
             <h2 className="mb-3 text-lg font-semibold">Your Cards</h2>
             {paymentMethods.length > 0 ? (
               <div className="space-y-3">
-                {paymentMethods.map(method => (
-                  <div key={method.id} className="rounded-lg border bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-medium capitalize">{method.card.brand}</span>
-                        <span className="ml-2">•••• {method.card.last4}</span>
+                <Card className="rounded-lg border shadow-sm">
+                  <CardContent className="flex flex-col gap-4 pt-4">
+                    {paymentMethods.map(method => (
+                      <div key={method.id} className="flex items-center justify-between rounded-md border p-4">
+                        <div>
+                          <span className="font-medium capitalize">{method.card.brand}</span>
+                          <span className="ml-2">•••• {method.card.last4}</span>
+                        </div>
+                        <div className="text-sm">
+                          Expires {method.card.exp_month}/{method.card.exp_year}
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        Expires {method.card.exp_month}/{method.card.exp_year}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    ))}
+                  </CardContent>
+                </Card>
               </div>
             ) : (
               <p className="text-gray-500">No payment methods added yet.</p>
             )}
-            <button onClick={() => setShowAddPaymentMethod(true)} className="mt-4 w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+            <Button onClick={() => setShowAddPaymentMethod(true)} className="mt-4 w-full">
               Add New Card
-            </button>
+            </Button>
           </div>
 
           {paymentMethods.length > 0 && (
@@ -216,11 +259,11 @@ const PayPage: React.FunctionComponent = () => {
               <h2 className="mb-3 text-lg font-semibold">Make a Payment</h2>
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label htmlFor="amount" className="block text-sm font-medium text-muted-foreground">
                     Amount (USD)
                   </label>
                   <div className="mt-1">
-                    <input
+                    <Input
                       type="number"
                       name="amount"
                       id="amount"
@@ -228,36 +271,36 @@ const PayPage: React.FunctionComponent = () => {
                       step="0.01"
                       value={amount}
                       onChange={e => setAmount(e.target.value)}
-                      className="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                       placeholder="0.00"
                     />
                   </div>
                 </div>
 
-                <div>
+                <div className="flex flex-col gap-2">
                   <label htmlFor="coupon" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Coupon Code (Optional)
+                    Coupon Code
                   </label>
-                  <div className="mt-1">
-                    <input
+                  <div className="mt-1 flex w-full items-center gap-2">
+                    <Input
                       type="text"
                       name="coupon"
                       id="coupon"
+                      className="flex-grow"
                       value={coupon}
                       onChange={e => setCoupon(e.target.value)}
-                      className="focus:border-primary-500 focus:ring-primary-500 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                       placeholder="Enter coupon code"
                     />
+                    <Button onClick={handleClaimCoupon} disabled={!coupon || processing}>
+                      Claim coupon
+                    </Button>
                   </div>
+                  {couponError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{couponError}</p>}
+                  {couponSuccess && <p className="mt-1 text-sm text-green-600 dark:text-green-400">{couponSuccess}</p>}
                 </div>
 
-                <button
-                  onClick={() => handlePayment(paymentMethods[0].id)}
-                  disabled={!amount || processing}
-                  className="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
+                <Button onClick={() => handlePayment(paymentMethods[0].id)} disabled={!amount || processing}>
                   {processing ? "Processing..." : `Pay $${amount || "0.00"}`}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -312,3 +355,11 @@ const PayPage: React.FunctionComponent = () => {
 };
 
 export default PayPage;
+
+export const getServerSideProps: GetServerSideProps = withCustomPageAuthRequired({
+  getServerSideProps: getServerSidePropsWithServices(async () => {
+    return {
+      props: {}
+    };
+  })
+});

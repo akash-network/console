@@ -1,6 +1,6 @@
 import { singleton } from "tsyringe";
 
-import { Protected } from "@src/auth/services/auth.service";
+import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { UserRepository } from "@src/user/repositories";
@@ -9,7 +9,8 @@ import { UserRepository } from "@src/user/repositories";
 export class StripeController {
   constructor(
     private readonly stripe: StripeService,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly authService: AuthService
   ) {}
 
   @Protected([{ action: "read", subject: "StripePrice" }])
@@ -18,8 +19,10 @@ export class StripeController {
   }
 
   @Protected([{ action: "create", subject: "PaymentMethod" }])
-  async createSetupIntent(userId: string) {
+  async createSetupIntent() {
+    const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
+    console.log("DEBUG: createSetupIntent", userId, user);
     if (!user) {
       throw new Error("User not found");
     }
@@ -47,7 +50,8 @@ export class StripeController {
   }
 
   @Protected([{ action: "read", subject: "PaymentMethod" }])
-  async getPaymentMethods(userId: string) {
+  async getPaymentMethods() {
+    const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
     if (!user) {
       throw new Error("User not found");
@@ -62,7 +66,8 @@ export class StripeController {
   }
 
   @Protected([{ action: "create", subject: "PaymentIntent" }])
-  async confirmPayment(userId: string, params: { paymentMethodId: string; amount: number; currency: string; coupon?: string }) {
+  async confirmPayment(params: { paymentMethodId: string; amount: number; currency: string; coupon?: string }) {
+    const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
     if (!user) {
       throw new Error("User not found");
@@ -89,7 +94,8 @@ export class StripeController {
   }
 
   @Protected([{ action: "create", subject: "Coupon" }])
-  async applyCoupon(userId: string, couponId: string) {
+  async applyCoupon(couponId: string) {
+    const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
     if (!user) {
       throw new Error("User not found");
@@ -102,6 +108,31 @@ export class StripeController {
       return { coupon };
     } catch (error: any) {
       throw new Error(error.message || "Failed to apply coupon");
+    }
+  }
+
+  @Protected()
+  async listCoupons() {
+    try {
+      const coupons = await this.stripe.listCoupons();
+      return coupons;
+    } catch (error) {
+      throw new Error("Failed to list coupons");
+    }
+  }
+
+  async getCoupon(couponId: string) {
+    try {
+      const coupon = await this.stripe.getCoupon(couponId);
+      if (!coupon) {
+        throw new Error("Coupon not found");
+      }
+      return { coupon };
+    } catch (error: any) {
+      if (error.message === "Coupon not found") {
+        throw error;
+      }
+      throw new Error("Failed to get coupon");
     }
   }
 }

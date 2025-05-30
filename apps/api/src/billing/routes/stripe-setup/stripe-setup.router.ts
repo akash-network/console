@@ -2,7 +2,6 @@ import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
-import { AuthService } from "@src/auth/services/auth.service";
 import { StripeController } from "@src/billing/controllers/stripe/stripe.controller";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
@@ -124,30 +123,103 @@ const applyCouponRoute = createRoute({
   }
 });
 
+const couponListRoute = createRoute({
+  method: "get",
+  path: "/v1/stripe-coupons",
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            coupons: z.array(
+              z.object({
+                id: z.string(),
+                percent_off: z.number().nullable().optional(),
+                amount_off: z.number().nullable().optional(),
+                valid: z.boolean(),
+                name: z.string().optional(),
+                description: z.string().optional()
+              })
+            )
+          })
+        }
+      },
+      description: "List of available coupons"
+    }
+  },
+  tags: ["Stripe"]
+});
+
+const getCouponRoute = createRoute({
+  method: "get",
+  path: "/v1/stripe-coupons/{couponId}",
+  summary: "Get a single coupon by ID",
+  tags: ["Payment"],
+  parameters: [
+    {
+      name: "couponId",
+      in: "path",
+      required: true,
+      schema: {
+        type: "string"
+      }
+    }
+  ],
+  responses: {
+    200: {
+      description: "Coupon retrieved successfully",
+      content: {
+        "application/json": {
+          schema: z.object({
+            coupon: z.object({
+              id: z.string(),
+              percent_off: z.number().nullable().optional(),
+              amount_off: z.number().nullable().optional(),
+              valid: z.boolean(),
+              name: z.string().optional(),
+              description: z.string().optional()
+            })
+          })
+        }
+      }
+    },
+    404: {
+      description: "Coupon not found"
+    }
+  }
+});
+
 export const stripeSetupRouter = new OpenApiHonoHandler();
 
 stripeSetupRouter.openapi(setupIntentRoute, async function createSetupIntent(c) {
-  const authService = container.resolve(AuthService);
-  const response = await container.resolve(StripeController).createSetupIntent(authService.currentUser.userId);
+  const response = await container.resolve(StripeController).createSetupIntent();
   return c.json(response, 200);
 });
 
 stripeSetupRouter.openapi(paymentMethodsRoute, async function getPaymentMethods(c) {
-  const authService = container.resolve(AuthService);
-  const response = await container.resolve(StripeController).getPaymentMethods(authService.currentUser.userId);
+  const response = await container.resolve(StripeController).getPaymentMethods();
   return c.json(response, 200);
 });
 
 stripeSetupRouter.openapi(confirmPaymentRoute, async function confirmPayment(c) {
-  const authService = container.resolve(AuthService);
   const body = await c.req.json();
-  const response = await container.resolve(StripeController).confirmPayment(authService.currentUser.userId, body);
+  const response = await container.resolve(StripeController).confirmPayment(body);
   return c.json(response, 200);
 });
 
 stripeSetupRouter.openapi(applyCouponRoute, async function applyCoupon(c) {
-  const authService = container.resolve(AuthService);
   const body = await c.req.json();
-  const response = await container.resolve(StripeController).applyCoupon(authService.currentUser.userId, body.couponId);
+  const response = await container.resolve(StripeController).applyCoupon(body.couponId);
+  return c.json(response, 200);
+});
+
+stripeSetupRouter.openapi(couponListRoute, async function listCoupons(c) {
+  const response = await container.resolve(StripeController).listCoupons();
+  return c.json(response, 200);
+});
+
+stripeSetupRouter.openapi(getCouponRoute, async function getCoupon(c) {
+  const couponId = c.req.param("couponId");
+  const response = await container.resolve(StripeController).getCoupon(couponId);
   return c.json(response, 200);
 });

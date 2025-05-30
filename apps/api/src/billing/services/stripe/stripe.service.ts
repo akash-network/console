@@ -28,8 +28,11 @@ export class StripeService extends Stripe {
   async createSetupIntent(customerId: string) {
     return await this.setupIntents.create({
       customer: customerId,
-      payment_method_types: ["card"],
-      usage: "off_session"
+      usage: "off_session",
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: "never"
+      }
     });
   }
 
@@ -89,14 +92,16 @@ export class StripeService extends Stripe {
   }
 
   async createPaymentIntent(params: { customer: string; payment_method: string; amount: number; currency: string; confirm: boolean; coupon?: string }) {
-    // Coupon is not directly supported on PaymentIntent; you may need to handle discounts separately.
     return await this.paymentIntents.create({
       customer: params.customer,
       payment_method: params.payment_method,
       amount: params.amount,
       currency: params.currency,
-      confirm: params.confirm
-      // If you want to handle coupon/discount, you must do so via invoice or subscription, not PaymentIntent.
+      confirm: params.confirm,
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: "never"
+      }
     });
   }
 
@@ -108,6 +113,18 @@ export class StripeService extends Stripe {
     await this.customers.update(customerId, {
       coupon: couponId
     });
+    return coupon;
+  }
+
+  async listCoupons() {
+    const coupons = await this.coupons.list({
+      limit: 100
+    });
+    return { coupons: coupons.data };
+  }
+
+  async getCoupon(couponId: string) {
+    const coupon = await this.coupons.retrieve(couponId);
     return coupon;
   }
 }

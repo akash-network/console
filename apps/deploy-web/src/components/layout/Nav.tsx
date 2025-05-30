@@ -11,8 +11,8 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import useCookieTheme from "@src/hooks/useTheme";
 import walletStore from "@src/store/walletStore";
 import { UrlService } from "@src/utils/urlUtils";
-import { AkashConsoleLogoDark, AkashConsoleLogoLight } from "../icons/AkashConsoleLogo";
 import { AccountMenu } from "./AccountMenu";
+import { AkashLogo } from "./AkashLogo";
 import { WalletStatus } from "./WalletStatus";
 
 export const Nav = ({
@@ -33,7 +33,7 @@ export const Nav = ({
       <div className="flex h-14 items-center justify-between pl-4 pr-4">
         {!!theme && (
           <Link className="flex items-center" href="/">
-            {theme === "light" ? <AkashConsoleLogoLight className="h-[19px] max-w-[200px]" /> : <AkashConsoleLogoDark className="h-[19px] max-w-[200px]" />}
+            <AkashLogo />
           </Link>
         )}
 
