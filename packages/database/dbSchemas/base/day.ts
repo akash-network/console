@@ -2,7 +2,7 @@ import { DataTypes, UUIDV4 } from "sequelize";
 import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 
 import { Required } from "../decorators/requiredDecorator";
-import { Block } from "./block";
+import { Block } from "./block"; // eslint-disable-line import-x/no-cycle
 
 /**
  * Day model for Akash

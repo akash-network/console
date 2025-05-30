@@ -2,8 +2,8 @@ import { DataTypes } from "sequelize";
 import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 
 import { Required } from "../decorators/requiredDecorator";
-import { Transaction } from "./transaction";
-import { TransactionEventAttribute } from "./transactionEventAttribute";
+import { Transaction } from "./transaction"; // eslint-disable-line import-x/no-cycle
+import { TransactionEventAttribute } from "./transactionEventAttribute"; // eslint-disable-line import-x/no-cycle
 
 @Table({
   modelName: "transaction_event",

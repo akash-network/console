@@ -2,10 +2,10 @@ import { DataTypes } from "sequelize";
 import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 
 import { Required } from "../decorators/requiredDecorator";
-import { AddressReference } from "./addressReference";
-import { Block } from "./block";
-import { Message } from "./message";
-import { TransactionEvent } from "./transactionEvent";
+import { AddressReference } from "./addressReference"; // eslint-disable-line import-x/no-cycle
+import { Block } from "./block"; // eslint-disable-line import-x/no-cycle
+import { Message } from "./message"; // eslint-disable-line import-x/no-cycle
+import { TransactionEvent } from "./transactionEvent"; // eslint-disable-line import-x/no-cycle
 
 /**
  * Transaction model for Akash

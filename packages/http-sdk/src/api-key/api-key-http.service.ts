@@ -1,5 +1,5 @@
 import { ApiHttpService } from "../api-http/api-http.service";
-import { ApiKeyResponse, CreateApiKeyRequest, ListApiKeys } from "./api-key-http.types";
+import type { ApiKeyResponse, CreateApiKeyRequest, ListApiKeys } from "./api-key-http.types";
 
 export class ApiKeyHttpService extends ApiHttpService {
   async createApiKey(data: CreateApiKeyRequest) {
