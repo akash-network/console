@@ -8,8 +8,8 @@ import type { CustomUserProfile } from "@src/types/user";
 export const useUser = (): CustomUserProfile => {
   const { user: registeredUser } = useCustomUser();
   const { user: anonymousUser } = useStoredAnonymousUser();
-
   const user = useMemo(() => registeredUser || anonymousUser, [registeredUser, anonymousUser]);
+
   useEffect(() => {
     if (user?.id) {
       analyticsService.identify({
