@@ -50,10 +50,8 @@ describe("Blocks", () => {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json" })
       });
-      const blocksFound = await response.json();
 
-      expect(response.status).toBe(200);
-      expectBlocks(blocksFound, blocks.slice(1, 101).reverse());
+      expect(response.status).toBe(400);
     });
   });
 

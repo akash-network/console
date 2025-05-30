@@ -7,6 +7,5 @@ export * from "./cosmosGovProposalResponse";
 export * from "./cosmosGovProposalsTallyResponse";
 export * from "./cosmosBankBalancesResponse";
 export * from "./cosmosStakingDelegationsResponse";
-export * from "./cosmosDistributionCommunityPoolResponse";
 export * from "./cosmosDistributionDelegatorsRewardsResponse";
 export * from "./cosmosStakingDelegatorsRedelegationsResponse";
