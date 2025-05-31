@@ -71,14 +71,21 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
      * @example Mutation with predefined parameters, e.g., for updating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.createAlert.useMutation({})
+     * const { mutate, isPending } = qraft.v1Service.createAlert.useMutation({
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
      * mutate(body);
      * ```
      * @example Mutation without predefined parameters, e.g., for creating
      * ```ts
      * const { mutate, isPending } = qraft.v1Service.createAlert.useMutation()
      * mutate({
-     *     body: bodyPayload
+     *     body: bodyPayload,
+     *     header: {
+     *         Authorization: authorization
+     *     }
      * });
      * ```
      */
@@ -93,14 +100,21 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
      * @example Mutation with predefined parameters, e.g., for updating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.createAlert.useMutation({})
+     * const { mutate, isPending } = qraft.v1Service.createAlert.useMutation({
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
      * mutate(body);
      * ```
      * @example Mutation without predefined parameters, e.g., for creating
      * ```ts
      * const { mutate, isPending } = qraft.v1Service.createAlert.useMutation()
      * mutate({
-     *     body: bodyPayload
+     *     body: bodyPayload,
+     *     header: {
+     *         Authorization: authorization
+     *     }
      * });
      * ```
      */
@@ -119,7 +133,11 @@ export interface V1Service {
      * @example Check how many mutations are currently in progress with the specified parameters.
      * ```ts
      * const createAlertTotal = qraft.v1Service.createAlert.useIsMutating({
-     *     parameters: {}
+     *     parameters: {
+     *         header: {
+     *             Authorization: authorization
+     *         }
+     *     }
      * })
      * ```
      */
@@ -159,7 +177,11 @@ export interface V1Service {
      * ```ts
      * const createAlertMutationData = qraft.v1Service.createAlert.useMutationState({
      *     filters: {
-     *         parameters: {}
+     *         parameters: {
+     *             header: {
+     *                 Authorization: authorization
+     *             }
+     *         }
      *     },
      *     select: mutation => mutation.state.data
      * })
@@ -201,6 +223,9 @@ export interface V1Service {
      * const { data, isLoading } = qraft.v1Service.getAlert.useQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -218,6 +243,9 @@ export interface V1Service {
      * const { data, isLoading } = qraft.v1Service.getAlert.useQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -350,6 +378,9 @@ export interface V1Service {
      * const { data, isLoading, fetchNextPage } = qraft.v1Service.getAlert.useInfiniteQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * }, {
      *     initialPageParam: {},
@@ -385,6 +416,9 @@ export interface V1Service {
      * const { data, isLoading, fetchNextPage } = qraft.v1Service.getAlert.useInfiniteQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * }, {
      *     initialPageParam: {},
@@ -426,6 +460,9 @@ export interface V1Service {
      *     parameters: {
      *         path: {
      *             id: id
+     *         },
+     *         header: {
+     *             Authorization: authorization
      *         }
      *     }
      * })
@@ -447,11 +484,17 @@ export interface V1Service {
      *         {
      *             path: {
      *                 id: id1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
      *             }
      *         },
      *         {
      *             path: {
      *                 id: id2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
      *             }
      *         }
      *     ]
@@ -466,11 +509,17 @@ export interface V1Service {
      *         {
      *             path: {
      *                 id: id1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
      *             }
      *         },
      *         {
      *             path: {
      *                 id: id2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
      *             }
      *         }
      *     ]
@@ -496,6 +545,9 @@ export interface V1Service {
      * const { data, isLoading } = qraft.v1Service.getAlert.useQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -513,6 +565,9 @@ export interface V1Service {
      * const { data, isLoading } = qraft.v1Service.getAlert.useQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -533,6 +588,9 @@ export interface V1Service {
      * const { data, isLoading, fetchNextPage } = qraft.v1Service.getAlert.useSuspenseInfiniteQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * }, {
      *     initialPageParam: {},
@@ -570,11 +628,17 @@ export interface V1Service {
      *         {
      *             path: {
      *                 id: id1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
      *             }
      *         },
      *         {
      *             path: {
      *                 id: id2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
      *             }
      *         }
      *     ]
@@ -589,11 +653,17 @@ export interface V1Service {
      *         {
      *             path: {
      *                 id: id1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
      *             }
      *         },
      *         {
      *             path: {
      *                 id: id2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
      *             }
      *         }
      *     ]
@@ -618,6 +688,9 @@ export interface V1Service {
      * const data = qraft.v1Service.getAlert.useSuspenseQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -646,6 +719,9 @@ export interface V1Service {
      * const { mutate, isPending } = qraft.v1Service.patchAlert.useMutation({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * mutate(body);
@@ -657,6 +733,9 @@ export interface V1Service {
      *     body: bodyPayload,
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * });
      * ```
@@ -675,6 +754,9 @@ export interface V1Service {
      * const { mutate, isPending } = qraft.v1Service.patchAlert.useMutation({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * mutate(body);
@@ -686,6 +768,9 @@ export interface V1Service {
      *     body: bodyPayload,
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * });
      * ```
@@ -708,6 +793,9 @@ export interface V1Service {
      *     parameters: {
      *         path: {
      *             id: id
+     *         },
+     *         header: {
+     *             Authorization: authorization
      *         }
      *     }
      * })
@@ -752,6 +840,9 @@ export interface V1Service {
      *         parameters: {
      *             path: {
      *                 id: id
+     *             },
+     *             header: {
+     *                 Authorization: authorization
      *             }
      *         }
      *     },
@@ -789,6 +880,9 @@ export interface V1Service {
      * const { mutate, isPending } = qraft.v1Service.deleteAlert.useMutation({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * mutate(body);
@@ -800,6 +894,9 @@ export interface V1Service {
      *     body: bodyPayload,
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * });
      * ```
@@ -818,6 +915,9 @@ export interface V1Service {
      * const { mutate, isPending } = qraft.v1Service.deleteAlert.useMutation({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * mutate(body);
@@ -829,6 +929,9 @@ export interface V1Service {
      *     body: bodyPayload,
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * });
      * ```
@@ -851,6 +954,9 @@ export interface V1Service {
      *     parameters: {
      *         path: {
      *             id: id
+     *         },
+     *         header: {
+     *             Authorization: authorization
      *         }
      *     }
      * })
@@ -895,6 +1001,9 @@ export interface V1Service {
      *         parameters: {
      *             path: {
      *                 id: id
+     *             },
+     *             header: {
+     *                 Authorization: authorization
      *             }
      *         }
      *     },
@@ -931,14 +1040,21 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
      * @example Mutation with predefined parameters, e.g., for updating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.createContactPoint.useMutation({})
+     * const { mutate, isPending } = qraft.v1Service.createContactPoint.useMutation({
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
      * mutate(body);
      * ```
      * @example Mutation without predefined parameters, e.g., for creating
      * ```ts
      * const { mutate, isPending } = qraft.v1Service.createContactPoint.useMutation()
      * mutate({
-     *     body: bodyPayload
+     *     body: bodyPayload,
+     *     header: {
+     *         Authorization: authorization
+     *     }
      * });
      * ```
      */
@@ -960,14 +1076,21 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
      * @example Mutation with predefined parameters, e.g., for updating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.createContactPoint.useMutation({})
+     * const { mutate, isPending } = qraft.v1Service.createContactPoint.useMutation({
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
      * mutate(body);
      * ```
      * @example Mutation without predefined parameters, e.g., for creating
      * ```ts
      * const { mutate, isPending } = qraft.v1Service.createContactPoint.useMutation()
      * mutate({
-     *     body: bodyPayload
+     *     body: bodyPayload,
+     *     header: {
+     *         Authorization: authorization
+     *     }
      * });
      * ```
      */
@@ -993,7 +1116,11 @@ export interface V1Service {
      * @example Check how many mutations are currently in progress with the specified parameters.
      * ```ts
      * const createContactPointTotal = qraft.v1Service.createContactPoint.useIsMutating({
-     *     parameters: {}
+     *     parameters: {
+     *         header: {
+     *             Authorization: authorization
+     *         }
+     *     }
      * })
      * ```
      */
@@ -1047,7 +1174,11 @@ export interface V1Service {
      * ```ts
      * const createContactPointMutationData = qraft.v1Service.createContactPoint.useMutationState({
      *     filters: {
-     *         parameters: {}
+     *         parameters: {
+     *             header: {
+     *                 Authorization: authorization
+     *             }
+     *         }
      *     },
      *     select: mutation => mutation.state.data
      * })
@@ -1112,6 +1243,9 @@ export interface V1Service {
      * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery({
      *     query: {
      *         limit: limit
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -1141,6 +1275,9 @@ export interface V1Service {
      * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery({
      *     query: {
      *         limit: limit
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -1308,7 +1445,11 @@ export interface V1Service {
      *
      * @example Infinite Query
      * ```ts
-     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoints.useInfiniteQuery({}, {
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoints.useInfiniteQuery({
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * }, {
      *     initialPageParam: {
      *         query: {
      *             limit: initialLimit
@@ -1347,7 +1488,11 @@ export interface V1Service {
      *
      * @example Infinite Query
      * ```ts
-     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoints.useInfiniteQuery({}, {
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoints.useInfiniteQuery({
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * }, {
      *     initialPageParam: {
      *         query: {
      *             limit: initialLimit
@@ -1395,6 +1540,9 @@ export interface V1Service {
      *     parameters: {
      *         query: {
      *             limit: limit
+     *         },
+     *         header: {
+     *             Authorization: authorization
      *         }
      *     }
      * })
@@ -1416,11 +1564,17 @@ export interface V1Service {
      *         {
      *             query: {
      *                 limit: limit1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
      *             }
      *         },
      *         {
      *             query: {
      *                 limit: limit2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
      *             }
      *         }
      *     ]
@@ -1435,11 +1589,17 @@ export interface V1Service {
      *         {
      *             query: {
      *                 limit: limit1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
      *             }
      *         },
      *         {
      *             query: {
      *                 limit: limit2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
      *             }
      *         }
      *     ]
@@ -1469,6 +1629,9 @@ export interface V1Service {
      * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery({
      *     query: {
      *         limit: limit
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -1498,6 +1661,9 @@ export interface V1Service {
      * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery({
      *     query: {
      *         limit: limit
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -1523,7 +1689,11 @@ export interface V1Service {
      *
      * @example Suspense Infinite Query
      * ```ts
-     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoints.useSuspenseInfiniteQuery({}, {
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoints.useSuspenseInfiniteQuery({
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * }, {
      *     initialPageParam: {
      *         query: {
      *             limit: initialLimit
@@ -1563,11 +1733,17 @@ export interface V1Service {
      *         {
      *             query: {
      *                 limit: limit1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
      *             }
      *         },
      *         {
      *             query: {
      *                 limit: limit2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
      *             }
      *         }
      *     ]
@@ -1582,11 +1758,17 @@ export interface V1Service {
      *         {
      *             query: {
      *                 limit: limit1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
      *             }
      *         },
      *         {
      *             query: {
      *                 limit: limit2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
      *             }
      *         }
      *     ]
@@ -1615,6 +1797,9 @@ export interface V1Service {
      * const data = qraft.v1Service.getContactPoints.useSuspenseQuery({
      *     query: {
      *         limit: limit
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -1657,6 +1842,9 @@ export interface V1Service {
      * const { data, isLoading } = qraft.v1Service.getContactPoint.useQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -1682,6 +1870,9 @@ export interface V1Service {
      * const { data, isLoading } = qraft.v1Service.getContactPoint.useQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -1847,6 +2038,9 @@ export interface V1Service {
      * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoint.useInfiniteQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * }, {
      *     initialPageParam: {},
@@ -1886,6 +2080,9 @@ export interface V1Service {
      * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoint.useInfiniteQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * }, {
      *     initialPageParam: {},
@@ -1931,6 +2128,9 @@ export interface V1Service {
      *     parameters: {
      *         path: {
      *             id: id
+     *         },
+     *         header: {
+     *             Authorization: authorization
      *         }
      *     }
      * })
@@ -1952,11 +2152,17 @@ export interface V1Service {
      *         {
      *             path: {
      *                 id: id1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
      *             }
      *         },
      *         {
      *             path: {
      *                 id: id2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
      *             }
      *         }
      *     ]
@@ -1971,11 +2177,17 @@ export interface V1Service {
      *         {
      *             path: {
      *                 id: id1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
      *             }
      *         },
      *         {
      *             path: {
      *                 id: id2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
      *             }
      *         }
      *     ]
@@ -2001,6 +2213,9 @@ export interface V1Service {
      * const { data, isLoading } = qraft.v1Service.getContactPoint.useQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -2026,6 +2241,9 @@ export interface V1Service {
      * const { data, isLoading } = qraft.v1Service.getContactPoint.useQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -2049,6 +2267,9 @@ export interface V1Service {
      * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoint.useSuspenseInfiniteQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * }, {
      *     initialPageParam: {},
@@ -2086,11 +2307,17 @@ export interface V1Service {
      *         {
      *             path: {
      *                 id: id1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
      *             }
      *         },
      *         {
      *             path: {
      *                 id: id2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
      *             }
      *         }
      *     ]
@@ -2105,11 +2332,17 @@ export interface V1Service {
      *         {
      *             path: {
      *                 id: id1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
      *             }
      *         },
      *         {
      *             path: {
      *                 id: id2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
      *             }
      *         }
      *     ]
@@ -2134,6 +2367,9 @@ export interface V1Service {
      * const data = qraft.v1Service.getContactPoint.useSuspenseQuery({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * ```
@@ -2167,6 +2403,9 @@ export interface V1Service {
      * const { mutate, isPending } = qraft.v1Service.patchContactPoint.useMutation({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * mutate(body);
@@ -2178,6 +2417,9 @@ export interface V1Service {
      *     body: bodyPayload,
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * });
      * ```
@@ -2203,6 +2445,9 @@ export interface V1Service {
      * const { mutate, isPending } = qraft.v1Service.patchContactPoint.useMutation({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * mutate(body);
@@ -2214,6 +2459,9 @@ export interface V1Service {
      *     body: bodyPayload,
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * });
      * ```
@@ -2243,6 +2491,9 @@ export interface V1Service {
      *     parameters: {
      *         path: {
      *             id: id
+     *         },
+     *         header: {
+     *             Authorization: authorization
      *         }
      *     }
      * })
@@ -2301,6 +2552,9 @@ export interface V1Service {
      *         parameters: {
      *             path: {
      *                 id: id
+     *             },
+     *             header: {
+     *                 Authorization: authorization
      *             }
      *         }
      *     },
@@ -2359,6 +2613,9 @@ export interface V1Service {
      * const { mutate, isPending } = qraft.v1Service.deleteContactPoint.useMutation({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * mutate(body);
@@ -2370,6 +2627,9 @@ export interface V1Service {
      *     body: bodyPayload,
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * });
      * ```
@@ -2395,6 +2655,9 @@ export interface V1Service {
      * const { mutate, isPending } = qraft.v1Service.deleteContactPoint.useMutation({
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * })
      * mutate(body);
@@ -2406,6 +2669,9 @@ export interface V1Service {
      *     body: bodyPayload,
      *     path: {
      *         id: id
+     *     },
+     *     header: {
+     *         Authorization: authorization
      *     }
      * });
      * ```
@@ -2435,6 +2701,9 @@ export interface V1Service {
      *     parameters: {
      *         path: {
      *             id: id
+     *         },
+     *         header: {
+     *             Authorization: authorization
      *         }
      *     }
      * })
@@ -2493,6 +2762,9 @@ export interface V1Service {
      *         parameters: {
      *             path: {
      *                 id: id
+     *             },
+     *             header: {
+     *                 Authorization: authorization
      *             }
      *         }
      *     },
@@ -2638,11 +2910,7 @@ type CreateAlertSchema = {
   url: "/v1/alerts";
   mediaType: ["application/json"];
 };
-type CreateAlertParameters = {
-  query?: never;
-  header?: never;
-  path?: never;
-};
+type CreateAlertParameters = paths["/v1/alerts"]["post"]["parameters"];
 type CreateAlertData = paths["/v1/alerts"]["post"]["responses"]["201"]["content"]["application/json"];
 type CreateAlertError =
   | paths["/v1/alerts"]["post"]["responses"]["400"]["content"]["application/json"]
@@ -2691,11 +2959,7 @@ type CreateContactPointSchema = {
   url: "/v1/contact-points";
   mediaType: ["application/json"];
 };
-type CreateContactPointParameters = {
-  query?: never;
-  header?: never;
-  path?: never;
-};
+type CreateContactPointParameters = paths["/v1/contact-points"]["post"]["parameters"];
 type CreateContactPointData = paths["/v1/contact-points"]["post"]["responses"]["201"]["content"]["application/json"];
 type CreateContactPointError =
   | paths["/v1/contact-points"]["post"]["responses"]["400"]["content"]["application/json"]

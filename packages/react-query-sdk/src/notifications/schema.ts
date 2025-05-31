@@ -399,7 +399,9 @@ export interface operations {
   createAlert: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        Authorization?: string;
+      };
       path?: never;
       cookie?: never;
     };
@@ -459,7 +461,9 @@ export interface operations {
   getAlert: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        Authorization?: string;
+      };
       path: {
         id: string;
       };
@@ -517,7 +521,9 @@ export interface operations {
   deleteAlert: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        Authorization?: string;
+      };
       path: {
         id: string;
       };
@@ -575,7 +581,9 @@ export interface operations {
   patchAlert: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        Authorization?: string;
+      };
       path: {
         id: string;
       };
@@ -642,7 +650,9 @@ export interface operations {
         /** @description Page number */
         page?: number;
       };
-      header?: never;
+      header?: {
+        Authorization?: string;
+      };
       path?: never;
       cookie?: never;
     };
@@ -698,7 +708,9 @@ export interface operations {
   createContactPoint: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        Authorization?: string;
+      };
       path?: never;
       cookie?: never;
     };
@@ -758,7 +770,9 @@ export interface operations {
   getContactPoint: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        Authorization?: string;
+      };
       path: {
         id: string;
       };
@@ -825,7 +839,9 @@ export interface operations {
   deleteContactPoint: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        Authorization?: string;
+      };
       path: {
         id: string;
       };
@@ -892,7 +908,9 @@ export interface operations {
   patchContactPoint: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        Authorization?: string;
+      };
       path: {
         id: string;
       };
