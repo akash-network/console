@@ -174,17 +174,6 @@ const PayPage: React.FunctionComponent = () => {
     setProcessing(false);
   };
 
-  const handleAddCard = async () => {
-    if (clientSecret) {
-      const stripe = await getStripe();
-      if (stripe) {
-        const elements = stripe.elements({ clientSecret });
-        const paymentElement = elements.create("payment");
-        paymentElement.mount("#payment-element");
-      }
-    }
-  };
-
   const handleAddCardSuccess = async () => {
     setShowAddPaymentMethod(false);
     await fetchPaymentMethods();
@@ -218,7 +207,7 @@ const PayPage: React.FunctionComponent = () => {
   return (
     <Layout>
       <div className="py-12">
-        <Title>Payment Methods</Title>
+        <Title className="text-center">Payment Methods</Title>
         <p className="mt-4 text-center text-gray-600">Manage your payment methods and make payments.</p>
         <div className="mx-auto max-w-md p-6">
           {setupSuccess && (
@@ -256,7 +245,7 @@ const PayPage: React.FunctionComponent = () => {
 
           {paymentMethods.length > 0 && (
             <div className="mt-6">
-              <h2 className="mb-3 text-lg font-semibold">Make a Payment</h2>
+              <h2 className="mb-3 text-lg font-semibold">Add credits</h2>
               <div className="space-y-4">
                 <div>
                   <label htmlFor="amount" className="block text-sm font-medium text-muted-foreground">
@@ -276,8 +265,8 @@ const PayPage: React.FunctionComponent = () => {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="coupon" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <div>
+                  <label htmlFor="coupon" className="block text-sm font-medium text-muted-foreground">
                     Coupon Code
                   </label>
                   <div className="mt-1 flex w-full items-center gap-2">
@@ -298,7 +287,7 @@ const PayPage: React.FunctionComponent = () => {
                   {couponSuccess && <p className="mt-1 text-sm text-green-600 dark:text-green-400">{couponSuccess}</p>}
                 </div>
 
-                <Button onClick={() => handlePayment(paymentMethods[0].id)} disabled={!amount || processing}>
+                <Button className="w-full" onClick={() => handlePayment(paymentMethods[0].id)} disabled={!amount || processing}>
                   {processing ? "Processing..." : `Pay $${amount || "0.00"}`}
                 </Button>
               </div>
@@ -307,27 +296,7 @@ const PayPage: React.FunctionComponent = () => {
         </div>
       </div>
 
-      <Popup
-        open={showAddPaymentMethod}
-        onClose={() => setShowAddPaymentMethod(false)}
-        title="Add New Card"
-        variant="custom"
-        actions={[
-          {
-            label: "Cancel",
-            side: "left",
-            variant: "ghost",
-            onClick: () => setShowAddPaymentMethod(false)
-          },
-          {
-            label: "Add Card",
-            side: "right",
-            variant: "default",
-            color: "primary",
-            onClick: handleAddCard
-          }
-        ]}
-      >
+      <Popup open={showAddPaymentMethod} onClose={() => setShowAddPaymentMethod(false)} title="Add New Card" variant="custom" actions={[]}>
         {clientSecret && (
           <Elements
             stripe={getStripe()}
@@ -336,12 +305,7 @@ const PayPage: React.FunctionComponent = () => {
               appearance: {
                 theme: isDarkMode ? "night" : "stripe",
                 variables: {
-                  colorPrimary: "rgb(var(--color-primary-600) / <alpha-value>)",
-                  colorBackground: "rgb(var(--color-gray-50) / <alpha-value>)",
-                  colorText: "rgb(var(--color-gray-900) / <alpha-value>)",
-                  colorDanger: "rgb(var(--color-red-500) / <alpha-value>)",
-                  spacingUnit: "4px",
-                  borderRadius: "var(--radius)"
+                  colorPrimary: "#ff424c"
                 }
               }
             }}
