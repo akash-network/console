@@ -1,9 +1,11 @@
 import { Controller, Get } from "@nestjs/common";
+import { ApiExcludeController } from "@nestjs/swagger";
 
 import { HealthzHelperService } from "@src/common/services/healthz-helper/healthz-helper.service";
 import { BrokerHealthzService } from "@src/infrastructure/broker/services/broker-healthz/broker-healthz.service";
 import { DbHealthzService } from "@src/infrastructure/db/services/db-healthz/db-healthz.service";
 
+@ApiExcludeController()
 @Controller("healthz")
 export class WorkerHealthzController {
   constructor(
