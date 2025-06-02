@@ -722,6 +722,10 @@
                     "type": "string",
                     "format": "uuid"
                   },
+                  "name": {
+                    "type": "string",
+                    "minLength": 3
+                  },
                   "enabled": {
                     "type": "boolean",
                     "default": true
@@ -965,6 +969,7 @@
                 },
                 "required": [
                   "contactPointId",
+                  "name",
                   "summary",
                   "description",
                   "type",
@@ -977,6 +982,10 @@
                   "contactPointId": {
                     "type": "string",
                     "format": "uuid"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 3
                   },
                   "enabled": {
                     "type": "boolean",
@@ -1215,6 +1224,7 @@
                 },
                 "required": [
                   "contactPointId",
+                  "name",
                   "summary",
                   "description",
                   "type",
@@ -1241,6 +1251,10 @@
                     "type": "string",
                     "format": "uuid"
                   },
+                  "name": {
+                    "type": "string",
+                    "minLength": 3
+                  },
                   "enabled": {
                     "type": "boolean"
                   },
@@ -1496,6 +1510,7 @@
                 },
                 "required": [
                   "contactPointId",
+                  "name",
                   "enabled",
                   "summary",
                   "description",
@@ -1514,6 +1529,10 @@
                   "contactPointId": {
                     "type": "string",
                     "format": "uuid"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 3
                   },
                   "enabled": {
                     "type": "boolean"
@@ -1764,6 +1783,7 @@
                 },
                 "required": [
                   "contactPointId",
+                  "name",
                   "enabled",
                   "summary",
                   "description",
@@ -1877,6 +1897,10 @@
               "contactPointId": {
                 "type": "string",
                 "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 3
               },
               "enabled": {
                 "type": "boolean",
