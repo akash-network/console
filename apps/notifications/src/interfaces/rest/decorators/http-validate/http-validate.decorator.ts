@@ -1,5 +1,5 @@
 import { applyDecorators, UsePipes } from "@nestjs/common";
-import { ApiResponse } from "@nestjs/swagger";
+import { ApiHeader, ApiResponse } from "@nestjs/swagger";
 import type { ZodDto } from "nestjs-zod";
 import { createZodDto } from "nestjs-zod";
 import { ZodSerializerDto, ZodValidationPipe } from "nestjs-zod";
@@ -55,7 +55,13 @@ export type ResponseDefinitionOptions = Record<
 export function ValidateHttp(options: ResponseDefinitionOptions) {
   const successSchema = (options[200] || options[201])?.schema;
 
-  const decorators = [UsePipes(ZodValidationPipe)];
+  const decorators = [
+    UsePipes(ZodValidationPipe),
+    ApiHeader({
+      name: "Authorization",
+      required: false
+    })
+  ];
 
   for (const [statusCode, def] of Object.entries(options)) {
     decorators.push(
