@@ -35,10 +35,6 @@ on:
           - NA
           - mainnet
           - sandbox
-      nodePort:
-        description: "The nodePort to use for the service"
-        required: false
-        type: string
       skip_beta_deployment_check:
         type: boolean
         required: false
@@ -64,10 +60,6 @@ on:
         type: string
       chain:
         description: "The chain to deploy to"
-        required: false
-        type: string
-      nodePort:
-        description: "The nodePort to use for the service"
         required: false
         type: string
 
@@ -242,11 +234,6 @@ jobs:
 
           helm repo add akash https://akash-network.github.io/helm-charts
 
-          node_port_arg=""
-          if [ -n "${{ inputs.nodePort }}" ]; then
-            node_port_arg="--set service.nodePort=${{ inputs.nodePort }}"
-          fi
-
-          echo "executing: helm upgrade $release_name $chart_name --install --atomic -n ${{ inputs.environment }} --set appVersion=${{ inputs.appVersion }} --debug --kubeconfig kubeconfig $values_file_arg $node_port_arg"
+          echo "executing: helm upgrade $release_name $chart_name --install --atomic -n ${{ inputs.environment }} --set appVersion=${{ inputs.appVersion }} --debug --kubeconfig kubeconfig $values_file_arg"
           # shellcheck disable=SC2086
-          helm upgrade "$release_name" "$chart_name" --install --atomic -n "${{ inputs.environment }}" --set "appVersion=${{ inputs.appVersion }}" --debug --kubeconfig kubeconfig $values_file_arg $node_port_arg
+          helm upgrade "$release_name" "$chart_name" --install --atomic -n "${{ inputs.environment }}" --set "appVersion=${{ inputs.appVersion }}" --debug --kubeconfig kubeconfig $values_file_arg
