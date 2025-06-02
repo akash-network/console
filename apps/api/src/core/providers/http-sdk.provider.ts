@@ -3,6 +3,7 @@ import {
   BalanceHttpService,
   BidHttpService,
   BlockHttpService,
+  CosmosHttpService,
   DeploymentHttpService,
   GitHubHttpService,
   LeaseHttpService,
@@ -12,7 +13,16 @@ import { container } from "tsyringe";
 
 import { apiNodeUrl } from "@src/utils/constants";
 
-const SERVICES = [BalanceHttpService, AuthzHttpService, BlockHttpService, BidHttpService, DeploymentHttpService, LeaseHttpService, ProviderHttpService];
+const SERVICES = [
+  BalanceHttpService,
+  AuthzHttpService,
+  BlockHttpService,
+  BidHttpService,
+  DeploymentHttpService,
+  LeaseHttpService,
+  ProviderHttpService,
+  CosmosHttpService
+];
 
 SERVICES.forEach(Service => container.register(Service, { useValue: new Service({ baseURL: apiNodeUrl }) }));
 

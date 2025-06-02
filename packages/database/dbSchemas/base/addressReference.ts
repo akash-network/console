@@ -2,8 +2,8 @@ import { DataTypes } from "sequelize";
 import { BelongsTo, Column, Model, Table } from "sequelize-typescript";
 
 import { Required } from "../decorators/requiredDecorator";
-import { Message } from "./message";
-import { Transaction } from "./transaction";
+import { Message } from "./message"; // eslint-disable-line import-x/no-cycle
+import { Transaction } from "./transaction"; // eslint-disable-line import-x/no-cycle
 
 /**
  * AddressReference model for Akash

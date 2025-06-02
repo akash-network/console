@@ -2,7 +2,7 @@ import { DataTypes } from "sequelize";
 import { BelongsTo, Column, Model, Table } from "sequelize-typescript";
 
 import { Required } from "../decorators/requiredDecorator";
-import { DeploymentGroup } from "./deploymentGroup";
+import { DeploymentGroup } from "./deploymentGroup"; // eslint-disable-line import-x/no-cycle
 
 /**
  * DeploymentGroupResource model for Akash

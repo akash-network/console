@@ -3,8 +3,8 @@ import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "s
 
 import { Block, Message } from "../base";
 import { Required } from "../decorators/requiredDecorator";
-import { DeploymentGroup } from "./deploymentGroup";
-import { Lease } from "./lease";
+import { DeploymentGroup } from "./deploymentGroup"; // eslint-disable-line import-x/no-cycle
+import { Lease } from "./lease"; // eslint-disable-line import-x/no-cycle
 
 /**
  * Deployment model for Akash

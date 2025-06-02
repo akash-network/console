@@ -2,8 +2,8 @@ import { DataTypes, UUIDV4 } from "sequelize";
 import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 
 import { Required } from "../decorators/requiredDecorator";
-import { TemplateFavorite } from "./templateFavorite";
-import { UserSetting } from "./userSetting";
+import { TemplateFavorite } from "./templateFavorite"; // eslint-disable-line import-x/no-cycle
+import { UserSetting } from "./userSetting"; // eslint-disable-line import-x/no-cycle
 
 /**
  * Template model for Akash users

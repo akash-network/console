@@ -2,9 +2,9 @@ import { DataTypes } from "sequelize";
 import { BelongsTo, Column, Default, HasMany, Model, PrimaryKey, Table } from "sequelize-typescript";
 
 import { Required } from "../decorators/requiredDecorator";
-import { Deployment } from "./deployment";
-import { DeploymentGroupResource } from "./deploymentGroupResource";
-import { Lease } from "./lease";
+import { Deployment } from "./deployment"; // eslint-disable-line import-x/no-cycle
+import { DeploymentGroupResource } from "./deploymentGroupResource"; // eslint-disable-line import-x/no-cycle
+import { Lease } from "./lease"; // eslint-disable-line import-x/no-cycle
 
 /**
  * DeploymentGroup model for Akash

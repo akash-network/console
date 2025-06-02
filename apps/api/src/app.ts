@@ -43,6 +43,8 @@ import {
   stripePricesRouter,
   stripeWebhook
 } from "./billing";
+import { blocksRouter } from "./block";
+import { dashboardDataRouter, graphDataRouter, networkCapacityRouter } from "./dashboard";
 import {
   auditorsRouter,
   providerAttributesSchemaRouter,
@@ -54,6 +56,7 @@ import {
   providerVersionsRouter
 } from "./provider";
 import { Scheduler } from "./scheduler";
+import { transactionsRouter } from "./transaction";
 import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
 
 const appHono = new Hono();
@@ -116,6 +119,11 @@ appHono.route("/", providerDashboardRouter);
 appHono.route("/", providerVersionsRouter);
 appHono.route("/", providerGraphDataRouter);
 appHono.route("/", providerDeploymentsRouter);
+appHono.route("/", graphDataRouter);
+appHono.route("/", dashboardDataRouter);
+appHono.route("/", networkCapacityRouter);
+appHono.route("/", blocksRouter);
+appHono.route("/", transactionsRouter);
 
 appHono.route("/", notificationsApiProxy);
 
