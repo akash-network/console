@@ -11,6 +11,7 @@ import {
 
 export const alertCreateCommonInputSchema = z.object({
   contactPointId: z.string().uuid(),
+  name: z.string().min(3),
   enabled: z.boolean().optional().default(true),
   summary: z.string().min(3),
   description: z.string().min(3)

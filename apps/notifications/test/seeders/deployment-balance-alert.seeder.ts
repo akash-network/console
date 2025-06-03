@@ -8,6 +8,7 @@ export const generateDeploymentBalanceAlert = ({
   id = faker.string.uuid(),
   userId = faker.string.uuid(),
   contactPointId = faker.string.uuid(),
+  name = faker.lorem.word(),
   summary = faker.lorem.sentence(),
   description = faker.lorem.sentence(),
   conditions = {
@@ -30,6 +31,7 @@ export const generateDeploymentBalanceAlert = ({
     id,
     userId,
     contactPointId,
+    name,
     summary,
     description,
     conditions,
