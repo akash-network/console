@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Button, Card, CardContent, Input, Popup } from "@akashnetwork/ui/components";
+import { Alert, Button, Card, CardContent, Input, Popup, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import type { Stripe } from "@stripe/stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import type { GetServerSideProps } from "next";
-import { useRouter } from "next/router";
 import { useTheme } from "next-themes";
 
 import Layout from "@src/components/layout/Layout";
@@ -27,6 +26,8 @@ const AddPaymentMethodForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
+  const [cardholderName, setCardholderName] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,33 +35,59 @@ const AddPaymentMethodForm = ({ onSuccess }: { onSuccess: () => void }) => {
       return;
     }
     setError(null);
+    setIsProcessing(true);
     try {
-      const { error: setupError } = await stripe.confirmSetup({
+      const { error: setupError, setupIntent } = await stripe.confirmSetup({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/pay`
-        }
+          payment_method_data: {
+            billing_details: {
+              name: cardholderName
+            }
+          }
+        },
+        redirect: "if_required"
       });
+
       if (setupError) {
         setError(setupError.message || "An error occurred while processing your payment method.");
         return;
       }
-      onSuccess();
+
+      if (setupIntent?.status === "succeeded") {
+        onSuccess();
+      }
     } catch (err) {
       setError("An unexpected error occurred.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
+      <div>
+        <label htmlFor="cardholderName" className="block text-sm font-medium text-muted-foreground">
+          Cardholder Name
+        </label>
+        <Input
+          id="cardholderName"
+          type="text"
+          value={cardholderName}
+          onChange={e => setCardholderName(e.target.value)}
+          placeholder="Name on card"
+          required
+          className="mt-1"
+        />
+      </div>
       <PaymentElement />
       {error && (
         <Alert className="mt-4" variant="destructive">
           {error}
         </Alert>
       )}
-      <Button type="submit" className="w-full">
-        Add Card
+      <Button type="submit" className="w-full" disabled={isProcessing}>
+        {isProcessing ? "Processing..." : "Add Card"}
       </Button>
     </form>
   );
@@ -69,7 +96,6 @@ const AddPaymentMethodForm = ({ onSuccess }: { onSuccess: () => void }) => {
 const PayPage: React.FunctionComponent = () => {
   const user = useUser();
   const { resolvedTheme } = useTheme();
-  const router = useRouter();
   const [clientSecret, setClientSecret] = useState<string>();
   const [paymentMethods, setPaymentMethods] = useState<
     Array<{
@@ -86,12 +112,15 @@ const PayPage: React.FunctionComponent = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [cardToDelete, setCardToDelete] = useState<string>();
   const [amount, setAmount] = useState<string>("");
   const [coupon, setCoupon] = useState<string>("");
   const [processing, setProcessing] = useState(false);
   const [couponError, setCouponError] = useState<string>();
   const [couponSuccess, setCouponSuccess] = useState<string>();
-  const [setupSuccess, setSetupSuccess] = useState<string>();
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>();
+  const [isRemovingPaymentMethod, setIsRemovingPaymentMethod] = useState(false);
 
   const setupIntent = async () => {
     try {
@@ -107,6 +136,10 @@ const PayPage: React.FunctionComponent = () => {
     try {
       const { data } = await stripeService.getPaymentMethods();
       setPaymentMethods(data);
+      // Pre-select the first card if none is selected
+      if (data.length > 0 && !selectedPaymentMethodId) {
+        setSelectedPaymentMethodId(data[0].id);
+      }
     } catch (error) {
       console.error("Failed to fetch payment methods:", error);
     }
@@ -130,19 +163,6 @@ const PayPage: React.FunctionComponent = () => {
       window.removeEventListener("paymentMethodsUpdated", handlePaymentMethodsUpdated as EventListener);
     };
   }, []);
-
-  // Handle setup intent redirect
-  useEffect(() => {
-    const { setup_intent, redirect_status } = router.query;
-
-    if (setup_intent && redirect_status === "succeeded") {
-      setSetupSuccess("Payment method added successfully!");
-      fetchPaymentMethods();
-
-      // Clean up the URL
-      router.replace("/pay", undefined, { shallow: true });
-    }
-  }, [router.query]);
 
   const handlePayment = async (paymentMethodId: string) => {
     if (!amount) return;
@@ -194,6 +214,31 @@ const PayPage: React.FunctionComponent = () => {
     }
   };
 
+  const handleRemovePaymentMethod = async (paymentMethodId: string) => {
+    setCardToDelete(paymentMethodId);
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmRemovePaymentMethod = async () => {
+    if (!cardToDelete) return;
+
+    setIsRemovingPaymentMethod(true);
+    try {
+      await stripeService.removePaymentMethod(cardToDelete);
+      await fetchPaymentMethods();
+      if (selectedPaymentMethodId === cardToDelete) {
+        setSelectedPaymentMethodId(undefined);
+      }
+    } catch (error) {
+      setError("Failed to remove payment method");
+      console.error(error);
+    } finally {
+      setIsRemovingPaymentMethod(false);
+      setShowDeleteConfirmation(false);
+      setCardToDelete(undefined);
+    }
+  };
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -210,28 +255,45 @@ const PayPage: React.FunctionComponent = () => {
         <Title className="text-center">Payment Methods</Title>
         <p className="mt-4 text-center text-gray-600">Manage your payment methods and make payments.</p>
         <div className="mx-auto max-w-md p-6">
-          {setupSuccess && (
-            <Alert className="mb-4" variant="success">
-              {setupSuccess}
-            </Alert>
-          )}
           <div className="mb-6">
             <h2 className="mb-3 text-lg font-semibold">Your Cards</h2>
             {paymentMethods.length > 0 ? (
               <div className="space-y-3">
                 <Card className="rounded-lg border shadow-sm">
                   <CardContent className="flex flex-col gap-4 pt-4">
-                    {paymentMethods.map(method => (
-                      <div key={method.id} className="flex items-center justify-between rounded-md border p-4">
-                        <div>
-                          <span className="font-medium capitalize">{method.card.brand}</span>
-                          <span className="ml-2">•••• {method.card.last4}</span>
+                    <RadioGroup value={selectedPaymentMethodId} onValueChange={setSelectedPaymentMethodId} className="space-y-2">
+                      {paymentMethods.map(method => (
+                        <div
+                          key={method.id}
+                          className={`flex cursor-pointer items-center justify-between rounded-md border p-4 transition-colors ${
+                            selectedPaymentMethodId === method.id ? "border-primary bg-primary/5" : "hover:border-primary/50"
+                          }`}
+                          onClick={() => setSelectedPaymentMethodId(method.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <RadioGroupItem value={method.id} id={method.id} />
+                            <div>
+                              <span className="font-medium capitalize">{method.card.brand}</span>
+                              <span className="ml-2">•••• {method.card.last4}</span>
+                              <div className="text-sm text-muted-foreground">
+                                Expires {method.card.exp_month}/{method.card.exp_year}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleRemovePaymentMethod(method.id);
+                            }}
+                            disabled={isRemovingPaymentMethod}
+                          >
+                            Remove
+                          </Button>
                         </div>
-                        <div className="text-sm">
-                          Expires {method.card.exp_month}/{method.card.exp_year}
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </RadioGroup>
                   </CardContent>
                 </Card>
               </div>
@@ -287,14 +349,48 @@ const PayPage: React.FunctionComponent = () => {
                   {couponSuccess && <p className="mt-1 text-sm text-green-600 dark:text-green-400">{couponSuccess}</p>}
                 </div>
 
-                <Button className="w-full" onClick={() => handlePayment(paymentMethods[0].id)} disabled={!amount || processing}>
+                <Button
+                  className="w-full"
+                  onClick={() => selectedPaymentMethodId && handlePayment(selectedPaymentMethodId)}
+                  disabled={!amount || processing || !selectedPaymentMethodId}
+                >
                   {processing ? "Processing..." : `Pay $${amount || "0.00"}`}
                 </Button>
+                {!selectedPaymentMethodId && <p className="text-center text-sm text-muted-foreground">Please select a payment method above</p>}
               </div>
             </div>
           )}
         </div>
       </div>
+
+      <Popup
+        open={showDeleteConfirmation}
+        onClose={() => {
+          setShowDeleteConfirmation(false);
+          setCardToDelete(undefined);
+        }}
+        title="Remove Payment Method"
+        variant="custom"
+        actions={[
+          {
+            label: "Cancel",
+            onClick: () => {
+              setShowDeleteConfirmation(false);
+              setCardToDelete(undefined);
+            },
+            side: "left"
+          },
+          {
+            label: "Remove",
+            onClick: confirmRemovePaymentMethod,
+            variant: "destructive",
+            disabled: isRemovingPaymentMethod,
+            side: "right"
+          }
+        ]}
+      >
+        <p>Are you sure you want to remove this payment method? This action cannot be undone.</p>
+      </Popup>
 
       <Popup open={showAddPaymentMethod} onClose={() => setShowAddPaymentMethod(false)} title="Add New Card" variant="custom" actions={[]}>
         {clientSecret && (

@@ -22,13 +22,16 @@ export class StripeController {
   async createSetupIntent() {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
-    console.log("DEBUG: createSetupIntent", userId, user);
+
     if (!user) {
       throw new Error("User not found");
     }
 
     let stripeCustomerId = user.stripeCustomerId;
 
+    // TODO: make the checkout work
+    // there should only be one place we create a customer
+    // webhook secret
     if (!stripeCustomerId) {
       const customer = await this.stripe.customers.create({
         email: user.email,
@@ -134,5 +137,10 @@ export class StripeController {
       }
       throw new Error("Failed to get coupon");
     }
+  }
+
+  @Protected([{ action: "delete", subject: "PaymentMethod" }])
+  async removePaymentMethod(paymentMethodId: string) {
+    await this.stripe.paymentMethods.detach(paymentMethodId);
   }
 }

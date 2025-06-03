@@ -89,4 +89,8 @@ export class StripeService extends ApiHttpService {
   async listCoupons(): Promise<CouponListResponse> {
     return this.extractData(await this.get("/v1/stripe-coupons"));
   }
+
+  async removePaymentMethod(paymentMethodId: string) {
+    return this.extractData(await this.delete(`/v1/stripe-payment-methods/${paymentMethodId}`));
+  }
 }
