@@ -114,13 +114,25 @@ const PayPage: React.FunctionComponent = () => {
   const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [cardToDelete, setCardToDelete] = useState<string>();
-  const [amount, setAmount] = useState<string>("");
+  const [amount, setAmount] = useState<number>(0);
   const [coupon, setCoupon] = useState<string>("");
   const [processing, setProcessing] = useState(false);
   const [couponError, setCouponError] = useState<string>();
   const [couponSuccess, setCouponSuccess] = useState<string>();
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>();
   const [isRemovingPaymentMethod, setIsRemovingPaymentMethod] = useState(false);
+  const [discounts, setDiscounts] = useState<
+    Array<{
+      type: "coupon" | "promotion_code";
+      id: string;
+      name?: string;
+      code?: string;
+      percent_off?: number;
+      amount_off?: number;
+      currency?: string;
+      valid: boolean;
+    }>
+  >([]);
 
   const setupIntent = async () => {
     try {
@@ -145,9 +157,18 @@ const PayPage: React.FunctionComponent = () => {
     }
   };
 
+  const fetchDiscounts = async () => {
+    try {
+      const response = await stripeService.getCustomerDiscounts();
+      setDiscounts(response.discounts);
+    } catch (error) {
+      console.error("Failed to fetch discounts:", error);
+    }
+  };
+
   useEffect(() => {
     if (user?.userId || user?.id) {
-      Promise.all([setupIntent(), fetchPaymentMethods()]).finally(() => {
+      Promise.all([setupIntent(), fetchPaymentMethods(), fetchDiscounts()]).finally(() => {
         setIsLoading(false);
       });
     }
@@ -173,7 +194,7 @@ const PayPage: React.FunctionComponent = () => {
     try {
       const { error: paymentError } = await stripeService.confirmPayment({
         paymentMethodId,
-        amount: parseFloat(amount),
+        amount: amount,
         currency: "usd",
         ...(coupon && { coupon })
       });
@@ -184,7 +205,7 @@ const PayPage: React.FunctionComponent = () => {
       }
 
       // Payment successful
-      setAmount("");
+      setAmount(0);
       setCoupon("");
       await fetchPaymentMethods(); // Refresh payment methods list
     } catch (err) {
@@ -208,9 +229,18 @@ const PayPage: React.FunctionComponent = () => {
     try {
       await stripeService.applyCoupon(coupon);
       setCouponSuccess("Coupon applied successfully!");
-      setCoupon(""); // Clear the input after successful application
+      setCoupon("");
     } catch (error: any) {
-      setCouponError(error.message || "Failed to apply coupon");
+      if (error.response?.status === 500) {
+        setCouponError("Unable to apply coupon. Please try again later.");
+      } else if (error.response?.data?.message) {
+        setCouponError(error.response.data.message);
+      } else if (error.message) {
+        setCouponError(error.message);
+      } else {
+        setCouponError("Failed to apply coupon. Please check the code and try again.");
+      }
+      console.error("Coupon application error:", error);
     }
   };
 
@@ -237,6 +267,26 @@ const PayPage: React.FunctionComponent = () => {
       setShowDeleteConfirmation(false);
       setCardToDelete(undefined);
     }
+  };
+
+  const calculateDiscountAmount = (amount: number) => {
+    let totalDiscount = 0;
+    discounts.forEach(discount => {
+      if (discount.valid) {
+        if (discount.percent_off) {
+          totalDiscount += (amount * discount.percent_off) / 100;
+        } else if (discount.amount_off) {
+          totalDiscount += discount.amount_off / 100; // Convert cents to dollars
+        }
+      }
+    });
+    return totalDiscount;
+  };
+
+  const getFinalAmount = (amount: number) => {
+    const numAmount = amount || 0;
+    const discount = calculateDiscountAmount(numAmount);
+    return Math.max(0, numAmount - discount);
   };
 
   if (isLoading) {
@@ -321,11 +371,43 @@ const PayPage: React.FunctionComponent = () => {
                       min="0"
                       step="0.01"
                       value={amount}
-                      onChange={e => setAmount(e.target.value)}
+                      onChange={e => setAmount(parseFloat(e.target.value))}
                       placeholder="0.00"
                     />
                   </div>
                 </div>
+
+                {discounts.length > 0 && (
+                  <div className="rounded-lg border p-4">
+                    <h3 className="mb-2 font-medium">Active Discounts</h3>
+                    <div className="space-y-2">
+                      {discounts.map(discount => (
+                        <div key={discount.id} className="flex items-center justify-between text-sm">
+                          <span>{discount.type === "promotion_code" ? discount.code : discount.name}</span>
+                          <span className="font-medium">
+                            {discount.percent_off
+                              ? `${discount.percent_off}% OFF`
+                              : discount.amount_off
+                                ? `$${(discount.amount_off / 100).toFixed(2)} OFF`
+                                : ""}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {!!amount && (
+                      <div className="mt-3 border-t pt-2 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span>Original Amount:</span>
+                          <span>${amount.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between font-medium">
+                          <span>Final Amount:</span>
+                          <span>${getFinalAmount(amount).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label htmlFor="coupon" className="block text-sm font-medium text-muted-foreground">
@@ -354,7 +436,7 @@ const PayPage: React.FunctionComponent = () => {
                   onClick={() => selectedPaymentMethodId && handlePayment(selectedPaymentMethodId)}
                   disabled={!amount || processing || !selectedPaymentMethodId}
                 >
-                  {processing ? "Processing..." : `Pay $${amount || "0.00"}`}
+                  {processing ? "Processing..." : `Pay $${getFinalAmount(amount).toFixed(2)}`}
                 </Button>
                 {!selectedPaymentMethodId && <p className="text-center text-sm text-muted-foreground">Please select a payment method above</p>}
               </div>
