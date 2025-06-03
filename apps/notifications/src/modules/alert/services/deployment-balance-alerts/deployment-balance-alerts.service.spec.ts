@@ -33,7 +33,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
         minBlockHeight: 1000
       });
       const alerts: DeploymentBalanceAlertOutput[] = [alert];
-      alertRepository.paginate.mockImplementation(async options => {
+      alertRepository.paginateAll.mockImplementation(async options => {
         await options.callback(alerts as any);
       });
       const balance = { balance: 9000000 };
@@ -72,7 +72,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
         status: "FIRING"
       });
       const alerts: DeploymentBalanceAlertOutput[] = [alert];
-      alertRepository.paginate.mockImplementation(async options => {
+      alertRepository.paginateAll.mockImplementation(async options => {
         await options.callback(alerts as any);
       });
 
@@ -112,7 +112,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
         status: "FIRING"
       });
       const alerts: DeploymentBalanceAlertOutput[] = [alert];
-      alertRepository.paginate.mockImplementation(async options => {
+      alertRepository.paginateAll.mockImplementation(async options => {
         await options.callback(alerts as any);
       });
 
@@ -140,7 +140,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
         }
       });
       const alerts: DeploymentBalanceAlertOutput[] = [alert];
-      alertRepository.paginate.mockImplementation(async options => {
+      alertRepository.paginateAll.mockImplementation(async options => {
         await options.callback(alerts as any);
       });
 
@@ -167,7 +167,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
     it("should log error if alert repository call fails and reject", async () => {
       const { service, alertRepository, loggerService, alertMessageService } = await setup();
       const error = new Error("test");
-      alertRepository.paginate.mockRejectedValue(error);
+      alertRepository.paginateAll.mockRejectedValue(error);
       const block = { height: 1000 };
       const onMessage = jest.fn();
 
@@ -187,7 +187,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
       const { service, alertRepository, deploymentService, alertMessageService, loggerService } = await setup();
       const alert = generateDeploymentBalanceAlert({});
       const alerts: DeploymentBalanceAlertOutput[] = [alert];
-      alertRepository.paginate.mockImplementation(async options => {
+      alertRepository.paginateAll.mockImplementation(async options => {
         await options.callback(alerts as any);
       });
       const error = new Error("test");

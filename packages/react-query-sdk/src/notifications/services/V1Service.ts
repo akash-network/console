@@ -204,6 +204,549 @@ export interface V1Service {
       body: CreateAlertBody;
     };
   };
+  getAlerts: {
+    /**/
+    cancelQueries<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>
+        | QueryFiltersByQueryKey<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>,
+      options?: CancelOptions
+    ): Promise<void>;
+    /**/
+    getQueryKey(parameters: DeepReadonly<GetAlertsParameters> | void): ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters>;
+    /**
+     * Performs asynchronous data fetching, manages loading states and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
+     * @example Query without parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery()
+     * ```
+     * @example Query with parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery({
+     *     query: {
+     *         limit: limit
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
+     * ```
+     */
+    useQuery<TData = GetAlertsData>(
+      parameters: ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters> | (DeepReadonly<GetAlertsParameters> | void),
+      options?: Omit<
+        UndefinedInitialDataOptions<GetAlertsData, GetAlertsError, TData, ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters>>,
+        "queryKey"
+      >
+    ): UseQueryResult<TData, GetAlertsError | Error>;
+    /**
+     * Performs asynchronous data fetching, manages loading states and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
+     * @example Query without parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery()
+     * ```
+     * @example Query with parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery({
+     *     query: {
+     *         limit: limit
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
+     * ```
+     */
+    useQuery<TData = GetAlertsData>(
+      parameters: ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters> | (DeepReadonly<GetAlertsParameters> | void),
+      options: Omit<DefinedInitialDataOptions<GetAlertsData, GetAlertsError, TData, ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters>>, "queryKey">
+    ): DefinedUseQueryResult<TData, GetAlertsError | Error>;
+    /**/
+    fetchInfiniteQuery<TPageParam extends GetAlertsParameters>(
+      options: ServiceOperationFetchInfiniteQueryOptions<GetAlertsSchema, GetAlertsData, GetAlertsParameters, DeepReadonly<TPageParam>, GetAlertsError> | void
+    ): Promise<OperationInfiniteData<GetAlertsData, GetAlertsParameters>>;
+    /**/
+    prefetchInfiniteQuery<TPageParam extends GetAlertsParameters>(
+      options: ServiceOperationFetchInfiniteQueryOptions<GetAlertsSchema, GetAlertsData, GetAlertsParameters, DeepReadonly<TPageParam>, GetAlertsError> | void
+    ): Promise<void>;
+    /**/
+    ensureInfiniteQueryData<TPageParam extends GetAlertsParameters>(
+      options: ServiceOperationEnsureInfiniteQueryDataOptions<
+        GetAlertsSchema,
+        GetAlertsData,
+        GetAlertsParameters,
+        DeepReadonly<TPageParam>,
+        GetAlertsError
+      > | void
+    ): Promise<OperationInfiniteData<GetAlertsData, GetAlertsParameters>>;
+    /**/
+    fetchQuery(options: ServiceOperationFetchQueryOptions<GetAlertsSchema, GetAlertsData, GetAlertsParameters, GetAlertsError> | void): Promise<GetAlertsData>;
+    /**/
+    prefetchQuery(options: ServiceOperationFetchQueryOptions<GetAlertsSchema, GetAlertsData, GetAlertsParameters, GetAlertsError> | void): Promise<void>;
+    /**/
+    ensureQueryData(
+      options: ServiceOperationEnsureQueryDataOptions<GetAlertsSchema, GetAlertsData, GetAlertsParameters, GetAlertsError> | void
+    ): Promise<GetAlertsData>;
+    /**/
+    getInfiniteQueryData(
+      parameters: ServiceOperationInfiniteQueryKey<GetAlertsSchema, GetAlertsParameters> | (DeepReadonly<GetAlertsParameters> | void)
+    ): OperationInfiniteData<GetAlertsData, GetAlertsParameters> | undefined;
+    /**/
+    getQueriesData<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>
+        | QueryFiltersByQueryKey<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>
+    ): TInfinite extends true
+      ? Array<
+          [
+            queryKey: ServiceOperationInfiniteQueryKey<GetAlertsSchema, GetAlertsParameters>,
+            data: NoInfer<OperationInfiniteData<GetAlertsData, GetAlertsParameters>> | undefined
+          ]
+        >
+      : Array<[queryKey: ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters>, data: GetAlertsData | undefined]>;
+    /**/
+    getQueryData(
+      parameters: ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters> | (DeepReadonly<GetAlertsParameters> | void)
+    ): GetAlertsData | undefined;
+    /**/
+    getQueryState(
+      parameters: ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters> | (DeepReadonly<GetAlertsParameters> | void)
+    ): QueryState<GetAlertsData, GetAlertsError> | undefined;
+    /**/
+    getInfiniteQueryState(
+      parameters: DeepReadonly<GetAlertsParameters> | ServiceOperationInfiniteQueryKey<GetAlertsSchema, GetAlertsParameters> | void
+    ): QueryState<OperationInfiniteData<GetAlertsData, GetAlertsParameters>, GetAlertsError> | undefined;
+    /**/
+    invalidateQueries<TInfinite extends boolean = false>(
+      filters?: InvalidateQueryFilters<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>,
+      options?: InvalidateOptions
+    ): Promise<void>;
+    /**/
+    isFetching<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>
+        | QueryFiltersByQueryKey<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>
+    ): number;
+    /**/
+    <TMeta extends Record<string, any>, TSignal extends AbortSignal = AbortSignal>(
+      options:
+        | QueryFnOptionsByQueryKey<GetAlertsSchema, GetAlertsParameters, TMeta, TSignal>
+        | (QueryFnOptionsByParameters<GetAlertsParameters, TMeta, TSignal> | void),
+      client?: (
+        schema: GetAlertsSchema,
+        options: {
+          parameters: GetAlertsParameters;
+          signal?: TSignal;
+          meta?: TMeta;
+        }
+      ) => Promise<RequestFnResponse<GetAlertsData, GetAlertsError>>
+    ): Promise<RequestFnResponse<GetAlertsData, GetAlertsError>>;
+    /**/
+    refetchQueries<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>
+        | QueryFiltersByQueryKey<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>,
+      options?: RefetchOptions
+    ): Promise<void>;
+    /**/
+    removeQueries<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>
+        | QueryFiltersByQueryKey<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>
+    ): void;
+    /**/
+    resetQueries<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>
+        | QueryFiltersByQueryKey<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>,
+      options?: ResetOptions
+    ): Promise<void>;
+    /**/
+    setInfiniteQueryData(
+      parameters: (DeepReadonly<GetAlertsParameters> | undefined) | ServiceOperationInfiniteQueryKey<GetAlertsSchema, GetAlertsParameters>,
+      updater: Updater<
+        NoInfer<OperationInfiniteData<GetAlertsData, GetAlertsParameters>> | undefined,
+        NoInfer<DeepReadonly<OperationInfiniteData<GetAlertsData, GetAlertsParameters>>> | undefined
+      >,
+      options?: SetDataOptions
+    ): OperationInfiniteData<GetAlertsData, GetAlertsParameters> | undefined;
+    /**/
+    setQueriesData<TInfinite extends boolean = false>(
+      filters:
+        | QueryFiltersByParameters<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>
+        | QueryFiltersByQueryKey<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>,
+      updater: Updater<NoInfer<GetAlertsData> | undefined, NoInfer<GetAlertsData> | undefined>,
+      options?: SetDataOptions
+    ): Array<GetAlertsData | undefined>;
+    /**/
+    setQueryData(
+      parameters: (DeepReadonly<GetAlertsParameters> | undefined) | ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters>,
+      updater: Updater<NoInfer<GetAlertsData> | undefined, NoInfer<DeepReadonly<GetAlertsData>> | undefined>,
+      options?: SetDataOptions
+    ): GetAlertsData | undefined;
+    /**/
+    getInfiniteQueryKey(parameters: DeepReadonly<GetAlertsParameters> | void): ServiceOperationInfiniteQueryKey<GetAlertsSchema, GetAlertsParameters>;
+    /**
+     * Performs asynchronous data fetching with support for infinite scrolling scenarios.
+     * Manages paginated data and provides utilities for fetching additional pages.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useInfiniteQuery|`useInfiniteQuery(...)` documentation}
+     *
+     * @example Infinite Query
+     * ```ts
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getAlerts.useInfiniteQuery({
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * }, {
+     *     initialPageParam: {
+     *         query: {
+     *             limit: initialLimit
+     *         }
+     *     },
+     *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
+     * })
+     *
+     * console.log(data);
+     * fetchNextPage(); // Fetch the next page
+     * ```
+     */
+    useInfiniteQuery<TPageParam extends GetAlertsParameters, TQueryFnData = GetAlertsData, TData = OperationInfiniteData<TQueryFnData, GetAlertsParameters>>(
+      parameters: ServiceOperationInfiniteQueryKey<GetAlertsSchema, GetAlertsParameters> | (DeepReadonly<GetAlertsParameters> | void),
+      options: Omit<
+        UndefinedInitialDataInfiniteOptions<
+          TQueryFnData,
+          GetAlertsError,
+          TData,
+          ServiceOperationInfiniteQueryKey<GetAlertsSchema, GetAlertsParameters>,
+          PartialParameters<DeepReadonly<TPageParam>>
+        >,
+        "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
+      > &
+        InfiniteQueryPageParamsOptions<TQueryFnData, PartialParameters<DeepReadonly<TPageParam>>>
+    ): UseInfiniteQueryResult<TData, GetAlertsError | Error>;
+    /**
+     * Performs asynchronous data fetching with support for infinite scrolling scenarios.
+     * Manages paginated data and provides utilities for fetching additional pages.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useInfiniteQuery|`useInfiniteQuery(...)` documentation}
+     *
+     * @example Infinite Query
+     * ```ts
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getAlerts.useInfiniteQuery({
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * }, {
+     *     initialPageParam: {
+     *         query: {
+     *             limit: initialLimit
+     *         }
+     *     },
+     *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
+     * })
+     *
+     * console.log(data);
+     * fetchNextPage(); // Fetch the next page
+     * ```
+     */
+    useInfiniteQuery<TPageParam extends GetAlertsParameters, TQueryFnData = GetAlertsData, TData = OperationInfiniteData<TQueryFnData, GetAlertsParameters>>(
+      parameters: ServiceOperationInfiniteQueryKey<GetAlertsSchema, GetAlertsParameters> | (DeepReadonly<GetAlertsParameters> | void),
+      options: Omit<
+        DefinedInitialDataInfiniteOptions<
+          TQueryFnData,
+          GetAlertsError,
+          TData,
+          ServiceOperationInfiniteQueryKey<GetAlertsSchema, GetAlertsParameters>,
+          PartialParameters<DeepReadonly<TPageParam>>
+        >,
+        "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
+      > &
+        InfiniteQueryPageParamsOptions<GetAlertsData, PartialParameters<DeepReadonly<TPageParam>>>
+    ): DefinedUseInfiniteQueryResult<TData, GetAlertsError | Error>;
+    /**
+     * Monitors the number of queries currently fetching, matching the provided filters.
+     * Useful for creating loading indicators or performing actions based on active requests.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useIsFetching|`useIsFetching(...)` documentation}
+     * @example Checks the total number of queries fetching from the specified service method,
+     * both normal and infinite. If no parameters are provided, no filtering is applied.
+     * ```ts
+     * const getAlertsTotal = qraft.v1Service.getAlerts.useIsFetching()
+     * ```
+     * @example Checks the number of normal queries fetching with the specified parameters.
+     * ```ts
+     * const getAlertsByParametersTotal = qraft.v1Service.getAlerts.useIsFetching({
+     *     infinite: false,
+     *     parameters: {
+     *         query: {
+     *             limit: limit
+     *         },
+     *         header: {
+     *             Authorization: authorization
+     *         }
+     *     }
+     * })
+     * ```
+     */
+    useIsFetching<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>
+        | QueryFiltersByQueryKey<GetAlertsSchema, GetAlertsData, TInfinite, GetAlertsParameters, GetAlertsError>
+    ): number;
+    /**
+     * Allows you to execute multiple asynchronous data fetching operations concurrently. This is especially useful for managing complex data dependencies in parallel.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQueries|`useQueries(...)` documentation}
+     * @example Multiple queries. Returns `data`, `error`, `isSuccess` and other properties.
+     * ```ts
+     * const getAlertsResults = qraft.v1Service.getAlerts.useQueries({
+     *     queries: [
+     *         {
+     *             query: {
+     *                 limit: limit1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
+     *             }
+     *         },
+     *         {
+     *             query: {
+     *                 limit: limit2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
+     *             }
+     *         }
+     *     ]
+     * });
+     * getAlertsResults.forEach(({ isSuccess, data, error }) => console.log({ isSuccess, data, error }));
+     * ```
+     * @example Combined results. Only the data will be returned.
+     * ```ts
+     * const getAlertsCombinedResults = qraft.v1Service.getAlerts.useQueries({
+     *     combine: results => results.map(result => result.data),
+     *     queries: [
+     *         {
+     *             query: {
+     *                 limit: limit1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
+     *             }
+     *         },
+     *         {
+     *             query: {
+     *                 limit: limit2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
+     *             }
+     *         }
+     *     ]
+     * });
+     * getAlertsCombinedResults.forEach(data => console.log({ data }));
+     * ```
+     */
+    useQueries<
+      T extends Array<UseQueryOptionsForUseQueries<GetAlertsSchema, GetAlertsParameters, GetAlertsData, GetAlertsError>>,
+      TCombinedResult = Array<UseQueryResult<GetAlertsData, GetAlertsError>>
+    >(options: {
+      queries: T;
+      combine?: (results: Array<UseQueryResult<GetAlertsData, GetAlertsError>>) => TCombinedResult;
+    }): TCombinedResult;
+    /**/
+    getQueryKey(parameters: DeepReadonly<GetAlertsParameters> | void): ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters>;
+    /**
+     * Performs asynchronous data fetching, manages loading states and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
+     * @example Query without parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery()
+     * ```
+     * @example Query with parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery({
+     *     query: {
+     *         limit: limit
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
+     * ```
+     */
+    useQuery<TData = GetAlertsData>(
+      parameters: ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters> | (DeepReadonly<GetAlertsParameters> | void),
+      options?: Omit<
+        UndefinedInitialDataOptions<GetAlertsData, GetAlertsError, TData, ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters>>,
+        "queryKey"
+      >
+    ): UseQueryResult<TData, GetAlertsError | Error>;
+    /**
+     * Performs asynchronous data fetching, manages loading states and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
+     * @example Query without parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery()
+     * ```
+     * @example Query with parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery({
+     *     query: {
+     *         limit: limit
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
+     * ```
+     */
+    useQuery<TData = GetAlertsData>(
+      parameters: ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters> | (DeepReadonly<GetAlertsParameters> | void),
+      options: Omit<DefinedInitialDataOptions<GetAlertsData, GetAlertsError, TData, ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters>>, "queryKey">
+    ): DefinedUseQueryResult<TData, GetAlertsError | Error>;
+    /**
+     * Performs asynchronous data fetching with support for infinite scrolling scenarios.
+     * Manages paginated data and provides utilities for fetching additional pages.
+     * It functions similarly to `useInfiniteQuery`, but with added support for React Suspense.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useSuspenseInfiniteQuery|`useSuspenseInfiniteQuery(...)` documentation}
+     *
+     * @example Suspense Infinite Query
+     * ```ts
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getAlerts.useSuspenseInfiniteQuery({
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * }, {
+     *     initialPageParam: {
+     *         query: {
+     *             limit: initialLimit
+     *         }
+     *     },
+     *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
+     * })
+     *
+     * console.log(data);
+     * fetchNextPage(); // Fetch the next page
+     * ```
+     */
+    useSuspenseInfiniteQuery<TPageParam extends GetAlertsParameters, TData = GetAlertsData>(
+      parameters: ServiceOperationInfiniteQueryKey<GetAlertsSchema, GetAlertsParameters> | (DeepReadonly<GetAlertsParameters> | void),
+      options: Omit<
+        UseSuspenseInfiniteQueryOptions<
+          GetAlertsData,
+          GetAlertsError,
+          OperationInfiniteData<TData, GetAlertsParameters>,
+          GetAlertsData,
+          ServiceOperationInfiniteQueryKey<GetAlertsSchema, GetAlertsParameters>,
+          PartialParameters<DeepReadonly<TPageParam>>
+        >,
+        "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
+      > &
+        InfiniteQueryPageParamsOptions<GetAlertsData, PartialParameters<DeepReadonly<TPageParam>>>
+    ): UseSuspenseInfiniteQueryResult<OperationInfiniteData<TData, GetAlertsParameters>, GetAlertsError | Error>;
+    /**
+     * Allows you to execute multiple asynchronous data fetching operations concurrently with Suspense support.
+     * Similar to useQueries but integrates with React Suspense for loading states.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useSuspenseQueries|`useSuspenseQueries(...)` documentation}
+     * @example Basic usage with Suspense
+     * ```ts
+     * const getAlertsData = qraft.v1Service.getAlerts.useSuspenseQueries({
+     *     queries: [
+     *         {
+     *             query: {
+     *                 limit: limit1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
+     *             }
+     *         },
+     *         {
+     *             query: {
+     *                 limit: limit2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
+     *             }
+     *         }
+     *     ]
+     * });
+     * getAlertsResults.forEach(({ isSuccess, data, error }) => console.log({ isSuccess, data, error }));
+     * ```
+     * @example With data transformation using combine
+     * ```ts
+     * const getAlertsCombinedData = qraft.v1Service.getAlerts.useSuspenseQueries({
+     *     combine: results => results.map(result => result.data),
+     *     queries: [
+     *         {
+     *             query: {
+     *                 limit: limit1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
+     *             }
+     *         },
+     *         {
+     *             query: {
+     *                 limit: limit2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
+     *             }
+     *         }
+     *     ]
+     * });
+     * getAlertsCombinedData.forEach(data => console.log({ data }));
+     * ```
+     */
+    useSuspenseQueries<
+      T extends Array<UseQueryOptionsForUseSuspenseQuery<GetAlertsSchema, GetAlertsParameters, GetAlertsData, GetAlertsError>>,
+      TCombinedResult = Array<UseSuspenseQueryResult<GetAlertsData, GetAlertsError>>
+    >(options: {
+      queries: T;
+      combine?: (results: Array<WithOptional<UseSuspenseQueryResult<GetAlertsData, GetAlertsError>, "data">>) => TCombinedResult;
+    }): TCombinedResult;
+    /**
+     * Performs asynchronous data fetching with Suspense support.
+     * Similar to useQuery but integrates with React Suspense for loading states.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useSuspenseQuery|`useSuspenseQuery(...)` documentation}
+     * @example Suspense Query without parameters
+     * ```ts
+     * const data = qraft.v1Service.getAlerts.useSuspenseQuery()
+     * ```
+     * @example Suspense Query with parameters
+     * ```ts
+     * const data = qraft.v1Service.getAlerts.useSuspenseQuery({
+     *     query: {
+     *         limit: limit
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
+     * ```
+     */
+    useSuspenseQuery<TData = GetAlertsData>(
+      parameters: ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters> | (DeepReadonly<GetAlertsParameters> | void),
+      options?: Omit<UseSuspenseQueryOptions<GetAlertsData, GetAlertsError, TData, ServiceOperationQueryKey<GetAlertsSchema, GetAlertsParameters>>, "queryKey">
+    ): UseSuspenseQueryResult<TData, GetAlertsError | Error>;
+    schema: GetAlertsSchema;
+    types: {
+      parameters: GetAlertsParameters;
+      data: GetAlertsData;
+      error: GetAlertsError;
+    };
+  };
   getAlert: {
     /**/
     cancelQueries<TInfinite extends boolean = false>(
@@ -2819,6 +3362,15 @@ export const createAlert = {
   schema: CreateAlertSchema;
   [QraftServiceOperationsToken]: V1Service["createAlert"];
 };
+export const getAlerts = {
+  schema: {
+    method: "get",
+    url: "/v1/alerts"
+  }
+} as {
+  schema: GetAlertsSchema;
+  [QraftServiceOperationsToken]: V1Service["getAlerts"];
+};
 export const getAlert = {
   schema: {
     method: "get",
@@ -2896,6 +3448,7 @@ export const deleteContactPoint = {
 };
 export const v1Service = {
   createAlert,
+  getAlerts,
   getAlert,
   patchAlert,
   deleteAlert,
@@ -2918,6 +3471,17 @@ type CreateAlertError =
   | paths["/v1/alerts"]["post"]["responses"]["403"]["content"]["application/json"]
   | paths["/v1/alerts"]["post"]["responses"]["500"]["content"]["application/json"];
 type CreateAlertBody = paths["/v1/alerts"]["post"]["requestBody"]["content"]["application/json"];
+type GetAlertsSchema = {
+  method: "get";
+  url: "/v1/alerts";
+};
+type GetAlertsParameters = paths["/v1/alerts"]["get"]["parameters"];
+type GetAlertsData = paths["/v1/alerts"]["get"]["responses"]["200"]["content"]["application/json"];
+type GetAlertsError =
+  | paths["/v1/alerts"]["get"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/alerts"]["get"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/alerts"]["get"]["responses"]["403"]["content"]["application/json"]
+  | paths["/v1/alerts"]["get"]["responses"]["500"]["content"]["application/json"];
 type GetAlertSchema = {
   method: "get";
   url: "/v1/alerts/{id}";

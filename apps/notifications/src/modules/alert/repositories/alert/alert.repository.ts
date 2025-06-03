@@ -1,7 +1,7 @@
 import type { AnyAbility } from "@casl/ability";
 import { InjectDrizzle } from "@knaadh/nestjs-drizzle-pg";
 import { Injectable } from "@nestjs/common";
-import { and, eq, gt, lte } from "drizzle-orm";
+import { and, count, eq, gt, lte, sql } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { SQL } from "drizzle-orm/sql/sql";
 
@@ -38,6 +38,27 @@ export type AlertOutputTypeMap = {
   CHAIN_MESSAGE: ChainMessageAlertOutput;
 };
 
+export type PaginatedResult<T> = {
+  data: T[];
+  pagination: {
+    total: number;
+    limit: number;
+    page: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+};
+
+export type ListLookupOptions = {
+  query?: {
+    dseq?: string;
+    type?: string;
+  };
+  limit?: number;
+  page?: number;
+};
+
 @Injectable()
 export class AlertRepository {
   protected ability?: DrizzleAbility<typeof schema.Alert>;
@@ -56,7 +77,7 @@ export class AlertRepository {
     return this;
   }
 
-  protected whereAccessibleBy(where: SQL) {
+  protected whereAccessibleBy(where?: SQL) {
     return this.ability?.whereAccessibleBy(where) || where;
   }
 
@@ -100,7 +121,49 @@ export class AlertRepository {
     });
   }
 
-  async paginate<T extends AlertType>({
+  async paginate(options: ListLookupOptions): Promise<PaginatedResult<AlertOutput>> {
+    const page = options.page || 1;
+    const limit = options.limit || 10;
+    const offset = (page - 1) * limit;
+    let where = this.whereAccessibleBy();
+
+    if (options.query?.dseq) {
+      where = and(where, sql`${schema.Alert.params}->>'dseq' = ${options.query.dseq}`);
+    }
+
+    if (options.query?.type) {
+      where = and(where, sql`${schema.Alert.params}->>'type' = ${options.query.type}`);
+    }
+
+    const alerts = await this.db.query.Alert.findMany({
+      where,
+      limit,
+      offset,
+      orderBy: schema.Alert.createdAt
+    });
+
+    const countResult = await this.db
+      .select({ count: count(schema.Alert.id) })
+      .from(schema.Alert)
+      .where(where);
+
+    const total = Number(countResult[0].count);
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: this.toOutputList(alerts),
+      pagination: {
+        total,
+        limit,
+        page,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      }
+    };
+  }
+
+  async paginateAll<T extends AlertType>({
     query,
     limit,
     callback
@@ -128,7 +191,7 @@ export class AlertRepository {
         break;
       }
 
-      await callback(this.toOutputList<T>(query.type, batch));
+      await callback(this.toTypedOutputList<T>(query.type, batch));
 
       lastId = batch[batch.length - 1].id;
 
@@ -138,7 +201,11 @@ export class AlertRepository {
     }
   }
 
-  private toOutputList<T extends AlertType>(type: T, alerts: InternalAlertOutput[]): AlertOutputTypeMap[T][] {
+  private toOutputList(alerts: InternalAlertOutput[]): AlertOutput[] {
+    return alerts.map(alert => this.toOutput(alert));
+  }
+
+  private toTypedOutputList<T extends AlertType>(type: T, alerts: InternalAlertOutput[]): AlertOutputTypeMap[T][] {
     return alerts.map(alert => this.toOutput(alert as InternalAlertOutput & { type: T }));
   }
 
@@ -148,7 +215,7 @@ export class AlertRepository {
     if (type === "CHAIN_MESSAGE") {
       return {
         ...rest,
-        ...jsonFieldsSchemas.chainMessageJsonFieldsSchema.parse({ type, conditions })
+        ...jsonFieldsSchemas.chainMessageJsonFieldsSchema.parse({ type, conditions, params: params ?? undefined })
       } as AlertOutputTypeMap[T];
     }
 

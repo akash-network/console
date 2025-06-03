@@ -31,7 +31,7 @@ export class DeploymentBalanceAlertsService {
 
   private async forEachAlert(block: number, onAlert: AlertCallback) {
     try {
-      await this.alertRepository.paginate({
+      await this.alertRepository.paginateAll({
         query: { block, type: "DEPLOYMENT_BALANCE" },
         limit: 10,
         callback: async alerts => {
