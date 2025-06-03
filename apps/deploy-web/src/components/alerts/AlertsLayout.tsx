@@ -41,7 +41,7 @@ export const AlertsLayout: React.FunctionComponent<Props> = ({ children, page, t
 
   return (
     <Tabs value={page} onValueChange={handleTabChange}>
-      <TabsList className="grid w-full grid-cols-6">
+      <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value={AlertTabs.ALERTS} className={cn({ ["font-bold"]: page === AlertTabs.ALERTS })}>
           Alerts
         </TabsTrigger>

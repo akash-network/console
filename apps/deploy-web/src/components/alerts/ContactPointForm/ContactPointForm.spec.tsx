@@ -16,9 +16,10 @@ describe("ContactPointForm", () => {
     expect(screen.getByTestId("contact-point-form-emails")).toBeInTheDocument();
   });
 
-  it("shows validation error for empty submission", async () => {
+  it("shows validation error for incomplete submission", async () => {
     setup();
 
+    fireEvent.change(screen.getByTestId("contact-point-form-name"), { target: { value: "Test" } });
     fireEvent.click(screen.getByTestId("contact-point-form-submit"));
 
     await waitFor(() => {
@@ -50,7 +51,7 @@ describe("ContactPointForm", () => {
 
   function setup(props: Partial<ContactPointFormProps> = {}) {
     const defaultProps: ContactPointFormProps = {
-      values: { name: "", emails: [] },
+      initialValues: { name: "", emails: [] },
       onSubmit: jest.fn(),
       isLoading: false,
       ...props

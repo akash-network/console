@@ -13,77 +13,80 @@ import { z } from "zod";
 
 const formSchema = z.object({
   name: z.string().min(1).max(100),
-  emails: z.preprocess(
-    value => {
-      if (typeof value !== "string") return [];
-      return value
-        .split(",")
-        .map(email => email.trim())
-        .filter(Boolean);
-    },
-    z
-      .array(z.string())
-      .min(1, "At least one email is required")
-      .superRefine((emails, ctx) => {
-        const invalids = emails.filter(email => !z.string().email().safeParse(email).success);
-        if (invalids.length > 0) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "One or more email addresses are invalid."
-          });
-        }
-      })
-  )
+  emails: z.string().min(1, "At least one email is required")
 });
 type FormValues = z.infer<typeof formSchema>;
+type DataValues = Pick<FormValues, "name"> & { emails: string[] };
 
 export interface ContactPointFormProps {
-  values?: FormValues;
-  onSubmit: (data: FormValues) => void;
+  initialValues?: DataValues;
+  onSubmit: (data: DataValues) => void;
   onCancel?: () => void;
   isLoading?: boolean;
 }
 
-export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoading, ...props }) => {
+export const ContactPointForm: FC<ContactPointFormProps> = ({
+  onCancel,
+  isLoading,
+  onSubmit,
+  initialValues = {
+    name: "",
+    emails: []
+  }
+}) => {
   const [error, setError] = useState<string | null>(null);
   const { confirm } = usePopup();
 
-  const initialValues: FormValues = useMemo(
-    () =>
-      Object.assign(
-        {
-          name: "",
-          emails: []
-        },
-        props.values
-      ),
-    [props.values]
-  );
+  const initialFormValues: FormValues = useMemo(() => {
+    return {
+      name: initialValues.name || "",
+      emails: initialValues.emails.join(", ")
+    };
+  }, [initialValues]);
 
   const form = useForm<FormValues>({
-    defaultValues: initialValues,
+    defaultValues: initialFormValues,
+    reValidateMode: "onSubmit",
     resolver: zodResolver(formSchema)
   });
 
   const { control, handleSubmit } = form;
 
-  const onSubmit = useCallback(
+  const submit = useCallback(
     async (values: FormValues) => {
       try {
-        props.onSubmit(values);
+        const emails = values.emails
+          .split(",")
+          .map(email => email.trim())
+          .filter(Boolean);
+
+        const invalids = emails.filter(email => !z.string().email().safeParse(email).success);
+
+        if (invalids.length > 0) {
+          form.setError("emails", {
+            message: `Invalid email addresses: ${invalids.join(", ")}`
+          });
+
+          return;
+        }
+
+        onSubmit({
+          ...values,
+          emails: Array.from(new Set(emails))
+        });
       } catch (err) {
-        setError("Failed to create contact point. Please try again.");
+        setError("Failed to save contact point. Please try again.");
       }
     },
-    [props]
+    [form, onSubmit]
   );
 
   const currentValues = useWatch({ control });
 
   const hasChanges = useMemo(() => {
-    const fields = Object.keys(initialValues) as (keyof FormValues)[];
-    return fields.some(key => !isEqual(initialValues[key], currentValues[key]));
-  }, [currentValues, initialValues]);
+    const fields = Object.keys(initialFormValues) as (keyof FormValues)[];
+    return fields.some(key => !isEqual(initialFormValues[key], currentValues[key]));
+  }, [currentValues, initialFormValues]);
 
   const cancel = useCallback(async () => {
     const canCancel = !hasChanges || (await confirm("Unsaved changes would be lost. Are you sure you want to cancel?"));
@@ -95,10 +98,8 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
 
   return (
     <div className="space-y-4 p-4">
-      <h2 className="text-lg font-semibold">New Email Contact Point</h2>
-
       <Form {...form}>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(submit)} className="space-y-4">
           <div className="space-y-3">
             <FormField
               control={control}
@@ -139,7 +140,7 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
           {error && <Alert variant="destructive">{error}</Alert>}
 
           <div className="flex justify-end gap-2 pt-4">
-            <LoadingButton data-testid="contact-point-form-submit" disabled={isLoading} loading={isLoading} type="submit">
+            <LoadingButton data-testid="contact-point-form-submit" disabled={isLoading || !hasChanges} loading={isLoading} type="submit">
               Save
             </LoadingButton>
 
