@@ -98,8 +98,6 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({
 
   return (
     <div className="space-y-4 p-4">
-      <h2 className="text-lg font-semibold">New Email Contact Point</h2>
-
       <Form {...form}>
         <form onSubmit={handleSubmit(submit)} className="space-y-4">
           <div className="space-y-3">
