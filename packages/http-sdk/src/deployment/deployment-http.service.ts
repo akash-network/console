@@ -1,105 +1,101 @@
 import type { AxiosRequestConfig } from "axios";
+import z from "zod";
 
 import { HttpService } from "../http/http.service";
 import { loadWithPagination } from "../utils/pagination.utils";
 
-export type DeploymentInfo = {
-  deployment: {
-    deployment_id: {
-      owner: string;
-      dseq: string;
-    };
-    state: string;
-    version: string;
-    created_at: string;
-  };
-  groups: {
-    group_id: {
-      owner: string;
-      dseq: string;
-      gseq: number;
-    };
-    state: string;
-    group_spec: {
-      name: string;
-      requirements: {
-        signed_by: {
-          all_of: string[];
-          any_of: string[];
-        };
-        attributes: { key: string; value: string }[];
-      };
-      resources: {
-        resource: {
-          id: number;
-          cpu: {
-            units: {
-              val: string;
-            };
-            attributes: { key: string; value: string }[];
-          };
-          memory: {
-            quantity: {
-              val: string;
-            };
-            attributes: { key: string; value: string }[];
-          };
-          storage: [
-            {
-              name: string;
-              quantity: {
-                val: string;
-              };
-              attributes: { key: string; value: string }[];
-            },
-            {
-              name: string;
-              quantity: {
-                val: string;
-              };
-              attributes: { key: string; value: string }[];
-            }
-          ];
-          gpu: {
-            units: {
-              val: string;
-            };
-            attributes: { key: string; value: string }[];
-          };
-          endpoints: { kind: string; sequence_number: number }[];
-        };
-        count: number;
-        price: {
-          denom: string;
-          amount: string;
-        };
-      }[];
-    };
-    created_at: string;
-  }[];
-  escrow_account: {
-    id: {
-      scope: string;
-      xid: string;
-    };
-    owner: string;
-    state: string;
-    balance: {
-      denom: string;
-      amount: string;
-    };
-    transferred: {
-      denom: string;
-      amount: string;
-    };
-    settled_at: string;
-    depositor: string;
-    funds: {
-      denom: string;
-      amount: string;
-    };
-  };
-};
+const AttributeSchema = z.object({
+  key: z.string(),
+  value: z.string()
+});
+
+const QuantitySchema = z.object({
+  val: z.string()
+});
+
+const DenominatedValueSchema = z.object({
+  denom: z.string(),
+  amount: z.string()
+});
+
+export const DeploymentInfoSchema = z.object({
+  deployment: z.object({
+    deployment_id: z.object({
+      owner: z.string(),
+      dseq: z.string()
+    }),
+    state: z.string(),
+    version: z.string(),
+    created_at: z.string()
+  }),
+  groups: z.array(
+    z.object({
+      group_id: z.object({
+        owner: z.string(),
+        dseq: z.string(),
+        gseq: z.number()
+      }),
+      state: z.string(),
+      group_spec: z.object({
+        name: z.string(),
+        requirements: z.object({
+          signed_by: z.object({
+            all_of: z.array(z.string()),
+            any_of: z.array(z.string())
+          }),
+          attributes: z.array(AttributeSchema)
+        }),
+        resources: z.array(
+          z.object({
+            resource: z.object({
+              id: z.number(),
+              cpu: z.object({
+                units: QuantitySchema,
+                attributes: z.array(AttributeSchema)
+              }),
+              memory: z.object({
+                quantity: QuantitySchema,
+                attributes: z.array(AttributeSchema)
+              }),
+              storage: z.array(
+                z.object({
+                  name: z.string(),
+                  quantity: QuantitySchema,
+                  attributes: z.array(AttributeSchema)
+                })
+              ),
+              gpu: z.object({
+                units: QuantitySchema,
+                attributes: z.array(AttributeSchema)
+              }),
+              endpoints: z.array(z.object({ kind: z.string(), sequence_number: z.number() }))
+            }),
+            count: z.number(),
+            price: DenominatedValueSchema
+          })
+        )
+      }),
+      created_at: z.string()
+    })
+  ),
+  escrow_account: z.object({
+    id: z.object({
+      scope: z.string(),
+      xid: z.string()
+    }),
+    owner: z.string(),
+    state: z.string(),
+    balance: DenominatedValueSchema,
+    transferred: z.object({
+      denom: z.string(),
+      amount: z.string()
+    }),
+    settled_at: z.string(),
+    depositor: z.string(),
+    funds: DenominatedValueSchema
+  })
+});
+export type DeploymentInfo = z.infer<typeof DeploymentInfoSchema>;
 
 export type RestAkashDeploymentInfoResponse =
   | {
