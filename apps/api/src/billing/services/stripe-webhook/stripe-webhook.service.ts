@@ -84,33 +84,22 @@ export class StripeWebhookService {
 
     // If a discount was applied, consume the promotion code
     if (discountApplied) {
-      const { discounts } = await this.stripe.getCustomerDiscounts(customerId);
-      if (discounts.length > 0) {
-        const discount = discounts[0]; // Only one discount can be active at a time
-        if (discount.valid) {
-          try {
-            // Remove the active discount based on its type
-            await this.stripe.customers.update(customerId, {
-              [discount.type === "promotion_code" ? "promotion_code" : "coupon"]: null
-            });
-
-            this.logger.info({
-              event: "DISCOUNT_CONSUMED",
-              customerId,
-              discountId: discount.id,
-              discountType: discount.type,
-              originalAmount,
-              finalAmount: paymentIntent.amount
-            });
-          } catch (error) {
-            this.logger.error({
-              event: "FAILED_TO_CONSUME_DISCOUNT",
-              customerId,
-              discountType: discount.type,
-              error
-            });
-          }
+      try {
+        const consumed = await this.stripe.consumeActiveDiscount(customerId);
+        if (consumed) {
+          this.logger.info({
+            event: "DISCOUNT_CONSUMED",
+            customerId,
+            originalAmount,
+            finalAmount: paymentIntent.amount
+          });
         }
+      } catch (error) {
+        this.logger.error({
+          event: "FAILED_TO_CONSUME_DISCOUNT",
+          customerId,
+          error
+        });
       }
     }
 

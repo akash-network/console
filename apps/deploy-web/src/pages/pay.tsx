@@ -66,20 +66,15 @@ const AddPaymentMethodForm = ({ onSuccess }: { onSuccess: () => void }) => {
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
-      <div>
-        <label htmlFor="cardholderName" className="block text-sm font-medium text-muted-foreground">
-          Cardholder Name
-        </label>
-        <Input
-          id="cardholderName"
-          type="text"
-          value={cardholderName}
-          onChange={e => setCardholderName(e.target.value)}
-          placeholder="Name on card"
-          required
-          className="mt-1"
-        />
-      </div>
+      <Input
+        id="cardholderName"
+        type="text"
+        value={cardholderName}
+        onChange={e => setCardholderName(e.target.value)}
+        placeholder="Name on card"
+        required
+        label="Cardholder Name"
+      />
       <PaymentElement />
       {error && (
         <Alert className="mt-4" variant="destructive">
@@ -121,6 +116,7 @@ const PayPage: React.FunctionComponent = () => {
   const [couponSuccess, setCouponSuccess] = useState<string>();
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>();
   const [isRemovingPaymentMethod, setIsRemovingPaymentMethod] = useState(false);
+  const [amountError, setAmountError] = useState<string>();
   const [discounts, setDiscounts] = useState<
     Array<{
       type: "coupon" | "promotion_code";
@@ -133,6 +129,7 @@ const PayPage: React.FunctionComponent = () => {
       valid: boolean;
     }>
   >([]);
+  const isDarkMode = resolvedTheme === "dark";
 
   const setupIntent = async () => {
     try {
@@ -289,15 +286,60 @@ const PayPage: React.FunctionComponent = () => {
     return Math.max(0, numAmount - discount);
   };
 
+  const validateAmount = (value: number) => {
+    const finalAmount = getFinalAmount(value);
+    // Only check for $20 minimum if no coupon is applied
+    if (!discounts.length && value > 0 && value < 20) {
+      setAmountError("Minimum amount is $20");
+      return false;
+    }
+    if (finalAmount > 0 && finalAmount < 1) {
+      setAmountError("Final amount after discount must be at least $1");
+      return false;
+    }
+    setAmountError(undefined);
+    return true;
+  };
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    setAmount(value);
+    validateAmount(value);
+  };
+
+  // Add effect to revalidate amount when coupon changes
+  useEffect(() => {
+    validateAmount(amount);
+  }, [coupon]);
+
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <Layout>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <p className="text-muted-foreground">Loading payment information...</p>
+          </div>
+        </div>
+      </Layout>
+    );
   }
 
   if (error) {
-    return <div className="text-red-500">{error}</div>;
+    return (
+      <Layout>
+        <div className="mx-auto max-w-md p-6">
+          <Alert variant="destructive" className="mb-4">
+            <p className="font-medium">Error</p>
+            <p className="text-sm">{error}</p>
+          </Alert>
+          <Button onClick={() => window.location.reload()} variant="outline" className="w-full">
+            Try Again
+          </Button>
+        </div>
+      </Layout>
+    );
   }
-
-  const isDarkMode = resolvedTheme === "dark";
 
   return (
     <Layout>
@@ -364,16 +406,8 @@ const PayPage: React.FunctionComponent = () => {
                     Amount (USD)
                   </label>
                   <div className="mt-1">
-                    <Input
-                      type="number"
-                      name="amount"
-                      id="amount"
-                      min="0"
-                      step="0.01"
-                      value={amount}
-                      onChange={e => setAmount(parseFloat(e.target.value))}
-                      placeholder="0.00"
-                    />
+                    <Input type="number" name="amount" id="amount" min="0" step="0.01" value={amount} onChange={handleAmountChange} placeholder="0.00" />
+                    {amountError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{amountError}</p>}
                   </div>
                 </div>
 
@@ -434,7 +468,7 @@ const PayPage: React.FunctionComponent = () => {
                 <Button
                   className="w-full"
                   onClick={() => selectedPaymentMethodId && handlePayment(selectedPaymentMethodId)}
-                  disabled={!amount || processing || !selectedPaymentMethodId}
+                  disabled={!amount || processing || !selectedPaymentMethodId || !!amountError}
                 >
                   {processing ? "Processing..." : `Pay $${getFinalAmount(amount).toFixed(2)}`}
                 </Button>
@@ -483,7 +517,8 @@ const PayPage: React.FunctionComponent = () => {
               appearance: {
                 theme: isDarkMode ? "night" : "stripe",
                 variables: {
-                  colorPrimary: "#ff424c"
+                  colorPrimary: "#ff424c",
+                  colorSuccess: "#ff424c"
                 }
               }
             }}
