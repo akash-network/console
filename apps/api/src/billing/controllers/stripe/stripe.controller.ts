@@ -82,7 +82,7 @@ export class StripeController {
       const paymentIntent = await this.stripe.createPaymentIntent({
         customer: user.stripeCustomerId,
         payment_method: params.paymentMethodId,
-        amount: Math.round(params.amount * 100), // Stripe expects amount in cents
+        amount: params.amount,
         currency: params.currency,
         confirm: true,
         ...(params.coupon ? { coupon: params.coupon } : {})
@@ -114,7 +114,7 @@ export class StripeController {
     }
   }
 
-  @Protected()
+  @Protected([{ action: "read", subject: "Coupon" }])
   async listCoupons() {
     try {
       const coupons = await this.stripe.listCoupons();
@@ -124,6 +124,7 @@ export class StripeController {
     }
   }
 
+  @Protected([{ action: "read", subject: "Coupon" }])
   async getCoupon(couponId: string) {
     try {
       const coupon = await this.stripe.getCoupon(couponId);
@@ -141,6 +142,45 @@ export class StripeController {
 
   @Protected([{ action: "delete", subject: "PaymentMethod" }])
   async removePaymentMethod(paymentMethodId: string) {
+    const userId = this.authService.currentUser.userId;
+    const user = await this.userRepository.findOneBy({ userId });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (!user.stripeCustomerId) {
+      throw new Error("User does not have a Stripe customer ID");
+    }
+
     await this.stripe.paymentMethods.detach(paymentMethodId);
+  }
+
+  @Protected([{ action: "read", subject: "Coupon" }])
+  async getCustomerDiscounts() {
+    const userId = this.authService.currentUser.userId;
+    const user = await this.userRepository.findOneBy({ userId });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (!user.stripeCustomerId) {
+      throw new Error("User does not have a Stripe customer ID");
+    }
+
+    const response = await this.stripe.getCustomerDiscounts(user.stripeCustomerId);
+    const formattedDiscounts = response.discounts.map(discount => ({
+      type: discount.type as "coupon" | "promotion_code",
+      id: discount.id,
+      name: discount.name,
+      code: discount.code,
+      percent_off: discount.percent_off,
+      amount_off: discount.amount_off,
+      currency: discount.currency,
+      valid: discount.valid
+    }));
+
+    return { discounts: formattedDiscounts };
   }
 }

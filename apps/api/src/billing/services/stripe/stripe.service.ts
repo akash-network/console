@@ -88,13 +88,53 @@ export class StripeService extends Stripe {
     return paymentMethods.data;
   }
 
-  async createPaymentIntent(params: { customer: string; payment_method: string; amount: number; currency: string; confirm: boolean; coupon?: string }) {
+  async createPaymentIntent(params: {
+    customer: string;
+    payment_method: string;
+    amount: number;
+    currency: string;
+    confirm: boolean;
+    coupon?: string;
+    metadata?: Record<string, string>;
+  }) {
+    // If a coupon is provided, apply it to the customer first
+    if (params.coupon) {
+      await this.applyCoupon(params.customer, params.coupon);
+    }
+
+    // Get customer's current discounts
+    const { discounts } = await this.getCustomerDiscounts(params.customer);
+    let finalAmount = params.amount;
+    let discountApplied = false;
+
+    // Apply any active discounts
+    if (discounts.length > 0) {
+      const activeDiscount = discounts[0]; // Take the first active discount
+      if (activeDiscount.valid) {
+        discountApplied = true;
+        if (activeDiscount.percent_off) {
+          finalAmount = params.amount * (1 - activeDiscount.percent_off / 100);
+        } else if (activeDiscount.amount_off) {
+          finalAmount = Math.max(0, params.amount - activeDiscount.amount_off / 100);
+        }
+      }
+    }
+
+    // Prepare metadata with original and discounted amounts
+    const metadata = {
+      ...params.metadata,
+      original_amount: (params.amount * 100).toString(),
+      final_amount: (finalAmount * 100).toString(),
+      discount_applied: discountApplied.toString()
+    };
+
     return await this.paymentIntents.create({
       customer: params.customer,
       payment_method: params.payment_method,
-      amount: params.amount,
+      amount: Math.round(finalAmount * 100),
       currency: params.currency,
       confirm: params.confirm,
+      metadata,
       automatic_payment_methods: {
         enabled: true,
         allow_redirects: "never"
@@ -102,15 +142,55 @@ export class StripeService extends Stripe {
     });
   }
 
-  async applyCoupon(customerId: string, couponId: string) {
-    const coupon = await this.coupons.retrieve(couponId);
-    if (!coupon.valid) {
-      throw new Error("Coupon is invalid or expired");
-    }
-    await this.customers.update(customerId, {
-      coupon: couponId
+  async listPromotionCodes() {
+    const promotionCodes = await this.promotionCodes.list({
+      expand: ["data.coupon"]
     });
-    return coupon;
+    return { promotionCodes: promotionCodes.data };
+  }
+
+  async findPromotionCodeByCode(code: string) {
+    const { data: promotionCodes } = await this.promotionCodes.list({
+      code,
+      expand: ["data.coupon"]
+    });
+    return promotionCodes[0];
+  }
+
+  async applyCoupon(customerId: string, couponCode: string) {
+    try {
+      // First try to find a matching promotion code
+      const promotionCode = await this.findPromotionCodeByCode(couponCode);
+
+      if (promotionCode) {
+        if (!promotionCode.coupon.valid) {
+          throw new Error("Promotion code is invalid or expired");
+        }
+        await this.customers.update(customerId, {
+          promotion_code: promotionCode.id
+        });
+        return promotionCode;
+      }
+
+      // If no promotion code found, try to find a matching coupon
+      const { coupons } = await this.listCoupons();
+      const matchingCoupon = coupons.find(coupon => coupon.id === couponCode);
+
+      if (matchingCoupon) {
+        if (!matchingCoupon.valid) {
+          throw new Error("Coupon is invalid or expired");
+        }
+        await this.customers.update(customerId, {
+          coupon: matchingCoupon.id
+        });
+        return matchingCoupon;
+      }
+
+      throw new Error("No valid promotion code or coupon found with the provided code");
+    } catch (error) {
+      console.log("DEBUG:", error);
+      throw error;
+    }
   }
 
   async listCoupons() {
@@ -123,5 +203,50 @@ export class StripeService extends Stripe {
   async getCoupon(couponId: string) {
     const coupon = await this.coupons.retrieve(couponId);
     return coupon;
+  }
+
+  async getCustomerDiscounts(customerId: string) {
+    const customer = (await this.customers.retrieve(customerId, {
+      expand: ["discount.coupon", "discount.promotion_code"]
+    })) as Stripe.Customer & {
+      discount?: {
+        coupon?: Stripe.Coupon;
+        promotion_code?: Stripe.PromotionCode & {
+          coupon: Stripe.Coupon;
+        };
+      };
+    };
+
+    const discounts = [];
+
+    if (customer.discount?.coupon) {
+      discounts.push({
+        type: "coupon",
+        id: customer.discount.coupon.id,
+        name: customer.discount.coupon.name,
+        percent_off: customer.discount.coupon.percent_off,
+        amount_off: customer.discount.coupon.amount_off,
+        currency: customer.discount.coupon.currency,
+        valid: customer.discount.coupon.valid
+      });
+    }
+
+    if (customer.discount?.promotion_code) {
+      discounts.push({
+        type: "promotion_code",
+        id: customer.discount.promotion_code.id,
+        code: customer.discount.promotion_code.code,
+        coupon: {
+          id: customer.discount.promotion_code.coupon.id,
+          name: customer.discount.promotion_code.coupon.name,
+          percent_off: customer.discount.promotion_code.coupon.percent_off,
+          amount_off: customer.discount.promotion_code.coupon.amount_off,
+          currency: customer.discount.promotion_code.coupon.currency,
+          valid: customer.discount.promotion_code.coupon.valid
+        }
+      });
+    }
+
+    return { discounts };
   }
 }

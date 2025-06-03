@@ -57,14 +57,12 @@ export class StripeWebhookService {
   @WithTransaction()
   async tryToTopUpWalletFromPaymentIntent(event: Stripe.PaymentIntentSucceededEvent) {
     const paymentIntent = event.data.object;
-    const amount = paymentIntent.amount;
     const customerId = paymentIntent.customer as string;
 
     if (!customerId) {
       this.logger.error({
         event: "PAYMENT_INTENT_MISSING_CUSTOMER_ID",
-        paymentIntentId: paymentIntent.id,
-        amount
+        paymentIntentId: paymentIntent.id
       });
       return;
     }
@@ -79,6 +77,44 @@ export class StripeWebhookService {
       return;
     }
 
-    await this.refillService.topUpWallet(amount, user.id);
+    // Get discount information from metadata
+    const metadata = paymentIntent.metadata;
+    const originalAmount = metadata?.original_amount ? parseFloat(metadata.original_amount) : paymentIntent.amount;
+    const discountApplied = metadata?.discount_applied === "true";
+
+    // If a discount was applied, consume the promotion code
+    if (discountApplied) {
+      const { discounts } = await this.stripe.getCustomerDiscounts(customerId);
+      if (discounts.length > 0) {
+        const discount = discounts[0]; // Only one discount can be active at a time
+        if (discount.valid) {
+          try {
+            // Remove the active discount based on its type
+            await this.stripe.customers.update(customerId, {
+              [discount.type === "promotion_code" ? "promotion_code" : "coupon"]: null
+            });
+
+            this.logger.info({
+              event: "DISCOUNT_CONSUMED",
+              customerId,
+              discountId: discount.id,
+              discountType: discount.type,
+              originalAmount,
+              finalAmount: paymentIntent.amount
+            });
+          } catch (error) {
+            this.logger.error({
+              event: "FAILED_TO_CONSUME_DISCOUNT",
+              customerId,
+              discountType: discount.type,
+              error
+            });
+          }
+        }
+      }
+    }
+
+    // Use the original amount for the wallet top-up
+    await this.refillService.topUpWallet(originalAmount, user.id);
   }
 }

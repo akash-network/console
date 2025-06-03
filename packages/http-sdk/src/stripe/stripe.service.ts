@@ -52,6 +52,19 @@ interface CouponListResponse {
   }>;
 }
 
+interface CustomerDiscountsResponse {
+  discounts: Array<{
+    type: "coupon" | "promotion_code";
+    id: string;
+    name?: string;
+    code?: string;
+    percent_off?: number;
+    amount_off?: number;
+    currency?: string;
+    valid: boolean;
+  }>;
+}
+
 export class StripeService extends ApiHttpService {
   constructor(config?: AxiosRequestConfig) {
     super(config);
@@ -92,5 +105,9 @@ export class StripeService extends ApiHttpService {
 
   async removePaymentMethod(paymentMethodId: string) {
     return this.extractData(await this.delete(`/v1/stripe-payment-methods/${paymentMethodId}`));
+  }
+
+  async getCustomerDiscounts(): Promise<CustomerDiscountsResponse> {
+    return this.extractData(await this.get("/v1/stripe-customer-discounts"));
   }
 }

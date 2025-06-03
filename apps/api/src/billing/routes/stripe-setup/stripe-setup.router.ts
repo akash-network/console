@@ -191,22 +191,47 @@ const getCouponRoute = createRoute({
 
 const removePaymentMethodRoute = createRoute({
   method: "delete",
-  path: "/v1/stripe-payment-methods/{paymentMethodId}",
+  path: "/v1/stripe-payment-methods/:paymentMethodId",
   summary: "Remove a payment method",
   tags: ["Payment"],
-  parameters: [
-    {
-      name: "paymentMethodId",
-      in: "path",
-      required: true,
-      schema: {
-        type: "string"
-      }
-    }
-  ],
+  request: {
+    params: z.object({
+      paymentMethodId: z.string()
+    })
+  },
   responses: {
-    204: {
+    200: {
       description: "Payment method removed successfully"
+    }
+  }
+});
+
+const getCustomerDiscountsRoute = createRoute({
+  method: "get",
+  path: "/v1/stripe-customer-discounts",
+  summary: "Get current discounts applied to the customer",
+  tags: ["Payment"],
+  responses: {
+    200: {
+      description: "Customer discounts retrieved successfully",
+      content: {
+        "application/json": {
+          schema: z.object({
+            discounts: z.array(
+              z.object({
+                type: z.enum(["coupon", "promotion_code"]),
+                id: z.string(),
+                name: z.string().optional(),
+                code: z.string().optional(),
+                percent_off: z.number().optional(),
+                amount_off: z.number().optional(),
+                currency: z.string().optional(),
+                valid: z.boolean()
+              })
+            )
+          })
+        }
+      }
     }
   }
 });
@@ -247,7 +272,12 @@ stripeSetupRouter.openapi(getCouponRoute, async function getCoupon(c) {
 });
 
 stripeSetupRouter.openapi(removePaymentMethodRoute, async function removePaymentMethod(c) {
-  const paymentMethodId = c.req.param("paymentMethodId");
+  const { paymentMethodId } = c.req.param();
   await container.resolve(StripeController).removePaymentMethod(paymentMethodId);
-  return new Response(null, { status: 204 });
+  return c.json({}, 200);
+});
+
+stripeSetupRouter.openapi(getCustomerDiscountsRoute, async function getCustomerDiscounts(c) {
+  const response = await container.resolve(StripeController).getCustomerDiscounts();
+  return c.json(response, 200);
 });
