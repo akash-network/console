@@ -336,7 +336,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
               size="sm"
               variant="ghost"
               onClick={onToggleMenuClick}
-              className={cn("flex w-full items-center justify-start gap-2 px-4", { ["w-[45px] min-w-0 justify-center p-2"]: !isNavOpen })}
+              className={cn("flex w-full items-center justify-start gap-3 px-4", { ["w-[45px] min-w-0 justify-center p-2"]: !isNavOpen })}
             >
               {isNavOpen ? <SidebarCollapse /> : <SidebarExpand />}
               {isNavOpen && <span>Collapse</span>}

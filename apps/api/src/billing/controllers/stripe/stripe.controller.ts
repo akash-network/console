@@ -79,7 +79,7 @@ export class StripeController {
       throw new Error("User does not have a Stripe customer ID");
     }
     try {
-      const paymentIntent = await this.stripe.createPaymentIntent({
+      const { success } = await this.stripe.createPaymentIntent({
         customer: user.stripeCustomerId,
         payment_method: params.paymentMethodId,
         amount: params.amount,
@@ -87,7 +87,7 @@ export class StripeController {
         confirm: true,
         ...(params.coupon ? { coupon: params.coupon } : {})
       });
-      if (paymentIntent.status !== "succeeded") {
+      if (!success) {
         return { error: { message: "Payment not successful" } };
       }
       return {};

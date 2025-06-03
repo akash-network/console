@@ -4,6 +4,8 @@ import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { RefillService } from "@src/billing/services/refill/refill.service";
+import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 interface CheckoutOptions {
   customerId: string;
@@ -19,7 +21,11 @@ interface StripePrices {
 
 @singleton()
 export class StripeService extends Stripe {
-  constructor(private readonly billingConfig: BillingConfigService) {
+  constructor(
+    private readonly billingConfig: BillingConfigService,
+    private readonly userRepository: UserRepository,
+    private readonly refillService: RefillService
+  ) {
     super(billingConfig.get("STRIPE_SECRET_KEY"), {
       apiVersion: "2024-06-20"
     });
@@ -28,8 +34,7 @@ export class StripeService extends Stripe {
   async createSetupIntent(customerId: string) {
     return await this.setupIntents.create({
       customer: customerId,
-      usage: "off_session",
-      payment_method_types: ["card"]
+      usage: "off_session"
     });
   }
 
@@ -96,7 +101,7 @@ export class StripeService extends Stripe {
     confirm: boolean;
     coupon?: string;
     metadata?: Record<string, string>;
-  }) {
+  }): Promise<{ success: boolean; paymentIntentId?: string }> {
     // If a coupon is provided, apply it to the customer first
     if (params.coupon) {
       await this.applyCoupon(params.customer, params.coupon);
@@ -120,7 +125,26 @@ export class StripeService extends Stripe {
       }
     }
 
-    // Prepare metadata with original and discounted amounts
+    // If the final amount is 0 (fully covered by discount), directly top up the wallet
+    if (finalAmount === 0) {
+      // Get the user ID from the customer ID
+      const user = await this.userRepository.findOneBy({ stripeCustomerId: params.customer });
+      if (!user) {
+        throw new Error("User not found for customer ID");
+      }
+
+      // If a discount was applied, consume it
+      if (discountApplied) {
+        await this.consumeActiveDiscount(params.customer);
+      }
+
+      // Top up the wallet with the original amount
+      await this.refillService.topUpWallet(params.amount * 100, user.id);
+
+      return { success: true, paymentIntentId: "pi_zero_amount" };
+    }
+
+    // For non-zero amounts, proceed with normal payment intent creation
     const metadata = {
       ...params.metadata,
       original_amount: (params.amount * 100).toString(),
@@ -128,7 +152,7 @@ export class StripeService extends Stripe {
       discount_applied: discountApplied.toString()
     };
 
-    return await this.paymentIntents.create({
+    const paymentIntent = await this.paymentIntents.create({
       customer: params.customer,
       payment_method: params.payment_method,
       amount: Math.round(finalAmount * 100),
@@ -140,6 +164,8 @@ export class StripeService extends Stripe {
         allow_redirects: "never"
       }
     });
+
+    return { success: paymentIntent.status === "succeeded", paymentIntentId: paymentIntent.id };
   }
 
   async listPromotionCodes() {
@@ -248,5 +274,20 @@ export class StripeService extends Stripe {
     }
 
     return { discounts };
+  }
+
+  async consumeActiveDiscount(customerId: string): Promise<boolean> {
+    const { discounts } = await this.getCustomerDiscounts(customerId);
+    if (discounts.length > 0) {
+      const discount = discounts[0];
+      if (discount.valid) {
+        // Remove the active discount based on its type
+        await this.customers.update(customerId, {
+          [discount.type === "promotion_code" ? "promotion_code" : "coupon"]: null
+        });
+        return true;
+      }
+    }
+    return false;
   }
 }
