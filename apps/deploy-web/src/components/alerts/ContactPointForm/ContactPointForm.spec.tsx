@@ -51,7 +51,7 @@ describe("ContactPointForm", () => {
 
   function setup(props: Partial<ContactPointFormProps> = {}) {
     const defaultProps: ContactPointFormProps = {
-      values: { name: "", emails: [] },
+      initialValues: { name: "", emails: [] },
       onSubmit: jest.fn(),
       isLoading: false,
       ...props

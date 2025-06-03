@@ -13,19 +13,20 @@ type Props = {
   contactPoint: components["schemas"]["ContactPointOutput"]["data"];
 };
 
-export const EditContactPointPage: React.FunctionComponent<Props> = (props: Props) => {
+export const EditContactPointPage: React.FunctionComponent<Props> = ({ contactPoint }: Props) => {
   const router = useRouter();
-  // TODO: use ssr contact point
-  console.log("DEBUG contactPoint", props.contactPoint);
 
   return (
     <Layout containerClassName="flex h-full flex-col justify-between">
       <NextSeo title="Edit Contact Point" />
       <AlertsLayout page={AlertTabs.CONTACT_POINTS} title="Edit Contact Point" returnable>
-        <ContactPointEditContainer id={props.contactPoint.id} onEdit={() => router.push(UrlService.contactPoints())}>
+        <ContactPointEditContainer id={contactPoint.id} onEditSuccess={() => router.push(UrlService.contactPoints())}>
           {props => (
             <ContactPointForm
-              values={props.values}
+              initialValues={{
+                name: contactPoint.name,
+                emails: contactPoint.config.addresses
+              }}
               isLoading={props.isLoading}
               onSubmit={props.onEdit}
               onCancel={() => router.push(UrlService.contactPoints())}

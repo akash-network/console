@@ -1,5 +1,4 @@
 import type { FC } from "react";
-import { useEffect } from "react";
 import React from "react";
 import { useMemo } from "react";
 import { useState } from "react";
@@ -20,46 +19,40 @@ type FormValues = z.infer<typeof formSchema>;
 type DataValues = Pick<FormValues, "name"> & { emails: string[] };
 
 export interface ContactPointFormProps {
-  values?: DataValues;
+  initialValues?: DataValues;
   onSubmit: (data: DataValues) => void;
   onCancel?: () => void;
   isLoading?: boolean;
 }
 
-export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoading, ...props }) => {
+export const ContactPointForm: FC<ContactPointFormProps> = ({
+  onCancel,
+  isLoading,
+  onSubmit,
+  initialValues = {
+    name: "",
+    emails: []
+  }
+}) => {
   const [error, setError] = useState<string | null>(null);
   const { confirm } = usePopup();
 
-  const initialValues: FormValues = useMemo(
-    () => ({
-      name: props.values?.name || "",
-      emails: props.values?.emails?.length ? props.values.emails.join(", ") : ""
-    }),
-    [props.values]
-  );
+  const initialFormValues: FormValues = useMemo(() => {
+    return {
+      name: initialValues.name || "",
+      emails: initialValues.emails.join(", ")
+    };
+  }, [initialValues]);
 
   const form = useForm<FormValues>({
-    defaultValues: initialValues,
+    defaultValues: initialFormValues,
     reValidateMode: "onSubmit",
     resolver: zodResolver(formSchema)
   });
 
-  useEffect(() => {
-    form.reset();
-  }, [form]);
-
-  useEffect(() => {
-    const isEmptyForm = Object.values(form.getValues()).join("") === "";
-
-    if (props.values && isEmptyForm) {
-      form.setValue("name", props.values.name || "");
-      form.setValue("emails", props.values.emails?.length ? props.values.emails.join(", ") : "");
-    }
-  }, [form, props.values, props.values?.name]);
-
   const { control, handleSubmit } = form;
 
-  const onSubmit = useCallback(
+  const submit = useCallback(
     async (values: FormValues) => {
       try {
         const emails = values.emails
@@ -77,7 +70,7 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
           return;
         }
 
-        props.onSubmit({
+        onSubmit({
           ...values,
           emails: Array.from(new Set(emails))
         });
@@ -85,15 +78,15 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
         setError("Failed to create contact point. Please try again.");
       }
     },
-    [props, form]
+    [form, onSubmit]
   );
 
   const currentValues = useWatch({ control });
 
   const hasChanges = useMemo(() => {
-    const fields = Object.keys(initialValues) as (keyof FormValues)[];
-    return fields.some(key => !isEqual(initialValues[key], currentValues[key]));
-  }, [currentValues, initialValues]);
+    const fields = Object.keys(initialFormValues) as (keyof FormValues)[];
+    return fields.some(key => !isEqual(initialFormValues[key], currentValues[key]));
+  }, [currentValues, initialFormValues]);
 
   const cancel = useCallback(async () => {
     const canCancel = !hasChanges || (await confirm("Unsaved changes would be lost. Are you sure you want to cancel?"));
@@ -108,7 +101,7 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({ onCancel, isLoadin
       <h2 className="text-lg font-semibold">New Email Contact Point</h2>
 
       <Form {...form}>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(submit)} className="space-y-4">
           <div className="space-y-3">
             <FormField
               control={control}

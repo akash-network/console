@@ -51,9 +51,9 @@ describe("ContactPointEditContainer", () => {
   it("triggers contact point patch endpoint and shows error message on error", async () => {
     const { requestFn, input, child } = await setup();
 
-    child.onEdit(input);
-
     requestFn.mockRejectedValue(new Error());
+
+    child.onEdit(input);
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
@@ -107,7 +107,7 @@ describe("ContactPointEditContainer", () => {
       <CustomSnackbarProvider>
         <ServicesProvider services={services}>
           <QueryClientProvider client={queryClient}>
-            <ContactPointEditContainer id={input.id} onEdit={jest.fn()}>
+            <ContactPointEditContainer id={input.id} onEditSuccess={jest.fn()}>
               {childCapturer.renderChild}
             </ContactPointEditContainer>
           </QueryClientProvider>

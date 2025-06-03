@@ -23,25 +23,20 @@ export type ChildrenProps = {
 type ContactPointEditContainerProps = {
   id: string;
   children: (props: ChildrenProps) => ReactNode;
-  onEdit: () => void;
+  onEditSuccess: () => void;
 };
 
-export const ContactPointEditContainer: FC<ContactPointEditContainerProps> = ({ id, children, onEdit }) => {
+export const ContactPointEditContainer: FC<ContactPointEditContainerProps> = ({ id, children, onEditSuccess }) => {
   const { notificationsApi } = useServices();
   const mutation = notificationsApi.v1.patchContactPoint.useMutation({
     path: {
       id
     }
   });
-  const query = notificationsApi.v1.getContactPoint.useQuery({
-    path: {
-      id
-    }
-  });
   const notificator = useNotificator();
 
-  const edit = useCallback(
-    ({ emails, name }: ContainerPatchInput) => {
+  const edit: ChildrenProps["onEdit"] = useCallback(
+    ({ emails, name }) => {
       mutation.mutate({
         data: {
           name,
@@ -56,12 +51,11 @@ export const ContactPointEditContainer: FC<ContactPointEditContainerProps> = ({ 
 
   useWhen(
     mutation.isSuccess,
-    async () => {
+    () => {
       notificator.success("Contact point saved!", { dataTestId: "contact-point-edit-success-notification" });
-      await query.refetch();
-      onEdit();
+      onEditSuccess();
     },
-    [query, mutation.isSuccess, notificator, onEdit]
+    [mutation.isSuccess, notificator, onEditSuccess]
   );
 
   useWhen(mutation.isError, () => notificator.error("Failed to save contact point...", { dataTestId: "contact-point-edit-error-notification" }));
@@ -69,12 +63,6 @@ export const ContactPointEditContainer: FC<ContactPointEditContainerProps> = ({ 
   return (
     <>
       {children({
-        values: query.data?.data
-          ? {
-              name: query.data.data?.name ?? "",
-              emails: query.data.data?.config.addresses ?? []
-            }
-          : undefined,
         onEdit: edit,
         isLoading: mutation.isPending
       })}
