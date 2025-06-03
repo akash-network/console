@@ -1,19 +1,26 @@
-import { DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
+import { Block } from "@akashnetwork/database/dbSchemas";
+import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
+import { DeploymentHttpService, DeploymentInfo, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { PromisePool } from "@supercharge/promise-pool";
 import assert from "http-assert";
 import { InternalServerError } from "http-errors";
+import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
+import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
+import { averageBlockCountInAMonth } from "@src/utils/constants";
+import { MessageService } from "../message-service/message.service";
 
 @singleton()
 export class DeploymentReaderService {
   constructor(
     private readonly providerService: ProviderService,
     private readonly deploymentHttpService: DeploymentHttpService,
-    private readonly leaseHttpService: LeaseHttpService
+    private readonly leaseHttpService: LeaseHttpService,
+    private readonly messageService: MessageService
   ) {}
 
   public async findByOwnerAndDseq(
@@ -163,6 +170,108 @@ export class DeploymentReaderService {
             };
           })
       }))
+    };
+  }
+
+  public async getDeploymentByOwnerAndDseq(owner: string, dseq: string) {
+    let deploymentData: RestAkashDeploymentInfoResponse | null = null;
+    try {
+      deploymentData = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
+
+      if ("code" in deploymentData) {
+        if (deploymentData.message?.toLowerCase().includes("deployment not found")) {
+          return null;
+        } else {
+          throw new Error(deploymentData.message);
+        }
+      }
+    } catch (error) {
+      if (error.response?.status === 404) {
+        return null;
+      }
+
+      throw error;
+    }
+
+    const leasesQuery = this.leaseHttpService.list({ owner, dseq });
+    const relatedMessagesQuery = this.messageService.getDeploymentRelatedMessages(owner, dseq);
+    const dbDeploymentQuery = Deployment.findOne({
+      attributes: ["createdHeight", "closedHeight"],
+      where: { owner: owner, dseq: dseq },
+      include: [
+        { model: Block, attributes: ["datetime"], as: "createdBlock" },
+        { model: Block, attributes: ["datetime"], as: "closedBlock" },
+        {
+          model: Lease,
+          attributes: ["createdHeight", "closedHeight", "gseq", "oseq"],
+          include: [
+            { model: Block, attributes: ["datetime"], as: "createdBlock" },
+            { model: Block, attributes: ["datetime"], as: "closedBlock" }
+          ]
+        }
+      ]
+    });
+
+    const [leasesData, relatedMessages, dbDeployment] = await Promise.all([leasesQuery, relatedMessagesQuery, dbDeploymentQuery]);
+
+    const providerAddresses = leasesData.leases.map(x => x.lease.lease_id.provider);
+    const providers = await Provider.findAll({
+      where: {
+        owner: {
+          [Op.in]: providerAddresses
+        }
+      },
+      include: [{ model: ProviderAttribute }]
+    });
+    const deploymentDenom = deploymentData.escrow_account.balance.denom;
+
+    const leases = leasesData.leases.map(x => {
+      const provider = providers.find(p => p.owner === x.lease.lease_id.provider);
+      const group = (deploymentData as DeploymentInfo).groups.find(g => g.group_id.gseq === x.lease.lease_id.gseq);
+      const dbLease = dbDeployment?.leases.find(l => l.gseq === x.lease.lease_id.gseq && l.oseq === x.lease.lease_id.oseq);
+
+      return {
+        gseq: x.lease.lease_id.gseq,
+        oseq: x.lease.lease_id.oseq,
+        createdHeight: dbLease?.createdHeight,
+        createdDate: dbLease?.createdBlock?.datetime,
+        closedHeight: dbLease?.closedHeight,
+        closedDate: dbLease?.closedBlock?.datetime,
+        provider: {
+          address: provider?.owner,
+          hostUri: provider?.hostUri,
+          isDeleted: !!provider?.deletedHeight,
+          attributes: provider?.providerAttributes.map(attr => ({
+            key: attr.key,
+            value: attr.value
+          }))
+        },
+        status: x.lease.state,
+        monthlyCostUDenom: Math.round(parseFloat(x.lease.price.amount) * averageBlockCountInAMonth),
+        cpuUnits: group?.group_spec.resources.map(r => parseInt(r.resource.cpu.units.val) * r.count).reduce((a, b) => a + b, 0) || 0,
+        gpuUnits: group?.group_spec.resources.map(r => parseInt(r.resource.gpu?.units?.val) * r.count || 0).reduce((a, b) => a + b, 0) || 0,
+        memoryQuantity: group?.group_spec.resources.map(r => parseInt(r.resource.memory.quantity.val) * r.count).reduce((a, b) => a + b, 0) || 0,
+        storageQuantity:
+          group?.group_spec.resources
+            .map(r => r.resource.storage.map(s => parseInt(s.quantity.val)).reduce((a, b) => a + b, 0) * r.count)
+            .reduce((a, b) => a + b, 0) || 0
+      };
+    });
+
+    return {
+      owner: deploymentData.deployment.deployment_id.owner,
+      dseq: deploymentData.deployment.deployment_id.dseq,
+      balance: parseFloat(deploymentData.escrow_account.balance.amount),
+      denom: deploymentDenom,
+      status: deploymentData.deployment.state,
+      createdHeight: dbDeployment?.createdHeight,
+      createdDate: dbDeployment?.createdBlock?.datetime,
+      closedHeight: dbDeployment?.closedHeight,
+      closedDate: dbDeployment?.closedBlock?.datetime,
+      totalMonthlyCostUDenom: leases.map(x => x.monthlyCostUDenom).reduce((a, b) => a + b, 0),
+      leases: leases,
+      events: relatedMessages || [],
+      other: deploymentData
     };
   }
 }

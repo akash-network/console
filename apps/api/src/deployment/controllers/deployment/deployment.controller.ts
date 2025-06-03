@@ -10,6 +10,7 @@ import {
   CreateDeploymentResponse,
   DepositDeploymentRequest,
   DepositDeploymentResponse,
+  GetDeploymentByOwnerDseqResponse,
   GetDeploymentResponse,
   ListDeploymentsResponseSchema,
   ListWithResourcesParams,
@@ -121,5 +122,14 @@ export class DeploymentController {
 
   async listWithResources({ address, ...query }: ListWithResourcesParams & ListWithResourcesQuery): Promise<ListWithResourcesResponse> {
     return this.deploymentReaderService.listWithResources({ address, ...query });
+  }
+
+  async getByOwnerAndDseq(owner: string, dseq: string): Promise<GetDeploymentByOwnerDseqResponse> {
+    const { currentUser, ability } = this.authService;
+
+    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
+    assert(userWallet, 404, "UserWallet Not Found");
+
+    return await this.deploymentReaderService.getDeploymentByOwnerAndDseq(owner, dseq);
   }
 }

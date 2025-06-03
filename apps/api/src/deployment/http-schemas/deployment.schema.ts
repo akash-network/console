@@ -1,3 +1,4 @@
+import { DeploymentInfoSchema } from "@akashnetwork/http-sdk";
 import { z } from "zod";
 
 import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/tx.schema";
@@ -194,6 +195,58 @@ export const ListWithResourcesResponseSchema = z.object({
   )
 });
 
+export const GetDeploymentByOwnerDseqParamsSchema = z.object({
+  owner: AkashAddressSchema.openapi({
+    description: "Owner's Address",
+    example: openApiExampleAddress
+  }),
+  dseq: z.string().regex(/^\d+$/, "Invalid dseq, must be a positive integer").openapi({
+    description: "Deployment DSEQ",
+    type: "integer",
+    example: "1000000"
+  })
+});
+
+export const GetDeploymentByOwnerDseqResponseSchema = z.object({
+  owner: z.string(),
+  dseq: z.string(),
+  balance: z.number(),
+  denom: z.string(),
+  status: z.string(),
+  totalMonthlyCostUDenom: z.number(),
+  leases: z.array(
+    z.object({
+      gseq: z.number(),
+      oseq: z.number(),
+      provider: z.object({
+        address: z.string(),
+        hostUri: z.string(),
+        isDeleted: z.boolean(),
+        attributes: z.array(
+          z.object({
+            key: z.string(),
+            value: z.string()
+          })
+        )
+      }),
+      status: z.string(),
+      monthlyCostUDenom: z.number(),
+      cpuUnits: z.number(),
+      gpuUnits: z.number(),
+      memoryQuantity: z.number(),
+      storageQuantity: z.number()
+    })
+  ),
+  events: z.array(
+    z.object({
+      txHadh: z.string(),
+      date: z.date(),
+      type: z.string()
+    })
+  ),
+  other: DeploymentInfoSchema
+});
+
 export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
 export type CreateDeploymentRequest = z.infer<typeof CreateDeploymentRequestSchema>;
 export type CreateDeploymentResponse = z.infer<typeof CreateDeploymentResponseSchema>;
@@ -206,3 +259,5 @@ export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSc
 export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSchema>;
 export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;
 export type ListWithResourcesResponse = z.infer<typeof ListWithResourcesResponseSchema>;
+export type GetDeploymentByOwnerDseqParams = z.infer<typeof GetDeploymentByOwnerDseqParamsSchema>;
+export type GetDeploymentByOwnerDseqResponse = z.infer<typeof GetDeploymentByOwnerDseqResponseSchema>;

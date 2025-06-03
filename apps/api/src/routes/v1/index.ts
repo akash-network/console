@@ -1,6 +1,5 @@
 import address from "./addresses/address";
 import addressTransactions from "./addresses/transactions";
-import deploymentByOwnerDseq from "./deployments/byOwnerDseq";
 import nodesMainnet from "./nodes/mainnet";
 import nodesSandbox from "./nodes/sandbox";
 import nodesTestnet from "./nodes/testnet";
@@ -45,7 +44,6 @@ export default [
   versionMainnet,
   versionSandbox,
   versionTestnet,
-  deploymentByOwnerDseq,
   trialProviders,
   leasesDuration,
   gpu,
