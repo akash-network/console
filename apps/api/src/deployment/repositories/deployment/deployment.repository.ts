@@ -18,6 +18,12 @@ export interface StaleDeploymentsOutput {
 
 @singleton()
 export class DeploymentRepository {
+  async findByOwnerAndDseq(owner: string, dseq: string): Promise<Deployment | null> {
+    return await Deployment.findOne({
+      where: { owner, dseq }
+    });
+  }
+
   async findStaleDeployments(options: StaleDeploymentsOptions): Promise<StaleDeploymentsOutput[]> {
     const deployments = await Deployment.findAll({
       attributes: ["dseq"],

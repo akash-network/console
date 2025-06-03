@@ -132,6 +132,11 @@ describe("Deployments API", () => {
       .get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`)
       .reply(200, defaultDeploymentInfo);
 
+    nock(apiNodeUrl).persist().get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${address}&id.dseq=9876`).reply(404, {
+      code: 404,
+      message: "Deployment not found"
+    });
+
     nock(apiNodeUrl)
       .persist()
       .get(
@@ -152,6 +157,18 @@ describe("Deployments API", () => {
     });
 
     nock(apiNodeUrl).persist().get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });
+    nock(apiNodeUrl)
+      .persist()
+      .get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=${dseq}&pagination.limit=1000`)
+      .reply(200, { leases });
+    nock(apiNodeUrl)
+      .persist()
+      .get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=9876&pagination.limit=1000`)
+      .reply(404, {
+        code: 404,
+        message: "Leases not found"
+      });
+    nock(apiNodeUrl).persist().get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.state=active`).reply(200, { leases });
     nock(apiNodeUrl).persist().get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.state=active`).reply(200, { leases });
 
     return defaultDeploymentInfo;
@@ -811,6 +828,48 @@ describe("Deployments API", () => {
           })
         ]
       });
+    });
+  });
+
+  describe("GET /v1/deployment/{owner}/{dseq}", () => {
+    it("returns deployment by owner and dseq", async () => {
+      const dseq = "1234";
+      const { userApiKeySecret, wallets } = await mockUser();
+      setupDeploymentInfoMock(wallets, dseq);
+
+      const response = await app.request(`/v1/deployment/${wallets[0].address}/${dseq}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.owner).toEqual(wallets[0].address);
+      expect(result.dseq).toEqual(dseq);
+    });
+
+    it("returns 404 when deployment is not found", async () => {
+      const dseq = "1234";
+      const { userApiKeySecret, wallets } = await mockUser();
+      setupDeploymentInfoMock(wallets, dseq);
+
+      const response = await app.request(`/v1/deployment/${wallets[0].address}/9876`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(404);
+    });
+
+    it("returns 400 when owner is not a valid akash address", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request(`/v1/deployment/invalid/1234`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
     });
   });
 });

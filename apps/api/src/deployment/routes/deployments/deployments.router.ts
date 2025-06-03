@@ -11,6 +11,8 @@ import {
   CreateDeploymentResponseSchema,
   DepositDeploymentRequestSchema,
   DepositDeploymentResponseSchema,
+  GetDeploymentByOwnerDseqParamsSchema,
+  GetDeploymentByOwnerDseqResponseSchema,
   GetDeploymentResponseSchema,
   ListDeploymentsQuerySchema,
   ListDeploymentsResponseSchema,
@@ -186,6 +188,32 @@ const listWithResourcesRoute = createRoute({
   }
 });
 
+const getByOwnerAndDseqRoute = createRoute({
+  method: "get",
+  path: "/v1/deployment/{owner}/{dseq}",
+  summary: "Get deployment details",
+  tags: ["Deployments"],
+  request: {
+    params: GetDeploymentByOwnerDseqParamsSchema
+  },
+  responses: {
+    200: {
+      description: "Returns deployment details",
+      content: {
+        "application/json": {
+          schema: GetDeploymentByOwnerDseqResponseSchema
+        }
+      }
+    },
+    400: {
+      description: "Invalid address or dseq"
+    },
+    404: {
+      description: "Deployment not found"
+    }
+  }
+});
+
 export const deploymentsRouter = new OpenApiHonoHandler();
 
 deploymentsRouter.openapi(getRoute, async function routeGetDeployment(c) {
@@ -237,4 +265,15 @@ deploymentsRouter.openapi(listWithResourcesRoute, async function routeListDeploy
   });
 
   return c.json(result, 200);
+});
+
+deploymentsRouter.openapi(getByOwnerAndDseqRoute, async function routeGetDeploymentByOwnerAndDseq(c) {
+  const { owner, dseq } = c.req.valid("param");
+  const deployment = await container.resolve(DeploymentController).getByOwnerAndDseq(owner, dseq);
+
+  if (deployment) {
+    return c.json(deployment);
+  } else {
+    return c.json({ error: "NotFoundError", message: "Deployment Not Found" }, { status: 404 });
+  }
 });
