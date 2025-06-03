@@ -75,7 +75,7 @@ export const ContactPointForm: FC<ContactPointFormProps> = ({
           emails: Array.from(new Set(emails))
         });
       } catch (err) {
-        setError("Failed to create contact point. Please try again.");
+        setError("Failed to save contact point. Please try again.");
       }
     },
     [form, onSubmit]
