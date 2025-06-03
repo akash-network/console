@@ -189,6 +189,28 @@ const getCouponRoute = createRoute({
   }
 });
 
+const removePaymentMethodRoute = createRoute({
+  method: "delete",
+  path: "/v1/stripe-payment-methods/{paymentMethodId}",
+  summary: "Remove a payment method",
+  tags: ["Payment"],
+  parameters: [
+    {
+      name: "paymentMethodId",
+      in: "path",
+      required: true,
+      schema: {
+        type: "string"
+      }
+    }
+  ],
+  responses: {
+    204: {
+      description: "Payment method removed successfully"
+    }
+  }
+});
+
 export const stripeSetupRouter = new OpenApiHonoHandler();
 
 stripeSetupRouter.openapi(setupIntentRoute, async function createSetupIntent(c) {
@@ -222,4 +244,10 @@ stripeSetupRouter.openapi(getCouponRoute, async function getCoupon(c) {
   const couponId = c.req.param("couponId");
   const response = await container.resolve(StripeController).getCoupon(couponId);
   return c.json(response, 200);
+});
+
+stripeSetupRouter.openapi(removePaymentMethodRoute, async function removePaymentMethod(c) {
+  const paymentMethodId = c.req.param("paymentMethodId");
+  await container.resolve(StripeController).removePaymentMethod(paymentMethodId);
+  return new Response(null, { status: 204 });
 });
