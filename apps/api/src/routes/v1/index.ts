@@ -3,8 +3,6 @@ import addressTransactions from "./addresses/transactions";
 import nodesMainnet from "./nodes/mainnet";
 import nodesSandbox from "./nodes/sandbox";
 import nodesTestnet from "./nodes/testnet";
-import proposalById from "./proposals/byId";
-import proposals from "./proposals/list";
 import templateById from "./templates/byId";
 import templateList from "./templates/list";
 import templateListFull from "./templates/list-full";
@@ -24,8 +22,6 @@ export default [
   predictedDateHeight,
   address,
   addressTransactions,
-  proposals,
-  proposalById,
   templateListFull,
   templateList,
   templateById,

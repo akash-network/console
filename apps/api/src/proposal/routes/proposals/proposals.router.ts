@@ -1,0 +1,65 @@
+import { createRoute } from "@hono/zod-openapi";
+import { container } from "tsyringe";
+
+import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { ProposalController } from "@src/proposal/controllers/proposal/proposal.controller";
+import { GetProposalByIdParamsSchema, GetProposalByIdResponseSchema, GetProposalListResponseSchema } from "@src/proposal/http-schemas/proposal.schema";
+
+const getProposalsRoute = createRoute({
+  method: "get",
+  path: "/v1/proposals",
+  tags: ["Proposals"],
+  responses: {
+    200: {
+      description: "Returns a list of proposals",
+      content: {
+        "application/json": {
+          schema: GetProposalListResponseSchema
+        }
+      }
+    }
+  }
+});
+
+const getProposalByIdRoute = createRoute({
+  method: "get",
+  path: "/v1/proposals/{id}",
+  tags: ["Proposals"],
+  request: {
+    params: GetProposalByIdParamsSchema
+  },
+  responses: {
+    200: {
+      description: "Return a proposal by id",
+      content: {
+        "application/json": {
+          schema: GetProposalByIdResponseSchema
+        }
+      }
+    },
+    400: {
+      description: "Invalid proposal id"
+    },
+    404: {
+      description: "Proposal not found"
+    }
+  }
+});
+
+export const proposalsRouter = new OpenApiHonoHandler();
+
+proposalsRouter.openapi(getProposalsRoute, async function routeGetProposalList(c) {
+  const proposals = await container.resolve(ProposalController).getProposals();
+
+  return c.json(proposals);
+});
+
+proposalsRouter.openapi(getProposalByIdRoute, async function routeGetProposalById(c) {
+  const { id } = c.req.valid("param");
+  const proposal = await container.resolve(ProposalController).getProposalById(id);
+  if (proposal) {
+    return c.json(proposal);
+  } else {
+    return c.text("Proposal not found", 404);
+  }
+});
