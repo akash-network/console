@@ -58,6 +58,7 @@ import {
 import { Scheduler } from "./scheduler";
 import { transactionsRouter } from "./transaction";
 import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
+import { validatorsRouter } from "./validator";
 
 const appHono = new Hono();
 appHono.use(
@@ -125,6 +126,7 @@ appHono.route("/", networkCapacityRouter);
 appHono.route("/", blocksRouter);
 appHono.route("/", transactionsRouter);
 appHono.route("/", marketDataRouter);
+appHono.route("/", validatorsRouter);
 
 appHono.route("/", notificationsApiProxy);
 

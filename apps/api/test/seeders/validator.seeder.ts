@@ -1,4 +1,4 @@
-import type { Validator } from "@akashnetwork/database/dbSchemas/base";
+import { Validator } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
 import type { CreationAttributes } from "sequelize";
 
@@ -16,7 +16,13 @@ export class ValidatorSeeder {
       maxRate: input.maxRate || faker.number.int({ min: 0, max: 10000000 }),
       maxChangeRate: input.maxChangeRate || faker.number.int({ min: 0, max: 10000000 }),
       minSelfDelegation: input.minSelfDelegation || faker.number.int({ min: 0, max: 10000000 }),
+      keybaseUsername: input.keybaseUsername || faker.internet.userName(),
       keybaseAvatarUrl: input.keybaseAvatarUrl || faker.image.avatar()
     };
+  }
+
+  static async createInDatabase(overrides: Partial<CreationAttributes<Validator>> = {}): Promise<Validator> {
+    const seed = ValidatorSeeder.create(overrides);
+    return await Validator.create(seed);
   }
 }
