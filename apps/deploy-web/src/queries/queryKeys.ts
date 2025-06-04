@@ -67,4 +67,7 @@ export class QueryKeys {
   static getFeeAllowancesKey = (granter: string, grantee: string) => ["FEE_ALLOWANCE", granter, grantee];
 
   static getFeatureFlagsKey = (networkId: string) => ["FEATURE_FLAGS", networkId];
+
+  static getPaymentMethodsKey = () => ["paymentMethods"];
+  static getPaymentDiscountsKey = () => ["paymentDiscounts"];
 }

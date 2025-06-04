@@ -239,7 +239,7 @@ export class StripeService extends Stripe {
 
   async getCustomerDiscounts(customerId: string) {
     const customer = (await this.customers.retrieve(customerId, {
-      expand: ["discount.coupon", "discount.promotion_code"]
+      expand: ["discount.coupon", "discount.promotion_code", "discount.promotion_code.coupon"]
     })) as Stripe.Customer & {
       discount?: {
         coupon?: Stripe.Coupon;
@@ -251,35 +251,24 @@ export class StripeService extends Stripe {
 
     const discounts = [];
 
-    if (customer.discount?.coupon) {
-      discounts.push({
-        type: "coupon",
-        id: customer.discount.coupon.id,
-        name: customer.discount.coupon.name,
-        percent_off: customer.discount.coupon.percent_off,
-        amount_off: customer.discount.coupon.amount_off,
-        currency: customer.discount.coupon.currency,
-        valid: customer.discount.coupon.valid
-      });
-    }
-
     if (customer.discount?.promotion_code) {
       discounts.push({
         type: "promotion_code",
         id: customer.discount.promotion_code.id,
+        coupon_id: customer.discount.promotion_code.coupon.id,
         code: customer.discount.promotion_code.code,
-        coupon: {
-          id: customer.discount.promotion_code.coupon.id,
-          name: customer.discount.promotion_code.coupon.name,
-          percent_off: customer.discount.promotion_code.coupon.percent_off,
-          amount_off: customer.discount.promotion_code.coupon.amount_off,
-          currency: customer.discount.promotion_code.coupon.currency,
-          valid: customer.discount.promotion_code.coupon.valid
-        }
+        name: customer.discount.promotion_code.coupon.name,
+        percent_off: customer.discount.promotion_code.coupon.percent_off,
+        amount_off: customer.discount.promotion_code.coupon.amount_off,
+        currency: customer.discount.promotion_code.coupon.currency,
+        valid: customer.discount.promotion_code.coupon.valid
       });
     }
 
-    return { discounts };
+    // Filter out invalid discounts
+    const validDiscounts = discounts.filter(discount => discount.valid);
+
+    return { discounts: validDiscounts };
   }
 
   async consumeActiveDiscount(customerId: string): Promise<boolean> {
