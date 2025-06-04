@@ -142,30 +142,36 @@ export class StripeService extends Stripe {
       await this.refillService.topUpWallet(params.amount * 100, user.id);
 
       return { success: true, paymentIntentId: "pi_zero_amount" };
-    }
+    } else {
+      // For non-zero amounts, proceed with normal payment intent creation
+      const metadata = {
+        ...params.metadata,
+        original_amount: (params.amount * 100).toString(),
+        final_amount: (finalAmount * 100).toString(),
+        discount_applied: discountApplied.toString()
+      };
 
-    // For non-zero amounts, proceed with normal payment intent creation
-    const metadata = {
-      ...params.metadata,
-      original_amount: (params.amount * 100).toString(),
-      final_amount: (finalAmount * 100).toString(),
-      discount_applied: discountApplied.toString()
-    };
-
-    const paymentIntent = await this.paymentIntents.create({
-      customer: params.customer,
-      payment_method: params.payment_method,
-      amount: Math.round(finalAmount * 100),
-      currency: params.currency,
-      confirm: params.confirm,
-      metadata,
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: "never"
+      if (finalAmount > 0 && finalAmount < 1) {
+        throw new Error("Final amount must be at least $1");
+      } else if (!discounts.length && finalAmount > 0 && finalAmount < 20) {
+        throw new Error("Minimum amount is $20");
       }
-    });
 
-    return { success: paymentIntent.status === "succeeded", paymentIntentId: paymentIntent.id };
+      const paymentIntent = await this.paymentIntents.create({
+        customer: params.customer,
+        payment_method: params.payment_method,
+        amount: Math.round(finalAmount * 100),
+        currency: params.currency,
+        confirm: params.confirm,
+        metadata,
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: "never"
+        }
+      });
+
+      return { success: paymentIntent.status === "succeeded", paymentIntentId: paymentIntent.id };
+    }
   }
 
   async listPromotionCodes() {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Button, Card, CardContent, Input, Popup, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
+import { Alert, Badge, Button, Card, CardContent, Input, Popup, RadioGroup, RadioGroupItem, Separator } from "@akashnetwork/ui/components";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import type { Stripe } from "@stripe/stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
@@ -205,6 +205,9 @@ const PayPage: React.FunctionComponent = () => {
       setAmount(0);
       setCoupon("");
       await fetchPaymentMethods(); // Refresh payment methods list
+
+      // TODO: refetch this after payment is successful (webhook takes time)
+      await fetchDiscounts(); // Refresh discounts after payment
     } catch (err) {
       setError("An unexpected error occurred.");
     }
@@ -227,6 +230,8 @@ const PayPage: React.FunctionComponent = () => {
       await stripeService.applyCoupon(coupon);
       setCouponSuccess("Coupon applied successfully!");
       setCoupon("");
+      // Refresh discounts after applying coupon
+      await fetchDiscounts();
     } catch (error: any) {
       if (error.response?.status === 500) {
         setCouponError("Unable to apply coupon. Please try again later.");
@@ -312,6 +317,17 @@ const PayPage: React.FunctionComponent = () => {
     validateAmount(amount);
   }, [coupon]);
 
+  // Add effect to clear coupon success message after 3 seconds
+  useEffect(() => {
+    if (couponSuccess) {
+      const timer = setTimeout(() => {
+        setCouponSuccess(undefined);
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [couponSuccess]);
+
   if (isLoading) {
     return (
       <Layout>
@@ -348,7 +364,7 @@ const PayPage: React.FunctionComponent = () => {
         <p className="mt-4 text-center text-gray-600">Manage your payment methods and make payments.</p>
         <div className="mx-auto max-w-md p-6">
           <div className="mb-6">
-            <h2 className="mb-3 text-lg font-semibold">Your Cards</h2>
+            <h2 className="mb-3 text-lg font-semibold">Your Payment Methods</h2>
             {paymentMethods.length > 0 ? (
               <div className="space-y-3">
                 <Card className="rounded-lg border shadow-sm">
@@ -393,7 +409,7 @@ const PayPage: React.FunctionComponent = () => {
               <p className="text-gray-500">No payment methods added yet.</p>
             )}
             <Button onClick={() => setShowAddPaymentMethod(true)} className="mt-4 w-full">
-              Add New Card
+              Add New Payment Method
             </Button>
           </div>
 
@@ -402,52 +418,51 @@ const PayPage: React.FunctionComponent = () => {
               <h2 className="mb-3 text-lg font-semibold">Add credits</h2>
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="amount" className="block text-sm font-medium text-muted-foreground">
-                    Amount (USD)
-                  </label>
                   <div className="mt-1">
-                    <Input type="number" name="amount" id="amount" min="0" step="0.01" value={amount} onChange={handleAmountChange} placeholder="0.00" />
+                    <Input
+                      type="number"
+                      name="amount"
+                      id="amount"
+                      min="0"
+                      step="0.01"
+                      value={amount}
+                      onChange={handleAmountChange}
+                      placeholder="0.00"
+                      label="Amount (USD)"
+                    />
                     {amountError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{amountError}</p>}
                   </div>
                 </div>
 
                 {discounts.length > 0 && (
-                  <div className="rounded-lg border p-4">
-                    <h3 className="mb-2 font-medium">Active Discounts</h3>
-                    <div className="space-y-2">
-                      {discounts.map(discount => (
-                        <div key={discount.id} className="flex items-center justify-between text-sm">
-                          <span>{discount.type === "promotion_code" ? discount.code : discount.name}</span>
-                          <span className="font-medium">
-                            {discount.percent_off
-                              ? `${discount.percent_off}% OFF`
-                              : discount.amount_off
-                                ? `$${(discount.amount_off / 100).toFixed(2)} OFF`
-                                : ""}
-                          </span>
-                        </div>
-                      ))}
+                  <div className="rounded-lg border bg-muted/50 p-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-muted-foreground">Active Discount</span>
+                      <div className="flex gap-2">
+                        {discounts.map(discount => (
+                          <Badge key={discount.id} variant="secondary" className="text-xs">
+                            {discount.type === "promotion_code" ? discount.code : discount.name}
+                            <span className="ml-1">
+                              {discount.percent_off ? `${discount.percent_off}%` : discount.amount_off ? `$${(discount.amount_off / 100).toFixed(2)}` : ""}
+                            </span>
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                     {!!amount && (
-                      <div className="mt-3 border-t pt-2 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span>Original Amount:</span>
-                          <span>${amount.toFixed(2)}</span>
+                      <>
+                        <Separator className="my-2" />
+                        <div className="mt-2 flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Final Amount:</span>
+                          <span className="font-medium">${getFinalAmount(amount).toFixed(2)}</span>
                         </div>
-                        <div className="flex items-center justify-between font-medium">
-                          <span>Final Amount:</span>
-                          <span>${getFinalAmount(amount).toFixed(2)}</span>
-                        </div>
-                      </div>
+                      </>
                     )}
                   </div>
                 )}
 
                 <div>
-                  <label htmlFor="coupon" className="block text-sm font-medium text-muted-foreground">
-                    Coupon Code
-                  </label>
-                  <div className="mt-1 flex w-full items-center gap-2">
+                  <div className="mt-1 flex w-full items-end gap-2">
                     <Input
                       type="text"
                       name="coupon"
@@ -456,13 +471,14 @@ const PayPage: React.FunctionComponent = () => {
                       value={coupon}
                       onChange={e => setCoupon(e.target.value)}
                       placeholder="Enter coupon code"
+                      label="Coupon Code"
                     />
                     <Button onClick={handleClaimCoupon} disabled={!coupon || processing}>
                       Claim coupon
                     </Button>
                   </div>
-                  {couponError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{couponError}</p>}
-                  {couponSuccess && <p className="mt-1 text-sm text-green-600 dark:text-green-400">{couponSuccess}</p>}
+                  {couponError && <p className="mt-1 text-sm text-destructive">{couponError}</p>}
+                  {couponSuccess && <p className="mt-1 text-sm text-success">{couponSuccess}</p>}
                 </div>
 
                 <Button
@@ -508,7 +524,7 @@ const PayPage: React.FunctionComponent = () => {
         <p>Are you sure you want to remove this payment method? This action cannot be undone.</p>
       </Popup>
 
-      <Popup open={showAddPaymentMethod} onClose={() => setShowAddPaymentMethod(false)} title="Add New Card" variant="custom" actions={[]}>
+      <Popup open={showAddPaymentMethod} onClose={() => setShowAddPaymentMethod(false)} title="Add New Payment Method" variant="custom" actions={[]}>
         {clientSecret && (
           <Elements
             stripe={getStripe()}
