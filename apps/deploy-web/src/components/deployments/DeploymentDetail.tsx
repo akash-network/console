@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 
+import { DeploymentAlerts } from "@src/components/deployments/DeploymentAlerts/DeploymentAlerts";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -111,6 +112,10 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
         {
           label: "Events",
           value: "EVENTS"
+        },
+        {
+          label: "Alerts",
+          value: "ALERTS"
         }
       );
     }
@@ -206,7 +211,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
           <DeploymentSubHeader deployment={deployment} leases={leases} />
 
           <Tabs value={activeTab} onValueChange={onChangeTab}>
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className={cn("grid w-full", `grid-cols-${tabs.length}`)}>
               {tabs.map(tab => (
                 <TabsTrigger key={tab.value} value={tab.value} data-testid={tab.value.toLowerCase()}>
                   {tab.label}
@@ -230,6 +235,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
             {activeTab === "LOGS" && <DeploymentLogs leases={leases} selectedLogsMode="logs" />}
             {activeTab === "EVENTS" && <DeploymentLogs leases={leases} selectedLogsMode="events" />}
             {activeTab === "SHELL" && <DeploymentLeaseShell leases={leases} />}
+            {activeTab === "ALERTS" && <DeploymentAlerts dseq={dseq} owner={address} />}
             {activeTab === "LEASES" && (
               <div className="py-4">
                 {leases && (!localCert || !isLocalCertMatching) && (

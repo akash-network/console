@@ -31,7 +31,7 @@ describe("Alerts CRUD", () => {
   });
 
   async function shouldCreate(userId: string, contactPointId: string, app: INestApplication): Promise<AlertOutputMeta> {
-    const input = generateMock(chainMessageCreateInputSchema);
+    const { params, ...input } = generateMock(chainMessageCreateInputSchema);
     input.contactPointId = contactPointId;
     input.enabled = true;
 
@@ -79,6 +79,32 @@ describe("Alerts CRUD", () => {
 
     expect(getRes.status).toBe(404);
   }
+
+  describe("Deployment Alerts CRUD", () => {
+    it("should perform all CRUD operations against raw alerts", async () => {
+      const { app, userId, contactPointId } = await setup();
+
+      const input = generateMock(chainMessageCreateInputSchema);
+      const input2 = generateMock(chainMessageCreateInputSchema);
+      input.contactPointId = contactPointId;
+      input.enabled = true;
+      input2.contactPointId = contactPointId;
+      input2.enabled = true;
+
+      if (!input.params) {
+        throw new Error("Missing params on generated mock data");
+      }
+
+      await Promise.all([input, input2].map(alertInput => request(app.getHttpServer()).post("/v1/alerts").set("x-user-id", userId).send({ data: alertInput })));
+      const res = await request(app.getHttpServer()).get(`/v1/alerts?dseq=${input.params.dseq}`).set("x-user-id", userId);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].params).toEqual(input.params);
+
+      await app.close();
+    });
+  });
 
   async function setup(): Promise<{
     app: INestApplication;

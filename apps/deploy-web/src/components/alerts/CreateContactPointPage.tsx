@@ -8,7 +8,6 @@ import { ContactPointCreateContainer } from "@src/components/alerts/ContactPoint
 import { ContactPointForm } from "@src/components/alerts/ContactPointForm/ContactPointForm";
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
-import { UrlService } from "@src/utils/urlUtils";
 
 export const CreateContactPointPage: React.FunctionComponent = () => {
   const router = useRouter();
@@ -23,7 +22,7 @@ export const CreateContactPointPage: React.FunctionComponent = () => {
         <Title>Create Contact Point</Title>
       </div>
       <ContactPointCreateContainer onCreate={router.back}>
-        {props => <ContactPointForm isLoading={props.isLoading} onSubmit={props.create} onCancel={() => router.push(UrlService.contactPoints())} />}
+        {props => <ContactPointForm isLoading={props.isLoading} onSubmit={props.create} onCancel={router.back} />}
       </ContactPointCreateContainer>
     </Layout>
   );

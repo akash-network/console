@@ -141,6 +141,7 @@
     "@keplr-wallet/types": "^0.12.111",
     "@next/bundle-analyzer": "^14.0.1",
     "@octokit/openapi-types": "^22.2.0",
+    "@openapi-qraft/tanstack-query-react-types": "^2.6.0",
     "@playwright/test": "~1.52.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
