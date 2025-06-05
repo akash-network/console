@@ -84,10 +84,8 @@ export class DeploymentAlertController {
     200: { schema: DeploymentAlertsResponse, description: "Returns alerts for the specified deployment" }
   })
   async getDeploymentAlerts(@Param("dseq") dseq: string): Promise<Result<DeploymentAlertsResponse, unknown>> {
-    const res = await this.deploymentAlertService.get(dseq, this.authService.ability);
-    console.log("DEBUG res", res);
     return Ok({
-      data: res
+      data: await this.deploymentAlertService.get(dseq, this.authService.ability)
     });
   }
 }
