@@ -70,7 +70,7 @@ export class DeploymentInfoSeeder {
   }
 
   static createMany(count: number, input: DeploymentInfoSeederInput = {}): RestAkashDeploymentInfoResponse[] {
-    return Array.from({ length: count }, () => this.create(input));
+    return Array.from({ length: count }, () => DeploymentInfoSeeder.create(input));
   }
 
   static createError(input: DeploymentInfoErrorSeederInput = {}): RestAkashDeploymentInfoResponse {

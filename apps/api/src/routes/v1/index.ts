@@ -8,8 +8,6 @@ import proposals from "./proposals/list";
 import templateById from "./templates/byId";
 import templateList from "./templates/list";
 import templateListFull from "./templates/list-full";
-import validatorByAddress from "./validators/byAddress";
-import validators from "./validators/list";
 import versionMainnet from "./version/mainnet";
 import versionSandbox from "./version/sandbox";
 import versionTestnet from "./version/testnet";
@@ -28,8 +26,6 @@ export default [
   predictedDateHeight,
   address,
   addressTransactions,
-  validators,
-  validatorByAddress,
   proposals,
   proposalById,
   templateListFull,

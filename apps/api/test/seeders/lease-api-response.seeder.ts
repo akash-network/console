@@ -120,6 +120,6 @@ export class LeaseApiResponseSeeder {
   }
 
   static createMany(count: number, input: LeaseInput = {}): LeaseOutput[] {
-    return Array.from({ length: count }, () => this.create(input));
+    return Array.from({ length: count }, () => LeaseApiResponseSeeder.create(input));
   }
 }
