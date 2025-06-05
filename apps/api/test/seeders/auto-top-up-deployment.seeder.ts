@@ -15,6 +15,6 @@ export class AutoTopUpDeploymentSeeder {
   }
 
   static createMany(count: number, overrides: Partial<AutoTopUpDeployment> = {}): AutoTopUpDeployment[] {
-    return Array.from({ length: count }, () => this.create(overrides));
+    return Array.from({ length: count }, () => AutoTopUpDeploymentSeeder.create(overrides));
   }
 }
