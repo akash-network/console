@@ -3,9 +3,9 @@ import "@testing-library/jest-dom";
 import React from "react";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { PopupProvider } from "@akashnetwork/ui/context";
+import { capitalize, startCase } from "lodash";
 
 import type { AlertsListViewProps } from "./AlertsListView";
-import { prettyAlertStatuses, prettyAlertTypes } from "./AlertsListView";
 import { AlertsListView } from "./AlertsListView";
 
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -33,9 +33,14 @@ describe(AlertsListView.name, () => {
     setup({ data: [mockAlert] });
 
     expect(screen.getByText(mockAlert.name)).toBeInTheDocument();
-    expect(screen.getByText(prettyAlertTypes[mockAlert.type])).toBeInTheDocument();
-    expect(screen.getByText(prettyAlertStatuses[mockAlert.status])).toBeInTheDocument();
-    expect(screen.getByText(mockAlert.enabled ? "Yes" : "No")).toBeInTheDocument();
+    expect(screen.getByText(startCase(mockAlert.type.toLowerCase()))).toBeInTheDocument();
+    expect(screen.getByText(capitalize(mockAlert.status))).toBeInTheDocument();
+
+    if (mockAlert.enabled) {
+      expect(screen.getByTestId("alert-enabled-checkmark")).toBeInTheDocument();
+    } else {
+      expect(screen.getByTestId("alert-enabled-checkmark")).not.toBeInTheDocument();
+    }
 
     if (mockAlert.params?.dseq) {
       expect(screen.getByText(mockAlert.params.dseq)).toBeInTheDocument();

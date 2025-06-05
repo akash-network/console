@@ -1,11 +1,21 @@
 import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiQuery } from "@nestjs/swagger";
+import { createZodDto } from "nestjs-zod";
 import { Err, Ok, Result } from "ts-results";
+import { z } from "zod";
 
 import { ValidateHttp } from "@src/interfaces/rest/decorators/http-validate/http-validate.decorator";
 import { AlertCreateInput, AlertListOutputResponse, AlertOutputResponse, AlertPatchInput } from "@src/interfaces/rest/http-schemas/alert.http-schema";
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
+import { toPaginatedQuery } from "@src/lib/http-schema/http-schema";
 import { AlertOutput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+
+class AlertListQuery extends createZodDto(
+  toPaginatedQuery({
+    dseq: z.string().optional(),
+    type: z.string().optional()
+  })
+) {}
 
 @Controller({
   version: "1",
@@ -67,8 +77,8 @@ export class AlertController {
     type: Number,
     description: "Number of items per page"
   })
-  async getAlerts(@Query() query?: { dseq?: string; type?: string }): Promise<Result<AlertListOutputResponse, NotFoundException>> {
-    return Ok(await this.alertRepository.accessibleBy(this.authService.ability, "read").paginate({ query }));
+  async getAlerts(@Query() { page, limit, ...query }: AlertListQuery): Promise<Result<AlertListOutputResponse, NotFoundException>> {
+    return Ok(await this.alertRepository.accessibleBy(this.authService.ability, "read").paginate({ page, limit, query }));
   }
 
   @Patch(":id")

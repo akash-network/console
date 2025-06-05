@@ -17,11 +17,12 @@ import {
 } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
+import { Chip } from "@mui/material";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { Bin, Edit } from "iconoir-react";
+import { Bin, Check, Edit } from "iconoir-react";
+import { capitalize, startCase } from "lodash";
 import Link from "next/link";
 
-import { CopyTextToClipboardButton } from "@src/components/shared/CopyTextToClipboardButton";
 import { UrlService } from "@src/utils/urlUtils";
 
 type Alert = components["schemas"]["AlertOutputResponse"]["data"];
@@ -38,17 +39,6 @@ export type AlertsListViewProps = {
   isError: boolean;
 };
 
-export const prettyAlertTypes: Record<Alert["type"], string> = {
-  CHAIN_MESSAGE: "Chain Message",
-  DEPLOYMENT_BALANCE: "Deployment Balance"
-};
-
-export const prettyAlertStatuses: Record<Alert["status"], string> = {
-  NORMAL: "Normal",
-  FIRING: "Firing",
-  FIRED: "Fired"
-};
-
 export const AlertsListView: FC<AlertsListViewProps> = ({ data, pagination, onPaginationChange, isLoading, removingIds, onRemove, isError }) => {
   const { confirm } = usePopup();
   const columnHelper = createColumnHelper<Alert>();
@@ -60,41 +50,36 @@ export const AlertsListView: FC<AlertsListViewProps> = ({ data, pagination, onPa
     }),
     columnHelper.accessor("type", {
       header: () => <div>Type</div>,
-      cell: info => <div>{prettyAlertTypes[info.getValue()] ?? "Unknown"}</div>
+      cell: info => <div>{startCase(info.getValue().toLowerCase())}</div>
+    }),
+    columnHelper.accessor("status", {
+      header: () => <div>Status</div>,
+      cell: info => <Chip color={info.getValue() === "NORMAL" ? "success" : "error"} label={capitalize(info.getValue())} />
+    }),
+    columnHelper.accessor("params", {
+      header: () => <div className="w-32">DSEQ</div>,
+      cell: info => {
+        const params = info.getValue();
+
+        return params ? (
+          <div className="flex max-w-48 items-center gap-1">
+            <Link href={UrlService.deploymentDetails(params.dseq, "ALERTS")} className="truncate">
+              {params.dseq}
+            </Link>
+          </div>
+        ) : (
+          <div className="text-gray-500">No parameters</div>
+        );
+      }
     }),
     columnHelper.accessor("enabled", {
       header: () => <div>Enabled</div>,
       cell: info => {
         const enabled = info.getValue();
 
-        return (
-          <div className="flex items-center">
-            <span
-              className={cn("inline-block rounded-full px-2 py-1 text-xs font-semibold", enabled ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800")}
-            >
-              {enabled ? "Yes" : "No"}
-            </span>
-          </div>
-        );
-      }
-    }),
-    columnHelper.accessor("status", {
-      header: () => <div>Status</div>,
-      cell: info => <div>{prettyAlertStatuses[info.getValue()] ?? "Unknown"}</div>
-    }),
-    columnHelper.accessor("params", {
-      header: () => <div className="w-32">Params</div>,
-      cell: info => {
-        const params = info.getValue();
-
-        return params ? (
-          <div className="flex max-w-48 items-center gap-1 truncate">
-            <CopyTextToClipboardButton value={params.dseq} message="DSEQ copied to clipboard!" />
-            <div className="truncate">{params.dseq}</div>
-          </div>
-        ) : (
-          <div className="text-gray-500">No parameters</div>
-        );
+        if (enabled) {
+          return <Check data-testid="alert-enabled-checkmark" className="text-sm text-green-600" />;
+        }
       }
     }),
     columnHelper.display({
