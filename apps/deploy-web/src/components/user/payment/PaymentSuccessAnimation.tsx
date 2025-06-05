@@ -44,10 +44,10 @@ export function PaymentSuccessAnimation({ show, amount, onComplete }: PaymentSuc
 
       setParticles(newParticles);
 
-      // Complete animation after 3 seconds
+      // Complete animation after 6 seconds
       const timer = setTimeout(() => {
         onComplete?.();
-      }, 3000);
+      }, 6000);
 
       return () => {
         clearTimeout(timer);
@@ -64,7 +64,8 @@ export function PaymentSuccessAnimation({ show, amount, onComplete }: PaymentSuc
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+          className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+          onClick={onComplete}
         >
           {/* Particles */}
           {particles.map(particle => (
