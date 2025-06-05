@@ -6,45 +6,45 @@ import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import type { RequestFnResponse } from "@openapi-qraft/react/src/lib/requestFn";
 import { QueryClientProvider } from "@tanstack/react-query";
 
-import { ContactPointsListContainer } from "@src/components/alerts/ContactPointsListContainer/ContactPointsListContainer";
-import type { ContactPointsListViewProps } from "@src/components/alerts/ContactPointsListView/ContactPointsListView";
+import { AlertsListContainer } from "@src/components/alerts/AlertsListContainer/AlertsListContainer";
+import type { AlertsListViewProps } from "@src/components/alerts/AlertsListView/AlertsListView";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 
 import { render, screen, waitFor } from "@testing-library/react";
-import { buildContactPoint } from "@tests/seeders/contactPoint";
+import { buildAlert } from "@tests/seeders/alert";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 
-describe("ContactPointsListContainer", () => {
-  it("renders contact points list with data", async () => {
+describe(AlertsListContainer.name, () => {
+  it("renders alerts list with data", async () => {
     const { mockData, child } = await setup();
     expect(child.data).toEqual(mockData.data);
   });
 
-  it("calls delete endpoint and shows success notification when removing a contact point succeeds", async () => {
+  it("calls delete endpoint and shows success notification when alert removal succeeds", async () => {
     const { mockData, requestFn, child } = await setup();
     child.onRemove(mockData.data[0].id);
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
-        expect.objectContaining({ method: "delete", url: "/v1/contact-points/{id}" }),
+        expect.objectContaining({ method: "delete", url: "/v1/alerts/{id}" }),
         expect.objectContaining({ baseUrl: "", body: undefined, parameters: { path: { id: mockData.data[0].id } } })
       );
-      expect(screen.getByTestId("contact-point-remove-success-notification")).toBeInTheDocument();
+      expect(screen.getByTestId("alert-remove-success-notification")).toBeInTheDocument();
     });
   });
 
-  it("calls delete endpoint and shows error notification when removing a contact point fails", async () => {
+  it("calls delete endpoint and shows error notification when alert removal fails", async () => {
     const { mockData, requestFn, child } = await setup();
     requestFn.mockRejectedValue(new Error());
     child.onRemove(mockData.data[0].id);
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
-        expect.objectContaining({ method: "delete", url: "/v1/contact-points/{id}" }),
+        expect.objectContaining({ method: "delete", url: "/v1/alerts/{id}" }),
         expect.objectContaining({ baseUrl: "", body: undefined, parameters: { path: { id: mockData.data[0].id } } })
       );
-      expect(screen.getByTestId("contact-point-remove-error-notification")).toBeInTheDocument();
+      expect(screen.getByTestId("alert-remove-error-notification")).toBeInTheDocument();
     });
   });
 
@@ -54,7 +54,7 @@ describe("ContactPointsListContainer", () => {
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
-        expect.objectContaining({ method: "get", url: "/v1/contact-points" }),
+        expect.objectContaining({ method: "get", url: "/v1/alerts" }),
         expect.objectContaining({
           parameters: {
             query: {
@@ -69,7 +69,7 @@ describe("ContactPointsListContainer", () => {
 
   async function setup() {
     const mockData = {
-      data: Array.from({ length: 10 }, buildContactPoint),
+      data: Array.from({ length: 10 }, buildAlert),
       pagination: {
         page: 1,
         limit: 10,
@@ -91,13 +91,13 @@ describe("ContactPointsListContainer", () => {
           queryClient
         })
     };
-    const childCapturer = createContainerTestingChildCapturer<ContactPointsListViewProps>();
+    const childCapturer = createContainerTestingChildCapturer<AlertsListViewProps>();
 
     render(
       <CustomSnackbarProvider>
         <ServicesProvider services={services}>
           <QueryClientProvider client={queryClient}>
-            <ContactPointsListContainer>{childCapturer.renderChild}</ContactPointsListContainer>
+            <AlertsListContainer>{childCapturer.renderChild}</AlertsListContainer>
           </QueryClientProvider>
         </ServicesProvider>
       </CustomSnackbarProvider>
