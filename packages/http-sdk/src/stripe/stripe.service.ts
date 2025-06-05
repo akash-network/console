@@ -65,6 +65,18 @@ interface CustomerDiscountsResponse {
   }>;
 }
 
+export interface Charge {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  created: number;
+  paymentMethod: any;
+  receiptUrl?: string;
+  description?: string;
+  metadata?: Record<string, string>;
+}
+
 export class StripeService extends ApiHttpService {
   constructor(config?: AxiosRequestConfig) {
     super(config);
@@ -109,5 +121,9 @@ export class StripeService extends ApiHttpService {
 
   async getCustomerDiscounts(): Promise<CustomerDiscountsResponse> {
     return this.extractData(await this.get("/v1/stripe-customer-discounts"));
+  }
+
+  async getCustomerTransactions(): Promise<{ transactions: Charge[] }> {
+    return this.extractData(await this.get("/v1/stripe-transactions"));
   }
 }

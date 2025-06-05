@@ -81,11 +81,6 @@ const PayPage: React.FunctionComponent = () => {
       setShowPaymentSuccess({ amount, show: true });
       setAmount("");
       setCoupon("");
-
-      // Hide success animation after 6 seconds
-      setTimeout(() => {
-        setShowPaymentSuccess(prev => ({ ...prev, show: false }));
-      }, 6_000);
     } catch (err) {
       setError("An unexpected error occurred.");
     }

@@ -24,6 +24,16 @@ export const usePaymentDiscountsQuery = () => {
   });
 };
 
+export const usePaymentTransactionsQuery = () => {
+  return useQuery({
+    queryKey: QueryKeys.getPaymentTransactionsKey(),
+    queryFn: async () => {
+      const response = await stripeService.getCustomerTransactions();
+      return response.transactions;
+    }
+  });
+};
+
 export const useSetupIntentMutation = () => {
   return useMutation<SetupIntentResponse, Error>({
     mutationFn: async () => {
