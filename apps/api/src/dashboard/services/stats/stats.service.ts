@@ -1,6 +1,6 @@
 import { AkashBlock as Block, Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { Day } from "@akashnetwork/database/dbSchemas/base";
-import { CosmosHttpService } from "@akashnetwork/http-sdk";
+import { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { minutesToSeconds, sub, subHours } from "date-fns";
 import uniqBy from "lodash/uniqBy";
@@ -8,6 +8,7 @@ import { Op, QueryTypes } from "sequelize";
 import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
+import { MarketDataParams } from "@src/dashboard/http-schemas/market-data/market-data.schema";
 import { chainDb } from "@src/db/dbConnection";
 import { AuthorizedGraphDataName } from "@src/services/db/statsService";
 import { toUTC } from "@src/utils";
@@ -53,7 +54,10 @@ export const emptyNetworkCapacity = {
 
 @singleton()
 export class StatsService {
-  constructor(private readonly cosmosHttpService: CosmosHttpService) {}
+  constructor(
+    private readonly cosmosHttpService: CosmosHttpService,
+    private readonly coinGeckoHttpService: CoinGeckoHttpService
+  ) {}
 
   async getDashboardData() {
     const latestBlockStats = await Block.findOne({
@@ -368,6 +372,20 @@ export class StatsService {
       totalGPU: stats.activeGPU + stats.pendingGPU + stats.availableGPU,
       totalMemory: stats.activeMemory + stats.pendingMemory + stats.availableMemory,
       totalStorage: stats.activeStorage + stats.pendingStorage + stats.availableStorage
+    };
+  }
+
+  @Memoize({ ttlInSeconds: minutesToSeconds(5) })
+  async getMarketData(coin: MarketDataParams["coin"]) {
+    const response = await this.coinGeckoHttpService.getMarketData(coin);
+
+    return {
+      price: response.market_data.current_price.usd,
+      volume: response.market_data.total_volume.usd,
+      marketCap: response.market_data.market_cap.usd,
+      marketCapRank: response.market_cap_rank,
+      priceChange24h: response.market_data.price_change_24h,
+      priceChangePercentage24: response.market_data.price_change_percentage_24h
     };
   }
 }

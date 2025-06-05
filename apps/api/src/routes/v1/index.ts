@@ -18,7 +18,6 @@ import gpuBreakdown from "./gpuBreakdown";
 import gpuModels from "./gpuModels";
 import gpuPrices from "./gpuPrices";
 import leasesDuration from "./leasesDuration";
-import marketData from "./marketData";
 import predictedBlockDate from "./predictedBlockDate";
 import predictedDateHeight from "./predictedDateHeight";
 import pricing from "./pricing";
@@ -36,7 +35,6 @@ export default [
   templateListFull,
   templateList,
   templateById,
-  marketData,
   pricing,
   nodesMainnet,
   nodesSandbox,
