@@ -18,7 +18,6 @@ import gpuPrices from "./gpuPrices";
 import leasesDuration from "./leasesDuration";
 import predictedBlockDate from "./predictedBlockDate";
 import predictedDateHeight from "./predictedDateHeight";
-import pricing from "./pricing";
 import trialProviders from "./trialProviders";
 
 export default [
@@ -31,7 +30,6 @@ export default [
   templateListFull,
   templateList,
   templateById,
-  pricing,
   nodesMainnet,
   nodesSandbox,
   nodesTestnet,
