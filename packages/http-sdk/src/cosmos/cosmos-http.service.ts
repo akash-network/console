@@ -6,10 +6,13 @@ import type {
   CosmosBankSupplyResponse,
   CosmosDistributionCommunityPoolResponse,
   CosmosDistributionParamsResponse,
+  CosmosGovProposalResponse,
+  CosmosGovProposalsResponse,
   CosmosMintInflationResponse,
   CosmosStakingPoolResponse,
   RestCosmosStakingValidatorListResponse,
-  RestCosmosStakingValidatorResponse
+  RestCosmosStakingValidatorResponse,
+  RestGovProposalsTallyResponse
 } from "./types";
 
 const RETRY_COUNT = 3;
@@ -55,7 +58,6 @@ export class CosmosHttpService extends HttpService {
 
     return response.params;
   }
-
   async getValidatorList(): Promise<RestCosmosStakingValidatorListResponse> {
     return this.extractData(
       await this.get<RestCosmosStakingValidatorListResponse>(`/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=1000`)
@@ -64,5 +66,23 @@ export class CosmosHttpService extends HttpService {
 
   async getValidatorByAddress(address: string): Promise<RestCosmosStakingValidatorResponse> {
     return this.extractData(await this.get<RestCosmosStakingValidatorResponse>(`/cosmos/staking/v1beta1/validators/${address}`));
+  }
+
+  async getProposals(): Promise<CosmosGovProposalsResponse["proposals"]> {
+    const { proposals } = this.extractData(await this.get<CosmosGovProposalsResponse>(`/cosmos/gov/v1beta1/proposals?pagination.limit=1000`));
+
+    return proposals;
+  }
+
+  async getProposal(id: number): Promise<CosmosGovProposalResponse["proposal"]> {
+    const { proposal } = this.extractData(await this.get<CosmosGovProposalResponse>(`/cosmos/gov/v1beta1/proposals/${id}`));
+
+    return proposal;
+  }
+
+  async getProposalTally(id: number): Promise<RestGovProposalsTallyResponse["tally"]> {
+    const { tally } = this.extractData(await this.get<RestGovProposalsTallyResponse>(`/cosmos/gov/v1beta1/proposals/${id}/tally`));
+
+    return tally;
   }
 }
