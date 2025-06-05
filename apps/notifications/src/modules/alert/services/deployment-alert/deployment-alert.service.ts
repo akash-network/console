@@ -14,7 +14,7 @@ type DeploymentClosedAlertInput = {
   enabled: boolean;
 };
 
-type DeploymentAlertInput = {
+export type DeploymentAlertInput = {
   dseq: string;
   owner: string;
   alerts: {
@@ -33,7 +33,7 @@ type DeploymentClosedAlertOutput = DeploymentClosedAlertInput & {
   status: string;
 };
 
-type DeploymentAlertOutput = {
+export type DeploymentAlertOutput = {
   dseq: string;
   alerts: {
     deploymentBalance?: DeploymentBalanceAlertOutput;
@@ -83,9 +83,9 @@ export class DeploymentAlertService {
   private async upsertBalanceAlert(
     input: DeploymentBalanceAlertInput & { dseq: string; owner: string },
     auth: AuthMeta,
-    existingAlerts?: DeploymentAlertOutput
+    existingAlerts: DeploymentAlertOutput
   ): Promise<void> {
-    const existingBalanceAlert = existingAlerts?.alerts.deploymentBalance;
+    const existingBalanceAlert = existingAlerts.alerts.deploymentBalance;
 
     if (existingBalanceAlert) {
       await this.alertRepository.accessibleBy(auth.ability, "update").updateById(existingBalanceAlert.id, {
@@ -105,9 +105,9 @@ export class DeploymentAlertService {
   private async upsertClosedAlert(
     input: DeploymentClosedAlertInput & { dseq: string; owner: string },
     auth: AuthMeta,
-    existingAlerts?: DeploymentAlertOutput
+    existingAlerts: DeploymentAlertOutput
   ): Promise<void> {
-    const existingClosedAlert = existingAlerts?.alerts.deploymentClosed;
+    const existingClosedAlert = existingAlerts.alerts.deploymentClosed;
 
     if (existingClosedAlert) {
       await this.alertRepository.accessibleBy(auth.ability, "update").updateById(existingClosedAlert.id, {
