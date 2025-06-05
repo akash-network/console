@@ -14,6 +14,8 @@ import { DeploymentAlerts } from "@src/components/deployments/DeploymentAlerts/D
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
+import { useUser } from "@src/hooks/useUser";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
@@ -45,6 +47,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
   const isRemoteDeploy: boolean = !!editedManifest && !!isCiCdImageInYaml(editedManifest);
   const repo: string | null = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
+  const user = useUser();
+  const isAlertsEnabled = useFlag("alerts") && user?.userId;
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = useDeploymentDetail(address, dseq);
   const {
@@ -112,12 +116,15 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
         {
           label: "Events",
           value: "EVENTS"
-        },
-        {
-          label: "Alerts",
-          value: "ALERTS"
         }
       );
+    }
+
+    if (isAlertsEnabled) {
+      tabs.push({
+        label: "Alerts",
+        value: "ALERTS"
+      });
     }
 
     tabs.push({
@@ -126,7 +133,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     });
 
     return tabs;
-  }, [isActive]);
+  }, [isActive, isAlertsEnabled]);
 
   const searchParams = useSearchParams();
   const tabQuery = searchParams?.get("tab");
