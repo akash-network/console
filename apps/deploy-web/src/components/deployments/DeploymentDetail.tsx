@@ -235,7 +235,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
             {activeTab === "LOGS" && <DeploymentLogs leases={leases} selectedLogsMode="logs" />}
             {activeTab === "EVENTS" && <DeploymentLogs leases={leases} selectedLogsMode="events" />}
             {activeTab === "SHELL" && <DeploymentLeaseShell leases={leases} />}
-            {activeTab === "ALERTS" && <DeploymentAlerts dseq={dseq} owner={address} />}
+            {activeTab === "ALERTS" && <DeploymentAlerts deployment={deployment} />}
             {activeTab === "LEASES" && (
               <div className="py-4">
                 {leases && (!localCert || !isLocalCertMatching) && (

@@ -71,7 +71,8 @@ describe("DeploymentAlertsContainer", () => {
     const input: ContainerInput = {
       alerts: {
         deploymentClosed: {
-          enabled: true
+          enabled: true,
+          contactPointId: faker.string.uuid()
         }
       }
     };

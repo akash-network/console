@@ -24,7 +24,9 @@ export const AccountEmailContactPointCreateTrigger: FC<ChildrenProps & { email: 
 
 export const AccountEmailContactPointCreator = () => {
   const user = useUser();
-  return user?.email ? (
-    <ContactPointCreateContainer>{props => <AccountEmailContactPointCreateTrigger {...props} email={user.email} />}</ContactPointCreateContainer>
-  ) : null;
+  return (
+    <ContactPointCreateContainer>
+      {props => (user?.email ? <AccountEmailContactPointCreateTrigger {...props} email={user.email} /> : null)}
+    </ContactPointCreateContainer>
+  );
 };

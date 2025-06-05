@@ -8,13 +8,13 @@ import { DeploymentAlertsContainer } from "@src/components/alerts/DeploymentAler
 import { DeploymentBalanceAlert } from "@src/components/deployments/DeploymentAlerts/DeploymentBalanceAlert";
 import { DeploymentCloseAlert } from "@src/components/deployments/DeploymentAlerts/DeploymentCloseAlert";
 import { LoadingBlocker } from "@src/components/layout/LoadingBlocker/LoadingBlocker";
+import type { DeploymentDto } from "@src/types/deployment";
 
 type Props = {
-  dseq: string;
-  owner: string;
+  deployment: DeploymentDto;
 };
 
-export const DeploymentAlertsView: FC<ChildrenProps> = props => {
+export const DeploymentAlertsView: FC<ChildrenProps & Props> = props => {
   return (
     <LoadingBlocker isLoading={!props.isFetched}>
       <div className="grid-col-1 mb-4 grid gap-4 md:grid-cols-2">
@@ -29,6 +29,7 @@ export const DeploymentAlertsView: FC<ChildrenProps> = props => {
           }}
         />
         <DeploymentBalanceAlert
+          deployment={props.deployment}
           initialValues={props.data?.alerts?.deploymentBalance}
           onSubmit={values => {
             props.upsert({
@@ -43,10 +44,10 @@ export const DeploymentAlertsView: FC<ChildrenProps> = props => {
   );
 };
 
-export const DeploymentAlerts: FC<Props> = ({ dseq }) => {
+export const DeploymentAlerts: FC<Props> = ({ deployment }) => {
   return (
     <ContactPointsGuard>
-      <DeploymentAlertsContainer dseq={dseq}>{props => <DeploymentAlertsView {...props} />}</DeploymentAlertsContainer>
+      <DeploymentAlertsContainer dseq={deployment.dseq}>{props => <DeploymentAlertsView {...props} deployment={deployment} />}</DeploymentAlertsContainer>
     </ContactPointsGuard>
   );
 };
