@@ -70,4 +70,6 @@ export class QueryKeys {
 
   static getPaymentMethodsKey = () => ["paymentMethods"];
   static getPaymentDiscountsKey = () => ["paymentDiscounts"];
+
+  static getPaymentTransactionsKey = () => ["stripe", "transactions"];
 }

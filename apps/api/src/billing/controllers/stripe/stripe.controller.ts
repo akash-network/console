@@ -183,4 +183,20 @@ export class StripeController {
 
     return { discounts: formattedDiscounts };
   }
+
+  @Protected([{ action: "read", subject: "Transaction" }])
+  async getCustomerTransactions(options?: { limit?: number; startingAfter?: string }) {
+    const userId = this.authService.currentUser.userId;
+    const user = await this.userRepository.findOneBy({ userId });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (!user.stripeCustomerId) {
+      throw new Error("User does not have a Stripe customer ID");
+    }
+
+    return await this.stripe.getCustomerTransactions(user.stripeCustomerId, options);
+  }
 }

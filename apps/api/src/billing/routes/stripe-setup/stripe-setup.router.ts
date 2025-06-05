@@ -236,6 +236,55 @@ const getCustomerDiscountsRoute = createRoute({
   }
 });
 
+const getCustomerTransactionsRoute = createRoute({
+  method: "get",
+  path: "/v1/stripe-transactions",
+  summary: "Get transaction history for the current customer",
+  tags: ["Payment"],
+  request: {
+    query: z.object({
+      limit: z.string().optional().openapi({
+        type: "number",
+        minimum: 1,
+        maximum: 100,
+        description: "Number of transactions to return",
+        example: "100",
+        default: "100"
+      }),
+      startingAfter: z.string().optional().openapi({
+        description: "ID of the last transaction from the previous page",
+        example: "ch_1234567890"
+      })
+    })
+  },
+  responses: {
+    200: {
+      description: "Customer transactions retrieved successfully",
+      content: {
+        "application/json": {
+          schema: z.object({
+            transactions: z.array(
+              z.object({
+                id: z.string(),
+                amount: z.number(),
+                currency: z.string(),
+                status: z.string(),
+                created: z.number(),
+                paymentMethod: z.any(),
+                receiptUrl: z.string().optional(),
+                description: z.string().optional(),
+                metadata: z.record(z.string()).optional()
+              })
+            ),
+            hasMore: z.boolean(),
+            nextPage: z.string().optional()
+          })
+        }
+      }
+    }
+  }
+});
+
 export const stripeSetupRouter = new OpenApiHonoHandler();
 
 stripeSetupRouter.openapi(setupIntentRoute, async function createSetupIntent(c) {
@@ -279,5 +328,14 @@ stripeSetupRouter.openapi(removePaymentMethodRoute, async function removePayment
 
 stripeSetupRouter.openapi(getCustomerDiscountsRoute, async function getCustomerDiscounts(c) {
   const response = await container.resolve(StripeController).getCustomerDiscounts();
+  return c.json(response, 200);
+});
+
+stripeSetupRouter.openapi(getCustomerTransactionsRoute, async function getCustomerTransactions(c) {
+  const { limit, startingAfter } = c.req.valid("query");
+  const response = await container.resolve(StripeController).getCustomerTransactions({
+    limit: limit ? parseInt(limit) : undefined,
+    startingAfter
+  });
   return c.json(response, 200);
 });

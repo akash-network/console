@@ -285,4 +285,31 @@ export class StripeService extends Stripe {
     }
     return false;
   }
+
+  async getCustomerTransactions(customerId: string, options?: { limit?: number; startingAfter?: string }) {
+    const charges = await this.charges.list({
+      customer: customerId,
+      limit: options?.limit ?? 100,
+      starting_after: options?.startingAfter,
+      expand: ["data.payment_intent"]
+    });
+
+    const transactions = charges.data.map(charge => ({
+      id: charge.id,
+      amount: charge.amount,
+      currency: charge.currency,
+      status: charge.status,
+      created: charge.created,
+      paymentMethod: charge.payment_method_details,
+      receiptUrl: charge.receipt_url,
+      description: charge.description,
+      metadata: charge.metadata
+    }));
+
+    return {
+      transactions,
+      hasMore: charges.has_more,
+      nextPage: charges.data[charges.data.length - 1]?.id
+    };
+  }
 }
