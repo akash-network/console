@@ -13,7 +13,7 @@ import { useWhen } from "@src/hooks/useWhen";
 type DeploymentAlertsInput = components["schemas"]["DeploymentAlertCreateInput"]["data"];
 type DeploymentAlertsOutput = components["schemas"]["DeploymentAlertsResponse"]["data"];
 
-type ContainerInput = Omit<DeploymentAlertsInput, "owner" | "alerts"> & {
+export type ContainerInput = Omit<DeploymentAlertsInput, "owner" | "alerts"> & {
   alerts:
     | {
         deploymentClosed: NonNullable<DeploymentAlertsInput["alerts"]["deploymentClosed"]>;
@@ -27,7 +27,7 @@ type ContainerInput = Omit<DeploymentAlertsInput, "owner" | "alerts"> & {
       };
 };
 
-type ChildrenProps = {
+export type ChildrenProps = {
   data?: DeploymentAlertsOutput;
   upsert: (input: ContainerInput) => void;
   isLoading: boolean;
@@ -85,6 +85,10 @@ export const DeploymentAlertsContainer: FC<Props> = ({ dseq, children }) => {
     },
     [dseq]
   );
+
+  useWhen(mutation.isError, () => {
+    notificator.error("Alert configuration failed...", { dataTestId: "alert-config-error-notification" });
+  });
 
   return (
     <>
