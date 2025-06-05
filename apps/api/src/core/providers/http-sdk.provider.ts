@@ -3,6 +3,7 @@ import {
   BalanceHttpService,
   BidHttpService,
   BlockHttpService,
+  CoinGeckoHttpService,
   CosmosHttpService,
   DeploymentHttpService,
   GitHubHttpService,
@@ -27,3 +28,4 @@ const SERVICES = [
 SERVICES.forEach(Service => container.register(Service, { useValue: new Service({ baseURL: apiNodeUrl }) }));
 
 container.register(GitHubHttpService, { useValue: new GitHubHttpService({ baseURL: "https://raw.githubusercontent.com" }) });
+container.register(CoinGeckoHttpService, { useValue: new CoinGeckoHttpService({ baseURL: "https://api.coingecko.com" }) });

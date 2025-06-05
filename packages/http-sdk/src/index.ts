@@ -18,3 +18,4 @@ export * from "./provider/provider-http.service";
 export * from "./utils/isHttpError";
 export * from "./git-hub/git-hub-http.service";
 export * from "./cosmos";
+export * from "./coin-gecko";
