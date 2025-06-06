@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom";
 
 import React from "react";
+import { generateChainMessageAlert } from "@akashnetwork/notifications/test/seeders";
 import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import type { RequestFnResponse } from "@openapi-qraft/react/src/lib/requestFn";
@@ -12,7 +13,6 @@ import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 
 import { render, screen, waitFor } from "@testing-library/react";
-import { buildAlert } from "@tests/seeders/alert";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 
 describe(AlertsListContainer.name, () => {
@@ -69,7 +69,7 @@ describe(AlertsListContainer.name, () => {
 
   async function setup() {
     const mockData = {
-      data: Array.from({ length: 10 }, buildAlert),
+      data: Array.from({ length: 10 }, () => generateChainMessageAlert({})),
       pagination: {
         page: 1,
         limit: 10,

@@ -3,7 +3,6 @@ import React from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import {
   Button,
-  buttonVariants,
   CustomPagination,
   CustomTooltip,
   MIN_PAGE_SIZE,
@@ -16,10 +15,9 @@ import {
   TableRow
 } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
-import { cn } from "@akashnetwork/ui/utils";
 import { Chip } from "@mui/material";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { Bin, Check, Edit } from "iconoir-react";
+import { Bin, Check } from "iconoir-react";
 import { capitalize, startCase } from "lodash";
 import Link from "next/link";
 
@@ -89,25 +87,6 @@ export const AlertsListView: FC<AlertsListViewProps> = ({ data, pagination, onPa
 
         return (
           <div className="flex items-center justify-end gap-1">
-            <CustomTooltip title="Edit" disabled={isRemoving}>
-              <Link
-                href={UrlService.alertDetails(info.row.original.id)}
-                color="secondary"
-                type="button"
-                className={cn(
-                  buttonVariants({
-                    variant: "ghost",
-                    size: "icon"
-                  }),
-                  "text-gray-500 hover:text-gray-700",
-                  isRemoving && "pointer-events-none"
-                )}
-                aria-disabled={isRemoving}
-                data-testid="edit-alert-button"
-              >
-                <Edit className="text-xs" />
-              </Link>
-            </CustomTooltip>
             <CustomTooltip title="Remove" disabled={isRemoving}>
               <Button
                 variant="ghost"

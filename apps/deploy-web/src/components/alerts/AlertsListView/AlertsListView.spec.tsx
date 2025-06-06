@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom";
 
 import React from "react";
+import { generateChainMessageAlert } from "@akashnetwork/notifications/test/seeders";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { PopupProvider } from "@akashnetwork/ui/context";
 import { capitalize, startCase } from "lodash";
@@ -9,7 +10,6 @@ import type { AlertsListViewProps } from "./AlertsListView";
 import { AlertsListView } from "./AlertsListView";
 
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { buildAlert } from "@tests/seeders/alert";
 
 describe(AlertsListView.name, () => {
   it("renders loading spinner when isLoading is true", () => {
@@ -27,8 +27,11 @@ describe(AlertsListView.name, () => {
     expect(screen.getByText("No alerts found")).toBeInTheDocument();
   });
 
-  it("renders table with alerts data", () => {
-    const mockAlert = buildAlert();
+  it("renders table with enabled alert with params", () => {
+    const mockAlert = generateChainMessageAlert({
+      enabled: true,
+      params: { dseq: "12345" }
+    });
 
     setup({ data: [mockAlert] });
 
@@ -36,19 +39,30 @@ describe(AlertsListView.name, () => {
     expect(screen.getByText(startCase(mockAlert.type.toLowerCase()))).toBeInTheDocument();
     expect(screen.getByText(capitalize(mockAlert.status))).toBeInTheDocument();
 
-    if (mockAlert.enabled) {
-      expect(screen.getByTestId("alert-enabled-checkmark")).toBeInTheDocument();
-    } else {
-      expect(screen.getByTestId("alert-enabled-checkmark")).not.toBeInTheDocument();
-    }
+    expect(screen.getByTestId("alert-enabled-checkmark")).toBeInTheDocument();
 
-    if (mockAlert.params?.dseq) {
-      expect(screen.getByText(mockAlert.params.dseq)).toBeInTheDocument();
-    }
+    expect(screen.getByText("12345")).toBeInTheDocument();
+  });
+
+  it("renders table with disabled alert without params", () => {
+    const mockAlert = generateChainMessageAlert({
+      enabled: false,
+      params: undefined
+    });
+
+    setup({ data: [mockAlert] });
+
+    expect(screen.getByText(mockAlert.name)).toBeInTheDocument();
+    expect(screen.getByText(startCase(mockAlert.type.toLowerCase()))).toBeInTheDocument();
+    expect(screen.getByText(capitalize(mockAlert.status))).toBeInTheDocument();
+
+    expect(screen.queryByTestId("alert-enabled-checkmark")).not.toBeInTheDocument();
+
+    expect(screen.getByText("No parameters")).toBeInTheDocument();
   });
 
   it("shows confirmation popup when remove button is clicked", async () => {
-    const mockAlert = buildAlert();
+    const mockAlert = generateChainMessageAlert({});
     setup({ data: [mockAlert] });
 
     fireEvent.click(screen.getByTestId("remove-alert-button"));
@@ -65,7 +79,7 @@ describe(AlertsListView.name, () => {
 
   it("calls onRemove when confirmed", async () => {
     const onRemove = jest.fn();
-    const mockAlert = buildAlert();
+    const mockAlert = generateChainMessageAlert({});
 
     setup({ data: [mockAlert], onRemove });
 
@@ -97,7 +111,7 @@ describe(AlertsListView.name, () => {
       total: 11,
       totalPages: 2
     };
-    const mockData = Array.from({ length: 11 }, buildAlert);
+    const mockData = Array.from({ length: 11 }, () => generateChainMessageAlert({}));
 
     setup({ data: mockData, pagination });
 
@@ -112,7 +126,7 @@ describe(AlertsListView.name, () => {
         total: 10,
         totalPages: 1
       },
-      data: Array.from({ length: 10 }, buildAlert),
+      data: Array.from({ length: 10 }, () => generateChainMessageAlert({})),
       isLoading: false,
       onRemove: jest.fn(),
       removingIds: new Set(),
