@@ -580,6 +580,10 @@ export interface operations {
   getAlerts: {
     parameters: {
       query?: {
+        /** @description Number of items per page */
+        limit?: number;
+        /** @description Page number */
+        page?: number;
         /** @description Chain message type, used in conjunction with dseq to filter alerts liked to a specific deployment */
         type?: string;
         /** @description Linked deployment's dseq */

@@ -84,6 +84,24 @@
         "operationId": "getAlerts",
         "parameters": [
           {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
             "name": "type",
             "required": false,
             "in": "query",

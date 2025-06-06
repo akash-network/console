@@ -61,6 +61,7 @@ export class UrlService {
   static providerDetailRaw = (owner: string) => `/providers/${owner}/raw`;
   static providerDetailEdit = (owner: string) => `/providers/${owner}/edit`;
   static alerts = () => "/alerts";
+  static alertDetails = (id: string) => `/alerts/${id}`;
   static contactPoints = () => "/alerts/contact-points";
   static newContactPoint = () => "/alerts/contact-points/new";
   static contactPointDetails = (id: string) => `/alerts/contact-points/${id}`;
