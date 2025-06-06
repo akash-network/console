@@ -16,6 +16,7 @@ export const generateChainMessageAlert = ({
     value: "default",
     operator: "eq"
   } as z.infer<typeof chainMessageConditionsSchema>,
+  params,
   enabled = true,
   createdAt = faker.date.recent(),
   updatedAt = faker.date.recent()
@@ -32,6 +33,7 @@ export const generateChainMessageAlert = ({
     enabled,
     status: "NORMAL",
     minBlockHeight: 0,
+    params,
     createdAt,
     updatedAt
   };

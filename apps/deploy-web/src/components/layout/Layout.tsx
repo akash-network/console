@@ -148,9 +148,9 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   );
 };
 
-export const Loading: React.FunctionComponent<{ text: string }> = ({ text }) => {
+export const Loading: React.FunctionComponent<{ text: string; testId?: string }> = ({ text, testId }) => {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center pb-12 pt-12">
+    <div className="flex h-full w-full flex-col items-center justify-center pb-12 pt-12" data-testid={testId}>
       <div className="pb-4">
         <Spinner size="large" />
       </div>

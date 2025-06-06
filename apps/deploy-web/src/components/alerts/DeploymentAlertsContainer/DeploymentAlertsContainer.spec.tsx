@@ -7,88 +7,84 @@ import { faker } from "@faker-js/faker";
 import type { RequestFn, RequestFnResponse } from "@openapi-qraft/tanstack-query-react-types";
 import { QueryClientProvider } from "@tanstack/react-query";
 
-import type { ChildrenProps } from "@src/components/alerts/ContactPointCreateContainer/ContactPointCreateContainer";
-import { ContactPointCreateContainer } from "@src/components/alerts/ContactPointCreateContainer/ContactPointCreateContainer";
+import type { ChildrenProps, ContainerInput } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
+import { DeploymentAlertsContainer } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 
 import { render, screen, waitFor } from "@testing-library/react";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 
-describe("ContactPointCreateContainer", () => {
-  it("triggers a contact point creation with the correct values", async () => {
-    const { requestFn, input, child } = await setup();
+describe("DeploymentAlertsContainer", () => {
+  it("triggers a deployment alert request with the correct values", async () => {
+    const { requestFn, input, child, dseq } = await setup();
 
-    child.create(input);
+    child.upsert(input);
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
         expect.objectContaining({
           method: "post",
-          url: "/v1/contact-points"
+          url: "/v1/deployment-alerts/{dseq}"
         }),
         expect.objectContaining({
+          parameters: {
+            path: { dseq }
+          },
           body: {
-            data: {
-              config: {
-                addresses: input.emails
-              },
-              name: input.name,
-              type: "email"
-            }
+            data: input
           }
         })
       );
-      expect(screen.getByTestId("contact-point-create-success-notification")).toBeInTheDocument();
+      expect(screen.getByTestId("alert-config-success-notification")).toBeInTheDocument();
     });
   });
 
-  it("triggers a contact point creation and shows error message on error", async () => {
-    const { requestFn, input, child } = await setup();
-
-    child.create(input);
+  it("shows error notification on failed request", async () => {
+    const { requestFn, input, child, dseq } = await setup();
 
     requestFn.mockRejectedValue(new Error());
+
+    child.upsert(input);
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
         expect.objectContaining({
           method: "post",
-          url: "/v1/contact-points"
+          url: "/v1/deployment-alerts/{dseq}"
         }),
         expect.objectContaining({
+          parameters: {
+            path: { dseq }
+          },
           body: {
-            data: {
-              config: {
-                addresses: input.emails
-              },
-              name: input.name,
-              type: "email"
-            }
+            data: input
           }
         })
       );
-      expect(screen.getByTestId("contact-point-create-error-notification")).toBeInTheDocument();
+      expect(screen.getByTestId("alert-config-error-notification")).toBeInTheDocument();
     });
   });
 
   async function setup() {
-    const input = {
-      name: faker.lorem.word(),
-      emails: [faker.internet.email()]
+    const dseq = faker.string.numeric();
+    const input: ContainerInput = {
+      alerts: {
+        deploymentClosed: {
+          enabled: true,
+          contactPointId: faker.string.uuid()
+        }
+      }
     };
+
     const requestFn = jest.fn(
       () =>
         Promise.resolve({
           data: {
-            config: {
-              addresses: input.emails
-            },
-            name: input.name,
-            type: "email",
-            userId: faker.string.uuid()
+            dseq,
+            alerts: {}
           }
-        }) as Promise<RequestFnResponse<components["schemas"]["ContactPointOutput"]["data"], unknown>>
+        }) as Promise<RequestFnResponse<components["schemas"]["DeploymentAlertsResponse"]["data"], unknown>>
     );
     const services = {
       notificationsApi: () =>
@@ -104,12 +100,12 @@ describe("ContactPointCreateContainer", () => {
       <CustomSnackbarProvider>
         <ServicesProvider services={services}>
           <QueryClientProvider client={queryClient}>
-            <ContactPointCreateContainer onCreate={jest.fn()}>{childCapturer.renderChild}</ContactPointCreateContainer>
+            <DeploymentAlertsContainer dseq={dseq}>{childCapturer.renderChild}</DeploymentAlertsContainer>
           </QueryClientProvider>
         </ServicesProvider>
       </CustomSnackbarProvider>
     );
 
-    return { requestFn, input, child: await childCapturer.awaitChild() };
+    return { requestFn, input, child: await childCapturer.awaitChild(), dseq };
   }
 });

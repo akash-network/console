@@ -2,13 +2,13 @@ import React from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import { NavArrowLeft } from "iconoir-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { NextSeo } from "next-seo";
 
 import { ContactPointEditContainer } from "@src/components/alerts/ContactPointEditContainer/ContactPointEditContainer";
 import { ContactPointForm } from "@src/components/alerts/ContactPointForm/ContactPointForm";
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
+import { useBackNav } from "@src/hooks/useBackNav";
 import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
@@ -16,7 +16,7 @@ type Props = {
 };
 
 export const EditContactPointPage: React.FunctionComponent<Props> = ({ contactPoint }: Props) => {
-  const router = useRouter();
+  const goBack = useBackNav(UrlService.contactPoints());
 
   return (
     <Layout containerClassName="flex h-full flex-col">
@@ -27,7 +27,7 @@ export const EditContactPointPage: React.FunctionComponent<Props> = ({ contactPo
         </Link>
         <Title>Edit Contact Point</Title>
       </div>
-      <ContactPointEditContainer id={contactPoint.id} onEditSuccess={() => router.push(UrlService.contactPoints())}>
+      <ContactPointEditContainer id={contactPoint.id} onEditSuccess={goBack}>
         {props => (
           <ContactPointForm
             initialValues={{
@@ -36,7 +36,7 @@ export const EditContactPointPage: React.FunctionComponent<Props> = ({ contactPo
             }}
             isLoading={props.isLoading}
             onSubmit={props.onEdit}
-            onCancel={() => router.push(UrlService.contactPoints())}
+            onCancel={goBack}
           />
         )}
       </ContactPointEditContainer>

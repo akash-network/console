@@ -79,6 +79,92 @@
         "tags": [
           "Alert"
         ]
+      },
+      "get": {
+        "operationId": "getAlerts",
+        "parameters": [
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Chain message type, used in conjunction with dseq to filter alerts liked to a specific deployment",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dseq",
+            "required": false,
+            "in": "query",
+            "description": "Linked deployment's dseq",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns the list of alerts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertListOutputResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error responded when some request parameters are invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error responded when the user is not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error responded when the user is not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error, should probably be reported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Alert"
+        ]
       }
     },
     "/v1/alerts/{id}": {
@@ -756,6 +842,170 @@
           "ContactPoint"
         ]
       }
+    },
+    "/v1/deployment-alerts/{dseq}": {
+      "post": {
+        "operationId": "upsertDeploymentAlert",
+        "parameters": [
+          {
+            "name": "dseq",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeploymentAlertCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Returns the created alert",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentAlertsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error responded when some request parameters are invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error responded when the user is not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error responded when the user is not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error, should probably be reported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "DeploymentAlert"
+        ]
+      },
+      "get": {
+        "operationId": "getDeploymentAlerts",
+        "parameters": [
+          {
+            "name": "dseq",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns alerts for the specified deployment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentAlertsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error responded when some request parameters are invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error responded when the user is not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error responded when the user is not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error, should probably be reported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "DeploymentAlert"
+        ]
+      }
     }
   },
   "info": {
@@ -771,6 +1021,10 @@
     },
     {
       "name": "Alert",
+      "description": ""
+    },
+    {
+      "name": "DeploymentAlert",
       "description": ""
     }
   ],
@@ -816,6 +1070,22 @@
                     "type": "string",
                     "enum": [
                       "CHAIN_MESSAGE"
+                    ]
+                  },
+                  "params": {
+                    "type": "object",
+                    "properties": {
+                      "dseq": {
+                        "type": "string",
+                        "pattern": "^\\d+$"
+                      },
+                      "type": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "dseq",
+                      "type"
                     ]
                   },
                   "conditions": {
@@ -1284,7 +1554,8 @@
                     "type": "object",
                     "properties": {
                       "dseq": {
-                        "type": "string"
+                        "type": "string",
+                        "pattern": "^\\d+$"
                       },
                       "owner": {
                         "type": "string"
@@ -1357,6 +1628,22 @@
                     "type": "string",
                     "enum": [
                       "CHAIN_MESSAGE"
+                    ]
+                  },
+                  "params": {
+                    "type": "object",
+                    "properties": {
+                      "dseq": {
+                        "type": "string",
+                        "pattern": "^\\d+$"
+                      },
+                      "type": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "dseq",
+                      "type"
                     ]
                   },
                   "conditions": {
@@ -1843,7 +2130,8 @@
                     "type": "object",
                     "properties": {
                       "dseq": {
-                        "type": "string"
+                        "type": "string",
+                        "pattern": "^\\d+$"
                       },
                       "owner": {
                         "type": "string"
@@ -1960,6 +2248,633 @@
         "required": [
           "statusCode",
           "message"
+        ]
+      },
+      "AlertListOutputResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "contactPointId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 3
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "summary": {
+                      "type": "string",
+                      "minLength": 3
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 3
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "createdAt": {},
+                    "updatedAt": {},
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "CHAIN_MESSAGE"
+                      ]
+                    },
+                    "params": {
+                      "type": "object",
+                      "properties": {
+                        "dseq": {
+                          "type": "string",
+                          "pattern": "^\\d+$"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "dseq",
+                        "type"
+                      ]
+                    },
+                    "conditions": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operator": {
+                              "type": "string",
+                              "enum": [
+                                "and"
+                              ]
+                            },
+                            "value": {
+                              "type": "array",
+                              "minItems": 2,
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "operator": {
+                                    "oneOf": [
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "eq"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "lt"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "gt"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "lte"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "gte"
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  "field": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "oneOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "boolean"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "operator",
+                                  "field",
+                                  "value"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "operator",
+                            "value"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operator": {
+                              "type": "string",
+                              "enum": [
+                                "or"
+                              ]
+                            },
+                            "value": {
+                              "type": "array",
+                              "minItems": 2,
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "operator": {
+                                    "oneOf": [
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "eq"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "lt"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "gt"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "lte"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "gte"
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  "field": {
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "oneOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "boolean"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "operator",
+                                  "field",
+                                  "value"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "operator",
+                            "value"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operator": {
+                              "oneOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "eq"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "lt"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "gt"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "lte"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "gte"
+                                  ]
+                                }
+                              ]
+                            },
+                            "field": {
+                              "type": "string"
+                            },
+                            "value": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "boolean"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "operator",
+                            "field",
+                            "value"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "contactPointId",
+                    "name",
+                    "enabled",
+                    "summary",
+                    "description",
+                    "id",
+                    "userId",
+                    "status",
+                    "createdAt",
+                    "updatedAt",
+                    "type",
+                    "conditions"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "contactPointId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 3
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "summary": {
+                      "type": "string",
+                      "minLength": 3
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 3
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "createdAt": {},
+                    "updatedAt": {},
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "DEPLOYMENT_BALANCE"
+                      ]
+                    },
+                    "conditions": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operator": {
+                              "type": "string",
+                              "enum": [
+                                "and"
+                              ]
+                            },
+                            "value": {
+                              "type": "array",
+                              "minItems": 2,
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "operator": {
+                                    "oneOf": [
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "eq"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "lt"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "gt"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "lte"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "gte"
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  "field": {
+                                    "type": "string",
+                                    "enum": [
+                                      "balance"
+                                    ]
+                                  },
+                                  "value": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "operator",
+                                  "field",
+                                  "value"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "operator",
+                            "value"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operator": {
+                              "type": "string",
+                              "enum": [
+                                "or"
+                              ]
+                            },
+                            "value": {
+                              "type": "array",
+                              "minItems": 2,
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "operator": {
+                                    "oneOf": [
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "eq"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "lt"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "gt"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "lte"
+                                        ]
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "gte"
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  "field": {
+                                    "type": "string",
+                                    "enum": [
+                                      "balance"
+                                    ]
+                                  },
+                                  "value": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "operator",
+                                  "field",
+                                  "value"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "operator",
+                            "value"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operator": {
+                              "oneOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "eq"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "lt"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "gt"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "lte"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "gte"
+                                  ]
+                                }
+                              ]
+                            },
+                            "field": {
+                              "type": "string",
+                              "enum": [
+                                "balance"
+                              ]
+                            },
+                            "value": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "operator",
+                            "field",
+                            "value"
+                          ]
+                        }
+                      ]
+                    },
+                    "params": {
+                      "type": "object",
+                      "properties": {
+                        "dseq": {
+                          "type": "string",
+                          "pattern": "^\\d+$"
+                        },
+                        "owner": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "dseq",
+                        "owner"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "contactPointId",
+                    "name",
+                    "enabled",
+                    "summary",
+                    "description",
+                    "id",
+                    "userId",
+                    "status",
+                    "createdAt",
+                    "updatedAt",
+                    "type",
+                    "conditions",
+                    "params"
+                  ]
+                }
+              ]
+            }
+          },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "page": {
+                "type": "number",
+                "minimum": 0,
+                "exclusiveMinimum": false
+              },
+              "limit": {
+                "type": "number",
+                "minimum": 0,
+                "exclusiveMinimum": false,
+                "maximum": 1000,
+                "exclusiveMaximum": false
+              },
+              "total": {
+                "type": "number",
+                "minimum": 0,
+                "exclusiveMinimum": false
+              },
+              "totalPages": {
+                "type": "number",
+                "minimum": 0,
+                "exclusiveMinimum": false
+              },
+              "hasNextPage": {
+                "type": "boolean"
+              },
+              "hasPreviousPage": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "page",
+              "limit",
+              "total",
+              "totalPages",
+              "hasNextPage",
+              "hasPreviousPage"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "pagination"
         ]
       },
       "AlertPatchInput": {
@@ -2669,6 +3584,153 @@
                 ]
               }
             }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "DeploymentAlertCreateInput": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "owner": {
+                "type": "string"
+              },
+              "alerts": {
+                "type": "object",
+                "properties": {
+                  "deploymentBalance": {
+                    "type": "object",
+                    "properties": {
+                      "contactPointId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "enabled": {
+                        "type": "boolean",
+                        "default": true
+                      },
+                      "threshold": {
+                        "type": "number",
+                        "minimum": 0,
+                        "exclusiveMinimum": false
+                      }
+                    },
+                    "required": [
+                      "contactPointId",
+                      "threshold"
+                    ]
+                  },
+                  "deploymentClosed": {
+                    "type": "object",
+                    "properties": {
+                      "contactPointId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "enabled": {
+                        "type": "boolean",
+                        "default": true
+                      }
+                    },
+                    "required": [
+                      "contactPointId"
+                    ]
+                  }
+                }
+              }
+            },
+            "required": [
+              "owner",
+              "alerts"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "DeploymentAlertsResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "dseq": {
+                "type": "string"
+              },
+              "owner": {
+                "type": "string"
+              },
+              "alerts": {
+                "type": "object",
+                "properties": {
+                  "deploymentBalance": {
+                    "type": "object",
+                    "properties": {
+                      "contactPointId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "enabled": {
+                        "type": "boolean",
+                        "default": true
+                      },
+                      "threshold": {
+                        "type": "number",
+                        "minimum": 0,
+                        "exclusiveMinimum": false
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "status": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "contactPointId",
+                      "threshold",
+                      "id",
+                      "status"
+                    ]
+                  },
+                  "deploymentClosed": {
+                    "type": "object",
+                    "properties": {
+                      "contactPointId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "enabled": {
+                        "type": "boolean",
+                        "default": true
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "status": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "contactPointId",
+                      "id",
+                      "status"
+                    ]
+                  }
+                }
+              }
+            },
+            "required": [
+              "dseq",
+              "alerts"
+            ]
           }
         },
         "required": [

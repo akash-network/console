@@ -46,7 +46,7 @@ export class ChainMessageAlertService {
 
   private async forEachAlert(onAlert: AlertCallback) {
     try {
-      await this.alertRepository.paginate({
+      await this.alertRepository.paginateAll({
         query: { type: "CHAIN_MESSAGE" },
         limit: 10,
         callback: async alerts => {

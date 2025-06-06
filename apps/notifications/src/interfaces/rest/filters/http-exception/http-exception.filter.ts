@@ -39,6 +39,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else {
       if (isSerializationException) {
         this.logger.error({ event: "HTTP_RESPONSE_VALIDATION_FAILED", error: exception });
+      } else {
+        this.logger.error({ event: "HTTP_REQUEST_FAILED", error: exception });
       }
 
       response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
