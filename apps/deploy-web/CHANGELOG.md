@@ -1,5 +1,12 @@
 
 
+## [2.79.2](https://github.com/akash-network/console/compare/console-web/v2.79.1...console-web/v2.79.2) (2025-06-06)
+
+
+### Bug Fixes
+
+* **alert:** properly validates threshold limits ([1dcaff1](https://github.com/akash-network/console/commit/1dcaff141be75e6ffeddaedea91f6c1f8bf49951))
+
 ## [2.79.1](https://github.com/akash-network/console/compare/console-web/v2.79.0...console-web/v2.79.1) (2025-06-06)
 
 
