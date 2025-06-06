@@ -24,11 +24,16 @@ export const usePaymentDiscountsQuery = () => {
   });
 };
 
-export const usePaymentTransactionsQuery = () => {
+export interface UsePaymentTransactionsOptions {
+  limit?: number;
+  startingAfter?: string;
+}
+
+export const usePaymentTransactionsQuery = (options?: UsePaymentTransactionsOptions) => {
   return useQuery({
-    queryKey: QueryKeys.getPaymentTransactionsKey(),
+    queryKey: QueryKeys.getPaymentTransactionsKey(options),
     queryFn: async () => {
-      const response = await stripeService.getCustomerTransactions();
+      const response = await stripeService.getCustomerTransactions(options);
       return response.transactions;
     }
   });
@@ -60,6 +65,7 @@ export const usePaymentMutations = () => {
       // Invalidate relevant queries after successful payment
       queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
       queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentDiscountsKey() });
+      queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentTransactionsKey() });
     }
   });
 
