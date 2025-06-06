@@ -1,16 +1,17 @@
 import React from "react";
 import { NavArrowLeft } from "iconoir-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { NextSeo } from "next-seo";
 
 import { ContactPointCreateContainer } from "@src/components/alerts/ContactPointCreateContainer/ContactPointCreateContainer";
 import { ContactPointForm } from "@src/components/alerts/ContactPointForm/ContactPointForm";
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
+import { useBackNav } from "@src/hooks/useBackNav";
+import { UrlService } from "@src/utils/urlUtils";
 
 export const CreateContactPointPage: React.FunctionComponent = () => {
-  const router = useRouter();
+  const goBack = useBackNav(UrlService.contactPoints());
 
   return (
     <Layout containerClassName="flex h-full flex-col">
@@ -21,8 +22,8 @@ export const CreateContactPointPage: React.FunctionComponent = () => {
         </Link>
         <Title>Create Contact Point</Title>
       </div>
-      <ContactPointCreateContainer onCreate={router.back}>
-        {props => <ContactPointForm isLoading={props.isLoading} onSubmit={props.create} onCancel={router.back} />}
+      <ContactPointCreateContainer onCreate={goBack}>
+        {props => <ContactPointForm isLoading={props.isLoading} onSubmit={props.create} onCancel={goBack} />}
       </ContactPointCreateContainer>
     </Layout>
   );
