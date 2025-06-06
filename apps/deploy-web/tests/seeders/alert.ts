@@ -35,8 +35,8 @@ function buildChainMessageAlert(overrides?: Partial<ChainMessageAlert>): ChainMe
     createdAt: faker.date.past(),
     updatedAt: faker.date.recent(),
     params: {
-      dseq: faker.string.uuid(),
-      type: "string"
+      dseq: faker.number.int({ min: 1000, max: 999999 }).toString(),
+      type: faker.helpers.arrayElement(["akash.deployment.v1beta3.MsgCreateDeployment", "akash.deployment.v1beta3.MsgCloseDeployment"])
     },
     ...overrides,
     type: "CHAIN_MESSAGE"
@@ -61,7 +61,7 @@ function buildDeploymentBalanceAlert(overrides?: Partial<DeploymentBalanceAlert>
     createdAt: faker.date.past(),
     updatedAt: faker.date.recent(),
     params: {
-      dseq: faker.string.uuid(),
+      dseq: faker.number.int({ min: 1000, max: 999999 }).toString(),
       owner: faker.string.uuid()
     },
     ...overrides,

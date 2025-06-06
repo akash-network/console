@@ -69,7 +69,7 @@ describe(AlertsListContainer.name, () => {
 
   async function setup() {
     const mockData = {
-      data: Array.from({ length: 10 }, buildAlert),
+      data: Array.from({ length: 11 }, buildAlert),
       pagination: {
         page: 1,
         limit: 10,
