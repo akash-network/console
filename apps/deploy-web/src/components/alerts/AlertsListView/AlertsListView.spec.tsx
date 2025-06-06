@@ -1,7 +1,6 @@
 import "@testing-library/jest-dom";
 
 import React from "react";
-import { generateChainMessageAlert } from "@akashnetwork/notifications/test/seeders";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { PopupProvider } from "@akashnetwork/ui/context";
 import { capitalize, startCase } from "lodash";
@@ -10,6 +9,7 @@ import type { AlertsListViewProps } from "./AlertsListView";
 import { AlertsListView } from "./AlertsListView";
 
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { buildAlert } from "@tests/seeders/alert";
 
 describe(AlertsListView.name, () => {
   it("renders loading spinner when isLoading is true", () => {
@@ -28,9 +28,10 @@ describe(AlertsListView.name, () => {
   });
 
   it("renders table with enabled alert with params", () => {
-    const mockAlert = generateChainMessageAlert({
+    const mockAlert = buildAlert({
+      type: "DEPLOYMENT_BALANCE",
       enabled: true,
-      params: { dseq: "12345" }
+      params: { owner: "owner", dseq: "12345" }
     });
 
     setup({ data: [mockAlert] });
@@ -45,7 +46,8 @@ describe(AlertsListView.name, () => {
   });
 
   it("renders table with disabled alert without params", () => {
-    const mockAlert = generateChainMessageAlert({
+    const mockAlert = buildAlert({
+      type: "CHAIN_MESSAGE",
       enabled: false,
       params: undefined
     });
@@ -62,7 +64,7 @@ describe(AlertsListView.name, () => {
   });
 
   it("shows confirmation popup when remove button is clicked", async () => {
-    const mockAlert = generateChainMessageAlert({});
+    const mockAlert = buildAlert();
     setup({ data: [mockAlert] });
 
     fireEvent.click(screen.getByTestId("remove-alert-button"));
@@ -79,7 +81,7 @@ describe(AlertsListView.name, () => {
 
   it("calls onRemove when confirmed", async () => {
     const onRemove = jest.fn();
-    const mockAlert = generateChainMessageAlert({});
+    const mockAlert = buildAlert();
 
     setup({ data: [mockAlert], onRemove });
 
@@ -111,7 +113,7 @@ describe(AlertsListView.name, () => {
       total: 11,
       totalPages: 2
     };
-    const mockData = Array.from({ length: 11 }, () => generateChainMessageAlert({}));
+    const mockData = Array.from({ length: 11 }, buildAlert);
 
     setup({ data: mockData, pagination });
 
@@ -126,7 +128,7 @@ describe(AlertsListView.name, () => {
         total: 10,
         totalPages: 1
       },
-      data: Array.from({ length: 10 }, () => generateChainMessageAlert({})),
+      data: Array.from({ length: 10 }, buildAlert),
       isLoading: false,
       onRemove: jest.fn(),
       removingIds: new Set(),
