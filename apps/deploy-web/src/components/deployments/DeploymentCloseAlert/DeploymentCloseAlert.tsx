@@ -13,11 +13,12 @@ import { Fieldset } from "@src/components/shared/Fieldset";
 type DeploymentClosedAlertInput = components["schemas"]["DeploymentAlertCreateInput"]["data"]["alerts"]["deploymentClosed"];
 
 export type Props = {
+  isLoading: boolean;
   initialValues?: DeploymentClosedAlertInput;
   onSubmit: (input: NonNullable<DeploymentClosedAlertInput>) => void;
 };
 
-export const DeploymentCloseAlert: FC<Props> = ({ onSubmit, initialValues }) => {
+export const DeploymentCloseAlert: FC<Props> = ({ onSubmit, initialValues, isLoading }) => {
   const form = useForm({
     defaultValues: initialValues || {
       enabled: true
@@ -45,7 +46,7 @@ export const DeploymentCloseAlert: FC<Props> = ({ onSubmit, initialValues }) => 
               />
             </div>
             <div className="mt-2 space-y-3">
-              <LoadingButton type="button" onClick={toggle}>
+              <LoadingButton type="button" onClick={toggle} loading={isLoading}>
                 Save
               </LoadingButton>
             </div>

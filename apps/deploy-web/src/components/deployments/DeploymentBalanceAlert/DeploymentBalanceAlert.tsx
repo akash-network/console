@@ -19,11 +19,12 @@ import { ceilDecimal, denomToUdenom, udenomToDenom } from "@src/utils/mathHelper
 type DeploymentBalanceAlertInput = components["schemas"]["DeploymentAlertCreateInput"]["data"]["alerts"]["deploymentBalance"];
 
 export type Props = {
+  isLoading: boolean;
   initialValues?: DeploymentBalanceAlertInput;
   onSubmit: (input: NonNullable<DeploymentBalanceAlertInput>) => void;
 };
 
-export const DeploymentBalanceAlertView: FC<Props & { balance: number }> = ({ initialValues, onSubmit, balance }) => {
+export const DeploymentBalanceAlertView: FC<Props & { balance: number }> = ({ initialValues, onSubmit, balance, isLoading }) => {
   const schema = useMemo(() => {
     return z.object({
       threshold: z.number().min(balance, {
@@ -114,7 +115,9 @@ export const DeploymentBalanceAlertView: FC<Props & { balance: number }> = ({ in
               </div>
             </div>
             <div className="space-y-3">
-              <LoadingButton type="submit">Save</LoadingButton>
+              <LoadingButton type="submit" loading={isLoading}>
+                Save
+              </LoadingButton>
             </div>
           </form>
         </Form>

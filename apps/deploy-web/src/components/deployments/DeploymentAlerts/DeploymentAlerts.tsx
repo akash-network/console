@@ -20,11 +20,12 @@ export type Props = {
   components?: typeof COMPONENTS;
 };
 
-export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({ deployment, isFetched, data, upsert, components: c = COMPONENTS }) => {
+export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({ deployment, isFetched, isLoading, data, upsert, components: c = COMPONENTS }) => {
   return (
     <LoadingBlocker isLoading={!isFetched}>
       <div className="grid-col-1 mb-4 grid gap-4 md:grid-cols-2">
         <c.DeploymentCloseAlert
+          isLoading={isLoading}
           initialValues={data?.alerts?.deploymentClosed}
           onSubmit={values => {
             upsert({
@@ -35,6 +36,7 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({ deployment, is
           }}
         />
         <c.DeploymentBalanceAlert
+          isLoading={isLoading}
           deployment={deployment}
           initialValues={data?.alerts?.deploymentBalance}
           onSubmit={values => {
