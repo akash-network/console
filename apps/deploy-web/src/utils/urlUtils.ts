@@ -49,6 +49,7 @@ export class UrlService {
   static logout = () => "/api/auth/logout";
   static signup = () => "/api/auth/signup";
   static template = (id: string) => `/template/${id}`;
+  static payment = () => "/payment";
 
   // Deploy
   static deploymentList = () => `/deployments`;

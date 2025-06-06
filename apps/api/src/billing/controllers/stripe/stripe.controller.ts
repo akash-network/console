@@ -115,16 +115,6 @@ export class StripeController {
   }
 
   @Protected([{ action: "read", subject: "Coupon" }])
-  async listCoupons() {
-    try {
-      const coupons = await this.stripe.listCoupons();
-      return coupons;
-    } catch (error) {
-      throw new Error("Failed to list coupons");
-    }
-  }
-
-  @Protected([{ action: "read", subject: "Coupon" }])
   async getCoupon(couponId: string) {
     try {
       const coupon = await this.stripe.getCoupon(couponId);

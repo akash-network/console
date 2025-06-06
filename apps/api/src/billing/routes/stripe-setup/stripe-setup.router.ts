@@ -123,33 +123,6 @@ const applyCouponRoute = createRoute({
   }
 });
 
-const couponListRoute = createRoute({
-  method: "get",
-  path: "/v1/stripe-coupons",
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            coupons: z.array(
-              z.object({
-                id: z.string(),
-                percent_off: z.number().nullable().optional(),
-                amount_off: z.number().nullable().optional(),
-                valid: z.boolean(),
-                name: z.string().optional(),
-                description: z.string().optional()
-              })
-            )
-          })
-        }
-      },
-      description: "List of available coupons"
-    }
-  },
-  tags: ["Stripe"]
-});
-
 const getCouponRoute = createRoute({
   method: "get",
   path: "/v1/stripe-coupons/{couponId}",
@@ -306,11 +279,6 @@ stripeSetupRouter.openapi(confirmPaymentRoute, async function confirmPayment(c) 
 stripeSetupRouter.openapi(applyCouponRoute, async function applyCoupon(c) {
   const body = await c.req.json();
   const response = await container.resolve(StripeController).applyCoupon(body.couponId);
-  return c.json(response, 200);
-});
-
-stripeSetupRouter.openapi(couponListRoute, async function listCoupons(c) {
-  const response = await container.resolve(StripeController).listCoupons();
   return c.json(response, 200);
 });
 

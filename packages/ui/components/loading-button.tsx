@@ -13,6 +13,7 @@ export interface LoadingButtonProps extends ButtonProps {
 }
 
 const LoadingButton = React.forwardRef<HTMLButtonElement, LoadingButtonProps>(({ className, children, loading = false, loadingIndicator, ...props }, ref) => {
+  const variant = props.variant === "outline" || props.variant === "text" || props.variant === "link" || props.variant === "ghost" ? "primary" : "dark";
   return (
     <Button className={cn(className)} disabled={loading || props.disabled} ref={ref} {...props}>
       <div className="flex items-center">
@@ -25,7 +26,7 @@ const LoadingButton = React.forwardRef<HTMLButtonElement, LoadingButtonProps>(({
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              {loadingIndicator || <Spinner size="small" className="mr-2" />}
+              {loadingIndicator || <Spinner size="small" className="mr-2" variant={variant} />}
             </motion.div>
           )}
         </AnimatePresence>
