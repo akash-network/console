@@ -75,7 +75,11 @@ const App: React.FunctionComponent<Props> = props => {
 
         <UserProviders>
           <WalletProvider>
-            <Component {...pageProps} />
+            <CertificateProvider>
+              <BackgroundTaskProvider>
+                <Component {...pageProps} />
+              </BackgroundTaskProvider>
+            </CertificateProvider>
           </WalletProvider>
         </UserProviders>
       </>
@@ -105,11 +109,7 @@ function AppRoot(props: Props & { children: React.ReactNode }) {
                               <ServicesProvider>
                                 <CustomChainProvider>
                                   <ChainParamProvider>
-                                    <CertificateProvider>
-                                      <BackgroundTaskProvider>
-                                        <LocalNoteProvider>{props.children}</LocalNoteProvider>
-                                      </BackgroundTaskProvider>
-                                    </CertificateProvider>
+                                    <LocalNoteProvider>{props.children}</LocalNoteProvider>
                                   </ChainParamProvider>
                                 </CustomChainProvider>
                               </ServicesProvider>
