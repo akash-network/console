@@ -27,8 +27,8 @@ export type Props = {
 export const DeploymentBalanceAlertView: FC<Props & { balance: number }> = ({ initialValues, onSubmit, balance, isLoading }) => {
   const schema = useMemo(() => {
     return z.object({
-      threshold: z.number().min(balance, {
-        message: `Threshold must be greater than the current deployment balance of ${balance}.`
+      threshold: z.number().max(balance, {
+        message: `Threshold must be less than the current deployment balance of ${balance}.`
       }),
       enabled: z.boolean(),
       contactPointId: z.string()
@@ -99,6 +99,7 @@ export const DeploymentBalanceAlertView: FC<Props & { balance: number }> = ({ in
                     className="mb-2 w-full"
                     value={field.value}
                     onChange={event => field.onChange(parseFloat(event.target.value))}
+                    max={balance}
                   />
                 )}
               />
