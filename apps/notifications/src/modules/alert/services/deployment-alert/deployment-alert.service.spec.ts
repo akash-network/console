@@ -53,7 +53,7 @@ describe(DeploymentAlertService.name, () => {
       expect(alertRepository.create).toHaveBeenCalledWith({
         name: `Deployment ${input.dseq} closed`,
         userId,
-        contactPointId: input.alerts.deploymentBalance.contactPointId,
+        contactPointId: input.alerts.deploymentClosed.contactPointId,
         enabled: input.alerts.deploymentClosed.enabled,
         type: "CHAIN_MESSAGE",
         params: {
