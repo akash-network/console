@@ -1,5 +1,22 @@
 
 
+## [1.3.0](https://github.com/akash-network/console/compare/notifications/v1.2.3...notifications/v1.3.0) (2025-06-06)
+
+
+### Features
+
+* **alert:** adds alerts name column ([5297d9f](https://github.com/akash-network/console/commit/5297d9fb9e80b67827292cb0385fdaa0587e508b)), closes [#1415](https://github.com/akash-network/console/issues/1415)
+* **alert:** implements deployment alerts ([7fc89b3](https://github.com/akash-network/console/commit/7fc89b3a69131d496833d3ae0c297a884b100660))
+* **contact-point:** fetches contact point on the backend for edit ([3d1b0e3](https://github.com/akash-network/console/commit/3d1b0e378dbdd7d1aa140515e309827c00b01042))
+
+
+### Code Refactoring
+
+* move /v1/dashboard-data to modules ([#1372](https://github.com/akash-network/console/issues/1372)) ([1d165ad](https://github.com/akash-network/console/commit/1d165ad2bc78ad8a18521938e3720779c8da04c4)), closes [#1272](https://github.com/akash-network/console/issues/1272) [#1272](https://github.com/akash-network/console/issues/1272)
+* move /v1/deployment/{owner}/{dseq} to modules ([#1428](https://github.com/akash-network/console/issues/1428)) ([6138431](https://github.com/akash-network/console/commit/61384314fb6b3403192f14b2ea5290a53059f6e3)), closes [#1268](https://github.com/akash-network/console/issues/1268)
+* move /v1/market-data to modules ([#1430](https://github.com/akash-network/console/issues/1430)) ([bd0e78c](https://github.com/akash-network/console/commit/bd0e78c5d29e2c520c8f7f64acd24d831ecd0006)), closes [#1278](https://github.com/akash-network/console/issues/1278)
+* move /v1/validators to modules ([#1431](https://github.com/akash-network/console/issues/1431)) ([d2edc96](https://github.com/akash-network/console/commit/d2edc96dd2e70ffe91fec7bd86f25b658fb85c61)), closes [#1275](https://github.com/akash-network/console/issues/1275)
+
 ## [1.2.3](https://github.com/akash-network/console/compare/notifications/v1.2.2...notifications/v1.2.3) (2025-05-29)
 
 
