@@ -12,7 +12,7 @@ import { Fieldset } from "@src/components/shared/Fieldset";
 
 type DeploymentClosedAlertInput = components["schemas"]["DeploymentAlertCreateInput"]["data"]["alerts"]["deploymentClosed"];
 
-type Props = {
+export type Props = {
   initialValues?: DeploymentClosedAlertInput;
   onSubmit: (input: NonNullable<DeploymentClosedAlertInput>) => void;
 };

@@ -18,7 +18,7 @@ import { ceilDecimal, denomToUdenom, udenomToDenom } from "@src/utils/mathHelper
 
 type DeploymentBalanceAlertInput = components["schemas"]["DeploymentAlertCreateInput"]["data"]["alerts"]["deploymentBalance"];
 
-type Props = {
+export type Props = {
   initialValues?: DeploymentBalanceAlertInput;
   onSubmit: (input: NonNullable<DeploymentBalanceAlertInput>) => void;
 };
