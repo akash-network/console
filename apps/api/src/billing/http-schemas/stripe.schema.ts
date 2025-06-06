@@ -48,7 +48,7 @@ export const CouponSchema = z.object({
 });
 
 export const ApplyCouponResponseSchema = z.object({
-  coupon: z.any()
+  coupon: CouponSchema
 });
 
 export const DiscountSchema = z.object({
@@ -72,7 +72,7 @@ export const TransactionSchema = z.object({
   currency: z.string(),
   status: z.string(),
   created: z.number(),
-  paymentMethod: z.any(),
+  paymentMethod: PaymentMethodSchema,
   receiptUrl: z.string().optional(),
   description: z.string().optional(),
   metadata: z.record(z.string()).optional()

@@ -14,7 +14,6 @@ import { AddFundsLink } from "../user/AddFundsLink";
 
 interface ManagedWalletPopupProps extends React.PropsWithChildren {
   walletBalance: WalletBalance;
-  onClose: () => void;
 }
 
 export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance }) => {

@@ -1,6 +1,19 @@
-export const AkashConsoleLogoDark = ({ className = "" }: { className?: string }) => {
+export const AkashConsoleLogoDark = ({
+  className = "",
+  size = { width: 170, height: 19 }
+}: {
+  className?: string;
+  size?: { width: number; height: number };
+}) => {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="170" height="19" viewBox="0 0 170 19" fill="none" className={className}>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size.width}
+      height={size.height}
+      viewBox={`0 0 ${size.width} ${size.height}`}
+      fill="none"
+      className={className}
+    >
       <path d="M13.7518 12.0425L17.1474 18.0147H10.2884L6.85693 12.0425H13.7518Z" fill="url(#paint0_linear_868_9890)" />
       <path d="M17.1455 18.0158L20.5713 12.0436L13.7141 0.0961914H6.85693L17.1455 18.0158Z" fill="#FF414C" />
       <path d="M3.42857 6.06689H10.2858L3.43142 18.0143L0 12.042L3.42857 6.06689Z" fill="#FF414C" />
@@ -59,9 +72,22 @@ export const AkashConsoleLogoDark = ({ className = "" }: { className?: string })
   );
 };
 
-export const AkashConsoleLogoLight = ({ className = "" }: { className?: string }) => {
+export const AkashConsoleLogoLight = ({
+  className = "",
+  size = { width: 170, height: 19 }
+}: {
+  className?: string;
+  size?: { width: number; height: number };
+}) => {
   return (
-    <svg width="170" height="19" viewBox="0 0 170 19" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <svg
+      width={size.width}
+      height={size.height}
+      viewBox={`0 0 ${size.width} ${size.height}`}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
       <path d="M13.7518 12.0425L17.1474 18.0147H10.2884L6.85693 12.0425H13.7518Z" fill="url(#paint0_linear_868_9889)" />
       <path d="M17.1455 18.0158L20.5713 12.0436L13.7141 0.0961914H6.85693L17.1455 18.0158Z" fill="#FF414C" />
       <path d="M3.42857 6.06689H10.2858L3.43142 18.0143L0 12.042L3.42857 6.06689Z" fill="#FF414C" />

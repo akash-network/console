@@ -64,8 +64,12 @@ export function PaymentSuccessAnimation({ show, amount, onComplete }: PaymentSuc
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+          className="pointer-events-auto fixed inset-0 z-[9999] flex items-center justify-center bg-background/80 backdrop-blur-sm"
           onClick={onComplete}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="payment-success-title"
+          aria-describedby="payment-success-description"
         >
           {/* Particles */}
           {particles.map(particle => (
@@ -160,7 +164,7 @@ export function PaymentSuccessAnimation({ show, amount, onComplete }: PaymentSuc
               >
                 <div className="flex items-center rounded-lg border border-green-500/20 bg-green-500/10 px-6 py-3">
                   <span className="text-2xl font-bold text-green-500">
-                    <FormattedNumber value={parseFloat(amount)} style="currency" currency="USD" />
+                    <FormattedNumber value={parseFloat(amount) || 0} style="currency" currency="USD" />
                   </span>
                   <span className="ml-2 text-lg text-muted-foreground">added to your account</span>
                 </div>

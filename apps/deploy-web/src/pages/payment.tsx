@@ -28,7 +28,7 @@ const PayPage: React.FunctionComponent = () => {
 
   const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods, refetch: refetchPaymentMethods } = usePaymentMethodsQuery();
   const { data: discounts = [], isLoading: isLoadingDiscounts } = usePaymentDiscountsQuery();
-  const { data: setupIntent, mutate: createSetupIntent } = useSetupIntentMutation();
+  const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = useSetupIntentMutation();
   const {
     confirmPayment: { isPending: isConfirmingPayment, mutateAsync: confirmPayment },
     applyCoupon: { isPending: isApplyingCoupon, mutateAsync: applyCoupon },
@@ -42,11 +42,6 @@ const PayPage: React.FunctionComponent = () => {
       setSelectedPaymentMethodId(paymentMethods[0].id);
     }
   }, [paymentMethods, selectedPaymentMethodId]);
-
-  // Handle payment methods updated event
-  useEffect(() => {
-    createSetupIntent();
-  }, []);
 
   // Add effect to revalidate amount when coupon changes
   useEffect(() => {
@@ -89,6 +84,12 @@ const PayPage: React.FunctionComponent = () => {
   const handleAddCardSuccess = async () => {
     setShowAddPaymentMethod(false);
     refetchPaymentMethods();
+  };
+
+  const handleShowAddPaymentMethod = () => {
+    resetSetupIntent();
+    createSetupIntent();
+    setShowAddPaymentMethod(true);
   };
 
   const handleClaimCoupon = async () => {
@@ -238,7 +239,7 @@ const PayPage: React.FunctionComponent = () => {
               onRemovePaymentMethod={handleRemovePaymentMethod}
               isRemovingPaymentMethod={removePaymentMethod.isPending}
             />
-            <Button onClick={() => setShowAddPaymentMethod(true)} className="mt-4 w-full">
+            <Button onClick={handleShowAddPaymentMethod} className="mt-4 w-full">
               Add New Payment Method
             </Button>
           </div>

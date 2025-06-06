@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import React from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
@@ -88,8 +87,6 @@ export function HomeContainer() {
           />
         )}
       </div>
-
-      <Link href="/pay">Pay</Link>
     </Layout>
   );
 }

@@ -39,7 +39,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
       <div>
         <div className="mt-1">
           <Input type="number" name="amount" id="amount" min="0" step="0.01" value={amount} onChange={onAmountChange} placeholder="0.00" label="Amount (USD)" />
-          {amountError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{amountError}</p>}
+          {amountError && <p className="mt-1 text-sm text-destructive">{amountError}</p>}
         </div>
       </div>
 

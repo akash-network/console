@@ -21,7 +21,12 @@ export class StripeWebhookService {
 
   async routeStripeEvent(signature: string, rawEvent: string) {
     const event = this.stripe.webhooks.constructEvent(rawEvent, signature, process.env.STRIPE_WEBHOOK_SECRET);
-    this.logger.info({ event: "STRIPE_EVENT_RECEIVED", type: event.type, data: JSON.stringify(event, null, 2) });
+    this.logger.info({
+      event: "STRIPE_EVENT_RECEIVED",
+      type: event.type,
+      id: event.id,
+      objectId: event.data.object.object
+    });
 
     if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
       await this.tryToTopUpWalletForCheckout(event);
@@ -77,7 +82,8 @@ export class StripeWebhookService {
 
     // Get discount information from metadata
     const metadata = paymentIntent.metadata;
-    const originalAmount = metadata?.original_amount ? parseFloat(metadata.original_amount) : paymentIntent.amount;
+    const originalAmount =
+      metadata?.original_amount && !isNaN(parseFloat(metadata.original_amount)) ? parseFloat(metadata.original_amount) : paymentIntent.amount;
     const discountApplied = metadata?.discount_applied === "true";
 
     // If a discount was applied, consume the promotion code
