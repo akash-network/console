@@ -1,7 +1,7 @@
 import type { AnyAbility } from "@casl/ability";
 import { InjectDrizzle } from "@knaadh/nestjs-drizzle-pg";
 import { Injectable } from "@nestjs/common";
-import { and, count, eq, gt, lte, sql } from "drizzle-orm";
+import { and, count, eq, gt, lte, or, sql } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { SQL } from "drizzle-orm/sql/sql";
 
@@ -108,6 +108,22 @@ export class AlertRepository {
     });
 
     return alert && this.toOutput(alert);
+  }
+
+  async findAllDeploymentAlerts(dseq: string): Promise<AlertOutput[]> {
+    return this.toOutputList(
+      await this.db.query.Alert.findMany({
+        where: this.whereAccessibleBy(
+          and(
+            sql`${schema.Alert.params}->>'dseq' = ${dseq}`,
+            or(
+              sql`${schema.Alert.params}->>'type' IS NOT NULL`,
+              and(eq(schema.Alert.type, "DEPLOYMENT_BALANCE"), sql`${schema.Alert.params}->>'owner' IS NOT NULL`)
+            )
+          )
+        )
+      })
+    );
   }
 
   async deleteOneById(id: string): Promise<AlertOutput | undefined> {

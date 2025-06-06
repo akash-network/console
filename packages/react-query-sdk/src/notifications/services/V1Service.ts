@@ -226,7 +226,7 @@ export interface V1Service {
      * ```ts
      * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery({
      *     query: {
-     *         limit: limit
+     *         type: type
      *     },
      *     header: {
      *         Authorization: authorization
@@ -253,7 +253,7 @@ export interface V1Service {
      * ```ts
      * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery({
      *     query: {
-     *         limit: limit
+     *         type: type
      *     },
      *     header: {
      *         Authorization: authorization
@@ -405,7 +405,7 @@ export interface V1Service {
      * }, {
      *     initialPageParam: {
      *         query: {
-     *             limit: initialLimit
+     *             type: initialType
      *         }
      *     },
      *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
@@ -444,7 +444,7 @@ export interface V1Service {
      * }, {
      *     initialPageParam: {
      *         query: {
-     *             limit: initialLimit
+     *             type: initialType
      *         }
      *     },
      *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
@@ -484,7 +484,7 @@ export interface V1Service {
      *     infinite: false,
      *     parameters: {
      *         query: {
-     *             limit: limit
+     *             type: type
      *         },
      *         header: {
      *             Authorization: authorization
@@ -508,7 +508,7 @@ export interface V1Service {
      *     queries: [
      *         {
      *             query: {
-     *                 limit: limit1
+     *                 type: type1
      *             },
      *             header: {
      *                 Authorization: authorization1
@@ -516,7 +516,7 @@ export interface V1Service {
      *         },
      *         {
      *             query: {
-     *                 limit: limit2
+     *                 type: type2
      *             },
      *             header: {
      *                 Authorization: authorization2
@@ -533,7 +533,7 @@ export interface V1Service {
      *     queries: [
      *         {
      *             query: {
-     *                 limit: limit1
+     *                 type: type1
      *             },
      *             header: {
      *                 Authorization: authorization1
@@ -541,7 +541,7 @@ export interface V1Service {
      *         },
      *         {
      *             query: {
-     *                 limit: limit2
+     *                 type: type2
      *             },
      *             header: {
      *                 Authorization: authorization2
@@ -573,7 +573,7 @@ export interface V1Service {
      * ```ts
      * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery({
      *     query: {
-     *         limit: limit
+     *         type: type
      *     },
      *     header: {
      *         Authorization: authorization
@@ -600,7 +600,7 @@ export interface V1Service {
      * ```ts
      * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery({
      *     query: {
-     *         limit: limit
+     *         type: type
      *     },
      *     header: {
      *         Authorization: authorization
@@ -628,7 +628,7 @@ export interface V1Service {
      * }, {
      *     initialPageParam: {
      *         query: {
-     *             limit: initialLimit
+     *             type: initialType
      *         }
      *     },
      *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
@@ -664,7 +664,7 @@ export interface V1Service {
      *     queries: [
      *         {
      *             query: {
-     *                 limit: limit1
+     *                 type: type1
      *             },
      *             header: {
      *                 Authorization: authorization1
@@ -672,7 +672,7 @@ export interface V1Service {
      *         },
      *         {
      *             query: {
-     *                 limit: limit2
+     *                 type: type2
      *             },
      *             header: {
      *                 Authorization: authorization2
@@ -689,7 +689,7 @@ export interface V1Service {
      *     queries: [
      *         {
      *             query: {
-     *                 limit: limit1
+     *                 type: type1
      *             },
      *             header: {
      *                 Authorization: authorization1
@@ -697,7 +697,7 @@ export interface V1Service {
      *         },
      *         {
      *             query: {
-     *                 limit: limit2
+     *                 type: type2
      *             },
      *             header: {
      *                 Authorization: authorization2
@@ -728,7 +728,7 @@ export interface V1Service {
      * ```ts
      * const data = qraft.v1Service.getAlerts.useSuspenseQuery({
      *     query: {
-     *         limit: limit
+     *         type: type
      *     },
      *     header: {
      *         Authorization: authorization
@@ -3351,6 +3351,823 @@ export interface V1Service {
       body: DeleteContactPointBody;
     };
   };
+  upsertDeploymentAlert: {
+    /**/
+    getMutationKey(
+      parameters: DeepReadonly<UpsertDeploymentAlertParameters> | void
+    ): ServiceOperationMutationKey<UpsertDeploymentAlertSchema, UpsertDeploymentAlertParameters>;
+    /**
+     * Enables performing asynchronous data mutation operations such as POST, PUT, PATCH, or DELETE requests.
+     * Handles loading state, optimistic updates, and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
+     * @example Mutation with predefined parameters, e.g., for updating
+     * ```ts
+     * const { mutate, isPending } = qraft.v1Service.upsertDeploymentAlert.useMutation({
+     *     path: {
+     *         dseq: dseq
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
+     * mutate(body);
+     * ```
+     * @example Mutation without predefined parameters, e.g., for creating
+     * ```ts
+     * const { mutate, isPending } = qraft.v1Service.upsertDeploymentAlert.useMutation()
+     * mutate({
+     *     body: bodyPayload,
+     *     path: {
+     *         dseq: dseq
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * });
+     * ```
+     */
+    useMutation<TVariables extends UpsertDeploymentAlertBody, TContext = unknown>(
+      parameters: DeepReadonly<UpsertDeploymentAlertParameters>,
+      options?: ServiceOperationUseMutationOptions<
+        UpsertDeploymentAlertSchema,
+        UpsertDeploymentAlertData,
+        UpsertDeploymentAlertParameters,
+        TVariables,
+        UpsertDeploymentAlertError | Error,
+        TContext
+      >
+    ): UseMutationResult<UpsertDeploymentAlertData, UpsertDeploymentAlertError | Error, TVariables, TContext>;
+    /**
+     * Enables performing asynchronous data mutation operations such as POST, PUT, PATCH, or DELETE requests.
+     * Handles loading state, optimistic updates, and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
+     * @example Mutation with predefined parameters, e.g., for updating
+     * ```ts
+     * const { mutate, isPending } = qraft.v1Service.upsertDeploymentAlert.useMutation({
+     *     path: {
+     *         dseq: dseq
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
+     * mutate(body);
+     * ```
+     * @example Mutation without predefined parameters, e.g., for creating
+     * ```ts
+     * const { mutate, isPending } = qraft.v1Service.upsertDeploymentAlert.useMutation()
+     * mutate({
+     *     body: bodyPayload,
+     *     path: {
+     *         dseq: dseq
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * });
+     * ```
+     */
+    useMutation<TVariables extends MutationVariables<UpsertDeploymentAlertBody, UpsertDeploymentAlertParameters>, TContext = unknown>(
+      parameters: void,
+      options?: ServiceOperationUseMutationOptions<
+        UpsertDeploymentAlertSchema,
+        UpsertDeploymentAlertData,
+        UpsertDeploymentAlertParameters,
+        TVariables,
+        UpsertDeploymentAlertError | Error,
+        TContext
+      >
+    ): UseMutationResult<UpsertDeploymentAlertData, UpsertDeploymentAlertError | Error, TVariables, TContext>;
+    /**
+     * Returns the count of currently in-progress mutations.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useIsMutating|`useIsMutating(...)` documentation}
+     * @example Check how many mutations are currently in progress for the specified service method.
+     * ```ts
+     * const upsertDeploymentAlertTotal = qraft.v1Service.upsertDeploymentAlert.useIsMutating()
+     * ```
+     * @example Check how many mutations are currently in progress with the specified parameters.
+     * ```ts
+     * const upsertDeploymentAlertTotal = qraft.v1Service.upsertDeploymentAlert.useIsMutating({
+     *     parameters: {
+     *         path: {
+     *             dseq: dseq
+     *         },
+     *         header: {
+     *             Authorization: authorization
+     *         }
+     *     }
+     * })
+     * ```
+     */
+    useIsMutating<TContext = unknown>(
+      filters?:
+        | MutationFiltersByParameters<
+            UpsertDeploymentAlertBody,
+            UpsertDeploymentAlertData,
+            UpsertDeploymentAlertParameters,
+            UpsertDeploymentAlertError | Error,
+            TContext
+          >
+        | MutationFiltersByMutationKey<
+            UpsertDeploymentAlertSchema,
+            UpsertDeploymentAlertBody,
+            UpsertDeploymentAlertData,
+            UpsertDeploymentAlertParameters,
+            UpsertDeploymentAlertError | Error,
+            TContext
+          >
+    ): number;
+    /**/
+    isMutating<TContext>(
+      filters?:
+        | MutationFiltersByParameters<
+            UpsertDeploymentAlertBody,
+            UpsertDeploymentAlertData,
+            UpsertDeploymentAlertParameters,
+            UpsertDeploymentAlertError | Error,
+            TContext
+          >
+        | MutationFiltersByMutationKey<
+            UpsertDeploymentAlertSchema,
+            UpsertDeploymentAlertBody,
+            UpsertDeploymentAlertData,
+            UpsertDeploymentAlertParameters,
+            UpsertDeploymentAlertError | Error,
+            TContext
+          >
+    ): number;
+    /**/
+    (
+      options: ServiceOperationMutationFnOptions<UpsertDeploymentAlertBody, UpsertDeploymentAlertParameters>,
+      client?: (
+        schema: UpsertDeploymentAlertSchema,
+        options: ServiceOperationMutationFnOptions<UpsertDeploymentAlertBody, UpsertDeploymentAlertParameters>
+      ) => Promise<RequestFnResponse<UpsertDeploymentAlertData, UpsertDeploymentAlertError>>
+    ): Promise<RequestFnResponse<UpsertDeploymentAlertData, UpsertDeploymentAlertError>>;
+    /**
+     * Provides access to the current state of a mutation, including its status, any resulting data, and associated errors.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutationState|`useMutationState(...)` documentation}
+     * @example Get all variables of all running mutations.
+     * ```ts
+     * const upsertDeploymentAlertPendingMutationVariables = qraft.v1Service.upsertDeploymentAlert.useMutationState({
+     *     filters: {
+     *         status: "pending"
+     *     },
+     *     select: mutation => mutation.state.variables
+     * })
+     * ```
+     * @example Get all data for specific mutations via the `parameters`.
+     * ```ts
+     * const upsertDeploymentAlertMutationData = qraft.v1Service.upsertDeploymentAlert.useMutationState({
+     *     filters: {
+     *         parameters: {
+     *             path: {
+     *                 dseq: dseq
+     *             },
+     *             header: {
+     *                 Authorization: authorization
+     *             }
+     *         }
+     *     },
+     *     select: mutation => mutation.state.data
+     * })
+     * ```
+     */
+    useMutationState<
+      TContext = unknown,
+      TResult = MutationState<
+        UpsertDeploymentAlertData,
+        UpsertDeploymentAlertError | Error,
+        MutationVariables<UpsertDeploymentAlertBody, UpsertDeploymentAlertParameters>,
+        TContext
+      >
+    >(options?: {
+      filters?:
+        | MutationFiltersByParameters<
+            UpsertDeploymentAlertBody,
+            UpsertDeploymentAlertData,
+            UpsertDeploymentAlertParameters,
+            UpsertDeploymentAlertError | Error,
+            TContext
+          >
+        | MutationFiltersByMutationKey<
+            UpsertDeploymentAlertSchema,
+            UpsertDeploymentAlertBody,
+            UpsertDeploymentAlertData,
+            UpsertDeploymentAlertParameters,
+            UpsertDeploymentAlertError | Error,
+            TContext
+          >;
+      select?: (
+        mutation: Mutation<
+          UpsertDeploymentAlertData,
+          UpsertDeploymentAlertError | Error,
+          MutationVariables<UpsertDeploymentAlertBody, UpsertDeploymentAlertParameters>,
+          TContext
+        >
+      ) => TResult;
+    }): Array<TResult>;
+    schema: UpsertDeploymentAlertSchema;
+    types: {
+      parameters: UpsertDeploymentAlertParameters;
+      data: UpsertDeploymentAlertData;
+      error: UpsertDeploymentAlertError;
+      body: UpsertDeploymentAlertBody;
+    };
+  };
+  getDeploymentAlerts: {
+    /**/
+    cancelQueries<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>
+        | QueryFiltersByQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>,
+      options?: CancelOptions
+    ): Promise<void>;
+    /**/
+    getQueryKey(parameters: DeepReadonly<GetDeploymentAlertsParameters>): ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>;
+    /**
+     * Performs asynchronous data fetching, manages loading states and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
+     * @example Query with parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getDeploymentAlerts.useQuery({
+     *     path: {
+     *         dseq: dseq
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
+     * ```
+     */
+    useQuery<TData = GetDeploymentAlertsData>(
+      parameters: ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters> | DeepReadonly<GetDeploymentAlertsParameters>,
+      options?: Omit<
+        UndefinedInitialDataOptions<
+          GetDeploymentAlertsData,
+          GetDeploymentAlertsError,
+          TData,
+          ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>
+        >,
+        "queryKey"
+      >
+    ): UseQueryResult<TData, GetDeploymentAlertsError | Error>;
+    /**
+     * Performs asynchronous data fetching, manages loading states and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
+     * @example Query with parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getDeploymentAlerts.useQuery({
+     *     path: {
+     *         dseq: dseq
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
+     * ```
+     */
+    useQuery<TData = GetDeploymentAlertsData>(
+      parameters: ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters> | DeepReadonly<GetDeploymentAlertsParameters>,
+      options: Omit<
+        DefinedInitialDataOptions<
+          GetDeploymentAlertsData,
+          GetDeploymentAlertsError,
+          TData,
+          ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>
+        >,
+        "queryKey"
+      >
+    ): DefinedUseQueryResult<TData, GetDeploymentAlertsError | Error>;
+    /**/
+    fetchInfiniteQuery<TPageParam extends GetDeploymentAlertsParameters>(
+      options: ServiceOperationFetchInfiniteQueryOptions<
+        GetDeploymentAlertsSchema,
+        GetDeploymentAlertsData,
+        GetDeploymentAlertsParameters,
+        DeepReadonly<TPageParam>,
+        GetDeploymentAlertsError
+      >
+    ): Promise<OperationInfiniteData<GetDeploymentAlertsData, GetDeploymentAlertsParameters>>;
+    /**/
+    prefetchInfiniteQuery<TPageParam extends GetDeploymentAlertsParameters>(
+      options: ServiceOperationFetchInfiniteQueryOptions<
+        GetDeploymentAlertsSchema,
+        GetDeploymentAlertsData,
+        GetDeploymentAlertsParameters,
+        DeepReadonly<TPageParam>,
+        GetDeploymentAlertsError
+      >
+    ): Promise<void>;
+    /**/
+    ensureInfiniteQueryData<TPageParam extends GetDeploymentAlertsParameters>(
+      options: ServiceOperationEnsureInfiniteQueryDataOptions<
+        GetDeploymentAlertsSchema,
+        GetDeploymentAlertsData,
+        GetDeploymentAlertsParameters,
+        DeepReadonly<TPageParam>,
+        GetDeploymentAlertsError
+      >
+    ): Promise<OperationInfiniteData<GetDeploymentAlertsData, GetDeploymentAlertsParameters>>;
+    /**/
+    fetchQuery(
+      options: ServiceOperationFetchQueryOptions<GetDeploymentAlertsSchema, GetDeploymentAlertsData, GetDeploymentAlertsParameters, GetDeploymentAlertsError>
+    ): Promise<GetDeploymentAlertsData>;
+    /**/
+    prefetchQuery(
+      options: ServiceOperationFetchQueryOptions<GetDeploymentAlertsSchema, GetDeploymentAlertsData, GetDeploymentAlertsParameters, GetDeploymentAlertsError>
+    ): Promise<void>;
+    /**/
+    ensureQueryData(
+      options: ServiceOperationEnsureQueryDataOptions<
+        GetDeploymentAlertsSchema,
+        GetDeploymentAlertsData,
+        GetDeploymentAlertsParameters,
+        GetDeploymentAlertsError
+      >
+    ): Promise<GetDeploymentAlertsData>;
+    /**/
+    getInfiniteQueryData(
+      parameters: ServiceOperationInfiniteQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters> | DeepReadonly<GetDeploymentAlertsParameters>
+    ): OperationInfiniteData<GetDeploymentAlertsData, GetDeploymentAlertsParameters> | undefined;
+    /**/
+    getQueriesData<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>
+        | QueryFiltersByQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>
+    ): TInfinite extends true
+      ? Array<
+          [
+            queryKey: ServiceOperationInfiniteQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>,
+            data: NoInfer<OperationInfiniteData<GetDeploymentAlertsData, GetDeploymentAlertsParameters>> | undefined
+          ]
+        >
+      : Array<[queryKey: ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>, data: GetDeploymentAlertsData | undefined]>;
+    /**/
+    getQueryData(
+      parameters: ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters> | DeepReadonly<GetDeploymentAlertsParameters>
+    ): GetDeploymentAlertsData | undefined;
+    /**/
+    getQueryState(
+      parameters: ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters> | DeepReadonly<GetDeploymentAlertsParameters>
+    ): QueryState<GetDeploymentAlertsData, GetDeploymentAlertsError> | undefined;
+    /**/
+    getInfiniteQueryState(
+      parameters: DeepReadonly<GetDeploymentAlertsParameters> | ServiceOperationInfiniteQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>
+    ): QueryState<OperationInfiniteData<GetDeploymentAlertsData, GetDeploymentAlertsParameters>, GetDeploymentAlertsError> | undefined;
+    /**/
+    invalidateQueries<TInfinite extends boolean = false>(
+      filters?: InvalidateQueryFilters<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>,
+      options?: InvalidateOptions
+    ): Promise<void>;
+    /**/
+    isFetching<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>
+        | QueryFiltersByQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>
+    ): number;
+    /**/
+    <TMeta extends Record<string, any>, TSignal extends AbortSignal = AbortSignal>(
+      options:
+        | QueryFnOptionsByQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters, TMeta, TSignal>
+        | QueryFnOptionsByParameters<GetDeploymentAlertsParameters, TMeta, TSignal>,
+      client?: (
+        schema: GetDeploymentAlertsSchema,
+        options: {
+          parameters: GetDeploymentAlertsParameters;
+          signal?: TSignal;
+          meta?: TMeta;
+        }
+      ) => Promise<RequestFnResponse<GetDeploymentAlertsData, GetDeploymentAlertsError>>
+    ): Promise<RequestFnResponse<GetDeploymentAlertsData, GetDeploymentAlertsError>>;
+    /**/
+    refetchQueries<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>
+        | QueryFiltersByQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>,
+      options?: RefetchOptions
+    ): Promise<void>;
+    /**/
+    removeQueries<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>
+        | QueryFiltersByQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>
+    ): void;
+    /**/
+    resetQueries<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>
+        | QueryFiltersByQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>,
+      options?: ResetOptions
+    ): Promise<void>;
+    /**/
+    setInfiniteQueryData(
+      parameters: DeepReadonly<GetDeploymentAlertsParameters> | ServiceOperationInfiniteQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>,
+      updater: Updater<
+        NoInfer<OperationInfiniteData<GetDeploymentAlertsData, GetDeploymentAlertsParameters>> | undefined,
+        NoInfer<DeepReadonly<OperationInfiniteData<GetDeploymentAlertsData, GetDeploymentAlertsParameters>>> | undefined
+      >,
+      options?: SetDataOptions
+    ): OperationInfiniteData<GetDeploymentAlertsData, GetDeploymentAlertsParameters> | undefined;
+    /**/
+    setQueriesData<TInfinite extends boolean = false>(
+      filters:
+        | QueryFiltersByParameters<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>
+        | QueryFiltersByQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>,
+      updater: Updater<NoInfer<GetDeploymentAlertsData> | undefined, NoInfer<GetDeploymentAlertsData> | undefined>,
+      options?: SetDataOptions
+    ): Array<GetDeploymentAlertsData | undefined>;
+    /**/
+    setQueryData(
+      parameters: DeepReadonly<GetDeploymentAlertsParameters> | ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>,
+      updater: Updater<NoInfer<GetDeploymentAlertsData> | undefined, NoInfer<DeepReadonly<GetDeploymentAlertsData>> | undefined>,
+      options?: SetDataOptions
+    ): GetDeploymentAlertsData | undefined;
+    /**/
+    getInfiniteQueryKey(
+      parameters: DeepReadonly<GetDeploymentAlertsParameters>
+    ): ServiceOperationInfiniteQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>;
+    /**
+     * Performs asynchronous data fetching with support for infinite scrolling scenarios.
+     * Manages paginated data and provides utilities for fetching additional pages.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useInfiniteQuery|`useInfiniteQuery(...)` documentation}
+     *
+     * @example Infinite Query
+     * ```ts
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getDeploymentAlerts.useInfiniteQuery({
+     *     path: {
+     *         dseq: dseq
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * }, {
+     *     initialPageParam: {},
+     *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
+     * })
+     *
+     * console.log(data);
+     * fetchNextPage(); // Fetch the next page
+     * ```
+     */
+    useInfiniteQuery<
+      TPageParam extends GetDeploymentAlertsParameters,
+      TQueryFnData = GetDeploymentAlertsData,
+      TData = OperationInfiniteData<TQueryFnData, GetDeploymentAlertsParameters>
+    >(
+      parameters: ServiceOperationInfiniteQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters> | DeepReadonly<GetDeploymentAlertsParameters>,
+      options: Omit<
+        UndefinedInitialDataInfiniteOptions<
+          TQueryFnData,
+          GetDeploymentAlertsError,
+          TData,
+          ServiceOperationInfiniteQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>,
+          PartialParameters<DeepReadonly<TPageParam>>
+        >,
+        "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
+      > &
+        InfiniteQueryPageParamsOptions<TQueryFnData, PartialParameters<DeepReadonly<TPageParam>>>
+    ): UseInfiniteQueryResult<TData, GetDeploymentAlertsError | Error>;
+    /**
+     * Performs asynchronous data fetching with support for infinite scrolling scenarios.
+     * Manages paginated data and provides utilities for fetching additional pages.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useInfiniteQuery|`useInfiniteQuery(...)` documentation}
+     *
+     * @example Infinite Query
+     * ```ts
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getDeploymentAlerts.useInfiniteQuery({
+     *     path: {
+     *         dseq: dseq
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * }, {
+     *     initialPageParam: {},
+     *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
+     * })
+     *
+     * console.log(data);
+     * fetchNextPage(); // Fetch the next page
+     * ```
+     */
+    useInfiniteQuery<
+      TPageParam extends GetDeploymentAlertsParameters,
+      TQueryFnData = GetDeploymentAlertsData,
+      TData = OperationInfiniteData<TQueryFnData, GetDeploymentAlertsParameters>
+    >(
+      parameters: ServiceOperationInfiniteQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters> | DeepReadonly<GetDeploymentAlertsParameters>,
+      options: Omit<
+        DefinedInitialDataInfiniteOptions<
+          TQueryFnData,
+          GetDeploymentAlertsError,
+          TData,
+          ServiceOperationInfiniteQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>,
+          PartialParameters<DeepReadonly<TPageParam>>
+        >,
+        "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
+      > &
+        InfiniteQueryPageParamsOptions<GetDeploymentAlertsData, PartialParameters<DeepReadonly<TPageParam>>>
+    ): DefinedUseInfiniteQueryResult<TData, GetDeploymentAlertsError | Error>;
+    /**
+     * Monitors the number of queries currently fetching, matching the provided filters.
+     * Useful for creating loading indicators or performing actions based on active requests.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useIsFetching|`useIsFetching(...)` documentation}
+     * @example Checks the total number of queries fetching from the specified service method,
+     * both normal and infinite. If no parameters are provided, no filtering is applied.
+     * ```ts
+     * const getDeploymentAlertsTotal = qraft.v1Service.getDeploymentAlerts.useIsFetching()
+     * ```
+     * @example Checks the number of normal queries fetching with the specified parameters.
+     * ```ts
+     * const getDeploymentAlertsByParametersTotal = qraft.v1Service.getDeploymentAlerts.useIsFetching({
+     *     infinite: false,
+     *     parameters: {
+     *         path: {
+     *             dseq: dseq
+     *         },
+     *         header: {
+     *             Authorization: authorization
+     *         }
+     *     }
+     * })
+     * ```
+     */
+    useIsFetching<TInfinite extends boolean = false>(
+      filters?:
+        | QueryFiltersByParameters<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>
+        | QueryFiltersByQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsData, TInfinite, GetDeploymentAlertsParameters, GetDeploymentAlertsError>
+    ): number;
+    /**
+     * Allows you to execute multiple asynchronous data fetching operations concurrently. This is especially useful for managing complex data dependencies in parallel.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQueries|`useQueries(...)` documentation}
+     * @example Multiple queries. Returns `data`, `error`, `isSuccess` and other properties.
+     * ```ts
+     * const getDeploymentAlertsResults = qraft.v1Service.getDeploymentAlerts.useQueries({
+     *     queries: [
+     *         {
+     *             path: {
+     *                 dseq: dseq1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
+     *             }
+     *         },
+     *         {
+     *             path: {
+     *                 dseq: dseq2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
+     *             }
+     *         }
+     *     ]
+     * });
+     * getDeploymentAlertsResults.forEach(({ isSuccess, data, error }) => console.log({ isSuccess, data, error }));
+     * ```
+     * @example Combined results. Only the data will be returned.
+     * ```ts
+     * const getDeploymentAlertsCombinedResults = qraft.v1Service.getDeploymentAlerts.useQueries({
+     *     combine: results => results.map(result => result.data),
+     *     queries: [
+     *         {
+     *             path: {
+     *                 dseq: dseq1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
+     *             }
+     *         },
+     *         {
+     *             path: {
+     *                 dseq: dseq2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
+     *             }
+     *         }
+     *     ]
+     * });
+     * getDeploymentAlertsCombinedResults.forEach(data => console.log({ data }));
+     * ```
+     */
+    useQueries<
+      T extends Array<
+        UseQueryOptionsForUseQueries<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters, GetDeploymentAlertsData, GetDeploymentAlertsError>
+      >,
+      TCombinedResult = Array<UseQueryResult<GetDeploymentAlertsData, GetDeploymentAlertsError>>
+    >(options: {
+      queries: T;
+      combine?: (results: Array<UseQueryResult<GetDeploymentAlertsData, GetDeploymentAlertsError>>) => TCombinedResult;
+    }): TCombinedResult;
+    /**/
+    getQueryKey(parameters: DeepReadonly<GetDeploymentAlertsParameters>): ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>;
+    /**
+     * Performs asynchronous data fetching, manages loading states and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
+     * @example Query with parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getDeploymentAlerts.useQuery({
+     *     path: {
+     *         dseq: dseq
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
+     * ```
+     */
+    useQuery<TData = GetDeploymentAlertsData>(
+      parameters: ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters> | DeepReadonly<GetDeploymentAlertsParameters>,
+      options?: Omit<
+        UndefinedInitialDataOptions<
+          GetDeploymentAlertsData,
+          GetDeploymentAlertsError,
+          TData,
+          ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>
+        >,
+        "queryKey"
+      >
+    ): UseQueryResult<TData, GetDeploymentAlertsError | Error>;
+    /**
+     * Performs asynchronous data fetching, manages loading states and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
+     * @example Query with parameters
+     * ```ts
+     * const { data, isLoading } = qraft.v1Service.getDeploymentAlerts.useQuery({
+     *     path: {
+     *         dseq: dseq
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
+     * ```
+     */
+    useQuery<TData = GetDeploymentAlertsData>(
+      parameters: ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters> | DeepReadonly<GetDeploymentAlertsParameters>,
+      options: Omit<
+        DefinedInitialDataOptions<
+          GetDeploymentAlertsData,
+          GetDeploymentAlertsError,
+          TData,
+          ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>
+        >,
+        "queryKey"
+      >
+    ): DefinedUseQueryResult<TData, GetDeploymentAlertsError | Error>;
+    /**
+     * Performs asynchronous data fetching with support for infinite scrolling scenarios.
+     * Manages paginated data and provides utilities for fetching additional pages.
+     * It functions similarly to `useInfiniteQuery`, but with added support for React Suspense.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useSuspenseInfiniteQuery|`useSuspenseInfiniteQuery(...)` documentation}
+     *
+     * @example Suspense Infinite Query
+     * ```ts
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getDeploymentAlerts.useSuspenseInfiniteQuery({
+     *     path: {
+     *         dseq: dseq
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * }, {
+     *     initialPageParam: {},
+     *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
+     * })
+     *
+     * console.log(data);
+     * fetchNextPage(); // Fetch the next page
+     * ```
+     */
+    useSuspenseInfiniteQuery<TPageParam extends GetDeploymentAlertsParameters, TData = GetDeploymentAlertsData>(
+      parameters: ServiceOperationInfiniteQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters> | DeepReadonly<GetDeploymentAlertsParameters>,
+      options: Omit<
+        UseSuspenseInfiniteQueryOptions<
+          GetDeploymentAlertsData,
+          GetDeploymentAlertsError,
+          OperationInfiniteData<TData, GetDeploymentAlertsParameters>,
+          GetDeploymentAlertsData,
+          ServiceOperationInfiniteQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>,
+          PartialParameters<DeepReadonly<TPageParam>>
+        >,
+        "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
+      > &
+        InfiniteQueryPageParamsOptions<GetDeploymentAlertsData, PartialParameters<DeepReadonly<TPageParam>>>
+    ): UseSuspenseInfiniteQueryResult<OperationInfiniteData<TData, GetDeploymentAlertsParameters>, GetDeploymentAlertsError | Error>;
+    /**
+     * Allows you to execute multiple asynchronous data fetching operations concurrently with Suspense support.
+     * Similar to useQueries but integrates with React Suspense for loading states.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useSuspenseQueries|`useSuspenseQueries(...)` documentation}
+     * @example Basic usage with Suspense
+     * ```ts
+     * const getDeploymentAlertsData = qraft.v1Service.getDeploymentAlerts.useSuspenseQueries({
+     *     queries: [
+     *         {
+     *             path: {
+     *                 dseq: dseq1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
+     *             }
+     *         },
+     *         {
+     *             path: {
+     *                 dseq: dseq2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
+     *             }
+     *         }
+     *     ]
+     * });
+     * getDeploymentAlertsResults.forEach(({ isSuccess, data, error }) => console.log({ isSuccess, data, error }));
+     * ```
+     * @example With data transformation using combine
+     * ```ts
+     * const getDeploymentAlertsCombinedData = qraft.v1Service.getDeploymentAlerts.useSuspenseQueries({
+     *     combine: results => results.map(result => result.data),
+     *     queries: [
+     *         {
+     *             path: {
+     *                 dseq: dseq1
+     *             },
+     *             header: {
+     *                 Authorization: authorization1
+     *             }
+     *         },
+     *         {
+     *             path: {
+     *                 dseq: dseq2
+     *             },
+     *             header: {
+     *                 Authorization: authorization2
+     *             }
+     *         }
+     *     ]
+     * });
+     * getDeploymentAlertsCombinedData.forEach(data => console.log({ data }));
+     * ```
+     */
+    useSuspenseQueries<
+      T extends Array<
+        UseQueryOptionsForUseSuspenseQuery<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters, GetDeploymentAlertsData, GetDeploymentAlertsError>
+      >,
+      TCombinedResult = Array<UseSuspenseQueryResult<GetDeploymentAlertsData, GetDeploymentAlertsError>>
+    >(options: {
+      queries: T;
+      combine?: (results: Array<WithOptional<UseSuspenseQueryResult<GetDeploymentAlertsData, GetDeploymentAlertsError>, "data">>) => TCombinedResult;
+    }): TCombinedResult;
+    /**
+     * Performs asynchronous data fetching with Suspense support.
+     * Similar to useQuery but integrates with React Suspense for loading states.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useSuspenseQuery|`useSuspenseQuery(...)` documentation}
+     * @example Suspense Query with parameters
+     * ```ts
+     * const data = qraft.v1Service.getDeploymentAlerts.useSuspenseQuery({
+     *     path: {
+     *         dseq: dseq
+     *     },
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
+     * ```
+     */
+    useSuspenseQuery<TData = GetDeploymentAlertsData>(
+      parameters: ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters> | DeepReadonly<GetDeploymentAlertsParameters>,
+      options?: Omit<
+        UseSuspenseQueryOptions<
+          GetDeploymentAlertsData,
+          GetDeploymentAlertsError,
+          TData,
+          ServiceOperationQueryKey<GetDeploymentAlertsSchema, GetDeploymentAlertsParameters>
+        >,
+        "queryKey"
+      >
+    ): UseSuspenseQueryResult<TData, GetDeploymentAlertsError | Error>;
+    schema: GetDeploymentAlertsSchema;
+    types: {
+      parameters: GetDeploymentAlertsParameters;
+      data: GetDeploymentAlertsData;
+      error: GetDeploymentAlertsError;
+    };
+  };
 }
 export const createAlert = {
   schema: {
@@ -3446,6 +4263,25 @@ export const deleteContactPoint = {
   schema: DeleteContactPointSchema;
   [QraftServiceOperationsToken]: V1Service["deleteContactPoint"];
 };
+export const upsertDeploymentAlert = {
+  schema: {
+    method: "post",
+    url: "/v1/deployment-alerts/{dseq}",
+    mediaType: ["application/json"]
+  }
+} as {
+  schema: UpsertDeploymentAlertSchema;
+  [QraftServiceOperationsToken]: V1Service["upsertDeploymentAlert"];
+};
+export const getDeploymentAlerts = {
+  schema: {
+    method: "get",
+    url: "/v1/deployment-alerts/{dseq}"
+  }
+} as {
+  schema: GetDeploymentAlertsSchema;
+  [QraftServiceOperationsToken]: V1Service["getDeploymentAlerts"];
+};
 export const v1Service = {
   createAlert,
   getAlerts,
@@ -3456,7 +4292,9 @@ export const v1Service = {
   getContactPoints,
   getContactPoint,
   patchContactPoint,
-  deleteContactPoint
+  deleteContactPoint,
+  upsertDeploymentAlert,
+  getDeploymentAlerts
 } as const;
 type CreateAlertSchema = {
   method: "post";
@@ -3581,3 +4419,27 @@ type DeleteContactPointError =
   | paths["/v1/contact-points/{id}"]["delete"]["responses"]["404"]["content"]["application/json"]
   | paths["/v1/contact-points/{id}"]["delete"]["responses"]["500"]["content"]["application/json"];
 type DeleteContactPointBody = undefined;
+type UpsertDeploymentAlertSchema = {
+  method: "post";
+  url: "/v1/deployment-alerts/{dseq}";
+  mediaType: ["application/json"];
+};
+type UpsertDeploymentAlertParameters = paths["/v1/deployment-alerts/{dseq}"]["post"]["parameters"];
+type UpsertDeploymentAlertData = paths["/v1/deployment-alerts/{dseq}"]["post"]["responses"]["201"]["content"]["application/json"];
+type UpsertDeploymentAlertError =
+  | paths["/v1/deployment-alerts/{dseq}"]["post"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/deployment-alerts/{dseq}"]["post"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/deployment-alerts/{dseq}"]["post"]["responses"]["403"]["content"]["application/json"]
+  | paths["/v1/deployment-alerts/{dseq}"]["post"]["responses"]["500"]["content"]["application/json"];
+type UpsertDeploymentAlertBody = paths["/v1/deployment-alerts/{dseq}"]["post"]["requestBody"]["content"]["application/json"];
+type GetDeploymentAlertsSchema = {
+  method: "get";
+  url: "/v1/deployment-alerts/{dseq}";
+};
+type GetDeploymentAlertsParameters = paths["/v1/deployment-alerts/{dseq}"]["get"]["parameters"];
+type GetDeploymentAlertsData = paths["/v1/deployment-alerts/{dseq}"]["get"]["responses"]["200"]["content"]["application/json"];
+type GetDeploymentAlertsError =
+  | paths["/v1/deployment-alerts/{dseq}"]["get"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/deployment-alerts/{dseq}"]["get"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/deployment-alerts/{dseq}"]["get"]["responses"]["403"]["content"]["application/json"]
+  | paths["/v1/deployment-alerts/{dseq}"]["get"]["responses"]["500"]["content"]["application/json"];
