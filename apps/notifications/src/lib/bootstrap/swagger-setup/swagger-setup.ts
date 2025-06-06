@@ -63,6 +63,7 @@ export class SwaggerSetup {
       .setVersion("1.0")
       .addTag("ContactPoint")
       .addTag("Alert")
+      .addTag("DeploymentAlert")
       .addApiKey(
         {
           type: "apiKey",
