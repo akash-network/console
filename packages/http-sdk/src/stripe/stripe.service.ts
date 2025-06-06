@@ -39,19 +39,6 @@ export interface CouponResponse {
     [key: string]: any;
   };
 }
-
-interface CouponListResponse {
-  coupons: Array<{
-    id: string;
-    percent_off?: number | null;
-    amount_off?: number | null;
-    valid: boolean;
-    name?: string;
-    description?: string;
-    [key: string]: any;
-  }>;
-}
-
 interface CustomerDiscountsResponse {
   discounts: Array<{
     type: "coupon" | "promotion_code";
@@ -109,10 +96,6 @@ export class StripeService extends ApiHttpService {
 
   async applyCoupon(couponId: string): Promise<CouponResponse> {
     return this.extractData(await this.post("/v1/stripe-coupon", { couponId }));
-  }
-
-  async listCoupons(): Promise<CouponListResponse> {
-    return this.extractData(await this.get("/v1/stripe-coupons"));
   }
 
   async removePaymentMethod(paymentMethodId: string) {

@@ -11,7 +11,6 @@ import { Check, HandCard, Rocket, WarningCircle, XmarkCircleSolid } from "iconoi
 import { useAtom } from "jotai";
 import Link from "next/link";
 
-import { TopUpAmountPicker } from "@src/components/top-up-amount-picker/TopUpAmountPicker";
 import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { ConnectManagedWalletButton } from "@src/components/wallet/ConnectManagedWalletButton";
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -105,11 +104,10 @@ export const GetStartedStepper: React.FunctionComponent = () => {
           <div className="my-4 flex items-center space-x-4">
             {isManagedWallet && (
               <div className="flex items-start gap-2">
-                <AddFundsLink className={cn("hover:no-underline", buttonVariants({ variant: "default" }))} href="/api/proxy/v1/checkout">
+                <AddFundsLink className={cn("hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.payment()}>
                   <HandCard className="text-xs text-accent-foreground" />
                   <span className="m-2 whitespace-nowrap text-accent-foreground">Add Funds</span>
                 </AddFundsLink>
-                <TopUpAmountPicker variant="default" />
               </div>
             )}
           </div>
