@@ -1,8 +1,10 @@
 import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
+import { toPaginatedResponse } from "@src/lib/http-schema/http-schema";
 import {
   chainMessageConditionsSchema,
+  chainMessageParamsSchema,
   chainMessageTypeSchema,
   deploymentBalanceConditionsSchema,
   deploymentBalanceParamsSchema,
@@ -20,6 +22,7 @@ export const alertCreateCommonInputSchema = z.object({
 export const chainMessageCreateInputSchema = alertCreateCommonInputSchema
   .extend({
     type: chainMessageTypeSchema,
+    params: chainMessageParamsSchema.optional(),
     conditions: chainMessageConditionsSchema
   })
   .strict();
@@ -55,6 +58,7 @@ export const alertCommonOutputSchema = alertCreateCommonInputSchema.extend({
 
 export const chainMessageOutputSchema = alertCommonOutputSchema.extend({
   type: chainMessageTypeSchema,
+  params: chainMessageParamsSchema.optional(),
   conditions: chainMessageConditionsSchema
 });
 
@@ -68,3 +72,5 @@ export const alertOutputSchema = z.discriminatedUnion("type", [chainMessageOutpu
 
 export const alertOutputResponseSchema = z.object({ data: alertOutputSchema });
 export class AlertOutputResponse extends createZodDto(alertOutputResponseSchema) {}
+
+export class AlertListOutputResponse extends createZodDto(toPaginatedResponse(alertOutputSchema)) {}

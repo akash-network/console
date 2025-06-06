@@ -11,7 +11,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    get: operations["getAlerts"];
     put?: never;
     post: operations["createAlert"];
     delete?: never;
@@ -68,6 +68,22 @@ export interface paths {
     patch: operations["patchContactPoint"];
     trace?: never;
   };
+  "/v1/deployment-alerts/{dseq}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getDeploymentAlerts"];
+    put?: never;
+    post: operations["upsertDeploymentAlert"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -84,6 +100,10 @@ export interface components {
             description: string;
             /** @enum {string} */
             type: "CHAIN_MESSAGE";
+            params?: {
+              dseq: string;
+              type: string;
+            };
             conditions:
               | {
                   /** @enum {string} */
@@ -170,6 +190,10 @@ export interface components {
             updatedAt: unknown;
             /** @enum {string} */
             type: "CHAIN_MESSAGE";
+            params?: {
+              dseq: string;
+              type: string;
+            };
             conditions:
               | {
                   /** @enum {string} */
@@ -262,6 +286,111 @@ export interface components {
     InternalServerErrorResponse: {
       statusCode: number;
       message: string;
+    };
+    AlertListOutputResponse: {
+      data: (
+        | {
+            /** Format: uuid */
+            contactPointId: string;
+            name: string;
+            enabled: boolean;
+            summary: string;
+            description: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            userId: string;
+            status: string;
+            createdAt: unknown;
+            updatedAt: unknown;
+            /** @enum {string} */
+            type: "CHAIN_MESSAGE";
+            params?: {
+              dseq: string;
+              type: string;
+            };
+            conditions:
+              | {
+                  /** @enum {string} */
+                  operator: "and";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    field: string;
+                    value: string | number | boolean;
+                  }[];
+                }
+              | {
+                  /** @enum {string} */
+                  operator: "or";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    field: string;
+                    value: string | number | boolean;
+                  }[];
+                }
+              | {
+                  operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                  field: string;
+                  value: string | number | boolean;
+                };
+          }
+        | {
+            /** Format: uuid */
+            contactPointId: string;
+            name: string;
+            enabled: boolean;
+            summary: string;
+            description: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            userId: string;
+            status: string;
+            createdAt: unknown;
+            updatedAt: unknown;
+            /** @enum {string} */
+            type: "DEPLOYMENT_BALANCE";
+            conditions:
+              | {
+                  /** @enum {string} */
+                  operator: "and";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    /** @enum {string} */
+                    field: "balance";
+                    value: number;
+                  }[];
+                }
+              | {
+                  /** @enum {string} */
+                  operator: "or";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    /** @enum {string} */
+                    field: "balance";
+                    value: number;
+                  }[];
+                }
+              | {
+                  operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                  /** @enum {string} */
+                  field: "balance";
+                  value: number;
+                };
+            params: {
+              dseq: string;
+              owner: string;
+            };
+          }
+      )[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+        hasNextPage: boolean;
+        hasPreviousPage: boolean;
+      };
     };
     AlertPatchInput: {
       data: {
@@ -392,6 +521,53 @@ export interface components {
         };
       };
     };
+    DeploymentAlertCreateInput: {
+      data: {
+        owner: string;
+        alerts: {
+          deploymentBalance?: {
+            /** Format: uuid */
+            contactPointId: string;
+            /** @default true */
+            enabled: boolean;
+            threshold: number;
+          };
+          deploymentClosed?: {
+            /** Format: uuid */
+            contactPointId: string;
+            /** @default true */
+            enabled: boolean;
+          };
+        };
+      };
+    };
+    DeploymentAlertsResponse: {
+      data: {
+        dseq: string;
+        owner?: string;
+        alerts: {
+          deploymentBalance?: {
+            /** Format: uuid */
+            contactPointId: string;
+            /** @default true */
+            enabled: boolean;
+            threshold: number;
+            /** Format: uuid */
+            id: string;
+            status: string;
+          };
+          deploymentClosed?: {
+            /** Format: uuid */
+            contactPointId: string;
+            /** @default true */
+            enabled: boolean;
+            /** Format: uuid */
+            id: string;
+            status: string;
+          };
+        };
+      };
+    };
   };
   responses: never;
   parameters: never;
@@ -401,6 +577,69 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  getAlerts: {
+    parameters: {
+      query?: {
+        /** @description Chain message type, used in conjunction with dseq to filter alerts liked to a specific deployment */
+        type?: string;
+        /** @description Linked deployment's dseq */
+        dseq?: string;
+      };
+      header?: {
+        Authorization?: string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns the list of alerts */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AlertListOutputResponse"];
+        };
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
+        };
+      };
+    };
+  };
   createAlert: {
     parameters: {
       query?: never;
@@ -970,6 +1209,130 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["NotFoundErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
+        };
+      };
+    };
+  };
+  getDeploymentAlerts: {
+    parameters: {
+      query?: never;
+      header?: {
+        Authorization?: string;
+      };
+      path: {
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns alerts for the specified deployment */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DeploymentAlertsResponse"];
+        };
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
+        };
+      };
+    };
+  };
+  upsertDeploymentAlert: {
+    parameters: {
+      query?: never;
+      header?: {
+        Authorization?: string;
+      };
+      path: {
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DeploymentAlertCreateInput"];
+      };
+    };
+    responses: {
+      /** @description Returns the created alert */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DeploymentAlertsResponse"];
+        };
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
         };
       };
       /** @description Internal server error, should probably be reported */

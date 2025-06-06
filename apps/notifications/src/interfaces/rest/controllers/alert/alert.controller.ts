@@ -1,8 +1,9 @@
-import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
+import { ApiQuery } from "@nestjs/swagger";
 import { Err, Ok, Result } from "ts-results";
 
 import { ValidateHttp } from "@src/interfaces/rest/decorators/http-validate/http-validate.decorator";
-import { AlertCreateInput, AlertOutputResponse, AlertPatchInput } from "@src/interfaces/rest/http-schemas/alert.http-schema";
+import { AlertCreateInput, AlertListOutputResponse, AlertOutputResponse, AlertPatchInput } from "@src/interfaces/rest/http-schemas/alert.http-schema";
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { AlertOutput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 
@@ -36,6 +37,26 @@ export class AlertController {
   async getAlert(@Param("id") id: string): Promise<Result<AlertOutputResponse, NotFoundException>> {
     const alert = await this.alertRepository.accessibleBy(this.authService.ability, "read").findOneById(id);
     return this.toResponse(alert);
+  }
+
+  @Get()
+  @ValidateHttp({
+    200: { schema: AlertListOutputResponse, description: "Returns the list of alerts" }
+  })
+  @ApiQuery({
+    name: "dseq",
+    required: false,
+    type: String,
+    description: "Linked deployment's dseq"
+  })
+  @ApiQuery({
+    name: "type",
+    required: false,
+    type: String,
+    description: "Chain message type, used in conjunction with dseq to filter alerts liked to a specific deployment"
+  })
+  async getAlerts(@Query() query?: { dseq?: string; type?: string }): Promise<Result<AlertListOutputResponse, NotFoundException>> {
+    return Ok(await this.alertRepository.accessibleBy(this.authService.ability, "read").paginate({ query }));
   }
 
   @Patch(":id")

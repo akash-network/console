@@ -1,6 +1,7 @@
 "use client";
 
 import type { FC, ReactNode } from "react";
+import { useEffect } from "react";
 import React from "react";
 import { useCallback, useState } from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
@@ -9,29 +10,32 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
 
 type ContactPoint = components["schemas"]["ContactPointOutput"]["data"];
-type ContactPointsInput = components["schemas"]["ContactPointListOutput"]["data"];
+export type ContactPointsOutput = components["schemas"]["ContactPointListOutput"]["data"];
 type ContactPointsPagination = components["schemas"]["ContactPointListOutput"]["pagination"];
 
 export type ChildrenProps = {
-  data: ContactPointsInput;
+  data: ContactPointsOutput;
   pagination: Pick<ContactPointsPagination, "page" | "limit" | "total" | "totalPages">;
   isLoading: boolean;
+  isFetched: boolean;
   removingIds: Set<ContactPoint["id"]>;
   onRemove: (id: ContactPoint["id"]) => Promise<void>;
   onPaginationChange: (state: { page: number; limit: number }) => void;
   isError: boolean;
+  refetch: () => void;
 };
 
 type ContactPointsListContainerProps = {
+  onFetched?: (data: ContactPointsOutput) => void;
   children: (props: ChildrenProps) => ReactNode;
 };
 
-export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = ({ children }) => {
+export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = ({ onFetched, children }) => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [removingIds, setRemovingIds] = React.useState<Set<ContactPoint["id"]>>(new Set());
   const { notificationsApi } = useServices();
-  const { data, isError, isLoading, refetch } = notificationsApi.v1.getContactPoints.useQuery({
+  const { data, isError, isLoading, isFetched, refetch } = notificationsApi.v1.getContactPoints.useQuery({
     query: {
       page,
       limit
@@ -73,6 +77,12 @@ export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = (
     [mutation, data?.data.length, page, refetch, notificator]
   );
 
+  useEffect(() => {
+    if (onFetched && isFetched && data?.data) {
+      onFetched(data.data);
+    }
+  }, [data?.data, isFetched, onFetched]);
+
   const changePage = useCallback(({ page, limit }: { page: number; limit: number }) => {
     setPage(page);
     setLimit(limit);
@@ -90,8 +100,10 @@ export const ContactPointsListContainer: FC<ContactPointsListContainerProps> = (
         data: data?.data || [],
         onPaginationChange: changePage,
         onRemove: remove,
+        refetch,
         removingIds,
         isLoading,
+        isFetched,
         isError
       })}
     </>

@@ -3,7 +3,7 @@ import "@testing-library/jest-dom";
 import React from "react";
 import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
-import type { RequestFnResponse } from "@openapi-qraft/react/src/lib/requestFn";
+import type { RequestFn, RequestFnResponse } from "@openapi-qraft/tanstack-query-react-types";
 import { QueryClientProvider } from "@tanstack/react-query";
 
 import { ContactPointsListContainer } from "@src/components/alerts/ContactPointsListContainer/ContactPointsListContainer";
@@ -87,7 +87,7 @@ describe("ContactPointsListContainer", () => {
     const services = {
       notificationsApi: () =>
         createAPIClient({
-          requestFn,
+          requestFn: requestFn as RequestFn<any, Error>,
           baseUrl: "",
           queryClient
         })

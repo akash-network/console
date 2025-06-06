@@ -31,7 +31,7 @@ describe(ChainMessageAlertService.name, () => {
       });
 
       const alerts: AlertOutput[] = [alert];
-      alertRepository.paginate.mockImplementation(async options => {
+      alertRepository.paginateAll.mockImplementation(async options => {
         options.callback(alerts as any);
       });
 
@@ -66,7 +66,7 @@ describe(ChainMessageAlertService.name, () => {
       });
 
       const alerts: AlertOutput[] = [alert];
-      alertRepository.paginate.mockImplementation(async options => {
+      alertRepository.paginateAll.mockImplementation(async options => {
         options.callback(alerts as any);
       });
 
@@ -93,7 +93,7 @@ describe(ChainMessageAlertService.name, () => {
       });
 
       const alerts: AlertOutput[] = [alert];
-      alertRepository.paginate.mockImplementation(async options => {
+      alertRepository.paginateAll.mockImplementation(async options => {
         options.callback(alerts as any);
       });
 
@@ -118,7 +118,7 @@ describe(ChainMessageAlertService.name, () => {
       const { service, alertRepository, loggerService, alertMessageService, onMessage } = await setup();
 
       const error = new Error("test");
-      alertRepository.paginate.mockRejectedValue(error);
+      alertRepository.paginateAll.mockRejectedValue(error);
 
       const event = generateMock(MsgCloseDeploymentDto.schema);
 
@@ -154,7 +154,7 @@ describe(ChainMessageAlertService.name, () => {
       });
 
       const alerts: AlertOutput[] = [alert1, alert2];
-      alertRepository.paginate.mockImplementation(async options => {
+      alertRepository.paginateAll.mockImplementation(async options => {
         options.callback(alerts as any);
       });
 
@@ -209,7 +209,7 @@ describe(ChainMessageAlertService.name, () => {
       });
 
       const alerts: AlertOutput[] = [alert];
-      alertRepository.paginate.mockImplementation(async options => {
+      alertRepository.paginateAll.mockImplementation(async options => {
         options.callback(alerts as any);
       });
 

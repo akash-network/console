@@ -5,8 +5,9 @@ import type { FCWithChildren } from "@src/types/component";
 
 interface LoadingBlockerProps {
   isLoading: boolean;
+  testId?: string;
 }
 
-export const LoadingBlocker: FCWithChildren<LoadingBlockerProps> = ({ children, isLoading }) => {
-  return isLoading ? <Loading text="" /> : <>{children}</>;
+export const LoadingBlocker: FCWithChildren<LoadingBlockerProps> = ({ children, isLoading, testId }) => {
+  return isLoading ? <Loading text="" testId={testId} /> : <>{children}</>;
 };
