@@ -36,14 +36,13 @@ export class StripeService extends ApiHttpService {
   }
 
   async getCustomerTransactions(options?: { limit?: number; startingAfter?: string }): Promise<{ transactions: Charge[] }> {
-    const params = new URLSearchParams();
-    if (options?.limit) {
-      params.append("limit", options.limit.toString());
-    }
-    if (options?.startingAfter) {
-      params.append("startingAfter", options.startingAfter);
-    }
-    return this.extractData(await this.get(`/v1/transactions?${params.toString()}`));
+    const { limit, startingAfter } = options || {};
+    const params = new URLSearchParams({
+      ...(limit && { limit: limit.toString() }),
+      ...(startingAfter && { startingAfter })
+    });
+    const url = `/v1/transactions${params.toString() ? `?${params}` : ""}`;
+    return this.extractData(await this.get(url));
   }
 
   // Prices (legacy endpoint)

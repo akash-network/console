@@ -1,4 +1,5 @@
 import React from "react";
+import { ErrorBoundary } from "react-error-boundary";
 import { Popup } from "@akashnetwork/ui/components";
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
@@ -6,12 +7,12 @@ import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { AddPaymentMethodForm } from "./AddPaymentMethodForm";
 
-let stripePromise: Promise<Stripe | null>;
-
 function getStripe(): Promise<Stripe | null> {
-  if (!stripePromise) stripePromise = loadStripe(browserEnvConfig.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY as string);
-
-  return stripePromise;
+  const publishableKey = browserEnvConfig.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  if (!publishableKey) {
+    throw new Error("Stripe publishable key is not configured");
+  }
+  return loadStripe(publishableKey);
 }
 
 interface AddPaymentMethodPopupProps {
@@ -26,21 +27,23 @@ export const AddPaymentMethodPopup: React.FC<AddPaymentMethodPopupProps> = ({ op
   return (
     <Popup open={open} onClose={onClose} title="Add New Payment Method" variant="custom" actions={[]}>
       {clientSecret && (
-        <Elements
-          stripe={getStripe()}
-          options={{
-            clientSecret,
-            appearance: {
-              theme: isDarkMode ? "night" : "stripe",
-              variables: {
-                colorPrimary: "#ff424c",
-                colorSuccess: "#ff424c"
+        <ErrorBoundary fallback={<div>Failed to load payment form</div>}>
+          <Elements
+            stripe={getStripe()}
+            options={{
+              clientSecret,
+              appearance: {
+                theme: isDarkMode ? "night" : "stripe",
+                variables: {
+                  colorPrimary: "#ff424c",
+                  colorSuccess: "#ff424c"
+                }
               }
-            }
-          }}
-        >
-          <AddPaymentMethodForm onSuccess={onSuccess} />
-        </Elements>
+            }}
+          >
+            <AddPaymentMethodForm onSuccess={onSuccess} />
+          </Elements>
+        </ErrorBoundary>
       )}
     </Popup>
   );

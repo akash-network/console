@@ -109,7 +109,8 @@ export class StripeService extends Stripe {
 
     // Get customer's current discounts
     const { discounts } = await this.getCustomerDiscounts(params.customer);
-    let finalAmount = params.amount;
+    // Convert amount to cents immediately and round to ensure integer
+    let finalAmountCents = Math.round(params.amount * 100);
     let discountApplied = false;
 
     // Apply any active discounts
@@ -118,15 +119,17 @@ export class StripeService extends Stripe {
       if (activeDiscount.valid) {
         discountApplied = true;
         if (activeDiscount.percent_off) {
-          finalAmount = params.amount * (1 - activeDiscount.percent_off / 100);
+          // Calculate percentage discount using integer math
+          finalAmountCents = Math.round((finalAmountCents * (100 - activeDiscount.percent_off)) / 100);
         } else if (activeDiscount.amount_off) {
-          finalAmount = Math.max(0, params.amount - activeDiscount.amount_off / 100);
+          // amount_off is already in cents from Stripe
+          finalAmountCents = Math.max(0, finalAmountCents - activeDiscount.amount_off);
         }
       }
     }
 
     // If the final amount is 0 (fully covered by discount), directly top up the wallet
-    if (finalAmount === 0) {
+    if (finalAmountCents === 0) {
       // Get the user ID from the customer ID
       const user = await this.userRepository.findOneBy({ stripeCustomerId: params.customer });
       if (!user) {
@@ -138,29 +141,31 @@ export class StripeService extends Stripe {
         await this.consumeActiveDiscount(params.customer);
       }
 
-      // Top up the wallet with the original amount
-      await this.refillService.topUpWallet(params.amount * 100, user.id);
+      // Top up the wallet with the original amount in cents
+      await this.refillService.topUpWallet(Math.round(params.amount * 100), user.id);
 
       return { success: true, paymentIntentId: "pi_zero_amount" };
     } else {
       // For non-zero amounts, proceed with normal payment intent creation
       const metadata = {
         ...params.metadata,
-        original_amount: (params.amount * 100).toString(),
-        final_amount: (finalAmount * 100).toString(),
+        original_amount: Math.round(params.amount * 100).toString(),
+        final_amount: finalAmountCents.toString(),
         discount_applied: discountApplied.toString()
       };
 
-      if (finalAmount > 0 && finalAmount < 1) {
+      // Convert cents back to dollars for validation checks
+      const finalAmountDollars = finalAmountCents / 100;
+      if (finalAmountDollars > 0 && finalAmountDollars < 1) {
         throw new Error("Final amount must be at least $1");
-      } else if (!discounts.length && finalAmount > 0 && finalAmount < 20) {
+      } else if (!discounts.length && finalAmountDollars > 0 && finalAmountDollars < 20) {
         throw new Error("Minimum amount is $20");
       }
 
       const paymentIntent = await this.paymentIntents.create({
         customer: params.customer,
         payment_method: params.payment_method,
-        amount: Math.round(finalAmount * 100),
+        amount: finalAmountCents,
         currency: params.currency,
         confirm: params.confirm,
         metadata,

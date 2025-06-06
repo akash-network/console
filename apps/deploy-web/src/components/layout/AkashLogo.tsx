@@ -5,9 +5,5 @@ import { AkashConsoleLogoDark, AkashConsoleLogoLight } from "../icons/AkashConso
 
 export const AkashLogo = ({ className, size = { width: 200, height: 19 } }: { className?: string; size?: { width: number; height: number } }) => {
   const theme = useCookieTheme();
-  return theme === "light" ? (
-    <AkashConsoleLogoLight className={cn(`h-[${size.height}px] max-w-[${size.width}px]`, className)} />
-  ) : (
-    <AkashConsoleLogoDark className={cn(`h-[${size.height}px] max-w-[${size.width}px]`, className)} />
-  );
+  return theme === "light" ? <AkashConsoleLogoLight className={cn(className)} size={size} /> : <AkashConsoleLogoDark className={cn(className)} size={size} />;
 };
