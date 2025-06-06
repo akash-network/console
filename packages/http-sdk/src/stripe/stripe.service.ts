@@ -1,112 +1,53 @@
 import type { AxiosRequestConfig } from "axios";
 
 import { ApiHttpService } from "../api-http/api-http.service";
-
-interface StripePrice {
-  unitAmount?: number;
-  isCustom: boolean;
-  currency: string;
-}
-
-interface SetupIntentResponse {
-  clientSecret: string;
-}
-
-interface CheckoutResponse {
-  url: string;
-}
-
-interface PaymentResponse {
-  error?: {
-    message: string;
-  };
-}
-
-export interface Coupon {
-  id: string;
-  percent_off?: number | null;
-  amount_off?: number | null;
-  valid: boolean;
-  [key: string]: any;
-}
-
-export interface CouponResponse {
-  coupon: {
-    id: string;
-    percent_off?: number | null;
-    amount_off?: number | null;
-    valid: boolean;
-    [key: string]: any;
-  };
-}
-interface CustomerDiscountsResponse {
-  discounts: Array<{
-    type: "coupon" | "promotion_code";
-    id: string;
-    name?: string;
-    code?: string;
-    percent_off?: number;
-    amount_off?: number;
-    currency?: string;
-    valid: boolean;
-  }>;
-}
-
-export interface Charge {
-  id: string;
-  amount: number;
-  currency: string;
-  status: string;
-  created: number;
-  paymentMethod: any;
-  receiptUrl?: string;
-  description?: string;
-  metadata?: Record<string, string>;
-}
+import type { Charge, CouponResponse, CustomerDiscountsResponse, PaymentResponse, SetupIntentResponse, StripePrice } from "./stripe.types";
 
 export class StripeService extends ApiHttpService {
   constructor(config?: AxiosRequestConfig) {
     super(config);
   }
 
-  async findPrices(config?: AxiosRequestConfig): Promise<StripePrice[]> {
-    return this.extractData(await this.get("/v1/stripe-prices", config));
-  }
-
+  // Payment Methods
   async createSetupIntent(config?: AxiosRequestConfig): Promise<SetupIntentResponse> {
-    return this.extractData(await this.post("/v1/stripe-setup", {}, config));
+    return this.extractData(await this.post("/v1/payment-methods/setup", {}, config));
   }
 
   async getPaymentMethods() {
-    return this.extractData(await this.get("/v1/stripe-payment-methods"));
-  }
-
-  async checkout(amount: string, coupon?: string): Promise<CheckoutResponse> {
-    const params = new URLSearchParams();
-    params.append("amount", amount);
-    if (coupon) {
-      params.append("coupon", coupon);
-    }
-    return this.extractData(await this.get(`/v1/checkout?${params.toString()}`));
-  }
-
-  async confirmPayment(params: { paymentMethodId: string; amount: number; currency: string; coupon?: string }): Promise<PaymentResponse> {
-    return this.extractData(await this.post("/v1/stripe-payment", params));
-  }
-
-  async applyCoupon(couponId: string): Promise<CouponResponse> {
-    return this.extractData(await this.post("/v1/stripe-coupon", { couponId }));
+    return this.extractData(await this.get("/v1/payment-methods"));
   }
 
   async removePaymentMethod(paymentMethodId: string) {
-    return this.extractData(await this.delete(`/v1/stripe-payment-methods/${paymentMethodId}`));
+    return this.extractData(await this.delete(`/v1/payment-methods/${paymentMethodId}`));
+  }
+
+  // Coupons
+  async applyCoupon(couponId: string): Promise<CouponResponse> {
+    return this.extractData(await this.post("/v1/coupons/apply", { couponId }));
   }
 
   async getCustomerDiscounts(): Promise<CustomerDiscountsResponse> {
-    return this.extractData(await this.get("/v1/stripe-customer-discounts"));
+    return this.extractData(await this.get("/v1/coupons/customer-discounts"));
   }
 
-  async getCustomerTransactions(): Promise<{ transactions: Charge[] }> {
-    return this.extractData(await this.get("/v1/stripe-transactions"));
+  // Transactions
+  async confirmPayment(params: { paymentMethodId: string; amount: number; currency: string; coupon?: string }): Promise<PaymentResponse> {
+    return this.extractData(await this.post("/v1/transactions/confirm", params));
+  }
+
+  async getCustomerTransactions(options?: { limit?: number; startingAfter?: string }): Promise<{ transactions: Charge[] }> {
+    const params = new URLSearchParams();
+    if (options?.limit) {
+      params.append("limit", options.limit.toString());
+    }
+    if (options?.startingAfter) {
+      params.append("startingAfter", options.startingAfter);
+    }
+    return this.extractData(await this.get(`/v1/transactions?${params.toString()}`));
+  }
+
+  // Prices (legacy endpoint)
+  async findPrices(config?: AxiosRequestConfig): Promise<StripePrice[]> {
+    return this.extractData(await this.get("/v1/stripe-prices", config));
   }
 }

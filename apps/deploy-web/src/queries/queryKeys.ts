@@ -71,5 +71,14 @@ export class QueryKeys {
   static getPaymentMethodsKey = () => ["paymentMethods"];
   static getPaymentDiscountsKey = () => ["paymentDiscounts"];
 
-  static getPaymentTransactionsKey = () => ["stripe", "transactions"];
+  static getPaymentTransactionsKey = (options?: { limit?: number; startingAfter?: string }) => {
+    const key = ["stripe", "transactions"];
+    if (options?.limit) {
+      key.push("limit", options.limit.toString());
+    }
+    if (options?.startingAfter) {
+      key.push("after", options.startingAfter);
+    }
+    return key;
+  };
 }

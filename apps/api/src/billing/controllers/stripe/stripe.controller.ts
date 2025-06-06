@@ -13,12 +13,12 @@ export class StripeController {
     private readonly authService: AuthService
   ) {}
 
-  @Protected([{ action: "read", subject: "StripePrice" }])
+  @Protected([{ action: "read", subject: "Payment" }])
   async findPrices(): Promise<StripePricesOutputResponse> {
     return { data: await this.stripe.findPrices() };
   }
 
-  @Protected([{ action: "create", subject: "PaymentMethod" }])
+  @Protected([{ action: "create", subject: "Payment" }])
   async createSetupIntent() {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
@@ -29,9 +29,6 @@ export class StripeController {
 
     let stripeCustomerId = user.stripeCustomerId;
 
-    // TODO: make the checkout work
-    // there should only be one place we create a customer
-    // webhook secret
     if (!stripeCustomerId) {
       const customer = await this.stripe.customers.create({
         email: user.email,
@@ -52,7 +49,7 @@ export class StripeController {
     return { clientSecret: setupIntent.client_secret };
   }
 
-  @Protected([{ action: "read", subject: "PaymentMethod" }])
+  @Protected([{ action: "read", subject: "Payment" }])
   async getPaymentMethods() {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
@@ -68,7 +65,7 @@ export class StripeController {
     return { data: paymentMethods };
   }
 
-  @Protected([{ action: "create", subject: "PaymentIntent" }])
+  @Protected([{ action: "create", subject: "Payment" }])
   async confirmPayment(params: { paymentMethodId: string; amount: number; currency: string; coupon?: string }) {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
@@ -96,7 +93,7 @@ export class StripeController {
     }
   }
 
-  @Protected([{ action: "create", subject: "Coupon" }])
+  @Protected([{ action: "create", subject: "Payment" }])
   async applyCoupon(couponId: string) {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
@@ -114,23 +111,7 @@ export class StripeController {
     }
   }
 
-  @Protected([{ action: "read", subject: "Coupon" }])
-  async getCoupon(couponId: string) {
-    try {
-      const coupon = await this.stripe.getCoupon(couponId);
-      if (!coupon) {
-        throw new Error("Coupon not found");
-      }
-      return { coupon };
-    } catch (error: any) {
-      if (error.message === "Coupon not found") {
-        throw error;
-      }
-      throw new Error("Failed to get coupon");
-    }
-  }
-
-  @Protected([{ action: "delete", subject: "PaymentMethod" }])
+  @Protected([{ action: "delete", subject: "Payment" }])
   async removePaymentMethod(paymentMethodId: string) {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
@@ -146,7 +127,7 @@ export class StripeController {
     await this.stripe.paymentMethods.detach(paymentMethodId);
   }
 
-  @Protected([{ action: "read", subject: "Coupon" }])
+  @Protected([{ action: "read", subject: "Payment" }])
   async getCustomerDiscounts() {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
@@ -174,7 +155,7 @@ export class StripeController {
     return { discounts: formattedDiscounts };
   }
 
-  @Protected([{ action: "read", subject: "Transaction" }])
+  @Protected([{ action: "read", subject: "Payment" }])
   async getCustomerTransactions(options?: { limit?: number; startingAfter?: string }) {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
