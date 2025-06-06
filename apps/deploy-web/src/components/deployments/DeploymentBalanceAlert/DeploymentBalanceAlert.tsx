@@ -97,7 +97,7 @@ export const DeploymentBalanceAlertView: FC<Props & { balance: number }> = ({ in
                     }
                     className="mb-2 w-full"
                     value={field.value}
-                    onChange={event => field.onChange(parseInt(event.target.value))}
+                    onChange={event => field.onChange(parseFloat(event.target.value))}
                   />
                 )}
               />
