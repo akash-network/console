@@ -1,20 +1,21 @@
-import { AkashBlock as Block, Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
+import { AkashBlock as Block, Lease, Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { Day } from "@akashnetwork/database/dbSchemas/base";
 import { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
-import { minutesToSeconds, sub, subHours } from "date-fns";
+import { differenceInSeconds, minutesToSeconds, sub, subHours } from "date-fns";
 import uniqBy from "lodash/uniqBy";
 import { Op, QueryTypes } from "sequelize";
 import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
+import { GraphDataResponse } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
+import { LeasesDurationParams, LeasesDurationQuery, LeasesDurationResponse } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import { MarketDataParams } from "@src/dashboard/http-schemas/market-data/market-data.schema";
 import { chainDb } from "@src/db/dbConnection";
 import { AuthorizedGraphDataName } from "@src/services/db/statsService";
 import { toUTC } from "@src/utils";
 import { env } from "@src/utils/env";
 import { createLoggingExecutor } from "@src/utils/logging";
-import { GraphDataResponse } from "../../http-schemas/graph-data/graph-data.schema";
 
 const numberOrZero: (x: number | undefined | null) => number = (x: number | undefined | null) => (typeof x === "number" ? x : 0);
 
@@ -386,6 +387,46 @@ export class StatsService {
       marketCapRank: response.market_cap_rank,
       priceChange24h: response.market_data.price_change_24h,
       priceChangePercentage24: response.market_data.price_change_percentage_24h
+    };
+  }
+
+  async getLeasesDuration(owner: LeasesDurationParams["owner"], query: LeasesDurationQuery): Promise<LeasesDurationResponse> {
+    const { dseq, startDate, endDate } = query;
+    const closedLeases = await Lease.findAll({
+      where: {
+        owner: owner,
+        closedHeight: { [Op.not]: null },
+        "$createdBlock.datetime$": { [Op.gte]: startDate },
+        "$closedBlock.datetime$": { [Op.lte]: endDate },
+        ...(dseq ? { dseq: dseq } : {})
+      },
+      include: [
+        { model: Block, as: "createdBlock" },
+        { model: Block, as: "closedBlock" }
+      ]
+    });
+
+    const leases = closedLeases.map(x => ({
+      dseq: x.dseq,
+      oseq: x.oseq,
+      gseq: x.gseq,
+      provider: x.providerAddress,
+      startHeight: x.createdHeight,
+      startDate: x.createdBlock.datetime.toISOString(),
+      closedHeight: x.closedHeight,
+      closedDate: x.closedBlock.datetime.toISOString(),
+      durationInBlocks: x.closedHeight - x.createdHeight,
+      durationInSeconds: differenceInSeconds(x.closedBlock.datetime, x.createdBlock.datetime),
+      durationInHours: differenceInSeconds(x.closedBlock.datetime, x.createdBlock.datetime) / 3600
+    }));
+
+    const totalSeconds = leases.map(x => x.durationInSeconds).reduce((a, b) => a + b, 0);
+
+    return {
+      leaseCount: leases.length,
+      totalDurationInSeconds: totalSeconds,
+      totalDurationInHours: totalSeconds / 3600,
+      leases
     };
   }
 }
