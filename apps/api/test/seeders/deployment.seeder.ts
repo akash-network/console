@@ -19,7 +19,7 @@ export class DeploymentSeeder {
   }
 
   static async createInDatabase(overrides: Partial<CreationAttributes<Deployment>> = {}): Promise<Deployment> {
-    const seed = this.create(overrides);
+    const seed = DeploymentSeeder.create(overrides);
     return await Deployment.create(seed);
   }
 }

@@ -16,7 +16,7 @@ import { generateChainMessageAlert } from "@test/seeders/chain-message-alert.see
 
 describe(AlertController.name, () => {
   describe("createAlert", () => {
-    it("should call rawAlertRepository.create() and return the created alert", async () => {
+    it("should call alertRepository.create() and return the created alert", async () => {
       const { controller, alertRepository, userId } = await setup();
 
       const input = generateMock(chainMessageCreateInputSchema);
@@ -35,7 +35,7 @@ describe(AlertController.name, () => {
   });
 
   describe("patchAlert", () => {
-    it("should call rawAlertRepository.updateById() and return the updated alert", async () => {
+    it("should call alertRepository.updateById() and return the updated alert", async () => {
       const { controller, alertRepository } = await setup();
 
       const id = faker.string.uuid();
@@ -67,7 +67,7 @@ describe(AlertController.name, () => {
   });
 
   describe("getAlert", () => {
-    it("should call rawAlertRepository.findOneById() and return the alert", async () => {
+    it("should call alertRepository.findOneById() and return the alert", async () => {
       const { controller, alertRepository } = await setup();
 
       const id = faker.string.uuid();
@@ -97,7 +97,7 @@ describe(AlertController.name, () => {
   });
 
   describe("deleteAlert", () => {
-    it("should call rawAlertRepository.deleteOneById() and return the deleted alert", async () => {
+    it("should call alertRepository.deleteOneById() and return the deleted alert", async () => {
       const { controller, alertRepository } = await setup();
 
       const id = faker.string.uuid();

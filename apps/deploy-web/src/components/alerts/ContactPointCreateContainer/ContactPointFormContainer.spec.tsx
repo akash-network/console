@@ -4,7 +4,7 @@ import React from "react";
 import { type components, createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import { faker } from "@faker-js/faker";
-import type { RequestFnResponse } from "@openapi-qraft/react/src/lib/requestFn";
+import type { RequestFn, RequestFnResponse } from "@openapi-qraft/tanstack-query-react-types";
 import { QueryClientProvider } from "@tanstack/react-query";
 
 import type { ChildrenProps } from "@src/components/alerts/ContactPointCreateContainer/ContactPointCreateContainer";
@@ -93,7 +93,7 @@ describe("ContactPointCreateContainer", () => {
     const services = {
       notificationsApi: () =>
         createAPIClient({
-          requestFn,
+          requestFn: requestFn as RequestFn<any, Error>,
           baseUrl: "",
           queryClient
         })

@@ -63,6 +63,7 @@ export class UrlService {
   static alerts = () => "/alerts";
   static alertDetails = (id: string) => `/alerts/${id}`;
   static contactPoints = () => "/alerts/contact-points";
+  static newContactPoint = () => "/alerts/contact-points/new";
   static contactPointDetails = (id: string) => `/alerts/contact-points/${id}`;
   static settings = () => "/settings";
   static settingsAuthorizations = () => "/settings/authorizations";

@@ -1,6 +1,5 @@
 import { Validator } from "@akashnetwork/database/dbSchemas/base";
 import axios from "axios";
-import { Op } from "sequelize";
 
 import { getTransactionByAddress } from "@src/services/db/transactionsService";
 import type {
@@ -10,7 +9,6 @@ import type {
   RestCosmosDistributionDelegatorsRewardsResponse,
   RestCosmosStakingDelegationsResponse,
   RestCosmosStakingDelegatorsRedelegationsResponse,
-  RestCosmosStakingValidatorsResponse,
   RestGovProposalsTallyResponse
 } from "@src/types/rest";
 import type { CosmosDistributionValidatorsCommissionResponse } from "@src/types/rest/cosmosDistributionValidatorsCommissionResponse";
@@ -121,77 +119,6 @@ export async function getAddressBalance(address: string) {
     redelegations,
     commission,
     latestTransactions: latestTransactions.results
-  };
-}
-
-export async function getValidators() {
-  const response = await axios.get<RestCosmosStakingValidatorsResponse>(
-    `${apiNodeUrl}/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=1000`
-  );
-
-  const validators = response.data.validators.map(x => ({
-    operatorAddress: x.operator_address,
-    moniker: x.description.moniker.trim(),
-    votingPower: parseInt(x.tokens),
-    commission: parseFloat(x.commission.commission_rates.rate),
-    identity: x.description.identity
-  }));
-
-  const totalVotingPower = validators.reduce((acc, cur) => acc + cur.votingPower, 0);
-
-  const validatorsFromDb = await Validator.findAll({
-    where: {
-      keybaseAvatarUrl: { [Op.not]: null, [Op.ne]: "" }
-    }
-  });
-
-  const sortedValidators = validators
-    .sort((a, b) => b.votingPower - a.votingPower)
-    .map((x, i) => ({
-      ...x,
-      votingPowerRatio: x.votingPower / totalVotingPower,
-      rank: i + 1,
-      keybaseAvatarUrl: validatorsFromDb.find(y => y.operatorAddress === x.operatorAddress)?.keybaseAvatarUrl
-    }));
-
-  return sortedValidators;
-}
-
-export async function getValidator(address: string) {
-  const response = await fetch(`${apiNodeUrl}/cosmos/staking/v1beta1/validators/${address}`);
-
-  if (response.status === 404) {
-    return null;
-  }
-
-  const data = (await response.json()) as any;
-
-  const validatorsResponse = await axios.get<RestCosmosStakingValidatorsResponse>(
-    `${apiNodeUrl}/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=1000`
-  );
-
-  const validatorFromDb = await Validator.findOne({ where: { operatorAddress: address } });
-  const validatorRank = validatorsResponse.data.validators
-    .map(x => {
-      return { votingPower: parseInt(x.tokens), address: x.operator_address };
-    })
-    .sort((a, b) => b.votingPower - a.votingPower)
-    .findIndex(x => x.address === address);
-
-  return {
-    operatorAddress: data.validator.operator_address,
-    address: validatorFromDb?.accountAddress,
-    moniker: data.validator.description.moniker,
-    keybaseUsername: validatorFromDb?.keybaseUsername,
-    keybaseAvatarUrl: validatorFromDb?.keybaseAvatarUrl,
-    votingPower: parseInt(data.validator.tokens),
-    commission: parseFloat(data.validator.commission.commission_rates.rate),
-    maxCommission: parseFloat(data.validator.commission.commission_rates.max_rate),
-    maxCommissionChange: parseFloat(data.validator.commission.commission_rates.max_change_rate),
-    identity: data.validator.description.identity,
-    description: data.validator.description.details,
-    website: data.validator.description.website,
-    rank: validatorRank + 1
   };
 }
 

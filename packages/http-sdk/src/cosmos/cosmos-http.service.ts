@@ -7,7 +7,9 @@ import type {
   CosmosDistributionCommunityPoolResponse,
   CosmosDistributionParamsResponse,
   CosmosMintInflationResponse,
-  CosmosStakingPoolResponse
+  CosmosStakingPoolResponse,
+  RestCosmosStakingValidatorListResponse,
+  RestCosmosStakingValidatorResponse
 } from "./types";
 
 const RETRY_COUNT = 3;
@@ -52,5 +54,15 @@ export class CosmosHttpService extends HttpService {
     const response = this.extractData(await this.get<CosmosDistributionParamsResponse>(`/cosmos/distribution/v1beta1/params`));
 
     return response.params;
+  }
+
+  async getValidatorList(): Promise<RestCosmosStakingValidatorListResponse> {
+    return this.extractData(
+      await this.get<RestCosmosStakingValidatorListResponse>(`/cosmos/staking/v1beta1/validators?status=BOND_STATUS_BONDED&pagination.limit=1000`)
+    );
+  }
+
+  async getValidatorByAddress(address: string): Promise<RestCosmosStakingValidatorResponse> {
+    return this.extractData(await this.get<RestCosmosStakingValidatorResponse>(`/cosmos/staking/v1beta1/validators/${address}`));
   }
 }

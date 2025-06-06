@@ -40,5 +40,7 @@ notificationsApiProxy.all("/v1/contact-points/*", proxyRoute);
 notificationsApiProxy.all("/v1/contact-points", proxyRoute);
 notificationsApiProxy.all("/v1/alerts/*", proxyRoute);
 notificationsApiProxy.all("/v1/alerts", proxyRoute);
+notificationsApiProxy.all("/v1/deployment-alerts/*", proxyRoute);
+notificationsApiProxy.all("/v1/deployment-alerts", proxyRoute);
 
 export { notificationsApiProxy };
