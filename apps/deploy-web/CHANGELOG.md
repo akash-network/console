@@ -1,5 +1,12 @@
 
 
+## [2.79.1](https://github.com/akash-network/console/compare/console-web/v2.79.0...console-web/v2.79.1) (2025-06-06)
+
+
+### Bug Fixes
+
+* fixes unathorized response from provider API ([#1438](https://github.com/akash-network/console/issues/1438)) ([959eae7](https://github.com/akash-network/console/commit/959eae7be87c0bcdcce2aeea3dc5ace4915b27f9))
+
 ## [2.79.0](https://github.com/akash-network/console/compare/console-web/v2.78.3...console-web/v2.79.0) (2025-06-06)
 
 
