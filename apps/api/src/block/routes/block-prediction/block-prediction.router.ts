@@ -1,0 +1,78 @@
+import { createRoute } from "@hono/zod-openapi";
+import { container } from "tsyringe";
+
+import { BlockPredictionController } from "@src/block/controllers/block-prediction/block-prediction.controller";
+import {
+  GetPredictedBlockDateParamsSchema,
+  GetPredictedBlockDateResponseSchema,
+  GetPredictedDateHeightParamsSchema,
+  GetPredictedDateHeightResponseSchema,
+  GetPredictionQuerySchema
+} from "@src/block/http-schemas/block-prediction.schema";
+import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+
+const getPredictedBlockDateRoute = createRoute({
+  method: "get",
+  path: "/v1/predicted-block-date/{height}",
+  summary: "Get the estimated date of a future block.",
+  tags: ["Blocks"],
+  request: {
+    params: GetPredictedBlockDateParamsSchema,
+    query: GetPredictionQuerySchema
+  },
+  responses: {
+    200: {
+      description: "Returns predicted block date",
+      content: {
+        "application/json": {
+          schema: GetPredictedBlockDateResponseSchema
+        }
+      }
+    },
+    400: {
+      description: "Invalid height or block window"
+    }
+  }
+});
+
+const getPredictedDateHeightRoute = createRoute({
+  method: "get",
+  path: "/v1/predicted-date-height/{timestamp}",
+  summary: "Get the estimated height of a future date and time.",
+  tags: ["Blocks"],
+  request: {
+    params: GetPredictedDateHeightParamsSchema,
+    query: GetPredictionQuerySchema
+  },
+  responses: {
+    200: {
+      description: "Returns predicted block height",
+      content: {
+        "application/json": {
+          schema: GetPredictedDateHeightResponseSchema
+        }
+      }
+    },
+    400: {
+      description: "Invalid timestamp or block window"
+    }
+  }
+});
+
+export const blockPredictionRouter = new OpenApiHonoHandler();
+
+blockPredictionRouter.openapi(getPredictedBlockDateRoute, async function routeGetPredictedBlockDate(c) {
+  const { height } = c.req.valid("param");
+  const { blockWindow } = c.req.valid("query");
+  const response = await container.resolve(BlockPredictionController).getPredictedBlockDate(height, blockWindow);
+
+  return c.json(response);
+});
+
+blockPredictionRouter.openapi(getPredictedDateHeightRoute, async function routeGetPredictedDateHeight(c) {
+  const { timestamp } = c.req.valid("param");
+  const { blockWindow } = c.req.valid("query");
+  const response = await container.resolve(BlockPredictionController).getPredictedDateHeight(timestamp, blockWindow);
+
+  return c.json(response);
+});
