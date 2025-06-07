@@ -44,7 +44,7 @@ import {
   stripeWebhook
 } from "./billing";
 import { blocksRouter } from "./block";
-import { dashboardDataRouter, graphDataRouter, marketDataRouter, networkCapacityRouter } from "./dashboard";
+import { dashboardDataRouter, graphDataRouter, leasesDurationRouter, marketDataRouter, networkCapacityRouter } from "./dashboard";
 import { pricingRouter } from "./pricing";
 import {
   auditorsRouter,
@@ -129,6 +129,7 @@ appHono.route("/", transactionsRouter);
 appHono.route("/", marketDataRouter);
 appHono.route("/", validatorsRouter);
 appHono.route("/", pricingRouter);
+appHono.route("/", leasesDurationRouter);
 
 appHono.route("/", notificationsApiProxy);
 

@@ -15,7 +15,6 @@ import gpu from "./gpu";
 import gpuBreakdown from "./gpuBreakdown";
 import gpuModels from "./gpuModels";
 import gpuPrices from "./gpuPrices";
-import leasesDuration from "./leasesDuration";
 import predictedBlockDate from "./predictedBlockDate";
 import predictedDateHeight from "./predictedDateHeight";
 import trialProviders from "./trialProviders";
@@ -37,7 +36,6 @@ export default [
   versionSandbox,
   versionTestnet,
   trialProviders,
-  leasesDuration,
   gpu,
   gpuModels,
   gpuPrices,
