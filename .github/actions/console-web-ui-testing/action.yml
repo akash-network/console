@@ -43,6 +43,12 @@ runs:
       shell: bash
       continue-on-error: true
       run: npm run test:e2e --workspace=apps/deploy-web
+    - name: Tests cleanup
+      shell: bash
+      env:
+        TEST_WALLET_MNEMONIC: ${{ inputs.test-wallet-mnemonic }}
+      run: |
+        npx ts-node -P packages/dev-config/tsconfig.base-node.json apps/deploy-web/script/closeDeployments.ts
     - uses: actions/upload-artifact@v4
       id: playwright-report
       if: ${{ !cancelled() }}

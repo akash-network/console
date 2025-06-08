@@ -1,8 +1,10 @@
 import * as fsp from "fs/promises";
-import { join as joinPath, normalize } from "path";
+import { dirname, join as joinPath, normalize } from "path";
+import { fileURLToPath } from "url";
 
-const PROJECT_DIR = normalize(joinPath(__dirname, "..", "..", ".."));
-const PACKAGE_DIR = normalize(joinPath(__dirname, ".."));
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const PROJECT_DIR = normalize(joinPath(scriptDir, "..", "..", ".."));
+const PACKAGE_DIR = normalize(joinPath(scriptDir, ".."));
 const OUT_DIR = joinPath(PACKAGE_DIR, "src", "generated");
 const BRANCH = process.env.AKASH_API_BRANCH || "refs/heads/main";
 const JWT_SCHEMA_URL = `https://raw.githubusercontent.com/akash-network/akash-api/${BRANCH}/specs/jwt-schema.json`;

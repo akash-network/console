@@ -1,8 +1,10 @@
 import fsp from "fs/promises";
-import { join as joinPath, normalize } from "path";
+import { dirname, join as joinPath, normalize } from "path";
+import { fileURLToPath } from "url";
 
-const PROJECT_DIR = normalize(joinPath(__dirname, "..", "..", ".."));
-const PACKAGE_DIR = normalize(joinPath(__dirname, ".."));
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const PROJECT_DIR = normalize(joinPath(scriptDir, "..", "..", ".."));
+const PACKAGE_DIR = normalize(joinPath(scriptDir, ".."));
 const OUT_DIR = joinPath(PACKAGE_DIR, "src", "generated");
 const AKASH_NET_BASE = "https://raw.githubusercontent.com/akash-network/net/main";
 const networks = ["mainnet", "sandbox", "testnet-02"];

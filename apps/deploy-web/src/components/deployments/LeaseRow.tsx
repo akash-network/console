@@ -378,7 +378,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                     <>
                       <div className="mt-2">
                         <LabelValueOld label="URI(s):" />
-                        <ul className="mt-2 space-y-2">
+                        <ul className="mt-2 space-y-2" aria-label="URIs">
                           {service.uris.map(uri => {
                             return (
                               <li className="flex items-center" key={uri}>

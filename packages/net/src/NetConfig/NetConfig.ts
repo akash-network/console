@@ -20,4 +20,9 @@ export class NetConfig {
         return null;
     }
   }
+
+  getBaseRpcUrl(network: SupportedChainNetworks): string {
+    const rpcUrls = netConfigData[network].rpcUrls;
+    return rpcUrls[0];
+  }
 }
