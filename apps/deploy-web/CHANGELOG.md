@@ -1,5 +1,12 @@
 
 
+## [2.79.3](https://github.com/akash-network/console/compare/console-web/v2.79.2...console-web/v2.79.3) (2025-06-08)
+
+
+### Code Refactoring
+
+* refactors turnstile and add tests ([#1421](https://github.com/akash-network/console/issues/1421)) ([79aadc2](https://github.com/akash-network/console/commit/79aadc2002520c8993fd20a3221511201512fd8d))
+
 ## [2.79.2](https://github.com/akash-network/console/compare/console-web/v2.79.1...console-web/v2.79.2) (2025-06-06)
 
 
