@@ -226,7 +226,7 @@ export interface V1Service {
      * ```ts
      * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery({
      *     query: {
-     *         type: type
+     *         limit: limit
      *     },
      *     header: {
      *         Authorization: authorization
@@ -253,7 +253,7 @@ export interface V1Service {
      * ```ts
      * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery({
      *     query: {
-     *         type: type
+     *         limit: limit
      *     },
      *     header: {
      *         Authorization: authorization
@@ -405,7 +405,7 @@ export interface V1Service {
      * }, {
      *     initialPageParam: {
      *         query: {
-     *             type: initialType
+     *             limit: initialLimit
      *         }
      *     },
      *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
@@ -444,7 +444,7 @@ export interface V1Service {
      * }, {
      *     initialPageParam: {
      *         query: {
-     *             type: initialType
+     *             limit: initialLimit
      *         }
      *     },
      *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
@@ -484,7 +484,7 @@ export interface V1Service {
      *     infinite: false,
      *     parameters: {
      *         query: {
-     *             type: type
+     *             limit: limit
      *         },
      *         header: {
      *             Authorization: authorization
@@ -508,7 +508,7 @@ export interface V1Service {
      *     queries: [
      *         {
      *             query: {
-     *                 type: type1
+     *                 limit: limit1
      *             },
      *             header: {
      *                 Authorization: authorization1
@@ -516,7 +516,7 @@ export interface V1Service {
      *         },
      *         {
      *             query: {
-     *                 type: type2
+     *                 limit: limit2
      *             },
      *             header: {
      *                 Authorization: authorization2
@@ -533,7 +533,7 @@ export interface V1Service {
      *     queries: [
      *         {
      *             query: {
-     *                 type: type1
+     *                 limit: limit1
      *             },
      *             header: {
      *                 Authorization: authorization1
@@ -541,7 +541,7 @@ export interface V1Service {
      *         },
      *         {
      *             query: {
-     *                 type: type2
+     *                 limit: limit2
      *             },
      *             header: {
      *                 Authorization: authorization2
@@ -573,7 +573,7 @@ export interface V1Service {
      * ```ts
      * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery({
      *     query: {
-     *         type: type
+     *         limit: limit
      *     },
      *     header: {
      *         Authorization: authorization
@@ -600,7 +600,7 @@ export interface V1Service {
      * ```ts
      * const { data, isLoading } = qraft.v1Service.getAlerts.useQuery({
      *     query: {
-     *         type: type
+     *         limit: limit
      *     },
      *     header: {
      *         Authorization: authorization
@@ -628,7 +628,7 @@ export interface V1Service {
      * }, {
      *     initialPageParam: {
      *         query: {
-     *             type: initialType
+     *             limit: initialLimit
      *         }
      *     },
      *     getNextPageParam: (lastPage, allPages, lastPageParam, allPageParams) => getNextPageParams(lastPage)
@@ -664,7 +664,7 @@ export interface V1Service {
      *     queries: [
      *         {
      *             query: {
-     *                 type: type1
+     *                 limit: limit1
      *             },
      *             header: {
      *                 Authorization: authorization1
@@ -672,7 +672,7 @@ export interface V1Service {
      *         },
      *         {
      *             query: {
-     *                 type: type2
+     *                 limit: limit2
      *             },
      *             header: {
      *                 Authorization: authorization2
@@ -689,7 +689,7 @@ export interface V1Service {
      *     queries: [
      *         {
      *             query: {
-     *                 type: type1
+     *                 limit: limit1
      *             },
      *             header: {
      *                 Authorization: authorization1
@@ -697,7 +697,7 @@ export interface V1Service {
      *         },
      *         {
      *             query: {
-     *                 type: type2
+     *                 limit: limit2
      *             },
      *             header: {
      *                 Authorization: authorization2
@@ -728,7 +728,7 @@ export interface V1Service {
      * ```ts
      * const data = qraft.v1Service.getAlerts.useSuspenseQuery({
      *     query: {
-     *         type: type
+     *         limit: limit
      *     },
      *     header: {
      *         Authorization: authorization
