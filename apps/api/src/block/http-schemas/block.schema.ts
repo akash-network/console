@@ -3,7 +3,7 @@ import { z } from "@hono/zod-openapi";
 const defaultLimit = 20;
 
 export const ListBlocksQuerySchema = z.object({
-  limit: z.coerce.number().min(1).max(100).default(defaultLimit).optional().openapi({
+  limit: z.coerce.number().min(1).max(100).optional().default(defaultLimit).openapi({
     type: "number",
     minimum: 1,
     maximum: 100,
@@ -20,7 +20,7 @@ export const ListBlocksResponseSchema = z.array(
       address: z.string(),
       operatorAddress: z.string(),
       moniker: z.string(),
-      avatarUrl: z.string()
+      avatarUrl: z.string().optional()
     }),
     transactionCount: z.number(),
     totalTransactionCount: z.number(),
@@ -41,7 +41,7 @@ export const GetBlockByHeightResponseSchema = z.object({
   proposer: z.object({
     operatorAddress: z.string(),
     moniker: z.string(),
-    avatarUrl: z.string(),
+    avatarUrl: z.string().optional(),
     address: z.string()
   }),
   hash: z.string(),

@@ -11,7 +11,7 @@ export class ValidatorController {
     return await this.validatorService.list();
   }
 
-  async getValidatorByAddress(address: string): Promise<GetValidatorByAddressResponse> {
+  async getValidatorByAddress(address: string): Promise<GetValidatorByAddressResponse | null> {
     return await this.validatorService.getByAddress(address);
   }
 }

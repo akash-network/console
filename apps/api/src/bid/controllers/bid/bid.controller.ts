@@ -19,10 +19,10 @@ export class BidController {
     const { currentUser, ability } = this.authService;
 
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(userId ?? currentUser.id);
-    assert(userWallet, 404, "UserWallet Not Found");
+    assert(userWallet?.address, 404, "UserWallet Not Found");
 
     const bids = await this.bidHttpService.list(userWallet.address, dseq);
 
-    return { data: bids };
+    return { data: bids as ListBidsResponse["data"] };
   }
 }

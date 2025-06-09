@@ -53,7 +53,7 @@ export class AbilityService {
 
   constructor(private readonly configService: AuthConfigService) {}
 
-  getAbilityFor(role: Role, user: { userId: string }) {
+  getAbilityFor(role: Role, user: { userId: string | null }) {
     return this.toAbility(this.templates[role]({ user }));
   }
 

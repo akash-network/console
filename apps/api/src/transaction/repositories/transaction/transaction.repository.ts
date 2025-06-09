@@ -31,7 +31,7 @@ export class TransactionRepository {
       datetime: tx.block.datetime.toISOString(),
       hash: tx.hash,
       isSuccess: !tx.hasProcessingError,
-      error: tx.hasProcessingError ? tx.log : null,
+      error: tx.hasProcessingError && tx.log ? tx.log : null,
       gasUsed: tx.gasUsed,
       gasWanted: tx.gasWanted,
       fee: parseInt(tx.fee),
@@ -44,7 +44,7 @@ export class TransactionRepository {
     }));
   }
 
-  async getTransactionByHash(hash: string): Promise<GetTransactionByHashResponse> | null {
+  async getTransactionByHash(hash: string): Promise<GetTransactionByHashResponse | null> {
     const tx = await Transaction.findOne({
       where: {
         hash
@@ -91,7 +91,7 @@ export class TransactionRepository {
         id: msg.id,
         type: msg.type,
         data: msgToJSON(msg.type, msg.data),
-        relatedDeploymentId: (msg as Message).relatedDeploymentId || null
+        relatedDeploymentId: msg.relatedDeploymentId
       }))
     };
   }

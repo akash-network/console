@@ -11,7 +11,7 @@ export class AkashBlockService {
     return await this.akashBlockRepository.getBlocks(limit);
   }
 
-  async getBlockByHeight(height: number): Promise<GetBlockByHeightResponse> | null {
+  async getBlockByHeight(height: number): Promise<GetBlockByHeightResponse | null> {
     return await this.akashBlockRepository.getBlockByHeight(height);
   }
 }

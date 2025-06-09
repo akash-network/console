@@ -5,7 +5,7 @@ import { openApiExampleTransactionHash } from "@src/utils/constants";
 const defaultLimit = 20;
 
 export const ListTransactionsQuerySchema = z.object({
-  limit: z.coerce.number().min(1).max(100).default(defaultLimit).optional().openapi({
+  limit: z.coerce.number().min(1).max(100).optional().default(defaultLimit).openapi({
     type: "number",
     minimum: 1,
     maximum: 100,

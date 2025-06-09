@@ -9,11 +9,12 @@ import { UserOutput } from "@src/user/repositories";
 export class AuthService {
   constructor(private readonly executionContextService: ExecutionContextService) {}
 
-  set currentUser(user: UserOutput) {
+  set currentUser(user: UserOutput | undefined) {
     this.executionContextService.set("CURRENT_USER", user);
   }
 
   get currentUser(): UserOutput {
+    // BUGALERT: https://github.com/akash-network/console/issues/1447
     return this.executionContextService.get("CURRENT_USER");
   }
 
