@@ -42,7 +42,7 @@ describe("Alerts CRUD", () => {
       ...input,
       userId,
       id: expect.any(String),
-      status: "NORMAL",
+      status: "OK",
       createdAt: expect.any(String),
       updatedAt: expect.any(String)
     });

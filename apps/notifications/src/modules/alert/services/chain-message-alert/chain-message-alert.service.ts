@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
-import { AlertRepository, ChainMessageAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
+import { AlertRepository, ChainMessageAlertOutput, DeploymentBalanceAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertMessageService } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { ConditionsMatcherService } from "@src/modules/alert/services/conditions-matcher/conditions-matcher.service";
 import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
@@ -32,6 +32,14 @@ export class ChainMessageAlertService {
           description: alert.description,
           vars: event
         });
+
+        const update: Partial<DeploymentBalanceAlertOutput> = { status: "TRIGGERED" };
+
+        if ("type" in event && event.type === "akash.deployment.v1beta3.MsgCloseDeployment") {
+          update.enabled = false;
+        }
+
+        await this.alertRepository.updateById(alert.id, { status: "TRIGGERED" });
         await onMessage({ payload, notificationChannelId: alert.notificationChannelId });
       } catch (error) {
         this.loggerService.error({
@@ -47,7 +55,8 @@ export class ChainMessageAlertService {
   private async forEachAlert(onAlert: AlertCallback) {
     try {
       await this.alertRepository.paginateAll({
-        query: { type: "CHAIN_MESSAGE" },
+        // TODO: implement continuous alerts. E.g. same alert can be triggered multiple times
+        query: { type: "CHAIN_MESSAGE", status: "OK" },
         limit: 10,
         callback: async alerts => {
           await Promise.all(alerts.map(async alert => onAlert(alert)));

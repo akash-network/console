@@ -101,7 +101,7 @@ describe("balance alerts", () => {
     expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, {
       notificationChannelId: notificationChannel.id,
       payload: {
-        summary: `[FIRING] deployment low: ${matchingDseq}`,
+        summary: `[TRIGGERED] deployment low: ${matchingDseq}`,
         description: `deployment ${matchingDseq} balance is 800000 < 10000000 uAKT`
       }
     });

@@ -17,7 +17,7 @@ export const generateDeploymentBalanceAlert = ({
     operator: "lt"
   },
   enabled = true,
-  status = "NORMAL",
+  status = "OK",
   params = {
     dseq: faker.string.alphanumeric(6),
     owner: mockAkashAddress()

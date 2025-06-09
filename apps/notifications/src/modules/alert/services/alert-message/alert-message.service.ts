@@ -6,7 +6,7 @@ export interface SendOptions {
   summary: string;
   description: string;
   vars: Record<string, any>;
-  summaryPrefix?: "FIRING" | "RECOVERED" | "SUSPENDED" | string;
+  summaryPrefix?: "TRIGGERED" | "RECOVERED" | "SUSPENDED" | string;
 }
 
 export interface AlertMessagePayload {

@@ -1,5 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; --> statement-breakpoint
-CREATE TYPE "public"."alert_status" AS ENUM('NORMAL', 'FIRING', 'FIRED');--> statement-breakpoint
+CREATE TYPE "public"."alert_status" AS ENUM('OK', 'TRIGGERED');--> statement-breakpoint
 CREATE TYPE "public"."alert_type" AS ENUM('CHAIN_MESSAGE', 'DEPLOYMENT_BALANCE');--> statement-breakpoint
 CREATE TYPE "public"."notification_channel_type" AS ENUM('email');--> statement-breakpoint
 CREATE TABLE "alerts" (
@@ -12,7 +12,7 @@ CREATE TABLE "alerts" (
 	"conditions" jsonb NOT NULL,
 	"enabled" boolean DEFAULT true NOT NULL,
 	"type" "alert_type" NOT NULL,
-	"status" "alert_status" DEFAULT 'NORMAL' NOT NULL,
+	"status" "alert_status" DEFAULT 'OK' NOT NULL,
 	"params" jsonb,
 	"min_block_height" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,

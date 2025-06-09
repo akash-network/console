@@ -59,12 +59,12 @@ export const generateDeploymentBalanceAlertOutput = (
       deploymentBalance: alerts.deploymentBalance && {
         ...alerts.deploymentBalance,
         id: faker.string.uuid(),
-        status: "NORMAL"
+        status: "OK"
       },
       deploymentClosed: alerts.deploymentClosed && {
         ...alerts.deploymentClosed,
         id: faker.string.uuid(),
-        status: "NORMAL"
+        status: "OK"
       }
     }
   };

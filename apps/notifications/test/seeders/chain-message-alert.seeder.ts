@@ -31,7 +31,7 @@ export const generateChainMessageAlert = ({
     description,
     conditions,
     enabled,
-    status: "NORMAL",
+    status: "OK",
     minBlockHeight: 0,
     params,
     createdAt,

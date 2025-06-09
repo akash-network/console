@@ -1,5 +1,5 @@
 {
-  "id": "4f7df274-d0f9-43ed-882b-05aa60ddd8a1",
+  "id": "f63f7d6b-6258-4a88-8deb-95d7b8671be9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -71,7 +71,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'NORMAL'"
+          "default": "'OK'"
         },
         "params": {
           "name": "params",
@@ -228,9 +228,8 @@
       "name": "alert_status",
       "schema": "public",
       "values": [
-        "NORMAL",
-        "FIRING",
-        "FIRED"
+        "OK",
+        "TRIGGERED"
       ]
     },
     "public.alert_type": {
