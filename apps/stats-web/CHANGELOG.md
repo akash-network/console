@@ -1,5 +1,12 @@
 
 
+## [0.25.2](https://github.com/akash-network/console/compare/stats-web/v0.25.1...stats-web/v0.25.2) (2025-06-09)
+
+
+### Bug Fixes
+
+* fixes e2e tests and adds closeDeployments script ([#1446](https://github.com/akash-network/console/issues/1446)) ([92d7389](https://github.com/akash-network/console/commit/92d73895ff9f8422929365d3e4dfda10f6982796))
+
 ## [0.25.1](https://github.com/akash-network/console/compare/stats-web/v0.25.0...stats-web/v0.25.1) (2025-05-29)
 
 

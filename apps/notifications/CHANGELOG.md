@@ -1,5 +1,17 @@
 
 
+## [1.4.0](https://github.com/akash-network/console/compare/notifications/v1.3.0...notifications/v1.4.0) (2025-06-09)
+
+
+### Features
+
+* **alert:** add list ui ([f30775c](https://github.com/akash-network/console/commit/f30775c060675d8d35df6826dde0b88097ffece9))
+
+
+### Code Refactoring
+
+* **notification-channel:** renames contact-point to notification-channel and alert statuses ([4b0ef57](https://github.com/akash-network/console/commit/4b0ef57029e00ac105ad8e82747ced8be552f9af))
+
 ## [1.3.0](https://github.com/akash-network/console/compare/notifications/v1.2.3...notifications/v1.3.0) (2025-06-06)
 
 
