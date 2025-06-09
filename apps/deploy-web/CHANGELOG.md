@@ -1,5 +1,22 @@
 
 
+## [2.80.0](https://github.com/akash-network/console/compare/console-web/v2.79.3...console-web/v2.80.0) (2025-06-09)
+
+
+### Features
+
+* **alert:** add list ui ([f30775c](https://github.com/akash-network/console/commit/f30775c060675d8d35df6826dde0b88097ffece9))
+
+
+### Bug Fixes
+
+* fixes e2e tests and adds closeDeployments script ([#1446](https://github.com/akash-network/console/issues/1446)) ([92d7389](https://github.com/akash-network/console/commit/92d73895ff9f8422929365d3e4dfda10f6982796))
+
+
+### Code Refactoring
+
+* **notification-channel:** renames contact-point to notification-channel and alert statuses ([4b0ef57](https://github.com/akash-network/console/commit/4b0ef57029e00ac105ad8e82747ced8be552f9af))
+
 ## [2.79.3](https://github.com/akash-network/console/compare/console-web/v2.79.2...console-web/v2.79.3) (2025-06-08)
 
 
