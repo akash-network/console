@@ -11,13 +11,14 @@
   "main": "src/index.ts",
   "scripts": {
     "format": "prettier --write ./*.{ts,json} './src/**/*.{ts,json}'",
-    "generate": "ts-node scripts/generate.ts && npm run format",
+    "generate": "node --experimental-strip-types scripts/generate.ts && npm run format",
     "lint": "eslint .",
     "test": "npm run generate && jest",
     "test:cov": "npm run test -- --coverage",
     "validate:types": "tsc --noEmit && echo"
   },
   "devDependencies": {
-    "jest": "^29.7.0"
+    "jest": "^29.7.0",
+    "typescript": "~5.8.2"
   }
 }

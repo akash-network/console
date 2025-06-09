@@ -6,6 +6,7 @@ const hq = require("alias-hq");
 
 const { NODE_ENV = "production" } = process.env;
 
+/** @type {import('webpack').Configuration} */
 module.exports = {
   entry: "./src/index.ts",
   mode: NODE_ENV,
