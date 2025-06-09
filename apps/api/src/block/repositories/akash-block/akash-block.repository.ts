@@ -34,7 +34,7 @@ export class AkashBlockRepository {
     }));
   }
 
-  async getBlockByHeight(height: number): Promise<GetBlockByHeightResponse> | null {
+  async getBlockByHeight(height: number): Promise<GetBlockByHeightResponse | null> {
     const block = await AkashBlock.findOne({
       where: {
         height: height
@@ -70,7 +70,7 @@ export class AkashBlockRepository {
       transactions: block.transactions.map(tx => ({
         hash: tx.hash,
         isSuccess: !tx.hasProcessingError,
-        error: tx.hasProcessingError ? tx.log : null,
+        error: tx.hasProcessingError && tx.log ? tx.log : null,
         fee: parseInt(tx.fee),
         datetime: block.datetime.toISOString(),
         messages: (tx.messages || []).map(message => ({

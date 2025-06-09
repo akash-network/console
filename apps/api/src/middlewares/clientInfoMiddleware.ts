@@ -16,6 +16,10 @@ let logger: LoggerService | undefined;
 export const clientInfoMiddleware = createMiddleware<{
   Variables: ClientInfoContextVariables;
 }>(async (c: Context, next: Next) => {
+  if (!c.env) {
+    return next();
+  }
+
   try {
     const info = getConnInfo(c);
     const ip = c.req.header("cf-connecting-ip") || info.remote.address;

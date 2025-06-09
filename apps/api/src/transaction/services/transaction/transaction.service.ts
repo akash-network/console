@@ -11,7 +11,7 @@ export class TransactionService {
     return await this.transactionRepository.getTransactions(limit);
   }
 
-  async getTransactionByHash(hash: string): Promise<GetTransactionByHashResponse> | null {
+  async getTransactionByHash(hash: string): Promise<GetTransactionByHashResponse | null> {
     return await this.transactionRepository.getTransactionByHash(hash);
   }
 }

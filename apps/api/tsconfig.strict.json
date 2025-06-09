@@ -16,6 +16,15 @@
     "src/features/**/*.ts",
     "src/chain/**/*.ts",
     "src/notifications/**/*.ts",
-    "src/services/**/*.ts"
+    "src/services/**/*.ts",
+    "src/open-telemetry.ts",
+    "src/scheduler.ts",
+    "src/validator/**/*.ts",
+    "src/transaction/**/*.ts",
+    "src/pricing/**/*.ts",
+    "src/caching/**/*.ts",
+    "src/block/**/*.ts",
+    "src/bid/**/*.ts",
+    "src/auth/**/*.ts",
   ]
 }
