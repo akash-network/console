@@ -2,7 +2,7 @@ import type { AlertMessagePayload } from "@src/modules/alert/services/alert-mess
 
 export type AlertMessage = {
   payload: AlertMessagePayload;
-  contactPointId: string;
+  notificationChannelId: string;
 };
 
 export type MessageCallback = (message: AlertMessage) => Promise<void>;

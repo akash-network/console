@@ -4,13 +4,13 @@ import { Injectable } from "@nestjs/common";
 import { AlertInput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 
 type DeploymentBalanceAlertInput = {
-  contactPointId: string;
+  notificationChannelId: string;
   enabled: boolean;
   threshold: number;
 };
 
 type DeploymentClosedAlertInput = {
-  contactPointId: string;
+  notificationChannelId: string;
   enabled: boolean;
 };
 
@@ -48,7 +48,7 @@ type AuthMeta = {
 
 interface RepositoryAlert {
   id: string;
-  contactPointId: string;
+  notificationChannelId: string;
   enabled: boolean;
   status: string;
   type: string;
@@ -89,7 +89,7 @@ export class DeploymentAlertService {
 
     if (existingBalanceAlert) {
       await this.alertRepository.accessibleBy(auth.ability, "update").updateById(existingBalanceAlert.id, {
-        contactPointId: input.contactPointId,
+        notificationChannelId: input.notificationChannelId,
         enabled: input.enabled,
         conditions: {
           field: "balance",
@@ -111,7 +111,7 @@ export class DeploymentAlertService {
 
     if (existingClosedAlert) {
       await this.alertRepository.accessibleBy(auth.ability, "update").updateById(existingClosedAlert.id, {
-        contactPointId: input.contactPointId,
+        notificationChannelId: input.notificationChannelId,
         enabled: input.enabled
       });
     } else {
@@ -120,11 +120,11 @@ export class DeploymentAlertService {
   }
 
   private toBalanceRepositoryInput(input: DeploymentBalanceAlertInput & { dseq: string; owner: string }, userId: string): AlertInput {
-    const { dseq, owner, threshold, contactPointId, enabled } = input;
+    const { dseq, owner, threshold, notificationChannelId, enabled } = input;
     return {
       name: `Deployment ${dseq} balance`,
       userId,
-      contactPointId,
+      notificationChannelId,
       enabled,
       type: "DEPLOYMENT_BALANCE",
       params: {
@@ -142,11 +142,11 @@ export class DeploymentAlertService {
   }
 
   private toClosedRepositoryInput(input: DeploymentClosedAlertInput & { dseq: string; owner: string }, userId: string): AlertInput {
-    const { dseq, owner, contactPointId, enabled } = input;
+    const { dseq, owner, notificationChannelId, enabled } = input;
     return {
       name: `Deployment ${dseq} closed`,
       userId,
-      contactPointId,
+      notificationChannelId,
       enabled,
       type: "CHAIN_MESSAGE",
       params: {
@@ -185,7 +185,7 @@ export class DeploymentAlertService {
       if (alert.type === "DEPLOYMENT_BALANCE" && alert.conditions) {
         result.alerts.deploymentBalance = {
           id: alert.id,
-          contactPointId: alert.contactPointId,
+          notificationChannelId: alert.notificationChannelId,
           enabled: alert.enabled,
           threshold: alert.conditions.value,
           status: alert.status
@@ -195,7 +195,7 @@ export class DeploymentAlertService {
         if (params.type === "DEPLOYMENT_CLOSED") {
           result.alerts.deploymentClosed = {
             id: alert.id,
-            contactPointId: alert.contactPointId,
+            notificationChannelId: alert.notificationChannelId,
             enabled: alert.enabled,
             status: alert.status
           };

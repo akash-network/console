@@ -9,7 +9,7 @@ import { HealthzController } from "@src/interfaces/rest/controllers/healthz/heal
 import { AlertModule } from "@src/modules/alert/alert.module";
 import { NotificationsModule } from "@src/modules/notifications/notifications.module";
 import { AlertController } from "./controllers/alert/alert.controller";
-import { ContactPointController } from "./controllers/contact-point/contact-point.controller";
+import { NotificationChannelController } from "./controllers/notification-channel/notification-channel.controller";
 import { AuthInterceptor } from "./interceptors/auth/auth.interceptor";
 import { LocalHttpLoggerMiddleware } from "./interceptors/http-logger/http-logger.middleware";
 import { HttpResultInterceptor } from "./interceptors/http-result/http-result.interceptor";
@@ -23,7 +23,7 @@ import { AuthService } from "./services/auth/auth.service";
     { provide: APP_INTERCEPTOR, useClass: AuthInterceptor },
     AuthService
   ],
-  controllers: [AlertController, ContactPointController, DeploymentAlertController, HealthzController]
+  controllers: [AlertController, NotificationChannelController, DeploymentAlertController, HealthzController]
 })
 export default class RestModule {
   configure(consumer: MiddlewareConsumer) {

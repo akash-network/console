@@ -26,7 +26,7 @@
         "template",
         "notifications",
         "alert",
-        "contact-point",
+        "notification-channel",
         "jwt"
       ]
     ]

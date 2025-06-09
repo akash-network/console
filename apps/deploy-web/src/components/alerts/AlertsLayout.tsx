@@ -13,7 +13,7 @@ import { Title } from "../shared/Title";
 
 export enum AlertTabs {
   ALERTS = "ALERTS",
-  CONTACT_POINTS = "CONTACT_POINTS"
+  NOTIFICATION_CHANNELS = "NOTIFICATION_CHANNELS"
 }
 
 type Props = {
@@ -32,9 +32,9 @@ export const AlertsLayout: React.FunctionComponent<Props> = ({ children, page, t
       case AlertTabs.ALERTS:
         router.push(UrlService.alerts());
         break;
-      case AlertTabs.CONTACT_POINTS:
+      case AlertTabs.NOTIFICATION_CHANNELS:
       default:
-        router.push(UrlService.contactPoints());
+        router.push(UrlService.notificationChannels());
         break;
     }
   };
@@ -45,8 +45,8 @@ export const AlertsLayout: React.FunctionComponent<Props> = ({ children, page, t
         <TabsTrigger value={AlertTabs.ALERTS} className={cn({ ["font-bold"]: page === AlertTabs.ALERTS })}>
           Alerts
         </TabsTrigger>
-        <TabsTrigger value={AlertTabs.CONTACT_POINTS} className={cn({ ["font-bold"]: page === AlertTabs.CONTACT_POINTS })}>
-          Contact Points
+        <TabsTrigger value={AlertTabs.NOTIFICATION_CHANNELS} className={cn({ ["font-bold"]: page === AlertTabs.NOTIFICATION_CHANNELS })}>
+          Notification Channels
         </TabsTrigger>
       </TabsList>
 

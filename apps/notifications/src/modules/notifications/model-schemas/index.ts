@@ -1,1 +1,1 @@
-export * from "./contact-point.schema";
+export * from "./notification-channel.schema";

@@ -14,15 +14,15 @@ import RestModule from "@src/interfaces/rest/rest.module";
 import * as schema from "@src/modules/alert/model-schemas";
 import { AlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 
-import { generateContactPoint } from "@test/seeders/contact-point.seeder";
+import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
 
 type AlertOutputMeta = Pick<AlertOutput, "id" | "userId">;
 
 describe("Alerts CRUD", () => {
   it("should perform all CRUD operations against raw alerts", async () => {
-    const { app, userId, contactPointId } = await setup();
+    const { app, userId, notificationChannelId } = await setup();
 
-    const alert = await shouldCreate(userId, contactPointId, app);
+    const alert = await shouldCreate(userId, notificationChannelId, app);
     await shouldUpdate(alert, app);
     await shouldRead(alert, app);
     await shouldDelete(alert, app);
@@ -30,9 +30,9 @@ describe("Alerts CRUD", () => {
     await app.close();
   });
 
-  async function shouldCreate(userId: string, contactPointId: string, app: INestApplication): Promise<AlertOutputMeta> {
+  async function shouldCreate(userId: string, notificationChannelId: string, app: INestApplication): Promise<AlertOutputMeta> {
     const { params, ...input } = generateMock(chainMessageCreateInputSchema);
-    input.contactPointId = contactPointId;
+    input.notificationChannelId = notificationChannelId;
     input.enabled = true;
 
     const res = await request(app.getHttpServer()).post("/v1/alerts").set("x-user-id", userId).send({ data: input });
@@ -42,7 +42,7 @@ describe("Alerts CRUD", () => {
       ...input,
       userId,
       id: expect.any(String),
-      status: "NORMAL",
+      status: "OK",
       createdAt: expect.any(String),
       updatedAt: expect.any(String)
     });
@@ -82,13 +82,13 @@ describe("Alerts CRUD", () => {
 
   describe("Deployment Alerts CRUD", () => {
     it("should perform all CRUD operations against raw alerts", async () => {
-      const { app, userId, contactPointId } = await setup();
+      const { app, userId, notificationChannelId } = await setup();
 
       const input = generateMock(chainMessageCreateInputSchema);
       const input2 = generateMock(chainMessageCreateInputSchema);
-      input.contactPointId = contactPointId;
+      input.notificationChannelId = notificationChannelId;
       input.enabled = true;
-      input2.contactPointId = contactPointId;
+      input2.notificationChannelId = notificationChannelId;
       input2.enabled = true;
 
       if (!input.params) {
@@ -108,7 +108,7 @@ describe("Alerts CRUD", () => {
 
   async function setup(): Promise<{
     app: INestApplication;
-    contactPointId: string;
+    notificationChannelId: string;
     userId: string;
   }> {
     @Module({
@@ -129,11 +129,11 @@ describe("Alerts CRUD", () => {
 
     const userId = faker.string.uuid();
     const db = module.get<NodePgDatabase<typeof schema>>(DRIZZLE_PROVIDER_TOKEN);
-    const [contactPoint] = await db
-      .insert(schema.ContactPoint)
-      .values([generateContactPoint({ userId })])
+    const [notificationChannel] = await db
+      .insert(schema.NotificationChannel)
+      .values([generateNotificationChannel({ userId })])
       .returning();
 
-    return { app, contactPointId: contactPoint.id, userId };
+    return { app, notificationChannelId: notificationChannel.id, userId };
   }
 });

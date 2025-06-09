@@ -56,7 +56,7 @@ export class DeploymentBalanceAlertsService {
         const payload = await this.suspendErroneousAlert(balanceResult.val, alert);
 
         if (payload) {
-          await onMessage({ payload, contactPointId: alert.contactPointId });
+          await onMessage({ payload, notificationChannelId: alert.notificationChannelId });
         }
         return;
       }
@@ -68,12 +68,12 @@ export class DeploymentBalanceAlertsService {
       };
       let summaryPrefix: SendOptions["summaryPrefix"];
 
-      if (isMatching && alert.status === "NORMAL") {
-        summaryPrefix = `FIRING`;
-        update.status = "FIRING";
-      } else if (!isMatching && alert.status === "FIRING") {
+      if (isMatching && alert.status === "OK") {
+        summaryPrefix = `TRIGGERED`;
+        update.status = "TRIGGERED";
+      } else if (!isMatching && alert.status === "TRIGGERED") {
         summaryPrefix = `RECOVERED`;
-        update.status = "NORMAL";
+        update.status = "OK";
       }
 
       await this.alertRepository.updateById(alert.id, update);
@@ -87,7 +87,7 @@ export class DeploymentBalanceAlertsService {
         });
 
         if (payload) {
-          await onMessage({ payload, contactPointId: alert.contactPointId });
+          await onMessage({ payload, notificationChannelId: alert.notificationChannelId });
         }
       }
     } catch (error) {

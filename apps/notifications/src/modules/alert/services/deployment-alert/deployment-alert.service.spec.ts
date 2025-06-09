@@ -35,7 +35,7 @@ describe(DeploymentAlertService.name, () => {
       expect(alertRepository.create).toHaveBeenCalledWith({
         name: `Deployment ${input.dseq} balance`,
         userId,
-        contactPointId: input.alerts.deploymentBalance.contactPointId,
+        notificationChannelId: input.alerts.deploymentBalance.notificationChannelId,
         enabled: input.alerts.deploymentBalance.enabled,
         type: "DEPLOYMENT_BALANCE",
         params: {
@@ -53,7 +53,7 @@ describe(DeploymentAlertService.name, () => {
       expect(alertRepository.create).toHaveBeenCalledWith({
         name: `Deployment ${input.dseq} closed`,
         userId,
-        contactPointId: input.alerts.deploymentClosed.contactPointId,
+        notificationChannelId: input.alerts.deploymentClosed.notificationChannelId,
         enabled: input.alerts.deploymentClosed.enabled,
         type: "CHAIN_MESSAGE",
         params: {
@@ -88,12 +88,12 @@ describe(DeploymentAlertService.name, () => {
         owner: mockAkashAddress(),
         alerts: {
           deploymentBalance: {
-            contactPointId: faker.string.uuid(),
+            notificationChannelId: faker.string.uuid(),
             enabled: !existing.alerts.deploymentBalance.enabled,
             threshold: faker.number.int({ min: 1, max: 1000000 })
           },
           deploymentClosed: {
-            contactPointId: faker.string.uuid(),
+            notificationChannelId: faker.string.uuid(),
             enabled: !existing.alerts.deploymentClosed.enabled
           }
         }
@@ -108,7 +108,7 @@ describe(DeploymentAlertService.name, () => {
 
       expect(result).toEqual(output);
       expect(alertRepository.updateById).toHaveBeenCalledWith(existing.alerts.deploymentBalance.id, {
-        contactPointId: input.alerts.deploymentBalance.contactPointId,
+        notificationChannelId: input.alerts.deploymentBalance.notificationChannelId,
         enabled: input.alerts.deploymentBalance.enabled,
         conditions: {
           field: "balance",
@@ -117,7 +117,7 @@ describe(DeploymentAlertService.name, () => {
         }
       });
       expect(alertRepository.updateById).toHaveBeenCalledWith(existing.alerts.deploymentClosed.id, {
-        contactPointId: input.alerts.deploymentClosed.contactPointId,
+        notificationChannelId: input.alerts.deploymentClosed.notificationChannelId,
         enabled: input.alerts.deploymentClosed.enabled
       });
     });
@@ -161,14 +161,14 @@ describe(DeploymentAlertService.name, () => {
         dseq,
         alerts: {
           deploymentBalance: {
-            contactPointId: deploymentBalanceRawAlert.contactPointId,
+            notificationChannelId: deploymentBalanceRawAlert.notificationChannelId,
             enabled: deploymentBalanceRawAlert.enabled,
             threshold: deploymentBalanceRawAlert.conditions.value,
             id: deploymentBalanceRawAlert.id,
             status: deploymentBalanceRawAlert.status
           },
           deploymentClosed: {
-            contactPointId: deploymentClosedRawAlert.contactPointId,
+            notificationChannelId: deploymentClosedRawAlert.notificationChannelId,
             enabled: deploymentClosedRawAlert.enabled,
             id: deploymentClosedRawAlert.id,
             status: deploymentClosedRawAlert.status

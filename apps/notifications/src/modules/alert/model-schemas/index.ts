@@ -1,2 +1,2 @@
 export * from "./alert.schema";
-export * from "./contact-point.schema";
+export * from "./notification-channel.schema";

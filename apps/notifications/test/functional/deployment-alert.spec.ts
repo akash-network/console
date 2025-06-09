@@ -13,17 +13,17 @@ import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-re
 import RestModule from "@src/interfaces/rest/rest.module";
 import * as schema from "@src/modules/alert/model-schemas";
 
-import { generateContactPoint } from "@test/seeders/contact-point.seeder";
+import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
 
 describe("Deployment Alerts CRUD", () => {
   it("should perform all CRUD operations against raw alerts", async () => {
-    const { app, userId, contactPointId } = await setup();
+    const { app, userId, notificationChannelId } = await setup();
 
     const input = generateMock(chainMessageCreateInputSchema);
     const input2 = generateMock(chainMessageCreateInputSchema);
-    input.contactPointId = contactPointId;
+    input.notificationChannelId = notificationChannelId;
     input.enabled = true;
-    input2.contactPointId = contactPointId;
+    input2.notificationChannelId = notificationChannelId;
     input2.enabled = true;
 
     if (!input.params) {
@@ -42,7 +42,7 @@ describe("Deployment Alerts CRUD", () => {
 
   async function setup(): Promise<{
     app: INestApplication;
-    contactPointId: string;
+    notificationChannelId: string;
     userId: string;
   }> {
     @Module({
@@ -63,11 +63,11 @@ describe("Deployment Alerts CRUD", () => {
 
     const userId = faker.string.uuid();
     const db = module.get<NodePgDatabase<typeof schema>>(DRIZZLE_PROVIDER_TOKEN);
-    const [contactPoint] = await db
-      .insert(schema.ContactPoint)
-      .values([generateContactPoint({ userId })])
+    const [notificationChannel] = await db
+      .insert(schema.NotificationChannel)
+      .values([generateNotificationChannel({ userId })])
       .returning();
 
-    return { app, contactPointId: contactPoint.id, userId };
+    return { app, notificationChannelId: notificationChannel.id, userId };
   }
 });

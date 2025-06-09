@@ -20,7 +20,7 @@ import { generateDeploymentBalanceAlert } from "@test/seeders/deployment-balance
 
 describe(DeploymentBalanceAlertsService.name, () => {
   describe("alertFor", () => {
-    it("should alert for a given block and mark it as firing", async () => {
+    it("should alert for a given block and mark it as triggered", async () => {
       const { service, alertRepository, deploymentService, alertMessageService, onMessage } = await setup();
       const owner = mockAkashAddress();
       const dseq = faker.string.numeric(6);
@@ -39,7 +39,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
       const balance = { balance: 9000000 };
       deploymentService.getDeploymentBalance.mockResolvedValue(Ok(balance));
       const alertMessage = generateAlertMessage({
-        contactPointId: alert.contactPointId
+        notificationChannelId: alert.notificationChannelId
       });
       alertMessageService.getMessage.mockReturnValue(alertMessage.payload);
 
@@ -49,16 +49,16 @@ describe(DeploymentBalanceAlertsService.name, () => {
         summary: alert.summary,
         description: alert.description,
         vars: balance,
-        summaryPrefix: "FIRING"
+        summaryPrefix: "TRIGGERED"
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
       expect(alertRepository.updateById).toHaveBeenCalledWith(alert.id, {
         minBlockHeight: 1010,
-        status: "FIRING"
+        status: "TRIGGERED"
       });
     });
 
-    it("should recover an alert for a given block and mark it as normal", async () => {
+    it("should recover an alert for a given block and mark it as OK", async () => {
       const { service, alertRepository, deploymentService, alertMessageService, onMessage } = await setup();
       const owner = mockAkashAddress();
       const dseq = faker.string.numeric(6);
@@ -69,7 +69,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
         },
         conditions: { field: "balance", value: 10000000, operator: "lt" },
         minBlockHeight: 1000,
-        status: "FIRING"
+        status: "TRIGGERED"
       });
       const alerts: DeploymentBalanceAlertOutput[] = [alert];
       alertRepository.paginateAll.mockImplementation(async options => {
@@ -79,7 +79,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
       const balance = { balance: 11000000 };
       deploymentService.getDeploymentBalance.mockResolvedValue(Ok(balance));
       const alertMessage = generateAlertMessage({
-        contactPointId: alert.contactPointId
+        notificationChannelId: alert.notificationChannelId
       });
       alertMessageService.getMessage.mockReturnValue(alertMessage.payload);
 
@@ -94,11 +94,11 @@ describe(DeploymentBalanceAlertsService.name, () => {
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
       expect(alertRepository.updateById).toHaveBeenCalledWith(alert.id, {
         minBlockHeight: 1010,
-        status: "NORMAL"
+        status: "OK"
       });
     });
 
-    it("should not proceed with an already firing alert", async () => {
+    it("should not proceed with an already triggered alert", async () => {
       const { service, alertRepository, deploymentService, alertMessageService } = await setup();
       const owner = mockAkashAddress();
       const dseq = faker.string.numeric(6);
@@ -109,7 +109,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
         },
         conditions: { field: "balance", value: 10000000, operator: "lt" },
         minBlockHeight: 1000,
-        status: "FIRING"
+        status: "TRIGGERED"
       });
       const alerts: DeploymentBalanceAlertOutput[] = [alert];
       alertRepository.paginateAll.mockImplementation(async options => {
@@ -146,7 +146,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
 
       deploymentService.getDeploymentBalance.mockResolvedValue(Err(new RichError("Deployment closed", "DEPLOYMENT_CLOSED")));
       const alertMessage = generateAlertMessage({
-        contactPointId: alert.contactPointId
+        notificationChannelId: alert.notificationChannelId
       });
       alertMessageService.getMessage.mockReturnValue(alertMessage.payload);
 

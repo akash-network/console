@@ -139,7 +139,7 @@ export interface AlertOutputResponse {
         /** @format uuid */
         userId: string;
         /** @format uuid */
-        contactPointId: string;
+        notificationChannelId: string;
         enabled: boolean;
         /** @minLength 3 */
         summary: string;
@@ -187,7 +187,7 @@ export interface AlertPatchInput {
     /** @format uuid */
     userId?: string;
     /** @format uuid */
-    contactPointId?: string;
+    notificationChannelId?: string;
     /** @default true */
     enabled?: boolean;
     /** @minLength 3 */

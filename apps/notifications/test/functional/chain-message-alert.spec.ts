@@ -12,7 +12,7 @@ import * as schema from "@src/modules/alert/model-schemas";
 
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
 import { generateChainMessageAlert } from "@test/seeders/chain-message-alert.seeder";
-import { generateContactPoint } from "@test/seeders/contact-point.seeder";
+import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
 
 describe("chain message alerts", () => {
   it("should send an alert based on conditions", async () => {
@@ -26,13 +26,13 @@ describe("chain message alerts", () => {
 
     jest.spyOn(brokerService, "publish").mockResolvedValue(undefined);
 
-    const [contactPoint] = await db
-      .insert(schema.ContactPoint)
-      .values([generateContactPoint({})])
+    const [notificationChannel] = await db
+      .insert(schema.NotificationChannel)
+      .values([generateNotificationChannel({})])
       .returning();
 
     const matchingAlert = generateChainMessageAlert({
-      contactPointId: contactPoint.id,
+      notificationChannelId: notificationChannel.id,
       conditions: {
         value: [
           {
@@ -53,7 +53,7 @@ describe("chain message alerts", () => {
     });
 
     const mismatchingAlert = generateChainMessageAlert({
-      contactPointId: contactPoint.id,
+      notificationChannelId: notificationChannel.id,
       conditions: {
         value: [
           {
@@ -83,7 +83,7 @@ describe("chain message alerts", () => {
 
     expect(brokerService.publish).toHaveBeenCalledTimes(1);
     expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, {
-      contactPointId: contactPoint.id,
+      notificationChannelId: notificationChannel.id,
       payload: {
         summary: `deployment ${dseq} closed`,
         description: `deployment ${dseq} is closed`

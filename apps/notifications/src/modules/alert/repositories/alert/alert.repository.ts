@@ -94,7 +94,10 @@ export class AlertRepository {
     return this.db.transaction(async transaction => {
       const [alert] = await transaction
         .update(schema.Alert)
-        .set(input)
+        .set({
+          ...input,
+          updatedAt: sql`NOW()`
+        })
         .where(this.whereAccessibleBy(eq(schema.Alert.id, id)))
         .returning();
 
@@ -184,7 +187,7 @@ export class AlertRepository {
     limit,
     callback
   }: {
-    query: { type: T; block?: number };
+    query: { type: T; block?: number; status?: AlertOutput["status"] };
     limit: number;
     callback: (alerts: AlertOutputTypeMap[T][]) => Promise<void>;
   }): Promise<void> {
@@ -194,6 +197,10 @@ export class AlertRepository {
 
     if (query.block) {
       clauses.push(lte(Alert.minBlockHeight, query.block));
+    }
+
+    if (query.status) {
+      clauses.push(eq(Alert.status, query.status));
     }
 
     while (hasMore) {

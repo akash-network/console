@@ -37,7 +37,7 @@ describe(ChainMessageAlertService.name, () => {
 
       conditionsMatcher.isMatching.mockReturnValue(true);
       const alertMessage = generateAlertMessage({
-        contactPointId: alert.contactPointId
+        notificationChannelId: alert.notificationChannelId
       });
       alertMessageService.getMessage.mockReturnValue(alertMessage.payload);
 
@@ -160,10 +160,10 @@ describe(ChainMessageAlertService.name, () => {
 
       conditionsMatcher.isMatching.mockReturnValue(true);
       const alertMessage1 = generateAlertMessage({
-        contactPointId: alert1.contactPointId
+        notificationChannelId: alert1.notificationChannelId
       });
       const alertMessage2 = generateAlertMessage({
-        contactPointId: alert2.contactPointId
+        notificationChannelId: alert2.notificationChannelId
       });
       alertMessageService.getMessage.mockReturnValueOnce(alertMessage1.payload).mockReturnValueOnce(alertMessage2.payload);
 
@@ -215,7 +215,7 @@ describe(ChainMessageAlertService.name, () => {
 
       conditionsMatcher.isMatching.mockReturnValue(true);
       const alertMessage = generateAlertMessage({
-        contactPointId: alert.contactPointId
+        notificationChannelId: alert.notificationChannelId
       });
       alertMessageService.getMessage.mockReturnValue(alertMessage.payload);
 
