@@ -48,6 +48,7 @@ import {
 } from "./billing";
 import { blocksRouter } from "./block";
 import { dashboardDataRouter, graphDataRouter, leasesDurationRouter, marketDataRouter, networkCapacityRouter } from "./dashboard";
+import { networkRouter } from "./network";
 import { pricingRouter } from "./pricing";
 import {
   auditorsRouter,
@@ -136,6 +137,7 @@ appHono.route("/", marketDataRouter);
 appHono.route("/", validatorsRouter);
 appHono.route("/", pricingRouter);
 appHono.route("/", leasesDurationRouter);
+appHono.route("/", networkRouter);
 
 appHono.route("/", notificationsApiProxy);
 
