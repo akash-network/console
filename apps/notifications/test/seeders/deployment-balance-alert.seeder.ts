@@ -7,7 +7,7 @@ import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
 export const generateDeploymentBalanceAlert = ({
   id = faker.string.uuid(),
   userId = faker.string.uuid(),
-  contactPointId = faker.string.uuid(),
+  notificationChannelId = faker.string.uuid(),
   name = faker.lorem.word(),
   summary = faker.lorem.sentence(),
   description = faker.lorem.sentence(),
@@ -17,7 +17,7 @@ export const generateDeploymentBalanceAlert = ({
     operator: "lt"
   },
   enabled = true,
-  status = "NORMAL",
+  status = "OK",
   params = {
     dseq: faker.string.alphanumeric(6),
     owner: mockAkashAddress()
@@ -30,7 +30,7 @@ export const generateDeploymentBalanceAlert = ({
     type: "DEPLOYMENT_BALANCE",
     id,
     userId,
-    contactPointId,
+    notificationChannelId,
     name,
     summary,
     description,

@@ -3,36 +3,36 @@ import { Err, Ok, Result } from "ts-results";
 
 import { RichError } from "@src/lib/rich-error/rich-error";
 import { NotificationCommandDto } from "../../dto/NotificationCommand.dto";
-import { ContactPointRepository } from "../../repositories/contact-point/contact-point.repository";
+import { NotificationChannelRepository } from "../../repositories/notification-channel/notification-channel.repository";
 import { EmailSenderService } from "../email-sender/email-sender.service";
 
 @Injectable()
 export class NotificationRouterService {
   constructor(
     private readonly emailSenderService: EmailSenderService,
-    private contactPointRepository: ContactPointRepository
+    private notificationChannelRepository: NotificationChannelRepository
   ) {}
 
   async send(notificationCommand: NotificationCommandDto): Promise<Result<void, RichError>> {
-    const contactPoint = await this.contactPointRepository.findById(notificationCommand.contactPointId);
+    const notificationChannel = await this.notificationChannelRepository.findById(notificationCommand.notificationChannelId);
 
-    if (!contactPoint) {
+    if (!notificationChannel) {
       return Err(
-        new RichError("ContactPoint not found", "NOT_FOUND", {
-          contactPointId: notificationCommand.contactPointId
+        new RichError("NotificationChannel not found", "NOT_FOUND", {
+          notificationChannelId: notificationCommand.notificationChannelId
         })
       );
     }
 
-    if (contactPoint.type === "email") {
+    if (notificationChannel.type === "email") {
       await this.emailSenderService.send({
-        userId: contactPoint.userId,
-        addresses: contactPoint.config.addresses,
+        userId: notificationChannel.userId,
+        addresses: notificationChannel.config.addresses,
         subject: notificationCommand.payload.summary,
         content: notificationCommand.payload.description
       });
     } else {
-      return Err(new RichError("ContactPoint type not implemented", "UNSUPPORTED_CONTACT_POINT_TYPE", { contactPoint }));
+      return Err(new RichError("NotificationChannel type not implemented", "UNSUPPORTED_NOTIFICATION_CHANNEL_TYPE", { notificationChannel }));
     }
 
     return Ok(undefined);

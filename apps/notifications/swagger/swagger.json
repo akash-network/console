@@ -425,9 +425,9 @@
         ]
       }
     },
-    "/v1/contact-points": {
+    "/v1/notification-channels": {
       "post": {
-        "operationId": "createContactPoint",
+        "operationId": "createNotificationChannel",
         "parameters": [
           {
             "name": "Authorization",
@@ -443,18 +443,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ContactPointCreateInput"
+                "$ref": "#/components/schemas/NotificationChannelCreateInput"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Returns the created contact point",
+            "description": "Returns the created notification channel",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ContactPointOutput"
+                  "$ref": "#/components/schemas/NotificationChannelOutput"
                 }
               }
             }
@@ -501,11 +501,11 @@
           }
         },
         "tags": [
-          "ContactPoint"
+          "NotificationChannel"
         ]
       },
       "get": {
-        "operationId": "getContactPoints",
+        "operationId": "getNotificationChannels",
         "parameters": [
           {
             "name": "limit",
@@ -536,11 +536,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Returns a paginated list of contact points",
+            "description": "Returns a paginated list of notification channels",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ContactPointListOutput"
+                  "$ref": "#/components/schemas/NotificationChannelListOutput"
                 }
               }
             }
@@ -587,13 +587,13 @@
           }
         },
         "tags": [
-          "ContactPoint"
+          "NotificationChannel"
         ]
       }
     },
-    "/v1/contact-points/{id}": {
+    "/v1/notification-channels/{id}": {
       "get": {
-        "operationId": "getContactPoint",
+        "operationId": "getNotificationChannel",
         "parameters": [
           {
             "name": "id",
@@ -614,11 +614,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Returns the requested contact point by id",
+            "description": "Returns the requested notification channel by id",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ContactPointOutput"
+                  "$ref": "#/components/schemas/NotificationChannelOutput"
                 }
               }
             }
@@ -654,7 +654,7 @@
             }
           },
           "404": {
-            "description": "Returns 404 if the contact point is not found",
+            "description": "Returns 404 if the notification channel is not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -675,11 +675,11 @@
           }
         },
         "tags": [
-          "ContactPoint"
+          "NotificationChannel"
         ]
       },
       "patch": {
-        "operationId": "patchContactPoint",
+        "operationId": "patchNotificationChannel",
         "parameters": [
           {
             "name": "id",
@@ -703,18 +703,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ContactPointPatchInput"
+                "$ref": "#/components/schemas/NotificationChannelPatchInput"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Returns the updated contact point",
+            "description": "Returns the updated notification channel",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ContactPointOutput"
+                  "$ref": "#/components/schemas/NotificationChannelOutput"
                 }
               }
             }
@@ -750,7 +750,7 @@
             }
           },
           "404": {
-            "description": "Returns 404 if the contact point is not found",
+            "description": "Returns 404 if the notification channel is not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -771,11 +771,11 @@
           }
         },
         "tags": [
-          "ContactPoint"
+          "NotificationChannel"
         ]
       },
       "delete": {
-        "operationId": "deleteContactPoint",
+        "operationId": "deleteNotificationChannel",
         "parameters": [
           {
             "name": "id",
@@ -796,11 +796,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Returns the deleted contact point",
+            "description": "Returns the deleted notification channel",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ContactPointOutput"
+                  "$ref": "#/components/schemas/NotificationChannelOutput"
                 }
               }
             }
@@ -836,7 +836,7 @@
             }
           },
           "404": {
-            "description": "Returns 404 if the contact point is not found",
+            "description": "Returns 404 if the notification channel is not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -857,7 +857,7 @@
           }
         },
         "tags": [
-          "ContactPoint"
+          "NotificationChannel"
         ]
       }
     },
@@ -1034,7 +1034,7 @@
   },
   "tags": [
     {
-      "name": "ContactPoint",
+      "name": "NotificationChannel",
       "description": ""
     },
     {
@@ -1064,7 +1064,7 @@
               {
                 "type": "object",
                 "properties": {
-                  "contactPointId": {
+                  "notificationChannelId": {
                     "type": "string",
                     "format": "uuid"
                   },
@@ -1330,7 +1330,7 @@
                   }
                 },
                 "required": [
-                  "contactPointId",
+                  "notificationChannelId",
                   "name",
                   "summary",
                   "description",
@@ -1341,7 +1341,7 @@
               {
                 "type": "object",
                 "properties": {
-                  "contactPointId": {
+                  "notificationChannelId": {
                     "type": "string",
                     "format": "uuid"
                   },
@@ -1586,7 +1586,7 @@
                   }
                 },
                 "required": [
-                  "contactPointId",
+                  "notificationChannelId",
                   "name",
                   "summary",
                   "description",
@@ -1610,7 +1610,7 @@
               {
                 "type": "object",
                 "properties": {
-                  "contactPointId": {
+                  "notificationChannelId": {
                     "type": "string",
                     "format": "uuid"
                   },
@@ -1888,7 +1888,7 @@
                   }
                 },
                 "required": [
-                  "contactPointId",
+                  "notificationChannelId",
                   "name",
                   "enabled",
                   "summary",
@@ -1905,7 +1905,7 @@
               {
                 "type": "object",
                 "properties": {
-                  "contactPointId": {
+                  "notificationChannelId": {
                     "type": "string",
                     "format": "uuid"
                   },
@@ -2162,7 +2162,7 @@
                   }
                 },
                 "required": [
-                  "contactPointId",
+                  "notificationChannelId",
                   "name",
                   "enabled",
                   "summary",
@@ -2278,7 +2278,7 @@
                 {
                   "type": "object",
                   "properties": {
-                    "contactPointId": {
+                    "notificationChannelId": {
                       "type": "string",
                       "format": "uuid"
                     },
@@ -2556,7 +2556,7 @@
                     }
                   },
                   "required": [
-                    "contactPointId",
+                    "notificationChannelId",
                     "name",
                     "enabled",
                     "summary",
@@ -2573,7 +2573,7 @@
                 {
                   "type": "object",
                   "properties": {
-                    "contactPointId": {
+                    "notificationChannelId": {
                       "type": "string",
                       "format": "uuid"
                     },
@@ -2830,7 +2830,7 @@
                     }
                   },
                   "required": [
-                    "contactPointId",
+                    "notificationChannelId",
                     "name",
                     "enabled",
                     "summary",
@@ -2901,7 +2901,7 @@
           "data": {
             "type": "object",
             "properties": {
-              "contactPointId": {
+              "notificationChannelId": {
                 "type": "string",
                 "format": "uuid"
               },
@@ -3355,7 +3355,7 @@
           "data"
         ]
       },
-      "ContactPointCreateInput": {
+      "NotificationChannelCreateInput": {
         "type": "object",
         "properties": {
           "data": {
@@ -3397,7 +3397,7 @@
           "data"
         ]
       },
-      "ContactPointOutput": {
+      "NotificationChannelOutput": {
         "type": "object",
         "properties": {
           "data": {
@@ -3470,7 +3470,7 @@
           "message"
         ]
       },
-      "ContactPointListOutput": {
+      "NotificationChannelListOutput": {
         "type": "object",
         "properties": {
           "data": {
@@ -3571,7 +3571,7 @@
           "pagination"
         ]
       },
-      "ContactPointPatchInput": {
+      "NotificationChannelPatchInput": {
         "type": "object",
         "properties": {
           "data": {
@@ -3623,7 +3623,7 @@
                   "deploymentBalance": {
                     "type": "object",
                     "properties": {
-                      "contactPointId": {
+                      "notificationChannelId": {
                         "type": "string",
                         "format": "uuid"
                       },
@@ -3638,14 +3638,14 @@
                       }
                     },
                     "required": [
-                      "contactPointId",
+                      "notificationChannelId",
                       "threshold"
                     ]
                   },
                   "deploymentClosed": {
                     "type": "object",
                     "properties": {
-                      "contactPointId": {
+                      "notificationChannelId": {
                         "type": "string",
                         "format": "uuid"
                       },
@@ -3655,7 +3655,7 @@
                       }
                     },
                     "required": [
-                      "contactPointId"
+                      "notificationChannelId"
                     ]
                   }
                 }
@@ -3689,7 +3689,7 @@
                   "deploymentBalance": {
                     "type": "object",
                     "properties": {
-                      "contactPointId": {
+                      "notificationChannelId": {
                         "type": "string",
                         "format": "uuid"
                       },
@@ -3711,7 +3711,7 @@
                       }
                     },
                     "required": [
-                      "contactPointId",
+                      "notificationChannelId",
                       "threshold",
                       "id",
                       "status"
@@ -3720,7 +3720,7 @@
                   "deploymentClosed": {
                     "type": "object",
                     "properties": {
-                      "contactPointId": {
+                      "notificationChannelId": {
                         "type": "string",
                         "format": "uuid"
                       },
@@ -3737,7 +3737,7 @@
                       }
                     },
                     "required": [
-                      "contactPointId",
+                      "notificationChannelId",
                       "id",
                       "status"
                     ]

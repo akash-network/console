@@ -72,7 +72,7 @@ describe("DeploymentAlertsContainer", () => {
       alerts: {
         deploymentClosed: {
           enabled: true,
-          contactPointId: faker.string.uuid()
+          notificationChannelId: faker.string.uuid()
         }
       }
     };

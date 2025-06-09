@@ -10,7 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { InfoCircle } from "iconoir-react";
 import { z } from "zod";
 
-import { ContactPointSelect } from "@src/components/alerts/ContactPointSelectForm/ContactPointSelect";
+import { NotificationChannelSelect } from "@src/components/alerts/NotificationChannelSelectForm/NotificationChannelSelect";
 import { DeploymentBalanceContainer } from "@src/components/deployments/DeploymentBalanceContainer/DeploymentBalanceContainer";
 import { Fieldset } from "@src/components/shared/Fieldset";
 import type { DeploymentDto } from "@src/types/deployment";
@@ -24,14 +24,20 @@ export type Props = {
   onSubmit: (input: NonNullable<DeploymentBalanceAlertInput>) => void;
 };
 
-export const DeploymentBalanceAlertView: FC<Props & { balance: number }> = ({ initialValues, onSubmit, balance, isLoading }) => {
+export const DeploymentBalanceAlertView: FC<Props & { balance: number; toDenom: (value: number) => number }> = ({
+  initialValues,
+  onSubmit,
+  balance,
+  isLoading,
+  toDenom
+}) => {
   const schema = useMemo(() => {
     return z.object({
       threshold: z.number().max(balance, {
         message: `Threshold must be less than the current deployment balance of ${balance}.`
       }),
       enabled: z.boolean(),
-      contactPointId: z.string()
+      notificationChannelId: z.string()
     });
   }, [balance]);
 
@@ -62,11 +68,12 @@ export const DeploymentBalanceAlertView: FC<Props & { balance: number }> = ({ in
 
   const submit = () => {
     const values = getValues();
+
     onSubmit(
       values.threshold
         ? {
             ...values,
-            threshold: denomToUdenom(values.threshold)
+            threshold: denomToUdenom(toDenom(values.threshold))
           }
         : values
     );
@@ -78,7 +85,7 @@ export const DeploymentBalanceAlertView: FC<Props & { balance: number }> = ({ in
         <Form {...form}>
           <form onSubmit={handleSubmit(submit)} className="space-y-4">
             <div className="space-y-3">
-              <ContactPointSelect />
+              <NotificationChannelSelect />
             </div>
             <div className="space-y-3">
               <FormField
@@ -130,7 +137,7 @@ export const DeploymentBalanceAlertView: FC<Props & { balance: number }> = ({ in
 export const DeploymentBalanceAlert: FC<Props & { deployment: DeploymentDto }> = ({ deployment, ...props }) => {
   return (
     <DeploymentBalanceContainer deployment={deployment}>
-      {({ balance }) => <DeploymentBalanceAlertView {...props} balance={balance} />}
+      {({ balance, toDenom }) => <DeploymentBalanceAlertView {...props} balance={balance} toDenom={toDenom} />}
     </DeploymentBalanceContainer>
   );
 };

@@ -1571,11 +1571,11 @@ export interface V1Service {
       body: DeleteAlertBody;
     };
   };
-  createContactPoint: {
+  createNotificationChannel: {
     /**/
     getMutationKey(
-      parameters: DeepReadonly<CreateContactPointParameters> | void
-    ): ServiceOperationMutationKey<CreateContactPointSchema, CreateContactPointParameters>;
+      parameters: DeepReadonly<CreateNotificationChannelParameters> | void
+    ): ServiceOperationMutationKey<CreateNotificationChannelSchema, CreateNotificationChannelParameters>;
     /**
      * Enables performing asynchronous data mutation operations such as POST, PUT, PATCH, or DELETE requests.
      * Handles loading state, optimistic updates, and error handling.
@@ -1583,7 +1583,7 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
      * @example Mutation with predefined parameters, e.g., for updating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.createContactPoint.useMutation({
+     * const { mutate, isPending } = qraft.v1Service.createNotificationChannel.useMutation({
      *     header: {
      *         Authorization: authorization
      *     }
@@ -1592,7 +1592,7 @@ export interface V1Service {
      * ```
      * @example Mutation without predefined parameters, e.g., for creating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.createContactPoint.useMutation()
+     * const { mutate, isPending } = qraft.v1Service.createNotificationChannel.useMutation()
      * mutate({
      *     body: bodyPayload,
      *     header: {
@@ -1601,17 +1601,17 @@ export interface V1Service {
      * });
      * ```
      */
-    useMutation<TVariables extends CreateContactPointBody, TContext = unknown>(
-      parameters: DeepReadonly<CreateContactPointParameters>,
+    useMutation<TVariables extends CreateNotificationChannelBody, TContext = unknown>(
+      parameters: DeepReadonly<CreateNotificationChannelParameters>,
       options?: ServiceOperationUseMutationOptions<
-        CreateContactPointSchema,
-        CreateContactPointData,
-        CreateContactPointParameters,
+        CreateNotificationChannelSchema,
+        CreateNotificationChannelData,
+        CreateNotificationChannelParameters,
         TVariables,
-        CreateContactPointError | Error,
+        CreateNotificationChannelError | Error,
         TContext
       >
-    ): UseMutationResult<CreateContactPointData, CreateContactPointError | Error, TVariables, TContext>;
+    ): UseMutationResult<CreateNotificationChannelData, CreateNotificationChannelError | Error, TVariables, TContext>;
     /**
      * Enables performing asynchronous data mutation operations such as POST, PUT, PATCH, or DELETE requests.
      * Handles loading state, optimistic updates, and error handling.
@@ -1619,7 +1619,7 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
      * @example Mutation with predefined parameters, e.g., for updating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.createContactPoint.useMutation({
+     * const { mutate, isPending } = qraft.v1Service.createNotificationChannel.useMutation({
      *     header: {
      *         Authorization: authorization
      *     }
@@ -1628,7 +1628,7 @@ export interface V1Service {
      * ```
      * @example Mutation without predefined parameters, e.g., for creating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.createContactPoint.useMutation()
+     * const { mutate, isPending } = qraft.v1Service.createNotificationChannel.useMutation()
      * mutate({
      *     body: bodyPayload,
      *     header: {
@@ -1637,28 +1637,28 @@ export interface V1Service {
      * });
      * ```
      */
-    useMutation<TVariables extends MutationVariables<CreateContactPointBody, CreateContactPointParameters>, TContext = unknown>(
+    useMutation<TVariables extends MutationVariables<CreateNotificationChannelBody, CreateNotificationChannelParameters>, TContext = unknown>(
       parameters: void,
       options?: ServiceOperationUseMutationOptions<
-        CreateContactPointSchema,
-        CreateContactPointData,
-        CreateContactPointParameters,
+        CreateNotificationChannelSchema,
+        CreateNotificationChannelData,
+        CreateNotificationChannelParameters,
         TVariables,
-        CreateContactPointError | Error,
+        CreateNotificationChannelError | Error,
         TContext
       >
-    ): UseMutationResult<CreateContactPointData, CreateContactPointError | Error, TVariables, TContext>;
+    ): UseMutationResult<CreateNotificationChannelData, CreateNotificationChannelError | Error, TVariables, TContext>;
     /**
      * Returns the count of currently in-progress mutations.
      *
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useIsMutating|`useIsMutating(...)` documentation}
      * @example Check how many mutations are currently in progress for the specified service method.
      * ```ts
-     * const createContactPointTotal = qraft.v1Service.createContactPoint.useIsMutating()
+     * const createNotificationChannelTotal = qraft.v1Service.createNotificationChannel.useIsMutating()
      * ```
      * @example Check how many mutations are currently in progress with the specified parameters.
      * ```ts
-     * const createContactPointTotal = qraft.v1Service.createContactPoint.useIsMutating({
+     * const createNotificationChannelTotal = qraft.v1Service.createNotificationChannel.useIsMutating({
      *     parameters: {
      *         header: {
      *             Authorization: authorization
@@ -1669,44 +1669,56 @@ export interface V1Service {
      */
     useIsMutating<TContext = unknown>(
       filters?:
-        | MutationFiltersByParameters<CreateContactPointBody, CreateContactPointData, CreateContactPointParameters, CreateContactPointError | Error, TContext>
+        | MutationFiltersByParameters<
+            CreateNotificationChannelBody,
+            CreateNotificationChannelData,
+            CreateNotificationChannelParameters,
+            CreateNotificationChannelError | Error,
+            TContext
+          >
         | MutationFiltersByMutationKey<
-            CreateContactPointSchema,
-            CreateContactPointBody,
-            CreateContactPointData,
-            CreateContactPointParameters,
-            CreateContactPointError | Error,
+            CreateNotificationChannelSchema,
+            CreateNotificationChannelBody,
+            CreateNotificationChannelData,
+            CreateNotificationChannelParameters,
+            CreateNotificationChannelError | Error,
             TContext
           >
     ): number;
     /**/
     isMutating<TContext>(
       filters?:
-        | MutationFiltersByParameters<CreateContactPointBody, CreateContactPointData, CreateContactPointParameters, CreateContactPointError | Error, TContext>
+        | MutationFiltersByParameters<
+            CreateNotificationChannelBody,
+            CreateNotificationChannelData,
+            CreateNotificationChannelParameters,
+            CreateNotificationChannelError | Error,
+            TContext
+          >
         | MutationFiltersByMutationKey<
-            CreateContactPointSchema,
-            CreateContactPointBody,
-            CreateContactPointData,
-            CreateContactPointParameters,
-            CreateContactPointError | Error,
+            CreateNotificationChannelSchema,
+            CreateNotificationChannelBody,
+            CreateNotificationChannelData,
+            CreateNotificationChannelParameters,
+            CreateNotificationChannelError | Error,
             TContext
           >
     ): number;
     /**/
     (
-      options: ServiceOperationMutationFnOptions<CreateContactPointBody, CreateContactPointParameters>,
+      options: ServiceOperationMutationFnOptions<CreateNotificationChannelBody, CreateNotificationChannelParameters>,
       client?: (
-        schema: CreateContactPointSchema,
-        options: ServiceOperationMutationFnOptions<CreateContactPointBody, CreateContactPointParameters>
-      ) => Promise<RequestFnResponse<CreateContactPointData, CreateContactPointError>>
-    ): Promise<RequestFnResponse<CreateContactPointData, CreateContactPointError>>;
+        schema: CreateNotificationChannelSchema,
+        options: ServiceOperationMutationFnOptions<CreateNotificationChannelBody, CreateNotificationChannelParameters>
+      ) => Promise<RequestFnResponse<CreateNotificationChannelData, CreateNotificationChannelError>>
+    ): Promise<RequestFnResponse<CreateNotificationChannelData, CreateNotificationChannelError>>;
     /**
      * Provides access to the current state of a mutation, including its status, any resulting data, and associated errors.
      *
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutationState|`useMutationState(...)` documentation}
      * @example Get all variables of all running mutations.
      * ```ts
-     * const createContactPointPendingMutationVariables = qraft.v1Service.createContactPoint.useMutationState({
+     * const createNotificationChannelPendingMutationVariables = qraft.v1Service.createNotificationChannel.useMutationState({
      *     filters: {
      *         status: "pending"
      *     },
@@ -1715,7 +1727,7 @@ export interface V1Service {
      * ```
      * @example Get all data for specific mutations via the `parameters`.
      * ```ts
-     * const createContactPointMutationData = qraft.v1Service.createContactPoint.useMutationState({
+     * const createNotificationChannelMutationData = qraft.v1Service.createNotificationChannel.useMutationState({
      *     filters: {
      *         parameters: {
      *             header: {
@@ -1730,60 +1742,80 @@ export interface V1Service {
     useMutationState<
       TContext = unknown,
       TResult = MutationState<
-        CreateContactPointData,
-        CreateContactPointError | Error,
-        MutationVariables<CreateContactPointBody, CreateContactPointParameters>,
+        CreateNotificationChannelData,
+        CreateNotificationChannelError | Error,
+        MutationVariables<CreateNotificationChannelBody, CreateNotificationChannelParameters>,
         TContext
       >
     >(options?: {
       filters?:
-        | MutationFiltersByParameters<CreateContactPointBody, CreateContactPointData, CreateContactPointParameters, CreateContactPointError | Error, TContext>
+        | MutationFiltersByParameters<
+            CreateNotificationChannelBody,
+            CreateNotificationChannelData,
+            CreateNotificationChannelParameters,
+            CreateNotificationChannelError | Error,
+            TContext
+          >
         | MutationFiltersByMutationKey<
-            CreateContactPointSchema,
-            CreateContactPointBody,
-            CreateContactPointData,
-            CreateContactPointParameters,
-            CreateContactPointError | Error,
+            CreateNotificationChannelSchema,
+            CreateNotificationChannelBody,
+            CreateNotificationChannelData,
+            CreateNotificationChannelParameters,
+            CreateNotificationChannelError | Error,
             TContext
           >;
       select?: (
         mutation: Mutation<
-          CreateContactPointData,
-          CreateContactPointError | Error,
-          MutationVariables<CreateContactPointBody, CreateContactPointParameters>,
+          CreateNotificationChannelData,
+          CreateNotificationChannelError | Error,
+          MutationVariables<CreateNotificationChannelBody, CreateNotificationChannelParameters>,
           TContext
         >
       ) => TResult;
     }): Array<TResult>;
-    schema: CreateContactPointSchema;
+    schema: CreateNotificationChannelSchema;
     types: {
-      parameters: CreateContactPointParameters;
-      data: CreateContactPointData;
-      error: CreateContactPointError;
-      body: CreateContactPointBody;
+      parameters: CreateNotificationChannelParameters;
+      data: CreateNotificationChannelData;
+      error: CreateNotificationChannelError;
+      body: CreateNotificationChannelBody;
     };
   };
-  getContactPoints: {
+  getNotificationChannels: {
     /**/
     cancelQueries<TInfinite extends boolean = false>(
       filters?:
-        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
-        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>,
+        | QueryFiltersByParameters<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >,
       options?: CancelOptions
     ): Promise<void>;
     /**/
-    getQueryKey(parameters: DeepReadonly<GetContactPointsParameters> | void): ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>;
+    getQueryKey(
+      parameters: DeepReadonly<GetNotificationChannelsParameters> | void
+    ): ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>;
     /**
      * Performs asynchronous data fetching, manages loading states and error handling.
      *
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
      * @example Query without parameters
      * ```ts
-     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery()
+     * const { data, isLoading } = qraft.v1Service.getNotificationChannels.useQuery()
      * ```
      * @example Query with parameters
      * ```ts
-     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery({
+     * const { data, isLoading } = qraft.v1Service.getNotificationChannels.useQuery({
      *     query: {
      *         limit: limit
      *     },
@@ -1793,29 +1825,31 @@ export interface V1Service {
      * })
      * ```
      */
-    useQuery<TData = GetContactPointsData>(
-      parameters: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+    useQuery<TData = GetNotificationChannelsData>(
+      parameters:
+        | ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
+        | (DeepReadonly<GetNotificationChannelsParameters> | void),
       options?: Omit<
         UndefinedInitialDataOptions<
-          GetContactPointsData,
-          GetContactPointsError,
+          GetNotificationChannelsData,
+          GetNotificationChannelsError,
           TData,
-          ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>
+          ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
         >,
         "queryKey"
       >
-    ): UseQueryResult<TData, GetContactPointsError | Error>;
+    ): UseQueryResult<TData, GetNotificationChannelsError | Error>;
     /**
      * Performs asynchronous data fetching, manages loading states and error handling.
      *
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
      * @example Query without parameters
      * ```ts
-     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery()
+     * const { data, isLoading } = qraft.v1Service.getNotificationChannels.useQuery()
      * ```
      * @example Query with parameters
      * ```ts
-     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery({
+     * const { data, isLoading } = qraft.v1Service.getNotificationChannels.useQuery({
      *     query: {
      *         limit: limit
      *     },
@@ -1825,161 +1859,271 @@ export interface V1Service {
      * })
      * ```
      */
-    useQuery<TData = GetContactPointsData>(
-      parameters: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+    useQuery<TData = GetNotificationChannelsData>(
+      parameters:
+        | ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
+        | (DeepReadonly<GetNotificationChannelsParameters> | void),
       options: Omit<
         DefinedInitialDataOptions<
-          GetContactPointsData,
-          GetContactPointsError,
+          GetNotificationChannelsData,
+          GetNotificationChannelsError,
           TData,
-          ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>
+          ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
         >,
         "queryKey"
       >
-    ): DefinedUseQueryResult<TData, GetContactPointsError | Error>;
+    ): DefinedUseQueryResult<TData, GetNotificationChannelsError | Error>;
     /**/
-    fetchInfiniteQuery<TPageParam extends GetContactPointsParameters>(
+    fetchInfiniteQuery<TPageParam extends GetNotificationChannelsParameters>(
       options: ServiceOperationFetchInfiniteQueryOptions<
-        GetContactPointsSchema,
-        GetContactPointsData,
-        GetContactPointsParameters,
+        GetNotificationChannelsSchema,
+        GetNotificationChannelsData,
+        GetNotificationChannelsParameters,
         DeepReadonly<TPageParam>,
-        GetContactPointsError
+        GetNotificationChannelsError
       > | void
-    ): Promise<OperationInfiniteData<GetContactPointsData, GetContactPointsParameters>>;
+    ): Promise<OperationInfiniteData<GetNotificationChannelsData, GetNotificationChannelsParameters>>;
     /**/
-    prefetchInfiniteQuery<TPageParam extends GetContactPointsParameters>(
+    prefetchInfiniteQuery<TPageParam extends GetNotificationChannelsParameters>(
       options: ServiceOperationFetchInfiniteQueryOptions<
-        GetContactPointsSchema,
-        GetContactPointsData,
-        GetContactPointsParameters,
+        GetNotificationChannelsSchema,
+        GetNotificationChannelsData,
+        GetNotificationChannelsParameters,
         DeepReadonly<TPageParam>,
-        GetContactPointsError
+        GetNotificationChannelsError
       > | void
     ): Promise<void>;
     /**/
-    ensureInfiniteQueryData<TPageParam extends GetContactPointsParameters>(
+    ensureInfiniteQueryData<TPageParam extends GetNotificationChannelsParameters>(
       options: ServiceOperationEnsureInfiniteQueryDataOptions<
-        GetContactPointsSchema,
-        GetContactPointsData,
-        GetContactPointsParameters,
+        GetNotificationChannelsSchema,
+        GetNotificationChannelsData,
+        GetNotificationChannelsParameters,
         DeepReadonly<TPageParam>,
-        GetContactPointsError
+        GetNotificationChannelsError
       > | void
-    ): Promise<OperationInfiniteData<GetContactPointsData, GetContactPointsParameters>>;
+    ): Promise<OperationInfiniteData<GetNotificationChannelsData, GetNotificationChannelsParameters>>;
     /**/
     fetchQuery(
-      options: ServiceOperationFetchQueryOptions<GetContactPointsSchema, GetContactPointsData, GetContactPointsParameters, GetContactPointsError> | void
-    ): Promise<GetContactPointsData>;
+      options: ServiceOperationFetchQueryOptions<
+        GetNotificationChannelsSchema,
+        GetNotificationChannelsData,
+        GetNotificationChannelsParameters,
+        GetNotificationChannelsError
+      > | void
+    ): Promise<GetNotificationChannelsData>;
     /**/
     prefetchQuery(
-      options: ServiceOperationFetchQueryOptions<GetContactPointsSchema, GetContactPointsData, GetContactPointsParameters, GetContactPointsError> | void
+      options: ServiceOperationFetchQueryOptions<
+        GetNotificationChannelsSchema,
+        GetNotificationChannelsData,
+        GetNotificationChannelsParameters,
+        GetNotificationChannelsError
+      > | void
     ): Promise<void>;
     /**/
     ensureQueryData(
-      options: ServiceOperationEnsureQueryDataOptions<GetContactPointsSchema, GetContactPointsData, GetContactPointsParameters, GetContactPointsError> | void
-    ): Promise<GetContactPointsData>;
+      options: ServiceOperationEnsureQueryDataOptions<
+        GetNotificationChannelsSchema,
+        GetNotificationChannelsData,
+        GetNotificationChannelsParameters,
+        GetNotificationChannelsError
+      > | void
+    ): Promise<GetNotificationChannelsData>;
     /**/
     getInfiniteQueryData(
-      parameters: ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void)
-    ): OperationInfiniteData<GetContactPointsData, GetContactPointsParameters> | undefined;
+      parameters:
+        | ServiceOperationInfiniteQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
+        | (DeepReadonly<GetNotificationChannelsParameters> | void)
+    ): OperationInfiniteData<GetNotificationChannelsData, GetNotificationChannelsParameters> | undefined;
     /**/
     getQueriesData<TInfinite extends boolean = false>(
       filters?:
-        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
-        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+        | QueryFiltersByParameters<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >
     ): TInfinite extends true
       ? Array<
           [
-            queryKey: ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters>,
-            data: NoInfer<OperationInfiniteData<GetContactPointsData, GetContactPointsParameters>> | undefined
+            queryKey: ServiceOperationInfiniteQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>,
+            data: NoInfer<OperationInfiniteData<GetNotificationChannelsData, GetNotificationChannelsParameters>> | undefined
           ]
         >
-      : Array<[queryKey: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>, data: GetContactPointsData | undefined]>;
+      : Array<
+          [queryKey: ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>, data: GetNotificationChannelsData | undefined]
+        >;
     /**/
     getQueryData(
-      parameters: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void)
-    ): GetContactPointsData | undefined;
+      parameters:
+        | ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
+        | (DeepReadonly<GetNotificationChannelsParameters> | void)
+    ): GetNotificationChannelsData | undefined;
     /**/
     getQueryState(
-      parameters: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void)
-    ): QueryState<GetContactPointsData, GetContactPointsError> | undefined;
+      parameters:
+        | ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
+        | (DeepReadonly<GetNotificationChannelsParameters> | void)
+    ): QueryState<GetNotificationChannelsData, GetNotificationChannelsError> | undefined;
     /**/
     getInfiniteQueryState(
-      parameters: DeepReadonly<GetContactPointsParameters> | ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters> | void
-    ): QueryState<OperationInfiniteData<GetContactPointsData, GetContactPointsParameters>, GetContactPointsError> | undefined;
+      parameters:
+        | DeepReadonly<GetNotificationChannelsParameters>
+        | ServiceOperationInfiniteQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
+        | void
+    ): QueryState<OperationInfiniteData<GetNotificationChannelsData, GetNotificationChannelsParameters>, GetNotificationChannelsError> | undefined;
     /**/
     invalidateQueries<TInfinite extends boolean = false>(
-      filters?: InvalidateQueryFilters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>,
+      filters?: InvalidateQueryFilters<
+        GetNotificationChannelsSchema,
+        GetNotificationChannelsData,
+        TInfinite,
+        GetNotificationChannelsParameters,
+        GetNotificationChannelsError
+      >,
       options?: InvalidateOptions
     ): Promise<void>;
     /**/
     isFetching<TInfinite extends boolean = false>(
       filters?:
-        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
-        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+        | QueryFiltersByParameters<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >
     ): number;
     /**/
     <TMeta extends Record<string, any>, TSignal extends AbortSignal = AbortSignal>(
       options:
-        | QueryFnOptionsByQueryKey<GetContactPointsSchema, GetContactPointsParameters, TMeta, TSignal>
-        | (QueryFnOptionsByParameters<GetContactPointsParameters, TMeta, TSignal> | void),
+        | QueryFnOptionsByQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters, TMeta, TSignal>
+        | (QueryFnOptionsByParameters<GetNotificationChannelsParameters, TMeta, TSignal> | void),
       client?: (
-        schema: GetContactPointsSchema,
+        schema: GetNotificationChannelsSchema,
         options: {
-          parameters: GetContactPointsParameters;
+          parameters: GetNotificationChannelsParameters;
           signal?: TSignal;
           meta?: TMeta;
         }
-      ) => Promise<RequestFnResponse<GetContactPointsData, GetContactPointsError>>
-    ): Promise<RequestFnResponse<GetContactPointsData, GetContactPointsError>>;
+      ) => Promise<RequestFnResponse<GetNotificationChannelsData, GetNotificationChannelsError>>
+    ): Promise<RequestFnResponse<GetNotificationChannelsData, GetNotificationChannelsError>>;
     /**/
     refetchQueries<TInfinite extends boolean = false>(
       filters?:
-        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
-        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>,
+        | QueryFiltersByParameters<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >,
       options?: RefetchOptions
     ): Promise<void>;
     /**/
     removeQueries<TInfinite extends boolean = false>(
       filters?:
-        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
-        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+        | QueryFiltersByParameters<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >
     ): void;
     /**/
     resetQueries<TInfinite extends boolean = false>(
       filters?:
-        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
-        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>,
+        | QueryFiltersByParameters<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >,
       options?: ResetOptions
     ): Promise<void>;
     /**/
     setInfiniteQueryData(
-      parameters: (DeepReadonly<GetContactPointsParameters> | undefined) | ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters>,
+      parameters:
+        | (DeepReadonly<GetNotificationChannelsParameters> | undefined)
+        | ServiceOperationInfiniteQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>,
       updater: Updater<
-        NoInfer<OperationInfiniteData<GetContactPointsData, GetContactPointsParameters>> | undefined,
-        NoInfer<DeepReadonly<OperationInfiniteData<GetContactPointsData, GetContactPointsParameters>>> | undefined
+        NoInfer<OperationInfiniteData<GetNotificationChannelsData, GetNotificationChannelsParameters>> | undefined,
+        NoInfer<DeepReadonly<OperationInfiniteData<GetNotificationChannelsData, GetNotificationChannelsParameters>>> | undefined
       >,
       options?: SetDataOptions
-    ): OperationInfiniteData<GetContactPointsData, GetContactPointsParameters> | undefined;
+    ): OperationInfiniteData<GetNotificationChannelsData, GetNotificationChannelsParameters> | undefined;
     /**/
     setQueriesData<TInfinite extends boolean = false>(
       filters:
-        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
-        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>,
-      updater: Updater<NoInfer<GetContactPointsData> | undefined, NoInfer<GetContactPointsData> | undefined>,
+        | QueryFiltersByParameters<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >,
+      updater: Updater<NoInfer<GetNotificationChannelsData> | undefined, NoInfer<GetNotificationChannelsData> | undefined>,
       options?: SetDataOptions
-    ): Array<GetContactPointsData | undefined>;
+    ): Array<GetNotificationChannelsData | undefined>;
     /**/
     setQueryData(
-      parameters: (DeepReadonly<GetContactPointsParameters> | undefined) | ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>,
-      updater: Updater<NoInfer<GetContactPointsData> | undefined, NoInfer<DeepReadonly<GetContactPointsData>> | undefined>,
+      parameters:
+        | (DeepReadonly<GetNotificationChannelsParameters> | undefined)
+        | ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>,
+      updater: Updater<NoInfer<GetNotificationChannelsData> | undefined, NoInfer<DeepReadonly<GetNotificationChannelsData>> | undefined>,
       options?: SetDataOptions
-    ): GetContactPointsData | undefined;
+    ): GetNotificationChannelsData | undefined;
     /**/
     getInfiniteQueryKey(
-      parameters: DeepReadonly<GetContactPointsParameters> | void
-    ): ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters>;
+      parameters: DeepReadonly<GetNotificationChannelsParameters> | void
+    ): ServiceOperationInfiniteQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>;
     /**
      * Performs asynchronous data fetching with support for infinite scrolling scenarios.
      * Manages paginated data and provides utilities for fetching additional pages.
@@ -1988,7 +2132,7 @@ export interface V1Service {
      *
      * @example Infinite Query
      * ```ts
-     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoints.useInfiniteQuery({
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getNotificationChannels.useInfiniteQuery({
      *     header: {
      *         Authorization: authorization
      *     }
@@ -2006,23 +2150,25 @@ export interface V1Service {
      * ```
      */
     useInfiniteQuery<
-      TPageParam extends GetContactPointsParameters,
-      TQueryFnData = GetContactPointsData,
-      TData = OperationInfiniteData<TQueryFnData, GetContactPointsParameters>
+      TPageParam extends GetNotificationChannelsParameters,
+      TQueryFnData = GetNotificationChannelsData,
+      TData = OperationInfiniteData<TQueryFnData, GetNotificationChannelsParameters>
     >(
-      parameters: ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+      parameters:
+        | ServiceOperationInfiniteQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
+        | (DeepReadonly<GetNotificationChannelsParameters> | void),
       options: Omit<
         UndefinedInitialDataInfiniteOptions<
           TQueryFnData,
-          GetContactPointsError,
+          GetNotificationChannelsError,
           TData,
-          ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters>,
+          ServiceOperationInfiniteQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>,
           PartialParameters<DeepReadonly<TPageParam>>
         >,
         "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
       > &
         InfiniteQueryPageParamsOptions<TQueryFnData, PartialParameters<DeepReadonly<TPageParam>>>
-    ): UseInfiniteQueryResult<TData, GetContactPointsError | Error>;
+    ): UseInfiniteQueryResult<TData, GetNotificationChannelsError | Error>;
     /**
      * Performs asynchronous data fetching with support for infinite scrolling scenarios.
      * Manages paginated data and provides utilities for fetching additional pages.
@@ -2031,7 +2177,7 @@ export interface V1Service {
      *
      * @example Infinite Query
      * ```ts
-     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoints.useInfiniteQuery({
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getNotificationChannels.useInfiniteQuery({
      *     header: {
      *         Authorization: authorization
      *     }
@@ -2049,23 +2195,25 @@ export interface V1Service {
      * ```
      */
     useInfiniteQuery<
-      TPageParam extends GetContactPointsParameters,
-      TQueryFnData = GetContactPointsData,
-      TData = OperationInfiniteData<TQueryFnData, GetContactPointsParameters>
+      TPageParam extends GetNotificationChannelsParameters,
+      TQueryFnData = GetNotificationChannelsData,
+      TData = OperationInfiniteData<TQueryFnData, GetNotificationChannelsParameters>
     >(
-      parameters: ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+      parameters:
+        | ServiceOperationInfiniteQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
+        | (DeepReadonly<GetNotificationChannelsParameters> | void),
       options: Omit<
         DefinedInitialDataInfiniteOptions<
           TQueryFnData,
-          GetContactPointsError,
+          GetNotificationChannelsError,
           TData,
-          ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters>,
+          ServiceOperationInfiniteQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>,
           PartialParameters<DeepReadonly<TPageParam>>
         >,
         "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
       > &
-        InfiniteQueryPageParamsOptions<GetContactPointsData, PartialParameters<DeepReadonly<TPageParam>>>
-    ): DefinedUseInfiniteQueryResult<TData, GetContactPointsError | Error>;
+        InfiniteQueryPageParamsOptions<GetNotificationChannelsData, PartialParameters<DeepReadonly<TPageParam>>>
+    ): DefinedUseInfiniteQueryResult<TData, GetNotificationChannelsError | Error>;
     /**
      * Monitors the number of queries currently fetching, matching the provided filters.
      * Useful for creating loading indicators or performing actions based on active requests.
@@ -2074,11 +2222,11 @@ export interface V1Service {
      * @example Checks the total number of queries fetching from the specified service method,
      * both normal and infinite. If no parameters are provided, no filtering is applied.
      * ```ts
-     * const getContactPointsTotal = qraft.v1Service.getContactPoints.useIsFetching()
+     * const getNotificationChannelsTotal = qraft.v1Service.getNotificationChannels.useIsFetching()
      * ```
      * @example Checks the number of normal queries fetching with the specified parameters.
      * ```ts
-     * const getContactPointsByParametersTotal = qraft.v1Service.getContactPoints.useIsFetching({
+     * const getNotificationChannelsByParametersTotal = qraft.v1Service.getNotificationChannels.useIsFetching({
      *     infinite: false,
      *     parameters: {
      *         query: {
@@ -2093,8 +2241,20 @@ export interface V1Service {
      */
     useIsFetching<TInfinite extends boolean = false>(
       filters?:
-        | QueryFiltersByParameters<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
-        | QueryFiltersByQueryKey<GetContactPointsSchema, GetContactPointsData, TInfinite, GetContactPointsParameters, GetContactPointsError>
+        | QueryFiltersByParameters<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelsSchema,
+            GetNotificationChannelsData,
+            TInfinite,
+            GetNotificationChannelsParameters,
+            GetNotificationChannelsError
+          >
     ): number;
     /**
      * Allows you to execute multiple asynchronous data fetching operations concurrently. This is especially useful for managing complex data dependencies in parallel.
@@ -2102,7 +2262,7 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQueries|`useQueries(...)` documentation}
      * @example Multiple queries. Returns `data`, `error`, `isSuccess` and other properties.
      * ```ts
-     * const getContactPointsResults = qraft.v1Service.getContactPoints.useQueries({
+     * const getNotificationChannelsResults = qraft.v1Service.getNotificationChannels.useQueries({
      *     queries: [
      *         {
      *             query: {
@@ -2122,11 +2282,11 @@ export interface V1Service {
      *         }
      *     ]
      * });
-     * getContactPointsResults.forEach(({ isSuccess, data, error }) => console.log({ isSuccess, data, error }));
+     * getNotificationChannelsResults.forEach(({ isSuccess, data, error }) => console.log({ isSuccess, data, error }));
      * ```
      * @example Combined results. Only the data will be returned.
      * ```ts
-     * const getContactPointsCombinedResults = qraft.v1Service.getContactPoints.useQueries({
+     * const getNotificationChannelsCombinedResults = qraft.v1Service.getNotificationChannels.useQueries({
      *     combine: results => results.map(result => result.data),
      *     queries: [
      *         {
@@ -2147,29 +2307,38 @@ export interface V1Service {
      *         }
      *     ]
      * });
-     * getContactPointsCombinedResults.forEach(data => console.log({ data }));
+     * getNotificationChannelsCombinedResults.forEach(data => console.log({ data }));
      * ```
      */
     useQueries<
-      T extends Array<UseQueryOptionsForUseQueries<GetContactPointsSchema, GetContactPointsParameters, GetContactPointsData, GetContactPointsError>>,
-      TCombinedResult = Array<UseQueryResult<GetContactPointsData, GetContactPointsError>>
+      T extends Array<
+        UseQueryOptionsForUseQueries<
+          GetNotificationChannelsSchema,
+          GetNotificationChannelsParameters,
+          GetNotificationChannelsData,
+          GetNotificationChannelsError
+        >
+      >,
+      TCombinedResult = Array<UseQueryResult<GetNotificationChannelsData, GetNotificationChannelsError>>
     >(options: {
       queries: T;
-      combine?: (results: Array<UseQueryResult<GetContactPointsData, GetContactPointsError>>) => TCombinedResult;
+      combine?: (results: Array<UseQueryResult<GetNotificationChannelsData, GetNotificationChannelsError>>) => TCombinedResult;
     }): TCombinedResult;
     /**/
-    getQueryKey(parameters: DeepReadonly<GetContactPointsParameters> | void): ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>;
+    getQueryKey(
+      parameters: DeepReadonly<GetNotificationChannelsParameters> | void
+    ): ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>;
     /**
      * Performs asynchronous data fetching, manages loading states and error handling.
      *
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
      * @example Query without parameters
      * ```ts
-     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery()
+     * const { data, isLoading } = qraft.v1Service.getNotificationChannels.useQuery()
      * ```
      * @example Query with parameters
      * ```ts
-     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery({
+     * const { data, isLoading } = qraft.v1Service.getNotificationChannels.useQuery({
      *     query: {
      *         limit: limit
      *     },
@@ -2179,29 +2348,31 @@ export interface V1Service {
      * })
      * ```
      */
-    useQuery<TData = GetContactPointsData>(
-      parameters: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+    useQuery<TData = GetNotificationChannelsData>(
+      parameters:
+        | ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
+        | (DeepReadonly<GetNotificationChannelsParameters> | void),
       options?: Omit<
         UndefinedInitialDataOptions<
-          GetContactPointsData,
-          GetContactPointsError,
+          GetNotificationChannelsData,
+          GetNotificationChannelsError,
           TData,
-          ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>
+          ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
         >,
         "queryKey"
       >
-    ): UseQueryResult<TData, GetContactPointsError | Error>;
+    ): UseQueryResult<TData, GetNotificationChannelsError | Error>;
     /**
      * Performs asynchronous data fetching, manages loading states and error handling.
      *
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
      * @example Query without parameters
      * ```ts
-     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery()
+     * const { data, isLoading } = qraft.v1Service.getNotificationChannels.useQuery()
      * ```
      * @example Query with parameters
      * ```ts
-     * const { data, isLoading } = qraft.v1Service.getContactPoints.useQuery({
+     * const { data, isLoading } = qraft.v1Service.getNotificationChannels.useQuery({
      *     query: {
      *         limit: limit
      *     },
@@ -2211,18 +2382,20 @@ export interface V1Service {
      * })
      * ```
      */
-    useQuery<TData = GetContactPointsData>(
-      parameters: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+    useQuery<TData = GetNotificationChannelsData>(
+      parameters:
+        | ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
+        | (DeepReadonly<GetNotificationChannelsParameters> | void),
       options: Omit<
         DefinedInitialDataOptions<
-          GetContactPointsData,
-          GetContactPointsError,
+          GetNotificationChannelsData,
+          GetNotificationChannelsError,
           TData,
-          ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>
+          ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
         >,
         "queryKey"
       >
-    ): DefinedUseQueryResult<TData, GetContactPointsError | Error>;
+    ): DefinedUseQueryResult<TData, GetNotificationChannelsError | Error>;
     /**
      * Performs asynchronous data fetching with support for infinite scrolling scenarios.
      * Manages paginated data and provides utilities for fetching additional pages.
@@ -2232,7 +2405,7 @@ export interface V1Service {
      *
      * @example Suspense Infinite Query
      * ```ts
-     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoints.useSuspenseInfiniteQuery({
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getNotificationChannels.useSuspenseInfiniteQuery({
      *     header: {
      *         Authorization: authorization
      *     }
@@ -2249,21 +2422,23 @@ export interface V1Service {
      * fetchNextPage(); // Fetch the next page
      * ```
      */
-    useSuspenseInfiniteQuery<TPageParam extends GetContactPointsParameters, TData = GetContactPointsData>(
-      parameters: ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+    useSuspenseInfiniteQuery<TPageParam extends GetNotificationChannelsParameters, TData = GetNotificationChannelsData>(
+      parameters:
+        | ServiceOperationInfiniteQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
+        | (DeepReadonly<GetNotificationChannelsParameters> | void),
       options: Omit<
         UseSuspenseInfiniteQueryOptions<
-          GetContactPointsData,
-          GetContactPointsError,
-          OperationInfiniteData<TData, GetContactPointsParameters>,
-          GetContactPointsData,
-          ServiceOperationInfiniteQueryKey<GetContactPointsSchema, GetContactPointsParameters>,
+          GetNotificationChannelsData,
+          GetNotificationChannelsError,
+          OperationInfiniteData<TData, GetNotificationChannelsParameters>,
+          GetNotificationChannelsData,
+          ServiceOperationInfiniteQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>,
           PartialParameters<DeepReadonly<TPageParam>>
         >,
         "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
       > &
-        InfiniteQueryPageParamsOptions<GetContactPointsData, PartialParameters<DeepReadonly<TPageParam>>>
-    ): UseSuspenseInfiniteQueryResult<OperationInfiniteData<TData, GetContactPointsParameters>, GetContactPointsError | Error>;
+        InfiniteQueryPageParamsOptions<GetNotificationChannelsData, PartialParameters<DeepReadonly<TPageParam>>>
+    ): UseSuspenseInfiniteQueryResult<OperationInfiniteData<TData, GetNotificationChannelsParameters>, GetNotificationChannelsError | Error>;
     /**
      * Allows you to execute multiple asynchronous data fetching operations concurrently with Suspense support.
      * Similar to useQueries but integrates with React Suspense for loading states.
@@ -2271,7 +2446,7 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useSuspenseQueries|`useSuspenseQueries(...)` documentation}
      * @example Basic usage with Suspense
      * ```ts
-     * const getContactPointsData = qraft.v1Service.getContactPoints.useSuspenseQueries({
+     * const getNotificationChannelsData = qraft.v1Service.getNotificationChannels.useSuspenseQueries({
      *     queries: [
      *         {
      *             query: {
@@ -2291,11 +2466,11 @@ export interface V1Service {
      *         }
      *     ]
      * });
-     * getContactPointsResults.forEach(({ isSuccess, data, error }) => console.log({ isSuccess, data, error }));
+     * getNotificationChannelsResults.forEach(({ isSuccess, data, error }) => console.log({ isSuccess, data, error }));
      * ```
      * @example With data transformation using combine
      * ```ts
-     * const getContactPointsCombinedData = qraft.v1Service.getContactPoints.useSuspenseQueries({
+     * const getNotificationChannelsCombinedData = qraft.v1Service.getNotificationChannels.useSuspenseQueries({
      *     combine: results => results.map(result => result.data),
      *     queries: [
      *         {
@@ -2316,15 +2491,22 @@ export interface V1Service {
      *         }
      *     ]
      * });
-     * getContactPointsCombinedData.forEach(data => console.log({ data }));
+     * getNotificationChannelsCombinedData.forEach(data => console.log({ data }));
      * ```
      */
     useSuspenseQueries<
-      T extends Array<UseQueryOptionsForUseSuspenseQuery<GetContactPointsSchema, GetContactPointsParameters, GetContactPointsData, GetContactPointsError>>,
-      TCombinedResult = Array<UseSuspenseQueryResult<GetContactPointsData, GetContactPointsError>>
+      T extends Array<
+        UseQueryOptionsForUseSuspenseQuery<
+          GetNotificationChannelsSchema,
+          GetNotificationChannelsParameters,
+          GetNotificationChannelsData,
+          GetNotificationChannelsError
+        >
+      >,
+      TCombinedResult = Array<UseSuspenseQueryResult<GetNotificationChannelsData, GetNotificationChannelsError>>
     >(options: {
       queries: T;
-      combine?: (results: Array<WithOptional<UseSuspenseQueryResult<GetContactPointsData, GetContactPointsError>, "data">>) => TCombinedResult;
+      combine?: (results: Array<WithOptional<UseSuspenseQueryResult<GetNotificationChannelsData, GetNotificationChannelsError>, "data">>) => TCombinedResult;
     }): TCombinedResult;
     /**
      * Performs asynchronous data fetching with Suspense support.
@@ -2333,11 +2515,11 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useSuspenseQuery|`useSuspenseQuery(...)` documentation}
      * @example Suspense Query without parameters
      * ```ts
-     * const data = qraft.v1Service.getContactPoints.useSuspenseQuery()
+     * const data = qraft.v1Service.getNotificationChannels.useSuspenseQuery()
      * ```
      * @example Suspense Query with parameters
      * ```ts
-     * const data = qraft.v1Service.getContactPoints.useSuspenseQuery({
+     * const data = qraft.v1Service.getNotificationChannels.useSuspenseQuery({
      *     query: {
      *         limit: limit
      *     },
@@ -2347,42 +2529,58 @@ export interface V1Service {
      * })
      * ```
      */
-    useSuspenseQuery<TData = GetContactPointsData>(
-      parameters: ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters> | (DeepReadonly<GetContactPointsParameters> | void),
+    useSuspenseQuery<TData = GetNotificationChannelsData>(
+      parameters:
+        | ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
+        | (DeepReadonly<GetNotificationChannelsParameters> | void),
       options?: Omit<
         UseSuspenseQueryOptions<
-          GetContactPointsData,
-          GetContactPointsError,
+          GetNotificationChannelsData,
+          GetNotificationChannelsError,
           TData,
-          ServiceOperationQueryKey<GetContactPointsSchema, GetContactPointsParameters>
+          ServiceOperationQueryKey<GetNotificationChannelsSchema, GetNotificationChannelsParameters>
         >,
         "queryKey"
       >
-    ): UseSuspenseQueryResult<TData, GetContactPointsError | Error>;
-    schema: GetContactPointsSchema;
+    ): UseSuspenseQueryResult<TData, GetNotificationChannelsError | Error>;
+    schema: GetNotificationChannelsSchema;
     types: {
-      parameters: GetContactPointsParameters;
-      data: GetContactPointsData;
-      error: GetContactPointsError;
+      parameters: GetNotificationChannelsParameters;
+      data: GetNotificationChannelsData;
+      error: GetNotificationChannelsError;
     };
   };
-  getContactPoint: {
+  getNotificationChannel: {
     /**/
     cancelQueries<TInfinite extends boolean = false>(
       filters?:
-        | QueryFiltersByParameters<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>
-        | QueryFiltersByQueryKey<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>,
+        | QueryFiltersByParameters<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >,
       options?: CancelOptions
     ): Promise<void>;
     /**/
-    getQueryKey(parameters: DeepReadonly<GetContactPointParameters>): ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters>;
+    getQueryKey(
+      parameters: DeepReadonly<GetNotificationChannelParameters>
+    ): ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>;
     /**
      * Performs asynchronous data fetching, manages loading states and error handling.
      *
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
      * @example Query with parameters
      * ```ts
-     * const { data, isLoading } = qraft.v1Service.getContactPoint.useQuery({
+     * const { data, isLoading } = qraft.v1Service.getNotificationChannel.useQuery({
      *     path: {
      *         id: id
      *     },
@@ -2392,25 +2590,25 @@ export interface V1Service {
      * })
      * ```
      */
-    useQuery<TData = GetContactPointData>(
-      parameters: ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters> | DeepReadonly<GetContactPointParameters>,
+    useQuery<TData = GetNotificationChannelData>(
+      parameters: ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters> | DeepReadonly<GetNotificationChannelParameters>,
       options?: Omit<
         UndefinedInitialDataOptions<
-          GetContactPointData,
-          GetContactPointError,
+          GetNotificationChannelData,
+          GetNotificationChannelError,
           TData,
-          ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters>
+          ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>
         >,
         "queryKey"
       >
-    ): UseQueryResult<TData, GetContactPointError | Error>;
+    ): UseQueryResult<TData, GetNotificationChannelError | Error>;
     /**
      * Performs asynchronous data fetching, manages loading states and error handling.
      *
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
      * @example Query with parameters
      * ```ts
-     * const { data, isLoading } = qraft.v1Service.getContactPoint.useQuery({
+     * const { data, isLoading } = qraft.v1Service.getNotificationChannel.useQuery({
      *     path: {
      *         id: id
      *     },
@@ -2420,156 +2618,262 @@ export interface V1Service {
      * })
      * ```
      */
-    useQuery<TData = GetContactPointData>(
-      parameters: ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters> | DeepReadonly<GetContactPointParameters>,
+    useQuery<TData = GetNotificationChannelData>(
+      parameters: ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters> | DeepReadonly<GetNotificationChannelParameters>,
       options: Omit<
-        DefinedInitialDataOptions<GetContactPointData, GetContactPointError, TData, ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters>>,
+        DefinedInitialDataOptions<
+          GetNotificationChannelData,
+          GetNotificationChannelError,
+          TData,
+          ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>
+        >,
         "queryKey"
       >
-    ): DefinedUseQueryResult<TData, GetContactPointError | Error>;
+    ): DefinedUseQueryResult<TData, GetNotificationChannelError | Error>;
     /**/
-    fetchInfiniteQuery<TPageParam extends GetContactPointParameters>(
+    fetchInfiniteQuery<TPageParam extends GetNotificationChannelParameters>(
       options: ServiceOperationFetchInfiniteQueryOptions<
-        GetContactPointSchema,
-        GetContactPointData,
-        GetContactPointParameters,
+        GetNotificationChannelSchema,
+        GetNotificationChannelData,
+        GetNotificationChannelParameters,
         DeepReadonly<TPageParam>,
-        GetContactPointError
+        GetNotificationChannelError
       >
-    ): Promise<OperationInfiniteData<GetContactPointData, GetContactPointParameters>>;
+    ): Promise<OperationInfiniteData<GetNotificationChannelData, GetNotificationChannelParameters>>;
     /**/
-    prefetchInfiniteQuery<TPageParam extends GetContactPointParameters>(
+    prefetchInfiniteQuery<TPageParam extends GetNotificationChannelParameters>(
       options: ServiceOperationFetchInfiniteQueryOptions<
-        GetContactPointSchema,
-        GetContactPointData,
-        GetContactPointParameters,
+        GetNotificationChannelSchema,
+        GetNotificationChannelData,
+        GetNotificationChannelParameters,
         DeepReadonly<TPageParam>,
-        GetContactPointError
+        GetNotificationChannelError
       >
     ): Promise<void>;
     /**/
-    ensureInfiniteQueryData<TPageParam extends GetContactPointParameters>(
+    ensureInfiniteQueryData<TPageParam extends GetNotificationChannelParameters>(
       options: ServiceOperationEnsureInfiniteQueryDataOptions<
-        GetContactPointSchema,
-        GetContactPointData,
-        GetContactPointParameters,
+        GetNotificationChannelSchema,
+        GetNotificationChannelData,
+        GetNotificationChannelParameters,
         DeepReadonly<TPageParam>,
-        GetContactPointError
+        GetNotificationChannelError
       >
-    ): Promise<OperationInfiniteData<GetContactPointData, GetContactPointParameters>>;
+    ): Promise<OperationInfiniteData<GetNotificationChannelData, GetNotificationChannelParameters>>;
     /**/
     fetchQuery(
-      options: ServiceOperationFetchQueryOptions<GetContactPointSchema, GetContactPointData, GetContactPointParameters, GetContactPointError>
-    ): Promise<GetContactPointData>;
+      options: ServiceOperationFetchQueryOptions<
+        GetNotificationChannelSchema,
+        GetNotificationChannelData,
+        GetNotificationChannelParameters,
+        GetNotificationChannelError
+      >
+    ): Promise<GetNotificationChannelData>;
     /**/
     prefetchQuery(
-      options: ServiceOperationFetchQueryOptions<GetContactPointSchema, GetContactPointData, GetContactPointParameters, GetContactPointError>
+      options: ServiceOperationFetchQueryOptions<
+        GetNotificationChannelSchema,
+        GetNotificationChannelData,
+        GetNotificationChannelParameters,
+        GetNotificationChannelError
+      >
     ): Promise<void>;
     /**/
     ensureQueryData(
-      options: ServiceOperationEnsureQueryDataOptions<GetContactPointSchema, GetContactPointData, GetContactPointParameters, GetContactPointError>
-    ): Promise<GetContactPointData>;
+      options: ServiceOperationEnsureQueryDataOptions<
+        GetNotificationChannelSchema,
+        GetNotificationChannelData,
+        GetNotificationChannelParameters,
+        GetNotificationChannelError
+      >
+    ): Promise<GetNotificationChannelData>;
     /**/
     getInfiniteQueryData(
-      parameters: ServiceOperationInfiniteQueryKey<GetContactPointSchema, GetContactPointParameters> | DeepReadonly<GetContactPointParameters>
-    ): OperationInfiniteData<GetContactPointData, GetContactPointParameters> | undefined;
+      parameters:
+        | ServiceOperationInfiniteQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>
+        | DeepReadonly<GetNotificationChannelParameters>
+    ): OperationInfiniteData<GetNotificationChannelData, GetNotificationChannelParameters> | undefined;
     /**/
     getQueriesData<TInfinite extends boolean = false>(
       filters?:
-        | QueryFiltersByParameters<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>
-        | QueryFiltersByQueryKey<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>
+        | QueryFiltersByParameters<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >
     ): TInfinite extends true
       ? Array<
           [
-            queryKey: ServiceOperationInfiniteQueryKey<GetContactPointSchema, GetContactPointParameters>,
-            data: NoInfer<OperationInfiniteData<GetContactPointData, GetContactPointParameters>> | undefined
+            queryKey: ServiceOperationInfiniteQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>,
+            data: NoInfer<OperationInfiniteData<GetNotificationChannelData, GetNotificationChannelParameters>> | undefined
           ]
         >
-      : Array<[queryKey: ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters>, data: GetContactPointData | undefined]>;
+      : Array<
+          [queryKey: ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>, data: GetNotificationChannelData | undefined]
+        >;
     /**/
     getQueryData(
-      parameters: ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters> | DeepReadonly<GetContactPointParameters>
-    ): GetContactPointData | undefined;
+      parameters: ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters> | DeepReadonly<GetNotificationChannelParameters>
+    ): GetNotificationChannelData | undefined;
     /**/
     getQueryState(
-      parameters: ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters> | DeepReadonly<GetContactPointParameters>
-    ): QueryState<GetContactPointData, GetContactPointError> | undefined;
+      parameters: ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters> | DeepReadonly<GetNotificationChannelParameters>
+    ): QueryState<GetNotificationChannelData, GetNotificationChannelError> | undefined;
     /**/
     getInfiniteQueryState(
-      parameters: DeepReadonly<GetContactPointParameters> | ServiceOperationInfiniteQueryKey<GetContactPointSchema, GetContactPointParameters>
-    ): QueryState<OperationInfiniteData<GetContactPointData, GetContactPointParameters>, GetContactPointError> | undefined;
+      parameters:
+        | DeepReadonly<GetNotificationChannelParameters>
+        | ServiceOperationInfiniteQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>
+    ): QueryState<OperationInfiniteData<GetNotificationChannelData, GetNotificationChannelParameters>, GetNotificationChannelError> | undefined;
     /**/
     invalidateQueries<TInfinite extends boolean = false>(
-      filters?: InvalidateQueryFilters<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>,
+      filters?: InvalidateQueryFilters<
+        GetNotificationChannelSchema,
+        GetNotificationChannelData,
+        TInfinite,
+        GetNotificationChannelParameters,
+        GetNotificationChannelError
+      >,
       options?: InvalidateOptions
     ): Promise<void>;
     /**/
     isFetching<TInfinite extends boolean = false>(
       filters?:
-        | QueryFiltersByParameters<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>
-        | QueryFiltersByQueryKey<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>
+        | QueryFiltersByParameters<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >
     ): number;
     /**/
     <TMeta extends Record<string, any>, TSignal extends AbortSignal = AbortSignal>(
       options:
-        | QueryFnOptionsByQueryKey<GetContactPointSchema, GetContactPointParameters, TMeta, TSignal>
-        | QueryFnOptionsByParameters<GetContactPointParameters, TMeta, TSignal>,
+        | QueryFnOptionsByQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters, TMeta, TSignal>
+        | QueryFnOptionsByParameters<GetNotificationChannelParameters, TMeta, TSignal>,
       client?: (
-        schema: GetContactPointSchema,
+        schema: GetNotificationChannelSchema,
         options: {
-          parameters: GetContactPointParameters;
+          parameters: GetNotificationChannelParameters;
           signal?: TSignal;
           meta?: TMeta;
         }
-      ) => Promise<RequestFnResponse<GetContactPointData, GetContactPointError>>
-    ): Promise<RequestFnResponse<GetContactPointData, GetContactPointError>>;
+      ) => Promise<RequestFnResponse<GetNotificationChannelData, GetNotificationChannelError>>
+    ): Promise<RequestFnResponse<GetNotificationChannelData, GetNotificationChannelError>>;
     /**/
     refetchQueries<TInfinite extends boolean = false>(
       filters?:
-        | QueryFiltersByParameters<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>
-        | QueryFiltersByQueryKey<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>,
+        | QueryFiltersByParameters<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >,
       options?: RefetchOptions
     ): Promise<void>;
     /**/
     removeQueries<TInfinite extends boolean = false>(
       filters?:
-        | QueryFiltersByParameters<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>
-        | QueryFiltersByQueryKey<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>
+        | QueryFiltersByParameters<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >
     ): void;
     /**/
     resetQueries<TInfinite extends boolean = false>(
       filters?:
-        | QueryFiltersByParameters<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>
-        | QueryFiltersByQueryKey<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>,
+        | QueryFiltersByParameters<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >,
       options?: ResetOptions
     ): Promise<void>;
     /**/
     setInfiniteQueryData(
-      parameters: DeepReadonly<GetContactPointParameters> | ServiceOperationInfiniteQueryKey<GetContactPointSchema, GetContactPointParameters>,
+      parameters:
+        | DeepReadonly<GetNotificationChannelParameters>
+        | ServiceOperationInfiniteQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>,
       updater: Updater<
-        NoInfer<OperationInfiniteData<GetContactPointData, GetContactPointParameters>> | undefined,
-        NoInfer<DeepReadonly<OperationInfiniteData<GetContactPointData, GetContactPointParameters>>> | undefined
+        NoInfer<OperationInfiniteData<GetNotificationChannelData, GetNotificationChannelParameters>> | undefined,
+        NoInfer<DeepReadonly<OperationInfiniteData<GetNotificationChannelData, GetNotificationChannelParameters>>> | undefined
       >,
       options?: SetDataOptions
-    ): OperationInfiniteData<GetContactPointData, GetContactPointParameters> | undefined;
+    ): OperationInfiniteData<GetNotificationChannelData, GetNotificationChannelParameters> | undefined;
     /**/
     setQueriesData<TInfinite extends boolean = false>(
       filters:
-        | QueryFiltersByParameters<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>
-        | QueryFiltersByQueryKey<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>,
-      updater: Updater<NoInfer<GetContactPointData> | undefined, NoInfer<GetContactPointData> | undefined>,
+        | QueryFiltersByParameters<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >,
+      updater: Updater<NoInfer<GetNotificationChannelData> | undefined, NoInfer<GetNotificationChannelData> | undefined>,
       options?: SetDataOptions
-    ): Array<GetContactPointData | undefined>;
+    ): Array<GetNotificationChannelData | undefined>;
     /**/
     setQueryData(
-      parameters: DeepReadonly<GetContactPointParameters> | ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters>,
-      updater: Updater<NoInfer<GetContactPointData> | undefined, NoInfer<DeepReadonly<GetContactPointData>> | undefined>,
+      parameters: DeepReadonly<GetNotificationChannelParameters> | ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>,
+      updater: Updater<NoInfer<GetNotificationChannelData> | undefined, NoInfer<DeepReadonly<GetNotificationChannelData>> | undefined>,
       options?: SetDataOptions
-    ): GetContactPointData | undefined;
+    ): GetNotificationChannelData | undefined;
     /**/
     getInfiniteQueryKey(
-      parameters: DeepReadonly<GetContactPointParameters>
-    ): ServiceOperationInfiniteQueryKey<GetContactPointSchema, GetContactPointParameters>;
+      parameters: DeepReadonly<GetNotificationChannelParameters>
+    ): ServiceOperationInfiniteQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>;
     /**
      * Performs asynchronous data fetching with support for infinite scrolling scenarios.
      * Manages paginated data and provides utilities for fetching additional pages.
@@ -2578,7 +2882,7 @@ export interface V1Service {
      *
      * @example Infinite Query
      * ```ts
-     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoint.useInfiniteQuery({
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getNotificationChannel.useInfiniteQuery({
      *     path: {
      *         id: id
      *     },
@@ -2595,23 +2899,25 @@ export interface V1Service {
      * ```
      */
     useInfiniteQuery<
-      TPageParam extends GetContactPointParameters,
-      TQueryFnData = GetContactPointData,
-      TData = OperationInfiniteData<TQueryFnData, GetContactPointParameters>
+      TPageParam extends GetNotificationChannelParameters,
+      TQueryFnData = GetNotificationChannelData,
+      TData = OperationInfiniteData<TQueryFnData, GetNotificationChannelParameters>
     >(
-      parameters: ServiceOperationInfiniteQueryKey<GetContactPointSchema, GetContactPointParameters> | DeepReadonly<GetContactPointParameters>,
+      parameters:
+        | ServiceOperationInfiniteQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>
+        | DeepReadonly<GetNotificationChannelParameters>,
       options: Omit<
         UndefinedInitialDataInfiniteOptions<
           TQueryFnData,
-          GetContactPointError,
+          GetNotificationChannelError,
           TData,
-          ServiceOperationInfiniteQueryKey<GetContactPointSchema, GetContactPointParameters>,
+          ServiceOperationInfiniteQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>,
           PartialParameters<DeepReadonly<TPageParam>>
         >,
         "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
       > &
         InfiniteQueryPageParamsOptions<TQueryFnData, PartialParameters<DeepReadonly<TPageParam>>>
-    ): UseInfiniteQueryResult<TData, GetContactPointError | Error>;
+    ): UseInfiniteQueryResult<TData, GetNotificationChannelError | Error>;
     /**
      * Performs asynchronous data fetching with support for infinite scrolling scenarios.
      * Manages paginated data and provides utilities for fetching additional pages.
@@ -2620,7 +2926,7 @@ export interface V1Service {
      *
      * @example Infinite Query
      * ```ts
-     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoint.useInfiniteQuery({
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getNotificationChannel.useInfiniteQuery({
      *     path: {
      *         id: id
      *     },
@@ -2637,23 +2943,25 @@ export interface V1Service {
      * ```
      */
     useInfiniteQuery<
-      TPageParam extends GetContactPointParameters,
-      TQueryFnData = GetContactPointData,
-      TData = OperationInfiniteData<TQueryFnData, GetContactPointParameters>
+      TPageParam extends GetNotificationChannelParameters,
+      TQueryFnData = GetNotificationChannelData,
+      TData = OperationInfiniteData<TQueryFnData, GetNotificationChannelParameters>
     >(
-      parameters: ServiceOperationInfiniteQueryKey<GetContactPointSchema, GetContactPointParameters> | DeepReadonly<GetContactPointParameters>,
+      parameters:
+        | ServiceOperationInfiniteQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>
+        | DeepReadonly<GetNotificationChannelParameters>,
       options: Omit<
         DefinedInitialDataInfiniteOptions<
           TQueryFnData,
-          GetContactPointError,
+          GetNotificationChannelError,
           TData,
-          ServiceOperationInfiniteQueryKey<GetContactPointSchema, GetContactPointParameters>,
+          ServiceOperationInfiniteQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>,
           PartialParameters<DeepReadonly<TPageParam>>
         >,
         "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
       > &
-        InfiniteQueryPageParamsOptions<GetContactPointData, PartialParameters<DeepReadonly<TPageParam>>>
-    ): DefinedUseInfiniteQueryResult<TData, GetContactPointError | Error>;
+        InfiniteQueryPageParamsOptions<GetNotificationChannelData, PartialParameters<DeepReadonly<TPageParam>>>
+    ): DefinedUseInfiniteQueryResult<TData, GetNotificationChannelError | Error>;
     /**
      * Monitors the number of queries currently fetching, matching the provided filters.
      * Useful for creating loading indicators or performing actions based on active requests.
@@ -2662,11 +2970,11 @@ export interface V1Service {
      * @example Checks the total number of queries fetching from the specified service method,
      * both normal and infinite. If no parameters are provided, no filtering is applied.
      * ```ts
-     * const getContactPointTotal = qraft.v1Service.getContactPoint.useIsFetching()
+     * const getNotificationChannelTotal = qraft.v1Service.getNotificationChannel.useIsFetching()
      * ```
      * @example Checks the number of normal queries fetching with the specified parameters.
      * ```ts
-     * const getContactPointByParametersTotal = qraft.v1Service.getContactPoint.useIsFetching({
+     * const getNotificationChannelByParametersTotal = qraft.v1Service.getNotificationChannel.useIsFetching({
      *     infinite: false,
      *     parameters: {
      *         path: {
@@ -2681,8 +2989,20 @@ export interface V1Service {
      */
     useIsFetching<TInfinite extends boolean = false>(
       filters?:
-        | QueryFiltersByParameters<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>
-        | QueryFiltersByQueryKey<GetContactPointSchema, GetContactPointData, TInfinite, GetContactPointParameters, GetContactPointError>
+        | QueryFiltersByParameters<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >
+        | QueryFiltersByQueryKey<
+            GetNotificationChannelSchema,
+            GetNotificationChannelData,
+            TInfinite,
+            GetNotificationChannelParameters,
+            GetNotificationChannelError
+          >
     ): number;
     /**
      * Allows you to execute multiple asynchronous data fetching operations concurrently. This is especially useful for managing complex data dependencies in parallel.
@@ -2690,7 +3010,7 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQueries|`useQueries(...)` documentation}
      * @example Multiple queries. Returns `data`, `error`, `isSuccess` and other properties.
      * ```ts
-     * const getContactPointResults = qraft.v1Service.getContactPoint.useQueries({
+     * const getNotificationChannelResults = qraft.v1Service.getNotificationChannel.useQueries({
      *     queries: [
      *         {
      *             path: {
@@ -2710,11 +3030,11 @@ export interface V1Service {
      *         }
      *     ]
      * });
-     * getContactPointResults.forEach(({ isSuccess, data, error }) => console.log({ isSuccess, data, error }));
+     * getNotificationChannelResults.forEach(({ isSuccess, data, error }) => console.log({ isSuccess, data, error }));
      * ```
      * @example Combined results. Only the data will be returned.
      * ```ts
-     * const getContactPointCombinedResults = qraft.v1Service.getContactPoint.useQueries({
+     * const getNotificationChannelCombinedResults = qraft.v1Service.getNotificationChannel.useQueries({
      *     combine: results => results.map(result => result.data),
      *     queries: [
      *         {
@@ -2735,25 +3055,29 @@ export interface V1Service {
      *         }
      *     ]
      * });
-     * getContactPointCombinedResults.forEach(data => console.log({ data }));
+     * getNotificationChannelCombinedResults.forEach(data => console.log({ data }));
      * ```
      */
     useQueries<
-      T extends Array<UseQueryOptionsForUseQueries<GetContactPointSchema, GetContactPointParameters, GetContactPointData, GetContactPointError>>,
-      TCombinedResult = Array<UseQueryResult<GetContactPointData, GetContactPointError>>
+      T extends Array<
+        UseQueryOptionsForUseQueries<GetNotificationChannelSchema, GetNotificationChannelParameters, GetNotificationChannelData, GetNotificationChannelError>
+      >,
+      TCombinedResult = Array<UseQueryResult<GetNotificationChannelData, GetNotificationChannelError>>
     >(options: {
       queries: T;
-      combine?: (results: Array<UseQueryResult<GetContactPointData, GetContactPointError>>) => TCombinedResult;
+      combine?: (results: Array<UseQueryResult<GetNotificationChannelData, GetNotificationChannelError>>) => TCombinedResult;
     }): TCombinedResult;
     /**/
-    getQueryKey(parameters: DeepReadonly<GetContactPointParameters>): ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters>;
+    getQueryKey(
+      parameters: DeepReadonly<GetNotificationChannelParameters>
+    ): ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>;
     /**
      * Performs asynchronous data fetching, manages loading states and error handling.
      *
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
      * @example Query with parameters
      * ```ts
-     * const { data, isLoading } = qraft.v1Service.getContactPoint.useQuery({
+     * const { data, isLoading } = qraft.v1Service.getNotificationChannel.useQuery({
      *     path: {
      *         id: id
      *     },
@@ -2763,25 +3087,25 @@ export interface V1Service {
      * })
      * ```
      */
-    useQuery<TData = GetContactPointData>(
-      parameters: ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters> | DeepReadonly<GetContactPointParameters>,
+    useQuery<TData = GetNotificationChannelData>(
+      parameters: ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters> | DeepReadonly<GetNotificationChannelParameters>,
       options?: Omit<
         UndefinedInitialDataOptions<
-          GetContactPointData,
-          GetContactPointError,
+          GetNotificationChannelData,
+          GetNotificationChannelError,
           TData,
-          ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters>
+          ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>
         >,
         "queryKey"
       >
-    ): UseQueryResult<TData, GetContactPointError | Error>;
+    ): UseQueryResult<TData, GetNotificationChannelError | Error>;
     /**
      * Performs asynchronous data fetching, manages loading states and error handling.
      *
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useQuery|`useQuery(...)` documentation}
      * @example Query with parameters
      * ```ts
-     * const { data, isLoading } = qraft.v1Service.getContactPoint.useQuery({
+     * const { data, isLoading } = qraft.v1Service.getNotificationChannel.useQuery({
      *     path: {
      *         id: id
      *     },
@@ -2791,13 +3115,18 @@ export interface V1Service {
      * })
      * ```
      */
-    useQuery<TData = GetContactPointData>(
-      parameters: ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters> | DeepReadonly<GetContactPointParameters>,
+    useQuery<TData = GetNotificationChannelData>(
+      parameters: ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters> | DeepReadonly<GetNotificationChannelParameters>,
       options: Omit<
-        DefinedInitialDataOptions<GetContactPointData, GetContactPointError, TData, ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters>>,
+        DefinedInitialDataOptions<
+          GetNotificationChannelData,
+          GetNotificationChannelError,
+          TData,
+          ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>
+        >,
         "queryKey"
       >
-    ): DefinedUseQueryResult<TData, GetContactPointError | Error>;
+    ): DefinedUseQueryResult<TData, GetNotificationChannelError | Error>;
     /**
      * Performs asynchronous data fetching with support for infinite scrolling scenarios.
      * Manages paginated data and provides utilities for fetching additional pages.
@@ -2807,7 +3136,7 @@ export interface V1Service {
      *
      * @example Suspense Infinite Query
      * ```ts
-     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getContactPoint.useSuspenseInfiniteQuery({
+     * const { data, isLoading, fetchNextPage } = qraft.v1Service.getNotificationChannel.useSuspenseInfiniteQuery({
      *     path: {
      *         id: id
      *     },
@@ -2823,21 +3152,23 @@ export interface V1Service {
      * fetchNextPage(); // Fetch the next page
      * ```
      */
-    useSuspenseInfiniteQuery<TPageParam extends GetContactPointParameters, TData = GetContactPointData>(
-      parameters: ServiceOperationInfiniteQueryKey<GetContactPointSchema, GetContactPointParameters> | DeepReadonly<GetContactPointParameters>,
+    useSuspenseInfiniteQuery<TPageParam extends GetNotificationChannelParameters, TData = GetNotificationChannelData>(
+      parameters:
+        | ServiceOperationInfiniteQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>
+        | DeepReadonly<GetNotificationChannelParameters>,
       options: Omit<
         UseSuspenseInfiniteQueryOptions<
-          GetContactPointData,
-          GetContactPointError,
-          OperationInfiniteData<TData, GetContactPointParameters>,
-          GetContactPointData,
-          ServiceOperationInfiniteQueryKey<GetContactPointSchema, GetContactPointParameters>,
+          GetNotificationChannelData,
+          GetNotificationChannelError,
+          OperationInfiniteData<TData, GetNotificationChannelParameters>,
+          GetNotificationChannelData,
+          ServiceOperationInfiniteQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>,
           PartialParameters<DeepReadonly<TPageParam>>
         >,
         "queryKey" | "getPreviousPageParam" | "getNextPageParam" | "initialPageParam"
       > &
-        InfiniteQueryPageParamsOptions<GetContactPointData, PartialParameters<DeepReadonly<TPageParam>>>
-    ): UseSuspenseInfiniteQueryResult<OperationInfiniteData<TData, GetContactPointParameters>, GetContactPointError | Error>;
+        InfiniteQueryPageParamsOptions<GetNotificationChannelData, PartialParameters<DeepReadonly<TPageParam>>>
+    ): UseSuspenseInfiniteQueryResult<OperationInfiniteData<TData, GetNotificationChannelParameters>, GetNotificationChannelError | Error>;
     /**
      * Allows you to execute multiple asynchronous data fetching operations concurrently with Suspense support.
      * Similar to useQueries but integrates with React Suspense for loading states.
@@ -2845,7 +3176,7 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useSuspenseQueries|`useSuspenseQueries(...)` documentation}
      * @example Basic usage with Suspense
      * ```ts
-     * const getContactPointData = qraft.v1Service.getContactPoint.useSuspenseQueries({
+     * const getNotificationChannelData = qraft.v1Service.getNotificationChannel.useSuspenseQueries({
      *     queries: [
      *         {
      *             path: {
@@ -2865,11 +3196,11 @@ export interface V1Service {
      *         }
      *     ]
      * });
-     * getContactPointResults.forEach(({ isSuccess, data, error }) => console.log({ isSuccess, data, error }));
+     * getNotificationChannelResults.forEach(({ isSuccess, data, error }) => console.log({ isSuccess, data, error }));
      * ```
      * @example With data transformation using combine
      * ```ts
-     * const getContactPointCombinedData = qraft.v1Service.getContactPoint.useSuspenseQueries({
+     * const getNotificationChannelCombinedData = qraft.v1Service.getNotificationChannel.useSuspenseQueries({
      *     combine: results => results.map(result => result.data),
      *     queries: [
      *         {
@@ -2890,15 +3221,22 @@ export interface V1Service {
      *         }
      *     ]
      * });
-     * getContactPointCombinedData.forEach(data => console.log({ data }));
+     * getNotificationChannelCombinedData.forEach(data => console.log({ data }));
      * ```
      */
     useSuspenseQueries<
-      T extends Array<UseQueryOptionsForUseSuspenseQuery<GetContactPointSchema, GetContactPointParameters, GetContactPointData, GetContactPointError>>,
-      TCombinedResult = Array<UseSuspenseQueryResult<GetContactPointData, GetContactPointError>>
+      T extends Array<
+        UseQueryOptionsForUseSuspenseQuery<
+          GetNotificationChannelSchema,
+          GetNotificationChannelParameters,
+          GetNotificationChannelData,
+          GetNotificationChannelError
+        >
+      >,
+      TCombinedResult = Array<UseSuspenseQueryResult<GetNotificationChannelData, GetNotificationChannelError>>
     >(options: {
       queries: T;
-      combine?: (results: Array<WithOptional<UseSuspenseQueryResult<GetContactPointData, GetContactPointError>, "data">>) => TCombinedResult;
+      combine?: (results: Array<WithOptional<UseSuspenseQueryResult<GetNotificationChannelData, GetNotificationChannelError>, "data">>) => TCombinedResult;
     }): TCombinedResult;
     /**
      * Performs asynchronous data fetching with Suspense support.
@@ -2907,7 +3245,7 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useSuspenseQuery|`useSuspenseQuery(...)` documentation}
      * @example Suspense Query with parameters
      * ```ts
-     * const data = qraft.v1Service.getContactPoint.useSuspenseQuery({
+     * const data = qraft.v1Service.getNotificationChannel.useSuspenseQuery({
      *     path: {
      *         id: id
      *     },
@@ -2917,25 +3255,30 @@ export interface V1Service {
      * })
      * ```
      */
-    useSuspenseQuery<TData = GetContactPointData>(
-      parameters: ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters> | DeepReadonly<GetContactPointParameters>,
+    useSuspenseQuery<TData = GetNotificationChannelData>(
+      parameters: ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters> | DeepReadonly<GetNotificationChannelParameters>,
       options?: Omit<
-        UseSuspenseQueryOptions<GetContactPointData, GetContactPointError, TData, ServiceOperationQueryKey<GetContactPointSchema, GetContactPointParameters>>,
+        UseSuspenseQueryOptions<
+          GetNotificationChannelData,
+          GetNotificationChannelError,
+          TData,
+          ServiceOperationQueryKey<GetNotificationChannelSchema, GetNotificationChannelParameters>
+        >,
         "queryKey"
       >
-    ): UseSuspenseQueryResult<TData, GetContactPointError | Error>;
-    schema: GetContactPointSchema;
+    ): UseSuspenseQueryResult<TData, GetNotificationChannelError | Error>;
+    schema: GetNotificationChannelSchema;
     types: {
-      parameters: GetContactPointParameters;
-      data: GetContactPointData;
-      error: GetContactPointError;
+      parameters: GetNotificationChannelParameters;
+      data: GetNotificationChannelData;
+      error: GetNotificationChannelError;
     };
   };
-  patchContactPoint: {
+  patchNotificationChannel: {
     /**/
     getMutationKey(
-      parameters: DeepReadonly<PatchContactPointParameters> | void
-    ): ServiceOperationMutationKey<PatchContactPointSchema, PatchContactPointParameters>;
+      parameters: DeepReadonly<PatchNotificationChannelParameters> | void
+    ): ServiceOperationMutationKey<PatchNotificationChannelSchema, PatchNotificationChannelParameters>;
     /**
      * Enables performing asynchronous data mutation operations such as POST, PUT, PATCH, or DELETE requests.
      * Handles loading state, optimistic updates, and error handling.
@@ -2943,7 +3286,7 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
      * @example Mutation with predefined parameters, e.g., for updating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.patchContactPoint.useMutation({
+     * const { mutate, isPending } = qraft.v1Service.patchNotificationChannel.useMutation({
      *     path: {
      *         id: id
      *     },
@@ -2955,7 +3298,7 @@ export interface V1Service {
      * ```
      * @example Mutation without predefined parameters, e.g., for creating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.patchContactPoint.useMutation()
+     * const { mutate, isPending } = qraft.v1Service.patchNotificationChannel.useMutation()
      * mutate({
      *     body: bodyPayload,
      *     path: {
@@ -2967,17 +3310,17 @@ export interface V1Service {
      * });
      * ```
      */
-    useMutation<TVariables extends PatchContactPointBody, TContext = unknown>(
-      parameters: DeepReadonly<PatchContactPointParameters>,
+    useMutation<TVariables extends PatchNotificationChannelBody, TContext = unknown>(
+      parameters: DeepReadonly<PatchNotificationChannelParameters>,
       options?: ServiceOperationUseMutationOptions<
-        PatchContactPointSchema,
-        PatchContactPointData,
-        PatchContactPointParameters,
+        PatchNotificationChannelSchema,
+        PatchNotificationChannelData,
+        PatchNotificationChannelParameters,
         TVariables,
-        PatchContactPointError | Error,
+        PatchNotificationChannelError | Error,
         TContext
       >
-    ): UseMutationResult<PatchContactPointData, PatchContactPointError | Error, TVariables, TContext>;
+    ): UseMutationResult<PatchNotificationChannelData, PatchNotificationChannelError | Error, TVariables, TContext>;
     /**
      * Enables performing asynchronous data mutation operations such as POST, PUT, PATCH, or DELETE requests.
      * Handles loading state, optimistic updates, and error handling.
@@ -2985,7 +3328,7 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
      * @example Mutation with predefined parameters, e.g., for updating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.patchContactPoint.useMutation({
+     * const { mutate, isPending } = qraft.v1Service.patchNotificationChannel.useMutation({
      *     path: {
      *         id: id
      *     },
@@ -2997,7 +3340,7 @@ export interface V1Service {
      * ```
      * @example Mutation without predefined parameters, e.g., for creating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.patchContactPoint.useMutation()
+     * const { mutate, isPending } = qraft.v1Service.patchNotificationChannel.useMutation()
      * mutate({
      *     body: bodyPayload,
      *     path: {
@@ -3009,28 +3352,28 @@ export interface V1Service {
      * });
      * ```
      */
-    useMutation<TVariables extends MutationVariables<PatchContactPointBody, PatchContactPointParameters>, TContext = unknown>(
+    useMutation<TVariables extends MutationVariables<PatchNotificationChannelBody, PatchNotificationChannelParameters>, TContext = unknown>(
       parameters: void,
       options?: ServiceOperationUseMutationOptions<
-        PatchContactPointSchema,
-        PatchContactPointData,
-        PatchContactPointParameters,
+        PatchNotificationChannelSchema,
+        PatchNotificationChannelData,
+        PatchNotificationChannelParameters,
         TVariables,
-        PatchContactPointError | Error,
+        PatchNotificationChannelError | Error,
         TContext
       >
-    ): UseMutationResult<PatchContactPointData, PatchContactPointError | Error, TVariables, TContext>;
+    ): UseMutationResult<PatchNotificationChannelData, PatchNotificationChannelError | Error, TVariables, TContext>;
     /**
      * Returns the count of currently in-progress mutations.
      *
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useIsMutating|`useIsMutating(...)` documentation}
      * @example Check how many mutations are currently in progress for the specified service method.
      * ```ts
-     * const patchContactPointTotal = qraft.v1Service.patchContactPoint.useIsMutating()
+     * const patchNotificationChannelTotal = qraft.v1Service.patchNotificationChannel.useIsMutating()
      * ```
      * @example Check how many mutations are currently in progress with the specified parameters.
      * ```ts
-     * const patchContactPointTotal = qraft.v1Service.patchContactPoint.useIsMutating({
+     * const patchNotificationChannelTotal = qraft.v1Service.patchNotificationChannel.useIsMutating({
      *     parameters: {
      *         path: {
      *             id: id
@@ -3044,44 +3387,56 @@ export interface V1Service {
      */
     useIsMutating<TContext = unknown>(
       filters?:
-        | MutationFiltersByParameters<PatchContactPointBody, PatchContactPointData, PatchContactPointParameters, PatchContactPointError | Error, TContext>
+        | MutationFiltersByParameters<
+            PatchNotificationChannelBody,
+            PatchNotificationChannelData,
+            PatchNotificationChannelParameters,
+            PatchNotificationChannelError | Error,
+            TContext
+          >
         | MutationFiltersByMutationKey<
-            PatchContactPointSchema,
-            PatchContactPointBody,
-            PatchContactPointData,
-            PatchContactPointParameters,
-            PatchContactPointError | Error,
+            PatchNotificationChannelSchema,
+            PatchNotificationChannelBody,
+            PatchNotificationChannelData,
+            PatchNotificationChannelParameters,
+            PatchNotificationChannelError | Error,
             TContext
           >
     ): number;
     /**/
     isMutating<TContext>(
       filters?:
-        | MutationFiltersByParameters<PatchContactPointBody, PatchContactPointData, PatchContactPointParameters, PatchContactPointError | Error, TContext>
+        | MutationFiltersByParameters<
+            PatchNotificationChannelBody,
+            PatchNotificationChannelData,
+            PatchNotificationChannelParameters,
+            PatchNotificationChannelError | Error,
+            TContext
+          >
         | MutationFiltersByMutationKey<
-            PatchContactPointSchema,
-            PatchContactPointBody,
-            PatchContactPointData,
-            PatchContactPointParameters,
-            PatchContactPointError | Error,
+            PatchNotificationChannelSchema,
+            PatchNotificationChannelBody,
+            PatchNotificationChannelData,
+            PatchNotificationChannelParameters,
+            PatchNotificationChannelError | Error,
             TContext
           >
     ): number;
     /**/
     (
-      options: ServiceOperationMutationFnOptions<PatchContactPointBody, PatchContactPointParameters>,
+      options: ServiceOperationMutationFnOptions<PatchNotificationChannelBody, PatchNotificationChannelParameters>,
       client?: (
-        schema: PatchContactPointSchema,
-        options: ServiceOperationMutationFnOptions<PatchContactPointBody, PatchContactPointParameters>
-      ) => Promise<RequestFnResponse<PatchContactPointData, PatchContactPointError>>
-    ): Promise<RequestFnResponse<PatchContactPointData, PatchContactPointError>>;
+        schema: PatchNotificationChannelSchema,
+        options: ServiceOperationMutationFnOptions<PatchNotificationChannelBody, PatchNotificationChannelParameters>
+      ) => Promise<RequestFnResponse<PatchNotificationChannelData, PatchNotificationChannelError>>
+    ): Promise<RequestFnResponse<PatchNotificationChannelData, PatchNotificationChannelError>>;
     /**
      * Provides access to the current state of a mutation, including its status, any resulting data, and associated errors.
      *
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutationState|`useMutationState(...)` documentation}
      * @example Get all variables of all running mutations.
      * ```ts
-     * const patchContactPointPendingMutationVariables = qraft.v1Service.patchContactPoint.useMutationState({
+     * const patchNotificationChannelPendingMutationVariables = qraft.v1Service.patchNotificationChannel.useMutationState({
      *     filters: {
      *         status: "pending"
      *     },
@@ -3090,7 +3445,7 @@ export interface V1Service {
      * ```
      * @example Get all data for specific mutations via the `parameters`.
      * ```ts
-     * const patchContactPointMutationData = qraft.v1Service.patchContactPoint.useMutationState({
+     * const patchNotificationChannelMutationData = qraft.v1Service.patchNotificationChannel.useMutationState({
      *     filters: {
      *         parameters: {
      *             path: {
@@ -3108,44 +3463,50 @@ export interface V1Service {
     useMutationState<
       TContext = unknown,
       TResult = MutationState<
-        PatchContactPointData,
-        PatchContactPointError | Error,
-        MutationVariables<PatchContactPointBody, PatchContactPointParameters>,
+        PatchNotificationChannelData,
+        PatchNotificationChannelError | Error,
+        MutationVariables<PatchNotificationChannelBody, PatchNotificationChannelParameters>,
         TContext
       >
     >(options?: {
       filters?:
-        | MutationFiltersByParameters<PatchContactPointBody, PatchContactPointData, PatchContactPointParameters, PatchContactPointError | Error, TContext>
+        | MutationFiltersByParameters<
+            PatchNotificationChannelBody,
+            PatchNotificationChannelData,
+            PatchNotificationChannelParameters,
+            PatchNotificationChannelError | Error,
+            TContext
+          >
         | MutationFiltersByMutationKey<
-            PatchContactPointSchema,
-            PatchContactPointBody,
-            PatchContactPointData,
-            PatchContactPointParameters,
-            PatchContactPointError | Error,
+            PatchNotificationChannelSchema,
+            PatchNotificationChannelBody,
+            PatchNotificationChannelData,
+            PatchNotificationChannelParameters,
+            PatchNotificationChannelError | Error,
             TContext
           >;
       select?: (
         mutation: Mutation<
-          PatchContactPointData,
-          PatchContactPointError | Error,
-          MutationVariables<PatchContactPointBody, PatchContactPointParameters>,
+          PatchNotificationChannelData,
+          PatchNotificationChannelError | Error,
+          MutationVariables<PatchNotificationChannelBody, PatchNotificationChannelParameters>,
           TContext
         >
       ) => TResult;
     }): Array<TResult>;
-    schema: PatchContactPointSchema;
+    schema: PatchNotificationChannelSchema;
     types: {
-      parameters: PatchContactPointParameters;
-      data: PatchContactPointData;
-      error: PatchContactPointError;
-      body: PatchContactPointBody;
+      parameters: PatchNotificationChannelParameters;
+      data: PatchNotificationChannelData;
+      error: PatchNotificationChannelError;
+      body: PatchNotificationChannelBody;
     };
   };
-  deleteContactPoint: {
+  deleteNotificationChannel: {
     /**/
     getMutationKey(
-      parameters: DeepReadonly<DeleteContactPointParameters> | void
-    ): ServiceOperationMutationKey<DeleteContactPointSchema, DeleteContactPointParameters>;
+      parameters: DeepReadonly<DeleteNotificationChannelParameters> | void
+    ): ServiceOperationMutationKey<DeleteNotificationChannelSchema, DeleteNotificationChannelParameters>;
     /**
      * Enables performing asynchronous data mutation operations such as POST, PUT, PATCH, or DELETE requests.
      * Handles loading state, optimistic updates, and error handling.
@@ -3153,7 +3514,7 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
      * @example Mutation with predefined parameters, e.g., for updating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.deleteContactPoint.useMutation({
+     * const { mutate, isPending } = qraft.v1Service.deleteNotificationChannel.useMutation({
      *     path: {
      *         id: id
      *     },
@@ -3165,7 +3526,7 @@ export interface V1Service {
      * ```
      * @example Mutation without predefined parameters, e.g., for creating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.deleteContactPoint.useMutation()
+     * const { mutate, isPending } = qraft.v1Service.deleteNotificationChannel.useMutation()
      * mutate({
      *     body: bodyPayload,
      *     path: {
@@ -3177,17 +3538,17 @@ export interface V1Service {
      * });
      * ```
      */
-    useMutation<TVariables extends DeleteContactPointBody, TContext = unknown>(
-      parameters: DeepReadonly<DeleteContactPointParameters>,
+    useMutation<TVariables extends DeleteNotificationChannelBody, TContext = unknown>(
+      parameters: DeepReadonly<DeleteNotificationChannelParameters>,
       options?: ServiceOperationUseMutationOptions<
-        DeleteContactPointSchema,
-        DeleteContactPointData,
-        DeleteContactPointParameters,
+        DeleteNotificationChannelSchema,
+        DeleteNotificationChannelData,
+        DeleteNotificationChannelParameters,
         TVariables,
-        DeleteContactPointError | Error,
+        DeleteNotificationChannelError | Error,
         TContext
       >
-    ): UseMutationResult<DeleteContactPointData, DeleteContactPointError | Error, TVariables | void, TContext>;
+    ): UseMutationResult<DeleteNotificationChannelData, DeleteNotificationChannelError | Error, TVariables | void, TContext>;
     /**
      * Enables performing asynchronous data mutation operations such as POST, PUT, PATCH, or DELETE requests.
      * Handles loading state, optimistic updates, and error handling.
@@ -3195,7 +3556,7 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
      * @example Mutation with predefined parameters, e.g., for updating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.deleteContactPoint.useMutation({
+     * const { mutate, isPending } = qraft.v1Service.deleteNotificationChannel.useMutation({
      *     path: {
      *         id: id
      *     },
@@ -3207,7 +3568,7 @@ export interface V1Service {
      * ```
      * @example Mutation without predefined parameters, e.g., for creating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.deleteContactPoint.useMutation()
+     * const { mutate, isPending } = qraft.v1Service.deleteNotificationChannel.useMutation()
      * mutate({
      *     body: bodyPayload,
      *     path: {
@@ -3219,28 +3580,28 @@ export interface V1Service {
      * });
      * ```
      */
-    useMutation<TVariables extends MutationVariables<DeleteContactPointBody, DeleteContactPointParameters>, TContext = unknown>(
+    useMutation<TVariables extends MutationVariables<DeleteNotificationChannelBody, DeleteNotificationChannelParameters>, TContext = unknown>(
       parameters: void,
       options?: ServiceOperationUseMutationOptions<
-        DeleteContactPointSchema,
-        DeleteContactPointData,
-        DeleteContactPointParameters,
+        DeleteNotificationChannelSchema,
+        DeleteNotificationChannelData,
+        DeleteNotificationChannelParameters,
         TVariables,
-        DeleteContactPointError | Error,
+        DeleteNotificationChannelError | Error,
         TContext
       >
-    ): UseMutationResult<DeleteContactPointData, DeleteContactPointError | Error, TVariables, TContext>;
+    ): UseMutationResult<DeleteNotificationChannelData, DeleteNotificationChannelError | Error, TVariables, TContext>;
     /**
      * Returns the count of currently in-progress mutations.
      *
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useIsMutating|`useIsMutating(...)` documentation}
      * @example Check how many mutations are currently in progress for the specified service method.
      * ```ts
-     * const deleteContactPointTotal = qraft.v1Service.deleteContactPoint.useIsMutating()
+     * const deleteNotificationChannelTotal = qraft.v1Service.deleteNotificationChannel.useIsMutating()
      * ```
      * @example Check how many mutations are currently in progress with the specified parameters.
      * ```ts
-     * const deleteContactPointTotal = qraft.v1Service.deleteContactPoint.useIsMutating({
+     * const deleteNotificationChannelTotal = qraft.v1Service.deleteNotificationChannel.useIsMutating({
      *     parameters: {
      *         path: {
      *             id: id
@@ -3254,44 +3615,56 @@ export interface V1Service {
      */
     useIsMutating<TContext = unknown>(
       filters?:
-        | MutationFiltersByParameters<DeleteContactPointBody, DeleteContactPointData, DeleteContactPointParameters, DeleteContactPointError | Error, TContext>
+        | MutationFiltersByParameters<
+            DeleteNotificationChannelBody,
+            DeleteNotificationChannelData,
+            DeleteNotificationChannelParameters,
+            DeleteNotificationChannelError | Error,
+            TContext
+          >
         | MutationFiltersByMutationKey<
-            DeleteContactPointSchema,
-            DeleteContactPointBody,
-            DeleteContactPointData,
-            DeleteContactPointParameters,
-            DeleteContactPointError | Error,
+            DeleteNotificationChannelSchema,
+            DeleteNotificationChannelBody,
+            DeleteNotificationChannelData,
+            DeleteNotificationChannelParameters,
+            DeleteNotificationChannelError | Error,
             TContext
           >
     ): number;
     /**/
     isMutating<TContext>(
       filters?:
-        | MutationFiltersByParameters<DeleteContactPointBody, DeleteContactPointData, DeleteContactPointParameters, DeleteContactPointError | Error, TContext>
+        | MutationFiltersByParameters<
+            DeleteNotificationChannelBody,
+            DeleteNotificationChannelData,
+            DeleteNotificationChannelParameters,
+            DeleteNotificationChannelError | Error,
+            TContext
+          >
         | MutationFiltersByMutationKey<
-            DeleteContactPointSchema,
-            DeleteContactPointBody,
-            DeleteContactPointData,
-            DeleteContactPointParameters,
-            DeleteContactPointError | Error,
+            DeleteNotificationChannelSchema,
+            DeleteNotificationChannelBody,
+            DeleteNotificationChannelData,
+            DeleteNotificationChannelParameters,
+            DeleteNotificationChannelError | Error,
             TContext
           >
     ): number;
     /**/
     (
-      options: ServiceOperationMutationFnOptions<DeleteContactPointBody, DeleteContactPointParameters>,
+      options: ServiceOperationMutationFnOptions<DeleteNotificationChannelBody, DeleteNotificationChannelParameters>,
       client?: (
-        schema: DeleteContactPointSchema,
-        options: ServiceOperationMutationFnOptions<DeleteContactPointBody, DeleteContactPointParameters>
-      ) => Promise<RequestFnResponse<DeleteContactPointData, DeleteContactPointError>>
-    ): Promise<RequestFnResponse<DeleteContactPointData, DeleteContactPointError>>;
+        schema: DeleteNotificationChannelSchema,
+        options: ServiceOperationMutationFnOptions<DeleteNotificationChannelBody, DeleteNotificationChannelParameters>
+      ) => Promise<RequestFnResponse<DeleteNotificationChannelData, DeleteNotificationChannelError>>
+    ): Promise<RequestFnResponse<DeleteNotificationChannelData, DeleteNotificationChannelError>>;
     /**
      * Provides access to the current state of a mutation, including its status, any resulting data, and associated errors.
      *
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutationState|`useMutationState(...)` documentation}
      * @example Get all variables of all running mutations.
      * ```ts
-     * const deleteContactPointPendingMutationVariables = qraft.v1Service.deleteContactPoint.useMutationState({
+     * const deleteNotificationChannelPendingMutationVariables = qraft.v1Service.deleteNotificationChannel.useMutationState({
      *     filters: {
      *         status: "pending"
      *     },
@@ -3300,7 +3673,7 @@ export interface V1Service {
      * ```
      * @example Get all data for specific mutations via the `parameters`.
      * ```ts
-     * const deleteContactPointMutationData = qraft.v1Service.deleteContactPoint.useMutationState({
+     * const deleteNotificationChannelMutationData = qraft.v1Service.deleteNotificationChannel.useMutationState({
      *     filters: {
      *         parameters: {
      *             path: {
@@ -3318,37 +3691,43 @@ export interface V1Service {
     useMutationState<
       TContext = unknown,
       TResult = MutationState<
-        DeleteContactPointData,
-        DeleteContactPointError | Error,
-        MutationVariables<DeleteContactPointBody, DeleteContactPointParameters>,
+        DeleteNotificationChannelData,
+        DeleteNotificationChannelError | Error,
+        MutationVariables<DeleteNotificationChannelBody, DeleteNotificationChannelParameters>,
         TContext
       >
     >(options?: {
       filters?:
-        | MutationFiltersByParameters<DeleteContactPointBody, DeleteContactPointData, DeleteContactPointParameters, DeleteContactPointError | Error, TContext>
+        | MutationFiltersByParameters<
+            DeleteNotificationChannelBody,
+            DeleteNotificationChannelData,
+            DeleteNotificationChannelParameters,
+            DeleteNotificationChannelError | Error,
+            TContext
+          >
         | MutationFiltersByMutationKey<
-            DeleteContactPointSchema,
-            DeleteContactPointBody,
-            DeleteContactPointData,
-            DeleteContactPointParameters,
-            DeleteContactPointError | Error,
+            DeleteNotificationChannelSchema,
+            DeleteNotificationChannelBody,
+            DeleteNotificationChannelData,
+            DeleteNotificationChannelParameters,
+            DeleteNotificationChannelError | Error,
             TContext
           >;
       select?: (
         mutation: Mutation<
-          DeleteContactPointData,
-          DeleteContactPointError | Error,
-          MutationVariables<DeleteContactPointBody, DeleteContactPointParameters>,
+          DeleteNotificationChannelData,
+          DeleteNotificationChannelError | Error,
+          MutationVariables<DeleteNotificationChannelBody, DeleteNotificationChannelParameters>,
           TContext
         >
       ) => TResult;
     }): Array<TResult>;
-    schema: DeleteContactPointSchema;
+    schema: DeleteNotificationChannelSchema;
     types: {
-      parameters: DeleteContactPointParameters;
-      data: DeleteContactPointData;
-      error: DeleteContactPointError;
-      body: DeleteContactPointBody;
+      parameters: DeleteNotificationChannelParameters;
+      data: DeleteNotificationChannelData;
+      error: DeleteNotificationChannelError;
+      body: DeleteNotificationChannelBody;
     };
   };
   upsertDeploymentAlert: {
@@ -4216,52 +4595,52 @@ export const deleteAlert = {
   schema: DeleteAlertSchema;
   [QraftServiceOperationsToken]: V1Service["deleteAlert"];
 };
-export const createContactPoint = {
+export const createNotificationChannel = {
   schema: {
     method: "post",
-    url: "/v1/contact-points",
+    url: "/v1/notification-channels",
     mediaType: ["application/json"]
   }
 } as {
-  schema: CreateContactPointSchema;
-  [QraftServiceOperationsToken]: V1Service["createContactPoint"];
+  schema: CreateNotificationChannelSchema;
+  [QraftServiceOperationsToken]: V1Service["createNotificationChannel"];
 };
-export const getContactPoints = {
+export const getNotificationChannels = {
   schema: {
     method: "get",
-    url: "/v1/contact-points"
+    url: "/v1/notification-channels"
   }
 } as {
-  schema: GetContactPointsSchema;
-  [QraftServiceOperationsToken]: V1Service["getContactPoints"];
+  schema: GetNotificationChannelsSchema;
+  [QraftServiceOperationsToken]: V1Service["getNotificationChannels"];
 };
-export const getContactPoint = {
+export const getNotificationChannel = {
   schema: {
     method: "get",
-    url: "/v1/contact-points/{id}"
+    url: "/v1/notification-channels/{id}"
   }
 } as {
-  schema: GetContactPointSchema;
-  [QraftServiceOperationsToken]: V1Service["getContactPoint"];
+  schema: GetNotificationChannelSchema;
+  [QraftServiceOperationsToken]: V1Service["getNotificationChannel"];
 };
-export const patchContactPoint = {
+export const patchNotificationChannel = {
   schema: {
     method: "patch",
-    url: "/v1/contact-points/{id}",
+    url: "/v1/notification-channels/{id}",
     mediaType: ["application/json"]
   }
 } as {
-  schema: PatchContactPointSchema;
-  [QraftServiceOperationsToken]: V1Service["patchContactPoint"];
+  schema: PatchNotificationChannelSchema;
+  [QraftServiceOperationsToken]: V1Service["patchNotificationChannel"];
 };
-export const deleteContactPoint = {
+export const deleteNotificationChannel = {
   schema: {
     method: "delete",
-    url: "/v1/contact-points/{id}"
+    url: "/v1/notification-channels/{id}"
   }
 } as {
-  schema: DeleteContactPointSchema;
-  [QraftServiceOperationsToken]: V1Service["deleteContactPoint"];
+  schema: DeleteNotificationChannelSchema;
+  [QraftServiceOperationsToken]: V1Service["deleteNotificationChannel"];
 };
 export const upsertDeploymentAlert = {
   schema: {
@@ -4288,11 +4667,11 @@ export const v1Service = {
   getAlert,
   patchAlert,
   deleteAlert,
-  createContactPoint,
-  getContactPoints,
-  getContactPoint,
-  patchContactPoint,
-  deleteContactPoint,
+  createNotificationChannel,
+  getNotificationChannels,
+  getNotificationChannel,
+  patchNotificationChannel,
+  deleteNotificationChannel,
   upsertDeploymentAlert,
   getDeploymentAlerts
 } as const;
@@ -4356,69 +4735,69 @@ type DeleteAlertError =
   | paths["/v1/alerts/{id}"]["delete"]["responses"]["403"]["content"]["application/json"]
   | paths["/v1/alerts/{id}"]["delete"]["responses"]["500"]["content"]["application/json"];
 type DeleteAlertBody = undefined;
-type CreateContactPointSchema = {
+type CreateNotificationChannelSchema = {
   method: "post";
-  url: "/v1/contact-points";
+  url: "/v1/notification-channels";
   mediaType: ["application/json"];
 };
-type CreateContactPointParameters = paths["/v1/contact-points"]["post"]["parameters"];
-type CreateContactPointData = paths["/v1/contact-points"]["post"]["responses"]["201"]["content"]["application/json"];
-type CreateContactPointError =
-  | paths["/v1/contact-points"]["post"]["responses"]["400"]["content"]["application/json"]
-  | paths["/v1/contact-points"]["post"]["responses"]["401"]["content"]["application/json"]
-  | paths["/v1/contact-points"]["post"]["responses"]["403"]["content"]["application/json"]
-  | paths["/v1/contact-points"]["post"]["responses"]["500"]["content"]["application/json"];
-type CreateContactPointBody = paths["/v1/contact-points"]["post"]["requestBody"]["content"]["application/json"];
-type GetContactPointsSchema = {
+type CreateNotificationChannelParameters = paths["/v1/notification-channels"]["post"]["parameters"];
+type CreateNotificationChannelData = paths["/v1/notification-channels"]["post"]["responses"]["201"]["content"]["application/json"];
+type CreateNotificationChannelError =
+  | paths["/v1/notification-channels"]["post"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/notification-channels"]["post"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/notification-channels"]["post"]["responses"]["403"]["content"]["application/json"]
+  | paths["/v1/notification-channels"]["post"]["responses"]["500"]["content"]["application/json"];
+type CreateNotificationChannelBody = paths["/v1/notification-channels"]["post"]["requestBody"]["content"]["application/json"];
+type GetNotificationChannelsSchema = {
   method: "get";
-  url: "/v1/contact-points";
+  url: "/v1/notification-channels";
 };
-type GetContactPointsParameters = paths["/v1/contact-points"]["get"]["parameters"];
-type GetContactPointsData = paths["/v1/contact-points"]["get"]["responses"]["200"]["content"]["application/json"];
-type GetContactPointsError =
-  | paths["/v1/contact-points"]["get"]["responses"]["400"]["content"]["application/json"]
-  | paths["/v1/contact-points"]["get"]["responses"]["401"]["content"]["application/json"]
-  | paths["/v1/contact-points"]["get"]["responses"]["403"]["content"]["application/json"]
-  | paths["/v1/contact-points"]["get"]["responses"]["500"]["content"]["application/json"];
-type GetContactPointSchema = {
+type GetNotificationChannelsParameters = paths["/v1/notification-channels"]["get"]["parameters"];
+type GetNotificationChannelsData = paths["/v1/notification-channels"]["get"]["responses"]["200"]["content"]["application/json"];
+type GetNotificationChannelsError =
+  | paths["/v1/notification-channels"]["get"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/notification-channels"]["get"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/notification-channels"]["get"]["responses"]["403"]["content"]["application/json"]
+  | paths["/v1/notification-channels"]["get"]["responses"]["500"]["content"]["application/json"];
+type GetNotificationChannelSchema = {
   method: "get";
-  url: "/v1/contact-points/{id}";
+  url: "/v1/notification-channels/{id}";
 };
-type GetContactPointParameters = paths["/v1/contact-points/{id}"]["get"]["parameters"];
-type GetContactPointData = paths["/v1/contact-points/{id}"]["get"]["responses"]["200"]["content"]["application/json"];
-type GetContactPointError =
-  | paths["/v1/contact-points/{id}"]["get"]["responses"]["400"]["content"]["application/json"]
-  | paths["/v1/contact-points/{id}"]["get"]["responses"]["401"]["content"]["application/json"]
-  | paths["/v1/contact-points/{id}"]["get"]["responses"]["403"]["content"]["application/json"]
-  | paths["/v1/contact-points/{id}"]["get"]["responses"]["404"]["content"]["application/json"]
-  | paths["/v1/contact-points/{id}"]["get"]["responses"]["500"]["content"]["application/json"];
-type PatchContactPointSchema = {
+type GetNotificationChannelParameters = paths["/v1/notification-channels/{id}"]["get"]["parameters"];
+type GetNotificationChannelData = paths["/v1/notification-channels/{id}"]["get"]["responses"]["200"]["content"]["application/json"];
+type GetNotificationChannelError =
+  | paths["/v1/notification-channels/{id}"]["get"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/notification-channels/{id}"]["get"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/notification-channels/{id}"]["get"]["responses"]["403"]["content"]["application/json"]
+  | paths["/v1/notification-channels/{id}"]["get"]["responses"]["404"]["content"]["application/json"]
+  | paths["/v1/notification-channels/{id}"]["get"]["responses"]["500"]["content"]["application/json"];
+type PatchNotificationChannelSchema = {
   method: "patch";
-  url: "/v1/contact-points/{id}";
+  url: "/v1/notification-channels/{id}";
   mediaType: ["application/json"];
 };
-type PatchContactPointParameters = paths["/v1/contact-points/{id}"]["patch"]["parameters"];
-type PatchContactPointData = paths["/v1/contact-points/{id}"]["patch"]["responses"]["200"]["content"]["application/json"];
-type PatchContactPointError =
-  | paths["/v1/contact-points/{id}"]["patch"]["responses"]["400"]["content"]["application/json"]
-  | paths["/v1/contact-points/{id}"]["patch"]["responses"]["401"]["content"]["application/json"]
-  | paths["/v1/contact-points/{id}"]["patch"]["responses"]["403"]["content"]["application/json"]
-  | paths["/v1/contact-points/{id}"]["patch"]["responses"]["404"]["content"]["application/json"]
-  | paths["/v1/contact-points/{id}"]["patch"]["responses"]["500"]["content"]["application/json"];
-type PatchContactPointBody = paths["/v1/contact-points/{id}"]["patch"]["requestBody"]["content"]["application/json"];
-type DeleteContactPointSchema = {
+type PatchNotificationChannelParameters = paths["/v1/notification-channels/{id}"]["patch"]["parameters"];
+type PatchNotificationChannelData = paths["/v1/notification-channels/{id}"]["patch"]["responses"]["200"]["content"]["application/json"];
+type PatchNotificationChannelError =
+  | paths["/v1/notification-channels/{id}"]["patch"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/notification-channels/{id}"]["patch"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/notification-channels/{id}"]["patch"]["responses"]["403"]["content"]["application/json"]
+  | paths["/v1/notification-channels/{id}"]["patch"]["responses"]["404"]["content"]["application/json"]
+  | paths["/v1/notification-channels/{id}"]["patch"]["responses"]["500"]["content"]["application/json"];
+type PatchNotificationChannelBody = paths["/v1/notification-channels/{id}"]["patch"]["requestBody"]["content"]["application/json"];
+type DeleteNotificationChannelSchema = {
   method: "delete";
-  url: "/v1/contact-points/{id}";
+  url: "/v1/notification-channels/{id}";
 };
-type DeleteContactPointParameters = paths["/v1/contact-points/{id}"]["delete"]["parameters"];
-type DeleteContactPointData = paths["/v1/contact-points/{id}"]["delete"]["responses"]["200"]["content"]["application/json"];
-type DeleteContactPointError =
-  | paths["/v1/contact-points/{id}"]["delete"]["responses"]["400"]["content"]["application/json"]
-  | paths["/v1/contact-points/{id}"]["delete"]["responses"]["401"]["content"]["application/json"]
-  | paths["/v1/contact-points/{id}"]["delete"]["responses"]["403"]["content"]["application/json"]
-  | paths["/v1/contact-points/{id}"]["delete"]["responses"]["404"]["content"]["application/json"]
-  | paths["/v1/contact-points/{id}"]["delete"]["responses"]["500"]["content"]["application/json"];
-type DeleteContactPointBody = undefined;
+type DeleteNotificationChannelParameters = paths["/v1/notification-channels/{id}"]["delete"]["parameters"];
+type DeleteNotificationChannelData = paths["/v1/notification-channels/{id}"]["delete"]["responses"]["200"]["content"]["application/json"];
+type DeleteNotificationChannelError =
+  | paths["/v1/notification-channels/{id}"]["delete"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/notification-channels/{id}"]["delete"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/notification-channels/{id}"]["delete"]["responses"]["403"]["content"]["application/json"]
+  | paths["/v1/notification-channels/{id}"]["delete"]["responses"]["404"]["content"]["application/json"]
+  | paths["/v1/notification-channels/{id}"]["delete"]["responses"]["500"]["content"]["application/json"];
+type DeleteNotificationChannelBody = undefined;
 type UpsertDeploymentAlertSchema = {
   method: "post";
   url: "/v1/deployment-alerts/{dseq}";

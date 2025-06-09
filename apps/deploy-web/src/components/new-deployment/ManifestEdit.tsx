@@ -46,7 +46,7 @@ import ViewPanel from "../shared/ViewPanel";
 import type { SdlBuilderRefType } from "./SdlBuilder";
 import { SdlBuilder } from "./SdlBuilder";
 
-const TRIAL_DEPLOYMENT_LIMIT = 5;
+const TRIAL_DEPLOYMENT_LIMIT = 50;
 
 type Props = {
   onTemplateSelected: Dispatch<TemplateCreation | null>;

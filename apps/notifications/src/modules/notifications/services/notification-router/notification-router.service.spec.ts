@@ -4,28 +4,28 @@ import { Test } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
 
 import { NotificationCommandDto } from "@src/modules/notifications/dto/NotificationCommand.dto";
-import { ContactPointRepository } from "@src/modules/notifications/repositories/contact-point/contact-point.repository";
+import { NotificationChannelRepository } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 import { EmailSenderService } from "../email-sender/email-sender.service";
 import { NotificationRouterService } from "./notification-router.service";
 
 import { MockProvider } from "@test/mocks/provider.mock";
-import { generateContactPoint } from "@test/seeders/contact-point.seeder";
+import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
 
 describe(NotificationRouterService.name, () => {
   describe("send", () => {
     it("should send an email", async () => {
-      const { service, emailSenderService, contactPointRepository } = await setup();
+      const { service, emailSenderService, notificationChannelRepository } = await setup();
 
       const notificationCommand = generateMock(NotificationCommandDto.schema);
-      const contactPoint = generateContactPoint({
-        id: notificationCommand.contactPointId
+      const notificationChannel = generateNotificationChannel({
+        id: notificationCommand.notificationChannelId
       });
-      contactPointRepository.findById.mockResolvedValue(contactPoint);
+      notificationChannelRepository.findById.mockResolvedValue(notificationChannel);
       await service.send(notificationCommand);
 
       expect(emailSenderService.send).toHaveBeenCalledWith({
-        userId: contactPoint.userId,
-        addresses: contactPoint.config.addresses,
+        userId: notificationChannel.userId,
+        addresses: notificationChannel.config.addresses,
         subject: notificationCommand.payload.summary,
         content: notificationCommand.payload.description
       });
@@ -35,16 +35,16 @@ describe(NotificationRouterService.name, () => {
   async function setup(): Promise<{
     service: NotificationRouterService;
     emailSenderService: MockProxy<EmailSenderService>;
-    contactPointRepository: MockProxy<ContactPointRepository>;
+    notificationChannelRepository: MockProxy<NotificationChannelRepository>;
   }> {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [NotificationRouterService, MockProvider(EmailSenderService), MockProvider(ContactPointRepository)]
+      providers: [NotificationRouterService, MockProvider(EmailSenderService), MockProvider(NotificationChannelRepository)]
     }).compile();
 
     return {
       service: module.get<NotificationRouterService>(NotificationRouterService),
       emailSenderService: module.get<MockProxy<EmailSenderService>>(EmailSenderService),
-      contactPointRepository: module.get<MockProxy<ContactPointRepository>>(ContactPointRepository)
+      notificationChannelRepository: module.get<MockProxy<NotificationChannelRepository>>(NotificationChannelRepository)
     };
   }
 });

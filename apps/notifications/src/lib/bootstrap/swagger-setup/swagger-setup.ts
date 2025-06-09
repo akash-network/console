@@ -61,7 +61,7 @@ export class SwaggerSetup {
       .setTitle("NotificationsAPI")
       .setDescription("Notifications API")
       .setVersion("1.0")
-      .addTag("ContactPoint")
+      .addTag("NotificationChannel")
       .addTag("Alert")
       .addTag("DeploymentAlert")
       .addApiKey(

@@ -52,7 +52,7 @@ export const AlertsListView: FC<AlertsListViewProps> = ({ data, pagination, onPa
     }),
     columnHelper.accessor("status", {
       header: () => <div>Status</div>,
-      cell: info => <Chip color={info.getValue() === "NORMAL" ? "success" : "error"} label={capitalize(info.getValue())} />
+      cell: info => <Chip color={info.getValue() === "OK" ? "success" : "error"} label={capitalize(info.getValue())} />
     }),
     columnHelper.accessor("params", {
       header: () => <div className="w-32">DSEQ</div>,

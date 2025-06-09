@@ -10,7 +10,7 @@ const notificationsApiProxy = new Hono();
 export const createProxy = (authService: AuthService, config: NotificationsConfig, fetchFn: typeof fetch) => async (c: any) => {
   const { req } = c;
 
-  const subject = req.url.includes("/v1/contact-points") ? "ContactPoint" : "Alert";
+  const subject = req.url.includes("/v1/notification-channels") ? "NotificationChannel" : "Alert";
   authService.throwUnlessCan("manage", subject);
 
   const url = new URL(req.url);
@@ -36,8 +36,8 @@ export const createProxy = (authService: AuthService, config: NotificationsConfi
 
 const proxyRoute = createProxy(container.resolve(AuthService), config, fetch);
 
-notificationsApiProxy.all("/v1/contact-points/*", proxyRoute);
-notificationsApiProxy.all("/v1/contact-points", proxyRoute);
+notificationsApiProxy.all("/v1/notification-channels/*", proxyRoute);
+notificationsApiProxy.all("/v1/notification-channels", proxyRoute);
 notificationsApiProxy.all("/v1/alerts/*", proxyRoute);
 notificationsApiProxy.all("/v1/alerts", proxyRoute);
 notificationsApiProxy.all("/v1/deployment-alerts/*", proxyRoute);
