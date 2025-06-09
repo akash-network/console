@@ -32,7 +32,7 @@ export class ChainMessageAlertService {
           description: alert.description,
           vars: event
         });
-        await onMessage({ payload, contactPointId: alert.contactPointId });
+        await onMessage({ payload, notificationChannelId: alert.notificationChannelId });
       } catch (error) {
         this.loggerService.error({
           event: "ALERT_FAILURE",

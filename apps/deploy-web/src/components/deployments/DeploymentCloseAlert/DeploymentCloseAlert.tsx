@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import { CheckboxWithLabel, Form, FormField, LoadingButton } from "@akashnetwork/ui/components";
 
-import { ContactPointSelect } from "@src/components/alerts/ContactPointSelectForm/ContactPointSelect";
+import { NotificationChannelSelect } from "@src/components/alerts/NotificationChannelSelectForm/NotificationChannelSelect";
 import { Fieldset } from "@src/components/shared/Fieldset";
 
 type DeploymentClosedAlertInput = components["schemas"]["DeploymentAlertCreateInput"]["data"]["alerts"]["deploymentClosed"];
@@ -36,7 +36,7 @@ export const DeploymentCloseAlert: FC<Props> = ({ onSubmit, initialValues, isLoa
         <Form {...form}>
           <form className="space-y-4">
             <div className="space-y-3">
-              <ContactPointSelect />
+              <NotificationChannelSelect />
             </div>
             <div className="space-y-3">
               <FormField

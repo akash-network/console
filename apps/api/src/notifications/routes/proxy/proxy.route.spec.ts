@@ -29,7 +29,7 @@ describe("createProxy", () => {
     expect(result.status).toBe(200);
   });
 
-  it("infers ContactPoint from URL and omits body for GET", async () => {
+  it("infers NotificationChannel from URL and omits body for GET", async () => {
     const { handler, context, fetchMock, authService, userId, fullUrl } = setupProxyTest({ method: "GET" });
 
     context.req.text = async () => {
@@ -38,7 +38,7 @@ describe("createProxy", () => {
 
     const result = await handler(context);
 
-    expect(authService.throwUnlessCan).toHaveBeenCalledWith("manage", "ContactPoint");
+    expect(authService.throwUnlessCan).toHaveBeenCalledWith("manage", "NotificationChannel");
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://proxy.example" + new URL(fullUrl).pathname + new URL(fullUrl).search,
@@ -60,7 +60,7 @@ describe("createProxy", () => {
 
   function setupProxyTest(options: SetupOptions = {}) {
     const method = options.method ?? "POST";
-    const path = method === "GET" ? "/v1/contact-points" : "/v1/alerts";
+    const path = method === "GET" ? "/v1/notification-channels" : "/v1/alerts";
     const fullUrl = `http://localhost${path}?q=${faker.string.alpha(5)}`;
     const body = { data: faker.lorem.word() };
     const userId = faker.string.uuid();

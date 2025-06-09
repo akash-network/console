@@ -15,9 +15,9 @@ import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created
 import * as schema from "@src/modules/alert/model-schemas";
 
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
-import { generateContactPoint } from "@test/seeders/contact-point.seeder";
 import { generateDeploymentBalanceAlert } from "@test/seeders/deployment-balance-alert.seeder";
 import { generateDeploymentBalanceResponse } from "@test/seeders/deployment-balance-response.seeder";
+import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
 
 describe("balance alerts", () => {
   it("should send an alert based on conditions", async () => {
@@ -33,13 +33,13 @@ describe("balance alerts", () => {
 
     jest.spyOn(brokerService, "publish").mockResolvedValue(undefined);
 
-    const [contactPoint] = await db
-      .insert(schema.ContactPoint)
-      .values([generateContactPoint({})])
+    const [notificationChannel] = await db
+      .insert(schema.NotificationChannel)
+      .values([generateNotificationChannel({})])
       .returning();
 
     const matchingAlert = generateDeploymentBalanceAlert({
-      contactPointId: contactPoint.id,
+      notificationChannelId: notificationChannel.id,
       conditions: {
         field: "balance",
         value: 10000000,
@@ -55,7 +55,7 @@ describe("balance alerts", () => {
     });
 
     const throttlingAlert = generateDeploymentBalanceAlert({
-      contactPointId: contactPoint.id,
+      notificationChannelId: notificationChannel.id,
       conditions: {
         field: "balance",
         value: 10000000,
@@ -99,7 +99,7 @@ describe("balance alerts", () => {
     expect(alertsProcessed).toBe(1);
     expect(brokerService.publish).toHaveBeenCalledTimes(1);
     expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, {
-      contactPointId: contactPoint.id,
+      notificationChannelId: notificationChannel.id,
       payload: {
         summary: `[FIRING] deployment low: ${matchingDseq}`,
         description: `deployment ${matchingDseq} balance is 800000 < 10000000 uAKT`

@@ -39,7 +39,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
       const balance = { balance: 9000000 };
       deploymentService.getDeploymentBalance.mockResolvedValue(Ok(balance));
       const alertMessage = generateAlertMessage({
-        contactPointId: alert.contactPointId
+        notificationChannelId: alert.notificationChannelId
       });
       alertMessageService.getMessage.mockReturnValue(alertMessage.payload);
 
@@ -79,7 +79,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
       const balance = { balance: 11000000 };
       deploymentService.getDeploymentBalance.mockResolvedValue(Ok(balance));
       const alertMessage = generateAlertMessage({
-        contactPointId: alert.contactPointId
+        notificationChannelId: alert.notificationChannelId
       });
       alertMessageService.getMessage.mockReturnValue(alertMessage.payload);
 
@@ -146,7 +146,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
 
       deploymentService.getDeploymentBalance.mockResolvedValue(Err(new RichError("Deployment closed", "DEPLOYMENT_CLOSED")));
       const alertMessage = generateAlertMessage({
-        contactPointId: alert.contactPointId
+        notificationChannelId: alert.notificationChannelId
       });
       alertMessageService.getMessage.mockReturnValue(alertMessage.payload);
 

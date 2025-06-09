@@ -8,13 +8,13 @@ import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { DeploymentAlertService } from "@src/modules/alert/services/deployment-alert/deployment-alert.service";
 
 const deploymentBalanceAlertInput = z.object({
-  contactPointId: z.string().uuid(),
+  notificationChannelId: z.string().uuid(),
   enabled: z.boolean().optional().default(true),
   threshold: z.number().min(0)
 });
 
 const deploymentClosedAlertInput = z.object({
-  contactPointId: z.string().uuid(),
+  notificationChannelId: z.string().uuid(),
   enabled: z.boolean().optional().default(true)
 });
 

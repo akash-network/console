@@ -7,7 +7,7 @@ import type { chainMessageConditionsSchema } from "@src/modules/alert/repositori
 export const generateChainMessageAlert = ({
   id = faker.string.uuid(),
   userId = faker.string.uuid(),
-  contactPointId = faker.string.uuid(),
+  notificationChannelId = faker.string.uuid(),
   name = faker.lorem.word(),
   summary = "Default summary {{type}}",
   description = "Default description {{type}}",
@@ -25,7 +25,7 @@ export const generateChainMessageAlert = ({
     type: "CHAIN_MESSAGE",
     id,
     userId,
-    contactPointId,
+    notificationChannelId,
     name,
     summary,
     description,

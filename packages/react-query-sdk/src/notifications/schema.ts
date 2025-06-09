@@ -36,36 +36,36 @@ export interface paths {
     patch: operations["patchAlert"];
     trace?: never;
   };
-  "/v1/contact-points": {
+  "/v1/notification-channels": {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    get: operations["getContactPoints"];
+    get: operations["getNotificationChannels"];
     put?: never;
-    post: operations["createContactPoint"];
+    post: operations["createNotificationChannel"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/v1/contact-points/{id}": {
+  "/v1/notification-channels/{id}": {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    get: operations["getContactPoint"];
+    get: operations["getNotificationChannel"];
     put?: never;
     post?: never;
-    delete: operations["deleteContactPoint"];
+    delete: operations["deleteNotificationChannel"];
     options?: never;
     head?: never;
-    patch: operations["patchContactPoint"];
+    patch: operations["patchNotificationChannel"];
     trace?: never;
   };
   "/v1/deployment-alerts/{dseq}": {
@@ -92,7 +92,7 @@ export interface components {
       data:
         | {
             /** Format: uuid */
-            contactPointId: string;
+            notificationChannelId: string;
             name: string;
             /** @default true */
             enabled: boolean;
@@ -131,7 +131,7 @@ export interface components {
           }
         | {
             /** Format: uuid */
-            contactPointId: string;
+            notificationChannelId: string;
             name: string;
             /** @default true */
             enabled: boolean;
@@ -176,7 +176,7 @@ export interface components {
       data:
         | {
             /** Format: uuid */
-            contactPointId: string;
+            notificationChannelId: string;
             name: string;
             enabled: boolean;
             summary: string;
@@ -221,7 +221,7 @@ export interface components {
           }
         | {
             /** Format: uuid */
-            contactPointId: string;
+            notificationChannelId: string;
             name: string;
             enabled: boolean;
             summary: string;
@@ -291,7 +291,7 @@ export interface components {
       data: (
         | {
             /** Format: uuid */
-            contactPointId: string;
+            notificationChannelId: string;
             name: string;
             enabled: boolean;
             summary: string;
@@ -336,7 +336,7 @@ export interface components {
           }
         | {
             /** Format: uuid */
-            contactPointId: string;
+            notificationChannelId: string;
             name: string;
             enabled: boolean;
             summary: string;
@@ -395,7 +395,7 @@ export interface components {
     AlertPatchInput: {
       data: {
         /** Format: uuid */
-        contactPointId?: string;
+        notificationChannelId?: string;
         name?: string;
         /** @default true */
         enabled: boolean;
@@ -457,7 +457,7 @@ export interface components {
             );
       };
     };
-    ContactPointCreateInput: {
+    NotificationChannelCreateInput: {
       data: {
         name: string;
         /** @enum {string} */
@@ -467,7 +467,7 @@ export interface components {
         };
       };
     };
-    ContactPointOutput: {
+    NotificationChannelOutput: {
       data: {
         name: string;
         /** @enum {string} */
@@ -487,7 +487,7 @@ export interface components {
       statusCode: number;
       message: string;
     };
-    ContactPointListOutput: {
+    NotificationChannelListOutput: {
       data: {
         name: string;
         /** @enum {string} */
@@ -511,7 +511,7 @@ export interface components {
         hasPreviousPage: boolean;
       };
     };
-    ContactPointPatchInput: {
+    NotificationChannelPatchInput: {
       data: {
         name?: string;
         /** @enum {string} */
@@ -527,14 +527,14 @@ export interface components {
         alerts: {
           deploymentBalance?: {
             /** Format: uuid */
-            contactPointId: string;
+            notificationChannelId: string;
             /** @default true */
             enabled: boolean;
             threshold: number;
           };
           deploymentClosed?: {
             /** Format: uuid */
-            contactPointId: string;
+            notificationChannelId: string;
             /** @default true */
             enabled: boolean;
           };
@@ -548,7 +548,7 @@ export interface components {
         alerts: {
           deploymentBalance?: {
             /** Format: uuid */
-            contactPointId: string;
+            notificationChannelId: string;
             /** @default true */
             enabled: boolean;
             threshold: number;
@@ -558,7 +558,7 @@ export interface components {
           };
           deploymentClosed?: {
             /** Format: uuid */
-            contactPointId: string;
+            notificationChannelId: string;
             /** @default true */
             enabled: boolean;
             /** Format: uuid */
@@ -890,7 +890,7 @@ export interface operations {
       };
     };
   };
-  getContactPoints: {
+  getNotificationChannels: {
     parameters: {
       query?: {
         /** @description Number of items per page */
@@ -906,13 +906,13 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Returns a paginated list of contact points */
+      /** @description Returns a paginated list of notification channels */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["ContactPointListOutput"];
+          "application/json": components["schemas"]["NotificationChannelListOutput"];
         };
       };
       /** @description Validation error responded when some request parameters are invalid */
@@ -953,7 +953,7 @@ export interface operations {
       };
     };
   };
-  createContactPoint: {
+  createNotificationChannel: {
     parameters: {
       query?: never;
       header?: {
@@ -964,17 +964,17 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["ContactPointCreateInput"];
+        "application/json": components["schemas"]["NotificationChannelCreateInput"];
       };
     };
     responses: {
-      /** @description Returns the created contact point */
+      /** @description Returns the created notification channel */
       201: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["ContactPointOutput"];
+          "application/json": components["schemas"]["NotificationChannelOutput"];
         };
       };
       /** @description Validation error responded when some request parameters are invalid */
@@ -1015,7 +1015,7 @@ export interface operations {
       };
     };
   };
-  getContactPoint: {
+  getNotificationChannel: {
     parameters: {
       query?: never;
       header?: {
@@ -1028,13 +1028,13 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Returns the requested contact point by id */
+      /** @description Returns the requested notification channel by id */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["ContactPointOutput"];
+          "application/json": components["schemas"]["NotificationChannelOutput"];
         };
       };
       /** @description Validation error responded when some request parameters are invalid */
@@ -1064,7 +1064,7 @@ export interface operations {
           "application/json": components["schemas"]["ForbiddenErrorResponse"];
         };
       };
-      /** @description Returns 404 if the contact point is not found */
+      /** @description Returns 404 if the notification channel is not found */
       404: {
         headers: {
           [name: string]: unknown;
@@ -1084,7 +1084,7 @@ export interface operations {
       };
     };
   };
-  deleteContactPoint: {
+  deleteNotificationChannel: {
     parameters: {
       query?: never;
       header?: {
@@ -1097,13 +1097,13 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Returns the deleted contact point */
+      /** @description Returns the deleted notification channel */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["ContactPointOutput"];
+          "application/json": components["schemas"]["NotificationChannelOutput"];
         };
       };
       /** @description Validation error responded when some request parameters are invalid */
@@ -1133,7 +1133,7 @@ export interface operations {
           "application/json": components["schemas"]["ForbiddenErrorResponse"];
         };
       };
-      /** @description Returns 404 if the contact point is not found */
+      /** @description Returns 404 if the notification channel is not found */
       404: {
         headers: {
           [name: string]: unknown;
@@ -1153,7 +1153,7 @@ export interface operations {
       };
     };
   };
-  patchContactPoint: {
+  patchNotificationChannel: {
     parameters: {
       query?: never;
       header?: {
@@ -1166,17 +1166,17 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["ContactPointPatchInput"];
+        "application/json": components["schemas"]["NotificationChannelPatchInput"];
       };
     };
     responses: {
-      /** @description Returns the updated contact point */
+      /** @description Returns the updated notification channel */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["ContactPointOutput"];
+          "application/json": components["schemas"]["NotificationChannelOutput"];
         };
       };
       /** @description Validation error responded when some request parameters are invalid */
@@ -1206,7 +1206,7 @@ export interface operations {
           "application/json": components["schemas"]["ForbiddenErrorResponse"];
         };
       };
-      /** @description Returns 404 if the contact point is not found */
+      /** @description Returns 404 if the notification channel is not found */
       404: {
         headers: {
           [name: string]: unknown;

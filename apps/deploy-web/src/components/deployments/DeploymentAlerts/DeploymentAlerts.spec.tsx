@@ -19,11 +19,11 @@ describe("DeploymentAlerts", () => {
     });
 
     const closeAlertInput = {
-      contactPointId: faker.string.uuid(),
+      notificationChannelId: faker.string.uuid(),
       enabled: false
     };
     const balanceAlertInput = {
-      contactPointId: faker.string.uuid(),
+      notificationChannelId: faker.string.uuid(),
       threshold: faker.number.int(),
       enabled: false
     };
@@ -70,14 +70,14 @@ describe("DeploymentAlerts", () => {
           deploymentBalance: {
             id: faker.string.uuid(),
             status: "NORMAL",
-            contactPointId: faker.string.uuid(),
+            notificationChannelId: faker.string.uuid(),
             threshold: faker.number.int(),
             enabled: true
           },
           deploymentClosed: {
             id: faker.string.uuid(),
             status: "NORMAL",
-            contactPointId: faker.string.uuid(),
+            notificationChannelId: faker.string.uuid(),
             enabled: true
           }
         }

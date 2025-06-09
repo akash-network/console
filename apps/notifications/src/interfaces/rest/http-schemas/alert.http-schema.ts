@@ -12,7 +12,7 @@ import {
 } from "@src/modules/alert/repositories/alert/alert-json-fields.schema";
 
 export const alertCreateCommonInputSchema = z.object({
-  contactPointId: z.string().uuid(),
+  notificationChannelId: z.string().uuid(),
   name: z.string().min(3),
   enabled: z.boolean().optional().default(true),
   summary: z.string().min(3),

@@ -7,12 +7,12 @@ import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
 export const generateDeploymentBalanceAlertInput = ({
   dseq = faker.string.numeric(),
   owner = mockAkashAddress(),
-  contactPointId = faker.string.uuid(),
+  notificationChannelId = faker.string.uuid(),
   enabled = true,
   threshold = faker.number.int({ min: 1000, max: 100000 })
 }: Partial<DeploymentAlertInput> &
   Partial<{
-    contactPointId: string;
+    notificationChannelId: string;
     enabled: boolean;
     threshold: number;
   }>): Omit<DeploymentAlertInput, "alerts"> & {
@@ -26,12 +26,12 @@ export const generateDeploymentBalanceAlertInput = ({
     owner,
     alerts: {
       deploymentBalance: {
-        contactPointId,
+        notificationChannelId,
         enabled,
         threshold
       },
       deploymentClosed: {
-        contactPointId,
+        notificationChannelId,
         enabled
       }
     }
@@ -41,7 +41,7 @@ export const generateDeploymentBalanceAlertInput = ({
 export const generateDeploymentBalanceAlertOutput = (
   overrides: Partial<DeploymentAlertOutput> &
     Partial<{
-      contactPointId: string;
+      notificationChannelId: string;
       enabled: boolean;
       threshold: number;
     }>

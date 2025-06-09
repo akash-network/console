@@ -1,5 +1,5 @@
 {
-  "id": "8d0b0169-b61f-4ed5-bac1-344d7f2c063e",
+  "id": "4f7df274-d0f9-43ed-882b-05aa60ddd8a1",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -21,9 +21,15 @@
           "primaryKey": false,
           "notNull": true
         },
-        "contact_point_id": {
-          "name": "contact_point_id",
+        "notification_channel_id": {
+          "name": "notification_channel_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -97,12 +103,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "alerts_contact_point_id_contact_points_id_fk": {
-          "name": "alerts_contact_point_id_contact_points_id_fk",
+        "alerts_notification_channel_id_notification_channels_id_fk": {
+          "name": "alerts_notification_channel_id_notification_channels_id_fk",
           "tableFrom": "alerts",
-          "tableTo": "contact_points",
+          "tableTo": "notification_channels",
           "columnsFrom": [
-            "contact_point_id"
+            "notification_channel_id"
           ],
           "columnsTo": [
             "id"
@@ -117,8 +123,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.contact_points": {
-      "name": "contact_points",
+    "public.notification_channels": {
+      "name": "notification_channels",
       "schema": "",
       "columns": {
         "id": {
@@ -134,9 +140,15 @@
           "primaryKey": false,
           "notNull": true
         },
+        "name": {
+          "name": "name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
         "type": {
           "name": "type",
-          "type": "contact_point_type",
+          "type": "notification_channel_type",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
@@ -229,8 +241,8 @@
         "DEPLOYMENT_BALANCE"
       ]
     },
-    "public.contact_point_type": {
-      "name": "contact_point_type",
+    "public.notification_channel_type": {
+      "name": "notification_channel_type",
       "schema": "public",
       "values": [
         "email"
