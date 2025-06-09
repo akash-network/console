@@ -6,6 +6,7 @@ const webpack = require("webpack");
 
 const { NODE_ENV = "development" } = process.env;
 
+/** @type {import('webpack').Configuration} */
 module.exports = {
   entry: "./src/index.ts",
   mode: NODE_ENV,

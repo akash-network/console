@@ -220,7 +220,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
           <Tabs value={activeTab} onValueChange={onChangeTab}>
             <TabsList className={cn("grid w-full", `grid-cols-${tabs.length}`)}>
               {tabs.map(tab => (
-                <TabsTrigger key={tab.value} value={tab.value} data-testid={tab.value.toLowerCase()}>
+                <TabsTrigger key={tab.value} value={tab.value}>
                   {tab.label}
                 </TabsTrigger>
               ))}
