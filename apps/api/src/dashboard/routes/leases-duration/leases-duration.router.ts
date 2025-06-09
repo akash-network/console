@@ -5,6 +5,7 @@ import { container } from "tsyringe";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import type { AppEnv } from "@src/core/types/app-context";
 import { LeasesDurationController } from "@src/dashboard/controllers/leases-duration/leases-duration.controller";
+import type { LeasesDurationParams, LeasesDurationQuery } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import {
   LeasesDurationParamsSchema,
   LeasesDurationQuerySchema,
@@ -35,9 +36,9 @@ export const route = createRoute({
   }
 });
 
-const leasesDurationHandler = async <Env>(
+const leasesDurationHandler = async <E extends Env>(
   c: Context<
-    Env,
+    E,
     "/v1/leases-duration/:owner",
     {
       in: {
@@ -68,8 +69,8 @@ const leasesDurationHandler = async <Env>(
     }
   >
 ) => {
-  const { owner } = c.req.valid("param");
-  const query = c.req.valid("query");
+  const { owner } = c.req.valid("param") as LeasesDurationParams;
+  const query = c.req.valid("query") as LeasesDurationQuery;
 
   const leasesDuration = await container.resolve(LeasesDurationController).getLeasesDuration(owner, query);
 

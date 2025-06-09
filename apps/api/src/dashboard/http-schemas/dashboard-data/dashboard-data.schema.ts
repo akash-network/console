@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { NetworkCapacityResponseSchema } from "../network-capacity/network-capacity.schema";
+
 export const DashboardDataResponseSchema = z.object({
   chainStats: z.object({
     height: z.number(),
@@ -8,10 +10,10 @@ export const DashboardDataResponseSchema = z.object({
     totalSupply: z.number(),
     communityPool: z.number(),
     inflation: z.number(),
-    stakingAPR: z.number()
+    stakingAPR: z.number().optional()
   }),
   now: z.object({
-    date: z.date(),
+    date: z.string(),
     height: z.number(),
     activeLeaseCount: z.number(),
     totalLeaseCount: z.number(),
@@ -28,7 +30,7 @@ export const DashboardDataResponseSchema = z.object({
     activeStorage: z.number()
   }),
   compare: z.object({
-    date: z.date(),
+    date: z.string(),
     height: z.number(),
     activeLeaseCount: z.number(),
     totalLeaseCount: z.number(),
@@ -44,32 +46,14 @@ export const DashboardDataResponseSchema = z.object({
     activeMemory: z.number(),
     activeStorage: z.number()
   }),
-  networkCapacity: z.object({
-    activeProviderCount: z.number(),
-    activeCPU: z.number(),
-    activeGPU: z.number(),
-    activeMemory: z.number(),
-    activeStorage: z.number(),
-    pendingCPU: z.number(),
-    pendingGPU: z.number(),
-    pendingMemory: z.number(),
-    pendingStorage: z.number(),
-    availableCPU: z.number(),
-    availableGPU: z.number(),
-    availableMemory: z.number(),
-    availableStorage: z.number(),
-    totalCPU: z.number(),
-    totalGPU: z.number(),
-    totalMemory: z.number(),
-    totalStorage: z.number()
-  }),
+  networkCapacity: NetworkCapacityResponseSchema,
   networkCapacityStats: z.object({
-    currentValue: z.any(), // TODO string | number ?
-    compareValue: z.any(), // TODO string | number ?
+    currentValue: z.number(),
+    compareValue: z.number(),
     snapshots: z.array(
       z.object({
-        date: z.date(),
-        value: z.any() // TODO string | number ?
+        date: z.string(),
+        value: z.number()
       })
     ),
     now: z.object({

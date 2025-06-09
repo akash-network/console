@@ -33,18 +33,23 @@ type GpuUtilizationData = {
 };
 
 export const emptyNetworkCapacity = {
+  activeProviderCount: 0,
   activeCPU: 0,
-  pendingCPU: 0,
-  availableCPU: 0,
   activeGPU: 0,
-  pendingGPU: 0,
-  availableGPU: 0,
   activeMemory: 0,
-  pendingMemory: 0,
-  availableMemory: 0,
   activeStorage: 0,
+  pendingCPU: 0,
+  pendingGPU: 0,
+  pendingMemory: 0,
   pendingStorage: 0,
+  availableCPU: 0,
+  availableGPU: 0,
+  availableMemory: 0,
   availableStorage: 0,
+  totalCPU: 0,
+  totalGPU: 0,
+  totalMemory: 0,
+  totalStorage: 0,
   activeEphemeralStorage: 0,
   pendingEphemeralStorage: 0,
   availableEphemeralStorage: 0,
@@ -73,55 +78,55 @@ export class StatsService {
     }
 
     const compareDate = subHours(latestBlockStats.datetime, 24);
-    const compareBlockStats = await Block.findOne({
+    const compareBlockStats = (await Block.findOne({
       order: [["datetime", "ASC"]],
       where: {
         datetime: { [Op.gte]: compareDate }
       }
-    });
+    })) as Block;
 
     const secondCompareDate = subHours(latestBlockStats.datetime, 48);
-    const secondCompareBlockStats = await Block.findOne({
+    const secondCompareBlockStats = (await Block.findOne({
       order: [["datetime", "ASC"]],
       where: {
         datetime: { [Op.gte]: secondCompareDate }
       }
-    });
+    })) as Block;
 
     return {
       now: {
-        date: latestBlockStats.datetime,
+        date: latestBlockStats.datetime.toISOString(),
         height: latestBlockStats.height,
-        activeLeaseCount: latestBlockStats.activeLeaseCount,
-        totalLeaseCount: latestBlockStats.totalLeaseCount,
+        activeLeaseCount: latestBlockStats.activeLeaseCount ?? 0,
+        totalLeaseCount: latestBlockStats.totalLeaseCount ?? 0,
         dailyLeaseCount: numberOrZero(latestBlockStats.totalLeaseCount) - numberOrZero(compareBlockStats?.totalLeaseCount),
-        totalUAktSpent: latestBlockStats.totalUAktSpent,
+        totalUAktSpent: latestBlockStats.totalUAktSpent ?? 0,
         dailyUAktSpent: numberOrZero(latestBlockStats.totalUAktSpent) - numberOrZero(compareBlockStats?.totalUAktSpent),
-        totalUUsdcSpent: latestBlockStats.totalUUsdcSpent,
+        totalUUsdcSpent: latestBlockStats.totalUUsdcSpent ?? 0,
         dailyUUsdcSpent: numberOrZero(latestBlockStats.totalUUsdcSpent) - numberOrZero(compareBlockStats?.totalUUsdcSpent),
-        totalUUsdSpent: latestBlockStats.totalUUsdSpent,
+        totalUUsdSpent: latestBlockStats.totalUUsdSpent ?? 0,
         dailyUUsdSpent: numberOrZero(latestBlockStats.totalUUsdSpent) - numberOrZero(compareBlockStats?.totalUUsdSpent),
-        activeCPU: latestBlockStats.activeCPU,
-        activeGPU: latestBlockStats.activeGPU,
-        activeMemory: latestBlockStats.activeMemory,
+        activeCPU: latestBlockStats.activeCPU ?? 0,
+        activeGPU: latestBlockStats.activeGPU ?? 0,
+        activeMemory: latestBlockStats.activeMemory ?? 0,
         activeStorage: numberOrZero(latestBlockStats.activeEphemeralStorage) + numberOrZero(latestBlockStats.activePersistentStorage)
       },
       compare: {
-        date: compareBlockStats?.datetime,
-        height: compareBlockStats?.height,
-        activeLeaseCount: compareBlockStats?.activeLeaseCount,
-        totalLeaseCount: compareBlockStats?.totalLeaseCount,
-        dailyLeaseCount: numberOrZero(compareBlockStats?.totalLeaseCount) - numberOrZero(secondCompareBlockStats?.totalLeaseCount),
-        totalUAktSpent: compareBlockStats?.totalUAktSpent,
-        dailyUAktSpent: numberOrZero(compareBlockStats?.totalUAktSpent) - numberOrZero(secondCompareBlockStats?.totalUAktSpent),
-        totalUUsdcSpent: compareBlockStats?.totalUUsdcSpent,
-        dailyUUsdcSpent: numberOrZero(compareBlockStats?.totalUUsdcSpent) - numberOrZero(secondCompareBlockStats?.totalUUsdcSpent),
-        totalUUsdSpent: compareBlockStats?.totalUUsdSpent,
-        dailyUUsdSpent: numberOrZero(compareBlockStats?.totalUUsdSpent) - numberOrZero(secondCompareBlockStats?.totalUUsdSpent),
-        activeCPU: compareBlockStats?.activeCPU,
-        activeGPU: compareBlockStats?.activeGPU,
-        activeMemory: compareBlockStats?.activeMemory,
-        activeStorage: numberOrZero(compareBlockStats?.activeEphemeralStorage) + numberOrZero(compareBlockStats?.activePersistentStorage)
+        date: compareBlockStats.datetime.toISOString(),
+        height: compareBlockStats.height,
+        activeLeaseCount: compareBlockStats.activeLeaseCount ?? 0,
+        totalLeaseCount: compareBlockStats.totalLeaseCount ?? 0,
+        dailyLeaseCount: numberOrZero(compareBlockStats.totalLeaseCount) - numberOrZero(secondCompareBlockStats.totalLeaseCount),
+        totalUAktSpent: compareBlockStats.totalUAktSpent ?? 0,
+        dailyUAktSpent: numberOrZero(compareBlockStats.totalUAktSpent) - numberOrZero(secondCompareBlockStats.totalUAktSpent),
+        totalUUsdcSpent: compareBlockStats.totalUUsdcSpent ?? 0,
+        dailyUUsdcSpent: numberOrZero(compareBlockStats.totalUUsdcSpent) - numberOrZero(secondCompareBlockStats.totalUUsdcSpent),
+        totalUUsdSpent: compareBlockStats.totalUUsdSpent ?? 0,
+        dailyUUsdSpent: numberOrZero(compareBlockStats.totalUUsdSpent) - numberOrZero(secondCompareBlockStats.totalUUsdSpent),
+        activeCPU: compareBlockStats.activeCPU ?? 0,
+        activeGPU: compareBlockStats.activeGPU ?? 0,
+        activeMemory: compareBlockStats.activeMemory ?? 0,
+        activeStorage: numberOrZero(compareBlockStats.activeEphemeralStorage) + numberOrZero(compareBlockStats.activePersistentStorage)
       }
     };
   }
@@ -300,24 +305,16 @@ export class StatsService {
       communityTaxAsPromised
     ]);
 
-    const result = {
-      communityPool,
-      inflation,
-      communityTax,
-      bondedTokens,
-      totalSupply
-    };
-
     let stakingAPR: number | undefined;
-    if (result.bondedTokens && result.bondedTokens > 0 && result.inflation && result.communityTax && result.totalSupply) {
-      stakingAPR = (result.inflation * (1 - result.communityTax) * result.totalSupply) / result.bondedTokens;
+    if (bondedTokens && bondedTokens > 0 && inflation && communityTax && totalSupply) {
+      stakingAPR = (inflation * (1 - communityTax) * totalSupply) / bondedTokens;
     }
 
     return {
-      bondedTokens: result.bondedTokens,
-      totalSupply: result.totalSupply,
-      communityPool: result.communityPool,
-      inflation: result.inflation,
+      bondedTokens,
+      totalSupply,
+      communityPool,
+      inflation,
       stakingAPR
     };
   }
@@ -367,8 +364,8 @@ export class StatsService {
     stats.availableStorage = stats.availableEphemeralStorage + stats.availablePersistentStorage;
 
     return {
-      activeProviderCount: filteredProviders.length,
       ...stats,
+      activeProviderCount: filteredProviders.length,
       totalCPU: stats.activeCPU + stats.pendingCPU + stats.availableCPU,
       totalGPU: stats.activeGPU + stats.pendingGPU + stats.availableGPU,
       totalMemory: stats.activeMemory + stats.pendingMemory + stats.availableMemory,
@@ -413,9 +410,9 @@ export class StatsService {
       provider: x.providerAddress,
       startHeight: x.createdHeight,
       startDate: x.createdBlock.datetime.toISOString(),
-      closedHeight: x.closedHeight,
+      closedHeight: x.closedHeight as number,
       closedDate: x.closedBlock.datetime.toISOString(),
-      durationInBlocks: x.closedHeight - x.createdHeight,
+      durationInBlocks: (x.closedHeight as number) - x.createdHeight,
       durationInSeconds: differenceInSeconds(x.closedBlock.datetime, x.createdBlock.datetime),
       durationInHours: differenceInSeconds(x.closedBlock.datetime, x.createdBlock.datetime) / 3600
     }));

@@ -20,7 +20,7 @@ export const ListBlocksResponseSchema = z.array(
       address: z.string(),
       operatorAddress: z.string(),
       moniker: z.string(),
-      avatarUrl: z.string().optional()
+      avatarUrl: z.string().nullable()
     }),
     transactionCount: z.number(),
     totalTransactionCount: z.number(),
@@ -51,7 +51,7 @@ export const GetBlockByHeightResponseSchema = z.object({
     z.object({
       hash: z.string(),
       isSuccess: z.boolean(),
-      error: z.string().nullable(),
+      error: z.string().optional().nullable(),
       fee: z.number(),
       datetime: z.string(),
       messages: z.array(

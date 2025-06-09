@@ -4,14 +4,36 @@ import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
-import { ProviderGraphDataResponse } from "@src/provider/http-schemas/provider-graph-data.schema";
 import { ProviderStats, ProviderStatsKey } from "@src/types";
 import { env } from "@src/utils/env";
+
+export const emptyProviderGraphData = {
+  currentValue: 0,
+  compareValue: 0,
+  snapshots: [] as {
+    date: string;
+    value: number;
+  }[],
+  now: {
+    count: 0,
+    storage: 0,
+    cpu: 0,
+    memory: 0,
+    gpu: 0
+  },
+  compare: {
+    count: 0,
+    storage: 0,
+    cpu: 0,
+    memory: 0,
+    gpu: 0
+  }
+};
 
 @singleton()
 export class ProviderGraphDataService {
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
-  async getProviderGraphData(dataName: ProviderStatsKey): Promise<ProviderGraphDataResponse> {
+  async getProviderGraphData(dataName: ProviderStatsKey) {
     const getter = (block: ProviderStats) => (typeof block[dataName] === "number" ? (block[dataName] as number) : parseInt(block[dataName] as string) || 0);
 
     const result = this.removeLastAroundMidnight(
@@ -46,21 +68,14 @@ export class ProviderGraphDataService {
     );
 
     if (result.length < 2) {
-      return {
-        currentValue: 0,
-        compareValue: 0,
-        snapshots: [] as {
-          date: Date;
-          value: number;
-        }[]
-      };
+      return emptyProviderGraphData;
     }
 
     const currentValue = result[result.length - 1];
     const compareValue = result[result.length - 2];
 
     const stats = result.map(day => ({
-      date: day.date,
+      date: day.date.toISOString(),
       value: getter(day)
     }));
 
