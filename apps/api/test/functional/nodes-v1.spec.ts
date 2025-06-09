@@ -24,22 +24,28 @@ describe("Nodes API", () => {
     nock.cleanAll();
   });
 
-  describe("GET /nodes/*", () => {
+  describe("GET /nodes/{network}", () => {
     it.each(["mainnet", "sandbox", "testnet"])("should return %s node", async network => {
       const node = NodeSeeder.create();
       interceptor.get(`/console/main/config/${network}-nodes.json`).times(1).reply(200, node);
 
-      const resInit = await app.request(`v1/nodes/${network}`);
+      const resInit = await app.request(`/v1/nodes/${network}`);
       expect(resInit.status).toBe(200);
       expect(await resInit.json()).toMatchObject(node);
 
-      const resCached = await app.request(`v1/nodes/${network}`);
+      const resCached = await app.request(`/v1/nodes/${network}`);
       expect(resCached.status).toBe(200);
       expect(await resCached.json()).toMatchObject(node);
     });
+
+    it("throws 400 for an invalid network", async () => {
+      const response = await app.request("/v1/nodes/invalid-network");
+
+      expect(response.status).toBe(400);
+    });
   });
 
-  describe("GET /version/*", () => {
+  describe("GET /version/{network}", () => {
     const PATH_REWRITE: Record<string, string> = {
       testnet: "testnet-02"
     };
@@ -52,13 +58,19 @@ describe("Nodes API", () => {
           "Content-Type": "text/plain"
         });
 
-      const resInit = await app.request(`v1/version/${network}`);
+      const resInit = await app.request(`/v1/version/${network}`);
       expect(resInit.status).toBe(200);
       expect(await resInit.text()).toEqual(version);
 
-      const resCached = await app.request(`v1/version/${network}`);
+      const resCached = await app.request(`/v1/version/${network}`);
       expect(resCached.status).toBe(200);
       expect(await resCached.text()).toEqual(version);
+    });
+
+    it("throws 400 for an invalid network", async () => {
+      const response = await app.request("/v1/version/invalid-network");
+
+      expect(response.status).toBe(400);
     });
   });
 });
