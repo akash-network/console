@@ -1,5 +1,17 @@
 
 
+## [2.95.1](https://github.com/akash-network/console/compare/console-api/v2.95.0...console-api/v2.95.1) (2025-06-09)
+
+
+### Bug Fixes
+
+* fixes e2e tests and adds closeDeployments script ([#1446](https://github.com/akash-network/console/issues/1446)) ([92d7389](https://github.com/akash-network/console/commit/92d73895ff9f8422929365d3e4dfda10f6982796))
+
+
+### Code Refactoring
+
+* **notification-channel:** renames contact-point to notification-channel and alert statuses ([4b0ef57](https://github.com/akash-network/console/commit/4b0ef57029e00ac105ad8e82747ced8be552f9af))
+
 ## [2.95.0](https://github.com/akash-network/console/compare/console-api/v2.94.6...console-api/v2.95.0) (2025-06-06)
 
 
