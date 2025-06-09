@@ -9,7 +9,7 @@ export const PricingSpecsSchema = z.object({
 export const PricingBodySchema = PricingSpecsSchema.or(z.array(PricingSpecsSchema));
 
 const PricingCalculationSchema = z.object({
-  specs: PricingSpecsSchema,
+  spec: PricingSpecsSchema,
   akash: z.number().openapi({ description: "Akash price estimation (USD/month)" }),
   aws: z.number().openapi({ description: "AWS price estimation (USD/month)" }),
   gcp: z.number().openapi({ description: "GCP price estimation (USD/month)" }),

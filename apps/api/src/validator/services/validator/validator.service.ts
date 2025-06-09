@@ -29,17 +29,17 @@ export class ValidatorService {
         ...x,
         votingPowerRatio: x.votingPower / totalVotingPower,
         rank: i + 1,
-        keybaseAvatarUrl: validatorsFromDb.find(y => y.operatorAddress === x.operatorAddress)?.keybaseAvatarUrl
+        keybaseAvatarUrl: validatorsFromDb.find(y => y.operatorAddress === x.operatorAddress)?.keybaseAvatarUrl ?? null
       }));
 
     return sortedValidators;
   }
 
-  public async getByAddress(address: string): Promise<GetValidatorByAddressResponse> {
+  public async getByAddress(address: string): Promise<GetValidatorByAddressResponse | null> {
     let cosmosResponse: RestCosmosStakingValidatorResponse;
     try {
       cosmosResponse = await this.cosmosHttpService.getValidatorByAddress(address);
-    } catch (error) {
+    } catch (error: any) {
       if (error.response?.status === 404) {
         return null;
       }
@@ -58,10 +58,10 @@ export class ValidatorService {
 
     return {
       operatorAddress: cosmosResponse.validator.operator_address,
-      address: validatorFromDb?.accountAddress,
+      address: validatorFromDb?.accountAddress ?? null,
       moniker: cosmosResponse.validator.description.moniker,
-      keybaseUsername: validatorFromDb?.keybaseUsername,
-      keybaseAvatarUrl: validatorFromDb?.keybaseAvatarUrl,
+      keybaseUsername: validatorFromDb?.keybaseUsername ?? null,
+      keybaseAvatarUrl: validatorFromDb?.keybaseAvatarUrl ?? null,
       votingPower: parseInt(cosmosResponse.validator.tokens),
       commission: parseFloat(cosmosResponse.validator.commission.commission_rates.rate),
       maxCommission: parseFloat(cosmosResponse.validator.commission.commission_rates.max_rate),

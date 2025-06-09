@@ -16,6 +16,8 @@ export class AuthController {
     const { currentUser } = this.authService;
     this.authService.throwUnlessCan("create", "VerificationEmail", { id: userId });
 
-    await this.auth0.sendVerificationEmail(currentUser.userId);
+    if (currentUser?.userId) {
+      await this.auth0.sendVerificationEmail(currentUser.userId);
+    }
   }
 }

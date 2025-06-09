@@ -39,14 +39,12 @@ export class ApiKeyRepository extends BaseRepository<Table, ApiKeyInput, ApiKeyO
   }
 
   protected toOutput(payload: ApiKeyDbOutput): ApiKeyOutput {
-    return payload
-      ? {
-          ...payload,
-          createdAt: payload.createdAt.toISOString(),
-          updatedAt: payload.updatedAt.toISOString(),
-          expiresAt: payload.expiresAt?.toISOString() ?? null,
-          lastUsedAt: payload.lastUsedAt?.toISOString() ?? null
-        }
-      : undefined;
+    return {
+      ...payload,
+      createdAt: payload.createdAt.toISOString(),
+      updatedAt: payload.updatedAt.toISOString(),
+      expiresAt: payload.expiresAt?.toISOString() ?? null,
+      lastUsedAt: payload.lastUsedAt?.toISOString() ?? null
+    };
   }
 }
