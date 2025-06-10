@@ -2,12 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { StripeController } from "@src/billing/controllers/stripe/stripe.controller";
-import {
-  ConfirmPaymentRequestSchema,
-  ConfirmPaymentResponseSchema,
-  CustomerTransactionsQuerySchema,
-  CustomerTransactionsResponseSchema
-} from "@src/billing/http-schemas/stripe.schema";
+import { ConfirmPaymentRequestSchema, CustomerTransactionsQuerySchema, CustomerTransactionsResponseSchema } from "@src/billing/http-schemas/stripe.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
 const confirmPaymentRoute = createRoute({
@@ -26,12 +21,7 @@ const confirmPaymentRoute = createRoute({
   },
   responses: {
     200: {
-      description: "Payment processed",
-      content: {
-        "application/json": {
-          schema: ConfirmPaymentResponseSchema
-        }
-      }
+      description: "Payment processed"
     }
   }
 });
@@ -60,13 +50,14 @@ export const stripeTransactionsRouter = new OpenApiHonoHandler();
 
 stripeTransactionsRouter.openapi(confirmPaymentRoute, async function confirmPayment(c) {
   const { data } = c.req.valid("json");
-  const response = await container.resolve(StripeController).confirmPayment({
+  await container.resolve(StripeController).confirmPayment({
+    userId: data.userId,
     paymentMethodId: data.paymentMethodId,
     amount: data.amount,
     currency: data.currency,
     coupon: data.coupon
   });
-  return c.json(response, 200);
+  return c.body(null, 200);
 });
 
 stripeTransactionsRouter.openapi(getCustomerTransactionsRoute, async function getCustomerTransactions(c) {

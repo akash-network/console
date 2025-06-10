@@ -3,6 +3,7 @@ import { singleton } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
+import { ConfirmPaymentRequest } from "@src/billing/http-schemas/stripe.schema";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { Semaphore } from "@src/core/lib/semaphore.decorator";
 import { UserRepository } from "@src/user/repositories";
@@ -50,28 +51,23 @@ export class StripeController {
 
   @Semaphore()
   @Protected([{ action: "create", subject: "StripePayment" }])
-  async confirmPayment(params: { paymentMethodId: string; amount: number; currency: string; coupon?: string }) {
+  async confirmPayment(params: ConfirmPaymentRequest["data"]) {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 
     assert(user, 404, "User not found");
     assert(user.stripeCustomerId, 400, "User does not have a Stripe customer ID");
 
-    try {
-      const { success } = await this.stripe.createPaymentIntent({
-        customer: user.stripeCustomerId,
-        payment_method: params.paymentMethodId,
-        amount: params.amount,
-        currency: params.currency,
-        confirm: true,
-        ...(params.coupon ? { coupon: params.coupon } : {})
-      });
+    const { success } = await this.stripe.createPaymentIntent({
+      customer: user.stripeCustomerId,
+      payment_method: params.paymentMethodId,
+      amount: params.amount,
+      currency: params.currency,
+      confirm: true,
+      ...(params.coupon ? { coupon: params.coupon } : {})
+    });
 
-      assert(success, 402, "Payment not successful");
-      return { data: {} };
-    } catch (error) {
-      return { data: { error: { message: error instanceof Error ? error.message : "Payment failed" } } };
-    }
+    assert(success, 402, "Payment not successful");
   }
 
   @Protected([{ action: "create", subject: "StripePayment" }])

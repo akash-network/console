@@ -61,7 +61,7 @@ const PayPage: React.FunctionComponent = () => {
     if (!amount) return;
 
     try {
-      const { error: paymentError } = await confirmPayment({
+      await confirmPayment({
         userId: user?.id || "",
         paymentMethodId,
         amount: parseFloat(amount),
@@ -69,17 +69,14 @@ const PayPage: React.FunctionComponent = () => {
         ...(coupon && { coupon })
       });
 
-      if (paymentError) {
-        setError(paymentError.message || "An error occurred while processing your payment.");
-        return;
-      }
-
       // Payment successful
       setShowPaymentSuccess({ amount, show: true });
       setAmount("");
       setCoupon("");
-    } catch (err) {
-      setError("An unexpected error occurred.");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
+      setError(errorMessage);
+      enqueueSnackbar(<Snackbar title={errorMessage} iconVariant="error" />, { variant: "error" });
     }
   };
 

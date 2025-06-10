@@ -1,16 +1,7 @@
 import type { AxiosRequestConfig } from "axios";
 
 import { ApiHttpService } from "../api-http/api-http.service";
-import type {
-  Charge,
-  ConfirmPaymentParams,
-  CouponResponse,
-  CustomerDiscountsResponse,
-  PaymentMethod,
-  PaymentResponse,
-  SetupIntentResponse,
-  StripePrice
-} from "./stripe.types";
+import type { Charge, ConfirmPaymentParams, CouponResponse, CustomerDiscountsResponse, PaymentMethod, SetupIntentResponse, StripePrice } from "./stripe.types";
 
 export class StripeService extends ApiHttpService {
   constructor(config?: AxiosRequestConfig) {
@@ -40,7 +31,7 @@ export class StripeService extends ApiHttpService {
   }
 
   // Transactions
-  async confirmPayment(params: ConfirmPaymentParams): Promise<PaymentResponse> {
+  async confirmPayment(params: ConfirmPaymentParams): Promise<void> {
     return this.extractApiData(await this.post("/v1/stripe/transactions/confirm", { data: params }));
   }
 

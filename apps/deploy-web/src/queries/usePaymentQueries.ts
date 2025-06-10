@@ -53,14 +53,13 @@ export const usePaymentMutations = () => {
 
   const confirmPayment = useMutation({
     mutationFn: async ({ userId, paymentMethodId, amount, currency, coupon }: ConfirmPaymentParams) => {
-      const response = await stripeService.confirmPayment({
+      await stripeService.confirmPayment({
         userId,
         paymentMethodId,
         amount,
         currency,
         ...(coupon && { coupon })
       });
-      return response;
     },
     onSuccess: () => {
       // Invalidate relevant queries after successful payment

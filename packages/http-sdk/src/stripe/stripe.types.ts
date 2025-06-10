@@ -8,12 +8,6 @@ export interface SetupIntentResponse {
   clientSecret: string;
 }
 
-export interface PaymentResponse {
-  error?: {
-    message: string;
-  };
-}
-
 export interface Coupon {
   id: string;
   percent_off?: number | null;
