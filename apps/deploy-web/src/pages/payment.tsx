@@ -15,7 +15,7 @@ import { withCustomPageAuthRequired } from "@src/utils/withCustomPageAuthRequire
 
 const PayPage: React.FunctionComponent = () => {
   const { resolvedTheme } = useTheme();
-  const [amount, setAmount] = useState<string>();
+  const [amount, setAmount] = useState<string>("");
   const [coupon, setCoupon] = useState<string>("");
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>();
   const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
@@ -51,11 +51,11 @@ const PayPage: React.FunctionComponent = () => {
   }, [amount]);
 
   useEffect(() => {
-    if (discounts.length > 0 && amount === undefined) {
+    if (discounts.length > 0 && !amount) {
       setAmount(getDiscountedAmount().toString());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [discounts, amount]);
+  }, [discounts]);
 
   const handlePayment = async (paymentMethodId: string) => {
     if (!amount) return;
@@ -98,6 +98,7 @@ const PayPage: React.FunctionComponent = () => {
       await applyCoupon({ coupon });
       enqueueSnackbar(<Snackbar title="Coupon applied successfully!" iconVariant="success" />, { variant: "success", autoHideDuration: 5_000 });
       refetchDiscounts();
+      setAmount("");
       setCoupon("");
     } catch (error: any) {
       let couponError = "Failed to apply coupon. Please check the code and try again.";
@@ -248,7 +249,7 @@ const PayPage: React.FunctionComponent = () => {
             <div className="mt-6">
               <h2 className="mb-3 text-lg font-semibold">Add credits</h2>
               <PaymentForm
-                amount={amount ?? ""}
+                amount={amount}
                 onAmountChange={handleAmountChange}
                 amountError={amountError}
                 coupon={coupon}
