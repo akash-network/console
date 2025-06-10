@@ -395,12 +395,6 @@ function setup(): {
     return null;
   });
 
-  // Use jest.spyOn to mock UserSeeder.create
-  jest.spyOn(UserSeeder, "create").mockImplementation((...args: any[]) => {
-    lastUser = UserSeeder.create(...args);
-    return lastUser;
-  });
-
   // Mock Stripe methods
   jest.spyOn(service.customers, "create").mockResolvedValue(stripeData.customer as any);
   jest.spyOn(service.customers, "update").mockResolvedValue({} as any);
