@@ -1,3 +1,5 @@
+import type { StripePrice } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+
 import { stripeService } from "@src/services/http/http-browser.service";
 import { queryClient } from "./queryClient";
 import { useStripePricesQuery } from "./useStripePricesQuery";
@@ -18,20 +20,18 @@ describe("useStripePricesQuery", () => {
   });
 
   it("should fetch prices when enabled and use proper cache key", async () => {
-    const mockData = {
-      data: [
-        {
-          unitAmount: 10,
-          isCustom: false,
-          currency: "usd"
-        },
-        {
-          unitAmount: 20,
-          isCustom: false,
-          currency: "usd"
-        }
-      ]
-    };
+    const mockData = [
+      {
+        unitAmount: 10,
+        isCustom: false,
+        currency: "usd"
+      },
+      {
+        unitAmount: 20,
+        isCustom: false,
+        currency: "usd"
+      }
+    ] as StripePrice[];
     (stripeService.findPrices as jest.Mock).mockResolvedValue(mockData);
 
     const { result } = setupQuery(() => useStripePricesQuery());

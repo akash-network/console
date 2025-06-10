@@ -1,19 +1,8 @@
-import { UserSetting } from "@akashnetwork/database/dbSchemas/user/userSetting";
-import { faker } from "@faker-js/faker";
-import { eq } from "drizzle-orm";
 import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
-import nock from "nock";
-import stripe from "stripe";
-import { container } from "tsyringe";
 
-import { app } from "@src/app";
-import { CheckoutSessionRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
-import type { ApiPgDatabase } from "@src/core";
-import { POSTGRES_DB, resolveTable } from "@src/core";
-import { Users } from "@src/user/model-schemas/user/user.schema";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { StripeService } from "./stripe.service";
 
@@ -336,21 +325,19 @@ describe(StripeService.name, () => {
     it("should consume active discount", async () => {
       const { service } = setup();
       const customerId = "cus_123";
-      jest
-        .spyOn(service, "getCustomerDiscounts")
-        .mockResolvedValue([
-          {
-            type: "promotion_code",
-            id: "promo_1",
-            coupon_id: "coupon_1",
-            code: "PROMO123",
-            name: "Promo",
-            percent_off: 50,
-            amount_off: null,
-            currency: "usd",
-            valid: true
-          }
-        ]);
+      jest.spyOn(service, "getCustomerDiscounts").mockResolvedValue([
+        {
+          type: "promotion_code",
+          id: "promo_1",
+          coupon_id: "coupon_1",
+          code: "PROMO123",
+          name: "Promo",
+          percent_off: 50,
+          amount_off: null,
+          currency: "usd",
+          valid: true
+        }
+      ]);
       const result = await service.consumeActiveDiscount(customerId);
       expect(result).toBe(true);
       expect(service.customers.update).toHaveBeenCalledWith(customerId, { promotion_code: null });
@@ -363,160 +350,6 @@ describe(StripeService.name, () => {
       const result = await service.consumeActiveDiscount(customerId);
       expect(result).toBe(false);
       expect(service.customers.update).not.toHaveBeenCalled();
-    });
-  });
-});
-
-describe("Stripe webhook", () => {
-  const userWalletsTable = resolveTable("UserWallets");
-  const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-  const userWalletsQuery = db.query.UserWallets;
-  const checkoutSessionRepository = container.resolve(CheckoutSessionRepository);
-
-  const generatePayload = (sessionId: string, eventType: string) =>
-    JSON.stringify({
-      data: {
-        object: {
-          id: sessionId
-        }
-      },
-      type: eventType
-    });
-
-  const getWebhookResponse = async (sessionId: string, eventType: string) => {
-    const payload = generatePayload(sessionId, eventType);
-
-    return await app.request("/v1/stripe-webhook", {
-      method: "POST",
-      body: payload,
-      headers: new Headers({
-        "Content-Type": "text/plain",
-        "Stripe-Signature": stripe.webhooks.generateTestHeaderString({
-          payload,
-          secret: process.env.STRIPE_WEBHOOK_SECRET
-        })
-      })
-    });
-  };
-
-  describe("POST /v1/stripe-webhook", () => {
-    ["checkout.session.completed", "checkout.session.async_payment_succeeded"].forEach(eventType => {
-      it(`tops up wallet and drops session from cache for event ${eventType}`, async () => {
-        const sessionId = faker.string.uuid();
-        const userId = faker.string.uuid();
-        const stripeCustomerId = faker.string.uuid();
-
-        // Create user with Stripe customer ID
-        await UserSetting.create({ id: userId });
-        await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, userId));
-
-        await checkoutSessionRepository.create({
-          sessionId,
-          userId
-        });
-
-        nock("https://api.stripe.com")
-          .get(`/v1/checkout/sessions/${sessionId}?expand[0]=line_items`)
-          .reply(200, {
-            payment_status: "paid",
-            amount_subtotal: 100,
-            customer: stripeCustomerId,
-            line_items: {
-              data: [
-                {
-                  price: {
-                    unit_amount: 10000
-                  }
-                }
-              ]
-            }
-          });
-
-        const webhookResponse = await getWebhookResponse(sessionId, eventType);
-
-        const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
-        const checkoutSession = await checkoutSessionRepository.findOneBy({
-          sessionId
-        });
-        expect(webhookResponse.status).toBe(200);
-        expect(userWallet).toMatchObject({
-          userId,
-          deploymentAllowance: "1000000.00",
-          isTrialing: false
-        });
-        expect(checkoutSession).toBeUndefined();
-      });
-    });
-
-    it("does not top up wallet and keeps cache if the payment is not done", async () => {
-      const sessionId = faker.string.uuid();
-      const userId = faker.string.uuid();
-      const stripeCustomerId = faker.string.uuid();
-
-      // Create user with Stripe customer ID
-      await UserSetting.create({ id: userId });
-      await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, userId));
-
-      await checkoutSessionRepository.create({
-        sessionId,
-        userId
-      });
-
-      nock("https://api.stripe.com")
-        .get(`/v1/checkout/sessions/${sessionId}?expand[0]=line_items`)
-        .reply(200, {
-          payment_status: "unpaid",
-          amount_subtotal: 100,
-          customer: stripeCustomerId,
-          line_items: {
-            data: [
-              {
-                price: {
-                  unit_amount: 10000
-                }
-              }
-            ]
-          }
-        });
-
-      const webhookResponse = await getWebhookResponse(sessionId, "checkout.session.completed");
-
-      const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
-      const checkoutSession = await checkoutSessionRepository.findOneBy({
-        sessionId
-      });
-      expect(webhookResponse.status).toBe(200);
-      expect(userWallet).toBeUndefined();
-      expect(checkoutSession).toMatchObject({
-        sessionId
-      });
-    });
-
-    it("does not top up wallet and keeps cache if the event is different", async () => {
-      const sessionId = faker.string.uuid();
-      const userId = faker.string.uuid();
-      const stripeCustomerId = faker.string.uuid();
-
-      // Create user with Stripe customer ID
-      await UserSetting.create({ id: userId });
-      await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, userId));
-
-      await checkoutSessionRepository.create({
-        sessionId,
-        userId
-      });
-
-      const webhookResponse = await getWebhookResponse(sessionId, "checkout.session.not-found");
-
-      const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
-      const checkoutSession = await checkoutSessionRepository.findOneBy({
-        sessionId
-      });
-      expect(webhookResponse.status).toBe(200);
-      expect(userWallet).toBeUndefined();
-      expect(checkoutSession).toMatchObject({
-        sessionId
-      });
     });
   });
 });
@@ -562,12 +395,11 @@ function setup(): {
     return null;
   });
 
-  // Patch UserSeeder.create to store the last user
-  const originalUserSeederCreate = UserSeeder.create;
-  UserSeeder.create = (...args: any[]) => {
-    lastUser = originalUserSeederCreate(...args);
+  // Use jest.spyOn to mock UserSeeder.create
+  jest.spyOn(UserSeeder, "create").mockImplementation((...args: any[]) => {
+    lastUser = UserSeeder.create(...args);
     return lastUser;
-  };
+  });
 
   // Mock Stripe methods
   jest.spyOn(service.customers, "create").mockResolvedValue(stripeData.customer as any);

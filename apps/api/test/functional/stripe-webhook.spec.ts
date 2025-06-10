@@ -1,4 +1,4 @@
-import { UserSetting } from "@akashnetwork/database/dbSchemas/user";
+import { UserSetting } from "@akashnetwork/database/dbSchemas/user/userSetting";
 import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
 import nock from "nock";
@@ -9,7 +9,7 @@ import { app } from "@src/app";
 import { CheckoutSessionRepository } from "@src/billing/repositories";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
-import { UserRepository } from "@src/user/repositories";
+import { Users } from "@src/user/model-schemas/user/user.schema";
 
 jest.setTimeout(20000);
 
@@ -18,7 +18,6 @@ describe("Stripe webhook", () => {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsQuery = db.query.UserWallets;
   const checkoutSessionRepository = container.resolve(CheckoutSessionRepository);
-  const userRepository = container.resolve(UserRepository);
 
   const generatePayload = (sessionId: string, eventType: string) =>
     JSON.stringify({
@@ -55,7 +54,7 @@ describe("Stripe webhook", () => {
 
         // Create user with Stripe customer ID
         await UserSetting.create({ id: userId });
-        await userRepository.updateBy({ id: userId }, { stripeCustomerId });
+        await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, userId));
 
         await checkoutSessionRepository.create({
           sessionId,
@@ -102,7 +101,7 @@ describe("Stripe webhook", () => {
 
       // Create user with Stripe customer ID
       await UserSetting.create({ id: userId });
-      await userRepository.updateBy({ id: userId }, { stripeCustomerId });
+      await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, userId));
 
       await checkoutSessionRepository.create({
         sessionId,
@@ -146,7 +145,7 @@ describe("Stripe webhook", () => {
 
       // Create user with Stripe customer ID
       await UserSetting.create({ id: userId });
-      await userRepository.updateBy({ id: userId }, { stripeCustomerId });
+      await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, userId));
 
       await checkoutSessionRepository.create({
         sessionId,
