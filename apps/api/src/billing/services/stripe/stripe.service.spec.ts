@@ -69,8 +69,21 @@ describe(StripeService.name, () => {
     });
 
     it("handles zero amount payment with discount", async () => {
-      const { service, refillService } = setup();
-      const user = UserSeeder.create({ stripeCustomerId: "cus_123" });
+      const { service, refillService, userRepository } = setup();
+      // Create a user with a unique id and stripeCustomerId
+      const user = UserSeeder.create({ id: "test-user-id-001", stripeCustomerId: "cus_123" });
+      // Set lastUser in the mock context so findOneBy returns this user
+      (userRepository as any).lastUser = user;
+      // Patch the mock to use this lastUser
+      userRepository.findOneBy.mockImplementation(async query => {
+        if (query.stripeCustomerId && user.stripeCustomerId === query.stripeCustomerId) {
+          return user;
+        }
+        if (query.id && user.id === query.id) {
+          return user;
+        }
+        return null;
+      });
       const stripeData = StripeSeederCreate();
       jest.spyOn(service, "getCustomerDiscounts").mockResolvedValue([
         {
@@ -380,7 +393,7 @@ function setup(): {
     }
     // fallback for tests that don't use UserSeeder
     if (query.stripeCustomerId) {
-      return { id: "user_123", stripeCustomerId: query.stripeCustomerId };
+      return { id: query.stripeCustomerId, stripeCustomerId: query.stripeCustomerId };
     }
     if (query.id) {
       return { id: query.id, stripeCustomerId: null };
@@ -390,6 +403,11 @@ function setup(): {
   userRepository.updateBy.mockImplementation(async (query, update) => {
     if (lastUser && lastUser.id === query.id) {
       lastUser = { ...lastUser, ...update };
+      return lastUser;
+    }
+    // If no lastUser, create a new one with the update
+    if (query.id) {
+      lastUser = { id: query.id, ...update };
       return lastUser;
     }
     return null;
