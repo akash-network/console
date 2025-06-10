@@ -9,8 +9,6 @@ import { StripeService } from "./stripe.service";
 import { create as StripeSeederCreate } from "@test/seeders/stripe.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 
-jest.setTimeout(20000);
-
 describe(StripeService.name, () => {
   describe("ensureStripeCustomer", () => {
     it("returns existing user when stripeCustomerId exists", async () => {
