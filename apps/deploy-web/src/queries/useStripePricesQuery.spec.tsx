@@ -30,7 +30,7 @@ describe("useStripePricesQuery", () => {
       expect(stripeService.findPrices).toHaveBeenCalled();
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual(mockPrices);
-      expect(queryClient.getQueryData(["StripePrices"])).toEqual({ data: mockPrices });
+      expect(queryClient.getQueryData(["StripePrices"])).toEqual(mockPrices);
     });
   });
 
