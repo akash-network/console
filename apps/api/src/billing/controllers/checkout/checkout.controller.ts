@@ -33,8 +33,8 @@ export class CheckoutController {
         amount: c.req.query("amount")
       });
 
-      return c.redirect(session.url);
-    } catch (error) {
+      return c.redirect(session.url as string);
+    } catch (error: any) {
       if (error.message === "Price invalid") {
         return c.redirect(`${redirectUrl}?invalid-price=true`);
       }

@@ -51,9 +51,12 @@ export class ManagedSignerService {
   }
 
   async executeDecodedTxByUserId(userId: UserWalletOutput["userId"], messages: EncodeObject[]) {
+    assert(userId, 404, "User Not Found");
+
     const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findOneByUserId(userId);
     assert(userWallet, 404, "UserWallet Not Found");
     const user = this.authService.currentUser.userId === userId ? this.authService.currentUser : await this.userRepository.findById(userId);
+    assert(user, 404, "User Not Found");
 
     await Promise.all(
       messages.map(message =>
@@ -79,7 +82,7 @@ export class ManagedSignerService {
       }
 
       return result;
-    } catch (error) {
+    } catch (error: any) {
       throw await this.chainErrorService.toAppError(error, messages);
     }
   }
