@@ -18,19 +18,21 @@ describe("useStripePricesQuery", () => {
   });
 
   it("should fetch prices when enabled and use proper cache key", async () => {
-    const mockData = [
-      {
-        unitAmount: 10,
-        isCustom: false,
-        currency: "usd"
-      },
-      {
-        unitAmount: 20,
-        isCustom: false,
-        currency: "usd"
-      }
-    ];
-    (stripeService.findPrices as jest.Mock).mockResolvedValue({ data: mockData });
+    const mockData = {
+      data: [
+        {
+          unitAmount: 10,
+          isCustom: false,
+          currency: "usd"
+        },
+        {
+          unitAmount: 20,
+          isCustom: false,
+          currency: "usd"
+        }
+      ]
+    };
+    (stripeService.findPrices as jest.Mock).mockResolvedValue(mockData);
 
     const { result } = setupQuery(() => useStripePricesQuery());
 
