@@ -85,7 +85,7 @@ export class StripeWebhookService {
     // Get discount information from metadata
     const metadata = paymentIntent.metadata;
     const originalAmount =
-      metadata?.original_amount && !isNaN(parseFloat(metadata.original_amount)) ? parseFloat(metadata.original_amount) : paymentIntent.amount;
+      metadata?.original_amount && !Number.isNaN(parseFloat(metadata.original_amount)) ? parseFloat(metadata.original_amount) : paymentIntent.amount;
     const discountApplied = metadata?.discount_applied === "true";
 
     // If a discount was applied, consume the promotion code
@@ -95,6 +95,13 @@ export class StripeWebhookService {
         if (consumed) {
           this.logger.info({
             event: "DISCOUNT_CONSUMED",
+            customerId,
+            originalAmount,
+            finalAmount: paymentIntent.amount
+          });
+        } else {
+          this.logger.error({
+            event: "FAILED_TO_CONSUME_DISCOUNT",
             customerId,
             originalAmount,
             finalAmount: paymentIntent.amount

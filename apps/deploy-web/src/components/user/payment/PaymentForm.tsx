@@ -1,9 +1,8 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
+import type { Discount } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import { Badge, Card, CardContent, CardHeader, CardTitle, Input, LoadingButton, Separator } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-
-import type { Discount } from "@src/types";
 
 interface PaymentFormProps {
   amount: string;
@@ -38,8 +37,19 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
     <div className="space-y-4">
       <div>
         <div className="mt-1">
-          <Input type="number" name="amount" id="amount" min="0" step="0.01" value={amount} onChange={onAmountChange} placeholder="0.00" label="Amount (USD)" />
-          {amountError && <p className="mt-1 text-sm text-destructive">{amountError}</p>}
+          <Input
+            error={!!amountError}
+            type="number"
+            name="amount"
+            id="amount"
+            min="0"
+            step="0.01"
+            value={amount}
+            onChange={onAmountChange}
+            placeholder="0.00"
+            label="Amount (USD)"
+          />
+          {amountError && <p className="mt-2 text-sm text-destructive">{amountError}</p>}
         </div>
       </div>
 
@@ -79,7 +89,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
                 {discounts.length > 0 && (
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Discount:</span>
-                    <span className="text-green-600 dark:text-green-400">-${(Number(amount) - getFinalAmount(amount)).toFixed(2)}</span>
+                    <span className="text-success">-${(Number(amount) - getFinalAmount(amount)).toFixed(2)}</span>
                   </div>
                 )}
                 <Separator className="my-2" />

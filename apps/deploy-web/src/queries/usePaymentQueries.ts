@@ -1,15 +1,15 @@
+import type { ApplyCouponParams, ConfirmPaymentParams, Discount, PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { stripeService } from "@src/services/http/http-browser.service";
-import type { ApplyCouponParams, ConfirmPaymentParams, Discount, PaymentMethod, SetupIntentResponse } from "@src/types";
 import { QueryKeys } from "./queryKeys";
 
 export const usePaymentMethodsQuery = () => {
   return useQuery<PaymentMethod[]>({
     queryKey: QueryKeys.getPaymentMethodsKey(),
     queryFn: async () => {
-      const { data } = await stripeService.getPaymentMethods();
-      return data;
+      const response = await stripeService.getPaymentMethods();
+      return response;
     }
   });
 };
@@ -19,7 +19,7 @@ export const usePaymentDiscountsQuery = () => {
     queryKey: QueryKeys.getPaymentDiscountsKey(),
     queryFn: async () => {
       const response = await stripeService.getCustomerDiscounts();
-      return response.discounts;
+      return response.discounts ?? [];
     }
   });
 };
@@ -52,8 +52,9 @@ export const usePaymentMutations = () => {
   const queryClient = useQueryClient();
 
   const confirmPayment = useMutation({
-    mutationFn: async ({ paymentMethodId, amount, currency, coupon }: ConfirmPaymentParams) => {
+    mutationFn: async ({ userId, paymentMethodId, amount, currency, coupon }: ConfirmPaymentParams) => {
       const response = await stripeService.confirmPayment({
+        userId,
         paymentMethodId,
         amount,
         currency,

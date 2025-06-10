@@ -36,15 +36,15 @@ import { bytesToHumanReadableSize } from "./utils/files";
 import { sendVerificationEmailRouter } from "./auth";
 import {
   checkoutRouter,
-  couponsRouter,
   getBalancesRouter,
   getWalletListRouter,
-  paymentMethodsRouter,
   signAndBroadcastTxRouter,
   startTrialRouter,
+  stripeCouponsRouter,
+  stripePaymentMethodsRouter,
   stripePricesRouter,
-  stripeWebhook,
-  transactionsRouter
+  stripeTransactionsRouter,
+  stripeWebhook
 } from "./billing";
 import { blocksRouter } from "./block";
 import { dashboardDataRouter, graphDataRouter, leasesDurationRouter, marketDataRouter, networkCapacityRouter } from "./dashboard";
@@ -104,9 +104,9 @@ appHono.route("/", signAndBroadcastTxRouter);
 appHono.route("/", checkoutRouter);
 appHono.route("/", stripeWebhook);
 appHono.route("/", stripePricesRouter);
-appHono.route("/", couponsRouter);
-appHono.route("/", paymentMethodsRouter);
-appHono.route("/", transactionsRouter);
+appHono.route("/", stripeCouponsRouter);
+appHono.route("/", stripePaymentMethodsRouter);
+appHono.route("/", stripeTransactionsRouter);
 
 appHono.route("/", createAnonymousUserRouter);
 appHono.route("/", getAnonymousUserRouter);

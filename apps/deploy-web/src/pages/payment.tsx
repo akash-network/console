@@ -8,13 +8,14 @@ import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import { AddPaymentMethodPopup, DeletePaymentMethodPopup, PaymentForm, PaymentMethodsList } from "@src/components/user/payment";
 import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuccessAnimation";
+import { useUser } from "@src/hooks/useUser";
 import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
 import { usePaymentDiscountsQuery, usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
 import { withCustomPageAuthRequired } from "@src/utils/withCustomPageAuthRequired";
 
 const PayPage: React.FunctionComponent = () => {
   const { resolvedTheme } = useTheme();
-  const [amount, setAmount] = useState<string>("");
+  const [amount, setAmount] = useState<string>();
   const [coupon, setCoupon] = useState<string>("");
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>();
   const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
@@ -25,9 +26,9 @@ const PayPage: React.FunctionComponent = () => {
   const [error, setError] = useState<string>();
   const isDarkMode = resolvedTheme === "dark";
   const { enqueueSnackbar } = useSnackbar();
-
+  const user = useUser();
   const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods, refetch: refetchPaymentMethods } = usePaymentMethodsQuery();
-  const { data: discounts = [], isLoading: isLoadingDiscounts } = usePaymentDiscountsQuery();
+  const { data: discounts = [], isLoading: isLoadingDiscounts, refetch: refetchDiscounts } = usePaymentDiscountsQuery();
   const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = useSetupIntentMutation();
   const {
     confirmPayment: { isPending: isConfirmingPayment, mutateAsync: confirmPayment },
@@ -36,31 +37,32 @@ const PayPage: React.FunctionComponent = () => {
   } = usePaymentMutations();
   const isLoading = isLoadingPaymentMethods || isLoadingDiscounts;
 
-  // Set initial selected payment method
   useEffect(() => {
     if (paymentMethods.length > 0 && !selectedPaymentMethodId) {
       setSelectedPaymentMethodId(paymentMethods[0].id);
     }
   }, [paymentMethods, selectedPaymentMethodId]);
 
-  // Add effect to revalidate amount when coupon changes
   useEffect(() => {
     if (amount) {
       validateAmount(parseFloat(amount));
     }
-  }, [coupon]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amount]);
 
   useEffect(() => {
-    if (discounts.length > 0 && !amount) {
+    if (discounts.length > 0 && amount === undefined) {
       setAmount(getDiscountedAmount().toString());
     }
-  }, [discounts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discounts, amount]);
 
   const handlePayment = async (paymentMethodId: string) => {
     if (!amount) return;
 
     try {
       const { error: paymentError } = await confirmPayment({
+        userId: user?.id || "",
         paymentMethodId,
         amount: parseFloat(amount),
         currency: "usd",
@@ -98,6 +100,7 @@ const PayPage: React.FunctionComponent = () => {
     try {
       await applyCoupon({ coupon });
       enqueueSnackbar(<Snackbar title="Coupon applied successfully!" iconVariant="success" />, { variant: "success", autoHideDuration: 5_000 });
+      refetchDiscounts();
       setCoupon("");
     } catch (error: any) {
       let couponError = "Failed to apply coupon. Please check the code and try again.";
@@ -248,7 +251,7 @@ const PayPage: React.FunctionComponent = () => {
             <div className="mt-6">
               <h2 className="mb-3 text-lg font-semibold">Add credits</h2>
               <PaymentForm
-                amount={amount}
+                amount={amount ?? ""}
                 onAmountChange={handleAmountChange}
                 amountError={amountError}
                 coupon={coupon}

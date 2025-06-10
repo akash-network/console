@@ -4,6 +4,7 @@ import { singleton } from "tsyringe";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
+import { Semaphore } from "@src/core/lib/semaphore.decorator";
 import { UserRepository } from "@src/user/repositories";
 
 @singleton()
@@ -14,46 +15,30 @@ export class StripeController {
     private readonly authService: AuthService
   ) {}
 
-  @Protected([{ action: "read", subject: "Payment" }])
+  @Protected([{ action: "read", subject: "StripePayment" }])
   async findPrices(): Promise<StripePricesOutputResponse> {
     return { data: await this.stripe.findPrices() };
   }
 
-  @Protected([{ action: "create", subject: "Payment" }])
+  @Protected([{ action: "create", subject: "StripePayment" }])
   async createSetupIntent() {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 
-    assert(user, 401, "User not found");
+    assert(user, 404, "User not found");
 
-    let stripeCustomerId = user.stripeCustomerId;
-
-    if (!stripeCustomerId) {
-      const customer = await this.stripe.customers.create({
-        email: user.email,
-        name: user.username,
-        metadata: {
-          userId: user.userId
-        }
-      });
-
-      await this.userRepository.updateById(user.id, {
-        stripeCustomerId: customer.id
-      });
-
-      stripeCustomerId = customer.id;
-    }
+    const stripeCustomerId = await this.stripe.getStripeCustomerId(user);
 
     const setupIntent = await this.stripe.createSetupIntent(stripeCustomerId);
-    return { clientSecret: setupIntent.client_secret };
+    return { data: { clientSecret: setupIntent.client_secret } };
   }
 
-  @Protected([{ action: "read", subject: "Payment" }])
+  @Protected([{ action: "read", subject: "StripePayment" }])
   async getPaymentMethods() {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 
-    assert(user, 401, "User not found");
+    assert(user, 404, "User not found");
 
     if (!user.stripeCustomerId) {
       return { data: [] };
@@ -63,13 +48,14 @@ export class StripeController {
     return { data: paymentMethods };
   }
 
-  @Protected([{ action: "create", subject: "Payment" }])
+  @Semaphore()
+  @Protected([{ action: "create", subject: "StripePayment" }])
   async confirmPayment(params: { paymentMethodId: string; amount: number; currency: string; coupon?: string }) {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 
-    assert(user, 401, "User not found");
-    assert(user.stripeCustomerId, 401, "User does not have a Stripe customer ID");
+    assert(user, 404, "User not found");
+    assert(user.stripeCustomerId, 400, "User does not have a Stripe customer ID");
 
     try {
       const { success } = await this.stripe.createPaymentIntent({
@@ -82,70 +68,61 @@ export class StripeController {
       });
 
       assert(success, 402, "Payment not successful");
-      return {};
+      return { data: {} };
     } catch (error) {
-      throw new Error(error instanceof Error ? error.message : "Payment failed");
+      return { data: { error: { message: error instanceof Error ? error.message : "Payment failed" } } };
     }
   }
 
-  @Protected([{ action: "create", subject: "Payment" }])
+  @Protected([{ action: "create", subject: "StripePayment" }])
   async applyCoupon(couponId: string) {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 
-    assert(user, 401, "User not found");
-    assert(user.stripeCustomerId, 401, "User does not have a Stripe customer ID");
+    assert(user, 404, "User not found");
+    assert(user.stripeCustomerId, 400, "User does not have a Stripe customer ID");
+    assert(couponId, 400, "Coupon ID is required");
 
     try {
       const coupon = await this.stripe.applyCoupon(user.stripeCustomerId, couponId);
-      return { coupon };
+      return { data: { coupon } };
     } catch (error) {
-      throw new Error(error.message || "Failed to apply coupon");
+      return { data: { error: { message: error instanceof Error ? error.message : "Failed to apply coupon" } } };
     }
   }
 
-  @Protected([{ action: "delete", subject: "Payment" }])
+  @Protected([{ action: "delete", subject: "StripePayment" }])
   async removePaymentMethod(paymentMethodId: string) {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 
-    assert(user, 401, "User not found");
-    assert(user.stripeCustomerId, 401, "User does not have a Stripe customer ID");
+    assert(user, 404, "User not found");
+    assert(user.stripeCustomerId, 400, "User does not have a Stripe customer ID");
 
     await this.stripe.paymentMethods.detach(paymentMethodId);
   }
 
-  @Protected([{ action: "read", subject: "Payment" }])
+  @Protected([{ action: "read", subject: "StripePayment" }])
   async getCustomerDiscounts() {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 
-    assert(user, 401, "User not found");
-    assert(user.stripeCustomerId, 401, "User does not have a Stripe customer ID");
+    assert(user, 404, "User not found");
+    assert(user.stripeCustomerId, 400, "User does not have a Stripe customer ID");
 
-    const response = await this.stripe.getCustomerDiscounts(user.stripeCustomerId);
-    const formattedDiscounts = response.discounts.map(discount => ({
-      type: discount.type as "coupon" | "promotion_code",
-      id: discount.id,
-      name: discount.name,
-      code: discount.code,
-      percent_off: discount.percent_off,
-      amount_off: discount.amount_off,
-      currency: discount.currency,
-      valid: discount.valid
-    }));
-
-    return { discounts: formattedDiscounts };
+    const discounts = await this.stripe.getCustomerDiscounts(user.stripeCustomerId);
+    return { data: { discounts } };
   }
 
-  @Protected([{ action: "read", subject: "Payment" }])
+  @Protected([{ action: "read", subject: "StripePayment" }])
   async getCustomerTransactions(options?: { limit?: number; startingAfter?: string }) {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 
-    assert(user, 401, "User not found");
-    assert(user.stripeCustomerId, 401, "User does not have a Stripe customer ID");
+    assert(user, 404, "User not found");
+    assert(user.stripeCustomerId, 400, "User does not have a Stripe customer ID");
 
-    return await this.stripe.getCustomerTransactions(user.stripeCustomerId, options);
+    const response = await this.stripe.getCustomerTransactions(user.stripeCustomerId, options);
+    return { data: response };
   }
 }

@@ -1,16 +1,6 @@
 import React from "react";
+import type { PaymentMethod } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import { Button, Card, CardContent, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
-
-interface PaymentMethod {
-  id: string;
-  card: {
-    brand: string;
-    last4: string;
-    exp_month: number;
-    exp_year: number;
-  };
-  created: number;
-}
 
 interface PaymentMethodsListProps {
   paymentMethods: PaymentMethod[];

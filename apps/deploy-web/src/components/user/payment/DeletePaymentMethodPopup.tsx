@@ -30,7 +30,7 @@ export const DeletePaymentMethodPopup: React.FC<DeletePaymentMethodPopupProps> =
         }
       ]}
     >
-      <p>Are you sure you want to remove this payment method? This action cannot be undone.</p>
+      <p>Are you sure you want to remove this payment method?</p>
     </Popup>
   );
 };

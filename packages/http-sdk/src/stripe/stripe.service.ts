@@ -1,7 +1,16 @@
 import type { AxiosRequestConfig } from "axios";
 
 import { ApiHttpService } from "../api-http/api-http.service";
-import type { Charge, CouponResponse, CustomerDiscountsResponse, PaymentResponse, SetupIntentResponse, StripePrice } from "./stripe.types";
+import type {
+  Charge,
+  ConfirmPaymentParams,
+  CouponResponse,
+  CustomerDiscountsResponse,
+  PaymentMethod,
+  PaymentResponse,
+  SetupIntentResponse,
+  StripePrice
+} from "./stripe.types";
 
 export class StripeService extends ApiHttpService {
   constructor(config?: AxiosRequestConfig) {
@@ -10,29 +19,29 @@ export class StripeService extends ApiHttpService {
 
   // Payment Methods
   async createSetupIntent(config?: AxiosRequestConfig): Promise<SetupIntentResponse> {
-    return this.extractData(await this.post("/v1/payment-methods/setup", {}, config));
+    return this.extractApiData(await this.post("/v1/stripe/payment-methods/setup", {}, config));
   }
 
-  async getPaymentMethods() {
-    return this.extractData(await this.get("/v1/payment-methods"));
+  async getPaymentMethods(): Promise<PaymentMethod[]> {
+    return this.extractApiData(await this.get("/v1/stripe/payment-methods"));
   }
 
-  async removePaymentMethod(paymentMethodId: string) {
-    return this.extractData(await this.delete(`/v1/payment-methods/${paymentMethodId}`));
+  async removePaymentMethod(paymentMethodId: string): Promise<void> {
+    return this.extractApiData(await this.delete(`/v1/stripe/payment-methods/${paymentMethodId}`));
   }
 
   // Coupons
   async applyCoupon(couponId: string): Promise<CouponResponse> {
-    return this.extractData(await this.post("/v1/coupons/apply", { couponId }));
+    return this.extractApiData(await this.post("/v1/stripe/coupons/apply", { data: { couponId } }));
   }
 
   async getCustomerDiscounts(): Promise<CustomerDiscountsResponse> {
-    return this.extractData(await this.get("/v1/coupons/customer-discounts"));
+    return this.extractApiData(await this.get("/v1/stripe/coupons/customer-discounts"));
   }
 
   // Transactions
-  async confirmPayment(params: { paymentMethodId: string; amount: number; currency: string; coupon?: string }): Promise<PaymentResponse> {
-    return this.extractData(await this.post("/v1/transactions/confirm", params));
+  async confirmPayment(params: ConfirmPaymentParams): Promise<PaymentResponse> {
+    return this.extractApiData(await this.post("/v1/stripe/transactions/confirm", { data: params }));
   }
 
   async getCustomerTransactions(options?: { limit?: number; startingAfter?: string }): Promise<{ transactions: Charge[] }> {
@@ -41,12 +50,12 @@ export class StripeService extends ApiHttpService {
       ...(limit && { limit: limit.toString() }),
       ...(startingAfter && { startingAfter })
     });
-    const url = `/v1/transactions${params.toString() ? `?${params}` : ""}`;
-    return this.extractData(await this.get(url));
+    const url = `/v1/stripe/transactions${params.toString() ? `?${params}` : ""}`;
+    return this.extractApiData(await this.get(url));
   }
 
   // Prices (legacy endpoint)
   async findPrices(config?: AxiosRequestConfig): Promise<StripePrice[]> {
-    return this.extractData(await this.get("/v1/stripe-prices", config));
+    return this.extractApiData(await this.get("/v1/stripe/prices", config));
   }
 }

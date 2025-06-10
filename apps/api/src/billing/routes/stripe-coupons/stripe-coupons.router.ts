@@ -7,7 +7,7 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 
 const applyCouponRoute = createRoute({
   method: "post",
-  path: "/v1/coupons/apply",
+  path: "/v1/stripe/coupons/apply",
   summary: "Apply a coupon to the current user",
   tags: ["Payment"],
   request: {
@@ -33,7 +33,7 @@ const applyCouponRoute = createRoute({
 
 const getCustomerDiscountsRoute = createRoute({
   method: "get",
-  path: "/v1/coupons/customer-discounts",
+  path: "/v1/stripe/coupons/customer-discounts",
   summary: "Get current discounts applied to the customer",
   tags: ["Payment"],
   responses: {
@@ -48,15 +48,15 @@ const getCustomerDiscountsRoute = createRoute({
   }
 });
 
-export const couponsRouter = new OpenApiHonoHandler();
+export const stripeCouponsRouter = new OpenApiHonoHandler();
 
-couponsRouter.openapi(applyCouponRoute, async function applyCoupon(c) {
-  const body = await c.req.json();
-  const response = await container.resolve(StripeController).applyCoupon(body.couponId);
+stripeCouponsRouter.openapi(applyCouponRoute, async function applyCoupon(c) {
+  const { data } = c.req.valid("json");
+  const response = await container.resolve(StripeController).applyCoupon(data.couponId);
   return c.json(response, 200);
 });
 
-couponsRouter.openapi(getCustomerDiscountsRoute, async function getCustomerDiscounts(c) {
+stripeCouponsRouter.openapi(getCustomerDiscountsRoute, async function getCustomerDiscounts(c) {
   const response = await container.resolve(StripeController).getCustomerDiscounts();
   return c.json(response, 200);
 });

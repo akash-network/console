@@ -7,7 +7,7 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 
 const setupIntentRoute = createRoute({
   method: "post",
-  path: "/v1/payment-methods/setup",
+  path: "/v1/stripe/payment-methods/setup",
   summary: "Create a Stripe SetupIntent for adding a payment method",
   tags: ["Payment"],
   request: {},
@@ -25,7 +25,7 @@ const setupIntentRoute = createRoute({
 
 const paymentMethodsRoute = createRoute({
   method: "get",
-  path: "/v1/payment-methods",
+  path: "/v1/stripe/payment-methods",
   summary: "Get all payment methods for the current user",
   tags: ["Payment"],
   request: {},
@@ -43,7 +43,7 @@ const paymentMethodsRoute = createRoute({
 
 const removePaymentMethodRoute = createRoute({
   method: "delete",
-  path: "/v1/payment-methods/:paymentMethodId",
+  path: "/v1/stripe/payment-methods/:paymentMethodId",
   summary: "Remove a payment method",
   tags: ["Payment"],
   parameters: [
@@ -63,20 +63,20 @@ const removePaymentMethodRoute = createRoute({
   }
 });
 
-export const paymentMethodsRouter = new OpenApiHonoHandler();
+export const stripePaymentMethodsRouter = new OpenApiHonoHandler();
 
-paymentMethodsRouter.openapi(setupIntentRoute, async function createSetupIntent(c) {
+stripePaymentMethodsRouter.openapi(setupIntentRoute, async function createSetupIntent(c) {
   const response = await container.resolve(StripeController).createSetupIntent();
   return c.json(response, 200);
 });
 
-paymentMethodsRouter.openapi(paymentMethodsRoute, async function getPaymentMethods(c) {
+stripePaymentMethodsRouter.openapi(paymentMethodsRoute, async function getPaymentMethods(c) {
   const response = await container.resolve(StripeController).getPaymentMethods();
   return c.json(response, 200);
 });
 
-paymentMethodsRouter.openapi(removePaymentMethodRoute, async function removePaymentMethod(c) {
+stripePaymentMethodsRouter.openapi(removePaymentMethodRoute, async function removePaymentMethod(c) {
   const { paymentMethodId } = c.req.param();
   await container.resolve(StripeController).removePaymentMethod(paymentMethodId);
-  return c.json({}, 200);
+  return c.body(null, 204);
 });

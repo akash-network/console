@@ -3,9 +3,10 @@ import orderBy from "lodash/orderBy";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
+import { Discount } from "@src/billing/http-schemas/stripe.schema";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
-import { UserRepository } from "@src/user/repositories/user/user.repository";
+import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 
 interface CheckoutOptions {
   customerId: string;
@@ -93,6 +94,39 @@ export class StripeService extends Stripe {
     return paymentMethods.data;
   }
 
+  private calculateDiscountedAmount(amountCents: number, discount: Discount): number {
+    if (!discount.valid) {
+      return amountCents;
+    }
+
+    if (discount.percent_off) {
+      // Calculate percentage discount using integer math
+      return Math.round((amountCents * (100 - discount.percent_off)) / 100);
+    } else if (discount.amount_off) {
+      // amount_off is already in cents from Stripe
+      return Math.max(0, amountCents - discount.amount_off);
+    }
+
+    return amountCents;
+  }
+
+  private async handleZeroAmountPayment(
+    customerId: string,
+    originalAmountCents: number,
+    discountApplied: boolean
+  ): Promise<{ success: boolean; paymentIntentId: string }> {
+    const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
+    assert(user, 404, "User not found for customer ID");
+
+    if (discountApplied) {
+      await this.consumeActiveDiscount(customerId);
+    }
+
+    await this.refillService.topUpWallet(originalAmountCents, user.id);
+
+    return { success: true, paymentIntentId: "pi_zero_amount" };
+  }
+
   async createPaymentIntent(params: {
     customer: string;
     payment_method: string;
@@ -102,81 +136,58 @@ export class StripeService extends Stripe {
     coupon?: string;
     metadata?: Record<string, string>;
   }): Promise<{ success: boolean; paymentIntentId?: string }> {
-    // If a coupon is provided, apply it to the customer first
     if (params.coupon) {
       await this.applyCoupon(params.customer, params.coupon);
     }
 
-    // Get customer's current discounts
-    const { discounts } = await this.getCustomerDiscounts(params.customer);
-    // Convert amount to cents immediately and round to ensure integer
+    const discounts = await this.getCustomerDiscounts(params.customer);
+    // Convert amount to cents immediately for stripe
     let finalAmountCents = Math.round(params.amount * 100);
     let discountApplied = false;
 
-    // Apply any active discounts
     if (discounts.length > 0) {
-      const activeDiscount = discounts[0]; // Take the first active discount
+      // Apply the first active discount
+      const activeDiscount = discounts[0];
       if (activeDiscount.valid) {
         discountApplied = true;
-        if (activeDiscount.percent_off) {
-          // Calculate percentage discount using integer math
-          finalAmountCents = Math.round((finalAmountCents * (100 - activeDiscount.percent_off)) / 100);
-        } else if (activeDiscount.amount_off) {
-          // amount_off is already in cents from Stripe
-          finalAmountCents = Math.max(0, finalAmountCents - activeDiscount.amount_off);
-        }
+        finalAmountCents = this.calculateDiscountedAmount(finalAmountCents, activeDiscount);
       }
     }
 
     // If the final amount is 0 (fully covered by discount), directly top up the wallet
     if (finalAmountCents === 0) {
-      // Get the user ID from the customer ID
-      const user = await this.userRepository.findOneBy({ stripeCustomerId: params.customer });
-      if (!user) {
-        throw new Error("User not found for customer ID");
-      }
-
-      // If a discount was applied, consume it
-      if (discountApplied) {
-        await this.consumeActiveDiscount(params.customer);
-      }
-
-      // Top up the wallet with the original amount in cents
-      await this.refillService.topUpWallet(Math.round(params.amount * 100), user.id);
-
-      return { success: true, paymentIntentId: "pi_zero_amount" };
-    } else {
-      // For non-zero amounts, proceed with normal payment intent creation
-      const metadata = {
-        ...params.metadata,
-        original_amount: Math.round(params.amount * 100).toString(),
-        final_amount: finalAmountCents.toString(),
-        discount_applied: discountApplied.toString()
-      };
-
-      // Convert cents back to dollars for validation checks
-      const finalAmountDollars = finalAmountCents / 100;
-      if (finalAmountDollars > 0 && finalAmountDollars < 1) {
-        throw new Error("Final amount must be at least $1");
-      } else if (!discounts.length && finalAmountDollars > 0 && finalAmountDollars < 20) {
-        throw new Error("Minimum amount is $20");
-      }
-
-      const paymentIntent = await this.paymentIntents.create({
-        customer: params.customer,
-        payment_method: params.payment_method,
-        amount: finalAmountCents,
-        currency: params.currency,
-        confirm: params.confirm,
-        metadata,
-        automatic_payment_methods: {
-          enabled: true,
-          allow_redirects: "never"
-        }
-      });
-
-      return { success: paymentIntent.status === "succeeded", paymentIntentId: paymentIntent.id };
+      return this.handleZeroAmountPayment(params.customer, Math.round(params.amount * 100), discountApplied);
     }
+
+    // For non-zero amounts, proceed with normal payment intent creation
+    const metadata = {
+      ...params.metadata,
+      original_amount: Math.round(params.amount * 100).toString(),
+      final_amount: finalAmountCents.toString(),
+      discount_applied: discountApplied.toString()
+    };
+
+    const finalAmountDollars = finalAmountCents / 100;
+    if (finalAmountDollars > 0 && finalAmountDollars < 1) {
+      throw new Error("Final amount after discount must be at least $1");
+    } else if (!discounts.length && finalAmountDollars > 0 && finalAmountDollars < 20) {
+      throw new Error("Minimum payment amount is $20 (before any discounts)");
+    }
+
+    const paymentIntent = await this.paymentIntents.create({
+      customer: params.customer,
+      payment_method: params.payment_method,
+      amount: finalAmountCents,
+      currency: params.currency,
+      confirm: params.confirm,
+      metadata,
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: "never"
+      }
+    });
+
+    return { success: paymentIntent.status === "succeeded", paymentIntentId: paymentIntent.id };
   }
 
   async listPromotionCodes() {
@@ -195,39 +206,33 @@ export class StripeService extends Stripe {
   }
 
   async applyCoupon(customerId: string, couponCode: string) {
-    try {
-      // First try to find a matching promotion code
-      const promotionCode = await this.findPromotionCodeByCode(couponCode);
+    const promotionCode = await this.findPromotionCodeByCode(couponCode);
 
-      if (promotionCode) {
-        if (!promotionCode.coupon.valid) {
-          throw new Error("Promotion code is invalid or expired");
-        }
-        await this.customers.update(customerId, {
-          promotion_code: promotionCode.id
-        });
-        return promotionCode;
+    if (promotionCode) {
+      if (!promotionCode.coupon.valid) {
+        throw new Error("Promotion code is invalid or expired");
       }
-
-      // If no promotion code found, try to find a matching coupon
-      const { coupons } = await this.listCoupons();
-      const matchingCoupon = coupons.find(coupon => coupon.id === couponCode);
-
-      if (matchingCoupon) {
-        if (!matchingCoupon.valid) {
-          throw new Error("Coupon is invalid or expired");
-        }
-        await this.customers.update(customerId, {
-          coupon: matchingCoupon.id
-        });
-        return matchingCoupon;
-      }
-
-      throw new Error("No valid promotion code or coupon found with the provided code");
-    } catch (error) {
-      console.log("DEBUG:", error);
-      throw error;
+      await this.customers.update(customerId, {
+        promotion_code: promotionCode.id
+      });
+      return promotionCode;
     }
+
+    // If no promotion code found, try to find a matching coupon
+    const { coupons } = await this.listCoupons();
+    const matchingCoupon = coupons.find(coupon => coupon.id === couponCode);
+
+    if (matchingCoupon) {
+      if (!matchingCoupon.valid) {
+        throw new Error("Coupon is invalid or expired");
+      }
+      await this.customers.update(customerId, {
+        coupon: matchingCoupon.id
+      });
+      return matchingCoupon;
+    }
+
+    throw new Error("No valid promotion code or coupon found with the provided code");
   }
 
   async listCoupons() {
@@ -242,7 +247,7 @@ export class StripeService extends Stripe {
     return coupon;
   }
 
-  async getCustomerDiscounts(customerId: string) {
+  async getCustomerDiscounts(customerId: string): Promise<Discount[]> {
     const customer = (await this.customers.retrieve(customerId, {
       expand: ["discount.coupon", "discount.promotion_code", "discount.promotion_code.coupon"]
     })) as Stripe.Customer & {
@@ -258,7 +263,7 @@ export class StripeService extends Stripe {
 
     if (customer.discount?.promotion_code) {
       discounts.push({
-        type: "promotion_code",
+        type: "promotion_code" as const,
         id: customer.discount.promotion_code.id,
         coupon_id: customer.discount.promotion_code.coupon.id,
         code: customer.discount.promotion_code.code,
@@ -273,11 +278,11 @@ export class StripeService extends Stripe {
     // Filter out invalid discounts
     const validDiscounts = discounts.filter(discount => discount.valid);
 
-    return { discounts: validDiscounts };
+    return validDiscounts;
   }
 
   async consumeActiveDiscount(customerId: string): Promise<boolean> {
-    const { discounts } = await this.getCustomerDiscounts(customerId);
+    const discounts = await this.getCustomerDiscounts(customerId);
     if (discounts.length > 0) {
       const discount = discounts[0];
       if (discount.valid) {
@@ -316,5 +321,25 @@ export class StripeService extends Stripe {
       hasMore: charges.has_more,
       nextPage: charges.data[charges.data.length - 1]?.id
     };
+  }
+
+  async getStripeCustomerId(user: UserOutput): Promise<string> {
+    if (user.stripeCustomerId) {
+      return user.stripeCustomerId;
+    }
+
+    const customer = await this.customers.create({
+      email: user.email ?? undefined,
+      name: user.username ?? undefined,
+      metadata: {
+        userId: user.userId
+      }
+    });
+
+    await this.userRepository.updateById(user.id, {
+      stripeCustomerId: customer.id
+    });
+
+    return customer.id;
   }
 }

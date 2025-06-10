@@ -68,11 +68,11 @@ export class QueryKeys {
 
   static getFeatureFlagsKey = (networkId: string) => ["FEATURE_FLAGS", networkId];
 
-  static getPaymentMethodsKey = () => ["paymentMethods"];
-  static getPaymentDiscountsKey = () => ["paymentDiscounts"];
+  static getPaymentMethodsKey = () => ["PAYMENT_METHODS"];
+  static getPaymentDiscountsKey = () => ["PAYMENT_DISCOUNTS"];
 
   static getPaymentTransactionsKey = (options?: { limit?: number; startingAfter?: string }) => {
-    const key = ["stripe", "transactions"];
+    const key = ["STRIPE_TRANSACTIONS"];
     if (options?.limit) {
       key.push("limit", options.limit.toString());
     }

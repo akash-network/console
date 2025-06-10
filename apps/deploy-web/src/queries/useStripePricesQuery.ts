@@ -7,7 +7,7 @@ export function useStripePricesQuery({ enabled = true } = {}) {
     queryKey: ["StripePrices"],
     queryFn: () => stripeService.findPrices(),
     enabled,
-    initialData: { data: [] },
-    select: data => data?.data || []
+    initialData: [],
+    select: data => data || []
   });
 }

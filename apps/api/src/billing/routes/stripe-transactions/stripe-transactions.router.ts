@@ -12,7 +12,7 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 
 const confirmPaymentRoute = createRoute({
   method: "post",
-  path: "/v1/transactions/confirm",
+  path: "/v1/stripe/transactions/confirm",
   summary: "Confirm a payment using a saved payment method",
   tags: ["Payment"],
   request: {
@@ -38,7 +38,7 @@ const confirmPaymentRoute = createRoute({
 
 const getCustomerTransactionsRoute = createRoute({
   method: "get",
-  path: "/v1/transactions",
+  path: "/v1/stripe/transactions",
   summary: "Get transaction history for the current customer",
   tags: ["Payment"],
   request: {
@@ -56,18 +56,23 @@ const getCustomerTransactionsRoute = createRoute({
   }
 });
 
-export const transactionsRouter = new OpenApiHonoHandler();
+export const stripeTransactionsRouter = new OpenApiHonoHandler();
 
-transactionsRouter.openapi(confirmPaymentRoute, async function confirmPayment(c) {
-  const body = await c.req.json();
-  const response = await container.resolve(StripeController).confirmPayment(body);
+stripeTransactionsRouter.openapi(confirmPaymentRoute, async function confirmPayment(c) {
+  const { data } = c.req.valid("json");
+  const response = await container.resolve(StripeController).confirmPayment({
+    paymentMethodId: data.paymentMethodId,
+    amount: data.amount,
+    currency: data.currency,
+    coupon: data.coupon
+  });
   return c.json(response, 200);
 });
 
-transactionsRouter.openapi(getCustomerTransactionsRoute, async function getCustomerTransactions(c) {
+stripeTransactionsRouter.openapi(getCustomerTransactionsRoute, async function getCustomerTransactions(c) {
   const { limit, startingAfter } = c.req.valid("query");
   const response = await container.resolve(StripeController).getCustomerTransactions({
-    limit: limit ? parseInt(limit) : undefined,
+    limit,
     startingAfter
   });
   return c.json(response, 200);
