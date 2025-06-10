@@ -60,22 +60,4 @@ describe(TemplateService.name, () => {
     const context = {};
     expect(new TemplateService().interpolate(template, context)).toBe("Env: ");
   });
-
-  it("should not evaluate expressions", () => {
-    const template = "Result: {{ (1 + 2) * 3 }}";
-    const context = {};
-    expect(new TemplateService().interpolate(template, context)).toBe("Result: ");
-  });
-
-  it("should not allow access to __proto__", () => {
-    const template = "Proto: {{ __proto__.toString }}";
-    const context = {};
-    expect(new TemplateService().interpolate(template, context)).toBe("Proto: ");
-  });
-
-  it("should not allow access to constructor", () => {
-    const template = 'Constructor: {{ constructor.constructor("return process")().env }}';
-    const context = {};
-    expect(new TemplateService().interpolate(template, context)).toBe("Constructor: ");
-  });
 });

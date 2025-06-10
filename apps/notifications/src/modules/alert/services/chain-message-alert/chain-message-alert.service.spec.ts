@@ -34,6 +34,13 @@ describe(ChainMessageAlertService.name, () => {
       alertRepository.paginateAll.mockImplementation(async options => {
         options.callback(alerts as any);
       });
+      alertRepository.updateById.mockImplementation(
+        async (id, update) =>
+          ({
+            ...alert,
+            ...update
+          }) as AlertOutput
+      );
 
       conditionsMatcher.isMatching.mockReturnValue(true);
       const alertMessage = generateAlertMessage({
@@ -47,7 +54,13 @@ describe(ChainMessageAlertService.name, () => {
       expect(alertMessageService.getMessage).toHaveBeenCalledWith({
         summary: alert.summary,
         description: alert.description,
-        vars: event
+        vars: {
+          alert: {
+            prev: expect.objectContaining({ id: alert.id }),
+            next: expect.objectContaining({ id: alert.id })
+          },
+          data: event
+        }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
     });
@@ -157,6 +170,18 @@ describe(ChainMessageAlertService.name, () => {
       alertRepository.paginateAll.mockImplementation(async options => {
         options.callback(alerts as any);
       });
+      alertRepository.updateById.mockImplementation(
+        async (id, update) =>
+          (id === alert1.id
+            ? {
+                ...alert1,
+                ...update
+              }
+            : {
+                ...alert2,
+                ...update
+              }) as AlertOutput
+      );
 
       conditionsMatcher.isMatching.mockReturnValue(true);
       const alertMessage1 = generateAlertMessage({
@@ -173,13 +198,25 @@ describe(ChainMessageAlertService.name, () => {
       expect(alertMessageService.getMessage).toHaveBeenCalledWith({
         summary: alert1.summary,
         description: alert1.description,
-        vars: event
+        vars: {
+          alert: {
+            prev: expect.objectContaining({ id: alert1.id }),
+            next: expect.objectContaining({ id: alert1.id })
+          },
+          data: event
+        }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage1);
       expect(alertMessageService.getMessage).toHaveBeenCalledWith({
         summary: alert2.summary,
         description: alert2.description,
-        vars: event
+        vars: {
+          alert: {
+            prev: expect.objectContaining({ id: alert2.id }),
+            next: expect.objectContaining({ id: alert2.id })
+          },
+          data: event
+        }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage2);
     });
@@ -212,6 +249,13 @@ describe(ChainMessageAlertService.name, () => {
       alertRepository.paginateAll.mockImplementation(async options => {
         options.callback(alerts as any);
       });
+      alertRepository.updateById.mockImplementation(
+        async (id, update) =>
+          ({
+            ...alert,
+            ...update
+          }) as AlertOutput
+      );
 
       conditionsMatcher.isMatching.mockReturnValue(true);
       const alertMessage = generateAlertMessage({
@@ -225,7 +269,13 @@ describe(ChainMessageAlertService.name, () => {
       expect(alertMessageService.getMessage).toHaveBeenCalledWith({
         summary: alert.summary,
         description: alert.description,
-        vars: event
+        vars: {
+          alert: {
+            prev: expect.objectContaining({ id: alert.id }),
+            next: expect.objectContaining({ id: alert.id })
+          },
+          data: event
+        }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
     });

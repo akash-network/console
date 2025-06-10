@@ -27,11 +27,6 @@ export class ChainMessageAlertService {
         if (!isMatching) {
           return;
         }
-        const payload = this.alertMessageService.getMessage({
-          summary: alert.summary,
-          description: alert.description,
-          vars: event
-        });
 
         const update: Partial<DeploymentBalanceAlertOutput> = { status: "TRIGGERED" };
 
@@ -39,8 +34,22 @@ export class ChainMessageAlertService {
           update.enabled = false;
         }
 
-        await this.alertRepository.updateById(alert.id, { status: "TRIGGERED" });
-        await onMessage({ payload, notificationChannelId: alert.notificationChannelId });
+        const updatedAlert = await this.alertRepository.updateById(alert.id, update);
+
+        await onMessage({
+          payload: this.alertMessageService.getMessage({
+            summary: alert.summary,
+            description: alert.description,
+            vars: {
+              alert: {
+                prev: alert,
+                next: updatedAlert
+              },
+              data: event
+            }
+          }),
+          notificationChannelId: alert.notificationChannelId
+        });
       } catch (error) {
         this.loggerService.error({
           event: "ALERT_FAILURE",

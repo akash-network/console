@@ -48,8 +48,8 @@ describe("chain message alerts", () => {
         ],
         operator: "and"
       },
-      summary: "deployment {{value.id.dseq.low}} closed",
-      description: "deployment {{value.id.dseq.low}} is closed"
+      summary: "deployment {{data.value.id.dseq.low}} closed",
+      description: "deployment {{data.value.id.dseq.low}} is closed"
     });
 
     const mismatchingAlert = generateChainMessageAlert({
@@ -69,8 +69,8 @@ describe("chain message alerts", () => {
         ],
         operator: "and"
       },
-      summary: "deployment {{value.id.dseq.low}} closed",
-      description: "deployment {{value.id.dseq.low}} is closed"
+      summary: "deployment {{data.value.id.dseq.low}} closed",
+      description: "deployment {{data.value.id.dseq.low}} is closed"
     });
 
     await db.insert(schema.Alert).values([matchingAlert, mismatchingAlert]);
