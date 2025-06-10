@@ -428,17 +428,17 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
           </Title>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {dashboardData.chainStats.height !== undefined && <StatsCard number={<FormattedNumber value={dashboardData.chainStats.height} />} text="Height" />}
+            {dashboardData.chainStats.height > 0 && <StatsCard number={<FormattedNumber value={dashboardData.chainStats.height} />} text="Height" />}
 
-            {dashboardData.chainStats.transactionCount !== undefined && (
+            {dashboardData.chainStats.transactionCount > 0 && (
               <StatsCard number={<FormattedNumber value={dashboardData.chainStats.transactionCount} />} text="Transactions" />
             )}
 
-            {dashboardData.chainStats.communityPool !== undefined && (
+            {dashboardData.chainStats.communityPool > 0 && (
               <StatsCard number={<AKTAmount uakt={dashboardData.chainStats.communityPool} digits={0} showAKTLabel showUSD />} text="Community pool" />
             )}
 
-            {dashboardData.chainStats.bondedTokens !== undefined && dashboardData.chainStats.totalSupply !== undefined && (
+            {dashboardData.chainStats.bondedTokens > 0 && dashboardData.chainStats.totalSupply > 0 && (
               <StatsCard
                 number={
                   <>
@@ -457,7 +457,7 @@ export const Dashboard: React.FunctionComponent<IDashboardProps> = ({ dashboardD
               />
             )}
 
-            {dashboardData.chainStats.inflation !== undefined && (
+            {dashboardData.chainStats.inflation > 0 && (
               <StatsCard
                 number={<FormattedNumber value={dashboardData.chainStats.inflation} style="percent" minimumFractionDigits={2} maximumFractionDigits={2} />}
                 text="Inflation"
