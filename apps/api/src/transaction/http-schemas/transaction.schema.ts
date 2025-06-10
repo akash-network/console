@@ -60,7 +60,7 @@ export const GetTransactionByHashResponseSchema = z.object({
       id: z.string(),
       type: z.string(),
       data: z.record(z.string()),
-      relatedDeploymentId: z.string().optional()
+      relatedDeploymentId: z.string().optional().nullable()
     })
   )
 });
