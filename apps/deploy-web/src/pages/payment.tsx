@@ -74,7 +74,8 @@ const PayPage: React.FunctionComponent = () => {
       setAmount("");
       setCoupon("");
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
+      console.error("Payment confirmation failed:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred while processing your payment.";
       setError(errorMessage);
       enqueueSnackbar(<Snackbar title={errorMessage} iconVariant="error" />, { variant: "error" });
     }
@@ -98,7 +99,6 @@ const PayPage: React.FunctionComponent = () => {
       await applyCoupon({ coupon });
       enqueueSnackbar(<Snackbar title="Coupon applied successfully!" iconVariant="success" />, { variant: "success", autoHideDuration: 5_000 });
       refetchDiscounts();
-      setAmount("");
       setCoupon("");
     } catch (error: any) {
       let couponError = "Failed to apply coupon. Please check the code and try again.";
