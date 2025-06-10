@@ -9,6 +9,7 @@ import { app } from "@src/app";
 import { CheckoutSessionRepository } from "@src/billing/repositories";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
+import { UserRepository } from "@src/user/repositories";
 
 jest.setTimeout(20000);
 
@@ -17,6 +18,7 @@ describe("Stripe webhook", () => {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsQuery = db.query.UserWallets;
   const checkoutSessionRepository = container.resolve(CheckoutSessionRepository);
+  const userRepository = container.resolve(UserRepository);
 
   const generatePayload = (sessionId: string, eventType: string) =>
     JSON.stringify({
@@ -49,15 +51,33 @@ describe("Stripe webhook", () => {
       it(`tops up wallet and drops session from cache for event ${eventType}`, async () => {
         const sessionId = faker.string.uuid();
         const userId = faker.string.uuid();
+        const stripeCustomerId = faker.string.uuid();
+
+        // Create user with Stripe customer ID
         await UserSetting.create({ id: userId });
+        await userRepository.updateBy({ id: userId }, { stripeCustomerId });
+
         await checkoutSessionRepository.create({
           sessionId,
           userId
         });
-        nock("https://api.stripe.com").get(`/v1/checkout/sessions/${sessionId}?expand[0]=line_items`).reply(200, {
-          payment_status: "paid",
-          amount_subtotal: 100
-        });
+
+        nock("https://api.stripe.com")
+          .get(`/v1/checkout/sessions/${sessionId}?expand[0]=line_items`)
+          .reply(200, {
+            payment_status: "paid",
+            amount_subtotal: 100,
+            customer: stripeCustomerId,
+            line_items: {
+              data: [
+                {
+                  price: {
+                    unit_amount: 10000
+                  }
+                }
+              ]
+            }
+          });
 
         const webhookResponse = await getWebhookResponse(sessionId, eventType);
 
@@ -68,7 +88,7 @@ describe("Stripe webhook", () => {
         expect(webhookResponse.status).toBe(200);
         expect(userWallet).toMatchObject({
           userId,
-          deploymentAllowance: `1000000.00`,
+          deploymentAllowance: "1000000.00",
           isTrialing: false
         });
         expect(checkoutSession).toBeUndefined();
@@ -78,15 +98,33 @@ describe("Stripe webhook", () => {
     it("does not top up wallet and keeps cache if the payment is not done", async () => {
       const sessionId = faker.string.uuid();
       const userId = faker.string.uuid();
+      const stripeCustomerId = faker.string.uuid();
+
+      // Create user with Stripe customer ID
       await UserSetting.create({ id: userId });
+      await userRepository.updateBy({ id: userId }, { stripeCustomerId });
+
       await checkoutSessionRepository.create({
         sessionId,
         userId
       });
-      nock("https://api.stripe.com").get(`/v1/checkout/sessions/${sessionId}?expand[0]=line_items`).reply(200, {
-        payment_status: "unpaid",
-        amount_subtotal: 100
-      });
+
+      nock("https://api.stripe.com")
+        .get(`/v1/checkout/sessions/${sessionId}?expand[0]=line_items`)
+        .reply(200, {
+          payment_status: "unpaid",
+          amount_subtotal: 100,
+          customer: stripeCustomerId,
+          line_items: {
+            data: [
+              {
+                price: {
+                  unit_amount: 10000
+                }
+              }
+            ]
+          }
+        });
 
       const webhookResponse = await getWebhookResponse(sessionId, "checkout.session.completed");
 
@@ -104,7 +142,12 @@ describe("Stripe webhook", () => {
     it("does not top up wallet and keeps cache if the event is different", async () => {
       const sessionId = faker.string.uuid();
       const userId = faker.string.uuid();
+      const stripeCustomerId = faker.string.uuid();
+
+      // Create user with Stripe customer ID
       await UserSetting.create({ id: userId });
+      await userRepository.updateBy({ id: userId }, { stripeCustomerId });
+
       await checkoutSessionRepository.create({
         sessionId,
         userId
