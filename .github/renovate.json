@@ -1,0 +1,81 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base"
+  ],
+  "packageRules": [
+    {
+      "matchPackagePatterns": ["^@types/"],
+      "groupName": "types",
+      "automerge": true
+    },
+    {
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "devDependencies (non-major)",
+      "automerge": true
+    },
+    {
+      "matchPackagePatterns": ["^next$", "^next-", "^@\\w+/nextjs$", "^react$", "^react-dom$"],
+      "groupName": "Core React/Next packages"
+    },
+    {
+      "matchPackagePatterns": ["^eslint", "^@typescript-eslint", "prettier"],
+      "groupName": "Lint & formatting"
+    },
+    {
+      "matchPackagePatterns": ["^@nestjs/"],
+      "groupName": "NestJS framework updates"
+    },
+    {
+      "matchPackagePatterns": ["class-validator", "class-transformer"],
+      "groupName": "DTO validators"
+    },
+    {
+      "matchPackagePatterns": ["^@cosmjs/", "^cosmjs-types$"],
+      "groupName": "CosmJS"
+    },
+    {
+      "matchPackagePatterns": ["^drizzle-"],
+      "groupName": "Drizzle ORM"
+    },
+    {
+      "matchPackagePatterns": ["^sequelize"],
+      "groupName": "Sequelize ORM"
+    },
+    {
+      "matchPackagePatterns": ["^@hono/", "^hono$"],
+      "groupName": "Hono"
+    },
+    {
+      "matchPackagePatterns": ["^@opentelemetry/"],
+      "groupName": "OpenTelemetry"
+    },
+    {
+      "matchPackagePatterns": ["^@sentry/"],
+      "groupName": "Sentry"
+    },
+    {
+      "matchPackagePatterns": ["^@ucast/", "^@casl/"],
+      "groupName": "Ucast & Casl"
+    },
+    {
+      "matchPackagePatterns": ["^@novu/"],
+      "groupName": "Novu"
+    },
+    {
+      "matchPackagePatterns": ["^@dotenvx/", "^dotenv$", "^dotenv-"],
+      "groupName": "Dotenv"
+    }
+  ],
+  "npm": {
+    "enabled": true,
+    "minimumReleaseAge": "5 days"
+  },
+  "semanticCommits": "enabled",
+  "semanticCommitType": "fix",
+  "semanticCommitScope": "deps",
+  "commitMessagePrefix": "fix:",
+  "labels": ["dependencies"],
+  "prHourlyLimit": 1
+}
