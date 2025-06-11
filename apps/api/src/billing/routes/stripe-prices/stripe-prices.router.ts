@@ -19,7 +19,7 @@ export type StripePricesOutputResponse = z.infer<typeof StripePricesResponseOutp
 
 const route = createRoute({
   method: "get",
-  path: "/v1/stripe-prices",
+  path: "/v1/stripe/prices",
   summary: "",
   request: {},
   responses: {

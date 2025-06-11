@@ -18,27 +18,19 @@ describe("useStripePricesQuery", () => {
   });
 
   it("should fetch prices when enabled and use proper cache key", async () => {
-    const mockData = [
-      {
-        unitAmount: 10,
-        isCustom: false,
-        currency: "usd"
-      },
-      {
-        unitAmount: 20,
-        isCustom: false,
-        currency: "usd"
-      }
+    const mockPrices = [
+      { unitAmount: 10, isCustom: false, currency: "usd" },
+      { unitAmount: 20, isCustom: false, currency: "usd" }
     ];
-    (stripeService.findPrices as jest.Mock).mockResolvedValue({ data: mockData });
+    (stripeService.findPrices as jest.Mock).mockResolvedValue(mockPrices);
 
     const { result } = setupQuery(() => useStripePricesQuery());
 
     await waitFor(() => {
       expect(stripeService.findPrices).toHaveBeenCalled();
       expect(result.current.isSuccess).toBe(true);
-      expect(result.current.data).toEqual(mockData);
-      expect(queryClient.getQueryData(["StripePrices"])).toEqual({ data: mockData });
+      expect(result.current.data).toEqual(mockPrices);
+      expect(queryClient.getQueryData(["StripePrices"])).toEqual(mockPrices);
     });
   });
 

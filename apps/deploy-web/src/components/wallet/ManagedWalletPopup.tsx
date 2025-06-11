@@ -1,31 +1,25 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { Button, Separator } from "@akashnetwork/ui/components";
+import { Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { CoinsSwap, HandCard } from "iconoir-react";
 
-import { TopUpAmountPicker } from "@src/components/top-up-amount-picker/TopUpAmountPicker";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useAddFundsVerifiedLoginRequiredEventHandler } from "@src/hooks/useAddFundsVerifiedLoginRequiredEventHandler";
 import { useManagedEscrowFaqModal } from "@src/hooks/useManagedEscrowFaqModal";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
-import { analyticsService } from "@src/services/analytics/analytics.service";
+import { UrlService } from "@src/utils/urlUtils";
 import { LinkTo } from "../shared/LinkTo";
+import { AddFundsLink } from "../user/AddFundsLink";
 
 interface ManagedWalletPopupProps extends React.PropsWithChildren {
   walletBalance: WalletBalance;
-  onClose: () => void;
 }
 
-export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance, onClose }) => {
+export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance }) => {
   const { isManaged, isTrialing, switchWalletType } = useWallet();
-  const whenLoggedInAndVerified = useAddFundsVerifiedLoginRequiredEventHandler();
   const { showManagedEscrowFaqModal } = useManagedEscrowFaqModal();
   const { connect, isWalletConnected } = useSelectedChain();
-
-  const goToCheckout = () => {
-    window.location.href = "/api/proxy/v1/checkout";
-  };
 
   return (
     <div className="w-[300px] p-2">
@@ -75,18 +69,10 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
       )}
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
-        <Button
-          onClick={event => {
-            whenLoggedInAndVerified(goToCheckout)(event);
-            analyticsService.track("add_funds_btn_clk");
-          }}
-          variant="outline"
-          className="w-full space-x-2"
-        >
-          <HandCard />
-          <span>Add Funds</span>
-        </Button>
-        <TopUpAmountPicker className="w-full" onClick={onClose} />
+        <AddFundsLink className={cn("w-full hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.payment()}>
+          <HandCard className="text-xs text-accent-foreground" />
+          <span className="m-2 whitespace-nowrap text-accent-foreground">Add Funds</span>
+        </AddFundsLink>
         <Separator className="my-2 bg-secondary/90 dark:bg-white/10" />
         <Button onClick={isWalletConnected ? switchWalletType : connect} variant="outline" className="w-full space-x-2">
           <CoinsSwap />
