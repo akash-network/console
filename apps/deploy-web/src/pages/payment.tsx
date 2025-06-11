@@ -101,14 +101,7 @@ const PayPage: React.FunctionComponent = () => {
       refetchDiscounts();
       setCoupon("");
     } catch (error: any) {
-      let couponError = "Failed to apply coupon. Please check the code and try again.";
-      if (error.response?.status === 500) {
-        couponError = "Unable to apply coupon. Please try again later.";
-      } else if (error.response?.data?.message) {
-        couponError = error.response.data.message;
-      } else if (error.message) {
-        couponError = error.message;
-      }
+      const couponError = error.message || "Failed to apply coupon. Please check the code and try again.";
       enqueueSnackbar(<Snackbar title={couponError} iconVariant="error" />, { variant: "error" });
       console.error("Coupon application error:", error);
     }

@@ -1,4 +1,3 @@
-import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -10,11 +9,11 @@ import { create as StripeSeederCreate } from "@test/seeders/stripe.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 
 describe(StripeService.name, () => {
-  describe("ensureStripeCustomer", () => {
+  describe("getStripeCustomerId", () => {
     it("returns existing user when stripeCustomerId exists", async () => {
       const { service } = setup();
       const userWithStripeId = UserSeeder.create({ stripeCustomerId: "cus_123" });
-      const result = await service.ensureStripeCustomer(userWithStripeId);
+      const result = await service.getStripeCustomerId(userWithStripeId);
       expect(result).toEqual(userWithStripeId);
       expect(service.customers.create).not.toHaveBeenCalled();
     });
@@ -22,7 +21,7 @@ describe(StripeService.name, () => {
     it("creates new Stripe customer and updates user when no stripeCustomerId", async () => {
       const { service, userRepository } = setup();
       const user = UserSeeder.create({ stripeCustomerId: null });
-      const result = await service.ensureStripeCustomer(user);
+      const result = await service.getStripeCustomerId(user);
       expect(service.customers.create).toHaveBeenCalledWith({
         email: user.email,
         name: user.username,
@@ -74,10 +73,10 @@ describe(StripeService.name, () => {
       (userRepository as any).lastUser = user;
       // Patch the mock to use this lastUser
       userRepository.findOneBy.mockImplementation(async query => {
-        if (query.stripeCustomerId && user.stripeCustomerId === query.stripeCustomerId) {
-          return user;
+        if (query?.stripeCustomerId && user.stripeCustomerId === query.stripeCustomerId) {
+          return user as any;
         }
-        if (query.id && user.id === query.id) {
+        if (query?.id && user.id === query.id) {
           return user;
         }
         return null;
@@ -166,7 +165,7 @@ describe(StripeService.name, () => {
 
     it("throws error for invalid promotion code", async () => {
       const { service } = setup();
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(null);
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(null as any);
 
       await expect(service.applyCoupon("cus_123", "INVALID")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
     });
@@ -365,17 +364,10 @@ describe(StripeService.name, () => {
   });
 });
 
-function setup(): {
-  service: StripeService;
-  userRepository: MockProxy<UserRepository>;
-  refillService: MockProxy<RefillService>;
-  billingConfig: MockProxy<BillingConfigService>;
-} {
-  const billingConfig = mock<BillingConfigService>();
+function setup() {
+  const billingConfig = mock<BillingConfigService>({ get: jest.fn().mockReturnValue("test_key") });
   const userRepository = mock<UserRepository>();
   const refillService = mock<RefillService>();
-
-  billingConfig.get.mockReturnValue("test_key");
 
   const service = new StripeService(billingConfig, userRepository, refillService);
   const stripeData = StripeSeederCreate();
@@ -383,17 +375,17 @@ function setup(): {
   // Store the last user for correct mocking
   let lastUser: any = null;
   userRepository.findOneBy.mockImplementation(async query => {
-    if (query.stripeCustomerId && lastUser && lastUser.stripeCustomerId === query.stripeCustomerId) {
+    if (query?.stripeCustomerId && lastUser && lastUser.stripeCustomerId === query.stripeCustomerId) {
       return lastUser;
     }
-    if (query.id && lastUser && lastUser.id === query.id) {
+    if (query?.id && lastUser && lastUser.id === query.id) {
       return lastUser;
     }
     // fallback for tests that don't use UserSeeder
-    if (query.stripeCustomerId) {
+    if (query?.stripeCustomerId) {
       return { id: query.stripeCustomerId, stripeCustomerId: query.stripeCustomerId };
     }
-    if (query.id) {
+    if (query?.id) {
       return { id: query.id, stripeCustomerId: null };
     }
     return null;

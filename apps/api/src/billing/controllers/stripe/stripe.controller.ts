@@ -1,9 +1,10 @@
 import assert from "http-assert";
+import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
-import { ConfirmPaymentRequest } from "@src/billing/http-schemas/stripe.schema";
+import { ConfirmPaymentRequest, Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { Semaphore } from "@src/core/lib/semaphore.decorator";
 import { UserRepository } from "@src/user/repositories";
@@ -22,7 +23,7 @@ export class StripeController {
   }
 
   @Protected([{ action: "create", subject: "StripePayment" }])
-  async createSetupIntent() {
+  async createSetupIntent(): Promise<{ data: { clientSecret: string | null } }> {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 
@@ -35,7 +36,7 @@ export class StripeController {
   }
 
   @Protected([{ action: "read", subject: "StripePayment" }])
-  async getPaymentMethods() {
+  async getPaymentMethods(): Promise<{ data: Stripe.PaymentMethod[] }> {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 
@@ -51,7 +52,7 @@ export class StripeController {
 
   @Semaphore()
   @Protected([{ action: "create", subject: "StripePayment" }])
-  async confirmPayment(params: ConfirmPaymentRequest["data"]) {
+  async confirmPayment(params: ConfirmPaymentRequest["data"]): Promise<void> {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 
@@ -71,7 +72,7 @@ export class StripeController {
   }
 
   @Protected([{ action: "create", subject: "StripePayment" }])
-  async applyCoupon(couponId: string) {
+  async applyCoupon(couponId: string): Promise<{ data: { coupon: Stripe.Coupon | Stripe.PromotionCode | null } }> {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 
@@ -79,16 +80,12 @@ export class StripeController {
     assert(user.stripeCustomerId, 400, "User does not have a Stripe customer ID");
     assert(couponId, 400, "Coupon ID is required");
 
-    try {
-      const coupon = await this.stripe.applyCoupon(user.stripeCustomerId, couponId);
-      return { data: { coupon } };
-    } catch (error) {
-      return { data: { error: { message: error instanceof Error ? error.message : "Failed to apply coupon" } } };
-    }
+    const coupon = await this.stripe.applyCoupon(user.stripeCustomerId, couponId);
+    return { data: { coupon } };
   }
 
   @Protected([{ action: "delete", subject: "StripePayment" }])
-  async removePaymentMethod(paymentMethodId: string) {
+  async removePaymentMethod(paymentMethodId: string): Promise<void> {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 
@@ -99,7 +96,7 @@ export class StripeController {
   }
 
   @Protected([{ action: "read", subject: "StripePayment" }])
-  async getCustomerDiscounts() {
+  async getCustomerDiscounts(): Promise<{ data: { discounts: Discount[] } }> {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 
@@ -111,7 +108,10 @@ export class StripeController {
   }
 
   @Protected([{ action: "read", subject: "StripePayment" }])
-  async getCustomerTransactions(options?: { limit?: number; startingAfter?: string }) {
+  async getCustomerTransactions(options?: {
+    limit?: number;
+    startingAfter?: string;
+  }): Promise<{ data: { transactions: Transaction[]; hasMore: boolean; nextPage: string | null } }> {
     const userId = this.authService.currentUser.userId;
     const user = await this.userRepository.findOneBy({ userId });
 

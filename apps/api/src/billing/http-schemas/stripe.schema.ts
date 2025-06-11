@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const SetupIntentResponseSchema = z.object({
   data: z.object({
-    clientSecret: z.string()
+    clientSecret: z.string().nullable()
   })
 });
 
@@ -10,19 +10,21 @@ export const PaymentMethodSchema = z.object({
   type: z.string(),
   card: z
     .object({
-      brand: z.string(),
-      last4: z.string(),
+      brand: z.string().nullable(),
+      last4: z.string().nullable(),
       exp_month: z.number(),
       exp_year: z.number(),
-      funding: z.string().optional(),
-      country: z.string().optional(),
-      network: z.string().optional(),
+      funding: z.string().nullable().optional(),
+      country: z.string().nullable().optional(),
+      network: z.string().nullable().optional(),
       three_d_secure_usage: z
         .object({
-          supported: z.boolean()
+          supported: z.boolean().nullable().optional()
         })
+        .nullable()
         .optional()
     })
+    .nullable()
     .optional(),
   billing_details: z
     .object({
@@ -35,6 +37,7 @@ export const PaymentMethodSchema = z.object({
           postal_code: z.string().nullable(),
           state: z.string().nullable()
         })
+        .nullable()
         .optional(),
       email: z.string().nullable().optional(),
       name: z.string().nullable().optional(),
@@ -67,14 +70,14 @@ export const CouponSchema = z.object({
   id: z.string(),
   percent_off: z.number().nullable().optional(),
   amount_off: z.number().nullable().optional(),
-  valid: z.boolean(),
-  name: z.string().optional(),
-  description: z.string().optional()
+  valid: z.boolean().nullable().optional(),
+  name: z.string().nullable().optional(),
+  description: z.string().nullable().optional()
 });
 
 export const ApplyCouponResponseSchema = z.object({
   data: z.object({
-    coupon: CouponSchema.optional(),
+    coupon: CouponSchema.nullable().optional(),
     error: z
       .object({
         message: z.string()
@@ -87,11 +90,11 @@ export const DiscountSchema = z.object({
   type: z.enum(["coupon", "promotion_code"]),
   id: z.string(),
   coupon_id: z.string().optional(),
-  name: z.string().optional(),
+  name: z.string().nullable().optional(),
   code: z.string().optional(),
-  percent_off: z.number().optional(),
-  amount_off: z.number().optional(),
-  currency: z.string().optional(),
+  percent_off: z.number().nullable().optional(),
+  amount_off: z.number().nullable().optional(),
+  currency: z.string().nullable().optional(),
   valid: z.boolean()
 });
 
@@ -107,17 +110,17 @@ export const TransactionSchema = z.object({
   currency: z.string(),
   status: z.string(),
   created: z.number(),
-  paymentMethod: PaymentMethodSchema,
-  receiptUrl: z.string().optional(),
-  description: z.string().optional(),
-  metadata: z.record(z.string()).optional()
+  paymentMethod: PaymentMethodSchema.nullable(),
+  receiptUrl: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  metadata: z.record(z.string()).nullable().optional()
 });
 
 export const CustomerTransactionsResponseSchema = z.object({
   data: z.object({
     transactions: z.array(TransactionSchema),
     hasMore: z.boolean(),
-    nextPage: z.string().optional()
+    nextPage: z.string().nullable().optional()
   })
 });
 

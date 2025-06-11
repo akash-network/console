@@ -19,7 +19,7 @@ export function create(overrides?: Partial<StripeMockData>): StripeMockData {
       livemode: false,
       metadata: {},
       shipping: null,
-      tax: null,
+      tax: undefined,
       tax_exempt: "none",
       test_clock: null,
       balance: 0,
@@ -130,8 +130,21 @@ export function create(overrides?: Partial<StripeMockData>): StripeMockData {
       customer_details: null,
       customer_email: null,
       custom_fields: [],
-      custom_text: null,
-      expires_at: null,
+      custom_text: {
+        after_submit: {
+          message: "test"
+        },
+        shipping_address: {
+          message: "test"
+        },
+        submit: {
+          message: "test"
+        },
+        terms_of_service_acceptance: {
+          message: "test"
+        }
+      },
+      expires_at: 0,
       invoice: null,
       invoice_creation: null,
       locale: null,

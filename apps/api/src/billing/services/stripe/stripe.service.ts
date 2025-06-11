@@ -3,7 +3,7 @@ import orderBy from "lodash/orderBy";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
-import { Discount } from "@src/billing/http-schemas/stripe.schema";
+import { Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
@@ -205,7 +205,7 @@ export class StripeService extends Stripe {
     return promotionCodes[0];
   }
 
-  async applyCoupon(customerId: string, couponCode: string) {
+  async applyCoupon(customerId: string, couponCode: string): Promise<Stripe.Coupon | Stripe.PromotionCode> {
     const promotionCode = await this.findPromotionCodeByCode(couponCode);
 
     if (promotionCode) {
@@ -296,7 +296,14 @@ export class StripeService extends Stripe {
     return false;
   }
 
-  async getCustomerTransactions(customerId: string, options?: { limit?: number; startingAfter?: string }) {
+  async getCustomerTransactions(
+    customerId: string,
+    options?: { limit?: number; startingAfter?: string }
+  ): Promise<{
+    transactions: Transaction[];
+    hasMore: boolean;
+    nextPage: string | null;
+  }> {
     const charges = await this.charges.list({
       customer: customerId,
       limit: options?.limit ?? 100,
@@ -345,7 +352,7 @@ export class StripeService extends Stripe {
     const updated = await this.userRepository.updateBy({ id: user.id, stripeCustomerId: null }, { stripeCustomerId: customer.id });
     if (!updated) {
       const winner = await this.userRepository.findOneBy({ id: user.id });
-      return winner!.stripeCustomerId;
+      return winner!.stripeCustomerId!;
     }
 
     return customer.id;
