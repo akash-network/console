@@ -2,9 +2,9 @@ import { z } from "zod";
 
 const WalletOutputSchema = z.object({
   id: z.number().openapi({}),
-  userId: z.string().openapi({}),
+  userId: z.string().nullable().openapi({}),
   creditAmount: z.number().openapi({}),
-  address: z.string().openapi({}),
+  address: z.string().nullable().openapi({}),
   isTrialing: z.boolean()
 });
 

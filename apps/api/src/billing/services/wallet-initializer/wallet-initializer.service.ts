@@ -13,7 +13,7 @@ export class WalletInitializerService {
   ) {}
 
   async initializeAndGrantTrialLimits(userId: UserWalletInput["userId"]): Promise<UserWalletPublicOutput> {
-    let userWallet = await this.userWalletRepository.findOneByUserId(userId);
+    let userWallet = await this.userWalletRepository.findOneByUserId(userId!);
     if (userWallet) return this.userWalletRepository.toPublic(userWallet);
 
     userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "create").create({ userId });

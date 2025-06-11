@@ -1,3 +1,4 @@
+import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
 import { CheckoutSessionRepository } from "@src/billing/repositories";
@@ -18,9 +19,8 @@ export class CheckoutService {
     private readonly checkoutSessionRepository: CheckoutSessionRepository
   ) {}
 
-  async checkoutFor({ user, redirectUrl, amount }: CheckoutSessionOptions) {
-    const { stripeCustomerId } = await this.ensureCustomer(user);
-
+  async checkoutFor({ user, redirectUrl, amount }: CheckoutSessionOptions): Promise<Stripe.Response<Stripe.Checkout.Session>> {
+    const stripeCustomerId = await this.getStripeCustomerId(user);
     const session = await this.stripe.startCheckoutSession({
       customerId: stripeCustomerId,
       redirectUrl,
@@ -35,14 +35,14 @@ export class CheckoutService {
     return session;
   }
 
-  private async ensureCustomer<T extends UserOutput>(user: T): Promise<Omit<T, "stripeCustomerId"> & Required<Pick<T, "stripeCustomerId">>> {
+  private async getStripeCustomerId(user: UserOutput): Promise<string> {
     if (user.stripeCustomerId) {
-      return user;
+      return user.stripeCustomerId;
     }
 
     const customer = await this.stripe.customers.create({
-      email: user.email,
-      name: user.username,
+      email: user.email ?? undefined,
+      name: user.username ?? undefined,
       metadata: {
         userId: user.userId
       }
@@ -52,9 +52,6 @@ export class CheckoutService {
       stripeCustomerId: customer.id
     });
 
-    return {
-      ...user,
-      stripeCustomerId: customer.id
-    };
+    return customer.id;
   }
 }

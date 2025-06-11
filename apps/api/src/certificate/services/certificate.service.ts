@@ -25,7 +25,7 @@ export class CertificateService {
   async create(): Promise<CertificateOutput> {
     const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findOneByUserId(this.authService.currentUser.id);
 
-    assert(userWallet, 404, "UserWallet not found");
+    assert(userWallet?.address, 404, "UserWallet not found");
 
     const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = certificateManager.generatePEM(userWallet.address);
     const createCertificateMsg = this.rpcMessageService.getCreateCertificateMsg(userWallet.address, crtpem, pubpem);

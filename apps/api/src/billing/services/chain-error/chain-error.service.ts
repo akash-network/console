@@ -81,7 +81,7 @@ export class ChainErrorService {
 
     if (!insufficientFundsErrorData) return false;
 
-    return masterWalletBalance.amount < insufficientFundsErrorData.requiredAmount;
+    return !masterWalletBalance || masterWalletBalance.amount < insufficientFundsErrorData.requiredAmount;
   }
 
   private async getBalanceError(clue: string, error: Error) {

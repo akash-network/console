@@ -38,13 +38,13 @@ export class BatchSigningClientService {
 
   private readonly semaphore = new Sema(1);
 
-  private accountInfo: ShortAccountInfo;
+  private accountInfo?: ShortAccountInfo;
 
-  private chainId: string;
+  private chainId?: string;
 
   private execTxLoader = new DataLoader(
-    async (batchedInputs: ExecuteTxInput[]) => {
-      return this.executeTxBatchBlocking(batchedInputs);
+    async (batchedInputs: readonly ExecuteTxInput[]) => {
+      return this.executeTxBatchBlocking(batchedInputs as ExecuteTxInput[]);
     },
     { cache: false, batchScheduleFn: callback => setTimeout(callback, this.config.get("WALLET_BATCHING_INTERVAL_MS")) }
   );
@@ -124,7 +124,7 @@ export class BatchSigningClientService {
       let txIndex: number = 0;
 
       const client = await this.clientAsPromised;
-      await this.updateAccountInfo();
+      const accountInfo = await this.updateAccountInfo();
 
       const address = await this.wallet.getFirstAddress();
 
@@ -133,9 +133,9 @@ export class BatchSigningClientService {
         const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee.granter);
         txes.push(
           await client.sign(address, messages, fee, "", {
-            accountNumber: this.accountInfo.accountNumber,
-            sequence: this.accountInfo.sequence++,
-            chainId: this.chainId
+            accountNumber: accountInfo.accountNumber,
+            sequence: accountInfo.sequence++,
+            chainId: this.chainId!
           })
         );
         txIndex++;
@@ -153,16 +153,19 @@ export class BatchSigningClientService {
       const lastDelivery = await client.broadcastTx(TxRaw.encode(txes[txes.length - 1]).finish());
       const hashes = [...responses.map(hash => toHex(hash.hash)), lastDelivery.transactionHash];
 
-      return await Promise.all(hashes.map(hash => client.getTx(hash)));
+      const txs = await Promise.all(hashes.map(hash => client.getTx(hash)));
+      return txs.filter(tx => tx !== null);
     });
   }
 
   private async updateAccountInfo() {
     const client = await this.clientAsPromised;
-    this.accountInfo = await client.getAccount(await this.wallet.getFirstAddress()).then(account => ({
-      accountNumber: account.accountNumber,
-      sequence: account.sequence
+    const accountInfo = await client.getAccount(await this.wallet.getFirstAddress()).then(account => ({
+      accountNumber: account!.accountNumber,
+      sequence: account!.sequence
     }));
+    this.accountInfo = accountInfo;
+    return accountInfo;
   }
 
   private async estimateFee(messages: readonly EncodeObject[], denom: string, granter?: string, options?: { mock?: boolean }) {
