@@ -14,7 +14,7 @@ describe(StripeService.name, () => {
       const { service } = setup();
       const userWithStripeId = UserSeeder.create({ stripeCustomerId: "cus_123" });
       const result = await service.getStripeCustomerId(userWithStripeId);
-      expect(result).toEqual(userWithStripeId);
+      expect(result).toEqual(userWithStripeId.stripeCustomerId);
       expect(service.customers.create).not.toHaveBeenCalled();
     });
 
@@ -28,10 +28,7 @@ describe(StripeService.name, () => {
         metadata: { userId: user.userId }
       });
       expect(userRepository.updateBy).toHaveBeenCalledWith({ id: user.id, stripeCustomerId: null }, { stripeCustomerId: StripeSeederCreate().customer.id });
-      expect(result).toEqual({
-        ...user,
-        stripeCustomerId: StripeSeederCreate().customer.id
-      });
+      expect(result).toEqual(StripeSeederCreate().customer.id);
     });
   });
 
@@ -262,9 +259,9 @@ describe(StripeService.name, () => {
 
       const result = await service.findPrices();
       expect(result).toEqual([
-        { unitAmount: undefined, isCustom: true, currency: "usd" },
         { unitAmount: 10, isCustom: false, currency: "usd" },
-        { unitAmount: 20, isCustom: false, currency: "usd" }
+        { unitAmount: 20, isCustom: false, currency: "usd" },
+        { unitAmount: undefined, isCustom: true, currency: "usd" }
       ]);
     });
   });
