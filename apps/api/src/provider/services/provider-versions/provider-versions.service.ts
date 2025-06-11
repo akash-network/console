@@ -31,11 +31,13 @@ export class ProviderVersionsService {
 
     for (const provider of providers) {
       const version = provider.akashVersion ?? "<UNKNOWN>";
-      if (!groupedMap.has(version)) {
-        groupedMap.set(version, []);
+      let providers = groupedMap.get(version);
+      if (!providers) {
+        providers = [];
+        groupedMap.set(version, providers);
       }
 
-      groupedMap.get(version).push(provider.hostUri);
+      providers.push(provider.hostUri);
     }
 
     const grouped = Array.from(groupedMap.entries()).map(([version, providers]) => ({

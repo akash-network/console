@@ -14,6 +14,7 @@ const attributeSchemaType = z.object({
       })
     )
     .nullable()
+    .optional()
 });
 
 export const ProviderAttributesSchemaResponseSchema = z.object({

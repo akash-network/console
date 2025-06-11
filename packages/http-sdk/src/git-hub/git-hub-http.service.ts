@@ -9,7 +9,7 @@ type ProviderAttributeSchemaDetail = {
   type: "string" | "number" | "boolean" | "option" | "multiple-option";
   required: boolean;
   description: string;
-  values?: Array<ProviderAttributeSchemaDetailValue>;
+  values?: Array<ProviderAttributeSchemaDetailValue> | null;
 };
 
 export type ProviderAttributesSchema = {

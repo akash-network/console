@@ -7,7 +7,7 @@ import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.servi
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { UserRepository } from "@src/user/repositories";
 import type { GetUserParams } from "@src/user/routes/get-anonymous-user/get-anonymous-user.router";
-import { AnonymousUserResponseOutput } from "@src/user/schemas/user.schema";
+import { AnonymousUserResponseOutput, GetUserResponseOutput } from "@src/user/schemas/user.schema";
 import {
   StaleAnonymousUsersCleanerOptions,
   StaleAnonymousUsersCleanerService
@@ -40,7 +40,7 @@ export class UserController {
   }
 
   @Protected([{ action: "read", subject: "User" }])
-  async getById({ id }: GetUserParams): Promise<AnonymousUserResponseOutput> {
+  async getById({ id }: GetUserParams): Promise<GetUserResponseOutput> {
     const user = await this.userRepository.accessibleBy(this.authService.ability, "read").findById(id);
 
     assert(user, 404);

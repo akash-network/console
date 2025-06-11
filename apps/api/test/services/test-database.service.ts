@@ -36,6 +36,10 @@ export class TestDatabaseService {
   }
 
   private async migrateIndexerDb() {
+    if (!process.env.CHAIN_INDEXER_POSTGRES_DB_URI) {
+      throw new Error("process.env.CHAIN_INDEXER_POSTGRES_DB_URI is not set");
+    }
+
     const migrationClient = postgres(process.env.CHAIN_INDEXER_POSTGRES_DB_URI, { max: 1 });
     const pgMigrationDatabase = drizzle(migrationClient);
     const migrationsFolder = path.resolve(process.cwd(), "../indexer/drizzle");
