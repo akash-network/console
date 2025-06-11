@@ -17,7 +17,7 @@ describe(DeploymentAlertController.name, () => {
     const input = generateMock(DeploymentAlertCreateInput.schema);
     const output = generateMock(DeploymentAlertsResponse.schema);
 
-    service.upsert.mockResolvedValue(output.data);
+    service.upsert.mockResolvedValue(Ok(output.data));
 
     const result = await controller.upsertDeploymentAlert(dseq, input);
 

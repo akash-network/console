@@ -1,9 +1,11 @@
 import { MongoAbility } from "@casl/ability";
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { Err, Ok, Result } from "ts-results";
 
 import { AlertConfig } from "@src/modules/alert/config";
 import { AlertInput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+import { DeploymentService } from "@src/modules/alert/services/deployment/deployment.service";
 
 type DeploymentBalanceAlertInput = {
   notificationChannelId: string;
@@ -18,7 +20,7 @@ type DeploymentClosedAlertInput = {
 
 export type DeploymentAlertInput = {
   dseq: string;
-  owner: string;
+  owner?: string;
   alerts: {
     deploymentBalance?: DeploymentBalanceAlertInput;
     deploymentClosed?: DeploymentClosedAlertInput;
@@ -65,12 +67,17 @@ interface RepositoryAlert {
 @Injectable()
 export class DeploymentAlertService {
   constructor(
+    private readonly deploymentService: DeploymentService,
     private readonly alertRepository: AlertRepository,
     private configService: ConfigService<AlertConfig>
   ) {}
 
-  async upsert(clientInput: DeploymentAlertInput, auth: AuthMeta): Promise<DeploymentAlertOutput> {
+  async upsert(clientInput: DeploymentAlertInput, auth: AuthMeta): Promise<Result<DeploymentAlertOutput, unknown>> {
     const { dseq, owner, alerts } = clientInput;
+
+    if (!owner || !(await this.deploymentService.deploymentExists(owner, dseq))) {
+      return Err(new NotFoundException("Deployment not found"));
+    }
 
     const existingAlerts = await this.get(dseq, auth.ability);
 
@@ -82,7 +89,7 @@ export class DeploymentAlertService {
       await this.upsertClosedAlert({ ...alerts.deploymentClosed, dseq, owner }, auth, existingAlerts);
     }
 
-    return (await this.get(dseq, auth.ability)) as DeploymentAlertOutput;
+    return Ok((await this.get(dseq, auth.ability)) as DeploymentAlertOutput);
   }
 
   private async upsertBalanceAlert(

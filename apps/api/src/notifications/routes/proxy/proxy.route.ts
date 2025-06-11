@@ -1,40 +1,53 @@
 import { Hono } from "hono";
+import assert from "http-assert";
 import { container } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { UserWalletRepository } from "@src/billing/repositories";
 import type { NotificationsConfig } from "@src/notifications/config";
 import { config } from "@src/notifications/config";
 
 const notificationsApiProxy = new Hono();
 
-export const createProxy = (authService: AuthService, config: NotificationsConfig, fetchFn: typeof fetch) => async (c: any) => {
-  const { req } = c;
+export const createProxy =
+  (authService: AuthService, userWalletRepository: UserWalletRepository, config: NotificationsConfig, fetchFn: typeof fetch) => async (c: any) => {
+    const { req } = c;
+    const headers = Object.fromEntries([...req.raw.headers.entries()].map(([k, v]) => [k.toLowerCase(), v]));
 
-  const subject = req.url.includes("/v1/notification-channels") ? "NotificationChannel" : "Alert";
-  authService.throwUnlessCan("manage", subject);
+    assert(!headers["x-user-id"], 403, "x-user-id header is not allowed");
+    assert(!headers["x-owner-address"], 403, "x-owner-address header is not allowed");
 
-  const url = new URL(req.url);
-  const targetUrl = config.NOTIFICATIONS_API_BASE_URL + url.pathname + url.search;
+    const subject = req.url.includes("/v1/notification-channels") ? "NotificationChannel" : "Alert";
+    authService.throwUnlessCan("manage", subject);
 
-  const isBodyAllowed = !["GET", "HEAD"].includes(req.method);
+    const url = new URL(req.url);
+    const targetUrl = config.NOTIFICATIONS_API_BASE_URL + url.pathname + url.search;
 
-  const headers = Object.fromEntries(req.raw.headers.entries());
-  headers["x-user-id"] = authService.currentUser.id;
+    const isBodyAllowed = !["GET", "HEAD"].includes(req.method);
 
-  if (isBodyAllowed && !headers["content-type"]) {
-    headers["content-type"] = "application/json";
-  }
+    const userId = authService.currentUser.id;
+    headers["x-user-id"] = userId;
 
-  const body = isBodyAllowed ? await req.text() : undefined;
+    const userWallet = await userWalletRepository.findOneByUserId(userId);
 
-  return fetchFn(targetUrl, {
-    method: req.method,
-    headers,
-    body
-  });
-};
+    assert(userWallet, 403, "User does not have a managed wallet");
 
-const proxyRoute = createProxy(container.resolve(AuthService), config, fetch);
+    headers["x-owner-address"] = userWallet.address;
+
+    if (isBodyAllowed && !headers["content-type"]) {
+      headers["content-type"] = "application/json";
+    }
+
+    const body = isBodyAllowed ? await req.text() : undefined;
+
+    return fetchFn(targetUrl, {
+      method: req.method,
+      headers,
+      body
+    });
+  };
+
+const proxyRoute = createProxy(container.resolve(AuthService), container.resolve(UserWalletRepository), config, fetch);
 
 notificationsApiProxy.all("/v1/notification-channels/*", proxyRoute);
 notificationsApiProxy.all("/v1/notification-channels", proxyRoute);

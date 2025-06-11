@@ -3747,7 +3747,7 @@ export interface V1Service {
      *         dseq: dseq
      *     },
      *     header: {
-     *         Authorization: authorization
+     *         "x-owner-address": xOwnerAddress
      *     }
      * })
      * mutate(body);
@@ -3761,7 +3761,7 @@ export interface V1Service {
      *         dseq: dseq
      *     },
      *     header: {
-     *         Authorization: authorization
+     *         "x-owner-address": xOwnerAddress
      *     }
      * });
      * ```
@@ -3789,7 +3789,7 @@ export interface V1Service {
      *         dseq: dseq
      *     },
      *     header: {
-     *         Authorization: authorization
+     *         "x-owner-address": xOwnerAddress
      *     }
      * })
      * mutate(body);
@@ -3803,7 +3803,7 @@ export interface V1Service {
      *         dseq: dseq
      *     },
      *     header: {
-     *         Authorization: authorization
+     *         "x-owner-address": xOwnerAddress
      *     }
      * });
      * ```
@@ -3835,7 +3835,7 @@ export interface V1Service {
      *             dseq: dseq
      *         },
      *         header: {
-     *             Authorization: authorization
+     *             "x-owner-address": xOwnerAddress
      *         }
      *     }
      * })
@@ -3908,7 +3908,7 @@ export interface V1Service {
      *                 dseq: dseq
      *             },
      *             header: {
-     *                 Authorization: authorization
+     *                 "x-owner-address": xOwnerAddress
      *             }
      *         }
      *     },
