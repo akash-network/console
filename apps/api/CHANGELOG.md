@@ -1,5 +1,12 @@
 
 
+## [2.97.1](https://github.com/akash-network/console/compare/console-api/v2.97.0...console-api/v2.97.1) (2025-06-11)
+
+
+### Bug Fixes
+
+* **billing:** get stripe customer id ([#1466](https://github.com/akash-network/console/issues/1466)) ([f541c20](https://github.com/akash-network/console/commit/f541c20a842e247d30a078df129903146470d8b7))
+
 ## [2.97.0](https://github.com/akash-network/console/compare/console-api/v2.96.0...console-api/v2.97.0) (2025-06-11)
 
 
