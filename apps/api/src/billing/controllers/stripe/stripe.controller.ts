@@ -94,7 +94,8 @@ export class StripeController {
 
     // Verify payment method ownership
     const paymentMethod = await this.stripe.paymentMethods.retrieve(paymentMethodId);
-    assert(paymentMethod.customer === user.stripeCustomerId, 403, "Payment method does not belong to the user");
+    const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
+    assert(customerId === user.stripeCustomerId, 403, "Payment method does not belong to the user");
 
     await this.stripe.paymentMethods.detach(paymentMethodId);
   }
