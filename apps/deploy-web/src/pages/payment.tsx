@@ -17,7 +17,7 @@ const PayPage: React.FunctionComponent = () => {
   const { resolvedTheme } = useTheme();
   const [amount, setAmount] = useState<string>("");
   const [coupon, setCoupon] = useState<string>("");
-  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>();
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | undefined>();
   const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [cardToDelete, setCardToDelete] = useState<string>();
@@ -38,8 +38,10 @@ const PayPage: React.FunctionComponent = () => {
   const isLoading = isLoadingPaymentMethods || isLoadingDiscounts;
 
   useEffect(() => {
-    if (paymentMethods.length > 0 && !selectedPaymentMethodId) {
-      setSelectedPaymentMethodId(paymentMethods[0].id);
+    if (paymentMethods.length > 0) {
+      if (!selectedPaymentMethodId || !paymentMethods.some(method => method.id === selectedPaymentMethodId)) {
+        setSelectedPaymentMethodId(paymentMethods[0].id);
+      }
     }
   }, [paymentMethods, selectedPaymentMethodId]);
 
@@ -59,6 +61,7 @@ const PayPage: React.FunctionComponent = () => {
 
   const handlePayment = async (paymentMethodId: string) => {
     if (!amount) return;
+    if (!selectedPaymentMethodId || !paymentMethods.some(method => method.id === selectedPaymentMethodId)) return;
 
     try {
       await confirmPayment({
@@ -117,9 +120,7 @@ const PayPage: React.FunctionComponent = () => {
 
     try {
       await removePaymentMethod.mutateAsync(cardToDelete);
-      if (selectedPaymentMethodId === cardToDelete) {
-        setSelectedPaymentMethodId(undefined);
-      }
+      setSelectedPaymentMethodId(undefined);
     } catch (error) {
       setError("Failed to remove payment method");
       console.error(error);
@@ -205,7 +206,7 @@ const PayPage: React.FunctionComponent = () => {
             <p className="font-medium">Error</p>
             <p className="text-sm">{error}</p>
           </Alert>
-          <Button onClick={() => window.location.reload()} variant="outline" className="w-full">
+          <Button onClick={() => window.location.reload()} variant="default" className="w-full">
             Try Again
           </Button>
         </div>
