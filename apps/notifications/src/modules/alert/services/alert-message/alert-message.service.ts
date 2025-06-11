@@ -6,7 +6,6 @@ export interface SendOptions {
   summary: string;
   description: string;
   vars: Record<string, any>;
-  summaryPrefix?: "TRIGGERED" | "RECOVERED" | "SUSPENDED" | string;
 }
 
 export interface AlertMessagePayload {
@@ -18,18 +17,10 @@ export interface AlertMessagePayload {
 export class AlertMessageService {
   constructor(private readonly templateService: TemplateService) {}
 
-  getMessage({ vars, summaryPrefix, ...templates }: SendOptions): AlertMessagePayload {
-    let summary = this.templateService.interpolate(templates.summary, vars);
-
-    if (summaryPrefix) {
-      summary = `[${summaryPrefix}] ${summary}`;
-    }
-
-    const description = this.templateService.interpolate(templates.description, vars);
-
+  getMessage({ vars, ...templates }: SendOptions): AlertMessagePayload {
     return {
-      summary,
-      description
+      summary: this.templateService.interpolate(templates.summary, vars),
+      description: this.templateService.interpolate(templates.description, vars)
     };
   }
 }

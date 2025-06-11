@@ -50,7 +50,7 @@ describe("balance alerts", () => {
         owner
       },
       summary: `deployment low: ${matchingDseq}`,
-      description: `deployment ${matchingDseq} balance is {{balance}} < 10000000 uAKT`,
+      description: `deployment ${matchingDseq} balance is {{data.balance}} < 10000000 uAKT`,
       minBlockHeight: CURRENT_HEIGHT
     });
 
@@ -66,7 +66,7 @@ describe("balance alerts", () => {
         owner: mockAkashAddress()
       },
       summary: `deployment low: ${matchingDseq}`,
-      description: `deployment ${matchingDseq} balance is {{balance}} < 10000000 uAKT`,
+      description: `deployment ${matchingDseq} balance is {{data.balance}} < 10000000 uAKT`,
       minBlockHeight: CURRENT_HEIGHT + 10
     });
 
@@ -101,7 +101,7 @@ describe("balance alerts", () => {
     expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, {
       notificationChannelId: notificationChannel.id,
       payload: {
-        summary: `[TRIGGERED] deployment low: ${matchingDseq}`,
+        summary: `deployment low: ${matchingDseq}`,
         description: `deployment ${matchingDseq} balance is 800000 < 10000000 uAKT`
       }
     });
