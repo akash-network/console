@@ -1,5 +1,3 @@
-import address from "./addresses/address";
-import addressTransactions from "./addresses/transactions";
 import nodesMainnet from "./nodes/mainnet";
 import nodesSandbox from "./nodes/sandbox";
 import nodesTestnet from "./nodes/testnet";
@@ -22,8 +20,6 @@ import trialProviders from "./trialProviders";
 export default [
   predictedBlockDate,
   predictedDateHeight,
-  address,
-  addressTransactions,
   proposals,
   proposalById,
   templateListFull,
