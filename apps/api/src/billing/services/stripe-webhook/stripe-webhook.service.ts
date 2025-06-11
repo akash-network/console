@@ -6,6 +6,7 @@ import { CheckoutSessionRepository } from "@src/billing/repositories";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { WithTransaction } from "@src/core";
+import { UserRepository } from "@src/user/repositories";
 import { BillingConfigService } from "../billing-config/billing-config.service";
 
 @singleton()
@@ -16,20 +17,28 @@ export class StripeWebhookService {
     private readonly stripe: StripeService,
     private readonly checkoutSessionRepository: CheckoutSessionRepository,
     private readonly refillService: RefillService,
-    private readonly billingConfig: BillingConfigService
+    private readonly billingConfig: BillingConfigService,
+    private readonly userRepository: UserRepository
   ) {}
 
   async routeStripeEvent(signature: string, rawEvent: string) {
     const event = this.stripe.webhooks.constructEvent(rawEvent, signature, this.billingConfig.get("STRIPE_WEBHOOK_SECRET"));
-    this.logger.info({ event: "STRIPE_EVENT_RECEIVED", type: event.type });
+    this.logger.info({
+      event: "STRIPE_EVENT_RECEIVED",
+      type: event.type,
+      id: event.id,
+      objectId: event.data.object.object
+    });
 
     if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
-      await this.tryToTopUpWallet(event);
+      await this.tryToTopUpWalletForCheckout(event);
+    } else if (event.type === "payment_intent.succeeded") {
+      await this.tryToTopUpWalletFromPaymentIntent(event);
     }
   }
 
   @WithTransaction()
-  async tryToTopUpWallet(event: Stripe.CheckoutSessionCompletedEvent | Stripe.CheckoutSessionAsyncPaymentSucceededEvent) {
+  async tryToTopUpWalletForCheckout(event: Stripe.CheckoutSessionCompletedEvent | Stripe.CheckoutSessionAsyncPaymentSucceededEvent) {
     const sessionId = event.data.object.id;
     const checkoutSessionCache = await this.checkoutSessionRepository.findOneByAndLock({ sessionId });
 
@@ -48,5 +57,66 @@ export class StripeWebhookService {
     } else {
       this.logger.error({ event: "PAYMENT_NOT_COMPLETED", sessionId });
     }
+  }
+
+  @WithTransaction()
+  async tryToTopUpWalletFromPaymentIntent(event: Stripe.PaymentIntentSucceededEvent) {
+    const paymentIntent = event.data.object;
+    const customerId = paymentIntent.customer as string;
+
+    if (!customerId) {
+      this.logger.error({
+        event: "PAYMENT_INTENT_MISSING_CUSTOMER_ID",
+        paymentIntentId: paymentIntent.id
+      });
+      return;
+    }
+
+    const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
+    if (!user) {
+      this.logger.error({
+        event: "USER_NOT_FOUND",
+        customerId,
+        paymentIntentId: paymentIntent.id
+      });
+      return;
+    }
+
+    // Get discount information from metadata
+    const metadata = paymentIntent.metadata;
+    const originalAmount =
+      metadata?.original_amount && !Number.isNaN(parseFloat(metadata.original_amount)) ? parseFloat(metadata.original_amount) : paymentIntent.amount;
+    const discountApplied = metadata?.discount_applied === "true";
+
+    // If a discount was applied, consume the promotion code
+    if (discountApplied) {
+      try {
+        const consumed = await this.stripe.consumeActiveDiscount(customerId);
+        if (consumed) {
+          this.logger.info({
+            event: "DISCOUNT_CONSUMED",
+            customerId,
+            originalAmount,
+            finalAmount: paymentIntent.amount
+          });
+        } else {
+          this.logger.error({
+            event: "FAILED_TO_CONSUME_DISCOUNT",
+            customerId,
+            originalAmount,
+            finalAmount: paymentIntent.amount
+          });
+        }
+      } catch (error) {
+        this.logger.error({
+          event: "FAILED_TO_CONSUME_DISCOUNT",
+          customerId,
+          error
+        });
+      }
+    }
+
+    // Use the original amount for the wallet top-up
+    await this.refillService.topUpWallet(originalAmount, user.id);
   }
 }
