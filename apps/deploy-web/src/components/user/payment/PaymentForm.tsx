@@ -127,7 +127,13 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
         onClick={() => selectedPaymentMethodId && onPayment(selectedPaymentMethodId)}
         disabled={!amount || processing || !selectedPaymentMethodId || !!amountError}
       >
-        {processing ? "Processing..." : `Pay $${getFinalAmount(amount).toFixed(2)}`}
+        {processing ? (
+          "Processing..."
+        ) : (
+          <>
+            Pay <FormattedNumber value={getFinalAmount(amount)} style="currency" currency="USD" />
+          </>
+        )}
       </LoadingButton>
       {!selectedPaymentMethodId && <p className="text-center text-sm text-muted-foreground">Please select a payment method above</p>}
     </div>
