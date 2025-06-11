@@ -345,6 +345,13 @@ export class StripeService extends Stripe {
 
     const updated = await this.userRepository.updateBy({ id: user.id, stripeCustomerId: null }, { stripeCustomerId: customer.id });
 
-    return updated ? updated.stripeCustomerId! : customer.id;
+    if (updated) {
+      return updated.stripeCustomerId!;
+    }
+
+    // Concurrent creation detected: fetch and return the persisted customer ID
+    const reloaded = await this.userRepository.findOneBy({ id: user.id });
+    assert(reloaded?.stripeCustomerId, 500, "Failed to retrieve stripeCustomerId");
+    return reloaded.stripeCustomerId;
   }
 }
