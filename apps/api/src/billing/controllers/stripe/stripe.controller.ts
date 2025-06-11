@@ -92,6 +92,10 @@ export class StripeController {
     assert(user, 404, "User not found");
     assert(user.stripeCustomerId, 400, "User does not have a Stripe customer ID");
 
+    // Verify payment method ownership
+    const paymentMethod = await this.stripe.paymentMethods.retrieve(paymentMethodId);
+    assert(paymentMethod.customer === user.stripeCustomerId, 403, "Payment method does not belong to the user");
+
     await this.stripe.paymentMethods.detach(paymentMethodId);
   }
 
