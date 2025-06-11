@@ -18,13 +18,14 @@ export const DeletePaymentMethodPopup: React.FC<DeletePaymentMethodPopupProps> =
       actions={[
         {
           label: "Cancel",
+          variant: "ghost",
           onClick: onClose,
           side: "left"
         },
         {
           label: "Remove",
           onClick: onConfirm,
-          variant: "destructive",
+          variant: "default",
           disabled: isRemovingPaymentMethod,
           side: "right"
         }
