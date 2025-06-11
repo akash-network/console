@@ -39,7 +39,7 @@ export class RefillService {
 
   private async refillWalletFees(userWallet: UserWalletOutput) {
     await this.managedUserWalletService.authorizeSpending({
-      address: userWallet.address,
+      address: userWallet.address!,
       limits: {
         fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
       }
@@ -60,12 +60,12 @@ export class RefillService {
     const nextLimit = currentLimit + amountUsd * 10000;
     const limits = { deployment: nextLimit, fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT };
     await this.managedUserWalletService.authorizeSpending({
-      address: userWallet.address,
+      address: userWallet.address!,
       limits
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: true });
-    this.analyticsService.track(userId, "balance_top_up");
+    this.analyticsService.track(userId!, "balance_top_up");
     this.logger.debug({ event: "WALLET_TOP_UP", userWallet, limits });
   }
 }

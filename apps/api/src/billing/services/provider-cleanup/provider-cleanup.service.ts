@@ -46,12 +46,12 @@ export class ProviderCleanupService {
 
   private async cleanUpForWallet(wallet: UserWalletOutput, options: ProviderCleanupParams, summary: ProviderCleanupSummarizer) {
     const deployments = await this.deploymentRepository.findDeploymentsForProvider({
-      owner: wallet.address,
+      owner: wallet.address!,
       provider: options.provider
     });
 
     const closeAllWalletStaleDeployments = deployments.map(async deployment => {
-      const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.dseq);
+      const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address!, deployment.dseq);
       this.logger.info({ event: "PROVIDER_CLEAN_UP", params: { owner: wallet.address, dseq: deployment.dseq } });
 
       try {
@@ -59,11 +59,11 @@ export class ProviderCleanupService {
           await this.managedSignerService.executeManagedTx(wallet.id, [message]);
           this.logger.info({ event: "PROVIDER_CLEAN_UP_SUCCESS" });
         }
-      } catch (error) {
+      } catch (error: any) {
         if (error.message.includes("not allowed to pay fees")) {
           if (!options.dryRun) {
             await this.managedUserWalletService.authorizeSpending({
-              address: wallet.address,
+              address: wallet.address!,
               limits: {
                 fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
               }

@@ -65,7 +65,7 @@ export class ProviderService {
         });
 
         if (result) return result;
-      } catch (err) {
+      } catch (err: any) {
         if (err.message?.includes("no lease for deployment") && i < this.MANIFEST_SEND_MAX_RETRIES) {
           await delay(this.MANIFEST_SEND_RETRY_DELAY);
           continue;
@@ -214,7 +214,7 @@ export class ProviderService {
     ]);
 
     return {
-      ...mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot),
+      ...mapProviderToList(provider, providerAttributeSchema, auditors, lastSuccessfulSnapshot ?? undefined),
       uptime: uptimeSnapshots.map(ps => ({
         id: ps.id,
         isOnline: ps.isOnline,

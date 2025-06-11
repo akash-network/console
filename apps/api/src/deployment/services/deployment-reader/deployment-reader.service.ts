@@ -185,7 +185,7 @@ export class DeploymentReaderService {
           throw new Error(deploymentData.message);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       if (error.response?.status === 404) {
         return null;
       }

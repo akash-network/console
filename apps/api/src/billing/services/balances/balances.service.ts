@@ -52,7 +52,7 @@ export class BalancesService {
 
   private async retrieveAndCalcFeeLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
     const masterWalletAddress = await this.masterWallet.getFirstAddress();
-    const feeAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(masterWalletAddress, userWallet.address);
+    const feeAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(masterWalletAddress, userWallet.address!);
 
     if (!feeAllowance) {
       return 0;
@@ -63,7 +63,7 @@ export class BalancesService {
 
   async retrieveDeploymentLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
     const masterWalletAddress = await this.masterWallet.getFirstAddress();
-    const depositDeploymentGrant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(masterWalletAddress, userWallet.address);
+    const depositDeploymentGrant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(masterWalletAddress, userWallet.address!);
 
     if (!depositDeploymentGrant || depositDeploymentGrant.authorization.spend_limit.denom !== this.config.DEPLOYMENT_GRANT_DENOM) {
       return 0;

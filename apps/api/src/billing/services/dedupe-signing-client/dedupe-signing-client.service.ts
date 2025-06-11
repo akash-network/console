@@ -48,6 +48,6 @@ export class DedupeSigningClientService {
       });
     }
 
-    return this.clientsByAddress.get(key);
+    return this.clientsByAddress.get(key)!;
   }
 }

@@ -46,12 +46,12 @@ export class WalletController {
 
   @Memoize({ ttlInSeconds: averageBlockTime })
   async getBalances(address?: string): Promise<GetBalancesResponseOutput> {
-    let currentAddress: string = address;
+    let currentAddress = address;
 
     if (!currentAddress) {
       const { currentUser, ability } = this.authService;
       const userWallet = await this.userWalletRepository.accessibleBy(ability, "read").findOneByUserId(currentUser.id);
-      assert(userWallet, 404, "UserWallet Not Found");
+      assert(userWallet?.address, 404, "UserWallet Not Found");
       currentAddress = userWallet.address;
     }
 
@@ -72,7 +72,7 @@ export class WalletController {
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async signTx({ data: { userId, messages } }: SignTxRequestInput): Promise<SignTxResponseOutput> {
     return {
-      data: await this.signerService.executeEncodedTxByUserId(userId, messages as EncodeObject[])
+      data: (await this.signerService.executeEncodedTxByUserId(userId, messages as EncodeObject[])) as SignTxResponseOutput["data"]
     };
   }
 

@@ -6,6 +6,7 @@ import { CheckoutSessionRepository } from "@src/billing/repositories";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { WithTransaction } from "@src/core";
+import { BillingConfigService } from "../billing-config/billing-config.service";
 
 @singleton()
 export class StripeWebhookService {
@@ -14,11 +15,12 @@ export class StripeWebhookService {
   constructor(
     private readonly stripe: StripeService,
     private readonly checkoutSessionRepository: CheckoutSessionRepository,
-    private readonly refillService: RefillService
+    private readonly refillService: RefillService,
+    private readonly billingConfig: BillingConfigService
   ) {}
 
   async routeStripeEvent(signature: string, rawEvent: string) {
-    const event = this.stripe.webhooks.constructEvent(rawEvent, signature, process.env.STRIPE_WEBHOOK_SECRET);
+    const event = this.stripe.webhooks.constructEvent(rawEvent, signature, this.billingConfig.get("STRIPE_WEBHOOK_SECRET"));
     this.logger.info({ event: "STRIPE_EVENT_RECEIVED", type: event.type });
 
     if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
@@ -41,7 +43,7 @@ export class StripeWebhookService {
     });
 
     if (checkoutSession.payment_status !== "unpaid") {
-      await this.refillService.topUpWallet(checkoutSession.amount_subtotal, checkoutSessionCache.userId);
+      await this.refillService.topUpWallet(checkoutSession.amount_subtotal!, checkoutSessionCache.userId);
       await this.checkoutSessionRepository.deleteBy({ sessionId });
     } else {
       this.logger.error({ event: "PAYMENT_NOT_COMPLETED", sessionId });

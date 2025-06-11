@@ -18,7 +18,7 @@ export class TrialValidationService {
   async validateTrialLimit(decoded: EncodeObject, userWallet: UserWalletOutput) {
     if (userWallet.isTrialing && decoded.typeUrl === "/akash.deployment.v1beta3.MsgCreateDeployment") {
       const deployments = await this.deploymentReaderService.listWithResources({
-        address: userWallet.address,
+        address: userWallet.address!,
         limit: 1
       });
       assert(deployments.count < TRIAL_DEPLOYMENT_LIMIT, 402, "Trial limit reached. Add funds to your account to deploy more.");
@@ -47,14 +47,14 @@ export class TrialValidationService {
 
   private validateAttribute(groups: GroupSpec[], key: string) {
     groups.forEach(group => {
-      const hasAttribute = group.requirements.attributes.some(attribute => {
+      const hasAttribute = group.requirements?.attributes.some(attribute => {
         return attribute.key === key && attribute.value === "true";
       });
 
-      const hasSignedByAllOf = group.requirements.signedBy.allOf.every(signedBy => {
+      const hasSignedByAllOf = group.requirements?.signedBy?.allOf.every(signedBy => {
         return signedBy === AUDITOR;
       });
-      assert(hasAttribute && hasSignedByAllOf, 400, `provider not authorized: ${group.requirements.attributes}`);
+      assert(hasAttribute && hasSignedByAllOf, 400, `provider not authorized: ${JSON.stringify(group.requirements?.attributes)}`);
     });
   }
 }

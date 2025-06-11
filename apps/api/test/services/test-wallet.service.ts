@@ -20,10 +20,10 @@ const MIN_AMOUNTS: Record<string, number> = {
 
 export class TestWalletService {
   private readonly balanceHttpService = new BalanceHttpService({
-    baseURL: config.API_NODE_ENDPOINT
+    baseURL: config!.API_NODE_ENDPOINT
   });
 
-  private mnemonics: Record<string, string>;
+  private mnemonics: Record<string, string> = {};
 
   constructor() {
     this.restoreCache();
@@ -45,12 +45,12 @@ export class TestWalletService {
 
   getMnemonic(path: string) {
     const fileName = this.getFileName(path);
-    return this.mnemonics[fileName];
+    return fileName ? this.mnemonics[fileName] : undefined;
   }
 
   async init() {
     const { wallet: faucetWallet, amount: faucetAmount } = await this.prepareFaucetWallet();
-    this.mnemonics = await this.prepareWallets(faucetWallet, faucetAmount);
+    this.mnemonics = await this.prepareWallets(faucetWallet, faucetAmount!);
     this.saveCache();
   }
 
@@ -85,7 +85,7 @@ export class TestWalletService {
     );
     const messages = Object.values(configs).map(config => config.message) as readonly EncodeObject[];
 
-    const client = await SigningStargateClient.connectWithSigner(config.RPC_NODE_ENDPOINT, faucetWallet);
+    const client = await SigningStargateClient.connectWithSigner(config!.RPC_NODE_ENDPOINT, faucetWallet);
     const gasEstimation = await client.simulate(faucetAddress, messages, undefined);
     const estimatedGas = Math.round(gasEstimation * 1.5);
 
@@ -135,7 +135,7 @@ export class TestWalletService {
   private async topUpFaucetWallet(address: string) {
     const times = 1;
     for (let i = 0; i < times; i++) {
-      await fetch(config.FAUCET_URL, {
+      await fetch(config!.FAUCET_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded"
@@ -146,7 +146,7 @@ export class TestWalletService {
   }
 
   private getFileName(path: string) {
-    return path.split(FOLDER_SEP).pop();
+    return path.split(FOLDER_SEP).pop()!;
   }
 
   private log(message: string) {
