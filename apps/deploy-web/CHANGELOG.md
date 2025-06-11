@@ -1,5 +1,12 @@
 
 
+## [2.81.0](https://github.com/akash-network/console/compare/console-web/v2.80.1...console-web/v2.81.0) (2025-06-11)
+
+
+### Features
+
+* **billing:** stripe integration ([#1443](https://github.com/akash-network/console/issues/1443)) ([85c046b](https://github.com/akash-network/console/commit/85c046b1f7286b6c5fea41251712b3e89f413163))
+
 ## [2.80.1](https://github.com/akash-network/console/compare/console-web/v2.80.0...console-web/v2.80.1) (2025-06-11)
 
 
