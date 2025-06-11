@@ -99,11 +99,14 @@ describe(WalletInitializerService.name, () => {
         updateById: input?.updateWalletById,
         deleteById: input?.deleteWalletById ?? jest.fn(),
         accessibleBy() {
-          return this;
+          return this as unknown as UserWalletRepository;
         },
         create: input?.createWallet,
-        toPublic: value => value
-      })
+        toPublic: value => ({
+          ...value,
+          isTrialing: !!value.isTrialing
+        })
+      }) as unknown as UserWalletRepository
     );
     di.registerInstance(
       AuthService,

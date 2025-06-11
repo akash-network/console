@@ -26,5 +26,9 @@
     "src/block/**/*.ts",
     "src/bid/**/*.ts",
     "src/auth/**/*.ts",
+    "src/dashboard/**/*.ts",
+    "src/billing/**/*.ts",
+    "src/user/**/*.ts",
+    "src/provider/**/*.ts"
   ]
 }

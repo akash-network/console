@@ -20,7 +20,7 @@ interface StripePrices {
 @singleton()
 export class StripeService extends Stripe {
   constructor(private readonly billingConfig: BillingConfigService) {
-    super(process.env.STRIPE_SECRET_KEY, {
+    super(billingConfig.get("STRIPE_SECRET_KEY"), {
       apiVersion: "2024-06-20"
     });
   }
@@ -64,11 +64,11 @@ export class StripeService extends Stripe {
   async findPrices(): Promise<StripePrices[]> {
     const { data: prices } = await this.prices.list({ active: true, product: this.billingConfig.get("STRIPE_PRODUCT_ID") });
     const responsePrices = prices.map(price => ({
-      unitAmount: price.custom_unit_amount ? undefined : price.unit_amount / 100,
+      unitAmount: price.custom_unit_amount || !price.unit_amount ? undefined : price.unit_amount / 100,
       isCustom: !!price.custom_unit_amount,
       currency: price.currency
     }));
 
-    return orderBy(responsePrices, ["isCustom", "unitAmount"], ["asc", "asc"]);
+    return orderBy(responsePrices, ["isCustom", "unitAmount"], ["asc", "asc"]) as StripePrices[];
   }
 }

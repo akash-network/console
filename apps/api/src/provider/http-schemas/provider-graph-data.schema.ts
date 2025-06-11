@@ -13,7 +13,7 @@ export const ProviderGraphDataResponseSchema = z.object({
   compareValue: z.number(),
   snapshots: z.array(
     z.object({
-      date: z.coerce.date().openapi({ example: "2021-07-01T00:00:00.000Z" }),
+      date: z.string().openapi({ example: "2021-07-01T00:00:00.000Z" }),
       value: z.number().openapi({ example: 100 })
     })
   ),

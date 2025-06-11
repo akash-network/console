@@ -24,6 +24,7 @@ export class ProviderDashboardService {
       },
       order: [["height", "DESC"]]
     });
+    assert(latestBlock, 404, "Latest block not found");
 
     const [earlierBlock24h, earlierBlock48h] = await Promise.all([
       Block.findOne({
@@ -39,6 +40,8 @@ export class ProviderDashboardService {
         }
       })
     ]);
+    assert(earlierBlock24h, 404, "Earlier block 24h not found");
+    assert(earlierBlock48h, 404, "Earlier block 48h not found");
 
     const [
       activeStats,

@@ -37,9 +37,9 @@ export class StaleAnonymousUsersCleanerService {
         const userIdsWithWallets: string[] = [];
 
         const revokeAll = wallets.map(async wallet => {
-          userIdsWithWallets.push(wallet.userId);
+          userIdsWithWallets.push(wallet.userId!);
           try {
-            const result = await this.managedUserWalletService.revokeAll(wallet.address, "USER_INACTIVITY", options);
+            const result = await this.managedUserWalletService.revokeAll(wallet.address!, "USER_INACTIVITY", options);
             if (result.feeAllowance) {
               summary.inc("feeAllowanceRevokeCount");
             }
@@ -52,9 +52,9 @@ export class StaleAnonymousUsersCleanerService {
             this.logger.debug({ event: "STALE_ANONYMOUS_USERS_REVOKE_ERROR", error });
           }
         });
-        const userIdsToRemove = (await Promise.all(revokeAll)).filter(Boolean);
+        const userIdsToRemove = (await Promise.all(revokeAll)).filter((x): x is string => !!x);
         const usersWithoutWallets = difference(userIds, userIdsWithWallets);
-        userIdsToRemove.push(...usersWithoutWallets);
+        userIdsToRemove.push(...usersWithoutWallets.filter(Boolean));
 
         if (!userIdsToRemove.length) {
           return;

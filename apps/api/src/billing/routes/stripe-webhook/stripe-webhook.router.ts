@@ -26,6 +26,16 @@ const route = createRoute({
           schema: z.void()
         }
       }
+    },
+    400: {
+      description: "Stripe signature is required",
+      content: {
+        "application/json": {
+          schema: z.object({
+            error: z.string()
+          })
+        }
+      }
     }
   }
 });
@@ -34,6 +44,10 @@ export const stripeWebhook = new OpenApiHonoHandler();
 
 stripeWebhook.openapi(route, async function routeStripeWebhook(c) {
   const sig = c.req.header("stripe-signature");
+  if (!sig) {
+    return c.json({ error: "Stripe signature is required" }, 400);
+  }
+
   await container.resolve(CheckoutController).webhook(sig, await c.req.text());
-  return c.json({}, 200);
+  return c.json(null, 200) as never;
 });

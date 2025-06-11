@@ -67,7 +67,7 @@ export interface DashboardData {
     communityPool: number;
     height: number;
     inflation: number;
-    stakingAPR: number;
+    stakingAPR?: number;
     totalSupply: number;
     transactionCount: number;
   };

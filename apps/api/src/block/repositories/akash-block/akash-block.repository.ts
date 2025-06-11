@@ -26,7 +26,7 @@ export class AkashBlockRepository {
         address: block.proposerValidator.accountAddress,
         operatorAddress: block.proposerValidator.operatorAddress,
         moniker: block.proposerValidator.moniker,
-        avatarUrl: block.proposerValidator.keybaseAvatarUrl
+        avatarUrl: block.proposerValidator.keybaseAvatarUrl ?? null
       },
       transactionCount: block.txCount,
       totalTransactionCount: block.totalTxCount,

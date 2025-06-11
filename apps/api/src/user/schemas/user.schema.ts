@@ -10,3 +10,13 @@ export const AnonymousUserResponseOutputSchema = z.object({
 });
 
 export type AnonymousUserResponseOutput = z.infer<typeof AnonymousUserResponseOutputSchema>;
+
+export const GetUserResponseOutputSchema = z.object({
+  data: z
+    .object({
+      id: z.string().openapi({})
+    })
+    .openapi({})
+});
+
+export type GetUserResponseOutput = z.infer<typeof GetUserResponseOutputSchema>;

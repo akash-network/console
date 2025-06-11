@@ -11,7 +11,7 @@ export class ProviderDeploymentsService {
   async getProviderDeploymentsCount(provider: string, status?: ProviderDeploymentsQuery["status"]) {
     const leaseFilter: WhereOptions<Lease> = { providerAddress: provider };
     if (status) {
-      leaseFilter.closedHeight = status === "active" ? null : { [Op.ne]: null };
+      leaseFilter.closedHeight = { [status === "active" ? Op.is : Op.ne]: null };
     }
 
     const result = await Deployment.count({
@@ -25,7 +25,7 @@ export class ProviderDeploymentsService {
     const leaseFilter: WhereOptions<Lease> = { providerAddress: provider };
 
     if (status) {
-      leaseFilter.closedHeight = status === "active" ? null : { [Op.ne]: null };
+      leaseFilter.closedHeight = { [status === "active" ? Op.is : Op.ne]: null };
     }
 
     const deploymentDseqs = await Deployment.findAll({
@@ -65,12 +65,12 @@ export class ProviderDeploymentsService {
       denom: d.denom,
       createdHeight: d.createdHeight,
       createdDate: d.createdBlock.datetime,
-      closedHeight: d.closedHeight,
+      closedHeight: d.closedHeight || null,
       closedDate: d.closedHeight && d.closedBlock ? d.closedBlock.datetime : null,
       status: d.closedHeight ? "closed" : "active",
       balance: d.balance,
       transferred: d.withdrawnAmount,
-      settledAt: d.lastWithdrawHeight,
+      settledAt: d.lastWithdrawHeight || null,
       resources: d.leases.reduce(
         (acc, l) => ({
           cpu: acc.cpu + l.cpuUnits,
@@ -88,7 +88,7 @@ export class ProviderDeploymentsService {
         price: l.price,
         createdHeight: l.createdHeight,
         createdDate: l.createdBlock.datetime,
-        closedHeight: l.closedHeight,
+        closedHeight: l.closedHeight || null,
         closedDate: l.closedHeight && l.closedBlock ? l.closedBlock.datetime : null,
         status: l.closedHeight ? "closed" : "active",
         resources: {

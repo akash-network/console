@@ -1,5 +1,4 @@
 import { and, count, eq, inArray, lte } from "drizzle-orm";
-import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
 import { ApiPgDatabase, ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -25,7 +24,13 @@ export interface ListOptions {
   offset?: number;
 }
 
-export type UserWalletPublicOutput = Pick<UserWalletOutput, "id" | "userId" | "address" | "creditAmount" | "isTrialing">;
+export interface UserWalletPublicOutput {
+  id: UserWalletOutput["id"];
+  userId: UserWalletOutput["userId"];
+  address: UserWalletOutput["address"];
+  creditAmount: UserWalletOutput["creditAmount"];
+  isTrialing: boolean;
+}
 
 @singleton()
 export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallets"], UserWalletInput, UserWalletOutput> {
@@ -108,6 +113,12 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
   }
 
   toPublic(output: UserWalletOutput): UserWalletPublicOutput {
-    return pick(output, ["id", "userId", "address", "creditAmount", "isTrialing"]);
+    return {
+      id: output.id,
+      userId: output.userId,
+      address: output.address,
+      creditAmount: output.creditAmount,
+      isTrialing: !!output.isTrialing
+    };
   }
 }
