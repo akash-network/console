@@ -3,7 +3,7 @@ import "reflect-metadata";
 import { TestDatabaseService } from "./services/test-database.service";
 
 const testPath = expect.getState().testPath;
-const dbService = new TestDatabaseService(testPath);
+const dbService = new TestDatabaseService(testPath!);
 
 beforeAll(async () => {
   await dbService.setup();

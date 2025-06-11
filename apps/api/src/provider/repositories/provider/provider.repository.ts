@@ -22,7 +22,7 @@ export class ProviderRepository {
     return trialProviders.map(provider => provider.provider);
   }
 
-  async getProvider(address: string): Promise<Provider> {
+  async getProvider(address: string): Promise<Provider | null> {
     return await Provider.findByPk(address);
   }
 

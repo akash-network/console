@@ -3,7 +3,7 @@ import { singleton } from "tsyringe";
 import { ProviderCleanupService } from "@src/billing/services/provider-cleanup/provider-cleanup.service";
 import { ProviderCleanupParams } from "@src/billing/types/provider-cleanup";
 import { cacheKeys, cacheResponse } from "@src/caching/helpers";
-import { ProviderListQuery } from "@src/provider/http-schemas/provider.schema";
+import { ProviderListQuery, ProviderListResponse } from "@src/provider/http-schemas/provider.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderStatsService } from "@src/provider/services/provider-stats/provider-stats.service";
 import { TrialProvidersService } from "@src/provider/services/trial-providers/trial-providers.service";
@@ -25,13 +25,13 @@ export class ProviderController {
     return await this.providerCleanupService.cleanup(options);
   }
 
-  async getProviderList(scope: ProviderListQuery["scope"]) {
+  async getProviderList(scope: ProviderListQuery["scope"]): Promise<ProviderListResponse> {
     return cacheResponse(
       60,
       scope === "trial" ? cacheKeys.getTrialProviderList : cacheKeys.getProviderList,
       () => this.providerService.getProviderList({ trial: scope === "trial" }),
       true
-    );
+    ) as unknown as Promise<ProviderListResponse>;
   }
 
   async getProvider(address: string) {
