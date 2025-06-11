@@ -4,7 +4,3 @@ export * from "./akashDeploymentInfoResponse";
 export * from "./cosmosGovProposalsResponse";
 export * from "./cosmosGovProposalResponse";
 export * from "./cosmosGovProposalsTallyResponse";
-export * from "./cosmosBankBalancesResponse";
-export * from "./cosmosStakingDelegationsResponse";
-export * from "./cosmosDistributionDelegatorsRewardsResponse";
-export * from "./cosmosStakingDelegatorsRedelegationsResponse";
