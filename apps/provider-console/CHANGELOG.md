@@ -1,5 +1,12 @@
 
 
+## [1.12.4](https://github.com/akash-network/console/compare/provider-console/v1.12.3...provider-console/v1.12.4) (2025-06-11)
+
+
+### Code Refactoring
+
+* move /v1/leases-duration/{owner} to modules ([#1440](https://github.com/akash-network/console/issues/1440)) ([605bb55](https://github.com/akash-network/console/commit/605bb55060546974c4c32970c6572d8b315533bd)), closes [#1280](https://github.com/akash-network/console/issues/1280)
+
 ## [1.12.3](https://github.com/akash-network/console/compare/provider-console/v1.12.2...provider-console/v1.12.3) (2025-06-09)
 
 

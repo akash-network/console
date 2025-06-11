@@ -1,5 +1,13 @@
 
 
+## [2.80.1](https://github.com/akash-network/console/compare/console-web/v2.80.0...console-web/v2.80.1) (2025-06-11)
+
+
+### Code Refactoring
+
+* migrates another part of console api to strict types ([#1462](https://github.com/akash-network/console/issues/1462)) ([7d91eb8](https://github.com/akash-network/console/commit/7d91eb8c8539e1a264e0fcc5f963d162cadf8775))
+* move /v1/leases-duration/{owner} to modules ([#1440](https://github.com/akash-network/console/issues/1440)) ([605bb55](https://github.com/akash-network/console/commit/605bb55060546974c4c32970c6572d8b315533bd)), closes [#1280](https://github.com/akash-network/console/issues/1280)
+
 ## [2.80.0](https://github.com/akash-network/console/compare/console-web/v2.79.3...console-web/v2.80.0) (2025-06-09)
 
 
