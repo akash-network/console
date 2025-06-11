@@ -1,5 +1,12 @@
 
 
+## [1.6.0](https://github.com/akash-network/console/compare/notifications/v1.5.0...notifications/v1.6.0) (2025-06-11)
+
+
+### Features
+
+* **billing:** stripe integration ([#1443](https://github.com/akash-network/console/issues/1443)) ([85c046b](https://github.com/akash-network/console/commit/85c046b1f7286b6c5fea41251712b3e89f413163))
+
 ## [1.5.0](https://github.com/akash-network/console/compare/notifications/v1.4.0...notifications/v1.5.0) (2025-06-11)
 
 
