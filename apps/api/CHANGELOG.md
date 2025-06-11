@@ -1,5 +1,12 @@
 
 
+## [2.97.0](https://github.com/akash-network/console/compare/console-api/v2.96.0...console-api/v2.97.0) (2025-06-11)
+
+
+### Features
+
+* **billing:** stripe integration ([#1443](https://github.com/akash-network/console/issues/1443)) ([85c046b](https://github.com/akash-network/console/commit/85c046b1f7286b6c5fea41251712b3e89f413163))
+
 ## [2.96.0](https://github.com/akash-network/console/compare/console-api/v2.95.1...console-api/v2.96.0) (2025-06-11)
 
 

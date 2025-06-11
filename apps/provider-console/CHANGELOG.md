@@ -1,5 +1,12 @@
 
 
+## [1.13.0](https://github.com/akash-network/console/compare/provider-console/v1.12.4...provider-console/v1.13.0) (2025-06-11)
+
+
+### Features
+
+* **billing:** stripe integration ([#1443](https://github.com/akash-network/console/issues/1443)) ([85c046b](https://github.com/akash-network/console/commit/85c046b1f7286b6c5fea41251712b3e89f413163))
+
 ## [1.12.4](https://github.com/akash-network/console/compare/provider-console/v1.12.3...provider-console/v1.12.4) (2025-06-11)
 
 
