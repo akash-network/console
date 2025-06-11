@@ -16,7 +16,7 @@ export class ProviderRegionsService {
       return [];
     }
 
-    const regions = providerAttributesSchema["location-region"].values;
+    const regions = providerAttributesSchema["location-region"].values || [];
 
     const providers = await Provider.findAll({
       attributes: ["owner"],

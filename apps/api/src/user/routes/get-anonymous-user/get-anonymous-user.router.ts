@@ -3,7 +3,7 @@ import { container } from "tsyringe";
 import { z } from "zod";
 
 import { UserController } from "@src/user/controllers/user/user.controller";
-import { AnonymousUserResponseOutputSchema } from "@src/user/schemas/user.schema";
+import { GetUserResponseOutputSchema } from "@src/user/schemas/user.schema";
 
 export const GetUserParamsSchema = z.object({ id: z.string() });
 
@@ -23,7 +23,7 @@ const route = createRoute({
       body: {
         content: {
           "application/json": {
-            schema: AnonymousUserResponseOutputSchema
+            schema: GetUserResponseOutputSchema
           }
         }
       }
