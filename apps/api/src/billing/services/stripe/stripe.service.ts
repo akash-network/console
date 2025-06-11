@@ -335,12 +335,6 @@ export class StripeService extends Stripe {
       return user.stripeCustomerId;
     }
 
-    // Reload and re-check to avoid racing on stripeCustomerId
-    const reloaded = await this.userRepository.findOneBy({ id: user.id });
-    if (reloaded?.stripeCustomerId) {
-      return reloaded.stripeCustomerId;
-    }
-
     const customer = await this.customers.create({
       email: user.email ?? undefined,
       name: user.username ?? undefined,
@@ -350,11 +344,14 @@ export class StripeService extends Stripe {
     });
 
     const updated = await this.userRepository.updateBy({ id: user.id, stripeCustomerId: null }, { stripeCustomerId: customer.id });
-    if (!updated) {
-      const winner = await this.userRepository.findOneBy({ id: user.id });
-      return winner!.stripeCustomerId!;
+
+    if (updated) {
+      return updated.stripeCustomerId!;
     }
 
-    return customer.id;
+    // Concurrent creation detected: fetch and return the persisted customer ID
+    const reloaded = await this.userRepository.findOneBy({ id: user.id });
+    assert(reloaded?.stripeCustomerId, 500, "Failed to retrieve stripeCustomerId");
+    return reloaded.stripeCustomerId;
   }
 }
