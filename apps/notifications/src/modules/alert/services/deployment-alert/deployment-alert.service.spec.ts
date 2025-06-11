@@ -1,9 +1,11 @@
 import type { MongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
+import { ConfigModule } from "@nestjs/config";
 import { Test } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
 import merge from "lodash/merge";
 
+import moduleConfig from "@src/modules/alert/config";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import { DeploymentAlertService } from "@src/modules/alert/services/deployment-alert/deployment-alert.service";
 
@@ -47,8 +49,8 @@ describe(DeploymentAlertService.name, () => {
           value: input.alerts.deploymentBalance.threshold,
           operator: "lt"
         },
-        summary: `Deployment ${input.dseq} balance is below threshold`,
-        description: `Deployment ${input.dseq} balance is below threshold`
+        summary: expect.any(String),
+        description: expect.any(String)
       });
       expect(alertRepository.create).toHaveBeenCalledWith({
         name: `Deployment ${input.dseq} closed`,
@@ -75,8 +77,8 @@ describe(DeploymentAlertService.name, () => {
           ],
           operator: "and"
         },
-        summary: `Deployment ${input.dseq} is closed`,
-        description: `Deployment ${input.dseq} is closed`
+        summary: expect.any(String),
+        description: expect.any(String)
       });
     });
 
@@ -191,6 +193,7 @@ describe(DeploymentAlertService.name, () => {
 
   async function setup() {
     const module = await Test.createTestingModule({
+      imports: [ConfigModule.forFeature(moduleConfig)],
       providers: [DeploymentAlertService, MockProvider(AlertRepository)]
     }).compile();
     const alertRepository = module.get<MockProxy<AlertRepository>>(AlertRepository);

@@ -1,11 +1,13 @@
 import { faker } from "@faker-js/faker";
+import { ConfigModule } from "@nestjs/config";
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
 import { Err, Ok } from "ts-results";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { RichError } from "@src/lib/rich-error/rich-error";
-import type { DeploymentBalanceAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
+import moduleConfig from "@src/modules/alert/config";
+import type { AlertOutput, DeploymentBalanceAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertMessageService } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { TemplateService } from "@src/modules/alert/services/template/template.service";
@@ -36,6 +38,13 @@ describe(DeploymentBalanceAlertsService.name, () => {
       alertRepository.paginateAll.mockImplementation(async options => {
         await options.callback(alerts as any);
       });
+      alertRepository.updateById.mockImplementation(
+        async (id, update) =>
+          ({
+            ...alert,
+            ...update
+          }) as AlertOutput
+      );
       const balance = { balance: 9000000 };
       deploymentService.getDeploymentBalance.mockResolvedValue(Ok(balance));
       const alertMessage = generateAlertMessage({
@@ -48,8 +57,13 @@ describe(DeploymentBalanceAlertsService.name, () => {
       expect(alertMessageService.getMessage).toHaveBeenCalledWith({
         summary: alert.summary,
         description: alert.description,
-        vars: balance,
-        summaryPrefix: "TRIGGERED"
+        vars: {
+          alert: {
+            prev: expect.objectContaining({ id: alert.id }),
+            next: expect.objectContaining({ id: alert.id })
+          },
+          data: balance
+        }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
       expect(alertRepository.updateById).toHaveBeenCalledWith(alert.id, {
@@ -75,6 +89,13 @@ describe(DeploymentBalanceAlertsService.name, () => {
       alertRepository.paginateAll.mockImplementation(async options => {
         await options.callback(alerts as any);
       });
+      alertRepository.updateById.mockImplementation(
+        async (id, update) =>
+          ({
+            ...alert,
+            ...update
+          }) as AlertOutput
+      );
 
       const balance = { balance: 11000000 };
       deploymentService.getDeploymentBalance.mockResolvedValue(Ok(balance));
@@ -88,8 +109,13 @@ describe(DeploymentBalanceAlertsService.name, () => {
       expect(alertMessageService.getMessage).toHaveBeenCalledWith({
         summary: alert.summary,
         description: alert.description,
-        vars: balance,
-        summaryPrefix: "RECOVERED"
+        vars: {
+          alert: {
+            prev: expect.objectContaining({ id: alert.id }),
+            next: expect.objectContaining({ id: alert.id })
+          },
+          data: balance
+        }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
       expect(alertRepository.updateById).toHaveBeenCalledWith(alert.id, {
@@ -115,6 +141,13 @@ describe(DeploymentBalanceAlertsService.name, () => {
       alertRepository.paginateAll.mockImplementation(async options => {
         await options.callback(alerts as any);
       });
+      alertRepository.updateById.mockImplementation(
+        async (id, update) =>
+          ({
+            ...alert,
+            ...update
+          }) as AlertOutput
+      );
 
       const balance = { balance: 9000000 };
       deploymentService.getDeploymentBalance.mockResolvedValue(Ok(balance));
@@ -143,6 +176,13 @@ describe(DeploymentBalanceAlertsService.name, () => {
       alertRepository.paginateAll.mockImplementation(async options => {
         await options.callback(alerts as any);
       });
+      alertRepository.updateById.mockImplementation(
+        async (id, update) =>
+          ({
+            ...alert,
+            ...update
+          }) as AlertOutput
+      );
 
       deploymentService.getDeploymentBalance.mockResolvedValue(Err(new RichError("Deployment closed", "DEPLOYMENT_CLOSED")));
       const alertMessage = generateAlertMessage({
@@ -154,9 +194,16 @@ describe(DeploymentBalanceAlertsService.name, () => {
 
       expect(alertMessageService.getMessage).toHaveBeenCalledWith({
         summary: alert.summary,
-        description: `Alert is suspended as deployment is now in closed state.\n${alert.description}`,
-        vars: {},
-        summaryPrefix: "SUSPENDED"
+        description: alert.description,
+        vars: {
+          alert: {
+            prev: expect.objectContaining({ id: alert.id }),
+            next: expect.objectContaining({ id: alert.id })
+          },
+          data: {
+            cause: "DEPLOYMENT_CLOSED"
+          }
+        }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
       expect(alertRepository.updateById).toHaveBeenCalledWith(alert.id, {
@@ -216,6 +263,7 @@ describe(DeploymentBalanceAlertsService.name, () => {
     onMessage: jest.Mock;
   }> {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [ConfigModule.forFeature(moduleConfig)],
       providers: [
         DeploymentBalanceAlertsService,
         ConditionsMatcherService,

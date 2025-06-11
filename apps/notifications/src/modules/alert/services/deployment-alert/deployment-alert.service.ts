@@ -1,6 +1,8 @@
 import { MongoAbility } from "@casl/ability";
 import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 
+import { AlertConfig } from "@src/modules/alert/config";
 import { AlertInput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 
 type DeploymentBalanceAlertInput = {
@@ -62,7 +64,10 @@ interface RepositoryAlert {
 
 @Injectable()
 export class DeploymentAlertService {
-  constructor(private readonly alertRepository: AlertRepository) {}
+  constructor(
+    private readonly alertRepository: AlertRepository,
+    private configService: ConfigService<AlertConfig>
+  ) {}
 
   async upsert(clientInput: DeploymentAlertInput, auth: AuthMeta): Promise<DeploymentAlertOutput> {
     const { dseq, owner, alerts } = clientInput;
@@ -121,6 +126,7 @@ export class DeploymentAlertService {
 
   private toBalanceRepositoryInput(input: DeploymentBalanceAlertInput & { dseq: string; owner: string }, userId: string): AlertInput {
     const { dseq, owner, threshold, notificationChannelId, enabled } = input;
+    const consoleLink = this.getConsoleLink(dseq);
     return {
       name: `Deployment ${dseq} balance`,
       userId,
@@ -136,9 +142,21 @@ export class DeploymentAlertService {
         value: threshold,
         operator: "lt"
       },
-      summary: `Deployment ${dseq} balance is below threshold`,
-      description: `Deployment ${dseq} balance is below threshold`
+      summary: this.getTemplate({
+        suspended: "Deployment {{alert.next.params.dseq}} balance alert is suspended",
+        triggered: "Deployment {{alert.next.params.dseq}} balance is below threshold",
+        recovered: "Deployment {{alert.next.params.dseq}} balance is above threshold"
+      }),
+      description: this.getTemplate({
+        suspended: `Deployment was closed. Please visit ${consoleLink} to manage your deployment.`,
+        triggered: `Please visit ${consoleLink} to add more funds to your deployment before it is closed.`,
+        recovered: `Funds have been added to your deployment. You'll be notified again next time your account threshold is hit. Please visit ${consoleLink} to manage your deployment`
+      })
     };
+  }
+
+  private getTemplate(templates: { triggered: string; recovered: string; suspended: string }): string {
+    return `{{#if (eq data.cause "DEPLOYMENT_CLOSED")}}${templates.suspended}{{else}}{{#if (eq alert.next.status "TRIGGERED")}}${templates.triggered}{{else}}${templates.recovered}{{/if}}{{/if}}`;
   }
 
   private toClosedRepositoryInput(input: DeploymentClosedAlertInput & { dseq: string; owner: string }, userId: string): AlertInput {
@@ -168,9 +186,14 @@ export class DeploymentAlertService {
         ],
         operator: "and"
       },
-      summary: `Deployment ${dseq} is closed`,
-      description: `Deployment ${dseq} is closed`
+      summary: `Deployment {{alert.next.params.dseq}} is now closed`,
+      description: `Please visit ${this.getConsoleLink(dseq)} to manage your deployment and re-deploy if needed.`
     };
+  }
+
+  private getConsoleLink(dseq: string): string {
+    const baseUrl = this.configService.getOrThrow("alert.CONSOLE_WEB_URL");
+    return `<a href="https://${baseUrl}/deployments/${dseq}">${baseUrl}</a>`;
   }
 
   async get(dseq: string, ability: MongoAbility): Promise<DeploymentAlertOutput> {

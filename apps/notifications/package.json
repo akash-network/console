@@ -63,6 +63,7 @@
     "drizzle-orm": "^0.41.0",
     "exponential-backoff": "^3.1.2",
     "express": "^4.13.1",
+    "handlebars": "^4.7.8",
     "lodash": "^4.17.21",
     "nestjs-zod": "^4.3.1",
     "pg": "^8.13.0",
@@ -71,6 +72,7 @@
     "protobufjs": "^6.11.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "sanitize-html": "^2.17.0",
     "ts-results": "^3.3.0",
     "zod": "^3.24.4"
   },
@@ -90,6 +92,7 @@
     "@types/jest": "^29.5.14",
     "@types/node": "^22.13.11",
     "@types/pg": "^8.11.11",
+    "@types/sanitize-html": "^2.16.0",
     "@types/supertest": "^6.0.2",
     "copy-webpack-plugin": "^13.0.0",
     "dotenv": "^16.5.0",

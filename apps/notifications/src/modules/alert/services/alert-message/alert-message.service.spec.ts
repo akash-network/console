@@ -15,11 +15,10 @@ describe(AlertMessageService.name, () => {
         service.getMessage({
           summary: "CPU usage: {{usage}}%",
           description: "Server {{server}} has high CPU load.",
-          vars,
-          summaryPrefix: "TRIGGERED"
+          vars
         })
       ).toEqual({
-        summary: "[TRIGGERED] CPU usage: 90%",
+        summary: "CPU usage: 90%",
         description: "Server node-1 has high CPU load."
       });
     });
