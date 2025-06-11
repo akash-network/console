@@ -6,8 +6,13 @@ import type {
   CosmosBankSupplyResponse,
   CosmosDistributionCommunityPoolResponse,
   CosmosDistributionParamsResponse,
+  CosmosDistributionValidatorsCommissionResponse,
   CosmosMintInflationResponse,
   CosmosStakingPoolResponse,
+  RestCosmosBankBalancesResponse,
+  RestCosmosDistributionDelegatorsRewardsResponse,
+  RestCosmosStakingDelegationsResponse,
+  RestCosmosStakingDelegatorsRedelegationsResponse,
   RestCosmosStakingValidatorListResponse,
   RestCosmosStakingValidatorResponse
 } from "./types";
@@ -64,5 +69,27 @@ export class CosmosHttpService extends HttpService {
 
   async getValidatorByAddress(address: string): Promise<RestCosmosStakingValidatorResponse> {
     return this.extractData(await this.get<RestCosmosStakingValidatorResponse>(`/cosmos/staking/v1beta1/validators/${address}`));
+  }
+
+  async getBankBalancesByAddress(address: string): Promise<RestCosmosBankBalancesResponse> {
+    return this.extractData(await this.get<RestCosmosBankBalancesResponse>(`/cosmos/bank/v1beta1/balances/${address}?pagination.limit=1000`));
+  }
+
+  async getStakingDelegationsByAddress(address: string): Promise<RestCosmosStakingDelegationsResponse> {
+    return this.extractData(await this.get<RestCosmosStakingDelegationsResponse>(`/cosmos/staking/v1beta1/delegations/${address}?pagination.limit=1000`));
+  }
+
+  async getDistributionDelegatorsRewardsByAddress(address: string): Promise<RestCosmosDistributionDelegatorsRewardsResponse> {
+    return this.extractData(await this.get<RestCosmosDistributionDelegatorsRewardsResponse>(`/cosmos/distribution/v1beta1/delegators/${address}/rewards`));
+  }
+
+  async getStakingDelegatorsRedelegationsByAddress(address: string): Promise<RestCosmosStakingDelegatorsRedelegationsResponse> {
+    return this.extractData(
+      await this.get<RestCosmosStakingDelegatorsRedelegationsResponse>(`/cosmos/staking/v1beta1/delegators/${address}/redelegations?pagination.limit=1000`)
+    );
+  }
+
+  async getDistributionValidatorsCommissionByAddress(address: string): Promise<CosmosDistributionValidatorsCommissionResponse> {
+    return this.extractData(await this.get<CosmosDistributionValidatorsCommissionResponse>(`/cosmos/distribution/v1beta1/validators/${address}/commission`));
   }
 }
