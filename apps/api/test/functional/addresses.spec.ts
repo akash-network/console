@@ -7,7 +7,7 @@ import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/db/dbConnection";
 import { apiNodeUrl } from "@src/utils/constants";
 
-import { AddressReferenceSeeder } from "@test/seeders/address-refererence.seeder";
+import { createAddressReferenceInDatabase } from "@test/seeders/address-reference.seeder";
 import { AkashMessageSeeder } from "@test/seeders/akash-message.seeder";
 import { BlockSeeder } from "@test/seeders/block.seeder";
 import { DaySeeder } from "@test/seeders/day.seeder";
@@ -324,13 +324,13 @@ describe("Addresses API", () => {
     ]);
 
     await Promise.all([
-      AddressReferenceSeeder.createInDatabase({
+      createAddressReferenceInDatabase({
         transactionId: transactions[0].id,
         messageId: messages[0].id,
         address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm",
         type: "sender"
       }),
-      AddressReferenceSeeder.createInDatabase({
+      createAddressReferenceInDatabase({
         transactionId: transactions[1].id,
         messageId: messages[1].id,
         address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm",

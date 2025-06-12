@@ -1,4 +1,3 @@
-import { Validator } from "@akashnetwork/database/dbSchemas/base";
 import { CosmosHttpService } from "@akashnetwork/http-sdk/src/cosmos/cosmos-http.service";
 import { LoggerService } from "@akashnetwork/logging";
 import { asset_lists } from "@chain-registry/assets";
@@ -7,14 +6,16 @@ import { singleton } from "tsyringe";
 
 import type { GetAddressResponse } from "@src/address/http-schemas/address.schema";
 import { TransactionService } from "@src/transaction/services/transaction/transaction.service";
+import { ValidatorRepository } from "@src/validator/repositories/validator/validator.repository";
 
-const logger = LoggerService.forContext("CoinUtil");
+const logger = LoggerService.forContext("AddressService");
 
 @singleton()
 export class AddressService {
   constructor(
     private readonly transactionService: TransactionService,
-    private readonly cosmosHttpService: CosmosHttpService
+    private readonly cosmosHttpService: CosmosHttpService,
+    private readonly validatorRepository: ValidatorRepository
   ) {}
 
   async getAddressDetails(address: string): Promise<GetAddressResponse> {
@@ -26,8 +27,8 @@ export class AddressService {
       this.transactionService.getTransactionsByAddress({ address, skip: 0, limit: 5 })
     ]);
 
-    const validatorsFromDb = await Validator.findAll();
-    const validatorFromDb = validatorsFromDb.find(v => v.accountAddress === address);
+    const allValidatorsFromDb = await this.validatorRepository.findAll();
+    const validatorFromDb = await this.validatorRepository.findByAccountAddress(address);
     let commission = 0;
 
     if (validatorFromDb?.operatorAddress) {
@@ -38,7 +39,7 @@ export class AddressService {
 
     const assets = balancesResponse.balances.map(b => this.coinToAsset(b));
     const delegations = delegationsResponse.delegation_responses.map(x => {
-      const validator = validatorsFromDb.find(v => v.operatorAddress === x.delegation.validator_address);
+      const validator = allValidatorsFromDb.find(v => v.operatorAddress === x.delegation.validator_address);
 
       return {
         validator: {
@@ -59,7 +60,7 @@ export class AddressService {
       if (delegation) {
         delegation.reward = rewardAmount;
       } else {
-        const validator = validatorsFromDb.find(v => v.operatorAddress === reward.validator_address);
+        const validator = allValidatorsFromDb.find(v => v.operatorAddress === reward.validator_address);
 
         delegations.push({
           validator: {
@@ -78,8 +79,8 @@ export class AddressService {
     const delegated = delegations.reduce((acc, cur) => acc + cur.amount, 0);
     const rewards = rewardsResponse.total.length > 0 ? parseInt(rewardsResponse.total.find(x => x.denom === "uakt")?.amount || "0") : 0;
     const redelegations = redelegationsResponse.redelegation_responses.map(x => {
-      const srcValidator = validatorsFromDb.find(v => v.operatorAddress === x.redelegation.validator_src_address);
-      const destValidator = validatorsFromDb.find(v => v.operatorAddress === x.redelegation.validator_dst_address);
+      const srcValidator = allValidatorsFromDb.find(v => v.operatorAddress === x.redelegation.validator_src_address);
+      const destValidator = allValidatorsFromDb.find(v => v.operatorAddress === x.redelegation.validator_dst_address);
 
       return {
         srcAddress: {
