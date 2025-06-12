@@ -6,7 +6,6 @@ import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useWallet } from "@src/context/WalletProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
 import { useWhen } from "@src/hooks/useWhen";
 
@@ -42,7 +41,6 @@ type Props = {
 
 export const DeploymentAlertsContainer: FC<Props> = ({ dseq, children }) => {
   const { notificationsApi } = useServices();
-  const { address } = useWallet();
   const queryClient = useQueryClient();
   const notificator = useNotificator();
 
@@ -61,14 +59,11 @@ export const DeploymentAlertsContainer: FC<Props> = ({ dseq, children }) => {
           dseq
         },
         body: {
-          data: {
-            owner: address,
-            ...input
-          }
+          data: input
         }
       });
     },
-    [address, dseq, mutation]
+    [dseq, mutation]
   );
 
   useWhen(
