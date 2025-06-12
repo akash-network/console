@@ -47,6 +47,11 @@ export class RefillService {
     await this.balancesService.refreshUserWalletLimits(userWallet);
   }
 
+  /**
+   * Top up the wallet with the given amount in USD
+   * @param amountUsd - The amount in USD *cents* to top up the wallet with (e.g. 10000 = $100)
+   * @param userId - The ID of the user to top up the wallet for
+   */
   async topUpWallet(amountUsd: number, userId: UserWalletOutput["userId"]) {
     let userWallet = await this.userWalletRepository.findOneBy({ userId });
     let currentLimit: number = 0;

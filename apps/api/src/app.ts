@@ -40,7 +40,10 @@ import {
   getWalletListRouter,
   signAndBroadcastTxRouter,
   startTrialRouter,
+  stripeCouponsRouter,
+  stripePaymentMethodsRouter,
   stripePricesRouter,
+  stripeTransactionsRouter,
   stripeWebhook
 } from "./billing";
 import { blocksRouter } from "./block";
@@ -101,6 +104,9 @@ appHono.route("/", signAndBroadcastTxRouter);
 appHono.route("/", checkoutRouter);
 appHono.route("/", stripeWebhook);
 appHono.route("/", stripePricesRouter);
+appHono.route("/", stripeCouponsRouter);
+appHono.route("/", stripePaymentMethodsRouter);
+appHono.route("/", stripeTransactionsRouter);
 
 appHono.route("/", createAnonymousUserRouter);
 appHono.route("/", getAnonymousUserRouter);

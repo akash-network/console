@@ -1,5 +1,19 @@
 
 
+## [0.26.0](https://github.com/akash-network/console/compare/stats-web/v0.25.3...stats-web/v0.26.0) (2025-06-11)
+
+
+### Features
+
+* **billing:** stripe integration ([#1443](https://github.com/akash-network/console/issues/1443)) ([85c046b](https://github.com/akash-network/console/commit/85c046b1f7286b6c5fea41251712b3e89f413163))
+
+## [0.25.3](https://github.com/akash-network/console/compare/stats-web/v0.25.2...stats-web/v0.25.3) (2025-06-11)
+
+
+### Code Refactoring
+
+* move /v1/leases-duration/{owner} to modules ([#1440](https://github.com/akash-network/console/issues/1440)) ([605bb55](https://github.com/akash-network/console/commit/605bb55060546974c4c32970c6572d8b315533bd)), closes [#1280](https://github.com/akash-network/console/issues/1280)
+
 ## [0.25.2](https://github.com/akash-network/console/compare/stats-web/v0.25.1...stats-web/v0.25.2) (2025-06-09)
 
 

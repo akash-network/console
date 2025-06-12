@@ -274,6 +274,8 @@ export const Authorizations: React.FunctionComponent = () => {
                       onPageChange={onDeploymentPageChange}
                       setDeletingGrants={setDeletingGrants}
                       setSelectedGrants={setSelectedGrants}
+                      pageIndex={pageIndex.deployment}
+                      pageSize={pageSize.deployment}
                     />
                   ) : (
                     <p className="text-sm text-muted-foreground">

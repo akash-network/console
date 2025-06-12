@@ -67,4 +67,18 @@ export class QueryKeys {
   static getFeeAllowancesKey = (granter: string, grantee: string) => ["FEE_ALLOWANCE", granter, grantee];
 
   static getFeatureFlagsKey = (networkId: string) => ["FEATURE_FLAGS", networkId];
+
+  static getPaymentMethodsKey = () => ["PAYMENT_METHODS"];
+  static getPaymentDiscountsKey = () => ["PAYMENT_DISCOUNTS"];
+
+  static getPaymentTransactionsKey = (options?: { limit?: number; startingAfter?: string }) => {
+    const key = ["STRIPE_TRANSACTIONS"];
+    if (options?.limit) {
+      key.push("limit", options.limit.toString());
+    }
+    if (options?.startingAfter) {
+      key.push("after", options.startingAfter);
+    }
+    return key;
+  };
 }

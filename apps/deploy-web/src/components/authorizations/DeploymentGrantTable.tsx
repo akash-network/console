@@ -31,6 +31,8 @@ interface Props {
   setDeletingGrants: Dispatch<SetStateAction<GrantType[] | null>>;
   setSelectedGrants: Dispatch<SetStateAction<GrantType[]>>;
   onPageChange: (pageIndex: number, pageSize: number) => void;
+  pageIndex: number;
+  pageSize: number;
 }
 
 const logger = LoggerService.forContext("DeploymentGrantTable");
@@ -42,7 +44,9 @@ export const DeploymentGrantTable: React.FC<Props> = ({
   onPageChange,
   setDeletingGrants,
   setSelectedGrants,
-  selectedGrants
+  selectedGrants,
+  pageIndex,
+  pageSize
 }) => {
   const selectGrants = (checked: boolean, grant: GrantType) => {
     setSelectedGrants(prev => {
@@ -143,9 +147,16 @@ export const DeploymentGrantTable: React.FC<Props> = ({
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: true,
     onPaginationChange: updaterOrValue => {
       const pagination = typeof updaterOrValue === "function" ? updaterOrValue(table.getState().pagination) : updaterOrValue;
       onPageChange(pagination.pageIndex, pagination.pageSize);
+    },
+    state: {
+      pagination: {
+        pageIndex,
+        pageSize
+      }
     }
   });
   const pagination = table.getState().pagination;

@@ -262,12 +262,13 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
               {isLoading ? <Spinner size="small" /> : label}
             </Button>
           ));
-      component.push(
-        <DialogFooter className="flex flex-row justify-between space-x-2 sm:justify-between" key="DialogCustomActions">
-          <div className="space-x-2">{leftButtons}</div>
-          <div className="space-x-2">{rightButtons}</div>
-        </DialogFooter>
-      );
+      props.actions?.length > 0 &&
+        component.push(
+          <DialogFooter className="flex flex-row justify-between space-x-2 sm:justify-between" key="DialogCustomActions">
+            <div className="space-x-2">{leftButtons}</div>
+            <div className="space-x-2">{rightButtons}</div>
+          </DialogFooter>
+        );
       break;
     }
     case "select": {

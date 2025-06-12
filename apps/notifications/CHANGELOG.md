@@ -1,5 +1,24 @@
 
 
+## [1.6.0](https://github.com/akash-network/console/compare/notifications/v1.5.0...notifications/v1.6.0) (2025-06-11)
+
+
+### Features
+
+* **billing:** stripe integration ([#1443](https://github.com/akash-network/console/issues/1443)) ([85c046b](https://github.com/akash-network/console/commit/85c046b1f7286b6c5fea41251712b3e89f413163))
+
+## [1.5.0](https://github.com/akash-network/console/compare/notifications/v1.4.0...notifications/v1.5.0) (2025-06-11)
+
+
+### Features
+
+* **alert:** implements handlebars templating for alert contents ([d01b645](https://github.com/akash-network/console/commit/d01b645ad6393dc0e671c0e31532ce339dfaeb4d)), closes [#1452](https://github.com/akash-network/console/issues/1452)
+
+
+### Code Refactoring
+
+* migrates another part of console api to strict types ([#1462](https://github.com/akash-network/console/issues/1462)) ([7d91eb8](https://github.com/akash-network/console/commit/7d91eb8c8539e1a264e0fcc5f963d162cadf8775))
+
 ## [1.4.0](https://github.com/akash-network/console/compare/notifications/v1.3.0...notifications/v1.4.0) (2025-06-09)
 
 

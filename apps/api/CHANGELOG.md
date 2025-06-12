@@ -1,5 +1,41 @@
 
 
+## [2.97.2](https://github.com/akash-network/console/compare/console-api/v2.97.1...console-api/v2.97.2) (2025-06-12)
+
+
+### Bug Fixes
+
+* **billing:** updating customer id ([#1469](https://github.com/akash-network/console/issues/1469)) ([fc7dac2](https://github.com/akash-network/console/commit/fc7dac24c18c6528ebdc04b5c6f4a1187fafe67c))
+
+## [2.97.1](https://github.com/akash-network/console/compare/console-api/v2.97.0...console-api/v2.97.1) (2025-06-11)
+
+
+### Bug Fixes
+
+* **billing:** get stripe customer id ([#1466](https://github.com/akash-network/console/issues/1466)) ([f541c20](https://github.com/akash-network/console/commit/f541c20a842e247d30a078df129903146470d8b7))
+
+## [2.97.0](https://github.com/akash-network/console/compare/console-api/v2.96.0...console-api/v2.97.0) (2025-06-11)
+
+
+### Features
+
+* **billing:** stripe integration ([#1443](https://github.com/akash-network/console/issues/1443)) ([85c046b](https://github.com/akash-network/console/commit/85c046b1f7286b6c5fea41251712b3e89f413163))
+
+## [2.96.0](https://github.com/akash-network/console/compare/console-api/v2.95.1...console-api/v2.96.0) (2025-06-11)
+
+
+### Features
+
+* fetch providers by attribute patterns ([#1436](https://github.com/akash-network/console/issues/1436)) ([8898710](https://github.com/akash-network/console/commit/8898710a3443587cbc993bd808e9b9b0025b6861))
+
+
+### Code Refactoring
+
+* migrates another part of console api to strict types ([#1462](https://github.com/akash-network/console/issues/1462)) ([7d91eb8](https://github.com/akash-network/console/commit/7d91eb8c8539e1a264e0fcc5f963d162cadf8775))
+* migrates another part of console-api to strict types ([#1448](https://github.com/akash-network/console/issues/1448)) ([2861fc5](https://github.com/akash-network/console/commit/2861fc567de89c4640f2a2f623b0617228ecc0a8))
+* migrates billing module from console api to strict types ([#1460](https://github.com/akash-network/console/issues/1460)) ([a8f2fe9](https://github.com/akash-network/console/commit/a8f2fe993abed6152e76fb18749b4f46586fbf63))
+* move /v1/leases-duration/{owner} to modules ([#1440](https://github.com/akash-network/console/issues/1440)) ([605bb55](https://github.com/akash-network/console/commit/605bb55060546974c4c32970c6572d8b315533bd)), closes [#1280](https://github.com/akash-network/console/issues/1280)
+
 ## [2.95.1](https://github.com/akash-network/console/compare/console-api/v2.95.0...console-api/v2.95.1) (2025-06-09)
 
 

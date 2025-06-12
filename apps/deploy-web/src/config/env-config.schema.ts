@@ -40,7 +40,8 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_TRACKING_ENABLED: coercedBoolean().optional().default("false"),
   NEXT_PUBLIC_GROWTH_CHANNEL_TRACKING_ENABLED: coercedBoolean().optional().default("false"),
   NEXT_PUBLIC_UNLEASH_ENABLE_ALL: coercedBoolean().optional().default("false"),
-  NEXT_PUBLIC_GTM_ID: z.string().optional()
+  NEXT_PUBLIC_GTM_ID: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional()
 });
 
 export const serverEnvSchema = browserEnvSchema.extend({

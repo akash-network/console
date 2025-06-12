@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/stats-web",
-  "version": "0.25.2",
+  "version": "0.26.0",
   "private": true,
   "scripts": {
     "build": "npm run build-env-schemas && next build",
