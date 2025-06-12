@@ -4,9 +4,11 @@ import { ConfigModule } from "@nestjs/config";
 import { Test } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
 import merge from "lodash/merge";
+import { Ok } from "ts-results";
 
 import moduleConfig from "@src/modules/alert/config";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+import { DeploymentService } from "@src/modules/alert/services/deployment/deployment.service";
 import { DeploymentAlertService } from "@src/modules/alert/services/deployment-alert/deployment-alert.service";
 
 import { MockProvider } from "@test/mocks/provider.mock";
@@ -33,7 +35,7 @@ describe(DeploymentAlertService.name, () => {
 
       const result = await service.upsert(input, { ability: {} as MongoAbility, userId });
 
-      expect(result).toEqual(output);
+      expect(result).toEqual(Ok(output));
       expect(alertRepository.create).toHaveBeenCalledWith({
         name: `Deployment ${input.dseq} balance`,
         userId,
@@ -108,7 +110,7 @@ describe(DeploymentAlertService.name, () => {
 
       const result = await service.upsert(input, { ability: {} as MongoAbility, userId });
 
-      expect(result).toEqual(output);
+      expect(result).toEqual(Ok(output));
       expect(alertRepository.updateById).toHaveBeenCalledWith(existing.alerts.deploymentBalance.id, {
         notificationChannelId: input.alerts.deploymentBalance.notificationChannelId,
         enabled: input.alerts.deploymentBalance.enabled,
@@ -194,12 +196,13 @@ describe(DeploymentAlertService.name, () => {
   async function setup() {
     const module = await Test.createTestingModule({
       imports: [ConfigModule.forFeature(moduleConfig)],
-      providers: [DeploymentAlertService, MockProvider(AlertRepository)]
+      providers: [DeploymentAlertService, MockProvider(AlertRepository), MockProvider(DeploymentService)]
     }).compile();
     const alertRepository = module.get<MockProxy<AlertRepository>>(AlertRepository);
     const service = module.get<DeploymentAlertService>(DeploymentAlertService);
 
     alertRepository.accessibleBy.mockReturnValue(alertRepository);
+    module.get<MockProxy<DeploymentService>>(DeploymentService).deploymentExists.mockResolvedValue(true);
 
     return {
       module,

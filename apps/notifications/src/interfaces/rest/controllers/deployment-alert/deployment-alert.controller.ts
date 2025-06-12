@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
+import { ApiHeader } from "@nestjs/swagger";
 import { createZodDto } from "nestjs-zod";
 import { Ok, Result } from "ts-results";
 import { z } from "zod";
@@ -20,7 +21,6 @@ const deploymentClosedAlertInput = z.object({
 
 const deploymentAlertCreateSchema = z.object({
   data: z.object({
-    owner: z.string(),
     alerts: z.object({
       deploymentBalance: deploymentBalanceAlertInput.optional(),
       deploymentClosed: deploymentClosedAlertInput.optional()
@@ -67,16 +67,30 @@ export class DeploymentAlertController {
   @ValidateHttp({
     201: { schema: DeploymentAlertsResponse, description: "Returns the created alert" }
   })
-  async upsertDeploymentAlert(@Param("dseq") dseq: string, @Body() { data }: DeploymentAlertCreateInput): Promise<Result<DeploymentAlertsResponse, unknown>> {
-    return Ok({
-      data: await this.deploymentAlertService.upsert(
-        {
-          ...data,
-          dseq
-        },
-        this.authService
-      )
-    });
+  @ApiHeader({
+    name: "x-owner-address",
+    required: false,
+    description: "The address of the user who owns the deployment"
+  })
+  async upsertDeploymentAlert(
+    @Param("dseq") dseq: string,
+    @Body() { data }: DeploymentAlertCreateInput,
+    @Headers("x-owner-address") owner?: string
+  ): Promise<Result<DeploymentAlertsResponse, unknown>> {
+    const result = await this.deploymentAlertService.upsert(
+      {
+        ...data,
+        owner,
+        dseq
+      },
+      this.authService
+    );
+
+    return result.ok
+      ? Ok({
+          data: result.val
+        })
+      : result;
   }
 
   @Get(":dseq")

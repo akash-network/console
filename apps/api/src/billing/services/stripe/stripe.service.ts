@@ -343,7 +343,7 @@ export class StripeService extends Stripe {
       }
     });
 
-    const updated = await this.userRepository.updateBy({ id: user.id, stripeCustomerId: null }, { stripeCustomerId: customer.id });
+    const updated = await this.userRepository.updateBy({ id: user.id, stripeCustomerId: null }, { stripeCustomerId: customer.id }, { returning: true });
 
     if (updated) {
       return updated.stripeCustomerId!;

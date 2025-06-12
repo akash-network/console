@@ -77,4 +77,9 @@ export class DeploymentService {
       return Err(RichError.enrich(error, "DEPLOYMENT_FETCH_ERROR", { owner, dseq }));
     }
   }
+
+  async deploymentExists(owner: string, dseq: string): Promise<boolean> {
+    const result = await this.getDeploymentInfo(owner, dseq);
+    return result.ok;
+  }
 }

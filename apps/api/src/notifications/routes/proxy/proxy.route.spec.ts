@@ -1,14 +1,16 @@
 import { faker } from "@faker-js/faker";
 
 import type { AuthService } from "@src/auth/services/auth.service";
+import type { UserWalletRepository } from "@src/billing/repositories";
 import type { NotificationsConfig } from "@src/notifications/config";
 import { createProxy } from "@src/notifications/routes/proxy/proxy.route";
 
+import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
 import { stub } from "@test/services/stub";
 
 describe("createProxy", () => {
   it("builds correct proxy handler for POST request", async () => {
-    const { handler, context, fetchMock, authService, userId, fullUrl, body } = setupProxyTest();
+    const { handler, context, fetchMock, authService, userId, owner, fullUrl, body } = setupProxyTest();
 
     const result = await handler(context);
 
@@ -21,6 +23,7 @@ describe("createProxy", () => {
         body: JSON.stringify(body),
         headers: expect.objectContaining({
           "x-user-id": userId,
+          "x-owner-address": owner,
           "content-type": "application/json"
         })
       })
@@ -69,6 +72,15 @@ describe("createProxy", () => {
       currentUser: { id: userId },
       throwUnlessCan: jest.fn().mockReturnValue(undefined)
     });
+    const owner = AkashAddressSeeder.create();
+
+    const userWalletRepository = stub<UserWalletRepository>({
+      findOneByUserId() {
+        return {
+          address: owner
+        };
+      }
+    });
 
     const config: NotificationsConfig = {
       NOTIFICATIONS_API_BASE_URL: "https://proxy.example"
@@ -76,7 +88,7 @@ describe("createProxy", () => {
 
     const fetchMock = jest.fn().mockResolvedValue(new Response(null, { status: method === "GET" ? 204 : 200 }));
 
-    const handler = createProxy(authService, config, fetchMock);
+    const handler = createProxy(authService, userWalletRepository, config, fetchMock);
 
     const context = {
       req: {
@@ -95,6 +107,7 @@ describe("createProxy", () => {
       fetchMock,
       authService,
       userId,
+      owner,
       fullUrl,
       body
     };

@@ -523,7 +523,6 @@ export interface components {
     };
     DeploymentAlertCreateInput: {
       data: {
-        owner: string;
         alerts: {
           deploymentBalance?: {
             /** Format: uuid */
@@ -1290,6 +1289,8 @@ export interface operations {
     parameters: {
       query?: never;
       header?: {
+        /** @description The address of the user who owns the deployment */
+        "x-owner-address"?: string;
         Authorization?: string;
       };
       path: {

@@ -72,7 +72,15 @@ export class SwaggerSetup {
         },
         "x-user-id"
       )
-      .addSecurityRequirements({ "x-user-id": [] })
+      .addApiKey(
+        {
+          type: "apiKey",
+          name: "x-owner-address",
+          in: "header"
+        },
+        "x-owner-address"
+      )
+      .addSecurityRequirements({ "x-user-id": [], "x-owner-address": [] })
       .build();
 
     return () =>

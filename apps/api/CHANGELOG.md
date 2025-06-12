@@ -1,5 +1,19 @@
 
 
+## [2.98.0](https://github.com/akash-network/console/compare/console-api/v2.97.2...console-api/v2.98.0) (2025-06-12)
+
+
+### Features
+
+* **alert:** authorizes deployment alerts by dseq+owner ([59d0a7c](https://github.com/akash-network/console/commit/59d0a7ccdec2060afe0ef8c89c0d1cf3bd9c0d0d)), closes [#1455](https://github.com/akash-network/console/issues/1455)
+
+## [2.97.2](https://github.com/akash-network/console/compare/console-api/v2.97.1...console-api/v2.97.2) (2025-06-12)
+
+
+### Bug Fixes
+
+* **billing:** updating customer id ([#1469](https://github.com/akash-network/console/issues/1469)) ([fc7dac2](https://github.com/akash-network/console/commit/fc7dac24c18c6528ebdc04b5c6f4a1187fafe67c))
+
 ## [2.97.1](https://github.com/akash-network/console/compare/console-api/v2.97.0...console-api/v2.97.1) (2025-06-11)
 
 
