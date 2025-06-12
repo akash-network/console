@@ -1,5 +1,12 @@
 
 
+## [1.7.0](https://github.com/akash-network/console/compare/notifications/v1.6.0...notifications/v1.7.0) (2025-06-12)
+
+
+### Features
+
+* **alert:** authorizes deployment alerts by dseq+owner ([59d0a7c](https://github.com/akash-network/console/commit/59d0a7ccdec2060afe0ef8c89c0d1cf3bd9c0d0d)), closes [#1455](https://github.com/akash-network/console/issues/1455)
+
 ## [1.6.0](https://github.com/akash-network/console/compare/notifications/v1.5.0...notifications/v1.6.0) (2025-06-11)
 
 

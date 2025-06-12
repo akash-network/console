@@ -1,5 +1,17 @@
 
 
+## [2.82.0](https://github.com/akash-network/console/compare/console-web/v2.81.0...console-web/v2.82.0) (2025-06-12)
+
+
+### Features
+
+* **alert:** authorizes deployment alerts by dseq+owner ([59d0a7c](https://github.com/akash-network/console/commit/59d0a7ccdec2060afe0ef8c89c0d1cf3bd9c0d0d)), closes [#1455](https://github.com/akash-network/console/issues/1455)
+
+
+### Bug Fixes
+
+* **billing:** stripe publish key ([#1473](https://github.com/akash-network/console/issues/1473)) ([80800a8](https://github.com/akash-network/console/commit/80800a89992b86d8c7f184b60d9d9761dec55670))
+
 ## [2.81.0](https://github.com/akash-network/console/compare/console-web/v2.80.1...console-web/v2.81.0) (2025-06-11)
 
 
