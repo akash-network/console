@@ -1,12 +1,12 @@
-import type { z, ZodObject, ZodRawShape } from "zod";
+import type { z, ZodEffects, ZodObject, ZodRawShape } from "zod";
 
-interface ConfigServiceOptions<E extends ZodObject<ZodRawShape>, C extends Record<string, any>> {
+interface ConfigServiceOptions<E extends ZodObject<ZodRawShape> | ZodEffects<ZodObject<ZodRawShape>>, C extends Record<string, any>> {
   envSchema?: E;
   config?: C;
 }
 
 // eslint-disable-next-line @typescript-eslint/ban-types
-export class ConfigService<E extends ZodObject<ZodRawShape>, C extends Record<string, any> = {}> {
+export class ConfigService<E extends ZodObject<ZodRawShape> | ZodEffects<ZodObject<ZodRawShape>>, C extends Record<string, any> = {}> {
   private readonly config: C & z.infer<E>;
 
   constructor(options: ConfigServiceOptions<E, C>) {
