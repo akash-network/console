@@ -2,6 +2,7 @@ import "reflect-metadata";
 
 import { LoggerService } from "@akashnetwork/logging";
 import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
+import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
 import { otel } from "@hono/otel";
 import { swaggerUI } from "@hono/swagger-ui";
@@ -20,7 +21,6 @@ import { apiKeysRouter } from "./auth/routes/api-keys/api-keys.router";
 import { bidsRouter } from "./bid/routes/bids/bids.router";
 import { certificateRouter } from "./certificate/routes/certificate.router";
 import { FeatureFlagsService } from "./core/services/feature-flags/feature-flags.service";
-import { shutdownServer } from "./core/services/shutdown-server/shutdown-server";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
@@ -208,13 +208,36 @@ export async function initApp() {
       fetch: appHono.fetch,
       port: typeof PORT === "string" ? parseInt(PORT, 10) : PORT
     });
-    const shutdown = () => shutdownServer(server, appLogger, container.dispose.bind(container));
+    const shutdown = () => shutdownServer(server);
 
     process.on("SIGTERM", shutdown);
     process.on("SIGINT", shutdown);
   } catch (error) {
     appLogger.error({ event: "APP_INIT_ERROR", error });
   }
+}
+
+let isShuttingDown = false;
+/**
+ * Shutdown the server and app services
+ */
+function shutdownServer(server: ServerType) {
+  if (isShuttingDown) return;
+
+  isShuttingDown = true;
+  server.close(error => {
+    if (error) {
+      appLogger.error({ event: "SERVER_CLOSE_ERROR", error });
+    }
+
+    Promise.resolve(container.dispose())
+      .catch(error => {
+        appLogger.error({ event: "CONTAINER_DISPOSE_ERROR", error });
+      })
+      .finally(() => {
+        isShuttingDown = false;
+      });
+  });
 }
 
 /**
