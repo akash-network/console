@@ -1,5 +1,12 @@
 
 
+## [2.82.1](https://github.com/akash-network/console/compare/console-web/v2.82.0...console-web/v2.82.1) (2025-06-12)
+
+
+### Bug Fixes
+
+* **billing:** staging stripe pk ([#1474](https://github.com/akash-network/console/issues/1474)) ([59aa45b](https://github.com/akash-network/console/commit/59aa45b387db77fd1e4ca7c0c9f4e2a681b1842d))
+
 ## [2.82.0](https://github.com/akash-network/console/compare/console-web/v2.81.0...console-web/v2.82.0) (2025-06-12)
 
 
