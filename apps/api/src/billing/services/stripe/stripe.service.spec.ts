@@ -27,7 +27,11 @@ describe(StripeService.name, () => {
         name: user.username,
         metadata: { userId: user.userId }
       });
-      expect(userRepository.updateBy).toHaveBeenCalledWith({ id: user.id, stripeCustomerId: null }, { stripeCustomerId: StripeSeederCreate().customer.id });
+      expect(userRepository.updateBy).toHaveBeenCalledWith(
+        { id: user.id, stripeCustomerId: null },
+        { stripeCustomerId: StripeSeederCreate().customer.id },
+        { returning: true }
+      );
       expect(result).toEqual(StripeSeederCreate().customer.id);
     });
   });
