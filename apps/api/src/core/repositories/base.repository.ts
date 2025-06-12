@@ -192,7 +192,7 @@ export abstract class BaseRepository<
   protected queryToWhere(query: Partial<T["$inferSelect"]> | undefined) {
     if (!query) return this.whereAccessibleBy(undefined);
 
-    const fields = Object.keys(query) as Array<keyof T["$inferSelect"]>;
+    const fields = Object.keys(query).filter(key => query[key as keyof typeof query] !== undefined) as Array<keyof T["$inferSelect"]>;
     const where = fields.length
       ? and(...fields.map(field => (query[field] === null ? isNull(this.table[field]) : eq(this.table[field], query[field]))))
       : undefined;
