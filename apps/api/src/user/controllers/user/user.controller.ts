@@ -24,7 +24,7 @@ export class UserController {
   ) {}
 
   get httpContext(): Context {
-    return this.executionContextService.get("HTTP_CONTEXT");
+    return this.executionContextService.get("HTTP_CONTEXT")!;
   }
 
   async create(): Promise<AnonymousUserResponseOutput> {

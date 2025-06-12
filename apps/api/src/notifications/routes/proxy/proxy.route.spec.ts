@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
+import type { AppContext } from "@src/core/types/app-context";
 import type { NotificationsConfig } from "@src/notifications/config";
 import { createProxy } from "@src/notifications/routes/proxy/proxy.route";
 
@@ -98,8 +99,9 @@ describe("createProxy", () => {
           headers: new Headers({ "x-custom": faker.internet.domainWord() })
         },
         text: async () => JSON.stringify(body)
-      }
-    };
+      },
+      get: jest.fn().mockReturnValue(undefined)
+    } as unknown as AppContext;
 
     return {
       handler,
