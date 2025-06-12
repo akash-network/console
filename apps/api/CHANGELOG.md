@@ -1,5 +1,12 @@
 
 
+## [2.97.2](https://github.com/akash-network/console/compare/console-api/v2.97.1...console-api/v2.97.2) (2025-06-12)
+
+
+### Bug Fixes
+
+* **billing:** updating customer id ([#1469](https://github.com/akash-network/console/issues/1469)) ([fc7dac2](https://github.com/akash-network/console/commit/fc7dac24c18c6528ebdc04b5c6f4a1187fafe67c))
+
 ## [2.97.1](https://github.com/akash-network/console/compare/console-api/v2.97.0...console-api/v2.97.1) (2025-06-11)
 
 
