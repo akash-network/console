@@ -1,0 +1,37 @@
+---
+description:
+globs: apps/deploy-web/**/*.spec.tsx,apps/provider-console/**/*.spec.tsx
+alwaysApply: false
+---
+# Use queryBy instead of getBy in test expectations
+
+## Description
+- Use `queryBy` methods instead of `getBy` methods in test expectations
+- `queryBy` methods return `null` if element is not found, making it safer for testing both presence and absence of elements
+- `getBy` methods throw an error if element is not found, which can make tests harder to debug
+
+## File Pattern
+`*.spec.tsx`
+
+## Examples
+
+### Good
+```typescript
+// Testing presence of element
+expect(screen.queryByText("John Doe")).toBeInTheDocument();
+
+// Testing absence of element
+expect(screen.queryByText("John Doe")).not.toBeInTheDocument();
+```
+
+### Bad
+```typescript
+// Using getBy for presence check
+expect(screen.getByText("John Doe")).toBeInTheDocument();
+
+// Using getBy for absence check (will throw error)
+expect(screen.getByText("John Doe")).not.toBeInTheDocument();
+```
+
+## References
+- [DeploymentName.spec.tsx](mdc:apps/deploy-web/src/components/deployments/DeploymentName/DeploymentName.spec.tsx)
