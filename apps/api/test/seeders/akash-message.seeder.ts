@@ -1,7 +1,6 @@
 import { AkashMessage } from "@akashnetwork/database/dbSchemas/akash";
 import { faker } from "@faker-js/faker";
 import type { CreationAttributes } from "sequelize";
-
 export const createAkashMessage = async (input: Partial<CreationAttributes<AkashMessage>> = {}): Promise<AkashMessage> => {
   return await AkashMessage.create({
     id: input.id || faker.string.uuid(),
