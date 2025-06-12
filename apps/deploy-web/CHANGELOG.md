@@ -1,5 +1,12 @@
 
 
+## [2.82.2](https://github.com/akash-network/console/compare/console-web/v2.82.1...console-web/v2.82.2) (2025-06-12)
+
+
+### Bug Fixes
+
+* **deployment:** styling deployment detail ([#1478](https://github.com/akash-network/console/issues/1478)) ([d59ce15](https://github.com/akash-network/console/commit/d59ce15fe0a3378ac453777992e566b5efd36624))
+
 ## [2.82.1](https://github.com/akash-network/console/compare/console-web/v2.82.0...console-web/v2.82.1) (2025-06-12)
 
 
