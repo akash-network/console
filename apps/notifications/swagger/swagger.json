@@ -874,6 +874,15 @@
             }
           },
           {
+            "name": "x-owner-address",
+            "required": false,
+            "in": "header",
+            "description": "The address of the user who owns the deployment",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Authorization",
             "in": "header",
             "required": false,
@@ -1053,6 +1062,11 @@
         "type": "apiKey",
         "in": "header",
         "name": "x-user-id"
+      },
+      "x-owner-address": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-owner-address"
       }
     },
     "schemas": {
@@ -3614,9 +3628,6 @@
           "data": {
             "type": "object",
             "properties": {
-              "owner": {
-                "type": "string"
-              },
               "alerts": {
                 "type": "object",
                 "properties": {
@@ -3662,7 +3673,6 @@
               }
             },
             "required": [
-              "owner",
               "alerts"
             ]
           }
@@ -3759,7 +3769,8 @@
   },
   "security": [
     {
-      "x-user-id": []
+      "x-user-id": [],
+      "x-owner-address": []
     }
   ]
 }
