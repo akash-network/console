@@ -22,11 +22,6 @@ export class TransactionSeeder {
   }
 
   static async createInDatabase(input: Partial<CreationAttributes<Transaction>> = {}): Promise<Transaction> {
-    try {
-      return await Transaction.create(TransactionSeeder.create(input));
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
+    return await Transaction.create(TransactionSeeder.create(input));
   }
 }

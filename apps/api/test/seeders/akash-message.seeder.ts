@@ -28,11 +28,6 @@ export class AkashMessageSeeder {
   }
 
   static async createInDatabase(input: Partial<CreationAttributes<AkashMessage>> = {}): Promise<AkashMessage> {
-    try {
-      return await AkashMessage.create(AkashMessageSeeder.create(input));
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
+    return await AkashMessage.create(AkashMessageSeeder.create(input));
   }
 }
