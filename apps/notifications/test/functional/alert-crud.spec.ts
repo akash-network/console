@@ -11,8 +11,9 @@ import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception
 import { chainMessageCreateInputSchema } from "@src/interfaces/rest/http-schemas/alert.http-schema";
 import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
 import RestModule from "@src/interfaces/rest/rest.module";
-import * as schema from "@src/modules/alert/model-schemas";
+import * as alertSchema from "@src/modules/alert/model-schemas";
 import { AlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
+import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 
 import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
 
@@ -128,9 +129,13 @@ describe("Alerts CRUD", () => {
     await app.init();
 
     const userId = faker.string.uuid();
+    const schema = {
+      ...alertSchema,
+      NotificationChannel
+    };
     const db = module.get<NodePgDatabase<typeof schema>>(DRIZZLE_PROVIDER_TOKEN);
     const [notificationChannel] = await db
-      .insert(schema.NotificationChannel)
+      .insert(NotificationChannel)
       .values([generateNotificationChannel({ userId })])
       .returning();
 
