@@ -27,6 +27,9 @@ $ npm install
 ## Docs and OpenAPI
 [More details here](./docs/codegen.md)
 
+## Postgresql and Indexes 
+[More details here](./docs/sql.md)
+
 ## Compile and Run the Project
 
 ```bash
