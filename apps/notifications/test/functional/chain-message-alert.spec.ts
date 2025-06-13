@@ -9,6 +9,7 @@ import AlertEventsModule from "@src/interfaces/alert-events/alert-events.module"
 import { ChainEventsHandler } from "@src/interfaces/alert-events/handlers/chain-events/chain-events.handler";
 import { MsgCloseDeploymentDto } from "@src/modules/alert/dto/msg-close-deployment.dto";
 import * as schema from "@src/modules/alert/model-schemas";
+import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
 import { generateChainMessageAlert } from "@test/seeders/chain-message-alert.seeder";
@@ -27,7 +28,7 @@ describe("chain message alerts", () => {
     jest.spyOn(brokerService, "publish").mockResolvedValue(undefined);
 
     const [notificationChannel] = await db
-      .insert(schema.NotificationChannel)
+      .insert(NotificationChannel)
       .values([generateNotificationChannel({})])
       .returning();
 
