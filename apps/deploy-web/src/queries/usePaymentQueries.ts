@@ -1,12 +1,14 @@
 import type { ApplyCouponParams, ConfirmPaymentParams, Discount, PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { QueryKeys } from "./queryKeys";
 
-export const usePaymentMethodsQuery = () => {
+export const usePaymentMethodsQuery = (options?: Omit<UseQueryOptions<PaymentMethod[]>, "queryKey" | "queryFn">) => {
   const { stripe } = useServices();
   return useQuery<PaymentMethod[]>({
+    ...options,
     queryKey: QueryKeys.getPaymentMethodsKey(),
     queryFn: async () => {
       const response = await stripe.getPaymentMethods();
@@ -15,9 +17,10 @@ export const usePaymentMethodsQuery = () => {
   });
 };
 
-export const usePaymentDiscountsQuery = () => {
+export const usePaymentDiscountsQuery = (options?: Omit<UseQueryOptions<Discount[]>, "queryKey" | "queryFn">) => {
   const { stripe } = useServices();
   return useQuery<Discount[]>({
+    ...options,
     queryKey: QueryKeys.getPaymentDiscountsKey(),
     queryFn: async () => {
       const response = await stripe.getCustomerDiscounts();
