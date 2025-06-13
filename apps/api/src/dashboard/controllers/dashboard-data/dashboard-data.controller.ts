@@ -54,7 +54,7 @@ export class DashboardDataController {
         stakingAPR: undefined
       }),
       runOrLog(this.statsService.getNetworkCapacity, { ...emptyNetworkCapacity }),
-      runOrLog(() => this.providerGraphDataService.getProviderGraphData("count"), emptyProviderGraphData),
+      runOrLog(() => this.providerGraphDataService.getProviderGraphData("count"), { ...emptyProviderGraphData }),
       runOrLog(() => this.akashBlockService.getBlocks(5), []),
       runOrLog(() => this.transactionService.getTransactions(5), [])
     ]);

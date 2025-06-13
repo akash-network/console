@@ -68,7 +68,7 @@ export class ProviderGraphDataService {
     );
 
     if (result.length < 2) {
-      return emptyProviderGraphData;
+      return { ...emptyProviderGraphData };
     }
 
     const currentValue = result[result.length - 1];
