@@ -56,8 +56,7 @@ export const createProxy =
 const proxyRoute = createProxy(container.resolve(AuthService), container.resolve(UserWalletRepository), config, fetch);
 const proxyRouteIfEnabled = (featureFlag: FeatureFlagValue) => {
   return async (c: AppContext) => {
-    const isEnabled = await container.resolve(FeatureFlagsService).isEnabled(featureFlag);
-    if (!isEnabled) return c.json({ error: "MethodNotAllowed" }, 405);
+    if (!container.resolve(FeatureFlagsService).isEnabled(featureFlag)) return c.json({ error: "MethodNotAllowed" }, 405);
 
     return proxyRoute(c);
   };
