@@ -34,6 +34,29 @@ describe(FeatureFlagsService.name, () => {
     expect(() => service.isEnabled(FeatureFlags.NOTIFICATIONS_ALERT_MUTATION)).toThrow(/was not initialized/);
   });
 
+  it("calls onChanged callback when feature flag is changed", async () => {
+    const client = createUnleashMockClient({
+      isEnabledFeatureFlag: jest.fn(() => false)
+    });
+    const service = await setup({ createClient: () => client });
+
+    const callback = () => {};
+    service.onChanged(callback);
+
+    expect(client.on).toHaveBeenCalledTimes(1);
+    expect(client.on).toHaveBeenCalledWith("changed", callback);
+  });
+
+  it("clears event listeners and destroys client when dispose is called", async () => {
+    const client = createUnleashMockClient();
+    const service = await setup({ createClient: () => client });
+
+    service.dispose();
+
+    expect(client.destroyWithFlush).toHaveBeenCalledTimes(1);
+    expect(client.removeAllListeners).toHaveBeenCalledTimes(1);
+  });
+
   describe("isEnabled", () => {
     it("passes user and environement specific context to Unleash", async () => {
       const client = createUnleashMockClient({
