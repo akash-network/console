@@ -12,7 +12,8 @@ import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config"
 import AlertEventsModule from "@src/interfaces/alert-events/alert-events.module";
 import { ChainEventsHandler } from "@src/interfaces/alert-events/handlers/chain-events/chain-events.handler";
 import { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-created.dto";
-import * as schema from "@src/modules/alert/model-schemas";
+import * as alertSchema from "@src/modules/alert/model-schemas";
+import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
 import { generateDeploymentBalanceAlert } from "@test/seeders/deployment-balance-alert.seeder";
@@ -21,10 +22,9 @@ import { generateNotificationChannel } from "@test/seeders/notification-channel.
 
 describe("balance alerts", () => {
   it("should send an alert based on conditions", async () => {
-    const { module, chainApi } = await setup();
+    const { module, chainApi, db, schema } = await setup();
     const controller = module.get(ChainEventsHandler);
     const brokerService = module.get(BrokerService);
-    const db = module.get<NodePgDatabase<typeof schema>>(DRIZZLE_PROVIDER_TOKEN);
 
     const owner = mockAkashAddress();
     const matchingDseq = faker.number.int({ min: 0, max: 999999 });
@@ -116,9 +116,17 @@ describe("balance alerts", () => {
 
     const chainApi = nock(module.get(ConfigService).getOrThrow("API_NODE_ENDPOINT")).persist();
 
+    const schema = {
+      ...alertSchema,
+      NotificationChannel
+    };
+    const db = module.get<NodePgDatabase<typeof schema>>(DRIZZLE_PROVIDER_TOKEN);
+
     return {
       module,
-      chainApi
+      chainApi,
+      db,
+      schema
     };
   }
 });
