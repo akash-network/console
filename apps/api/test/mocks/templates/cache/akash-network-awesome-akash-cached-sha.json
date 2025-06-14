@@ -1,0 +1,91 @@
+[
+  {
+    "title": "Official",
+    "templateSources": [
+      {
+        "name": "Lunie Wallet for Cosmos SDK",
+        "path": "lunie-lite",
+        "repoOwner": "akash-network",
+        "repoName": "awesome-akash",
+        "repoVersion": "cached-sha"
+      },
+      {
+        "name": "Cosmos SDK Node",
+        "path": "https://github.com/ovrclk/akash-on-akash",
+        "repoOwner": "akash-network",
+        "repoName": "awesome-akash",
+        "repoVersion": "cached-sha"
+      },
+      {
+        "name": "Ubuntu SSH",
+        "path": "ssh-ubuntu",
+        "repoOwner": "akash-network",
+        "repoName": "awesome-akash",
+        "repoVersion": "cached-sha"
+      }
+    ],
+    "templates": [
+      {
+        "id": "akash-network-awesome-akash-lunie-lite",
+        "name": "Lunie Wallet for Cosmos SDK",
+        "path": "akash-network-awesome-akash-lunie-lite",
+        "logoUrl": "https://raw.githubusercontent.com/akash-network/awesome-akash/master/lunie-lite/lunie.png",
+        "summary": "From the project site:\n\nLunie Light is a staking interface for proof-of-stake blockchains in the Cosmos ecosystem — built for speed, simplicity, and ease-of-use.\n\nLunie Light uses Nuxt.js, and reli...",
+        "config": {
+          "$schema": "../config.schema.json",
+          "ssh": false,
+          "logoUrl": "https://raw.githubusercontent.com/akash-network/awesome-akash/master/lunie-lite/lunie.png"
+        },
+        "readme": "# Lunie-Lite Wallet\n\nFrom [the project site](https://github.com/luniehq/lunie-light):\n\nLunie Light is a staking interface for proof-of-stake blockchains in the Cosmos ecosystem — built for speed, simplicity, and ease-of-use.\n\nLunie Light uses [Nuxt.js](https://nuxtjs.org), and relies on the [REST API](https://cosmos.network/rpc) of a [Cosmos node](https://docs.cosmos.network/master/interfaces/rest.html) for data.\n\nLunie Light will work with the Keplr Browser Extension and the Ledger Nano. Local key management should only be used for testing and development purposes.\n\nFeatures:\n\n- ✅ Super simple — one config file\n- 🏎 Fast, modern web technologies\n- 📱 Fully responsive\n- ⛓ Real-time on-chain data\n- 🔭 Explore mode\n- 💸 Multi-denom balances support\n- 🥩 Staking and unstaking management\n- 💯 Complete validator list with instant search\n- 🤗 Validator profiles for every validator\n- 🧾 Transaction history\n",
+        "deploy": "---\nversion: \"2.0\"\n\nservices:\n  lunielight:\n    image: ovrclk/lunie-light\n    expose:\n      - port: 3000\n        as: 80\n        to:\n          - global: true\n\nprofiles:\n  compute:\n    lunielight:\n      resources:\n        cpu:\n          units: 1.0\n        memory:\n          size: 512Mi\n        storage:\n          size: 512Mi\n  placement:\n    akash:\n      attributes:\n        host: akash\n      signedBy:\n        anyOf:\n          - \"akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63\"\n      pricing:\n        lunielight: \n          denom: uakt\n          amount: 10000\n\ndeployment:\n  lunielight:\n    akash:\n      profile: lunielight\n      count: 1\n",
+        "persistentStorageEnabled": false,
+        "githubUrl": "https://github.com/akash-network/awesome-akash/blob/cached-sha/lunie-lite"
+      },
+      {
+        "id": "akash-network-awesome-akash-ssh-ubuntu",
+        "name": "Ubuntu SSH",
+        "path": "akash-network-awesome-akash-ssh-ubuntu",
+        "logoUrl": "https://raw.githubusercontent.com/akash-network/awesome-akash/master/ssh-ubuntu/ubuntu-logo-icon.png",
+        "summary": "This repository contains Docker images configured for plain Linux deployments via SSH on the Akash console. These images are based on official distribution images and are configured with OpenSSH fo...",
+        "config": {
+          "$schema": "../config.schema.json",
+          "ssh": true,
+          "logoUrl": "https://raw.githubusercontent.com/akash-network/awesome-akash/master/ssh-ubuntu/ubuntu-logo-icon.png"
+        },
+        "readme": "# Akash Plain Linux SSH Deployments\n\nThis repository contains Docker images configured for plain Linux deployments via SSH on the Akash console. These images are based on official distribution images and are configured with OpenSSH for secure SSH access.\n\n## Available Images\n\n### Ubuntu 24.04\n\n- **Repository**: `ghcr.io/akash-network/ubuntu-2404-ssh`\n- **Tags**: `1`, `latest`\n\n## Common Features\n\n- Based on official Linux distribution images.\n- OpenSSH server installed and configured for SSH access.\n- SSH host keys generated at build time.\n- Custom entrypoint script to handle SSH public key setup.\n- Ports exposed for SSH access.\n\n## Usage\n\n### Pull the Image\n\n```bash\ndocker pull <repository>:<tag>\n```\n\nExample:\n```bash\ndocker pull ghcr.io/akash-network/ubuntu-2404-ssh:latest\n```\n\n### Run the Container\nTo run the container, specify your SSH public key using the SSH_PUBKEY environment variable.\n```bash\ndocker run -d -p 3022:22 -e \"SSH_PUBKEY=$(cat ~/.ssh/id_rsa.pub)\" --name my-container <repository>:<tag>\n```\n\nExample:\n```bash\ndocker run -d -p 3022:22 -e \"SSH_PUBKEY=$(cat ~/.ssh/id_rsa.pub)\" --name my-ubuntu-container ghcr.io/akash-network/ubuntu-2404-ssh:latest\n```\n\n### Connect via SSH\n\n```bash\nssh -i ~/.ssh/id_rsa -p 3022 root@localhost\n```\n\n### Building the Images\nTo build the images yourself, use the provided Dockerfiles:\n\n```bash\ndocker build -f Dockerfile.ubuntu -t ghcr.io/akash-network/ubuntu-2404-ssh .\n```",
+        "deploy": "---\nversion: \"2.0\"\nservices:\n  service-1:\n    image: ghcr.io/akash-network/ubuntu-2404-ssh:1\n    expose:\n      - port: 22\n        as: 22\n        to:\n          - global: true\n    env:\n      - SSH_PUBKEY=YOUR_KEY_HERE\nprofiles:\n  compute:\n    service-1:\n      resources:\n        cpu:\n          units: 0.1\n        memory:\n          size: 512Mi\n        storage:\n          - size: 1Gi\n  placement:\n    dcloud:\n      pricing:\n        service-1:\n          denom: uakt\n          amount: 10000\ndeployment:\n  service-1:\n    dcloud:\n      profile: service-1\n      count: 1",
+        "persistentStorageEnabled": false,
+        "githubUrl": "https://github.com/akash-network/awesome-akash/blob/cached-sha/ssh-ubuntu"
+      }
+    ]
+  },
+  {
+    "title": "AI - CPU",
+    "templateSources": [
+      {
+        "name": "Alpaca.cpp",
+        "path": "alpaca-cpp",
+        "repoOwner": "akash-network",
+        "repoName": "awesome-akash",
+        "repoVersion": "cached-sha"
+      }
+    ],
+    "templates": [
+      {
+        "id": "akash-network-awesome-akash-alpaca-cpp",
+        "name": "Alpaca.cpp",
+        "path": "akash-network-awesome-akash-alpaca-cpp",
+        "logoUrl": "",
+        "summary": "Run a fast ChatGPT-like model locally on your device. The screencast below is not sped up and running on an M2 Macbook Air with 4GB of weights.\n\nThis combines the LLaMA foundation model with an ope...",
+        "config": {
+          "ssh": false,
+          "logoUrl": ""
+        },
+        "readme": "# Alpaca.cpp\n\nRun a fast ChatGPT-like model locally on your device. The screencast below is not sped up and running on an M2 Macbook Air with 4GB of weights.\n\nThis combines the [LLaMA foundation model](https://github.com/facebookresearch/llama) with an [open reproduction](https://github.com/tloen/alpaca-lora) of [Stanford Alpaca](https://github.com/tatsu-lab/stanford_alpaca) a fine-tuning of the base model to obey instructions (akin to the [RLHF](https://huggingface.co/blog/rlhf) used to train ChatGPT) and a set of modifications to [llama.cpp](https://github.com/ggerganov/llama.cpp) to add a chat interface.\n\n## Credit\n\nThis combines [Facebook's LLaMA](https://github.com/facebookresearch/llama), [Stanford Alpaca](https://crfm.stanford.edu/2023/03/13/alpaca.html), [alpaca-lora](https://github.com/tloen/alpaca-lora) and [corresponding weights](https://huggingface.co/tloen/alpaca-lora-7b/tree/main) by Eric Wang (which uses [Jason Phang's implementation of LLaMA](https://github.com/huggingface/transformers/pull/21955) on top of Hugging Face Transformers), and [llama.cpp](https://github.com/ggerganov/llama.cpp) by Georgi Gerganov. The chat implementation is based on Matvey Soloviev's [Interactive Mode](https://github.com/ggerganov/llama.cpp/pull/61) for llama.cpp. Inspired by [Simon Willison's](https://til.simonwillison.net/llms/llama-7b-m2) getting started guide for LLaMA. [Andy Matuschak](https://twitter.com/andy_matuschak/status/1636769182066053120)'s thread on adapting this to 13B, using fine tuning weights by [Sam Witteveen](https://huggingface.co/samwit/alpaca13B-lora).\n\n\n## Disclaimer\n\nNote that the model weights are only to be used for research purposes, as they are derivative of LLaMA, and uses the published instruction data from the Stanford Alpaca project which is generated by OpenAI, which itself disallows the usage of its outputs to train competing models.\n",
+        "deploy": "---\nversion: \"2.0\"\n\nservices:\n  alpaca-cpp:\n    image: cryptoandcoffee/akash-alpaca-cpp:2\n    expose:\n      - port: 8080\n        as: 80\n        to:\n          - global: true\n    command:\n      - \"./gotty\"\n      - \"-w\"\n      - \"./chat\"\n      - \"-t\"\n      - \"15\"\nprofiles:\n  compute:\n    alpaca-cpp:\n      resources:\n        cpu:\n          units: 16.0 \n        memory:\n          size: 16Gi #Need to increase for larger models\n        storage:\n          size: 8Gi #Need to increase for larger models\n  placement:\n    akash:\n      attributes:\n        host: akash\n      signedBy:\n        anyOf:\n          - \"akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63\"\n      pricing:\n        alpaca-cpp: \n          denom: uakt\n          amount: 10000\n\ndeployment:\n  alpaca-cpp:\n    akash:\n      profile: alpaca-cpp\n      count: 1\n",
+        "persistentStorageEnabled": false,
+        "githubUrl": "https://github.com/akash-network/awesome-akash/blob/cached-sha/alpaca-cpp"
+      }
+    ]
+  }
+]

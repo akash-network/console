@@ -18,7 +18,7 @@ const MAP_CONCURRENTLY_OPTIONS: MapConcurrentlyOptions = {
   concurrency: 30
 };
 
-type Category = {
+export type Category = {
   title: string;
   description?: string;
   templateSources: TemplateSource[];
