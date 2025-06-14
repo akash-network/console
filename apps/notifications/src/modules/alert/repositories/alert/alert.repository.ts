@@ -7,6 +7,7 @@ import type { SQL } from "drizzle-orm/sql/sql";
 
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
+import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 import * as schema from "../../model-schemas";
 import { Alert } from "../../model-schemas";
 import type { ChainMessageJsonFields, DeploymentBalanceJsonFields } from "./alert-json-fields.schema";
@@ -57,6 +58,10 @@ export type ListLookupOptions = {
   };
   limit?: number;
   page?: number;
+};
+
+export type AlertOutputWithNotificationName = AlertOutput & {
+  notificationChannelName?: string;
 };
 
 @Injectable()
@@ -140,7 +145,7 @@ export class AlertRepository {
     });
   }
 
-  async paginate(options: ListLookupOptions): Promise<PaginatedResult<AlertOutput>> {
+  async paginate(options: ListLookupOptions): Promise<PaginatedResult<AlertOutputWithNotificationName>> {
     const page = options.page || 1;
     const limit = options.limit || 10;
     const offset = (page - 1) * limit;
@@ -154,12 +159,17 @@ export class AlertRepository {
       where = and(where, sql`${schema.Alert.params}->>'type' = ${options.query.type}`);
     }
 
-    const alerts = await this.db.query.Alert.findMany({
-      where,
-      limit,
-      offset,
-      orderBy: schema.Alert.createdAt
-    });
+    const alerts = await this.db
+      .select({
+        alert: schema.Alert,
+        notificationName: NotificationChannel.name
+      })
+      .from(schema.Alert)
+      .innerJoin(NotificationChannel, eq(schema.Alert.notificationChannelId, NotificationChannel.id))
+      .where(where)
+      .limit(limit)
+      .offset(offset)
+      .orderBy(schema.Alert.createdAt);
 
     const countResult = await this.db
       .select({ count: count(schema.Alert.id) })
@@ -170,7 +180,10 @@ export class AlertRepository {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: this.toOutputList(alerts),
+      data: alerts.map(({ alert, notificationName }) => ({
+        ...this.toOutput(alert),
+        notificationChannelName: notificationName || "NA"
+      })),
       pagination: {
         total,
         limit,

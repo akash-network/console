@@ -36,7 +36,7 @@ describe(AlertsListView.name, () => {
 
     setup({ data: [mockAlert] });
 
-    expect(screen.getByText(mockAlert.name)).toBeInTheDocument();
+    expect(screen.getByText(mockAlert.deploymentName)).toBeInTheDocument();
     expect(screen.getByText(startCase(mockAlert.type.toLowerCase()))).toBeInTheDocument();
     expect(screen.getByText(capitalize(mockAlert.status))).toBeInTheDocument();
 
@@ -54,7 +54,7 @@ describe(AlertsListView.name, () => {
 
     setup({ data: [mockAlert] });
 
-    expect(screen.getByText(mockAlert.name)).toBeInTheDocument();
+    expect(screen.getByText(mockAlert.deploymentName)).toBeInTheDocument();
     expect(screen.getByText(startCase(mockAlert.type.toLowerCase()))).toBeInTheDocument();
     expect(screen.getByText(capitalize(mockAlert.status))).toBeInTheDocument();
 

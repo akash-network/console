@@ -185,6 +185,7 @@ export interface components {
             id: string;
             /** Format: uuid */
             userId: string;
+            notificationChannelName?: string;
             status: string;
             createdAt: unknown;
             updatedAt: unknown;
@@ -230,6 +231,7 @@ export interface components {
             id: string;
             /** Format: uuid */
             userId: string;
+            notificationChannelName?: string;
             status: string;
             createdAt: unknown;
             updatedAt: unknown;
@@ -300,6 +302,7 @@ export interface components {
             id: string;
             /** Format: uuid */
             userId: string;
+            notificationChannelName?: string;
             status: string;
             createdAt: unknown;
             updatedAt: unknown;
@@ -345,6 +348,7 @@ export interface components {
             id: string;
             /** Format: uuid */
             userId: string;
+            notificationChannelName?: string;
             status: string;
             createdAt: unknown;
             updatedAt: unknown;

@@ -1,19 +1,21 @@
 "use client";
 
 import type { FC, ReactNode } from "react";
+import { useMemo } from "react";
 import React from "react";
 import { useCallback, useState } from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 
+import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
 
 type Alert = components["schemas"]["AlertOutputResponse"]["data"];
-type AlertsInput = components["schemas"]["AlertListOutputResponse"]["data"];
+type AlertsOutput = components["schemas"]["AlertListOutputResponse"]["data"][0];
 type AlertsPagination = components["schemas"]["AlertListOutputResponse"]["pagination"];
 
 export type ChildrenProps = {
-  data: AlertsInput;
+  data: (AlertsOutput & { deploymentName: string })[];
   pagination: Pick<AlertsPagination, "page" | "limit" | "total" | "totalPages">;
   isLoading: boolean;
   removingIds: Set<Alert["id"]>;
@@ -38,6 +40,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
     }
   });
   const mutation = notificationsApi.v1.deleteAlert.useMutation();
+  const { getDeploymentName } = useLocalNotes();
   const notificator = useNotificator();
 
   const remove = useCallback(
@@ -78,6 +81,13 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
     setLimit(limit);
   }, []);
 
+  const dataWithNames = useMemo(() => {
+    return data?.data.map(item => ({
+      ...item,
+      deploymentName: (item.params?.dseq && getDeploymentName(item.params.dseq)) || "NA"
+    }));
+  }, [data?.data, getDeploymentName]);
+
   return (
     <>
       {children({
@@ -87,7 +97,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
           total: data?.pagination.total ?? 0,
           totalPages: data?.pagination.totalPages ?? 0
         },
-        data: data?.data || [],
+        data: dataWithNames || [],
         onPaginationChange: changePage,
         onRemove: remove,
         removingIds,

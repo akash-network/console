@@ -1,7 +1,7 @@
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import { faker } from "@faker-js/faker";
 
-type Alert = components["schemas"]["AlertOutputResponse"]["data"];
+type Alert = components["schemas"]["AlertOutputResponse"]["data"] & { deploymentName: string };
 type ChainMessageAlert = Extract<Alert, { type: "CHAIN_MESSAGE" }>;
 type DeploymentBalanceAlert = Extract<Alert, { type: "DEPLOYMENT_BALANCE" }>;
 
@@ -21,6 +21,7 @@ function buildChainMessageAlert(overrides?: Partial<ChainMessageAlert>): ChainMe
   return {
     id: faker.string.uuid(),
     name: faker.lorem.words(2),
+    deploymentName: faker.lorem.words(2),
     conditions: {
       operator: faker.helpers.arrayElement(["eq", "lt", "gt", "lte", "gte"]),
       field: faker.lorem.word(),
@@ -47,6 +48,7 @@ function buildDeploymentBalanceAlert(overrides?: Partial<DeploymentBalanceAlert>
   return {
     id: faker.string.uuid(),
     name: faker.lorem.words(2),
+    deploymentName: faker.lorem.words(2),
     conditions: {
       operator: faker.helpers.arrayElement(["eq", "lt", "gt", "lte", "gte"]),
       field: "balance",

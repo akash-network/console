@@ -24,17 +24,6 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({ deployment, is
   return (
     <LoadingBlocker isLoading={!isFetched}>
       <div className="grid-col-1 mb-4 grid gap-4 md:grid-cols-2">
-        <c.DeploymentCloseAlert
-          isLoading={isLoading}
-          initialValues={data?.alerts?.deploymentClosed}
-          onSubmit={values => {
-            upsert({
-              alerts: {
-                deploymentClosed: values
-              }
-            });
-          }}
-        />
         <c.DeploymentBalanceAlert
           isLoading={isLoading}
           deployment={deployment}
@@ -43,6 +32,17 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({ deployment, is
             upsert({
               alerts: {
                 deploymentBalance: values
+              }
+            });
+          }}
+        />
+        <c.DeploymentCloseAlert
+          isLoading={isLoading}
+          initialValues={data?.alerts?.deploymentClosed}
+          onSubmit={values => {
+            upsert({
+              alerts: {
+                deploymentClosed: values
               }
             });
           }}

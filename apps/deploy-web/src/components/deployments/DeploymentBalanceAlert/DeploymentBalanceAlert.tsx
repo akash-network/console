@@ -10,6 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { InfoCircle } from "iconoir-react";
 import { z } from "zod";
 
+import { AlertStatus } from "@src/components/alerts/AlertStatus/AlertStatus";
 import { NotificationChannelSelect } from "@src/components/alerts/NotificationChannelSelectForm/NotificationChannelSelect";
 import { DeploymentBalanceContainer } from "@src/components/deployments/DeploymentBalanceContainer/DeploymentBalanceContainer";
 import { Fieldset } from "@src/components/shared/Fieldset";
@@ -17,10 +18,11 @@ import type { DeploymentDto } from "@src/types/deployment";
 import { ceilDecimal, denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 
 type DeploymentBalanceAlertInput = components["schemas"]["DeploymentAlertCreateInput"]["data"]["alerts"]["deploymentBalance"];
+type DeploymentBalanceAlertOutput = components["schemas"]["DeploymentAlertsResponse"]["data"]["alerts"]["deploymentBalance"];
 
 export type Props = {
   isLoading: boolean;
-  initialValues?: DeploymentBalanceAlertInput;
+  initialValues?: DeploymentBalanceAlertOutput;
   onSubmit: (input: NonNullable<DeploymentBalanceAlertInput>) => void;
 };
 
@@ -80,7 +82,15 @@ export const DeploymentBalanceAlertView: FC<Props & { balance: number; toDenom: 
   };
 
   return (
-    <Fieldset label={`Deployment Deposit${!initialValues ? " (not configured)" : ""}`} className="my-2">
+    <Fieldset
+      label={
+        <div className="flex items-center">
+          <p className="mr-3">Deployment Deposit</p> {initialValues?.status && <AlertStatus status={initialValues.status} />}
+        </div>
+      }
+      subLabel="An additional alert will be sent when the account balance has been increased above threshold value."
+      className="my-2"
+    >
       <div className="space-y-4 p-4">
         <Form {...form}>
           <form onSubmit={handleSubmit(submit)} className="space-y-4">
@@ -124,7 +134,7 @@ export const DeploymentBalanceAlertView: FC<Props & { balance: number; toDenom: 
             </div>
             <div className="space-y-3">
               <LoadingButton type="submit" loading={isLoading}>
-                Save
+                {initialValues ? "Update" : "Create"}
               </LoadingButton>
             </div>
           </form>
