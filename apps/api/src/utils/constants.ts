@@ -19,3 +19,4 @@ export const openApiExampleValidatorAddress = "akashvaloper14mt78hz73d9tdwpdvkd5
 export const apiNodeUrl = env.REST_API_NODE_URL ?? netConfig.getBaseAPIUrl(env.NETWORK as SupportedChainNetworks) ?? netConfig.getBaseAPIUrl("mainnet");
 export const betaTypeVersion = "v1beta3";
 export const betaTypeVersionMarket = "v1beta4";
+export const nodeApiBasePath = env.NODE_API_BASE_PATH;
