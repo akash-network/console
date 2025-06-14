@@ -34,10 +34,22 @@ export class AkashBlockRepository {
     }));
   }
 
-  async getBlockByHeight(height: number): Promise<GetBlockByHeightResponse | null> {
+  async getBlockByHeight(height: number): Promise<AkashBlock | null> {
     const block = await AkashBlock.findOne({
       where: {
-        height: height
+        height
+      }
+    });
+
+    if (!block) return null;
+
+    return block;
+  }
+
+  async getBlockWithTransactionsByHeight(height: number): Promise<GetBlockByHeightResponse | null> {
+    const block = await AkashBlock.findOne({
+      where: {
+        height
       },
       include: [
         {
@@ -80,5 +92,9 @@ export class AkashBlockRepository {
         }))
       }))
     };
+  }
+
+  async getLatestBlock(): Promise<AkashBlock | null> {
+    return await AkashBlock.findOne({ order: [["height", "DESC"]] });
   }
 }
