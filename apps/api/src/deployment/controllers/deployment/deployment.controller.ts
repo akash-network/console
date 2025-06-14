@@ -125,11 +125,6 @@ export class DeploymentController {
   }
 
   async getByOwnerAndDseq(owner: string, dseq: string): Promise<GetDeploymentByOwnerDseqResponse> {
-    const { currentUser, ability } = this.authService;
-
-    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
-    assert(userWallet, 404, "UserWallet Not Found");
-
     return await this.deploymentReaderService.getDeploymentByOwnerAndDseq(owner, dseq);
   }
 }
