@@ -1,0 +1,57 @@
+[
+  {
+    "title": "Blockchain",
+    "templateSources": [
+      {
+        "name": "Akash",
+        "path": "akash",
+        "logoUrl": "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.png",
+        "summary": "Akash is open-source Supercloud that lets users buy and sell computing resources securely and efficiently. Purpose-built for public utility.",
+        "repoName": "cosmos-omnibus",
+        "repoOwner": "akash-network",
+        "repoVersion": "cached-sha"
+      },
+      {
+        "name": "Archway",
+        "path": "archway",
+        "logoUrl": "https://raw.githubusercontent.com/cosmos/chain-registry/master/archway/images/archway.png",
+        "summary": "An incentivized L1 blockchain that allows developers to capture the value their dapps create, enabling sustainable economic models.",
+        "repoName": "cosmos-omnibus",
+        "repoOwner": "akash-network",
+        "repoVersion": "cached-sha"
+      }
+    ],
+    "templates": [
+      {
+        "id": "akash-network-cosmos-omnibus-akash",
+        "name": "Akash",
+        "path": "akash-network-cosmos-omnibus-akash",
+        "logoUrl": "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.png",
+        "summary": "Akash is open-source Supercloud that lets users buy and sell computing resources securely and efficiently. Purpose-built for public utility.",
+        "config": {
+          "ssh": false,
+          "logoUrl": ""
+        },
+        "readme": "# Akash\n\n| | |\n|---|---|\n|Version|`v0.38.1`|\n|Binary|`akash`|\n|Directory|`.akash`|\n|ENV namespace|`AKASH`|\n|Repository|`https://github.com/akash-network/node`|\n|Image|`ghcr.io/akash-network/cosmos-omnibus:v1.2.19-akash-v0.38.1`|\n\n## Examples\n\n- Run on Akash with the [example deploy.yml](https://github.com/akash-network/cosmos-omnibus/blob/cached-sha/akash/deploy.yml)\n- Run with Docker using the [example docker-compose.yml](https://github.com/akash-network/cosmos-omnibus/blob/cached-sha/akash/docker-compose.yml)\n\n## Chain information\n\nThe [Cosmos Chain Registry](https://github.com/cosmos/chain-registry) publishes [up to date chain info](https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/chain.json) for Akash.\n\nThis will be used automatically unless overridden with the `CHAIN_JSON` variable (use `0` to disable).\n\n## Suggested configuration\n\nThe following configuration is recommended for Akash nodes.\n\n|Variable|Value|\n|---|---|\n|`CHAIN_JSON`|`https://raw.githubusercontent.com/akash-network/net/main/mainnet/meta.json`|\n|`FASTSYNC_VERSION`|`v0`|\n\n## Polkachu Chain Services\n\n[Polkachu's Chain Services](https://www.polkachu.com/networks/akash) make bootstrapping a node extremely easy. They provide live peers, seeds, statesync, addrbooks and pruned snapshots among other features.\n\nThe following configuration is available for Akash nodes. [See the documentation](https://github.com/akash-network/cosmos-omnibus/blob/cached-sha/akash/../README.md#polkachu-services) for more information.\n\n|Variable|Value|\n|---|---|\n|`P2P_POLKACHU`|`1`|\n|`P2P_SEEDS_POLKACHU`|`1`|\n|`P2P_PEERS_POLKACHU`|`1`|\n|`STATESYNC_POLKACHU`|`1`|\n|`ADDRBOOK_POLKACHU`|`1`|\n\nPolkachu also provide pruned snapshots for Akash. Find the [latest snapshot](https://polkachu.com/tendermint_snapshots/akash) and apply it using the `SNAPSHOT_URL` variable.\n",
+        "deploy": "---\nversion: \"2.0\"\nservices:\n  node:\n    image: ghcr.io/akash-network/cosmos-omnibus:v1.2.19-akash-v0.38.1\n    env:\n      - MONIKER=Cosmos Omnibus Node\n      - CHAIN_JSON=https://raw.githubusercontent.com/akash-network/net/main/mainnet/meta.json\n      - FASTSYNC_VERSION=v0\n      - P2P_POLKACHU=1\n      - STATESYNC_POLKACHU=1\n      - ADDRBOOK_POLKACHU=1\n    expose:\n      - port: 26657\n        to:\n          - global: true\n      - port: 26656\n        to:\n          - global: true\n    params: # remove for non-persistent storage\n      storage:\n        data:\n          mount: /root/.akash\nprofiles:\n  compute:\n    node:\n      resources:\n        cpu:\n          units: 4\n        memory:\n          size: 32Gi\n        storage:\n          - size: 10Gi\n          - name: data # remove for non-persistent storage\n            size: 400Gi\n            attributes:\n              persistent: true\n              class: beta3\n  placement:\n    dcloud:\n      attributes:\n        host: akash\n      signedBy:\n        anyOf:\n          - akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63\n      pricing:\n        node:\n          denom: uakt\n          amount: 1000\ndeployment:\n  node:\n    dcloud:\n      profile: node\n      count: 1\n",
+        "persistentStorageEnabled": true,
+        "githubUrl": "https://github.com/akash-network/cosmos-omnibus/blob/cached-sha/akash"
+      },
+      {
+        "id": "akash-network-cosmos-omnibus-archway",
+        "name": "Archway",
+        "path": "akash-network-cosmos-omnibus-archway",
+        "logoUrl": "https://raw.githubusercontent.com/cosmos/chain-registry/master/archway/images/archway.png",
+        "summary": "An incentivized L1 blockchain that allows developers to capture the value their dapps create, enabling sustainable economic models.",
+        "config": {
+          "ssh": false,
+          "logoUrl": ""
+        },
+        "readme": "# Archway\n\n| | |\n|---|---|\n|Version|`v9.0.0`|\n|Binary|`archwayd`|\n|Directory|`.archway`|\n|ENV namespace|`ARCHWAYD`|\n|Repository|`https://github.com/archway-network/archway`|\n|Image|`ghcr.io/akash-network/cosmos-omnibus:v1.2.19-archway-v9.0.0`|\n\n## Examples\n\n- Run on Akash with the [example deploy.yml](https://github.com/akash-network/cosmos-omnibus/blob/cached-sha/archway/deploy.yml)\n- Run with Docker using the [example docker-compose.yml](https://github.com/akash-network/cosmos-omnibus/blob/cached-sha/archway/docker-compose.yml)\n\n## Chain information\n\nThe [Cosmos Chain Registry](https://github.com/cosmos/chain-registry) publishes [up to date chain info](https://raw.githubusercontent.com/cosmos/chain-registry/master/archway/chain.json) for Archway.\n\nThis will be used automatically unless overridden with the `CHAIN_JSON` variable (use `0` to disable).\n\n## Polkachu Chain Services\n\n[Polkachu's Chain Services](https://www.polkachu.com/networks/archway) make bootstrapping a node extremely easy. They provide live peers, seeds, statesync, addrbooks and pruned snapshots among other features.\n\nThe following configuration is available for Archway nodes. [See the documentation](https://github.com/akash-network/cosmos-omnibus/blob/cached-sha/archway/../README.md#polkachu-services) for more information.\n\n|Variable|Value|\n|---|---|\n|`P2P_POLKACHU`|`1`|\n|`P2P_SEEDS_POLKACHU`|`1`|\n|`P2P_PEERS_POLKACHU`|`1`|\n|`STATESYNC_POLKACHU`|`1`|\n|`ADDRBOOK_POLKACHU`|`1`|\n\nPolkachu also provide pruned snapshots for Archway. Find the [latest snapshot](https://polkachu.com/tendermint_snapshots/archway) and apply it using the `SNAPSHOT_URL` variable.\n",
+        "deploy": "---\nversion: \"2.0\"\nservices:\n  node:\n    image: ghcr.io/akash-network/cosmos-omnibus:v1.2.19-archway-v9.0.0\n    env:\n      - MONIKER=Cosmos Omnibus Node\n      - P2P_POLKACHU=1\n      - STATESYNC_POLKACHU=1\n      - ADDRBOOK_POLKACHU=1\n    expose:\n      - port: 26657\n        to:\n          - global: true\n      - port: 26656\n        to:\n          - global: true\n    params: # remove for non-persistent storage\n      storage:\n        data:\n          mount: /root/.archway\nprofiles:\n  compute:\n    node:\n      resources:\n        cpu:\n          units: 4\n        memory:\n          size: 32Gi\n        storage:\n          - size: 10Gi\n          - name: data # remove for non-persistent storage\n            size: 400Gi\n            attributes:\n              persistent: true\n              class: beta3\n  placement:\n    dcloud:\n      attributes:\n        host: akash\n      signedBy:\n        anyOf:\n          - akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63\n      pricing:\n        node:\n          denom: uakt\n          amount: 1000\ndeployment:\n  node:\n    dcloud:\n      profile: node\n      count: 1\n",
+        "persistentStorageEnabled": true,
+        "githubUrl": "https://github.com/akash-network/cosmos-omnibus/blob/cached-sha/archway"
+      }
+    ]
+  }
+]
