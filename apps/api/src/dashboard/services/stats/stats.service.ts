@@ -3,6 +3,7 @@ import { Day } from "@akashnetwork/database/dbSchemas/base";
 import { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { differenceInSeconds, minutesToSeconds, sub, subHours } from "date-fns";
+import { cloneDeep } from "lodash";
 import uniqBy from "lodash/uniqBy";
 import { Op, QueryTypes } from "sequelize";
 import { singleton } from "tsyringe";
@@ -319,6 +320,7 @@ export class StatsService {
     };
   }
 
+  @Memoize({ ttlInSeconds: 15 })
   async getNetworkCapacity() {
     const providers = await Provider.findAll({
       where: {
@@ -357,7 +359,7 @@ export class StatsService {
       all.availablePersistentStorage += provider.lastSuccessfulSnapshot.availablePersistentStorage || 0;
 
       return all;
-    }, emptyNetworkCapacity);
+    }, cloneDeep(emptyNetworkCapacity));
 
     stats.activeStorage = stats.activeEphemeralStorage + stats.activePersistentStorage;
     stats.pendingStorage = stats.pendingEphemeralStorage + stats.pendingPersistentStorage;
