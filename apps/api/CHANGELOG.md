@@ -1,5 +1,13 @@
 
 
+## [2.98.1](https://github.com/akash-network/console/compare/console-api/v2.98.0...console-api/v2.98.1) (2025-06-14)
+
+
+### Bug Fixes
+
+* **deployment:** remove auth for public endpoint ([#1484](https://github.com/akash-network/console/issues/1484)) ([f9b625f](https://github.com/akash-network/console/commit/f9b625fd60ba3bc1e433d96767df4a97bc06911f))
+* **provider:** network capacity bug ([#1485](https://github.com/akash-network/console/issues/1485)) ([54479c2](https://github.com/akash-network/console/commit/54479c26769e64a883af8e81222a58b35b33fd97))
+
 ## [2.98.0](https://github.com/akash-network/console/compare/console-api/v2.97.2...console-api/v2.98.0) (2025-06-12)
 
 

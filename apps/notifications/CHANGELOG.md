@@ -1,5 +1,12 @@
 
 
+## [1.8.0](https://github.com/akash-network/console/compare/notifications/v1.7.0...notifications/v1.8.0) (2025-06-14)
+
+
+### Features
+
+* **notifications:** adds db indexes  ([d415932](https://github.com/akash-network/console/commit/d4159328ca90058dadfd152442860d099447b6d1)), closes [#1456](https://github.com/akash-network/console/issues/1456)
+
 ## [1.7.0](https://github.com/akash-network/console/compare/notifications/v1.6.0...notifications/v1.7.0) (2025-06-12)
 
 
