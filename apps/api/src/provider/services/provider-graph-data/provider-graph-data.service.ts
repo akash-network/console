@@ -1,4 +1,5 @@
 import { isSameDay, minutesToSeconds } from "date-fns";
+import { cloneDeep } from "lodash";
 import { QueryTypes } from "sequelize";
 import { singleton } from "tsyringe";
 
@@ -68,7 +69,7 @@ export class ProviderGraphDataService {
     );
 
     if (result.length < 2) {
-      return { ...emptyProviderGraphData };
+      return cloneDeep(emptyProviderGraphData);
     }
 
     const currentValue = result[result.length - 1];

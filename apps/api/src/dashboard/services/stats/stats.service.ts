@@ -3,6 +3,7 @@ import { Day } from "@akashnetwork/database/dbSchemas/base";
 import { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { differenceInSeconds, minutesToSeconds, sub, subHours } from "date-fns";
+import { cloneDeep } from "lodash";
 import uniqBy from "lodash/uniqBy";
 import { Op, QueryTypes } from "sequelize";
 import { singleton } from "tsyringe";
@@ -336,32 +337,29 @@ export class StatsService {
     });
 
     const filteredProviders = uniqBy(providers, provider => provider.hostUri);
-    const stats = filteredProviders.reduce(
-      (all, provider) => {
-        all.activeCPU += provider.lastSuccessfulSnapshot.activeCPU || 0;
-        all.pendingCPU += provider.lastSuccessfulSnapshot.pendingCPU || 0;
-        all.availableCPU += provider.lastSuccessfulSnapshot.availableCPU || 0;
+    const stats = filteredProviders.reduce((all, provider) => {
+      all.activeCPU += provider.lastSuccessfulSnapshot.activeCPU || 0;
+      all.pendingCPU += provider.lastSuccessfulSnapshot.pendingCPU || 0;
+      all.availableCPU += provider.lastSuccessfulSnapshot.availableCPU || 0;
 
-        all.activeGPU += provider.lastSuccessfulSnapshot.activeGPU || 0;
-        all.pendingGPU += provider.lastSuccessfulSnapshot.pendingGPU || 0;
-        all.availableGPU += provider.lastSuccessfulSnapshot.availableGPU || 0;
+      all.activeGPU += provider.lastSuccessfulSnapshot.activeGPU || 0;
+      all.pendingGPU += provider.lastSuccessfulSnapshot.pendingGPU || 0;
+      all.availableGPU += provider.lastSuccessfulSnapshot.availableGPU || 0;
 
-        all.activeMemory += provider.lastSuccessfulSnapshot.activeMemory || 0;
-        all.pendingMemory += provider.lastSuccessfulSnapshot.pendingMemory || 0;
-        all.availableMemory += provider.lastSuccessfulSnapshot.availableMemory || 0;
+      all.activeMemory += provider.lastSuccessfulSnapshot.activeMemory || 0;
+      all.pendingMemory += provider.lastSuccessfulSnapshot.pendingMemory || 0;
+      all.availableMemory += provider.lastSuccessfulSnapshot.availableMemory || 0;
 
-        all.activeEphemeralStorage += provider.lastSuccessfulSnapshot.activeEphemeralStorage || 0;
-        all.pendingEphemeralStorage += provider.lastSuccessfulSnapshot.pendingEphemeralStorage || 0;
-        all.availableEphemeralStorage += provider.lastSuccessfulSnapshot.availableEphemeralStorage || 0;
+      all.activeEphemeralStorage += provider.lastSuccessfulSnapshot.activeEphemeralStorage || 0;
+      all.pendingEphemeralStorage += provider.lastSuccessfulSnapshot.pendingEphemeralStorage || 0;
+      all.availableEphemeralStorage += provider.lastSuccessfulSnapshot.availableEphemeralStorage || 0;
 
-        all.activePersistentStorage += provider.lastSuccessfulSnapshot.activePersistentStorage || 0;
-        all.pendingPersistentStorage += provider.lastSuccessfulSnapshot.pendingPersistentStorage || 0;
-        all.availablePersistentStorage += provider.lastSuccessfulSnapshot.availablePersistentStorage || 0;
+      all.activePersistentStorage += provider.lastSuccessfulSnapshot.activePersistentStorage || 0;
+      all.pendingPersistentStorage += provider.lastSuccessfulSnapshot.pendingPersistentStorage || 0;
+      all.availablePersistentStorage += provider.lastSuccessfulSnapshot.availablePersistentStorage || 0;
 
-        return all;
-      },
-      { ...emptyNetworkCapacity }
-    );
+      return all;
+    }, cloneDeep(emptyNetworkCapacity));
 
     stats.activeStorage = stats.activeEphemeralStorage + stats.activePersistentStorage;
     stats.pendingStorage = stats.pendingEphemeralStorage + stats.pendingPersistentStorage;
