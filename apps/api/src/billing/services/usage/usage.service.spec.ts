@@ -7,6 +7,7 @@ import { UsageService } from "./usage.service";
 
 import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
 import { BillingUsageSeeder } from "@test/seeders/billing-usage.seeder";
+import { stub } from "@test/services/stub";
 
 describe(UsageService.name, () => {
   describe("getHistory", () => {
@@ -215,13 +216,13 @@ describe(UsageService.name, () => {
       })
     ];
 
-    const usageRepository = {
+    const usageRepository = stub<UsageRepository>({
       getHistory: jest.fn()
-    } as unknown as jest.Mocked<UsageRepository>;
+    });
 
-    const leaseRepository = {
+    const leaseRepository = stub<LeaseRepository>({
       countByOwner: jest.fn()
-    } as unknown as jest.Mocked<LeaseRepository>;
+    });
 
     const service = new UsageService(usageRepository, leaseRepository);
 
