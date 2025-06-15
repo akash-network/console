@@ -17,7 +17,7 @@ export class UsageService {
 
   async getHistoryStats(address: string, startDate: string, endDate: string): Promise<UsageHistoryStats> {
     const historyData = await this.usageRepository.getHistory(address, startDate, endDate);
-    const totalLeases = await this.leaseRepository.countByDseqAndOwner(address, address);
+    const totalLeases = await this.leaseRepository.countByOwner(address);
 
     if (historyData.length === 0) {
       return {

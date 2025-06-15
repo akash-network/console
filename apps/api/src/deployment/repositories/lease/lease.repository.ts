@@ -28,9 +28,11 @@ export class LeaseRepository {
     return null;
   }
 
-  async countByDseqAndOwner(dseq: string, owner: string): Promise<number> {
+  async countByOwner(owner: string): Promise<number> {
     return Lease.count({
-      where: { dseq, owner }
+      where: { owner },
+      distinct: true,
+      col: "dseq"
     });
   }
 

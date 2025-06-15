@@ -1,27 +1,16 @@
 import { faker } from "@faker-js/faker";
+import { format } from "date-fns";
 import { mock } from "jest-mock-extended";
 
 import type { UsageService } from "@src/billing/services/usage/usage.service";
 import { UsageController } from "./usage.controller";
 
+import { BillingUsageSeeder } from "@test/seeders/billing-usage.seeder";
+
 describe(UsageController.name, () => {
   it("should call usageService.getHistory() and return result", async () => {
-    const { controller, service } = setup();
-    const address = faker.finance.ethereumAddress();
-    const startDate = faker.date.past().toISOString().split("T")[0];
-    const endDate = faker.date.recent().toISOString().split("T")[0];
-    const output = [
-      {
-        date: "2024-01-15",
-        activeLeases: 3,
-        dailyAktSpent: 12.5,
-        totalAktSpent: 125.75,
-        dailyUsdcSpent: 5.25,
-        totalUsdcSpent: 52.5,
-        dailyUsdSpent: 17.75,
-        totalUsdSpent: 178.25
-      }
-    ];
+    const { address, startDate, endDate, controller, service } = setup();
+    const output = [BillingUsageSeeder.create()];
 
     service.getHistory.mockResolvedValue(output);
 
@@ -32,10 +21,7 @@ describe(UsageController.name, () => {
   });
 
   it("should call usageService.getHistoryStats() and return result", async () => {
-    const { controller, service } = setup();
-    const address = faker.finance.ethereumAddress();
-    const startDate = faker.date.past().toISOString().split("T")[0];
-    const endDate = faker.date.recent().toISOString().split("T")[0];
+    const { address, startDate, endDate, controller, service } = setup();
     const output = {
       totalSpent: 1234.56,
       averagePerDay: 12.34,
@@ -52,10 +38,16 @@ describe(UsageController.name, () => {
   });
 
   function setup() {
+    const address = faker.finance.ethereumAddress();
+    const startDate = format(faker.date.past(), "yyyy-MM-dd");
+    const endDate = format(faker.date.recent(), "yyyy-MM-dd");
     const service = mock<UsageService>();
     const controller = new UsageController(service);
 
     return {
+      address,
+      startDate,
+      endDate,
       controller,
       service
     };

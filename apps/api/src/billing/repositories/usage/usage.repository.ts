@@ -3,15 +3,15 @@ import { singleton } from "tsyringe";
 
 import { chainDb } from "@src/db/dbConnection";
 
-interface BillingUsageRawResult {
-  Date: string;
-  "Active Leases": number;
-  "Daily AKT Spent": number;
-  "Total AKT Spent": number;
-  "Daily USDC Spent": number;
-  "Total USDC Spent": number;
-  "Daily USD Spent": number;
-  "Total USD Spent": number;
+export interface BillingUsageRawResult {
+  date: string;
+  activeLeases: number;
+  dailyAktSpent: number;
+  totalAktSpent: number;
+  dailyUsdcSpent: number;
+  totalUsdcSpent: number;
+  dailyUsdSpent: number;
+  totalUsdSpent: number;
 }
 
 @singleton()
@@ -73,14 +73,14 @@ export class UsageRepository {
         GROUP BY date
       )
       SELECT
-        dr.date::DATE AS "Date",
-        COUNT(dl.owner) AS "Active Leases",
-        COALESCE(dc.daily_akt_spent, 0) as "Daily AKT Spent",
-        COALESCE(SUM(dc.daily_akt_spent) OVER (ORDER BY dr.date), 0) as "Total AKT Spent",
-        COALESCE(dc.daily_usdc_spent, 0) as "Daily USDC Spent",
-        COALESCE(SUM(dc.daily_usdc_spent) OVER (ORDER BY dr.date), 0) as "Total USDC Spent",
-        COALESCE(dc.daily_usd_spent, 0) as "Daily USD Spent",
-        COALESCE(SUM(dc.daily_usd_spent) OVER (ORDER BY dr.date), 0) as "Total USD Spent"
+        dr.date::DATE AS "date",
+        COUNT(dl.owner) AS "activeLeases",
+        COALESCE(dc.daily_akt_spent, 0) as "dailyAktSpent",
+        COALESCE(SUM(dc.daily_akt_spent) OVER (ORDER BY dr.date), 0) as "totalAktSpent",
+        COALESCE(dc.daily_usdc_spent, 0) as "dailyUsdcSpent",
+        COALESCE(SUM(dc.daily_usdc_spent) OVER (ORDER BY dr.date), 0) as "totalUsdcSpent",
+        COALESCE(dc.daily_usd_spent, 0) as "dailyUsdSpent",
+        COALESCE(SUM(dc.daily_usd_spent) OVER (ORDER BY dr.date), 0) as "totalUsdSpent"
       FROM date_range dr
              LEFT JOIN daily_leases dl ON dl.date = dr.date
              LEFT JOIN daily_costs dc ON dc.date = dr.date
@@ -98,14 +98,14 @@ export class UsageRepository {
     });
 
     return results.map(row => ({
-      date: row.Date,
-      activeLeases: row["Active Leases"],
-      dailyAktSpent: parseFloat(String(row["Daily AKT Spent"])),
-      totalAktSpent: parseFloat(String(row["Total AKT Spent"])),
-      dailyUsdcSpent: parseFloat(String(row["Daily USDC Spent"])),
-      totalUsdcSpent: parseFloat(String(row["Total USDC Spent"])),
-      dailyUsdSpent: parseFloat(String(row["Daily USD Spent"])),
-      totalUsdSpent: parseFloat(String(row["Total USD Spent"]))
+      date: row.date,
+      activeLeases: row.activeLeases,
+      dailyAktSpent: parseFloat(String(row.dailyAktSpent)),
+      totalAktSpent: parseFloat(String(row.totalAktSpent)),
+      dailyUsdcSpent: parseFloat(String(row.dailyUsdcSpent)),
+      totalUsdcSpent: parseFloat(String(row.totalUsdcSpent)),
+      dailyUsdSpent: parseFloat(String(row.dailyUsdSpent)),
+      totalUsdSpent: parseFloat(String(row.totalUsdSpent))
     }));
   }
 }

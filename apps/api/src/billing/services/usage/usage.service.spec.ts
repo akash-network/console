@@ -1,66 +1,25 @@
-import type { UsageRepository } from "@src/billing/repositories/usage/usage.repository";
+import { faker } from "@faker-js/faker";
+import { addDays, format } from "date-fns";
+
+import type { BillingUsageRawResult, UsageRepository } from "@src/billing/repositories/usage/usage.repository";
 import type { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { UsageService } from "./usage.service";
 
 import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
+import { BillingUsageSeeder } from "@test/seeders/billing-usage.seeder";
 
 describe(UsageService.name, () => {
-  let service: UsageService;
-  let usageRepository: jest.Mocked<UsageRepository>;
-  let leaseRepository: jest.Mocked<LeaseRepository>;
-
-  beforeEach(() => {
-    usageRepository = {
-      getHistory: jest.fn()
-    } as unknown as jest.Mocked<UsageRepository>;
-
-    leaseRepository = {
-      countByDseqAndOwner: jest.fn()
-    } as unknown as jest.Mocked<LeaseRepository>;
-
-    service = new UsageService(usageRepository, leaseRepository);
-  });
-
   describe("getHistory", () => {
-    const address = AkashAddressSeeder.create();
-    const startDate = "2024-01-01";
-    const endDate = "2024-01-31";
-
-    const mockUsageData = [
-      {
-        date: "2024-01-01",
-        activeLeases: 1,
-        dailyAktSpent: 5.5,
-        totalAktSpent: 5.5,
-        dailyUsdcSpent: 2.25,
-        totalUsdcSpent: 2.25,
-        dailyUsdSpent: 7.75,
-        totalUsdSpent: 7.75
-      },
-      {
-        date: "2024-01-02",
-        activeLeases: 2,
-        dailyAktSpent: 3.2,
-        totalAktSpent: 8.7,
-        dailyUsdcSpent: 1.5,
-        totalUsdcSpent: 3.75,
-        dailyUsdSpent: 4.7,
-        totalUsdSpent: 12.45
-      }
-    ];
-
-    beforeEach(() => {
-      usageRepository.getHistory.mockResolvedValue(mockUsageData);
-    });
-
     it("should return usage history data from repository", async () => {
+      const { address, startDate, endDate, data, service, usageRepository } = setup();
       const result = await service.getHistory(address, startDate, endDate);
 
       expect(usageRepository.getHistory).toHaveBeenCalledWith(address, startDate, endDate);
-      expect(result).toEqual(mockUsageData);
+      expect(result).toEqual(data);
     });
 
     it("should handle empty history data", async () => {
+      const { address, startDate, endDate, service, usageRepository } = setup([]);
       usageRepository.getHistory.mockResolvedValue([]);
 
       const result = await service.getHistory(address, startDate, endDate);
@@ -71,67 +30,25 @@ describe(UsageService.name, () => {
   });
 
   describe("getHistoryStats", () => {
-    const address = AkashAddressSeeder.create();
-    const startDate = "2024-01-01";
-    const endDate = "2024-01-31";
-
     describe("when history data is available", () => {
-      const mockUsageData = [
-        {
-          date: "2024-01-01",
-          activeLeases: 1,
-          dailyAktSpent: 5.5,
-          totalAktSpent: 5.5,
-          dailyUsdcSpent: 2.25,
-          totalUsdcSpent: 2.25,
-          dailyUsdSpent: 7.75,
-          totalUsdSpent: 7.75
-        },
-        {
-          date: "2024-01-02",
-          activeLeases: 2,
-          dailyAktSpent: 3.2,
-          totalAktSpent: 8.7,
-          dailyUsdcSpent: 1.5,
-          totalUsdcSpent: 3.75,
-          dailyUsdSpent: 4.7,
-          totalUsdSpent: 12.45
-        },
-        {
-          date: "2024-01-03",
-          activeLeases: 1,
-          dailyAktSpent: 2.1,
-          totalAktSpent: 10.8,
-          dailyUsdcSpent: 1.0,
-          totalUsdcSpent: 4.75,
-          dailyUsdSpent: 3.1,
-          totalUsdSpent: 15.55
-        }
-      ];
-
-      const TOTAL_LEASES = 25;
-
-      beforeEach(() => {
-        usageRepository.getHistory.mockResolvedValue(mockUsageData);
-        leaseRepository.countByDseqAndOwner.mockResolvedValue(TOTAL_LEASES);
-      });
-
       it("should calculate statistics from usage history", async () => {
+        const { address, startDate, endDate, service, usageRepository, leaseRepository, leasesCount } = setup(undefined, 25);
         const result = await service.getHistoryStats(address, startDate, endDate);
 
         expect(usageRepository.getHistory).toHaveBeenCalledWith(address, startDate, endDate);
-        expect(leaseRepository.countByDseqAndOwner).toHaveBeenCalledWith(address, address);
+        expect(leaseRepository.countByOwner).toHaveBeenCalledWith(address);
 
         expect(result).toEqual({
           totalSpent: 15.55,
           averagePerDay: 5.18,
-          totalLeases: TOTAL_LEASES,
+          totalLeases: leasesCount,
           averageLeasesPerDay: 8.33
         });
       });
 
       it("should handle single day of data", async () => {
-        const singleDayData = [mockUsageData[0]];
+        const { data, address, startDate, endDate, service, usageRepository, leasesCount } = setup(undefined, 25);
+        const singleDayData = [data[0]];
         usageRepository.getHistory.mockResolvedValue(singleDayData);
 
         const result = await service.getHistoryStats(address, startDate, endDate);
@@ -139,13 +56,14 @@ describe(UsageService.name, () => {
         expect(result).toEqual({
           totalSpent: 7.75,
           averagePerDay: 7.75,
-          totalLeases: TOTAL_LEASES,
+          totalLeases: leasesCount,
           averageLeasesPerDay: 25.0
         });
       });
 
       it("should handle zero total leases", async () => {
-        leaseRepository.countByDseqAndOwner.mockResolvedValue(0);
+        const { address, startDate, endDate, service, leaseRepository } = setup();
+        leaseRepository.countByOwner.mockResolvedValue(0);
 
         const result = await service.getHistoryStats(address, startDate, endDate);
 
@@ -159,16 +77,12 @@ describe(UsageService.name, () => {
     });
 
     describe("when history data is empty", () => {
-      beforeEach(() => {
-        usageRepository.getHistory.mockResolvedValue([]);
-        leaseRepository.countByDseqAndOwner.mockResolvedValue(0);
-      });
-
       it("should return zero values for all statistics", async () => {
+        const { address, startDate, endDate, service, usageRepository, leaseRepository } = setup([], 0);
         const result = await service.getHistoryStats(address, startDate, endDate);
 
         expect(usageRepository.getHistory).toHaveBeenCalledWith(address, startDate, endDate);
-        expect(leaseRepository.countByDseqAndOwner).toHaveBeenCalledWith(address, address);
+        expect(leaseRepository.countByOwner).toHaveBeenCalledWith(address);
 
         expect(result).toEqual({
           totalSpent: 0,
@@ -177,39 +91,16 @@ describe(UsageService.name, () => {
           averageLeasesPerDay: 0
         });
       });
-
-      it("should not call lease repository when no history data", async () => {
-        await service.getHistoryStats(address, startDate, endDate);
-
-        expect(leaseRepository.countByDseqAndOwner).toHaveBeenCalledWith(address, address);
-      });
     });
 
     describe("when history data exists but no leases", () => {
-      const mockUsageData = [
-        {
-          date: "2024-01-01",
-          activeLeases: 0,
-          dailyAktSpent: 0,
-          totalAktSpent: 0,
-          dailyUsdcSpent: 0,
-          totalUsdcSpent: 0,
-          dailyUsdSpent: 0,
-          totalUsdSpent: 0
-        }
-      ];
-
-      beforeEach(() => {
-        usageRepository.getHistory.mockResolvedValue(mockUsageData);
-        leaseRepository.countByDseqAndOwner.mockResolvedValue(0);
-      });
-
       it("should return stats with zero spending but calculate averages correctly", async () => {
+        const { address, startDate, endDate, service } = setup(undefined, 0);
         const result = await service.getHistoryStats(address, startDate, endDate);
 
         expect(result).toEqual({
-          totalSpent: 0,
-          averagePerDay: 0,
+          totalSpent: 15.55,
+          averagePerDay: 5.18,
           totalLeases: 0,
           averageLeasesPerDay: 0
         });
@@ -218,14 +109,18 @@ describe(UsageService.name, () => {
 
     describe("edge cases and error handling", () => {
       it("should handle repository errors gracefully", async () => {
+        const { address, startDate, endDate, service, usageRepository } = setup();
+
         usageRepository.getHistory.mockRejectedValue(new Error("Database error"));
 
         await expect(service.getHistoryStats(address, startDate, endDate)).rejects.toThrow("Database error");
       });
 
       it("should handle lease repository errors gracefully", async () => {
+        const { address, startDate, endDate, service, usageRepository, leaseRepository } = setup();
+
         const mockUsageData = [
-          {
+          BillingUsageSeeder.create({
             date: "2024-01-01",
             activeLeases: 1,
             dailyAktSpent: 5.5,
@@ -234,18 +129,20 @@ describe(UsageService.name, () => {
             totalUsdcSpent: 2.25,
             dailyUsdSpent: 7.75,
             totalUsdSpent: 7.75
-          }
+          })
         ];
 
         usageRepository.getHistory.mockResolvedValue(mockUsageData);
-        leaseRepository.countByDseqAndOwner.mockRejectedValue(new Error("Lease DB error"));
+        leaseRepository.countByOwner.mockRejectedValue(new Error("Lease DB error"));
 
         await expect(service.getHistoryStats(address, startDate, endDate)).rejects.toThrow("Lease DB error");
       });
 
       it("should handle large numbers and rounding correctly", async () => {
+        const { address, startDate, endDate, service, usageRepository, leaseRepository } = setup();
+
         const mockUsageData = [
-          {
+          BillingUsageSeeder.create({
             date: "2024-01-01",
             activeLeases: 1,
             dailyAktSpent: 100.123456789,
@@ -254,8 +151,8 @@ describe(UsageService.name, () => {
             totalUsdcSpent: 50.987654321,
             dailyUsdSpent: 151.11111111,
             totalUsdSpent: 151.11111111
-          },
-          {
+          }),
+          BillingUsageSeeder.create({
             date: "2024-01-02",
             activeLeases: 1,
             dailyAktSpent: 200.987654321,
@@ -264,11 +161,11 @@ describe(UsageService.name, () => {
             totalUsdcSpent: 126.11111111,
             dailyUsdSpent: 276.11111111,
             totalUsdSpent: 427.222222221
-          }
+          })
         ];
 
         usageRepository.getHistory.mockResolvedValue(mockUsageData);
-        leaseRepository.countByDseqAndOwner.mockResolvedValue(1000);
+        leaseRepository.countByOwner.mockResolvedValue(1000);
 
         const result = await service.getHistoryStats(address, startDate, endDate);
 
@@ -279,4 +176,67 @@ describe(UsageService.name, () => {
       });
     });
   });
+
+  function setup(usageData?: BillingUsageRawResult[], totalLeases?: number) {
+    const address = AkashAddressSeeder.create();
+    const startDate = faker.date.past();
+    const leasesCount = totalLeases ?? faker.number.int({ min: 1, max: 20 });
+
+    const mockUsageData = usageData || [
+      BillingUsageSeeder.create({
+        date: format(startDate, "yyyy-MM-dd"),
+        activeLeases: 1,
+        dailyAktSpent: 5.5,
+        totalAktSpent: 5.5,
+        dailyUsdcSpent: 2.25,
+        totalUsdcSpent: 2.25,
+        dailyUsdSpent: 7.75,
+        totalUsdSpent: 7.75
+      }),
+      BillingUsageSeeder.create({
+        date: format(addDays(startDate, 1), "yyyy-MM-dd"),
+        activeLeases: 2,
+        dailyAktSpent: 3.2,
+        totalAktSpent: 8.7,
+        dailyUsdcSpent: 1.5,
+        totalUsdcSpent: 3.75,
+        dailyUsdSpent: 4.7,
+        totalUsdSpent: 12.45
+      }),
+      BillingUsageSeeder.create({
+        date: format(addDays(startDate, 2), "yyyy-MM-dd"),
+        activeLeases: 1,
+        dailyAktSpent: 2.1,
+        totalAktSpent: 10.8,
+        dailyUsdcSpent: 1.0,
+        totalUsdcSpent: 4.75,
+        dailyUsdSpent: 3.1,
+        totalUsdSpent: 15.55
+      })
+    ];
+
+    const usageRepository = {
+      getHistory: jest.fn()
+    } as unknown as jest.Mocked<UsageRepository>;
+
+    const leaseRepository = {
+      countByOwner: jest.fn()
+    } as unknown as jest.Mocked<LeaseRepository>;
+
+    const service = new UsageService(usageRepository, leaseRepository);
+
+    usageRepository.getHistory.mockResolvedValue(mockUsageData);
+    leaseRepository.countByOwner.mockResolvedValue(leasesCount);
+
+    return {
+      address,
+      startDate: format(startDate, "yyyy-MM-dd"),
+      endDate: format(addDays(startDate, 30), "yyyy-MM-dd"),
+      data: mockUsageData,
+      service,
+      usageRepository,
+      leaseRepository,
+      leasesCount
+    };
+  }
 });

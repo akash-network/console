@@ -22,13 +22,14 @@ export const GetUsageHistoryQuerySchema = z
       })
   })
   .transform(data => {
-    if (!data.startDate) {
-      const endDate = new Date(data.endDate);
-      endDate.setDate(endDate.getDate() - 30);
-      data.startDate = endDate.toISOString().split("T")[0];
+    if (data.startDate) {
+      return data;
     }
 
-    return data;
+    const endDate = new Date(data.endDate);
+    endDate.setDate(endDate.getDate() - 30);
+
+    return { ...data, startDate: endDate.toISOString().split("T")[0] };
   })
   .refine(
     data => {
