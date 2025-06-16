@@ -1,5 +1,19 @@
 
 
+## [1.10.0](https://github.com/akash-network/console/compare/notifications/v1.9.0...notifications/v1.10.0) (2025-06-16)
+
+
+### Features
+
+* **notifications:** improves alerts list and forms UI ([aa9223c](https://github.com/akash-network/console/commit/aa9223c2ff0bf44cab9833e4d13cae7365173224))
+
+## [1.9.0](https://github.com/akash-network/console/compare/notifications/v1.8.0...notifications/v1.9.0) (2025-06-16)
+
+
+### Features
+
+* adds feature flags support to console-api's notifications proxy ([#1472](https://github.com/akash-network/console/issues/1472)) ([c663c55](https://github.com/akash-network/console/commit/c663c552cb1d03e38fcf13efc2b89086cf7c4585))
+
 ## [1.8.0](https://github.com/akash-network/console/compare/notifications/v1.7.0...notifications/v1.8.0) (2025-06-14)
 
 

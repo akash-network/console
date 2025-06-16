@@ -74,13 +74,15 @@ const App: React.FunctionComponent<Props> = props => {
         <GoogleAnalytics />
 
         <UserProviders>
-          <WalletProvider>
-            <CertificateProvider>
-              <BackgroundTaskProvider>
-                <Component {...pageProps} />
-              </BackgroundTaskProvider>
-            </CertificateProvider>
-          </WalletProvider>
+          <FlagProvider>
+            <WalletProvider>
+              <CertificateProvider>
+                <BackgroundTaskProvider>
+                  <Component {...pageProps} />
+                </BackgroundTaskProvider>
+              </CertificateProvider>
+            </WalletProvider>
+          </FlagProvider>
         </UserProviders>
       </>
     </AppRoot>
@@ -91,40 +93,38 @@ export default App;
 
 function AppRoot(props: Props & { children: React.ReactNode }) {
   return (
-    <FlagProvider>
-      <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
-        <PageHead pageSeo={props.pageProps.seo} />
+    <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
+      <PageHead pageSeo={props.pageProps.seo} />
 
-        <AppCacheProvider {...props}>
-          <CustomIntlProvider>
-            <JotaiProvider store={store}>
-              <QueryClientProvider client={queryClient}>
-                <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
-                  <ColorModeProvider>
-                    <CustomSnackbarProvider>
-                      <TooltipProvider>
-                        <PopupProvider>
-                          <PricingProvider>
-                            <SettingsProvider>
-                              <ServicesProvider>
-                                <CustomChainProvider>
-                                  <ChainParamProvider>
-                                    <LocalNoteProvider>{props.children}</LocalNoteProvider>
-                                  </ChainParamProvider>
-                                </CustomChainProvider>
-                              </ServicesProvider>
-                            </SettingsProvider>
-                          </PricingProvider>
-                        </PopupProvider>
-                      </TooltipProvider>
-                    </CustomSnackbarProvider>
-                  </ColorModeProvider>
-                </ThemeProvider>
-              </QueryClientProvider>
-            </JotaiProvider>
-          </CustomIntlProvider>
-        </AppCacheProvider>
-      </main>
-    </FlagProvider>
+      <AppCacheProvider {...props}>
+        <CustomIntlProvider>
+          <JotaiProvider store={store}>
+            <QueryClientProvider client={queryClient}>
+              <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
+                <ColorModeProvider>
+                  <CustomSnackbarProvider>
+                    <TooltipProvider>
+                      <PopupProvider>
+                        <PricingProvider>
+                          <SettingsProvider>
+                            <ServicesProvider>
+                              <CustomChainProvider>
+                                <ChainParamProvider>
+                                  <LocalNoteProvider>{props.children}</LocalNoteProvider>
+                                </ChainParamProvider>
+                              </CustomChainProvider>
+                            </ServicesProvider>
+                          </SettingsProvider>
+                        </PricingProvider>
+                      </PopupProvider>
+                    </TooltipProvider>
+                  </CustomSnackbarProvider>
+                </ColorModeProvider>
+              </ThemeProvider>
+            </QueryClientProvider>
+          </JotaiProvider>
+        </CustomIntlProvider>
+      </AppCacheProvider>
+    </main>
   );
 }

@@ -51,6 +51,7 @@ export const alertCommonOutputSchema = alertCreateCommonInputSchema.extend({
   id: z.string().uuid(),
   userId: z.string().uuid(),
   enabled: z.boolean(),
+  notificationChannelName: z.string().optional(),
   status: z.string(),
   createdAt: z.date(),
   updatedAt: z.date()

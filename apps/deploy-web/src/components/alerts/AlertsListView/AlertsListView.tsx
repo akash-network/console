@@ -15,20 +15,19 @@ import {
   TableRow
 } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
-import { Chip } from "@mui/material";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { Bin, Check } from "iconoir-react";
-import { capitalize, startCase } from "lodash";
+import { startCase } from "lodash";
 import Link from "next/link";
 
+import { AlertStatus } from "@src/components/alerts/AlertStatus/AlertStatus";
 import { UrlService } from "@src/utils/urlUtils";
 
-type Alert = components["schemas"]["AlertOutputResponse"]["data"];
-type AlertsInput = components["schemas"]["AlertListOutputResponse"]["data"];
+type Alert = components["schemas"]["AlertListOutputResponse"]["data"][0] & { deploymentName: string };
 type AlertsPagination = components["schemas"]["AlertListOutputResponse"]["pagination"];
 
 export type AlertsListViewProps = {
-  data: AlertsInput;
+  data: Alert[];
   pagination: Pick<AlertsPagination, "page" | "limit" | "total" | "totalPages">;
   isLoading: boolean;
   removingIds: Set<Alert["id"]>;
@@ -42,25 +41,16 @@ export const AlertsListView: FC<AlertsListViewProps> = ({ data, pagination, onPa
   const columnHelper = createColumnHelper<Alert>();
 
   const columns = [
-    columnHelper.accessor("name", {
-      header: () => <div>Name</div>,
+    columnHelper.accessor("deploymentName", {
+      header: () => <div className="w-48">Deployment Name</div>,
       cell: info => <div>{info.getValue()}</div>
     }),
-    columnHelper.accessor("type", {
-      header: () => <div>Type</div>,
-      cell: info => <div>{startCase(info.getValue().toLowerCase())}</div>
-    }),
-    columnHelper.accessor("status", {
-      header: () => <div>Status</div>,
-      cell: info => <Chip color={info.getValue() === "OK" ? "success" : "error"} label={capitalize(info.getValue())} />
-    }),
     columnHelper.accessor("params", {
-      header: () => <div className="w-32">DSEQ</div>,
+      header: () => <div className="w-28">DSEQ</div>,
       cell: info => {
         const params = info.getValue();
-
         return params ? (
-          <div className="flex max-w-48 items-center gap-1">
+          <div className="flex max-w-28 items-center gap-1">
             <Link href={UrlService.deploymentDetails(params.dseq, "ALERTS")} className="truncate">
               {params.dseq}
             </Link>
@@ -70,23 +60,33 @@ export const AlertsListView: FC<AlertsListViewProps> = ({ data, pagination, onPa
         );
       }
     }),
+    columnHelper.accessor("type", {
+      header: () => <div className="w-40">Type</div>,
+      cell: info => <div>{startCase(info.getValue().toLowerCase())}</div>
+    }),
+    columnHelper.accessor("status", {
+      header: () => <div className="w-24">Status</div>,
+      cell: info => <AlertStatus status={info.getValue()} />
+    }),
     columnHelper.accessor("enabled", {
-      header: () => <div>Enabled</div>,
+      header: () => <div className="w-20">Enabled</div>,
       cell: info => {
         const enabled = info.getValue();
-
         if (enabled) {
           return <Check data-testid="alert-enabled-checkmark" className="text-sm text-green-600" />;
         }
       }
     }),
+    columnHelper.accessor("notificationChannelName", {
+      header: () => <div className="w-48">Notification Channel</div>,
+      cell: info => <div>{info.getValue()}</div>
+    }),
     columnHelper.display({
       id: "actions",
       cell: info => {
         const isRemoving = removingIds.has(info.row.original.id);
-
         return (
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex w-16 items-center justify-end gap-1">
             <CustomTooltip title="Remove" disabled={isRemoving}>
               <Button
                 variant="ghost"
@@ -98,7 +98,6 @@ export const AlertsListView: FC<AlertsListViewProps> = ({ data, pagination, onPa
                     message: "This action cannot be undone.",
                     testId: "remove-alert-confirmation-popup"
                   });
-
                   if (isConfirmed) {
                     void onRemove(info.row.original.id);
                   }
@@ -166,7 +165,7 @@ export const AlertsListView: FC<AlertsListViewProps> = ({ data, pagination, onPa
           {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map(header => (
-                <TableHead key={header.id} className="w-1/4">
+                <TableHead key={header.id} className="">
                   {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                 </TableHead>
               ))}
