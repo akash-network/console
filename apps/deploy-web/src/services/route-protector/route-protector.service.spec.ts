@@ -56,7 +56,7 @@ describe(RouteProtectorService.name, () => {
     });
 
     it("calls feature flag service with correct parameters", async () => {
-      const { service, context, featureFlagService } = setup({
+      const { service, context, featureFlagService, userId } = setup({
         isFeatureEnabled: true,
         hasUserSession: true
       });
@@ -64,7 +64,7 @@ describe(RouteProtectorService.name, () => {
       const featureName = faker.word.sample();
       await service.showToRegisteredUserIfEnabled(featureName)(context);
 
-      expect(featureFlagService.isEnabledForCtx).toHaveBeenCalledWith(featureName, context);
+      expect(featureFlagService.isEnabledForCtx).toHaveBeenCalledWith(featureName, context, { userId });
     });
 
     it("calls getSession with request and response objects", async () => {
@@ -83,11 +83,13 @@ describe(RouteProtectorService.name, () => {
   function setup(options: { isFeatureEnabled: boolean; hasUserSession: boolean }) {
     const featureFlagService = mock<FeatureFlagService>();
     featureFlagService.isEnabledForCtx.mockResolvedValue(options.isFeatureEnabled);
+    const userId = faker.string.uuid();
 
     const getSession = jest.fn().mockResolvedValue(
       options.hasUserSession
         ? {
             user: {
+              id: userId,
               sub: faker.string.uuid(),
               email: faker.internet.email(),
               name: faker.person.fullName(),
@@ -113,6 +115,6 @@ describe(RouteProtectorService.name, () => {
       }
     } as unknown as GetServerSidePropsContext;
 
-    return { service, featureFlagService, getSession, context };
+    return { service, featureFlagService, getSession, context, userId };
   }
 });
