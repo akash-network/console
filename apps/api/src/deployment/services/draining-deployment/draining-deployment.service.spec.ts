@@ -208,7 +208,7 @@ describe(DrainingDeploymentService.name, () => {
     });
 
     it("should return 0 if user wallet not found", async () => {
-      userWalletRepository.findOneByUserId.mockResolvedValue(null);
+      userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
 
       const amount = await service.calculateTopUpAmountForDseqAndUserId(dseq, userId);
 

@@ -64,7 +64,8 @@ export class DeploymentSettingRepository extends BaseRepository<Table, Deploymen
       lastId = last(items)?.id;
 
       if (items.length) {
-        yield items;
+        // BUGALERT: walletId may be null because of LEFT JOIN. should be INNER JOIN?
+        yield items as AutoTopUpDeployment[];
       }
     } while (lastId);
   }

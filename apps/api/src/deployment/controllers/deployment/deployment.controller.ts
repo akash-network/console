@@ -38,7 +38,7 @@ export class DeploymentController {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(userWallet.address, dseq);
+    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(userWallet.address!, dseq);
 
     return {
       data: deployment
@@ -102,7 +102,7 @@ export class DeploymentController {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    const { deployments, total, hasMore } = await this.deploymentReaderService.list(userWallet.address, {
+    const { deployments, total, hasMore } = await this.deploymentReaderService.list(userWallet.address!, {
       skip,
       limit
     });
@@ -130,6 +130,9 @@ export class DeploymentController {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
     assert(userWallet, 404, "UserWallet Not Found");
 
-    return await this.deploymentReaderService.getDeploymentByOwnerAndDseq(owner, dseq);
+    const deployment = await this.deploymentReaderService.getDeploymentByOwnerAndDseq(owner, dseq);
+    assert(deployment, 404, "Deployment Not Found");
+
+    return deployment;
   }
 }

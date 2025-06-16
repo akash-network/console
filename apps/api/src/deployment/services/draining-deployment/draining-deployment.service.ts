@@ -72,7 +72,7 @@ export class DrainingDeploymentService {
       return 0;
     }
 
-    const deploymentSetting = await this.leaseRepository.findOneByDseqAndOwner(dseq, userWallet.address);
+    const deploymentSetting = await this.leaseRepository.findOneByDseqAndOwner(dseq, userWallet.address!);
 
     if (!deploymentSetting) {
       return 0;

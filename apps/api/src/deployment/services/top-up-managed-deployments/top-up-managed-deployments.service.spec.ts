@@ -5,6 +5,7 @@ import { faker } from "@faker-js/faker";
 
 import type { Wallet } from "@src/billing/services";
 import { RpcMessageService } from "@src/billing/services";
+import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
@@ -67,7 +68,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
     service = new TopUpManagedDeploymentsService(
       managedSignerService,
-      billingConfig,
+      billingConfig as unknown as BillingConfigService,
       drainingDeploymentService,
       managedMasterWallet,
       rpcMessageService,

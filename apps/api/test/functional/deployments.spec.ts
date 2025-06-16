@@ -60,8 +60,8 @@ describe("Deployments API", () => {
       );
     });
 
-    jest.spyOn(apiKeyAuthService, "getAndValidateApiKeyFromHeader").mockImplementation(async (key: string) => {
-      return Promise.resolve(knownApiKeys[key]);
+    jest.spyOn(apiKeyAuthService, "getAndValidateApiKeyFromHeader").mockImplementation(async (key: string | undefined) => {
+      return knownApiKeys[key!];
     });
 
     jest.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(currentHeight);
@@ -80,6 +80,7 @@ describe("Deployments API", () => {
     jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValue({
       code: 200,
       transactionHash: "fake-transaction-hash",
+      hash: "fake-transaction-hash",
       rawLog: "fake-raw-log"
     });
 
@@ -116,7 +117,7 @@ describe("Deployments API", () => {
     const defaultDeploymentInfo =
       deploymentInfo ||
       DeploymentInfoSeeder.create({
-        owner: address,
+        owner: address!,
         dseq
       });
 
@@ -151,7 +152,7 @@ describe("Deployments API", () => {
       });
 
     const leases = LeaseApiResponseSeeder.createMany(2, {
-      owner: address,
+      owner: address!,
       dseq,
       state: "active"
     });
@@ -181,7 +182,7 @@ describe("Deployments API", () => {
     for (let i = 0; i < count; i++) {
       const dseq = faker.string.numeric();
       const deploymentInfo = DeploymentInfoSeeder.create({
-        owner: address,
+        owner: address!,
         dseq,
         state
       });
@@ -191,7 +192,7 @@ describe("Deployments API", () => {
       nock(apiNodeUrl).get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`).reply(200, deploymentInfo);
 
       const leases = LeaseApiResponseSeeder.createMany(2, {
-        owner: address,
+        owner: address!,
         dseq,
         state: "active"
       });
@@ -417,6 +418,7 @@ describe("Deployments API", () => {
         signTx: {
           code: 200,
           transactionHash: expect.any(String),
+          hash: expect.any(String),
           rawLog: expect.any(String)
         }
       });
@@ -503,6 +505,7 @@ describe("Deployments API", () => {
       const mockTxResult = {
         code: 0,
         hash: "test-hash",
+        transactionHash: "test-hash",
         rawLog: "success"
       };
 
@@ -565,6 +568,7 @@ describe("Deployments API", () => {
       const mockTxResult = {
         code: 0,
         hash: "test-hash",
+        transactionHash: "test-hash",
         rawLog: "success"
       };
 
@@ -656,6 +660,7 @@ describe("Deployments API", () => {
       const mockTxResult = {
         code: 0,
         hash: "test-hash",
+        transactionHash: "test-hash",
         rawLog: "success"
       };
 

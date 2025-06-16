@@ -19,7 +19,7 @@ export class LeaseService {
   public async createLeasesAndSendManifest(wallet: UserWalletOutput, input: CreateLeaseRequest): Promise<GetDeploymentResponse["data"]> {
     const leaseMessages = input.leases.map(lease =>
       this.rpcMessageService.getCreateLeaseMsg({
-        owner: wallet.address,
+        owner: wallet.address!,
         dseq: lease.dseq,
         gseq: lease.gseq,
         oseq: lease.oseq,
@@ -36,7 +36,7 @@ export class LeaseService {
       });
     }
 
-    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, input.leases[0].dseq, {
+    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address!, input.leases[0].dseq, {
       certificate: { certPem: input.certificate.certPem, keyPem: input.certificate.keyPem }
     });
   }

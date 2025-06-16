@@ -1,4 +1,5 @@
 import { EncodeObject, Registry } from "@cosmjs/proto-signing";
+import { IndexedTx } from "@cosmjs/stargate";
 import assert from "http-assert";
 import pick from "lodash/pick";
 import { singleton } from "tsyringe";
@@ -50,7 +51,15 @@ export class ManagedSignerService {
     return this.executeDecodedTxByUserId(userId, this.decodeMessages(messages));
   }
 
-  async executeDecodedTxByUserId(userId: UserWalletOutput["userId"], messages: EncodeObject[]) {
+  async executeDecodedTxByUserId(
+    userId: UserWalletOutput["userId"],
+    messages: EncodeObject[]
+  ): Promise<{
+    code: number;
+    hash: string;
+    transactionHash: string;
+    rawLog: string;
+  }> {
     assert(userId, 404, "User Not Found");
 
     const userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "sign").findOneByUserId(userId);
@@ -72,7 +81,7 @@ export class ManagedSignerService {
 
       await this.balancesService.refreshUserWalletLimits(userWallet);
 
-      const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]);
+      const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]) as Pick<IndexedTx, "code" | "hash" | "rawLog">;
 
       if (result.hash) {
         return {
@@ -81,7 +90,7 @@ export class ManagedSignerService {
         };
       }
 
-      return result;
+      return result as Pick<IndexedTx, "code" | "hash" | "rawLog"> & { transactionHash: string };
     } catch (error: any) {
       throw await this.chainErrorService.toAppError(error, messages);
     }

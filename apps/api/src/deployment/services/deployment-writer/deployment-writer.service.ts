@@ -48,7 +48,7 @@ export class DeploymentWriterService {
     const manifest = this.sdlService.getManifest(sdl, "beta3", true) as string;
 
     const message = this.rpcMessageService.getCreateDeploymentMsg({
-      owner: wallet.address,
+      owner: wallet.address!,
       dseq,
       groups,
       denom: deploymentGrantDenom,
@@ -66,20 +66,20 @@ export class DeploymentWriterService {
   }
 
   public async close(wallet: UserWalletOutput, dseq: string): Promise<{ success: boolean }> {
-    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq);
-    const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.deployment_id.dseq);
+    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet.address!, dseq);
+    const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address!, deployment.deployment.deployment_id.dseq);
     await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
 
     return { success: true };
   }
 
   public async deposit(wallet: UserWalletOutput, dseq: string, amount: number): Promise<GetDeploymentResponse["data"]> {
-    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq);
+    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet.address!, dseq);
     const deploymentGrantDenom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
     const depositor = await this.masterWallet.getFirstAddress();
 
     const message = this.rpcMessageService.getDepositDeploymentMsg({
-      owner: wallet.address,
+      owner: wallet.address!,
       dseq: deployment.deployment.deployment_id.dseq,
       amount: denomToUdenom(amount),
       denom: deploymentGrantDenom,
@@ -88,7 +88,7 @@ export class DeploymentWriterService {
 
     await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
 
-    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq);
+    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address!, dseq);
   }
 
   public async update(wallet: UserWalletOutput, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
@@ -96,14 +96,14 @@ export class DeploymentWriterService {
 
     assert(this.sdlService.validateSdl(sdl), 400, "Invalid SDL");
 
-    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq);
+    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(wallet.address!, dseq);
     const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");
     const manifest = this.sdlService.getManifest(sdl, "beta3", true) as string;
 
     await this.ensureDeploymentIsUpToDate(wallet, dseq, manifestVersion, deployment);
     await this.sendManifestToProviders(dseq, manifest, certificate as { certPem: string; keyPem: string }, deployment.leases);
 
-    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address, dseq, {
+    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address!, dseq, {
       certificate: { certPem: certificate.certPem, keyPem: certificate.keyPem }
     });
   }
@@ -116,7 +116,7 @@ export class DeploymentWriterService {
   ): Promise<void> {
     if (Buffer.from(manifestVersion).toString("base64") !== deployment.deployment.version) {
       const message = this.rpcMessageService.getUpdateDeploymentMsg({
-        owner: wallet.address,
+        owner: wallet.address!,
         dseq,
         version: manifestVersion
       });

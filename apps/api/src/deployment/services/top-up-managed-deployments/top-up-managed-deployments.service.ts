@@ -105,7 +105,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
             input: messageInput,
             deployment
           };
-        } catch (error) {
+        } catch (error: any) {
           this.logger.error({
             event: "MESSAGE_PREPARATION_ERROR",
             deployment,
@@ -126,7 +126,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
       })
     );
 
-    return messageInputs.filter(Boolean);
+    return messageInputs.filter(x => !!x);
   }
 
   private async topUpForOwner(ownerInputs: CollectedMessage[], options: TopUpDeploymentsOptions) {
@@ -155,7 +155,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
         items: logItems,
         dryRun: options.dryRun
       });
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error({
         event: "TOP_UP_DEPLOYMENTS_ERROR",
         owner,

@@ -25,13 +25,13 @@ export class CachedBalanceService {
   constructor(private readonly balancesService: BalancesService) {}
 
   public async get(address: string): Promise<CachedBalance> {
-    if (this.balanceCache.has(address)) {
-      return this.balanceCache.get(address);
+    let cachedBalance = this.balanceCache.get(address);
+    if (!cachedBalance) {
+      const limits = await this.balancesService.getFreshLimits({ address });
+      cachedBalance = new CachedBalance(limits.deployment);
+      this.balanceCache.set(address, cachedBalance);
     }
 
-    const limits = await this.balancesService.getFreshLimits({ address });
-    this.balanceCache.set(address, new CachedBalance(limits.deployment));
-
-    return this.balanceCache.get(address);
+    return cachedBalance;
   }
 }
