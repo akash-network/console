@@ -1,5 +1,12 @@
 
 
+## [0.27.0](https://github.com/akash-network/console/compare/stats-web/v0.26.0...stats-web/v0.27.0) (2025-06-16)
+
+
+### Features
+
+* adds feature flags support to console-api's notifications proxy ([#1472](https://github.com/akash-network/console/issues/1472)) ([c663c55](https://github.com/akash-network/console/commit/c663c552cb1d03e38fcf13efc2b89086cf7c4585))
+
 ## [0.26.0](https://github.com/akash-network/console/compare/stats-web/v0.25.3...stats-web/v0.26.0) (2025-06-11)
 
 

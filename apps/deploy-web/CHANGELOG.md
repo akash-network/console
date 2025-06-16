@@ -1,5 +1,12 @@
 
 
+## [2.83.0](https://github.com/akash-network/console/compare/console-web/v2.82.2...console-web/v2.83.0) (2025-06-16)
+
+
+### Features
+
+* adds feature flags support to console-api's notifications proxy ([#1472](https://github.com/akash-network/console/issues/1472)) ([c663c55](https://github.com/akash-network/console/commit/c663c552cb1d03e38fcf13efc2b89086cf7c4585))
+
 ## [2.82.2](https://github.com/akash-network/console/compare/console-web/v2.82.1...console-web/v2.82.2) (2025-06-12)
 
 
