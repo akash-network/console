@@ -17,6 +17,8 @@ import packageJson from "../package.json";
 import { apiKeysRouter } from "./auth/routes/api-keys/api-keys.router";
 import { bidsRouter } from "./bid/routes/bids/bids.router";
 import { certificateRouter } from "./certificate/routes/certificate.router";
+import { FeatureFlagsService } from "./core/services/feature-flags/feature-flags.service";
+import { shutdownServer } from "./core/services/shutdown-server/shutdown-server";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
@@ -173,11 +175,17 @@ export async function initApp() {
     await initDb();
     startScheduler();
 
+    await container.resolve(FeatureFlagsService).initialize();
+
     appLogger.info({ event: "SERVER_STARTING", url: `http://localhost:${PORT}` });
-    serve({
+    const server = serve({
       fetch: appHono.fetch,
-      port: typeof PORT === "string" ? parseInt(PORT) : PORT
+      port: typeof PORT === "string" ? parseInt(PORT, 10) : PORT
     });
+    const shutdown = () => shutdownServer(server, appLogger, container.dispose.bind(container));
+
+    process.on("SIGTERM", shutdown);
+    process.on("SIGINT", shutdown);
   } catch (error) {
     appLogger.error({ event: "APP_INIT_ERROR", error });
   }

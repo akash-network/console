@@ -99,7 +99,8 @@
     "sql-formatter": "^15.3.2",
     "stripe": "^16.8.0",
     "ts-results": "^3.3.0",
-    "tsyringe": "^4.8.0",
+    "tsyringe": "^4.10.0",
+    "unleash-client": "^6.6.0",
     "uuid": "^9.0.1",
     "zod": "3.*"
   },
