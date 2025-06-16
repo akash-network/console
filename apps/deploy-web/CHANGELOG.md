@@ -1,5 +1,12 @@
 
 
+## [2.85.0](https://github.com/akash-network/console/compare/console-web/v2.84.0...console-web/v2.85.0) (2025-06-16)
+
+
+### Features
+
+* **notifications:** improves alerts list and forms UI ([aa9223c](https://github.com/akash-network/console/commit/aa9223c2ff0bf44cab9833e4d13cae7365173224))
+
 ## [2.84.0](https://github.com/akash-network/console/compare/console-web/v2.83.0...console-web/v2.84.0) (2025-06-16)
 
 
