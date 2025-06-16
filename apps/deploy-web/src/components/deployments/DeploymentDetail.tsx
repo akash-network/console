@@ -41,14 +41,14 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("LEASES");
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
-  const { address, isWalletLoaded } = useWallet();
+  const { address, isWalletLoaded, isManaged } = useWallet();
   const { isSettingsInit } = useSettings();
   const [leaseRefs, setLeaseRefs] = useState<Array<any>>([]);
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
   const isRemoteDeploy: boolean = !!editedManifest && !!isCiCdImageInYaml(editedManifest);
   const repo: string | null = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
   const user = useUser();
-  const isAlertsEnabled = useFlag("alerts") && user?.userId;
+  const isAlertsEnabled = useFlag("alerts") && user?.userId && isManaged;
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = useDeploymentDetail(address, dseq);
   const {
