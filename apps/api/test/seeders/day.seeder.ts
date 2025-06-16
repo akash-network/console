@@ -17,11 +17,6 @@ export class DaySeeder {
 
   static async createInDatabase(overrides: Partial<CreationAttributes<Day>> = {}): Promise<Day> {
     const seed = DaySeeder.create(overrides);
-    try {
-      return await Day.create(seed);
-    } catch (error) {
-      console.error("Error creating Day in database:", error);
-      throw error;
-    }
+    return await Day.create(seed);
   }
 }

@@ -1,10 +1,10 @@
 import { z } from "@hono/zod-openapi";
 
-import { isValidBech32Address } from "@src/utils/addresses";
+import { AkashAddressSchema } from "@src/utils/schema";
 
 export const GetUsageHistoryQuerySchema = z
   .object({
-    address: z.string().min(1).openapi({
+    address: AkashAddressSchema.openapi({
       description: "The wallet address to get billing and usage data for",
       example: "akash18andxgtd6r08zzfpcdqg9pdr6smks7gv76tyt6"
     }),
@@ -17,7 +17,7 @@ export const GetUsageHistoryQuerySchema = z
       .date()
       .default(() => new Date().toISOString().split("T")[0])
       .openapi({
-        description: "End date (YYYY-MM-DD). Defaults to today",
+        description: "End date (YYYY-MM-DD). Defaults to today by UTC 23:59:59",
         example: "2024-01-31"
       })
   })
@@ -42,14 +42,6 @@ export const GetUsageHistoryQuerySchema = z
     },
     {
       message: "Date range cannot exceed 365 days and startDate must be before endDate"
-    }
-  )
-  .refine(
-    data => {
-      return isValidBech32Address(data.address, "akash");
-    },
-    {
-      message: "Invalid Akash address format"
     }
   );
 
