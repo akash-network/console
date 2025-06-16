@@ -46,15 +46,15 @@ export class DashboardDataController {
 
   async getDashboardData(): Promise<DashboardDataResponse> {
     const [{ now, compare }, chainStatsQuery, networkCapacity, networkCapacityStats, latestBlocks, latestTransactions] = await Promise.all([
-      runOrLog(this.statsService.getDashboardData, cloneDeep(emptyDashboardData)),
-      runOrLog(this.statsService.getChainStats, {
+      runOrLog(() => this.statsService.getDashboardData(), cloneDeep(emptyDashboardData)),
+      runOrLog(() => this.statsService.getChainStats(), {
         bondedTokens: 0,
         totalSupply: 0,
         communityPool: 0,
         inflation: 0,
         stakingAPR: undefined
       }),
-      runOrLog(this.statsService.getNetworkCapacity, cloneDeep(emptyNetworkCapacity)),
+      runOrLog(() => this.statsService.getNetworkCapacity(), cloneDeep(emptyNetworkCapacity)),
       runOrLog(() => this.providerGraphDataService.getProviderGraphData("count"), cloneDeep(emptyProviderGraphData)),
       runOrLog(() => this.akashBlockService.getBlocks(5), []),
       runOrLog(() => this.transactionService.getTransactions(5), [])
