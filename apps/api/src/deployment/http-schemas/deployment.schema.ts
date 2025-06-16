@@ -178,12 +178,12 @@ export const ListWithResourcesResponseSchema = z.object({
         z.object({
           id: z.string(),
           owner: z.string(),
-          provider: z.object({
-            address: z.string(),
-            hostUri: z.string(),
-            isDeleted: z.boolean(),
-            attributes: z.array(z.object({ key: z.string(), value: z.string() }))
-          }),
+          provider: z
+            .object({
+              address: z.string(),
+              hostUri: z.string()
+            })
+            .optional(),
           dseq: z.string(),
           gseq: z.number(),
           oseq: z.number(),
@@ -218,17 +218,19 @@ export const GetDeploymentByOwnerDseqResponseSchema = z.object({
     z.object({
       gseq: z.number(),
       oseq: z.number(),
-      provider: z.object({
-        address: z.string(),
-        hostUri: z.string(),
-        isDeleted: z.boolean(),
-        attributes: z.array(
-          z.object({
-            key: z.string(),
-            value: z.string()
-          })
-        )
-      }),
+      provider: z
+        .object({
+          address: z.string(),
+          hostUri: z.string(),
+          isDeleted: z.boolean(),
+          attributes: z.array(
+            z.object({
+              key: z.string(),
+              value: z.string()
+            })
+          )
+        })
+        .nullable(),
       status: z.string(),
       monthlyCostUDenom: z.number(),
       cpuUnits: z.number(),
@@ -239,7 +241,7 @@ export const GetDeploymentByOwnerDseqResponseSchema = z.object({
   ),
   events: z.array(
     z.object({
-      txHadh: z.string(),
+      txHash: z.string(),
       date: z.date(),
       type: z.string()
     })

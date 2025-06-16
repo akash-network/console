@@ -61,8 +61,8 @@ export default new OpenAPIHono().openapi(route, async c => {
   const model = c.req.query("model");
   const memory_size = c.req.query("memory_size");
 
-  let provider_address: string | null = null;
-  let provider_hosturi: string | null = null;
+  let provider_address: string | undefined = undefined;
+  let provider_hosturi: string | undefined = undefined;
 
   if (provider) {
     if (isValidBech32Address(provider)) {
@@ -93,9 +93,9 @@ export async function getGpuModelsAvailability(vendor?: string, model?: string, 
   }>(
     `
       WITH snapshots AS (
-        SELECT DISTINCT ON("hostUri") 
+        SELECT DISTINCT ON("hostUri")
         ps.id AS id,
-        "hostUri", 
+        "hostUri",
         p."owner"
         FROM provider p
         INNER JOIN "providerSnapshot" ps ON ps.id=p."lastSuccessfulSnapshotId"
@@ -105,7 +105,7 @@ export async function getGpuModelsAvailability(vendor?: string, model?: string, 
       FROM snapshots s
       INNER JOIN "providerSnapshotNode" n ON n."snapshotId"=s.id AND n."gpuAllocatable" > 0
       LEFT JOIN "providerSnapshotNodeGPU" gpu ON gpu."snapshotNodeId" = n.id
-      WHERE 
+      WHERE
         (:vendor IS NULL OR gpu.vendor = :vendor)
         AND (:model IS NULL OR gpu.name = :model)
         AND (:memory_size IS NULL OR gpu."memorySize" = :memory_size)

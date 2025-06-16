@@ -29,6 +29,8 @@
     "src/dashboard/**/*.ts",
     "src/billing/**/*.ts",
     "src/user/**/*.ts",
-    "src/provider/**/*.ts"
+    "src/provider/**/*.ts",
+    "src/certificate/**/*.ts",
+    "src/deployment/**/*.ts"
   ]
 }
