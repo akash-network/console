@@ -15,7 +15,7 @@ export class AuthService {
 
   get currentUser(): UserOutput {
     // BUGALERT: https://github.com/akash-network/console/issues/1447
-    return this.executionContextService.get("CURRENT_USER");
+    return this.executionContextService.get("CURRENT_USER")!;
   }
 
   set ability(ability: Ability) {
@@ -23,7 +23,7 @@ export class AuthService {
   }
 
   get ability(): Ability {
-    return this.executionContextService.get("ABILITY");
+    return this.executionContextService.get("ABILITY")!;
   }
 
   get isAuthenticated(): boolean {

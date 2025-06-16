@@ -18,13 +18,15 @@ describe(FeatureFlagService.name, () => {
     it("evaluates flag and returns true", async () => {
       const { service, unleash, flagsClient } = setup();
       flagsClient.isEnabled.mockReturnValue(true);
+      const flag = "feature-x";
+      const context = { sessionId: "abc123" };
 
-      const result = await service.getFlag("feature-x", "abc123");
+      const result = await service.getFlag(flag, context);
 
       expect(unleash.getDefinitions).toHaveBeenCalled();
       expect(unleash.evaluateFlags).toHaveBeenCalled();
       expect(unleash.flagsClient).toHaveBeenCalled();
-      expect(flagsClient.isEnabled).toHaveBeenCalledWith("feature-x");
+      expect(flagsClient.isEnabled).toHaveBeenCalledWith(flag);
       expect(result).toBe(true);
     });
   });
@@ -58,7 +60,7 @@ describe(FeatureFlagService.name, () => {
       const result = await service.isEnabledForCtx("my-flag", ctx);
 
       expect(service.extractSessionId).toHaveBeenCalledWith(ctx);
-      expect(getFlagSpy).toHaveBeenCalledWith("my-flag", "abc123");
+      expect(getFlagSpy).toHaveBeenCalledWith("my-flag", { sessionId: "abc123" });
       expect(result).toBe(true);
     });
   });

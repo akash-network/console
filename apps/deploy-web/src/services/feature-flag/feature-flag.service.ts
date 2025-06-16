@@ -1,4 +1,5 @@
 import type * as unleashModule from "@unleash/nextjs";
+import type { Context } from "@unleash/nextjs";
 import type { GetServerSideProps, GetServerSidePropsContext } from "next";
 
 import type { ServerEnvConfig } from "@src/config/env-config.schema";
@@ -11,14 +12,14 @@ export class FeatureFlagService {
     private readonly config: ServerEnvConfig
   ) {}
 
-  async getFlag(name: string, sessionId?: string): Promise<boolean> {
+  async getFlag(name: string, context?: Context): Promise<boolean> {
     if (this.config.NEXT_PUBLIC_UNLEASH_ENABLE_ALL) return true;
 
     const definitions = await this.unleash.getDefinitions({
       fetchOptions: { next: { revalidate: 15 } }
     });
 
-    const { toggles } = this.unleash.evaluateFlags(definitions, { sessionId });
+    const { toggles } = this.unleash.evaluateFlags(definitions, context);
     const flags = this.unleash.flagsClient(toggles);
 
     return flags.isEnabled(name);
@@ -30,12 +31,12 @@ export class FeatureFlagService {
     return unleashCookie?.replace(this.UNLEASH_COOKIE_KEY, "");
   }
 
-  async isEnabledForCtx(name: string, ctx: GetServerSidePropsContext) {
+  async isEnabledForCtx(name: string, ctx: GetServerSidePropsContext, extraContext: Context = {}): Promise<boolean> {
     if (this.config.NEXT_PUBLIC_UNLEASH_ENABLE_ALL) return true;
 
     const sessionId = this.extractSessionId(ctx);
 
-    return await this.getFlag(name, sessionId);
+    return await this.getFlag(name, { sessionId, ...extraContext });
   }
 
   showIfEnabled(name: string): GetServerSideProps {

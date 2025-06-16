@@ -1,5 +1,12 @@
 
 
+## [1.8.0](https://github.com/akash-network/console/compare/provider-proxy/v1.7.7...provider-proxy/v1.8.0) (2025-06-16)
+
+
+### Features
+
+* adds feature flags support to console-api's notifications proxy ([#1472](https://github.com/akash-network/console/issues/1472)) ([c663c55](https://github.com/akash-network/console/commit/c663c552cb1d03e38fcf13efc2b89086cf7c4585))
+
 ## [1.7.7](https://github.com/akash-network/console/compare/provider-proxy/v1.7.6...provider-proxy/v1.7.7) (2025-06-09)
 
 

@@ -29,15 +29,15 @@ const NOT_FOUND: GetServerSidePropsResult<Props> = {
 export const getServerSideProps: GetServerSideProps<Props> = getValidatedServerSideProps(
   contextSchema,
   async (context: ServerServicesContext & ValidatedServerSideContext<typeof contextSchema>) => {
-    const isEnabled = await featureFlagService.isEnabledForCtx("alerts", context);
-
-    if (!isEnabled) {
-      return NOT_FOUND;
-    }
-
     const session = await getSession(context.req, context.res);
 
     if (!session?.user) {
+      return NOT_FOUND;
+    }
+
+    const isEnabled = await featureFlagService.isEnabledForCtx("alerts", context, { userId: session?.user?.id });
+
+    if (!isEnabled) {
       return NOT_FOUND;
     }
 

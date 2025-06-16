@@ -1,5 +1,25 @@
 
 
+## [2.99.0](https://github.com/akash-network/console/compare/console-api/v2.98.1...console-api/v2.99.0) (2025-06-16)
+
+
+### Features
+
+* adds feature flags support to console-api's notifications proxy ([#1472](https://github.com/akash-network/console/issues/1472)) ([c663c55](https://github.com/akash-network/console/commit/c663c552cb1d03e38fcf13efc2b89086cf7c4585))
+
+
+### Bug Fixes
+
+* generation of dashboard data result ([#1491](https://github.com/akash-network/console/issues/1491)) ([34ce28e](https://github.com/akash-network/console/commit/34ce28e094c7f0ca4915c530a1693afc236060ac))
+
+## [2.98.1](https://github.com/akash-network/console/compare/console-api/v2.98.0...console-api/v2.98.1) (2025-06-14)
+
+
+### Bug Fixes
+
+* **deployment:** remove auth for public endpoint ([#1484](https://github.com/akash-network/console/issues/1484)) ([f9b625f](https://github.com/akash-network/console/commit/f9b625fd60ba3bc1e433d96767df4a97bc06911f))
+* **provider:** network capacity bug ([#1485](https://github.com/akash-network/console/issues/1485)) ([54479c2](https://github.com/akash-network/console/commit/54479c26769e64a883af8e81222a58b35b33fd97))
+
 ## [2.98.0](https://github.com/akash-network/console/compare/console-api/v2.97.2...console-api/v2.98.0) (2025-06-12)
 
 

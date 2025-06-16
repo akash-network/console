@@ -1,5 +1,19 @@
 
 
+## [2.84.0](https://github.com/akash-network/console/compare/console-web/v2.83.0...console-web/v2.84.0) (2025-06-16)
+
+
+### Features
+
+* **auth:** uses user aware feature flagging in console web ([19ae4e1](https://github.com/akash-network/console/commit/19ae4e1e015839621fcb9d5ba7ade2a1ad64bc7a))
+
+## [2.83.0](https://github.com/akash-network/console/compare/console-web/v2.82.2...console-web/v2.83.0) (2025-06-16)
+
+
+### Features
+
+* adds feature flags support to console-api's notifications proxy ([#1472](https://github.com/akash-network/console/issues/1472)) ([c663c55](https://github.com/akash-network/console/commit/c663c552cb1d03e38fcf13efc2b89086cf7c4585))
+
 ## [2.82.2](https://github.com/akash-network/console/compare/console-web/v2.82.1...console-web/v2.82.2) (2025-06-12)
 
 
