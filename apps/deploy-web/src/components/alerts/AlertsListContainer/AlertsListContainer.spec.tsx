@@ -3,11 +3,13 @@ import "@testing-library/jest-dom";
 import React from "react";
 import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
+import { faker } from "@faker-js/faker";
 import type { RequestFnResponse } from "@openapi-qraft/react/src/lib/requestFn";
 import { QueryClientProvider } from "@tanstack/react-query";
 
 import { AlertsListContainer } from "@src/components/alerts/AlertsListContainer/AlertsListContainer";
 import type { AlertsListViewProps } from "@src/components/alerts/AlertsListView/AlertsListView";
+import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 
@@ -69,7 +71,7 @@ describe(AlertsListContainer.name, () => {
 
   async function setup() {
     const mockData = {
-      data: Array.from({ length: 11 }, buildAlert),
+      data: Array.from({ length: 11 }, () => buildAlert({ type: faker.helpers.arrayElement(["DEPLOYMENT_BALANCE", "CHAIN_MESSAGE"]), deploymentName: "NA" })),
       pagination: {
         page: 1,
         limit: 10,
@@ -97,7 +99,9 @@ describe(AlertsListContainer.name, () => {
       <CustomSnackbarProvider>
         <ServicesProvider services={services}>
           <QueryClientProvider client={queryClient}>
-            <AlertsListContainer>{childCapturer.renderChild}</AlertsListContainer>
+            <LocalNoteProvider>
+              <AlertsListContainer>{childCapturer.renderChild}</AlertsListContainer>
+            </LocalNoteProvider>
           </QueryClientProvider>
         </ServicesProvider>
       </CustomSnackbarProvider>

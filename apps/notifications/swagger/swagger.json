@@ -1651,6 +1651,9 @@
                     "type": "string",
                     "format": "uuid"
                   },
+                  "notificationChannelName": {
+                    "type": "string"
+                  },
                   "status": {
                     "type": "string"
                   },
@@ -1945,6 +1948,9 @@
                   "userId": {
                     "type": "string",
                     "format": "uuid"
+                  },
+                  "notificationChannelName": {
+                    "type": "string"
                   },
                   "status": {
                     "type": "string"
@@ -2319,6 +2325,9 @@
                       "type": "string",
                       "format": "uuid"
                     },
+                    "notificationChannelName": {
+                      "type": "string"
+                    },
                     "status": {
                       "type": "string"
                     },
@@ -2613,6 +2622,9 @@
                     "userId": {
                       "type": "string",
                       "format": "uuid"
+                    },
+                    "notificationChannelName": {
+                      "type": "string"
                     },
                     "status": {
                       "type": "string"
