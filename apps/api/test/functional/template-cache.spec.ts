@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { getTemplateGallery } from "@src/services/external/templatesCollector";
+import { TemplateGalleryService } from "@src/services/external/templates/template-gallery.service";
 import { dataFolderPath } from "@src/utils/constants";
 import { env } from "@src/utils/env";
 
@@ -65,10 +65,12 @@ describe("Template cache generation", () => {
 
   describe("Generating cache", () => {
     it("creates files as expected", async () => {
-      await getTemplateGallery({
+      const templateGalleryService = new TemplateGalleryService({
         githubPAT: env.GITHUB_PAT,
         dataFolderPath
       });
+
+      await templateGalleryService.getTemplateGallery();
 
       expectCacheFile(`akash-network-awesome-akash-${sha}.json`);
       expectCacheFile(`akash-network-cosmos-omnibus-${sha}.json`);
