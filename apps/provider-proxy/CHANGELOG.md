@@ -1,5 +1,12 @@
 
 
+## [1.10.0](https://github.com/akash-network/console/compare/provider-proxy/v1.9.0...provider-proxy/v1.10.0) (2025-06-17)
+
+
+### Features
+
+* adds auto instrumentation for provider proxy ([#1499](https://github.com/akash-network/console/issues/1499)) ([88d18ce](https://github.com/akash-network/console/commit/88d18ce57e6fa3491a63c888ec8fb8cacb626d60))
+
 ## [1.9.0](https://github.com/akash-network/console/compare/provider-proxy/v1.8.0...provider-proxy/v1.9.0) (2025-06-17)
 
 
