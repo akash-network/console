@@ -16,7 +16,7 @@ export class TopUpCustodialBalanceService {
 
     if (this.balances.denom === "uakt") {
       this.balances.balance -= fees;
-    } else {
+    } else if (typeof this.balances.feesBalance === "number") {
       this.balances.feesBalance -= fees;
     }
   }

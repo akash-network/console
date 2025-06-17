@@ -12,6 +12,7 @@ import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
 import { ProviderIdentity } from "@src/provider/services/provider/provider-proxy.service";
+import { ProviderList } from "@src/types/provider";
 import { toUTC } from "@src/utils";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { AuditorService } from "../auditors/auditors.service";
@@ -98,7 +99,7 @@ export class ProviderService {
     return response;
   }
 
-  async getProviderList({ trial = false }: { trial?: boolean } = {}) {
+  async getProviderList({ trial = false }: { trial?: boolean } = {}): Promise<ProviderList[]> {
     const providersWithAttributesAndAuditors = await Provider.findAll({
       where: {
         deletedHeight: null
