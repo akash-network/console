@@ -28,6 +28,14 @@ export class LeaseRepository {
     return null;
   }
 
+  async countByOwner(owner: string): Promise<number> {
+    return Lease.count({
+      where: { owner },
+      distinct: true,
+      col: "dseq"
+    });
+  }
+
   async findManyByDseqAndOwner(closureHeight: number, pairs: { dseq: string; owner: string }[]): Promise<DrainingDeploymentOutput[]> {
     if (!pairs.length) return [];
 

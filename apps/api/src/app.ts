@@ -46,7 +46,8 @@ import {
   stripePaymentMethodsRouter,
   stripePricesRouter,
   stripeTransactionsRouter,
-  stripeWebhook
+  stripeWebhook,
+  usageRouter
 } from "./billing";
 import { blocksRouter } from "./block";
 import { dashboardDataRouter, graphDataRouter, leasesDurationRouter, marketDataRouter, networkCapacityRouter } from "./dashboard";
@@ -109,6 +110,7 @@ appHono.route("/", stripePricesRouter);
 appHono.route("/", stripeCouponsRouter);
 appHono.route("/", stripePaymentMethodsRouter);
 appHono.route("/", stripeTransactionsRouter);
+appHono.route("/", usageRouter);
 
 appHono.route("/", createAnonymousUserRouter);
 appHono.route("/", getAnonymousUserRouter);
