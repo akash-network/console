@@ -1,5 +1,12 @@
 
 
+## [1.11.0](https://github.com/akash-network/console/compare/notifications/v1.10.0...notifications/v1.11.0) (2025-06-17)
+
+
+### Features
+
+* adds logging of NODE_OPTIONS on startup ([#1500](https://github.com/akash-network/console/issues/1500)) ([a544080](https://github.com/akash-network/console/commit/a5440809c1bbdaed74bf8e7e69d3f5c2dc38acce))
+
 ## [1.10.0](https://github.com/akash-network/console/compare/notifications/v1.9.0...notifications/v1.10.0) (2025-06-16)
 
 
