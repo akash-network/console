@@ -1,5 +1,12 @@
 
 
+## [2.101.0](https://github.com/akash-network/console/compare/console-api/v2.100.0...console-api/v2.101.0) (2025-06-17)
+
+
+### Features
+
+* **billing:** adds usage endpoint ([98711af](https://github.com/akash-network/console/commit/98711af9ef040d2995ff898b7dbe01ec0aa31fb6))
+
 ## [2.100.0](https://github.com/akash-network/console/compare/console-api/v2.99.0...console-api/v2.100.0) (2025-06-17)
 
 
