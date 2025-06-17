@@ -5,7 +5,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { NavArrowDown } from "iconoir-react";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { EnvFormModal } from "../../sdl/EnvFormModal";
+import { EnvFormModal } from "../../sdl/EnvFormModal/EnvFormModal";
 import { EnvVarList } from "../../sdl/EnvVarList";
 
 const RemoteDeployEnvDropdown = ({ services, control }: { services: ServiceType[]; control: Control<SdlBuilderFormValuesType> }) => {

@@ -6,10 +6,10 @@ interface TopUpSummary {
   walletsCount: number;
   walletsTopUpCount: number;
   walletsTopUpErrorCount: number;
-  startBlockHeight: number;
-  endBlockHeight: number;
-  minPredictedClosedHeight: number;
-  maxPredictedClosedHeight: number;
+  startBlockHeight?: number;
+  endBlockHeight?: number;
+  minPredictedClosedHeight?: number;
+  maxPredictedClosedHeight?: number;
   totalTopUpAmount: number;
 }
 
@@ -22,13 +22,13 @@ export class TopUpSummarizer {
 
   private deploymentTopUpErrorCount = 0;
 
-  private minPredictedClosedHeight: number;
+  private minPredictedClosedHeight?: number;
 
-  private maxPredictedClosedHeight: number;
+  private maxPredictedClosedHeight?: number;
 
-  private startBlockHeight: number;
+  private startBlockHeight?: number;
 
-  private endBlockHeight: number;
+  private endBlockHeight?: number;
 
   private totalTopUpAmount = 0;
 

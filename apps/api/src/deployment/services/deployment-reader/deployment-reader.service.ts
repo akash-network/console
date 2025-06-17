@@ -161,7 +161,12 @@ export class DeploymentReaderService {
             return {
               id: lease.lease.lease_id.dseq + lease.lease.lease_id.gseq + lease.lease.lease_id.oseq,
               owner: lease.lease.lease_id.owner,
-              provider: provider,
+              provider: provider
+                ? {
+                    ...provider,
+                    address: provider.owner
+                  }
+                : undefined,
               dseq: lease.lease.lease_id.dseq,
               gseq: lease.lease.lease_id.gseq,
               oseq: lease.lease.lease_id.oseq,
@@ -237,15 +242,17 @@ export class DeploymentReaderService {
         createdDate: dbLease?.createdBlock?.datetime,
         closedHeight: dbLease?.closedHeight,
         closedDate: dbLease?.closedBlock?.datetime,
-        provider: {
-          address: provider?.owner,
-          hostUri: provider?.hostUri,
-          isDeleted: !!provider?.deletedHeight,
-          attributes: provider?.providerAttributes.map(attr => ({
-            key: attr.key,
-            value: attr.value
-          }))
-        },
+        provider: provider
+          ? {
+              address: provider.owner,
+              hostUri: provider.hostUri,
+              isDeleted: !!provider.deletedHeight,
+              attributes: provider.providerAttributes.map(attr => ({
+                key: attr.key,
+                value: attr.value
+              }))
+            }
+          : null,
         status: x.lease.state,
         monthlyCostUDenom: Math.round(parseFloat(x.lease.price.amount) * averageBlockCountInAMonth),
         cpuUnits: group?.group_spec.resources.map(r => parseInt(r.resource.cpu.units.val) * r.count).reduce((a, b) => a + b, 0) || 0,

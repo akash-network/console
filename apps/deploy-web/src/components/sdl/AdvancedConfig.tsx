@@ -7,9 +7,9 @@ import { cn } from "@akashnetwork/ui/utils";
 
 import type { RentGpusFormValuesType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { ExpandMore } from "../shared/ExpandMore";
+import { EnvFormModal } from "./EnvFormModal/EnvFormModal";
 import { CommandFormModal } from "./CommandFormModal";
 import { CommandList } from "./CommandList";
-import { EnvFormModal } from "./EnvFormModal";
 import { EnvVarList } from "./EnvVarList";
 import { ExposeFormModal } from "./ExposeFormModal";
 import { ExposeList } from "./ExposeList";
