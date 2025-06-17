@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { app } from "@src/app";
-import type { Category } from "@src/services/external/templatesCollector";
+import type { GetTemplateByIdResponse, GetTemplatesFullResponse, GetTemplatesListResponse } from "@src/template/http-schemas/template.schema";
 import { env } from "@src/utils/env";
 
 const fakeHeaders = {
@@ -41,7 +41,7 @@ describe("Templates API", () => {
     jest.restoreAllMocks();
   });
 
-  const expectCategory = (result: Category[], expectedCategory: string, expectedTemplateIds: string[]) => {
+  const expectCategory = (result: GetTemplatesFullResponse, expectedCategory: string, expectedTemplateIds: string[]) => {
     const category = result.find((c: { title: string }) => c.title === expectedCategory);
     expect(category.templates).toHaveLength(expectedTemplateIds.length);
     const templateIds = category.templates.map(({ id }) => id);
@@ -57,7 +57,7 @@ describe("Templates API", () => {
       const response = await app.request("/v1/templates");
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as GetTemplatesFullResponse;
       expect(result.length).toBe(4);
       expectCategory(result, "Blockchain", ["akash-network-cosmos-omnibus-akash", "akash-network-cosmos-omnibus-archway"]);
       expectCategory(result, "Official", ["akash-network-awesome-akash-lunie-lite", "akash-network-awesome-akash-ssh-ubuntu"]);
@@ -73,7 +73,7 @@ describe("Templates API", () => {
       const response = await app.request("/v1/templates-list");
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as GetTemplatesListResponse;
       expect(result.data.length).toBe(4);
       expectCategory(result.data, "Blockchain", ["akash-network-cosmos-omnibus-akash", "akash-network-cosmos-omnibus-archway"]);
       expectCategory(result.data, "Official", ["akash-network-awesome-akash-lunie-lite", "akash-network-awesome-akash-ssh-ubuntu"]);
@@ -89,7 +89,7 @@ describe("Templates API", () => {
       const response = await app.request("/v1/templates/akash-network-awesome-akash-ssh-ubuntu");
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as GetTemplateByIdResponse;
       expect(result.data.name).toBe("Ubuntu SSH");
     });
 
