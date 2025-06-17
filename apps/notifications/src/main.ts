@@ -14,7 +14,7 @@ async function bootstrap() {
   }
 
   await interfaceModule.bootstrap();
-  logger.info(`Successfully started with interface "${interfaceModuleName}".`);
+  logger.info(`Successfully started with interface "${interfaceModuleName}" with NODE_OPTIONS=${process.env.NODE_OPTIONS}.`);
 }
 
 function load(interfaceModule: string): { bootstrap: () => Promise<void> } | undefined {
