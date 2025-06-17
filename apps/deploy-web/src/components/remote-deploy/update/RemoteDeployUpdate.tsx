@@ -4,7 +4,7 @@ import { Checkbox, Label, Snackbar } from "@akashnetwork/ui/components";
 import { useAtom } from "jotai";
 import { useSnackbar } from "notistack";
 
-import { EnvFormModal } from "@src/components/sdl/EnvFormModal";
+import { EnvFormModal } from "@src/components/sdl/EnvFormModal/EnvFormModal";
 import { EnvVarList } from "@src/components/sdl/EnvVarList";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { CURRENT_SERVICE, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
