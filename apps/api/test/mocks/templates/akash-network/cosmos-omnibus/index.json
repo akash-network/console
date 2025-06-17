@@ -1,0 +1,82 @@
+[
+  {
+    "name": ".github",
+    "path": ".github",
+    "sha": "e187c19602900de2dced41d36e7663a102fc444c",
+    "size": 0,
+    "url": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/.github?ref=7217582ef8db03f3369ba6fd8f2cbc343ce065f3",
+    "html_url": "https://github.com/akash-network/cosmos-omnibus/tree/7217582ef8db03f3369ba6fd8f2cbc343ce065f3/.github",
+    "git_url": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/trees/e187c19602900de2dced41d36e7663a102fc444c",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/.github?ref=7217582ef8db03f3369ba6fd8f2cbc343ce065f3",
+      "git": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/trees/e187c19602900de2dced41d36e7663a102fc444c",
+      "html": "https://github.com/akash-network/cosmos-omnibus/tree/7217582ef8db03f3369ba6fd8f2cbc343ce065f3/.github"
+    }
+  },
+  {
+    "name": "README.md",
+    "path": "README.md",
+    "sha": "2af7de1ca2530312c5f7c8408b61683e3c9798cb",
+    "size": 28862,
+    "url": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/README.md?ref=7217582ef8db03f3369ba6fd8f2cbc343ce065f3",
+    "html_url": "https://github.com/akash-network/cosmos-omnibus/blob/7217582ef8db03f3369ba6fd8f2cbc343ce065f3/README.md",
+    "git_url": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/blobs/2af7de1ca2530312c5f7c8408b61683e3c9798cb",
+    "download_url": "https://raw.githubusercontent.com/akash-network/cosmos-omnibus/7217582ef8db03f3369ba6fd8f2cbc343ce065f3/README.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/README.md?ref=7217582ef8db03f3369ba6fd8f2cbc343ce065f3",
+      "git": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/blobs/2af7de1ca2530312c5f7c8408b61683e3c9798cb",
+      "html": "https://github.com/akash-network/cosmos-omnibus/blob/7217582ef8db03f3369ba6fd8f2cbc343ce065f3/README.md"
+    }
+  },
+  {
+    "name": "_examples",
+    "path": "_examples",
+    "sha": "933f8bb5d7e1e7ef78c07a0a16575f75353b3eb9",
+    "size": 0,
+    "url": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/_examples?ref=7217582ef8db03f3369ba6fd8f2cbc343ce065f3",
+    "html_url": "https://github.com/akash-network/cosmos-omnibus/tree/7217582ef8db03f3369ba6fd8f2cbc343ce065f3/_examples",
+    "git_url": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/trees/933f8bb5d7e1e7ef78c07a0a16575f75353b3eb9",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/_examples?ref=7217582ef8db03f3369ba6fd8f2cbc343ce065f3",
+      "git": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/trees/933f8bb5d7e1e7ef78c07a0a16575f75353b3eb9",
+      "html": "https://github.com/akash-network/cosmos-omnibus/tree/7217582ef8db03f3369ba6fd8f2cbc343ce065f3/_examples"
+    }
+  },
+  {
+    "name": "akash",
+    "path": "akash",
+    "sha": "b4c256c6c9b38c30e25a832e9764f3335f6e1150",
+    "size": 0,
+    "url": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/akash?ref=7217582ef8db03f3369ba6fd8f2cbc343ce065f3",
+    "html_url": "https://github.com/akash-network/cosmos-omnibus/tree/7217582ef8db03f3369ba6fd8f2cbc343ce065f3/akash",
+    "git_url": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/trees/b4c256c6c9b38c30e25a832e9764f3335f6e1150",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/akash?ref=7217582ef8db03f3369ba6fd8f2cbc343ce065f3",
+      "git": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/trees/b4c256c6c9b38c30e25a832e9764f3335f6e1150",
+      "html": "https://github.com/akash-network/cosmos-omnibus/tree/7217582ef8db03f3369ba6fd8f2cbc343ce065f3/akash"
+    }
+  },
+  {
+    "name": "archway",
+    "path": "archway",
+    "sha": "d5d3429ce1e2ff3c3cfb06026dd31a993791fa41",
+    "size": 0,
+    "url": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/archway?ref=7217582ef8db03f3369ba6fd8f2cbc343ce065f3",
+    "html_url": "https://github.com/akash-network/cosmos-omnibus/tree/7217582ef8db03f3369ba6fd8f2cbc343ce065f3/archway",
+    "git_url": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/trees/d5d3429ce1e2ff3c3cfb06026dd31a993791fa41",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/archway?ref=7217582ef8db03f3369ba6fd8f2cbc343ce065f3",
+      "git": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/trees/d5d3429ce1e2ff3c3cfb06026dd31a993791fa41",
+      "html": "https://github.com/akash-network/cosmos-omnibus/tree/7217582ef8db03f3369ba6fd8f2cbc343ce065f3/archway"
+    }
+  }
+]

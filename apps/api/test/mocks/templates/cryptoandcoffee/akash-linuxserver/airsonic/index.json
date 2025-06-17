@@ -1,0 +1,34 @@
+[
+  {
+    "name": "README.md",
+    "path": "airsonic/README.md",
+    "sha": "3f4126aa1808c6b8e8637676ecd390b3b55e59f1",
+    "size": 15951,
+    "url": "https://api.github.com/repos/cryptoandcoffee/akash-linuxserver/contents/airsonic/README.md?ref=e9e6f5ff3770e5b6f8ca1c4a81a5d1fbe46adda6",
+    "html_url": "https://github.com/cryptoandcoffee/akash-linuxserver/blob/e9e6f5ff3770e5b6f8ca1c4a81a5d1fbe46adda6/airsonic/README.md",
+    "git_url": "https://api.github.com/repos/cryptoandcoffee/akash-linuxserver/git/blobs/3f4126aa1808c6b8e8637676ecd390b3b55e59f1",
+    "download_url": "https://raw.githubusercontent.com/cryptoandcoffee/akash-linuxserver/e9e6f5ff3770e5b6f8ca1c4a81a5d1fbe46adda6/airsonic/README.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/cryptoandcoffee/akash-linuxserver/contents/airsonic/README.md?ref=e9e6f5ff3770e5b6f8ca1c4a81a5d1fbe46adda6",
+      "git": "https://api.github.com/repos/cryptoandcoffee/akash-linuxserver/git/blobs/3f4126aa1808c6b8e8637676ecd390b3b55e59f1",
+      "html": "https://github.com/cryptoandcoffee/akash-linuxserver/blob/e9e6f5ff3770e5b6f8ca1c4a81a5d1fbe46adda6/airsonic/README.md"
+    }
+  },
+  {
+    "name": "deploy.yaml",
+    "path": "airsonic/deploy.yaml",
+    "sha": "6e0fa695baedf45e2c8eb1aafd0fc08f09016204",
+    "size": 923,
+    "url": "https://api.github.com/repos/cryptoandcoffee/akash-linuxserver/contents/airsonic/deploy.yaml?ref=e9e6f5ff3770e5b6f8ca1c4a81a5d1fbe46adda6",
+    "html_url": "https://github.com/cryptoandcoffee/akash-linuxserver/blob/e9e6f5ff3770e5b6f8ca1c4a81a5d1fbe46adda6/airsonic/deploy.yaml",
+    "git_url": "https://api.github.com/repos/cryptoandcoffee/akash-linuxserver/git/blobs/6e0fa695baedf45e2c8eb1aafd0fc08f09016204",
+    "download_url": "https://raw.githubusercontent.com/cryptoandcoffee/akash-linuxserver/e9e6f5ff3770e5b6f8ca1c4a81a5d1fbe46adda6/airsonic/deploy.yaml",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/cryptoandcoffee/akash-linuxserver/contents/airsonic/deploy.yaml?ref=e9e6f5ff3770e5b6f8ca1c4a81a5d1fbe46adda6",
+      "git": "https://api.github.com/repos/cryptoandcoffee/akash-linuxserver/git/blobs/6e0fa695baedf45e2c8eb1aafd0fc08f09016204",
+      "html": "https://github.com/cryptoandcoffee/akash-linuxserver/blob/e9e6f5ff3770e5b6f8ca1c4a81a5d1fbe46adda6/airsonic/deploy.yaml"
+    }
+  }
+]

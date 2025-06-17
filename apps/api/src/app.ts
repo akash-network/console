@@ -62,6 +62,7 @@ import {
   providerVersionsRouter
 } from "./provider";
 import { Scheduler } from "./scheduler";
+import { templatesRouter } from "./template";
 import { transactionsRouter } from "./transaction";
 import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
 import { validatorsRouter } from "./validator";
@@ -137,6 +138,7 @@ appHono.route("/", transactionsRouter);
 appHono.route("/", marketDataRouter);
 appHono.route("/", validatorsRouter);
 appHono.route("/", pricingRouter);
+appHono.route("/", templatesRouter);
 appHono.route("/", leasesDurationRouter);
 
 appHono.route("/", notificationsApiProxy);

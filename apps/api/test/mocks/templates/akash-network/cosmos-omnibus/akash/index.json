@@ -1,0 +1,66 @@
+[
+  {
+    "name": "README.md",
+    "path": "akash/README.md",
+    "sha": "e92b24c9ebef40f25bcf733b8507e1ab41927e8f",
+    "size": 1643,
+    "url": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/akash/README.md?ref=822bce0f2b13130ab821cd8e5eb9d22b29af64ac",
+    "html_url": "https://github.com/akash-network/cosmos-omnibus/blob/822bce0f2b13130ab821cd8e5eb9d22b29af64ac/akash/README.md",
+    "git_url": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/blobs/e92b24c9ebef40f25bcf733b8507e1ab41927e8f",
+    "download_url": "https://raw.githubusercontent.com/akash-network/cosmos-omnibus/822bce0f2b13130ab821cd8e5eb9d22b29af64ac/akash/README.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/akash/README.md?ref=822bce0f2b13130ab821cd8e5eb9d22b29af64ac",
+      "git": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/blobs/e92b24c9ebef40f25bcf733b8507e1ab41927e8f",
+      "html": "https://github.com/akash-network/cosmos-omnibus/blob/822bce0f2b13130ab821cd8e5eb9d22b29af64ac/akash/README.md"
+    }
+  },
+  {
+    "name": "build.yml",
+    "path": "akash/build.yml",
+    "sha": "b3d40a865d84c29e6c737667ebe9ee67c4e20bac",
+    "size": 561,
+    "url": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/akash/build.yml?ref=822bce0f2b13130ab821cd8e5eb9d22b29af64ac",
+    "html_url": "https://github.com/akash-network/cosmos-omnibus/blob/822bce0f2b13130ab821cd8e5eb9d22b29af64ac/akash/build.yml",
+    "git_url": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/blobs/b3d40a865d84c29e6c737667ebe9ee67c4e20bac",
+    "download_url": "https://raw.githubusercontent.com/akash-network/cosmos-omnibus/822bce0f2b13130ab821cd8e5eb9d22b29af64ac/akash/build.yml",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/akash/build.yml?ref=822bce0f2b13130ab821cd8e5eb9d22b29af64ac",
+      "git": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/blobs/b3d40a865d84c29e6c737667ebe9ee67c4e20bac",
+      "html": "https://github.com/akash-network/cosmos-omnibus/blob/822bce0f2b13130ab821cd8e5eb9d22b29af64ac/akash/build.yml"
+    }
+  },
+  {
+    "name": "deploy.yml",
+    "path": "akash/deploy.yml",
+    "sha": "e01b8e10d147fe2e9e3d17f3a6d54ef4dd1950f2",
+    "size": 1201,
+    "url": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/akash/deploy.yml?ref=822bce0f2b13130ab821cd8e5eb9d22b29af64ac",
+    "html_url": "https://github.com/akash-network/cosmos-omnibus/blob/822bce0f2b13130ab821cd8e5eb9d22b29af64ac/akash/deploy.yml",
+    "git_url": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/blobs/e01b8e10d147fe2e9e3d17f3a6d54ef4dd1950f2",
+    "download_url": "https://raw.githubusercontent.com/akash-network/cosmos-omnibus/822bce0f2b13130ab821cd8e5eb9d22b29af64ac/akash/deploy.yml",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/akash/deploy.yml?ref=822bce0f2b13130ab821cd8e5eb9d22b29af64ac",
+      "git": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/blobs/e01b8e10d147fe2e9e3d17f3a6d54ef4dd1950f2",
+      "html": "https://github.com/akash-network/cosmos-omnibus/blob/822bce0f2b13130ab821cd8e5eb9d22b29af64ac/akash/deploy.yml"
+    }
+  },
+  {
+    "name": "docker-compose.yml",
+    "path": "akash/docker-compose.yml",
+    "sha": "bb34ef852c2cb28047d639cbd45da077b2871a4e",
+    "size": 464,
+    "url": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/akash/docker-compose.yml?ref=822bce0f2b13130ab821cd8e5eb9d22b29af64ac",
+    "html_url": "https://github.com/akash-network/cosmos-omnibus/blob/822bce0f2b13130ab821cd8e5eb9d22b29af64ac/akash/docker-compose.yml",
+    "git_url": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/blobs/bb34ef852c2cb28047d639cbd45da077b2871a4e",
+    "download_url": "https://raw.githubusercontent.com/akash-network/cosmos-omnibus/822bce0f2b13130ab821cd8e5eb9d22b29af64ac/akash/docker-compose.yml",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/akash-network/cosmos-omnibus/contents/akash/docker-compose.yml?ref=822bce0f2b13130ab821cd8e5eb9d22b29af64ac",
+      "git": "https://api.github.com/repos/akash-network/cosmos-omnibus/git/blobs/bb34ef852c2cb28047d639cbd45da077b2871a4e",
+      "html": "https://github.com/akash-network/cosmos-omnibus/blob/822bce0f2b13130ab821cd8e5eb9d22b29af64ac/akash/docker-compose.yml"
+    }
+  }
+]
