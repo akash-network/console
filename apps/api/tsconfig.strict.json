@@ -29,6 +29,7 @@
     "src/dashboard/**/*.ts",
     "src/billing/**/*.ts",
     "src/user/**/*.ts",
+    "src/template/**/*.ts",
     "src/provider/**/*.ts"
   ]
 }
