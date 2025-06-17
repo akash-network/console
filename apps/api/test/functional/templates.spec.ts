@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { app } from "@src/app";
-import type { Category } from "@src/services/external/templatesCollector";
+import type { Category } from "@src/template/types/template";
 import { env } from "@src/utils/env";
 
 const fakeHeaders = {
