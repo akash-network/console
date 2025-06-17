@@ -1,5 +1,12 @@
 
 
+## [2.86.0](https://github.com/akash-network/console/compare/console-web/v2.85.0...console-web/v2.86.0) (2025-06-17)
+
+
+### Features
+
+* adds possibility to pass multiple env variables into Env variable popup ([#1501](https://github.com/akash-network/console/issues/1501)) ([9f7c89e](https://github.com/akash-network/console/commit/9f7c89e1c4363fe80b5d5ddeeef1bd0e4f0d2faf))
+
 ## [2.85.0](https://github.com/akash-network/console/compare/console-web/v2.84.0...console-web/v2.85.0) (2025-06-16)
 
 

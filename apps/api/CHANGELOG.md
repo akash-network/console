@@ -1,5 +1,17 @@
 
 
+## [2.100.0](https://github.com/akash-network/console/compare/console-api/v2.99.0...console-api/v2.100.0) (2025-06-17)
+
+
+### Features
+
+* adds logging of NODE_OPTIONS on startup ([#1500](https://github.com/akash-network/console/issues/1500)) ([a544080](https://github.com/akash-network/console/commit/a5440809c1bbdaed74bf8e7e69d3f5c2dc38acce))
+
+
+### Code Refactoring
+
+* migrates another part of console-api to strict types ([#1488](https://github.com/akash-network/console/issues/1488)) ([6a41b0c](https://github.com/akash-network/console/commit/6a41b0c69c579b1fec34d5dbfc6c03f3e4b26558))
+
 ## [2.99.0](https://github.com/akash-network/console/compare/console-api/v2.98.1...console-api/v2.99.0) (2025-06-16)
 
 
