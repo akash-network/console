@@ -49,17 +49,18 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 // TODO Variants
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, startIconClassName, endIconClassName, inputClassName, type, startIcon, endIcon, error, label, isForm, ...props }, ref) => {
+  ({ className, startIconClassName, endIconClassName, inputClassName, type, startIcon, endIcon, error, label, isForm, id: inputId, ...props }, ref) => {
     const id = React.useId();
     const formField = useFormField();
+    const finalId = inputId ?? formField.id ?? id;
 
     return (
       <div className={cn("space-y-1", className)}>
-        {label && (formField.id ? <FormLabel>{label}</FormLabel> : <Label htmlFor={`${id}-input`}>{label}</Label>)}
+        {label && (formField.id ? <FormLabel>{label}</FormLabel> : <Label htmlFor={`${finalId}-input`}>{label}</Label>)}
         <div className="relative flex items-center">
           {startIcon && <div className={cn("absolute inset-y-0 left-0 flex items-center", startIconClassName)}>{startIcon}</div>}
           <input
-            id={`${id}-input`}
+            id={`${finalId}-input`}
             type={type}
             className={cn(
               "border-input bg-popover ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
