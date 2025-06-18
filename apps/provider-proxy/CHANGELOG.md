@@ -1,5 +1,12 @@
 
 
+## [1.11.0](https://github.com/akash-network/console/compare/provider-proxy/v1.10.0...provider-proxy/v1.11.0) (2025-06-18)
+
+
+### Features
+
+* adds @hono/otel to enhance metrics of provider-proxy ([#1509](https://github.com/akash-network/console/issues/1509)) ([45e59af](https://github.com/akash-network/console/commit/45e59af60516fc0d30b8f06843ea652ca1d1c998))
+
 ## [1.10.0](https://github.com/akash-network/console/compare/provider-proxy/v1.9.0...provider-proxy/v1.10.0) (2025-06-17)
 
 
