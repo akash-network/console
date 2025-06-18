@@ -28,7 +28,11 @@ export class LeaseSeeder {
   }
 
   static async createInDatabase(overrides: Partial<CreationAttributes<Lease>> = {}): Promise<Lease> {
-    const seed = LeaseSeeder.create(overrides);
-    return await Lease.create(seed);
+    try {
+      return await Lease.create(LeaseSeeder.create(overrides));
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 }

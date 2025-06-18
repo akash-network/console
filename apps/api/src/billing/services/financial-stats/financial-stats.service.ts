@@ -1,5 +1,5 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import { CosmosDistributionCommunityPoolResponse } from "@akashnetwork/http-sdk";
+import { CosmosDistributionCommunityPoolResponse, CosmosHttpService } from "@akashnetwork/http-sdk";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import axios from "axios";
 import { Op, QueryTypes } from "sequelize";
@@ -9,14 +9,14 @@ import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { chainDb } from "@src/db/dbConnection";
-import { RestCosmosBankBalancesResponse } from "@src/types/rest";
 import { apiNodeUrl } from "@src/utils/constants";
 
 @singleton()
 export class FinancialStatsService {
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
-    private readonly userWalletRepository: UserWalletRepository
+    private readonly userWalletRepository: UserWalletRepository,
+    private readonly cosmosHttpService: CosmosHttpService
   ) {}
 
   async getPayingUserCount() {
@@ -31,8 +31,8 @@ export class FinancialStatsService {
   }
 
   private async getWalletBalances(address: string, denom: string) {
-    const response = await axios.get<RestCosmosBankBalancesResponse>(`${apiNodeUrl}/cosmos/bank/v1beta1/balances/${address}?pagination.limit=1000`);
-    return parseFloat(response.data.balances.find(b => b.denom === denom)?.amount || "0");
+    const response = await this.cosmosHttpService.getBankBalancesByAddress(address);
+    return parseFloat(response.balances.find(b => b.denom === denom)?.amount || "0");
   }
 
   async getAkashPubProviderBalances() {

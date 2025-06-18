@@ -1,4 +1,4 @@
-import type { Transaction } from "@akashnetwork/database/dbSchemas/base";
+import { Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
 import type { CreationAttributes } from "sequelize";
 
@@ -19,5 +19,14 @@ export class TransactionSeeder {
       hasProcessingError: input.hasProcessingError || faker.datatype.boolean(),
       log: input.log || faker.lorem.sentence()
     };
+  }
+
+  static async createInDatabase(input: Partial<CreationAttributes<Transaction>> = {}): Promise<Transaction> {
+    try {
+      return await Transaction.create(TransactionSeeder.create(input));
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 }
