@@ -1,4 +1,5 @@
 import { serve } from "@hono/node-server";
+import { otel } from "@hono/otel";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -25,6 +26,7 @@ export function createApp(container: Container): Hono<AppEnv> {
     "https://console-beta.akash.network"
   ];
 
+  app.use("*", otel());
   app.use((c, next) => {
     c.set("container", container);
     return next();
