@@ -280,4 +280,28 @@ describe("Provider HTTP proxy", () => {
     const body = await response.text();
     expect(body).toBe("Fast");
   });
+
+  it("responds with 503 if provider returns 500 error", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = createX509CertPair({
+      commonName: providerAddress
+    });
+
+    const providerUrl = await startProviderServer({ certPair: validCertPair });
+    await startChainApiServer([validCertPair.cert]);
+
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({
+        method: "GET",
+        url: `${providerUrl}/500`,
+        providerAddress,
+        network
+      })
+    });
+
+    expect(response.status).toBe(503);
+    const body = await response.text();
+    expect(body).toBe(`Provider ${providerUrl} is temporarily unavailable`);
+  });
 });

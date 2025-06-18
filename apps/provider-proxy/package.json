@@ -32,9 +32,11 @@
     "async-sema": "^3.1.1",
     "bech32": "^2.0.0",
     "hono": "4.6.12",
+    "jest-mock-extended": "^4.0.0",
     "lru-cache": "^11.0.2",
     "uuid": "^9.0.0",
-    "ws": "^7.5.9"
+    "ws": "^7.5.9",
+    "zod": "3.*"
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",

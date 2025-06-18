@@ -1,11 +1,16 @@
 import { v4 as uuidv4 } from "uuid";
 
 export class WebsocketStats {
-  private readonly items: ClientWebSocketStats[] = [];
+  private items: ClientWebSocketStats[] = [];
 
   create(): ClientWebSocketStats {
     const item = new ClientWebSocketStats(uuidv4());
     this.items.push(item);
+
+    if (this.items.length > 100_000) {
+      this.items = this.items.slice(-5000);
+    }
+
     return item;
   }
 
