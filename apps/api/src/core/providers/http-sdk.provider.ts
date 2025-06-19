@@ -8,11 +8,12 @@ import {
   DeploymentHttpService,
   GitHubHttpService,
   LeaseHttpService,
+  NodeHttpService,
   ProviderHttpService
 } from "@akashnetwork/http-sdk";
 import { container } from "tsyringe";
 
-import { apiNodeUrl } from "@src/utils/constants";
+import { apiNodeUrl, nodeApiBasePath } from "@src/utils/constants";
 
 const SERVICES = [
   BalanceHttpService,
@@ -29,3 +30,4 @@ SERVICES.forEach(Service => container.register(Service, { useValue: new Service(
 
 container.register(GitHubHttpService, { useValue: new GitHubHttpService({ baseURL: "https://raw.githubusercontent.com" }) });
 container.register(CoinGeckoHttpService, { useValue: new CoinGeckoHttpService({ baseURL: "https://api.coingecko.com" }) });
+container.register(NodeHttpService, { useValue: new NodeHttpService({ baseURL: nodeApiBasePath }) });
