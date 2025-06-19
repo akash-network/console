@@ -1,5 +1,12 @@
 
 
+## [1.12.0](https://github.com/akash-network/console/compare/provider-proxy/v1.11.0...provider-proxy/v1.12.0) (2025-06-19)
+
+
+### Features
+
+* adds error logger to provider-proxy ([#1511](https://github.com/akash-network/console/issues/1511)) ([14c79a6](https://github.com/akash-network/console/commit/14c79a6b65477eda4c7644857a3a240723044dff))
+
 ## [1.11.0](https://github.com/akash-network/console/compare/provider-proxy/v1.10.0...provider-proxy/v1.11.0) (2025-06-18)
 
 
