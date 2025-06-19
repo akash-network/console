@@ -9,6 +9,7 @@ import type { AddressInfo } from "net";
 
 import { getAppStatus, statusRoute } from "./routes/getAppStatus";
 import { proxyProviderRequest, proxyRoute } from "./routes/proxyProviderRequest";
+import { HonoErrorHandlerService } from "./services/HonoErrorHandlerService/HonoErrorHandlerService";
 import { WebsocketServer } from "./services/WebsocketServer";
 import type { AppEnv } from "./types/AppContext";
 import type { Container } from "./container";
@@ -42,6 +43,7 @@ export function createApp(container: Container): Hono<AppEnv> {
   );
   app.openapi(statusRoute, getAppStatus);
   app.openapi(proxyRoute, proxyProviderRequest as any);
+  app.onError(new HonoErrorHandlerService().handle);
 
   return app;
 }

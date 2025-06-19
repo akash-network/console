@@ -6,12 +6,18 @@ const common = {
 };
 
 module.exports = {
-  collectCoverageFrom: ["./src/**/*.{js,ts}"],
+  collectCoverageFrom: [
+    // keep new line
+    "./src/**/*.{js,ts}",
+    "!src/**/*.spec.ts",
+    "!src/**/*.d.ts",
+    "!src/server.ts"
+  ],
   projects: [
     {
       displayName: "unit",
       ...common,
-      testMatch: ["<rootDir>/test/**/*.spec.ts"],
+      testMatch: ["<rootDir>/test/**/*.spec.ts", "<rootDir>/src/**/*.spec.ts"],
       testPathIgnorePatterns: ["/node_modules", "test/functional"]
     },
     {

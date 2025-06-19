@@ -29,6 +29,7 @@ export function createContainer() {
   const createWsLogger = isLoggingDisabled ? undefined : (id: string) => new LoggerService({ name: "ws", context: id });
   const httpLogger = isLoggingDisabled ? undefined : new LoggerService({ name: "http" });
   const httpLoggerInterceptor = new HttpLoggerIntercepter(httpLogger);
+  const appLogger = isLoggingDisabled ? undefined : new LoggerService({ name: "app" });
 
   return {
     wsStats,
@@ -37,7 +38,8 @@ export function createContainer() {
     httpLogger,
     httpLoggerInterceptor,
     createWsLogger,
-    netConfig
+    netConfig,
+    appLogger
   };
 }
 

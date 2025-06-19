@@ -63,6 +63,14 @@ const DEFAULT_TIMEOUT = 5_000;
 export async function proxyProviderRequest(ctx: AppContext): Promise<Response | TypedResponse<string>> {
   const { certPem, keyPem, method, body, url, network, providerAddress, timeout } = await ctx.req.json<z.infer<typeof RequestPayload>>();
 
+  ctx.get("container").appLogger?.info({
+    event: "PROXY_REQUEST",
+    url,
+    method,
+    network,
+    providerAddress,
+    timeout
+  });
   const proxyResult = await httpRetry(
     () =>
       ctx.get("container").providerProxy.connect(url, {
@@ -96,6 +104,22 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       headers.set(header, value);
     }
   });
+
+  if (proxyResult.response.statusCode === 500) {
+    ctx.get("container").appLogger?.error({
+      event: "PROXY_REQUEST_ERROR",
+      url,
+      method,
+      network,
+      providerAddress,
+      httpResponse: {
+        status: proxyResult.response.statusCode,
+        headers: proxyResult.response.headers,
+        body: (await Array.fromAsync(Readable.toWeb(proxyResult.response))).reduce((acc, chunk) => Buffer.concat([acc, chunk]), Buffer.alloc(0)).toString()
+      }
+    });
+    return ctx.text(`Provider ${new URL(url).origin} is temporarily unavailable`, 503);
+  }
 
   return new Response(Readable.toWeb(proxyResult.response) as RequestInit["body"], {
     status: proxyResult.response.statusCode,
