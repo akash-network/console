@@ -2,7 +2,6 @@ import type { RequestListener } from "http";
 import type { ServerOptions } from "https";
 import https from "https";
 import type { AddressInfo } from "net";
-import { setTimeout } from "timers/promises";
 import WebSocket from "ws";
 
 import type { CertPair } from "../seeders/createX509CertPair";
@@ -19,6 +18,7 @@ export function startProviderServer(options: ProviderServerOptions): Promise<str
     };
 
     const state: Record<string, boolean> = {};
+    let cleanupHandlers = new Set<() => void>();
     const handlers: Record<string, RequestListener> = {
       "/200.txt"(_, res) {
         res.writeHead(200, "OK", { "Content-Type": "text/plain" });
@@ -34,9 +34,14 @@ export function startProviderServer(options: ProviderServerOptions): Promise<str
       async "/slow-once"(_, res) {
         if (!state.wasSlow) {
           state.wasSlow = true;
-          await setTimeout(1000, null, { ref: false });
-          res.writeHead(200);
-          res.end("Slow");
+          const timeout = setTimeout(() => {
+            clearSlowTimer();
+            cleanupHandlers.delete(clearSlowTimer);
+            res.writeHead(200);
+            res.end("Slow");
+          }, 1000);
+          const clearSlowTimer = () => clearTimeout(timeout);
+          cleanupHandlers.add(clearSlowTimer);
           return;
         }
 
@@ -53,6 +58,10 @@ export function startProviderServer(options: ProviderServerOptions): Promise<str
 
         res.writeHead(200, "OK", { "Content-Type": "text/plain" });
         res.end("Success");
+      },
+      "/500"(_, res) {
+        res.writeHead(500);
+        res.end("Internal Server Error");
       }
     };
 
@@ -63,6 +72,11 @@ export function startProviderServer(options: ProviderServerOptions): Promise<str
         res.writeHead(404, "Not found", { "Content-Type": "text/plain" });
         res.end("Not Found");
       }
+    });
+
+    server.on("close", () => {
+      cleanupHandlers.forEach(handler => handler());
+      cleanupHandlers = new Set();
     });
 
     server.listen(0, () => {
