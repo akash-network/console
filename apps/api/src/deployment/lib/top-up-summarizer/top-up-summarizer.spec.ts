@@ -3,7 +3,7 @@ import "@test/mocks/logger-service.mock";
 
 import { TopUpSummarizer } from "./top-up-summarizer";
 
-import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
+import { createAkashAddress } from "@test/seeders";
 
 jest.mock("@akashnetwork/logging");
 
@@ -34,8 +34,8 @@ describe(TopUpSummarizer.name, () => {
   });
 
   describe("wallet tracking", () => {
-    const WALLET_1 = AkashAddressSeeder.create();
-    const WALLET_2 = AkashAddressSeeder.create();
+    const WALLET_1 = createAkashAddress();
+    const WALLET_2 = createAkashAddress();
 
     it("should track unique wallets", () => {
       summarizer.trackWallet(WALLET_1);
@@ -122,8 +122,8 @@ describe(TopUpSummarizer.name, () => {
 
   describe("summarize", () => {
     it("should return complete summary", () => {
-      const WALLET_1 = AkashAddressSeeder.create();
-      const WALLET_2 = AkashAddressSeeder.create();
+      const WALLET_1 = createAkashAddress();
+      const WALLET_2 = createAkashAddress();
 
       summarizer.inc("deploymentCount", 2);
       summarizer.inc("deploymentTopUpCount");

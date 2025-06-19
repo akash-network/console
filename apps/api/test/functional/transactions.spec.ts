@@ -1,27 +1,24 @@
-import { AkashBlock } from "@akashnetwork/database/dbSchemas/akash";
-import { Transaction } from "@akashnetwork/database/dbSchemas/base";
+import type { Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { map } from "lodash";
 
 import { app } from "@src/app";
 
-import { BlockSeeder } from "@test/seeders/block.seeder";
-import { TransactionSeeder } from "@test/seeders/transaction.seeder";
+import { createAkashBlock, createTransaction } from "@test/seeders";
 
 describe("Transactions", () => {
   let transactions: Transaction[];
 
   beforeAll(async () => {
-    const blockSeed = BlockSeeder.create();
-    const block = await AkashBlock.create(blockSeed);
+    const block = await createAkashBlock();
 
-    const transactionSeeds = Array.from({ length: 101 }, (_, i) => {
-      return TransactionSeeder.create({
-        height: block.height,
-        index: i + 1
-      });
-    });
-
-    transactions = await Promise.all(transactionSeeds.map(async transactionSeed => Transaction.create(transactionSeed)));
+    transactions = await Promise.all(
+      Array.from({ length: 101 }, (_, i) => {
+        return createTransaction({
+          height: block.height,
+          index: i + 1
+        });
+      })
+    );
   });
 
   const expectTransactions = (transactionsFound: Transaction[], transactionsExpected: Transaction[]) => {

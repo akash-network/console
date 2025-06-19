@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 
-import { AkashAddressSeeder } from "./akash-address.seeder";
+import { createAkashAddress } from "./akash-address.seeder";
 import { DenomSeeder } from "./denom.seeder";
 
 export interface LeaseInput {
@@ -61,11 +61,11 @@ export interface LeaseOutput {
 export class LeaseApiResponseSeeder {
   static create(input: LeaseInput = {}): LeaseOutput {
     const {
-      owner = AkashAddressSeeder.create(),
+      owner = createAkashAddress(),
       dseq = faker.string.numeric(10),
       gseq = faker.number.int({ min: 1, max: 10 }),
       oseq = faker.number.int({ min: 1, max: 10 }),
-      provider = AkashAddressSeeder.create(),
+      provider = createAkashAddress(),
       state = faker.helpers.arrayElement(["active", "closed", "insufficient_funds"]),
       price = {
         denom: DenomSeeder.create(),

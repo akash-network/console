@@ -4,8 +4,7 @@ import { subDays } from "date-fns";
 
 import { app, initDb } from "@src/app";
 
-import { BlockSeeder } from "@test/seeders/block.seeder";
-import { ProviderSeeder } from "@test/seeders/provider.seeder";
+import { createAkashBlock, createProvider } from "@test/seeders";
 
 describe("Provider Dashboard", () => {
   let provider: Provider;
@@ -14,19 +13,19 @@ describe("Provider Dashboard", () => {
   beforeAll(async () => {
     await initDb();
 
-    provider = await ProviderSeeder.createInDatabase();
+    provider = await createProvider();
     blocks = await Promise.all([
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: new Date().toISOString(),
         isProcessed: true,
         totalUUsdSpent: 1000,
         height: 300
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: subDays(Date.now(), 1).toISOString(),
         height: 200
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: subDays(Date.now(), 2).toISOString(),
         height: 100
       })

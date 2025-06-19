@@ -14,7 +14,7 @@ import type { CachedBalanceService } from "../cached-balance/cached-balance.serv
 import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.service";
 
 import { MockConfigService } from "@test/mocks/config-service.mock";
-import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
+import { createAkashAddress } from "@test/seeders";
 import { AutoTopUpDeploymentSeeder } from "@test/seeders/auto-top-up-deployment.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
 import { stub } from "@test/services/stub";
@@ -40,7 +40,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
   let service: TopUpManagedDeploymentsService;
   let logger: jest.Mocked<LoggerService>;
 
-  const MANAGED_MASTER_WALLET_ADDRESS = AkashAddressSeeder.create();
+  const MANAGED_MASTER_WALLET_ADDRESS = createAkashAddress();
   const DEPLOYMENT_GRANT_DENOM = "ibc/170C677610AC31DF0904FFE09CD3B5C657492170E7E52372E48756B71E56F2F1";
   const CURRENT_BLOCK_HEIGHT = 7481457;
 
@@ -246,7 +246,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
     });
 
     it("should top up draining deployments for the same owner in the same tx", async () => {
-      const owner = AkashAddressSeeder.create();
+      const owner = createAkashAddress();
       const walletId = faker.number.int({ min: 1000000, max: 9999999 });
       const deployments = [AutoTopUpDeploymentSeeder.create({ address: owner, walletId }), AutoTopUpDeploymentSeeder.create({ address: owner, walletId })];
       const desiredAmount = faker.number.int({ min: 3500000, max: 4000000 });
