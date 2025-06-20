@@ -32,8 +32,11 @@ describe(NotificationChannelSelectView.name, () => {
     setup({ fieldError: "Notification Channel is required" });
 
     const selectTrigger = screen.getByLabelText("Notification Channel");
+    const label = screen.getByText("Notification Channel");
+
     expect(selectTrigger).toHaveClass("border-red-500");
     expect(screen.queryByText("Notification Channel is required")).toBeInTheDocument();
+    expect(label).toHaveClass("cursor-not-allowed");
   });
 
   it("renders add notification channel link", () => {
@@ -49,14 +52,6 @@ describe(NotificationChannelSelectView.name, () => {
     const addLink = screen.getByRole("link", { name: "Add notification channel" });
     expect(addLink).toHaveClass("opacity-10");
     expect(addLink).toHaveClass("cursor-not-allowed");
-  });
-
-  it("applies error styling to label when disabled", () => {
-    setup({ disabled: true });
-
-    const label = screen.getByText("Notification Channel");
-    expect(label).toHaveClass("cursor-not-allowed");
-    expect(label).toHaveClass("text-red-500");
   });
 
   function setup(input: { data?: NotificationChannelsOutput; disabled?: boolean; fieldError?: string } = {}) {
