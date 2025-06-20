@@ -66,10 +66,10 @@ notificationsApiProxy.all("/v1/notification-channels/*", proxyRoute);
 notificationsApiProxy.all("/v1/notification-channels", proxyRoute);
 
 notificationsApiProxy.get("/v1/alerts", proxyRoute);
-notificationsApiProxy.post("/v1/alerts", proxyRouteIfEnabled(FeatureFlags.NOTIFICATIONS_ALERT_MUTATION));
+notificationsApiProxy.post("/v1/alerts", proxyRouteIfEnabled(FeatureFlags.NOTIFICATIONS_ALERT_CREATE));
 notificationsApiProxy.get("/v1/alerts/*", proxyRoute);
 notificationsApiProxy.delete("/v1/alerts/*", proxyRoute);
-notificationsApiProxy.patch("/v1/alerts/*", proxyRouteIfEnabled(FeatureFlags.NOTIFICATIONS_ALERT_MUTATION));
+notificationsApiProxy.patch("/v1/alerts/*", proxyRouteIfEnabled(FeatureFlags.NOTIFICATIONS_ALERT_UPDATE));
 
 notificationsApiProxy.all("/v1/deployment-alerts/*", proxyRoute);
 notificationsApiProxy.all("/v1/deployment-alerts", proxyRoute);

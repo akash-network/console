@@ -1,116 +1,105 @@
 import type { FC } from "react";
 import React from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
-import {
-  Button,
-  CustomPagination,
-  CustomTooltip,
-  MIN_PAGE_SIZE,
-  Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@akashnetwork/ui/components";
-import { usePopup } from "@akashnetwork/ui/context";
+import { Checkbox, CustomPagination, MIN_PAGE_SIZE, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { Bin, Check } from "iconoir-react";
 import { startCase } from "lodash";
 import Link from "next/link";
 
 import { AlertStatus } from "@src/components/alerts/AlertStatus/AlertStatus";
+import { useFlag } from "@src/hooks/useFlag";
 import { UrlService } from "@src/utils/urlUtils";
 
 type Alert = components["schemas"]["AlertListOutputResponse"]["data"][0] & { deploymentName: string };
 type AlertsPagination = components["schemas"]["AlertListOutputResponse"]["pagination"];
 
-export type AlertsListViewProps = {
-  data: Alert[];
-  pagination: Pick<AlertsPagination, "page" | "limit" | "total" | "totalPages">;
-  isLoading: boolean;
-  removingIds: Set<Alert["id"]>;
-  onRemove: (id: Alert["id"]) => Promise<void>;
-  onPaginationChange: (state: { page: number; limit: number }) => void;
-  isError: boolean;
+const DEPENDENCIES = {
+  useFlag
 };
 
-export const AlertsListView: FC<AlertsListViewProps> = ({ data, pagination, onPaginationChange, isLoading, removingIds, onRemove, isError }) => {
-  const { confirm } = usePopup();
+export interface Props {
+  data: Alert[];
+  pagination: Pick<AlertsPagination, "page" | "limit" | "total" | "totalPages">;
+  onPaginationChange: (params: { page: number; limit: number }) => void;
+  onToggle: (id: string, enabled: boolean) => void;
+  loadingIds: Set<string>;
+  isLoading?: boolean;
+  isError?: boolean;
+  dependencies?: typeof DEPENDENCIES;
+}
+
+export const AlertsListView: FC<Props> = ({
+  data,
+  pagination,
+  onPaginationChange,
+  isLoading,
+  onToggle,
+  loadingIds,
+  isError,
+  dependencies: d = DEPENDENCIES
+}) => {
   const columnHelper = createColumnHelper<Alert>();
+  const isAlertUpdateEnabled = d.useFlag("notifications_general_alerts_update");
 
   const columns = [
+    columnHelper.accessor("enabled", {
+      header: "Enabled",
+      cell: info => {
+        const isToggling = loadingIds.has(info.row.original.id);
+        return (
+          <div className="flex items-center">
+            <Checkbox
+              checked={info.getValue()}
+              disabled={isToggling}
+              onCheckedChange={checked => {
+                onToggle(info.row.original.id, !!checked);
+              }}
+              aria-label={"Toggle alert"}
+            />
+          </div>
+        );
+      }
+    }),
     columnHelper.accessor("deploymentName", {
-      header: () => <div className="w-48">Deployment Name</div>,
-      cell: info => <div>{info.getValue()}</div>
+      header: "Deployment Name",
+      cell: info =>
+        info.row.original.params?.dseq ? (
+          <Link href={UrlService.deploymentDetails(info.row.original.params.dseq)} className="font-bold">
+            {info.getValue()}
+          </Link>
+        ) : (
+          info.getValue()
+        )
     }),
     columnHelper.accessor("params", {
-      header: () => <div className="w-28">DSEQ</div>,
+      header: "DSEQ",
       cell: info => {
         const params = info.getValue();
-        return params ? (
-          <div className="flex max-w-28 items-center gap-1">
-            <Link href={UrlService.deploymentDetails(params.dseq, "ALERTS")} className="truncate">
-              {params.dseq}
-            </Link>
-          </div>
-        ) : (
-          <div className="text-gray-500">No parameters</div>
-        );
+        return params?.dseq ?? "N/A";
       }
     }),
     columnHelper.accessor("type", {
-      header: () => <div className="w-40">Type</div>,
-      cell: info => <div>{startCase(info.getValue().toLowerCase())}</div>
+      header: "Type",
+      cell: info => {
+        const type = info.getValue();
+        const params = info.row.original.params;
+
+        if (type === "DEPLOYMENT_BALANCE") {
+          return "Threshold";
+        } else if (type === "CHAIN_MESSAGE" && params && "type" in params && params.type === "DEPLOYMENT_CLOSED") {
+          return "Deployment Close";
+        }
+
+        return startCase(type.toLowerCase());
+      }
     }),
     columnHelper.accessor("status", {
-      header: () => <div className="w-24">Status</div>,
+      header: "Status",
       cell: info => <AlertStatus status={info.getValue()} />
     }),
-    columnHelper.accessor("enabled", {
-      header: () => <div className="w-20">Enabled</div>,
-      cell: info => {
-        const enabled = info.getValue();
-        if (enabled) {
-          return <Check data-testid="alert-enabled-checkmark" className="text-sm text-green-600" />;
-        }
-      }
-    }),
     columnHelper.accessor("notificationChannelName", {
-      header: () => <div className="w-48">Notification Channel</div>,
-      cell: info => <div>{info.getValue()}</div>
-    }),
-    columnHelper.display({
-      id: "actions",
-      cell: info => {
-        const isRemoving = removingIds.has(info.row.original.id);
-        return (
-          <div className="flex w-16 items-center justify-end gap-1">
-            <CustomTooltip title="Remove" disabled={isRemoving}>
-              <Button
-                variant="ghost"
-                size="icon"
-                disabled={isRemoving}
-                onClick={async () => {
-                  const isConfirmed = await confirm({
-                    title: "Are you sure you want to remove this alert?",
-                    message: "This action cannot be undone.",
-                    testId: "remove-alert-confirmation-popup"
-                  });
-                  if (isConfirmed) {
-                    void onRemove(info.row.original.id);
-                  }
-                }}
-                className="text-sm text-red-500 hover:text-red-700"
-                data-testid="remove-alert-button"
-              >
-                {isRemoving ? <Spinner size="small" /> : <Bin className="text-xs" />}
-              </Button>
-            </CustomTooltip>
-          </div>
-        );
-      }
+      header: "Notification Channel",
+      cell: info => info.getValue()
     })
   ];
 
@@ -120,6 +109,9 @@ export const AlertsListView: FC<AlertsListViewProps> = ({ data, pagination, onPa
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     state: {
+      columnVisibility: {
+        enabled: isAlertUpdateEnabled
+      },
       pagination: {
         pageIndex: pagination.page - 1,
         pageSize: pagination.limit
@@ -165,7 +157,7 @@ export const AlertsListView: FC<AlertsListViewProps> = ({ data, pagination, onPa
           {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map(header => (
-                <TableHead key={header.id} className="">
+                <TableHead key={header.id} className="h-12">
                   {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                 </TableHead>
               ))}
@@ -175,7 +167,7 @@ export const AlertsListView: FC<AlertsListViewProps> = ({ data, pagination, onPa
 
         <TableBody>
           {table.getRowModel().rows.map(row => (
-            <TableRow key={row.id} className="[&>td]:px-4 [&>td]:py-2">
+            <TableRow key={row.id} className="h-12 [&>td]:px-4">
               {row.getVisibleCells().map(cell => (
                 <TableCell key={cell.id} className="align-middle">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

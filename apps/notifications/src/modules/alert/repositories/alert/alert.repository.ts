@@ -1,9 +1,11 @@
-import type { AnyAbility } from "@casl/ability";
+import { AnyAbility } from "@casl/ability";
+import { permittedFieldsOf } from "@casl/ability/extra";
 import { InjectDrizzle } from "@knaadh/nestjs-drizzle-pg";
-import { Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable } from "@nestjs/common";
 import { and, count, eq, gt, lte, or, sql } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { SQL } from "drizzle-orm/sql/sql";
+import difference from "lodash/difference";
 
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
@@ -13,7 +15,7 @@ import { Alert } from "../../model-schemas";
 import type { ChainMessageJsonFields, DeploymentBalanceJsonFields } from "./alert-json-fields.schema";
 import * as jsonFieldsSchemas from "./alert-json-fields.schema";
 
-export type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];
+type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];
 
 type InternalAlertInput = typeof schema.Alert.$inferInsert;
 type InternalAlertOutput = typeof schema.Alert.$inferSelect;
@@ -68,17 +70,20 @@ export type AlertOutputWithNotificationName = AlertOutput & {
 export class AlertRepository {
   protected ability?: DrizzleAbility<typeof schema.Alert>;
 
+  protected abilityParams?: [...AbilityParams, string];
+
   constructor(
     @InjectDrizzle(DRIZZLE_PROVIDER_TOKEN)
-    private readonly db: NodePgDatabase<typeof schema>
+    protected readonly db: NodePgDatabase<typeof schema>
   ) {}
 
-  accessibleBy(...abilityParams: AbilityParams) {
-    return new AlertRepository(this.db).withAbility(...abilityParams) as this;
+  accessibleBy(ability: AbilityParams[0], action: AbilityParams[1], subject: string = "Alert") {
+    return new AlertRepository(this.db).withAbility(ability, action, subject) as this;
   }
 
-  protected withAbility(ability: AnyAbility, action: Parameters<AnyAbility["can"]>[0]) {
-    this.ability = new DrizzleAbility(schema.Alert, ability, action, "Alert");
+  protected withAbility(ability: AnyAbility, action: Parameters<AnyAbility["can"]>[0], subject: string): this {
+    this.abilityParams = [ability, action, subject];
+    this.ability = new DrizzleAbility(schema.Alert, ...this.abilityParams);
     return this;
   }
 
@@ -96,6 +101,16 @@ export class AlertRepository {
   }
 
   async updateById(id: string, input: Partial<AlertInput>): Promise<AlertOutput | undefined> {
+    if (this.abilityParams) {
+      const permittedFields = permittedFieldsOf(...this.abilityParams, { fieldsFrom: rule => rule.fields || Object.keys(Alert.$inferSelect) });
+      const inputKeys = Object.keys(input);
+      const diff = difference(inputKeys, permittedFields);
+
+      if (diff.length > 0) {
+        throw new ForbiddenException(`Cannot update fields: ${diff.join(", ")}`);
+      }
+    }
+
     return this.db.transaction(async transaction => {
       const [alert] = await transaction
         .update(schema.Alert)

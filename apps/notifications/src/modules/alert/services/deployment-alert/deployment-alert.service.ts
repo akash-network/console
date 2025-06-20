@@ -100,7 +100,7 @@ export class DeploymentAlertService {
     const existingBalanceAlert = existingAlerts.alerts.deploymentBalance;
 
     if (existingBalanceAlert) {
-      await this.alertRepository.accessibleBy(auth.ability, "update").updateById(existingBalanceAlert.id, {
+      await this.alertRepository.accessibleBy(auth.ability, "update", "DeploymentAlert").updateById(existingBalanceAlert.id, {
         notificationChannelId: input.notificationChannelId,
         enabled: input.enabled,
         conditions: {
@@ -110,7 +110,7 @@ export class DeploymentAlertService {
         }
       });
     } else {
-      await this.alertRepository.accessibleBy(auth.ability, "create").create(this.toBalanceRepositoryInput(input, auth.userId));
+      await this.alertRepository.accessibleBy(auth.ability, "create", "DeploymentAlert").create(this.toBalanceRepositoryInput(input, auth.userId));
     }
   }
 
@@ -122,12 +122,12 @@ export class DeploymentAlertService {
     const existingClosedAlert = existingAlerts.alerts.deploymentClosed;
 
     if (existingClosedAlert) {
-      await this.alertRepository.accessibleBy(auth.ability, "update").updateById(existingClosedAlert.id, {
+      await this.alertRepository.accessibleBy(auth.ability, "update", "DeploymentAlert").updateById(existingClosedAlert.id, {
         notificationChannelId: input.notificationChannelId,
         enabled: input.enabled
       });
     } else {
-      await this.alertRepository.accessibleBy(auth.ability, "create").create(this.toClosedRepositoryInput(input, auth.userId));
+      await this.alertRepository.accessibleBy(auth.ability, "create", "DeploymentAlert").create(this.toClosedRepositoryInput(input, auth.userId));
     }
   }
 
@@ -204,7 +204,7 @@ export class DeploymentAlertService {
   }
 
   async get(dseq: string, ability: MongoAbility): Promise<DeploymentAlertOutput> {
-    const alerts = (await this.alertRepository.accessibleBy(ability, "read").findAllDeploymentAlerts(dseq)) as RepositoryAlert[];
+    const alerts = (await this.alertRepository.accessibleBy(ability, "read", "DeploymentAlert").findAllDeploymentAlerts(dseq)) as RepositoryAlert[];
 
     const result: DeploymentAlertOutput = {
       dseq,
