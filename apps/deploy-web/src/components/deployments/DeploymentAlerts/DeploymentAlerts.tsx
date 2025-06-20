@@ -29,6 +29,7 @@ export type Props = {
   maxBalanceThreshold: number;
   onStateChange: (params: { hasChanges: boolean }) => void;
   notificationChannels: NotificationChannelsOutput;
+  disabled?: boolean;
 };
 
 const schema = z.object({
@@ -72,6 +73,7 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   maxBalanceThreshold,
   onStateChange,
   notificationChannels,
+  disabled,
   components: c = COMPONENTS
 }) => {
   const strictSchema = useMemo(() => {
@@ -125,13 +127,15 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
       <form onSubmit={form.handleSubmit(submit)}>
         <div className="my-4 flex items-center text-xl font-bold">
           <h3 className="mr-4">Configure Alerts</h3>
-          <LoadingButton type="submit" loading={isLoading} disabled={!hasChanges}>
-            Save Changes
-          </LoadingButton>
+          {!disabled && (
+            <LoadingButton type="submit" loading={isLoading} disabled={!hasChanges}>
+              Save Changes
+            </LoadingButton>
+          )}
         </div>
         <div className="grid-col-1 mb-4 grid gap-4 md:grid-cols-2">
-          <c.DeploymentBalanceAlert disabled={isLoading} />
-          <c.DeploymentCloseAlert disabled={isLoading} />
+          <c.DeploymentBalanceAlert disabled={isLoading || disabled} />
+          <c.DeploymentCloseAlert disabled={isLoading || disabled} />
         </div>
       </form>
     </FormProvider>
@@ -139,7 +143,7 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
 };
 
 export type ExternalProps = {
-  deployment: Pick<DeploymentDto, "escrowBalance" | "dseq" | "denom">;
+  deployment: Pick<DeploymentDto, "escrowBalance" | "dseq" | "denom" | "state">;
 } & Pick<Props, "onStateChange">;
 
 export const DeploymentAlerts: FC<ExternalProps> = ({ deployment, onStateChange }) => {
@@ -149,7 +153,12 @@ export const DeploymentAlerts: FC<ExternalProps> = ({ deployment, onStateChange 
         <DeploymentAlertsContainer deployment={deployment}>
           {props => (
             <LoadingBlocker isLoading={!props.isFetched}>
-              <DeploymentAlertsView {...props} onStateChange={onStateChange} notificationChannels={notificationChannels} />
+              <DeploymentAlertsView
+                {...props}
+                onStateChange={onStateChange}
+                notificationChannels={notificationChannels}
+                disabled={deployment.state === "closed"}
+              />
             </LoadingBlocker>
           )}
         </DeploymentAlertsContainer>
