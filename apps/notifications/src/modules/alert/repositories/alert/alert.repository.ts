@@ -149,7 +149,7 @@ export class AlertRepository {
         where: this.whereAccessibleBy(
           and(
             sql`${schema.Alert.params}->>'dseq' = ${conditions.dseq}`,
-            conditions.includeSuppressed ? undefined : sql`${schema.Alert.params}->>'suppressedBySystem' != 'true'`,
+            conditions.includeSuppressed ? undefined : sql`NOT(${schema.Alert.params} @> '{"suppressedBySystem": true}')`,
             or(
               sql`${schema.Alert.params}->>'type' IS NOT NULL`,
               and(eq(schema.Alert.type, "DEPLOYMENT_BALANCE"), sql`${schema.Alert.params}->>'owner' IS NOT NULL`)
