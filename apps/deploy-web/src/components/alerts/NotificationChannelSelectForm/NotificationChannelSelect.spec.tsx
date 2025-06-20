@@ -7,32 +7,31 @@ import { NotificationChannelSelectView } from "./NotificationChannelSelect";
 import { render, screen } from "@testing-library/react";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 
-describe("NotificationChannelSelectView", () => {
+describe(NotificationChannelSelectView.name, () => {
   it("renders select with placeholder when no data", () => {
     setup({ data: [] });
 
-    expect(screen.queryByText("Notification Channel")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Notification Channel")).toBeInTheDocument();
     expect(screen.queryByText("Select notification channel")).toBeInTheDocument();
   });
 
   it("renders select trigger when data is provided", () => {
     setup();
 
-    expect(screen.queryByText("Notification Channel")).toBeInTheDocument();
-    expect(screen.getByTestId("notification-channel-select-trigger")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Notification Channel")).toBeInTheDocument();
   });
 
   it("disables select when disabled prop is true", () => {
     setup({ disabled: true });
 
-    const selectTrigger = screen.getByTestId("notification-channel-select-trigger");
+    const selectTrigger = screen.getByLabelText("Notification Channel");
     expect(selectTrigger).toBeDisabled();
   });
 
   it("shows error state when field has error", () => {
     setup({ fieldError: "Notification Channel is required" });
 
-    const selectTrigger = screen.getByTestId("notification-channel-select-trigger");
+    const selectTrigger = screen.getByLabelText("Notification Channel");
     expect(selectTrigger).toHaveClass("border-red-500");
     expect(screen.queryByText("Notification Channel is required")).toBeInTheDocument();
   });
@@ -40,14 +39,14 @@ describe("NotificationChannelSelectView", () => {
   it("renders add notification channel link", () => {
     setup();
 
-    const addLink = screen.getByRole("link", { name: "" });
+    const addLink = screen.getByRole("link", { name: "Add notification channel" });
     expect(addLink).toHaveAttribute("href", "/alerts/notification-channels/new");
   });
 
   it("disables add link when disabled prop is true", () => {
     setup({ disabled: true });
 
-    const addLink = screen.getByRole("link", { name: "" });
+    const addLink = screen.getByRole("link", { name: "Add notification channel" });
     expect(addLink).toHaveClass("opacity-10");
     expect(addLink).toHaveClass("cursor-not-allowed");
   });

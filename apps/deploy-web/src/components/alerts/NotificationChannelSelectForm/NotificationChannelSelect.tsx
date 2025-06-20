@@ -33,11 +33,7 @@ export const NotificationChannelSelectView: FC<Props> = ({ name, isFetched, data
             <>
               <div className="flex-1">
                 <Select value={field.value || ""} onValueChange={field.onChange} disabled={disabled}>
-                  <SelectTrigger
-                    id="notification-channel-id"
-                    data-testid="notification-channel-select-trigger"
-                    className={cn({ "border-2 border-red-500": fieldState.error })}
-                  >
+                  <SelectTrigger id="notification-channel-id" className={cn({ "border-2 border-red-500": fieldState.error })}>
                     <SelectValue placeholder="Select notification channel" />
                   </SelectTrigger>
                   <SelectContent>
@@ -58,6 +54,7 @@ export const NotificationChannelSelectView: FC<Props> = ({ name, isFetched, data
         <div className="ml-2">
           <Link
             href="/alerts/notification-channels/new"
+            aria-label="Add notification channel"
             className={cn(buttonVariants({ variant: "default" }), "inline-flex items-center", {
               "opacity-10": disabled,
               "cursor-not-allowed": disabled

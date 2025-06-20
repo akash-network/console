@@ -14,7 +14,7 @@ import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { buildRpcDeployment } from "@tests/seeders/deployment";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
@@ -23,25 +23,23 @@ describe(DeploymentAlertsContainer.name, () => {
   it("triggers a deployment alert request with the correct values", async () => {
     const { requestFn, input, child, dseq } = await setup();
 
-    child.upsert(input);
+    await act(() => child.upsert(input));
 
-    await waitFor(() => {
-      expect(requestFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "post",
-          url: "/v1/deployment-alerts/{dseq}"
-        }),
-        expect.objectContaining({
-          parameters: {
-            path: { dseq }
-          },
-          body: {
-            data: input
-          }
-        })
-      );
-      expect(screen.queryByTestId("alert-config-success-notification")).toBeInTheDocument();
-    });
+    expect(requestFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "post",
+        url: "/v1/deployment-alerts/{dseq}"
+      }),
+      expect.objectContaining({
+        parameters: {
+          path: { dseq }
+        },
+        body: {
+          data: input
+        }
+      })
+    );
+    expect(screen.queryByTestId("alert-config-success-notification")).toBeInTheDocument();
   });
 
   it("shows error notification on failed request", async () => {
@@ -49,25 +47,23 @@ describe(DeploymentAlertsContainer.name, () => {
 
     requestFn.mockRejectedValue(new Error("API Error"));
 
-    child.upsert(input);
+    await act(() => child.upsert(input));
 
-    await waitFor(() => {
-      expect(requestFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "post",
-          url: "/v1/deployment-alerts/{dseq}"
-        }),
-        expect.objectContaining({
-          parameters: {
-            path: { dseq }
-          },
-          body: {
-            data: input
-          }
-        })
-      );
-      expect(screen.queryByTestId("alert-config-error-notification")).toBeInTheDocument();
-    });
+    expect(requestFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "post",
+        url: "/v1/deployment-alerts/{dseq}"
+      }),
+      expect.objectContaining({
+        parameters: {
+          path: { dseq }
+        },
+        body: {
+          data: input
+        }
+      })
+    );
+    expect(screen.queryByTestId("alert-config-error-notification")).toBeInTheDocument();
   });
 
   it("handles deployment closed alert configuration", async () => {
@@ -81,24 +77,22 @@ describe(DeploymentAlertsContainer.name, () => {
       }
     };
 
-    child.upsert(input);
+    await act(() => child.upsert(input));
 
-    await waitFor(() => {
-      expect(requestFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "post",
-          url: "/v1/deployment-alerts/{dseq}"
-        }),
-        expect.objectContaining({
-          parameters: {
-            path: { dseq }
-          },
-          body: {
-            data: input
-          }
-        })
-      );
-    });
+    expect(requestFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "post",
+        url: "/v1/deployment-alerts/{dseq}"
+      }),
+      expect.objectContaining({
+        parameters: {
+          path: { dseq }
+        },
+        body: {
+          data: input
+        }
+      })
+    );
   });
 
   it("handles deployment balance alert configuration", async () => {
@@ -113,30 +107,28 @@ describe(DeploymentAlertsContainer.name, () => {
       }
     };
 
-    child.upsert(input);
+    await act(() => child.upsert(input));
 
-    await waitFor(() => {
-      expect(requestFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "post",
-          url: "/v1/deployment-alerts/{dseq}"
-        }),
-        expect.objectContaining({
-          parameters: {
-            path: { dseq }
-          },
-          body: {
-            data: expect.objectContaining({
-              alerts: {
-                deploymentBalance: expect.objectContaining({
-                  threshold: expect.any(Number)
-                })
-              }
-            })
-          }
-        })
-      );
-    });
+    expect(requestFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "post",
+        url: "/v1/deployment-alerts/{dseq}"
+      }),
+      expect.objectContaining({
+        parameters: {
+          path: { dseq }
+        },
+        body: {
+          data: expect.objectContaining({
+            alerts: {
+              deploymentBalance: expect.objectContaining({
+                threshold: expect.any(Number)
+              })
+            }
+          })
+        }
+      })
+    );
   });
 
   it("handles both deployment closed and balance alerts", async () => {
@@ -155,34 +147,32 @@ describe(DeploymentAlertsContainer.name, () => {
       }
     };
 
-    child.upsert(input);
+    await act(() => child.upsert(input));
 
-    await waitFor(() => {
-      expect(requestFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "post",
-          url: "/v1/deployment-alerts/{dseq}"
-        }),
-        expect.objectContaining({
-          parameters: {
-            path: { dseq }
-          },
-          body: {
-            data: expect.objectContaining({
-              alerts: {
-                deploymentClosed: expect.objectContaining({
-                  enabled: true
-                }),
-                deploymentBalance: expect.objectContaining({
-                  enabled: true,
-                  threshold: expect.any(Number)
-                })
-              }
-            })
-          }
-        })
-      );
-    });
+    expect(requestFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "post",
+        url: "/v1/deployment-alerts/{dseq}"
+      }),
+      expect.objectContaining({
+        parameters: {
+          path: { dseq }
+        },
+        body: {
+          data: expect.objectContaining({
+            alerts: {
+              deploymentClosed: expect.objectContaining({
+                enabled: true
+              }),
+              deploymentBalance: expect.objectContaining({
+                enabled: true,
+                threshold: expect.any(Number)
+              })
+            }
+          })
+        }
+      })
+    );
   });
 
   it("provides max balance threshold", async () => {
@@ -195,12 +185,10 @@ describe(DeploymentAlertsContainer.name, () => {
     const { requestFn, input, child } = await setup();
     const invalidateQueriesSpy = jest.spyOn(queryClient, "invalidateQueries");
 
-    child.upsert(input);
+    await act(() => child.upsert(input));
 
-    await waitFor(() => {
-      expect(requestFn).toHaveBeenCalled();
-      expect(invalidateQueriesSpy).toHaveBeenCalled();
-    });
+    expect(requestFn).toHaveBeenCalled();
+    expect(invalidateQueriesSpy).toHaveBeenCalled();
   });
 
   async function setup() {
