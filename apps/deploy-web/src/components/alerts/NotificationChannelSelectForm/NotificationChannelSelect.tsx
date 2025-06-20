@@ -18,11 +18,12 @@ type ExternalProps = {
 type Props = Pick<ChildrenProps, "isFetched" | "data"> & ExternalProps;
 
 export const NotificationChannelSelectView: FC<Props> = ({ name, isFetched, data, disabled }) => {
-  const { control } = useFormContext();
+  const { control, getFieldState } = useFormContext();
+  const state = getFieldState(name);
 
   return (
     <LoadingBlocker isLoading={!isFetched}>
-      <FormLabel htmlFor="notification-channel-id" className={cn({ "cursor-not-allowed text-red-500": disabled })}>
+      <FormLabel htmlFor="notification-channel-id" className={cn({ "cursor-not-allowed text-red-500": state.error })}>
         Notification Channel
       </FormLabel>
       <div className="flex">
