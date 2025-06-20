@@ -9,9 +9,9 @@ import { z } from "zod";
 
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
-import { AbilityParams } from "@src/modules/alert/repositories/alert/alert.repository";
 import * as schema from "../../model-schemas";
 
+export type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];
 export const notificationChannelConfigSchema = z.object({
   addresses: z.array(z.string().email())
 });

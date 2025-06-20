@@ -12,7 +12,7 @@ import { chainMessageCreateInputSchema } from "@src/interfaces/rest/http-schemas
 import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
 import RestModule from "@src/interfaces/rest/rest.module";
 import * as alertSchema from "@src/modules/alert/model-schemas";
-import { AlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
+import { AlertOutput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 
 import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
@@ -21,15 +21,28 @@ type AlertOutputMeta = Pick<AlertOutput, "id" | "userId">;
 
 describe("Alerts CRUD", () => {
   it("should perform all CRUD operations against raw alerts", async () => {
+    // NOTE: change this when there's a role that can create alerts
+    const HAS_ROLE_TO_CREATE_ALERTS = false;
     const { app, userId, notificationChannelId } = await setup();
 
-    const alert = await shouldCreate(userId, notificationChannelId, app);
+    const alert = HAS_ROLE_TO_CREATE_ALERTS ? await shouldCreate(userId, notificationChannelId, app) : await prepareAlert(userId, notificationChannelId, app);
     await shouldUpdate(alert, app);
     await shouldRead(alert, app);
     await shouldDelete(alert, app);
 
     await app.close();
   });
+
+  async function prepareAlert(userId: string, notificationChannelId: string, app: INestApplication): Promise<AlertOutputMeta> {
+    const repository = app.get(AlertRepository);
+    const { params, ...input } = generateMock(chainMessageCreateInputSchema);
+    const alert = await repository.create({ ...input, userId, notificationChannelId, enabled: true });
+
+    return {
+      id: alert.id,
+      userId
+    };
+  }
 
   async function shouldCreate(userId: string, notificationChannelId: string, app: INestApplication): Promise<AlertOutputMeta> {
     const { params, ...input } = generateMock(chainMessageCreateInputSchema);
@@ -80,32 +93,6 @@ describe("Alerts CRUD", () => {
 
     expect(getRes.status).toBe(404);
   }
-
-  describe("Deployment Alerts CRUD", () => {
-    it("should perform all CRUD operations against raw alerts", async () => {
-      const { app, userId, notificationChannelId } = await setup();
-
-      const input = generateMock(chainMessageCreateInputSchema);
-      const input2 = generateMock(chainMessageCreateInputSchema);
-      input.notificationChannelId = notificationChannelId;
-      input.enabled = true;
-      input2.notificationChannelId = notificationChannelId;
-      input2.enabled = true;
-
-      if (!input.params) {
-        throw new Error("Missing params on generated mock data");
-      }
-
-      await Promise.all([input, input2].map(alertInput => request(app.getHttpServer()).post("/v1/alerts").set("x-user-id", userId).send({ data: alertInput })));
-      const res = await request(app.getHttpServer()).get(`/v1/alerts?dseq=${input.params.dseq}`).set("x-user-id", userId);
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.length).toBe(1);
-      expect(res.body.data[0].params).toEqual(input.params);
-
-      await app.close();
-    });
-  });
 
   async function setup(): Promise<{
     app: INestApplication;

@@ -9,8 +9,8 @@ import Layout from "@src/components/layout/Layout";
 export const AlertsPage: FC = () => {
   return (
     <Layout containerClassName="flex h-full flex-col justify-between">
-      <NextSeo title="Alerts" />
-      <AlertsLayout page={AlertTabs.ALERTS} title="Alerts">
+      <NextSeo title="Configured Alerts" />
+      <AlertsLayout page={AlertTabs.ALERTS} title="Configured Alerts">
         <AlertsListContainer>{props => <AlertsListView {...props} />}</AlertsListContainer>
       </AlertsLayout>
     </Layout>
