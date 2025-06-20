@@ -8,7 +8,7 @@ import { AccountEmailChannelCreator } from "@src/components/alerts/AccountEmailC
 import type { ChildrenProps } from "@src/components/alerts/NotificationChannelsListContainer/NotificationChannelsListContainer";
 import { NotificationChannelsListContainer } from "@src/components/alerts/NotificationChannelsListContainer/NotificationChannelsListContainer";
 import { LoadingBlocker } from "@src/components/layout/LoadingBlocker/LoadingBlocker";
-import type { FCWithChildren } from "@src/types/component";
+import type { FCWithChildren, FCWithFnChildren } from "@src/types/component";
 import { UrlService } from "@src/utils/urlUtils";
 
 export const COMPONENTS = {
@@ -37,12 +37,12 @@ export const NotificationChannelsGuardView: FCWithChildren<Props> = ({ data, isF
   );
 };
 
-export const NotificationChannelsGuard: FCWithChildren = ({ children }) => {
+export const NotificationChannelsGuard: FCWithFnChildren<object, ChildrenProps> = ({ children }) => {
   return (
     <NotificationChannelsListContainer>
       {notificationChannelList => (
         <NotificationChannelsGuardView data={notificationChannelList.data} isFetched={notificationChannelList.isFetched}>
-          {children}
+          {children(notificationChannelList)}
         </NotificationChannelsGuardView>
       )}
     </NotificationChannelsListContainer>

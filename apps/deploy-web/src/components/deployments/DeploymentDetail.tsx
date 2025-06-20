@@ -1,6 +1,7 @@
 "use client";
 
 import type { FC } from "react";
+import { useCallback } from "react";
 import { useMemo } from "react";
 import { createRef, useEffect, useState } from "react";
 import { Alert, Button, buttonVariants, Spinner, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
@@ -49,6 +50,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const repo: string | null = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
   const user = useUser();
   const isAlertsEnabled = useFlag("alerts") && user?.userId && isManaged;
+  const [badgedTabs, setBadgedTabs] = useState<Record<string, boolean>>({});
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = useDeploymentDetail(address, dseq);
   const {
@@ -96,12 +98,20 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const isActive = deployment?.state === "active" && leases?.some(x => x.state === "active");
 
   const tabs = useMemo(() => {
-    const tabs = [
+    const tabs: { label: string; value: string; badged?: boolean }[] = [
       {
         value: "LEASES",
         label: "Leases"
       }
     ];
+
+    if (isAlertsEnabled) {
+      tabs.push({
+        label: "Alerts",
+        value: "ALERTS",
+        badged: badgedTabs.ALERTS
+      });
+    }
 
     if (isActive) {
       tabs.push(
@@ -120,20 +130,13 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
       );
     }
 
-    if (isAlertsEnabled) {
-      tabs.push({
-        label: "Alerts",
-        value: "ALERTS"
-      });
-    }
-
     tabs.push({
       label: "Update",
       value: "EDIT"
     });
 
     return tabs;
-  }, [isActive, isAlertsEnabled]);
+  }, [badgedTabs.ALERTS, isActive, isAlertsEnabled]);
 
   const searchParams = useSearchParams();
   const tabQuery = searchParams?.get("tab");
@@ -185,6 +188,15 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     });
   };
 
+  const recordAlertsChange = useCallback(
+    ({ hasChanges }: { hasChanges: boolean }) =>
+      setBadgedTabs(prevState => ({
+        ...prevState,
+        ALERTS: hasChanges
+      })),
+    [setBadgedTabs]
+  );
+
   return (
     <Layout isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders} isUsingSettings isUsingWallet containerClassName="pb-0">
       <NextSeo title={`Deployment detail #${dseq}`} />
@@ -230,10 +242,10 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
               {tabs.map(tab => (
                 <TabsTrigger key={tab.value} value={tab.value}>
                   {tab.label}
+                  {tab.badged && <span className="ml-4 inline-block h-2 w-2 rounded-full bg-red-500" />}
                 </TabsTrigger>
               ))}
             </TabsList>
-
             {activeTab === "EDIT" && deployment && leases && (
               <ManifestUpdate
                 editedManifest={editedManifest as string}
@@ -250,7 +262,9 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
             {activeTab === "LOGS" && <DeploymentLogs leases={leases} selectedLogsMode="logs" />}
             {activeTab === "EVENTS" && <DeploymentLogs leases={leases} selectedLogsMode="events" />}
             {activeTab === "SHELL" && <DeploymentLeaseShell leases={leases} />}
-            {activeTab === "ALERTS" && <DeploymentAlerts deployment={deployment} />}
+            <div className={cn({ hidden: activeTab !== "ALERTS" })}>
+              <DeploymentAlerts deployment={deployment} onStateChange={recordAlertsChange} />
+            </div>
             {activeTab === "LEASES" && (
               <div className="py-4">
                 {leases && (!localCert || !isLocalCertMatching) && (
