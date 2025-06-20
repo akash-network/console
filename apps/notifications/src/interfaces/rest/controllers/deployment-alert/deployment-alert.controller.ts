@@ -32,7 +32,8 @@ export class DeploymentAlertCreateInput extends createZodDto(deploymentAlertCrea
 
 const baseAlertOutputSchema = z.object({
   id: z.string().uuid(),
-  status: z.string()
+  status: z.string(),
+  suppressedBySystem: z.boolean().optional()
 });
 
 const deploymentBalanceAlertOutputSchema = deploymentBalanceAlertInput.merge(baseAlertOutputSchema);

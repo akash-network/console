@@ -66,6 +66,15 @@ export type AlertOutputWithNotificationName = AlertOutput & {
   notificationChannelName?: string;
 };
 
+export interface UpdateInput extends Omit<Partial<AlertInput>, "params"> {
+  params?: Partial<AlertInput["params"]>;
+}
+
+export interface FindAllDeploymentAlertsConditions {
+  dseq: string;
+  includeSuppressed?: boolean;
+}
+
 @Injectable()
 export class AlertRepository {
   protected ability?: DrizzleAbility<typeof schema.Alert>;
@@ -100,7 +109,7 @@ export class AlertRepository {
     });
   }
 
-  async updateById(id: string, input: Partial<AlertInput>): Promise<AlertOutput | undefined> {
+  async updateById(id: string, input: UpdateInput): Promise<AlertOutput | undefined> {
     if (this.abilityParams) {
       const permittedFields = permittedFieldsOf(...this.abilityParams, { fieldsFrom: rule => rule.fields || Object.keys(Alert.$inferSelect) });
       const inputKeys = Object.keys(input);
@@ -116,6 +125,7 @@ export class AlertRepository {
         .update(schema.Alert)
         .set({
           ...input,
+          params: input.params ? sql`${schema.Alert.params} || ${sql.param(JSON.stringify(input.params))}` : undefined,
           updatedAt: sql`NOW()`
         })
         .where(this.whereAccessibleBy(eq(schema.Alert.id, id)))
@@ -133,12 +143,13 @@ export class AlertRepository {
     return alert && this.toOutput(alert);
   }
 
-  async findAllDeploymentAlerts(dseq: string): Promise<AlertOutput[]> {
+  async findAllDeploymentAlerts(conditions: FindAllDeploymentAlertsConditions): Promise<AlertOutput[]> {
     return this.toOutputList(
       await this.db.query.Alert.findMany({
         where: this.whereAccessibleBy(
           and(
-            sql`${schema.Alert.params}->>'dseq' = ${dseq}`,
+            sql`${schema.Alert.params}->>'dseq' = ${conditions.dseq}`,
+            conditions.includeSuppressed ? undefined : sql`${schema.Alert.params}->>'suppressedBySystem' != 'true'`,
             or(
               sql`${schema.Alert.params}->>'type' IS NOT NULL`,
               and(eq(schema.Alert.type, "DEPLOYMENT_BALANCE"), sql`${schema.Alert.params}->>'owner' IS NOT NULL`)
@@ -164,7 +175,7 @@ export class AlertRepository {
     const page = options.page || 1;
     const limit = options.limit || 10;
     const offset = (page - 1) * limit;
-    let where = this.whereAccessibleBy();
+    let where = and(this.whereAccessibleBy(), sql`NOT(${schema.Alert.params} @> '{"suppressedBySystem": true}')`);
 
     if (options.query?.dseq) {
       where = and(where, sql`${schema.Alert.params}->>'dseq' = ${options.query.dseq}`);

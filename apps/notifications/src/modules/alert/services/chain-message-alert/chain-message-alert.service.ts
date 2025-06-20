@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
-import { AlertRepository, ChainMessageAlertOutput, DeploymentBalanceAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
+import { AlertRepository, ChainMessageAlertOutput, UpdateInput } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertMessageService } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { ConditionsMatcherService } from "@src/modules/alert/services/conditions-matcher/conditions-matcher.service";
 import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
@@ -28,10 +28,12 @@ export class ChainMessageAlertService {
           return;
         }
 
-        const update: Partial<DeploymentBalanceAlertOutput> = { status: "TRIGGERED" };
+        const update: UpdateInput = { status: "TRIGGERED" };
 
         if ("type" in event && event.type === "akash.deployment.v1beta3.MsgCloseDeployment") {
           update.enabled = false;
+          update.params ??= {};
+          update.params.suppressedBySystem = true;
         }
 
         const updatedAlert = await this.alertRepository.updateById(alert.id, update);

@@ -1,5 +1,5 @@
 import { MongoAbility } from "@casl/ability";
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Err, Ok, Result } from "ts-results";
 
@@ -30,11 +30,13 @@ export type DeploymentAlertInput = {
 type DeploymentBalanceAlertOutput = DeploymentBalanceAlertInput & {
   id: string;
   status: string;
+  suppressedBySystem?: boolean;
 };
 
 type DeploymentClosedAlertOutput = DeploymentClosedAlertInput & {
   id: string;
   status: string;
+  suppressedBySystem?: boolean;
 };
 
 export type DeploymentAlertOutput = {
@@ -80,6 +82,9 @@ export class DeploymentAlertService {
     }
 
     const existingAlerts = await this.get(dseq, auth.ability);
+    if (existingAlerts.alerts.deploymentBalance?.suppressedBySystem || existingAlerts.alerts.deploymentClosed?.suppressedBySystem) {
+      return Err(new BadRequestException("Cannot upsert because deployment alert is suppressed by system"));
+    }
 
     if (alerts.deploymentBalance) {
       await this.upsertBalanceAlert({ ...alerts.deploymentBalance, dseq, owner }, auth, existingAlerts);
@@ -204,7 +209,7 @@ export class DeploymentAlertService {
   }
 
   async get(dseq: string, ability: MongoAbility): Promise<DeploymentAlertOutput> {
-    const alerts = (await this.alertRepository.accessibleBy(ability, "read", "DeploymentAlert").findAllDeploymentAlerts(dseq)) as RepositoryAlert[];
+    const alerts = (await this.alertRepository.accessibleBy(ability, "read", "DeploymentAlert").findAllDeploymentAlerts({ dseq, includeSuppressed: true })) as RepositoryAlert[];
 
     const result: DeploymentAlertOutput = {
       dseq,
@@ -218,7 +223,8 @@ export class DeploymentAlertService {
           notificationChannelId: alert.notificationChannelId,
           enabled: alert.enabled,
           threshold: alert.conditions.value,
-          status: alert.status
+          status: alert.status,
+          suppressedBySystem: !!alert.params.suppressedBySystem
         };
       } else if (alert.type === "CHAIN_MESSAGE" && alert.params) {
         const params = alert.params as { dseq?: string; type?: string };
@@ -227,7 +233,8 @@ export class DeploymentAlertService {
             id: alert.id,
             notificationChannelId: alert.notificationChannelId,
             enabled: alert.enabled,
-            status: alert.status
+            status: alert.status,
+            suppressedBySystem: !!alert.params.suppressedBySystem
           };
         }
       }

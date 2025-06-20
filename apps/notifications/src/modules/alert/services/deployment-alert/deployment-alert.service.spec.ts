@@ -169,13 +169,15 @@ describe(DeploymentAlertService.name, () => {
             enabled: deploymentBalanceRawAlert.enabled,
             threshold: deploymentBalanceRawAlert.conditions.value,
             id: deploymentBalanceRawAlert.id,
-            status: deploymentBalanceRawAlert.status
+            status: deploymentBalanceRawAlert.status,
+            suppressedBySystem: false
           },
           deploymentClosed: {
             notificationChannelId: deploymentClosedRawAlert.notificationChannelId,
             enabled: deploymentClosedRawAlert.enabled,
             id: deploymentClosedRawAlert.id,
-            status: deploymentClosedRawAlert.status
+            status: deploymentClosedRawAlert.status,
+            suppressedBySystem: false
           }
         }
       });
