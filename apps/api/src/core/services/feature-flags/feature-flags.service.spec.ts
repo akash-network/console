@@ -31,7 +31,7 @@ describe(FeatureFlagsService.name, () => {
 
   it("throws an error if service was not initialized but trying to check feature flag", async () => {
     const service = await setup({ skipInitialization: true });
-    expect(() => service.isEnabled(FeatureFlags.NOTIFICATIONS_ALERT_MUTATION)).toThrow(/was not initialized/);
+    expect(() => service.isEnabled(FeatureFlags.NOTIFICATIONS_ALERT_CREATE)).toThrow(/was not initialized/);
   });
 
   it("calls onChanged callback when feature flag is changed", async () => {
@@ -58,7 +58,7 @@ describe(FeatureFlagsService.name, () => {
   });
 
   describe("isEnabled", () => {
-    it("passes user and environement specific context to Unleash", async () => {
+    it("passes user and environment specific context to Unleash", async () => {
       const client = createUnleashMockClient({
         isEnabledFeatureFlag: jest.fn(() => false)
       });
@@ -81,9 +81,9 @@ describe(FeatureFlagsService.name, () => {
         httpClientInfo
       });
 
-      service.isEnabled(FeatureFlags.NOTIFICATIONS_ALERT_MUTATION);
+      service.isEnabled(FeatureFlags.NOTIFICATIONS_ALERT_CREATE);
 
-      expect(client.isEnabled).toHaveBeenCalledWith(FeatureFlags.NOTIFICATIONS_ALERT_MUTATION, {
+      expect(client.isEnabled).toHaveBeenCalledWith(FeatureFlags.NOTIFICATIONS_ALERT_CREATE, {
         currentTime: expect.any(Date),
         remoteAddress: httpClientInfo.ip,
         userId: currentUser.id,
@@ -104,7 +104,7 @@ describe(FeatureFlagsService.name, () => {
         })
       );
       const service = await setup({ createClient });
-      const result = service.isEnabled(FeatureFlags.NOTIFICATIONS_ALERT_MUTATION);
+      const result = service.isEnabled(FeatureFlags.NOTIFICATIONS_ALERT_CREATE);
 
       expect(result).toBe(false);
     });
@@ -116,7 +116,7 @@ describe(FeatureFlagsService.name, () => {
         })
       );
       const service = await setup({ createClient });
-      const result = service.isEnabled(FeatureFlags.NOTIFICATIONS_ALERT_MUTATION);
+      const result = service.isEnabled(FeatureFlags.NOTIFICATIONS_ALERT_CREATE);
 
       expect(result).toBe(true);
     });

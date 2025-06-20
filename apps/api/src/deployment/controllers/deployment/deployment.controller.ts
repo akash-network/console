@@ -125,6 +125,10 @@ export class DeploymentController {
   }
 
   async getByOwnerAndDseq(owner: string, dseq: string): Promise<GetDeploymentByOwnerDseqResponse> {
-    return await this.deploymentReaderService.getDeploymentByOwnerAndDseq(owner, dseq);
+    const deployment = await this.deploymentReaderService.getDeploymentByOwnerAndDseq(owner, dseq);
+
+    assert(deployment, 404, "Deployment Not Found");
+
+    return deployment;
   }
 }
