@@ -57,13 +57,15 @@ describe("Deployment Alerts CRUD", () => {
             enabled: input.data.alerts.deploymentBalance!.enabled,
             threshold: input.data.alerts.deploymentBalance!.threshold,
             status: "OK",
-            id: expect.any(String)
+            id: expect.any(String),
+            suppressedBySystem: false
           },
           deploymentClosed: {
             notificationChannelId,
             enabled: input.data.alerts.deploymentClosed!.enabled,
             status: "OK",
-            id: expect.any(String)
+            id: expect.any(String),
+            suppressedBySystem: false
           }
         }
       }

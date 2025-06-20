@@ -101,7 +101,12 @@ export class DeploymentBalanceAlertsService {
   }
 
   private async suspendErroneousAlert(error: RichError, alert: DeploymentBalanceAlertOutput) {
-    const updatedAlert = await this.alertRepository.updateById(alert.id, { enabled: false });
+    const updatedAlert = await this.alertRepository.updateById(alert.id, {
+      enabled: false,
+      params: {
+        suppressedBySystem: true
+      }
+    });
 
     if (error.code === "DEPLOYMENT_CLOSED") {
       return this.alertMessageService.getMessage({

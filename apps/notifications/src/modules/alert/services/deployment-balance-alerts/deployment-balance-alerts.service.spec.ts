@@ -207,7 +207,10 @@ describe(DeploymentBalanceAlertsService.name, () => {
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
       expect(alertRepository.updateById).toHaveBeenCalledWith(alert.id, {
-        enabled: false
+        enabled: false,
+        params: {
+          suppressedBySystem: true
+        }
       });
     });
 
