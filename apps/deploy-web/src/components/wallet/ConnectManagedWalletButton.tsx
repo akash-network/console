@@ -7,8 +7,8 @@ import { cn } from "@akashnetwork/ui/utils";
 import { Rocket } from "iconoir-react";
 
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
-import { useFeatureFlags } from "@src/queries/featureFlags";
 
 interface Props extends ButtonProps {
   children?: ReactNode;
@@ -17,17 +17,17 @@ interface Props extends ButtonProps {
 
 export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ className = "", ...rest }) => {
   const { connectManagedWallet, hasManagedWallet, isWalletLoading } = useWallet();
-  const { data: features } = useFeatureFlags();
+  const allowAnonymousUserTrial = useFlag("console_web_anonymous_user_trial");
   const whenLoggedIn = useLoginRequiredEventHandler();
   const startTrial: React.MouseEventHandler = useCallback(
     event => {
-      if (features?.allowAnonymousUserTrial) {
+      if (allowAnonymousUserTrial) {
         connectManagedWallet();
       } else {
         whenLoggedIn("Sign In or Sign Up to start trial")(connectManagedWallet)(event);
       }
     },
-    [connectManagedWallet, features?.allowAnonymousUserTrial, whenLoggedIn]
+    [connectManagedWallet, allowAnonymousUserTrial, whenLoggedIn]
   );
 
   return (
