@@ -1,5 +1,17 @@
 
 
+## [2.102.0](https://github.com/akash-network/console/compare/console-api/v2.101.0...console-api/v2.102.0) (2025-06-20)
+
+
+### Features
+
+* **alert:** improves deployment alerts list UI ([d81d92d](https://github.com/akash-network/console/commit/d81d92da218186d2af454c4411a2d641762722b0))
+
+
+### Code Refactoring
+
+* move /v1/nodes and /v1/version to a module ([#1458](https://github.com/akash-network/console/issues/1458)) ([fc814db](https://github.com/akash-network/console/commit/fc814db50418300b608b7ddeb7173b3a3882aa38)), closes [#1271](https://github.com/akash-network/console/issues/1271) [#1276](https://github.com/akash-network/console/issues/1276)
+
 ## [2.101.0](https://github.com/akash-network/console/compare/console-api/v2.100.0...console-api/v2.101.0) (2025-06-17)
 
 
