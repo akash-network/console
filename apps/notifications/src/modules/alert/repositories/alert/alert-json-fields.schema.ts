@@ -36,12 +36,14 @@ const dseqSchema = z.string().regex(/^\d+$/, {
 
 export const deploymentBalanceParamsSchema = z.object({
   dseq: dseqSchema,
-  owner: z.string()
+  owner: z.string(),
+  suppressedBySystem: z.boolean().optional()
 });
 
 export const chainMessageParamsSchema = z.object({
   dseq: dseqSchema,
-  type: z.string()
+  type: z.string(),
+  suppressedBySystem: z.boolean().optional()
 });
 
 export const chainMessageTypeSchema = z.literal("CHAIN_MESSAGE");
