@@ -33,6 +33,7 @@
     "src/auth/**/*.ts",
     "src/certificate/**/*.ts",
     "src/deployment/**/*.ts",
+    "src/gpu/**/*.ts",
     "src/network/**/*.ts"
   ]
 }

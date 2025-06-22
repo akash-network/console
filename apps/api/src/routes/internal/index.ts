@@ -1,7 +1,5 @@
 import { leasesDurationInternalRouter } from "@src/dashboard";
-import gpu from "../v1/gpu";
-import gpuModels from "../v1/gpuModels";
-import gpuPrices from "../v1/gpuPrices";
+import { getGpuPricesInternalRouter, listGpuModelsInternalRouter, listGpusInternalRouter } from "@src/gpu";
 import financial from "./financial";
 
-export default [gpu, leasesDurationInternalRouter, gpuModels, gpuPrices, financial];
+export default [listGpusInternalRouter, listGpuModelsInternalRouter, leasesDurationInternalRouter, getGpuPricesInternalRouter, financial];

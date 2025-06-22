@@ -1,4 +1,6 @@
-import { Deployment, Lease } from "@akashnetwork/database/dbSchemas/akash";
+import { Block } from "@akashnetwork/database/dbSchemas";
+import { AkashMessage, Deployment, DeploymentGroup, DeploymentGroupResource, Lease } from "@akashnetwork/database/dbSchemas/akash";
+import { Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { literal, Op } from "sequelize";
 import { singleton } from "tsyringe";
 
@@ -70,5 +72,40 @@ export class DeploymentRepository {
     });
 
     return deployments ? (deployments as unknown as StaleDeploymentsOutput[]) : [];
+  }
+
+  async findAllWithGpuResources(minHeight: number) {
+    return await Deployment.findAll({
+      attributes: ["id", "owner"],
+      where: { createdHeight: { [Op.gte]: minHeight } },
+      include: [
+        {
+          attributes: [],
+          model: DeploymentGroup,
+          required: true,
+          include: [
+            {
+              attributes: [],
+              model: DeploymentGroupResource,
+              required: true,
+              where: { gpuUnits: 1 }
+            }
+          ]
+        },
+        {
+          attributes: ["height", "data"],
+          model: AkashMessage,
+          as: "relatedMessages",
+          where: {
+            type: "/akash.market.v1beta4.MsgCreateBid",
+            height: { [Op.gte]: minHeight }
+          },
+          include: [
+            { model: Block, attributes: ["height", "dayId", "datetime"], required: true },
+            { model: Transaction, attributes: ["hash"], required: true }
+          ]
+        }
+      ]
+    });
   }
 }
