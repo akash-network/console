@@ -29,6 +29,20 @@ describe(FeatureFlagsService.name, () => {
     );
   });
 
+  it("skips initialization if FEATURE_FLAGS_ENABLE_ALL is true", async () => {
+    const createClient = jest.fn(() => createUnleashMockClient());
+    const service = await setup({
+      config: { FEATURE_FLAGS_ENABLE_ALL: true },
+      skipInitialization: true,
+      createClient
+    });
+
+    await service.initialize();
+
+    expect(createClient).not.toHaveBeenCalled();
+    expect(service.isEnabled(FeatureFlags.NOTIFICATIONS_ALERT_CREATE)).toBe(true);
+  });
+
   it("throws an error if service was not initialized but trying to check feature flag", async () => {
     const service = await setup({ skipInitialization: true });
     expect(() => service.isEnabled(FeatureFlags.NOTIFICATIONS_ALERT_CREATE)).toThrow(/was not initialized/);
@@ -119,6 +133,11 @@ describe(FeatureFlagsService.name, () => {
       const result = service.isEnabled(FeatureFlags.NOTIFICATIONS_ALERT_CREATE);
 
       expect(result).toBe(true);
+    });
+
+    it("returns true for all feature flags if FEATURE_FLAGS_ENABLE_ALL is true", async () => {
+      const service = await setup({ config: { FEATURE_FLAGS_ENABLE_ALL: true } });
+      expect(service.isEnabled(`unknown-flag-${Date.now()}` as FeatureFlagValue)).toBe(true);
     });
   });
 

@@ -50,6 +50,8 @@ export class FeatureFlagsService implements Disposable {
   }
 
   async initialize(): Promise<void> {
+    if (this.configService.get("FEATURE_FLAGS_ENABLE_ALL")) return;
+
     const url = this.configService.get("UNLEASH_SERVER_API_URL");
     const token = this.configService.get("UNLEASH_SERVER_API_TOKEN");
 
