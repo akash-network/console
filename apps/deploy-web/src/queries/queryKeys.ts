@@ -1,5 +1,7 @@
 export class QueryKeys {
   static getFinancialDataKey = () => ["MARKET_DATA"];
+  static getUsageDataKey = () => ["USAGE_DATA"];
+  static getUsageStatsDataKey = () => ["USAGE_STATS_DATA"];
   static getDashboardDataKey = () => ["DASHBOARD_DATA"];
   static getBlocksKey = (limit: number) => ["BLOCKS", limit];
   static getTransactionsKey = (limit: number) => ["TRANSACTIONS", limit];

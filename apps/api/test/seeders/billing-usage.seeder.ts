@@ -5,7 +5,7 @@ import type { BillingUsageRawResult } from "@src/billing/repositories/usage/usag
 export class BillingUsageSeeder {
   static create({
     date = faker.date.recent().toISOString().split("T")[0],
-    activeLeases = faker.number.int({ min: 0, max: 10 }),
+    activeDeployments = faker.number.int({ min: 0, max: 10 }),
     dailyAktSpent = faker.number.float({ min: 0, max: 100, precision: 0.01 }),
     totalAktSpent = faker.number.float({ min: 0, max: 1000, precision: 0.01 }),
     dailyUsdcSpent = faker.number.float({ min: 0, max: 100, precision: 0.01 }),
@@ -15,7 +15,7 @@ export class BillingUsageSeeder {
   }: Partial<BillingUsageRawResult> = {}): BillingUsageRawResult {
     return {
       date,
-      activeLeases,
+      activeDeployments,
       dailyAktSpent,
       totalAktSpent,
       dailyUsdcSpent,

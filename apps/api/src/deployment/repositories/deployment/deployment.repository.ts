@@ -24,6 +24,12 @@ export class DeploymentRepository {
     });
   }
 
+  async countByOwner(owner: string): Promise<number> {
+    return await Deployment.count({
+      where: { owner }
+    });
+  }
+
   async findStaleDeployments(options: StaleDeploymentsOptions): Promise<StaleDeploymentsOutput[]> {
     const deployments = await Deployment.findAll({
       attributes: ["dseq"],
