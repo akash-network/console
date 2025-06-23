@@ -43,4 +43,5 @@ jobs:
             local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
             app:
               - 'apps/${{ inputs.app }}/**'
+              - 'package-lock.json'
               - *local_deps
