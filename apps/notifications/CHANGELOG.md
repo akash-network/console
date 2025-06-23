@@ -1,5 +1,12 @@
 
 
+## [1.13.1](https://github.com/akash-network/console/compare/notifications/v1.13.0...notifications/v1.13.1) (2025-06-23)
+
+
+### Bug Fixes
+
+* **alert:** extracts permitted alert fields correctly ([f1ce6ea](https://github.com/akash-network/console/commit/f1ce6ea4b46e620eccff31c1c3dfeb502ccd81bc))
+
 ## [1.13.0](https://github.com/akash-network/console/compare/notifications/v1.12.0...notifications/v1.13.0) (2025-06-23)
 
 
