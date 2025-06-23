@@ -1,5 +1,22 @@
 
 
+## [1.12.0](https://github.com/akash-network/console/compare/notifications/v1.11.0...notifications/v1.12.0) (2025-06-22)
+
+
+### Features
+
+* **alert:** improves deployment alerts list UI ([d81d92d](https://github.com/akash-network/console/commit/d81d92da218186d2af454c4411a2d641762722b0))
+
+
+### Bug Fixes
+
+* adds suppressBySystem flag to alerts params ([#1521](https://github.com/akash-network/console/issues/1521)) ([46e8a19](https://github.com/akash-network/console/commit/46e8a19d2758abe7c749a19e67bc842e85c6957d))
+
+
+### Code Refactoring
+
+* move /v1/nodes and /v1/version to a module ([#1458](https://github.com/akash-network/console/issues/1458)) ([fc814db](https://github.com/akash-network/console/commit/fc814db50418300b608b7ddeb7173b3a3882aa38)), closes [#1271](https://github.com/akash-network/console/issues/1271) [#1276](https://github.com/akash-network/console/issues/1276)
+
 ## [1.11.0](https://github.com/akash-network/console/compare/notifications/v1.10.0...notifications/v1.11.0) (2025-06-17)
 
 
