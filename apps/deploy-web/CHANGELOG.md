@@ -1,5 +1,19 @@
 
 
+## [2.87.0](https://github.com/akash-network/console/compare/console-web/v2.86.0...console-web/v2.87.0) (2025-06-22)
+
+
+### Features
+
+* **alert:** disables form if deployment is closed ([cc46ea9](https://github.com/akash-network/console/commit/cc46ea9ed37e9fece145f4ce740fe190fd177ea6))
+* **alert:** improves deployment alerts list UI ([d81d92d](https://github.com/akash-network/console/commit/d81d92da218186d2af454c4411a2d641762722b0))
+* **alert:** improves deployment alerts UI  ([04a55a9](https://github.com/akash-network/console/commit/04a55a94d1bfac91acfc448f07641bab752192eb))
+
+
+### Code Refactoring
+
+* move /v1/nodes and /v1/version to a module ([#1458](https://github.com/akash-network/console/issues/1458)) ([fc814db](https://github.com/akash-network/console/commit/fc814db50418300b608b7ddeb7173b3a3882aa38)), closes [#1271](https://github.com/akash-network/console/issues/1271) [#1276](https://github.com/akash-network/console/issues/1276)
+
 ## [2.86.0](https://github.com/akash-network/console/compare/console-web/v2.85.0...console-web/v2.86.0) (2025-06-17)
 
 
