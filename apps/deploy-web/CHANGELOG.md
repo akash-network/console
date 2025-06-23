@@ -1,5 +1,12 @@
 
 
+## [2.87.1](https://github.com/akash-network/console/compare/console-web/v2.87.0...console-web/v2.87.1) (2025-06-23)
+
+
+### Bug Fixes
+
+* **alert:** convert akt denom to udenom when saving balance alert threshold ([5da379a](https://github.com/akash-network/console/commit/5da379ae430971637396f19f9784fc4806f6a505))
+
 ## [2.87.0](https://github.com/akash-network/console/compare/console-web/v2.86.0...console-web/v2.87.0) (2025-06-22)
 
 
