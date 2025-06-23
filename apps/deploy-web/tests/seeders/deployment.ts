@@ -2,9 +2,15 @@ import { faker } from "@faker-js/faker";
 import type { DeepPartial } from "cosmjs-types/helpers";
 import { merge } from "lodash";
 
+import type { USDC_IBC_DENOMS } from "@src/config/denom.config";
+import { UAKT_DENOM } from "@src/config/denom.config";
 import type { RpcDeployment } from "@src/types/deployment";
 import { genWalletAddress } from "./wallet";
-export function buildRpcDeployment(overrides?: DeepPartial<RpcDeployment>): RpcDeployment {
+
+export function buildRpcDeployment({
+  denom = UAKT_DENOM,
+  ...overrides
+}: DeepPartial<RpcDeployment> & { denom?: typeof UAKT_DENOM | (typeof USDC_IBC_DENOMS)["mainnet"] | (typeof USDC_IBC_DENOMS)["sandbox"] } = {}): RpcDeployment {
   const walletAddress = overrides?.deployment?.deployment_id?.owner || genWalletAddress();
   const dseq = overrides?.deployment?.deployment_id?.dseq || faker.string.numeric({ length: 6 }).toString();
   return merge(
@@ -74,7 +80,7 @@ export function buildRpcDeployment(overrides?: DeepPartial<RpcDeployment>): RpcD
                 },
                 count: 1,
                 price: {
-                  denom: "uakt",
+                  denom,
                   amount: "10000.000000000000000000"
                 }
               }
@@ -91,17 +97,17 @@ export function buildRpcDeployment(overrides?: DeepPartial<RpcDeployment>): RpcD
         owner: walletAddress,
         state: "closed",
         balance: {
-          denom: "uakt",
+          denom,
           amount: "0.438400000000000000"
         },
         transferred: {
-          denom: "uakt",
+          denom,
           amount: "159.561600000000000000"
         },
         settled_at: "667969",
         depositor: walletAddress,
         funds: {
-          denom: "uakt",
+          denom,
           amount: "0.000000000000000000"
         }
       }

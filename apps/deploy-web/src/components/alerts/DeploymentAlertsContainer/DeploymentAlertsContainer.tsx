@@ -67,7 +67,7 @@ export const DeploymentAlertsContainer: FC<Props> = ({ children, deployment, dep
   const convert = useCallback(
     (value: number) => {
       if (deployment.denom !== "uakt") {
-        return value;
+        return denomToUdenom(value);
       }
       const akt = usdToAkt(value);
 

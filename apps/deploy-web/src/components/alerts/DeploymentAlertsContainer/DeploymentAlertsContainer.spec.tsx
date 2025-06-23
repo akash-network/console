@@ -6,9 +6,11 @@ import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import type { RequestFn, RequestFnResponse } from "@openapi-qraft/tanstack-query-react-types";
 import { QueryClientProvider } from "@tanstack/react-query";
+import merge from "lodash/merge";
 
 import type { ChildrenProps, ContainerInput, Props } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { DeploymentAlertsContainer } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
+import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
 import type { usePricing } from "@src/context/PricingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
@@ -20,49 +22,46 @@ import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 
 describe(DeploymentAlertsContainer.name, () => {
-  it("triggers a deployment alert request with the correct values", async () => {
-    const { requestFn, input, child, dseq } = await setup();
+  [
+    { denom: UAKT_DENOM, threshold: 2000000 },
+    { denom: USDC_IBC_DENOMS["mainnet"], threshold: 4000000 }
+  ].forEach(({ denom, threshold }) => {
+    it(`triggers ${denom} deployment alert request with the correct values`, async () => {
+      const { requestFn, input, child, dseq } = await setup({ denom });
 
-    await act(() => child.upsert(input));
+      await act(() => child.upsert(input));
 
-    expect(requestFn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        method: "post",
-        url: "/v1/deployment-alerts/{dseq}"
-      }),
-      expect.objectContaining({
-        parameters: {
-          path: { dseq }
-        },
-        body: {
-          data: input
-        }
-      })
-    );
-    expect(screen.queryByTestId("alert-config-success-notification")).toBeInTheDocument();
+      expect(requestFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: "post",
+          url: "/v1/deployment-alerts/{dseq}"
+        }),
+        expect.objectContaining({
+          parameters: {
+            path: { dseq }
+          },
+          body: {
+            data: merge({}, input, {
+              alerts: {
+                deploymentBalance: {
+                  threshold
+                }
+              }
+            })
+          }
+        })
+      );
+      expect(screen.queryByTestId("alert-config-success-notification")).toBeInTheDocument();
+    });
   });
 
   it("shows error notification on failed request", async () => {
-    const { requestFn, input, child, dseq } = await setup();
+    const { requestFn, input, child } = await setup();
 
     requestFn.mockRejectedValue(new Error("API Error"));
 
     await act(() => child.upsert(input));
 
-    expect(requestFn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        method: "post",
-        url: "/v1/deployment-alerts/{dseq}"
-      }),
-      expect.objectContaining({
-        parameters: {
-          path: { dseq }
-        },
-        body: {
-          data: input
-        }
-      })
-    );
     expect(screen.queryByTestId("alert-config-error-notification")).toBeInTheDocument();
   });
 
@@ -191,8 +190,8 @@ describe(DeploymentAlertsContainer.name, () => {
     expect(invalidateQueriesSpy).toHaveBeenCalled();
   });
 
-  async function setup() {
-    const rpcDeployment = buildRpcDeployment();
+  async function setup({ denom }: { denom?: "uakt" | (typeof USDC_IBC_DENOMS)["mainnet"] | (typeof USDC_IBC_DENOMS)["sandbox"] } = {}) {
+    const rpcDeployment = buildRpcDeployment({ denom });
     const deployment = deploymentToDto(rpcDeployment);
     const dseq = deployment.dseq;
     const input: ContainerInput = {
@@ -200,6 +199,11 @@ describe(DeploymentAlertsContainer.name, () => {
         deploymentClosed: {
           enabled: true,
           notificationChannelId: buildNotificationChannel().id
+        },
+        deploymentBalance: {
+          enabled: true,
+          notificationChannelId: buildNotificationChannel().id,
+          threshold: 4
         }
       }
     };
@@ -223,16 +227,14 @@ describe(DeploymentAlertsContainer.name, () => {
         })
     };
 
+    const AKT_PRICE = 2;
     const mockPricing = {
-      usdToAkt: jest.fn((amount: number) => amount / 1.5),
+      usdToAkt: jest.fn((amount: number) => amount / AKT_PRICE),
       getPriceForDenom: jest.fn((denom: string) => {
-        switch (denom) {
-          case "uakt":
-            return 1.5;
-          case "usdc":
-            return 1;
-          default:
-            return 0;
+        if (denom === "uakt") {
+          return AKT_PRICE;
+        } else {
+          return 1;
         }
       })
     } as unknown as ReturnType<typeof usePricing>;
