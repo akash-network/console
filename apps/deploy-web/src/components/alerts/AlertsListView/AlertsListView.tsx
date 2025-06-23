@@ -64,7 +64,7 @@ export const AlertsListView: FC<Props> = ({
       header: "Deployment Name",
       cell: info =>
         info.row.original.params?.dseq ? (
-          <Link href={UrlService.deploymentDetails(info.row.original.params.dseq)} className="font-bold">
+          <Link href={UrlService.deploymentDetails(info.row.original.params.dseq, "ALERTS")} className="font-bold">
             {info.getValue()}
           </Link>
         ) : (
@@ -85,7 +85,7 @@ export const AlertsListView: FC<Props> = ({
         const params = info.row.original.params;
 
         if (type === "DEPLOYMENT_BALANCE") {
-          return "Threshold";
+          return "Escrow Threshold";
         } else if (type === "CHAIN_MESSAGE" && params && "type" in params && params.type === "DEPLOYMENT_CLOSED") {
           return "Deployment Close";
         }
