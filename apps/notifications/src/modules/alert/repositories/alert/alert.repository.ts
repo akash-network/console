@@ -171,6 +171,18 @@ export class AlertRepository {
     });
   }
 
+  async countActiveByNotificationChannelId(notificationChannelId: string): Promise<number> {
+    const result = await this.db
+      .select({ count: count(schema.Alert.id) })
+      .from(schema.Alert)
+      .where(
+        this.whereAccessibleBy(
+          and(eq(schema.Alert.notificationChannelId, notificationChannelId), sql`NOT(${schema.Alert.params} @> '{"suppressedBySystem": true}')`)
+        )
+      );
+    return Number(result[0].count);
+  }
+
   async paginate(options: ListLookupOptions): Promise<PaginatedResult<AlertOutputWithNotificationName>> {
     const page = options.page || 1;
     const limit = options.limit || 10;
