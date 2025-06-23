@@ -1,0 +1,30 @@
+name: Security check CI
+on:
+  pull_request:
+    # branches: [main]
+
+jobs:
+  appsec-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test dependencies
+        uses: snyk/actions/node@4a528b5c534bb771b6e3772656a8e0e9dc902f8b
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          args: --all-projects
+
+  appsec-code:
+    runs-on: ubuntu-latest
+    needs: appsec-dependencies
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test code
+        uses: snyk/actions/node@4a528b5c534bb771b6e3772656a8e0e9dc902f8b
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code
+          args: test
