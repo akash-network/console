@@ -1,5 +1,12 @@
 
 
+## [1.13.0](https://github.com/akash-network/console/compare/notifications/v1.12.0...notifications/v1.13.0) (2025-06-23)
+
+
+### Features
+
+* **alert:** implements notification channel safe delete ([e023ce0](https://github.com/akash-network/console/commit/e023ce09fd6612c9c2d0d3e9dc3178648975bd5d))
+
 ## [1.12.0](https://github.com/akash-network/console/compare/notifications/v1.11.0...notifications/v1.12.0) (2025-06-22)
 
 
