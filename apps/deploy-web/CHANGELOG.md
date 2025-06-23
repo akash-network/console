@@ -1,5 +1,12 @@
 
 
+## [2.88.0](https://github.com/akash-network/console/compare/console-web/v2.87.1...console-web/v2.88.0) (2025-06-23)
+
+
+### Features
+
+* **alert:** implements notification channel safe delete ([e023ce0](https://github.com/akash-network/console/commit/e023ce09fd6612c9c2d0d3e9dc3178648975bd5d))
+
 ## [2.87.1](https://github.com/akash-network/console/compare/console-web/v2.87.0...console-web/v2.87.1) (2025-06-23)
 
 
