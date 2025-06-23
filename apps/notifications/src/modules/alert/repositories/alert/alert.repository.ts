@@ -11,7 +11,6 @@ import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config"
 import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 import * as schema from "../../model-schemas";
-import { Alert } from "../../model-schemas";
 import type { ChainMessageJsonFields, DeploymentBalanceJsonFields } from "./alert-json-fields.schema";
 import * as jsonFieldsSchemas from "./alert-json-fields.schema";
 
@@ -111,7 +110,9 @@ export class AlertRepository {
 
   async updateById(id: string, input: UpdateInput): Promise<AlertOutput | undefined> {
     if (this.abilityParams) {
-      const permittedFields = permittedFieldsOf(...this.abilityParams, { fieldsFrom: rule => rule.fields || Object.keys(Alert.$inferSelect) });
+      const permittedFields = permittedFieldsOf(...this.abilityParams, {
+        fieldsFrom: rule => rule.fields || Object.keys(schema.Alert)
+      });
       const inputKeys = Object.keys(input);
       const diff = difference(inputKeys, permittedFields);
 
@@ -244,14 +245,14 @@ export class AlertRepository {
   }): Promise<void> {
     let lastId: string | undefined;
     let hasMore = true;
-    const clauses = [eq(Alert.enabled, true), eq(Alert.type, query.type)];
+    const clauses = [eq(schema.Alert.enabled, true), eq(schema.Alert.type, query.type)];
 
     if (query.block) {
-      clauses.push(lte(Alert.minBlockHeight, query.block));
+      clauses.push(lte(schema.Alert.minBlockHeight, query.block));
     }
 
     if (query.status) {
-      clauses.push(eq(Alert.status, query.status));
+      clauses.push(eq(schema.Alert.status, query.status));
     }
 
     while (hasMore) {
