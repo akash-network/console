@@ -94,7 +94,7 @@ describe(DeploymentAlertsContainer.name, () => {
     );
   });
 
-  it("handles deployment balance alert configuration", async () => {
+  it("handles escrow balance alert configuration", async () => {
     const { requestFn, child, dseq } = await setup();
     const input: ContainerInput = {
       alerts: {

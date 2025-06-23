@@ -20,7 +20,7 @@ export const DeploymentBalanceAlert: FC<Props> = ({ disabled }) => {
     <Fieldset
       label={
         <div className="flex items-center justify-between">
-          <p className="mr-3 text-xl font-bold">Deployment Deposit</p>
+          <p className="mr-3 text-xl font-bold">Escrow Balance</p>
           <FormField
             control={control}
             name="deploymentBalance.enabled"
@@ -54,7 +54,7 @@ export const DeploymentBalanceAlert: FC<Props> = ({ disabled }) => {
                 label={
                   <div className="inline-flex items-center">
                     Threshold, USD
-                    <CustomTooltip title="Alert if the deployment deposit is less than this amount.">
+                    <CustomTooltip title="Alert if the deployment escrow balance is less than this amount.">
                       <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                     </CustomTooltip>
                   </div>
