@@ -1,5 +1,12 @@
 
 
+## [1.12.1](https://github.com/akash-network/console/compare/provider-proxy/v1.12.0...provider-proxy/v1.12.1) (2025-06-23)
+
+
+### Bug Fixes
+
+* handles connection error in provider proxy to return 503 ([#1525](https://github.com/akash-network/console/issues/1525)) ([57d58c8](https://github.com/akash-network/console/commit/57d58c86c32706295b794fdd19dd8878170eb119))
+
 ## [1.12.0](https://github.com/akash-network/console/compare/provider-proxy/v1.11.0...provider-proxy/v1.12.0) (2025-06-19)
 
 
