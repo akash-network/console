@@ -1,5 +1,12 @@
 
 
+## [2.89.1](https://github.com/akash-network/console/compare/console-web/v2.89.0...console-web/v2.89.1) (2025-06-24)
+
+
+### Bug Fixes
+
+* **alert:** clear up unsaved changes for a closed deployment ([8792ec7](https://github.com/akash-network/console/commit/8792ec771419e1a94e288b983e00530c88489e8d))
+
 ## [2.89.0](https://github.com/akash-network/console/compare/console-web/v2.88.0...console-web/v2.89.0) (2025-06-24)
 
 
