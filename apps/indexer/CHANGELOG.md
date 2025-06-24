@@ -1,5 +1,12 @@
 
 
+## [1.13.1](https://github.com/akash-network/console/compare/indexer/v1.13.0...indexer/v1.13.1) (2025-06-24)
+
+
+### Code Refactoring
+
+* run npm audit fix to fix security issues ([#1529](https://github.com/akash-network/console/issues/1529)) ([e00581e](https://github.com/akash-network/console/commit/e00581ef45d97c5dfabbe78688d39e715ff1ffde))
+
 ## [1.13.0](https://github.com/akash-network/console/compare/indexer/v1.12.2...indexer/v1.13.0) (2025-06-16)
 
 
