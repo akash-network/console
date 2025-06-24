@@ -44,7 +44,7 @@ describe("Balances", () => {
     });
 
     expect(response.status).toBe(200);
-    const result = await response.json();
+    const result = (await response.json()) as any;
 
     expect(result).toHaveProperty("data");
     expect(result.data).toHaveProperty("balance");
@@ -73,7 +73,7 @@ describe("Balances", () => {
     });
 
     expect(response.status).toBe(200);
-    const result = await response.json();
+    const result = (await response.json()) as any;
 
     expect(result).toHaveProperty("data");
     expect(result.data).toHaveProperty("balance");

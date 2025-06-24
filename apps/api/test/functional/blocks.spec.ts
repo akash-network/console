@@ -39,7 +39,7 @@ describe("Blocks", () => {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json" })
       });
-      const blocksFound = await response.json();
+      const blocksFound = (await response.json()) as any;
 
       expect(response.status).toBe(200);
       expectBlocks(blocksFound, [blocks[100], blocks[99]]);
@@ -61,7 +61,7 @@ describe("Blocks", () => {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json" })
       });
-      const blockFound = await response.json();
+      const blockFound = (await response.json()) as any;
 
       expect(response.status).toBe(200);
       expectBlocks([blocks[0]], [blockFound]);
