@@ -3,6 +3,9 @@
 **/tests/**
 **/__tests__/**
 
+# ignore libs
+**/node_modules/**
+
 # ignore in project tests
 **/*.spec.js
 **/*.spec.jsx

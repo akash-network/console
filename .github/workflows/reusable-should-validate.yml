@@ -42,6 +42,9 @@ jobs:
           filters: |
             local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
             app:
-              - 'apps/${{ inputs.app }}/**'
-              - 'package-lock.json'
+              - "apps/${{ inputs.app }}/**"
+              - package-lock.json
+              - ".github/workflows/${{ inputs.app }}-validate-n-build.yml"
+              - ".github/workflows/${{ inputs.app == 'deploy-web' && 'console-web' || inputs.app }}-docker-build.yml"
+              - ".github/workflows/reusable-should-validate.yml"
               - *local_deps
