@@ -44,7 +44,7 @@ describe("Tx Sign", () => {
         method: "POST",
         headers: new Headers({ "Content-Type": "application/json" })
       });
-      const { token } = await differentUserResponse.json();
+      const { token } = (await differentUserResponse.json()) as any;
       const res = await app.request("/v1/tx", {
         method: "POST",
         body: await createMessagePayload(user.id, wallet.address),
