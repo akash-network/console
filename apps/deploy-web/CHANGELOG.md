@@ -1,5 +1,12 @@
 
 
+## [2.89.2](https://github.com/akash-network/console/compare/console-web/v2.89.1...console-web/v2.89.2) (2025-06-24)
+
+
+### Bug Fixes
+
+* **alert:** properly calculates deployment escrow balance ([4ea20e4](https://github.com/akash-network/console/commit/4ea20e4a7846a0fa588b9d8b8ad036f8165409c8))
+
 ## [2.89.1](https://github.com/akash-network/console/compare/console-web/v2.89.0...console-web/v2.89.1) (2025-06-24)
 
 
