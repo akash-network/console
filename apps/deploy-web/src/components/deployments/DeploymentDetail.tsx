@@ -16,6 +16,7 @@ import { useCertificate } from "@src/context/CertificateProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
+import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationGuard";
 import { useUser } from "@src/hooks/useUser";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
@@ -38,9 +39,11 @@ export interface DeploymentDetailProps {
   dseq: string;
 }
 
+type Tab = "ALERTS" | "EVENTS" | "LOGS" | "SHELL" | "EDIT" | "LEASES";
+
 export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("LEASES");
+  const [activeTab, setActiveTab] = useState<Tab>("LEASES");
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
   const { address, isWalletLoaded, isManaged } = useWallet();
   const { isSettingsInit } = useSettings();
@@ -50,7 +53,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const repo: string | null = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
   const user = useUser();
   const isAlertsEnabled = useFlag("alerts") && user?.userId && isManaged;
-  const [badgedTabs, setBadgedTabs] = useState<Record<string, boolean>>({});
+  const [badgedTabs, setBadgedTabs] = useState<Partial<Record<Tab, boolean>>>({});
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = useDeploymentDetail(address, dseq);
   const {
@@ -98,7 +101,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const isActive = deployment?.state === "active" && leases?.some(x => x.state === "active");
 
   const tabs = useMemo(() => {
-    const tabs: { label: string; value: string; badged?: boolean }[] = [
+    const tabs: { label: string; value: Tab; badged?: boolean }[] = [
       {
         value: "LEASES",
         label: "Leases"
@@ -176,7 +179,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     loadDeploymentDetail();
   }
 
-  const onChangeTab = (tab: string) => {
+  const changeTab = (tab: Tab) => {
     setActiveTab(tab);
 
     router.replace(UrlService.deploymentDetails(dseq, tab));
@@ -197,6 +200,12 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     [setBadgedTabs]
   );
 
+  useNavigationGuard({
+    enabled: !!badgedTabs.ALERTS,
+    message: "You have unsaved alert configuration changes that will be lost. Would you like to continue?",
+    skipWhen: params => params.to.startsWith(`/deployments/${dseq}`)
+  });
+
   return (
     <Layout isLoading={isLoadingLeases || isLoadingDeployment || isLoadingProviders} isUsingSettings isUsingWallet containerClassName="pb-0">
       <NextSeo title={`Deployment detail #${dseq}`} />
@@ -206,7 +215,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
           address={address}
           loadDeploymentDetail={loadDeploymentDetail}
           removeLeases={removeLeases}
-          setActiveTab={setActiveTab}
+          onDeploymentClose={() => setActiveTab("LEASES")}
           deployment={deployment}
           leases={leases}
         />
@@ -229,7 +238,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
         <>
           <DeploymentSubHeader deployment={deployment} leases={leases} />
 
-          <Tabs value={activeTab} onValueChange={onChangeTab}>
+          <Tabs value={activeTab} onValueChange={value => changeTab(value as Tab)}>
             <TabsList
               className={cn("grid w-full", {
                 "grid-cols-2": tabs.length === 2,
@@ -284,7 +293,6 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
                       key={lease.id}
                       index={i}
                       lease={lease}
-                      setActiveTab={setActiveTab}
                       ref={leaseRefs[i]}
                       deploymentManifest={deploymentManifest || ""}
                       dseq={dseq}
