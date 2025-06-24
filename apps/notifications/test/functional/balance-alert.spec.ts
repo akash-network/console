@@ -75,8 +75,22 @@ describe("balance alerts", () => {
     const balanceResponse = generateDeploymentBalanceResponse({
       fundsAmount: 400000,
       escrowAmount: 400000,
-      state: "active"
+      state: "active",
+      settledAt: 900
     });
+
+    const leaseResponse = {
+      leases: [
+        {
+          lease: {
+            price: {
+              amount: "1000"
+            }
+          }
+        }
+      ]
+    };
+
     let alertsProcessed = 0;
 
     chainApi
@@ -90,6 +104,14 @@ describe("balance alerts", () => {
         return balanceResponse;
       });
 
+    chainApi
+      .get("/akash/market/v1beta4/leases/list")
+      .query({
+        "filters.owner": owner,
+        "filters.dseq": String(matchingDseq)
+      })
+      .reply(200, leaseResponse);
+
     const message = generateMock(ChainBlockCreatedDto.schema);
     message.height = CURRENT_HEIGHT;
 
@@ -102,7 +124,7 @@ describe("balance alerts", () => {
       notificationChannelId: notificationChannel.id,
       payload: {
         summary: `deployment low: ${matchingDseq}`,
-        description: `deployment ${matchingDseq} balance is 800000 < 10000000 uAKT`
+        description: `deployment ${matchingDseq} balance is 700000 < 10000000 uAKT`
       }
     });
 
