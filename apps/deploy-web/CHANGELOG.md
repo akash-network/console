@@ -1,5 +1,17 @@
 
 
+## [2.89.0](https://github.com/akash-network/console/compare/console-web/v2.88.0...console-web/v2.89.0) (2025-06-24)
+
+
+### Features
+
+* **alert:** uses back nav blocker having unsaved changes ([ace5358](https://github.com/akash-network/console/commit/ace53583d029387d54e3ae0714c8d995c0f7b2f3))
+
+
+### Bug Fixes
+
+* enable sourcemaps for deploy-web ([#1538](https://github.com/akash-network/console/issues/1538)) ([a9beccd](https://github.com/akash-network/console/commit/a9beccd9aa7a9c22853b70125ea10dbc625ae729))
+
 ## [2.88.0](https://github.com/akash-network/console/compare/console-web/v2.87.1...console-web/v2.88.0) (2025-06-23)
 
 

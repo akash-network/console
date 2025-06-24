@@ -1,5 +1,12 @@
 
 
+## [2.102.1](https://github.com/akash-network/console/compare/console-api/v2.102.0...console-api/v2.102.1) (2025-06-24)
+
+
+### Code Refactoring
+
+* run npm audit fix to fix security issues ([#1529](https://github.com/akash-network/console/issues/1529)) ([e00581e](https://github.com/akash-network/console/commit/e00581ef45d97c5dfabbe78688d39e715ff1ffde))
+
 ## [2.102.0](https://github.com/akash-network/console/compare/console-api/v2.101.0...console-api/v2.102.0) (2025-06-22)
 
 
