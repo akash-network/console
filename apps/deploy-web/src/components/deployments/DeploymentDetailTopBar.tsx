@@ -1,5 +1,5 @@
 "use client";
-import type { Dispatch, ReactNode, SetStateAction } from "react";
+import type { ReactNode } from "react";
 import { useCallback, useState } from "react";
 import { Button, CustomTooltip, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner, Switch } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
@@ -32,13 +32,20 @@ type Props = {
   address: string;
   loadDeploymentDetail: () => void;
   removeLeases: () => void;
-  setActiveTab: Dispatch<SetStateAction<string>>;
+  onDeploymentClose: () => void;
   deployment: DeploymentDto;
   leases: LeaseDto[] | undefined | null;
   children?: ReactNode;
 };
 
-export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address, loadDeploymentDetail, removeLeases, setActiveTab, deployment, leases }) => {
+export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
+  address,
+  loadDeploymentDetail,
+  removeLeases,
+  onDeploymentClose,
+  deployment,
+  leases
+}) => {
   const { changeDeploymentName, getDeploymentData, getDeploymentName } = useLocalNotes();
   const { udenomToUsd } = usePricing();
   const router = useRouter();
@@ -71,7 +78,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({ address
     const message = TransactionMessageData.getCloseDeploymentMsg(address, deployment.dseq);
     const response = await signAndBroadcastTx([message]);
     if (response) {
-      setActiveTab("LEASES");
+      onDeploymentClose();
       removeLeases();
       loadDeploymentDetail();
 

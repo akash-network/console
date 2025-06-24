@@ -1,15 +1,17 @@
 import type { FC } from "react";
+import { useEffect } from "react";
 import React from "react";
 import { useMemo } from "react";
 import { useState } from "react";
 import { useCallback } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { Alert, Button, Form, FormField, FormInput, FormMessage, LoadingButton, Textarea } from "@akashnetwork/ui/components";
-import { usePopup } from "@akashnetwork/ui/context";
 import { cn } from "@akashnetwork/ui/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { isEqual } from "lodash";
 import { z } from "zod";
+
+import type { ChangeableComponentProps } from "@src/types/changeable-component-props.type";
 
 const formSchema = z.object({
   name: z.string().min(1).max(100),
@@ -18,24 +20,24 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 type DataValues = Pick<FormValues, "name"> & { emails: string[] };
 
-export interface NotificationChannelFormProps {
+export type NotificationChannelFormProps = ChangeableComponentProps<{
   initialValues?: DataValues;
   onSubmit: (data: DataValues) => void;
   onCancel?: () => void;
   isLoading?: boolean;
-}
+}>;
 
 export const NotificationChannelForm: FC<NotificationChannelFormProps> = ({
   onCancel,
   isLoading,
   onSubmit,
+  onStateChange,
   initialValues = {
     name: "",
     emails: []
   }
 }) => {
   const [error, setError] = useState<string | null>(null);
-  const { confirm } = usePopup();
 
   const initialFormValues: FormValues = useMemo(() => {
     return {
@@ -88,13 +90,15 @@ export const NotificationChannelForm: FC<NotificationChannelFormProps> = ({
     return fields.some(key => !isEqual(initialFormValues[key], currentValues[key]));
   }, [currentValues, initialFormValues]);
 
-  const cancel = useCallback(async () => {
-    const canCancel = !hasChanges || (await confirm("Unsaved changes would be lost. Are you sure you want to cancel?"));
-
-    if (canCancel && onCancel) {
-      onCancel();
+  useEffect(() => {
+    if (onStateChange) {
+      onStateChange({
+        hasChanges
+      });
     }
-  }, [confirm, hasChanges, onCancel]);
+  }, [hasChanges, onStateChange]);
+
+  const cancel = useCallback(() => onCancel?.(), [onCancel]);
 
   return (
     <div className="space-y-4 p-4">
