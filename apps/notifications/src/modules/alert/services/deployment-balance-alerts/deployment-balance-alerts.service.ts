@@ -51,7 +51,7 @@ export class DeploymentBalanceAlertsService {
 
   private async processSingleAlert(block: ChainBlockCreatedDto, alert: DeploymentBalanceAlertOutput, onMessage: MessageCallback) {
     try {
-      const balanceResult = await this.deploymentService.getDeploymentBalance(alert.params.owner, alert.params.dseq);
+      const balanceResult = await this.deploymentService.getDeploymentBalance(alert.params.owner, alert.params.dseq, block.height);
       if (balanceResult.err) {
         const payload = await this.suspendErroneousAlert(balanceResult.val, alert);
 
