@@ -1,5 +1,5 @@
-import type { jwtClaimsTestCases } from "../generated/jwt-claims-test-cases";
 import type { JWTPayload } from "../types";
+import type { jwtClaimsTestCases } from "./generated/jwt-claims-test-cases";
 import { createAkashAddress } from "./seeders/akash-address.seeder";
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
