@@ -33,3 +33,9 @@ jobs:
 
       - name: Run local package tests
         run: npm run test -w ./packages --if-present
+
+      - name: Run security checks
+        uses: ./.github/actions/app-sec
+        with:
+          path: packages
+          snyk-token: ${{ secrets.SNYK_TOKEN }}

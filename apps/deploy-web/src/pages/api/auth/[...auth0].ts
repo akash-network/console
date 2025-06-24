@@ -70,7 +70,19 @@ export default wrapApiHandlerInExecutionContext(
           }
         });
       } catch (error: any) {
-        res.status(error.status || 400).end(error.message);
+        const status = error?.status || 0;
+        console.error("auth0 signup error", {
+          status,
+          message: error.message,
+          stack: error.stack,
+          error
+        });
+
+        if (status >= 500) {
+          res.status(503).send({ message: "An unexpected error occurred. Please try again later." });
+        } else {
+          res.status(400).send({ message: error.message });
+        }
       }
     }
   })
