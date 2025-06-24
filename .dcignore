@@ -1,0 +1,14 @@
+# ignore functional/UI tests
+**/test/**
+**/tests/**
+**/__tests__/**
+
+# ignore in project tests
+**/*.spec.js
+**/*.spec.jsx
+**/*.spec.ts
+**/*.spec.tsx
+**/*.test.js
+**/*.test.jsx
+**/*.test.ts
+**/*.test.tsx
