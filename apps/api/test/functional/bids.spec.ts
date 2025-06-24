@@ -125,7 +125,7 @@ describe("Bids API", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as any;
       expect(result.data).toEqual([
         {
           bid: "fake-bid",
@@ -144,7 +144,7 @@ describe("Bids API", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as any;
       expect(result.data).toEqual([
         {
           bid: "fake-bid",
@@ -164,7 +164,7 @@ describe("Bids API", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as any;
       expect(result.data).toEqual([
         {
           bid: "fake-bid",
