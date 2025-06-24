@@ -1,5 +1,12 @@
 
 
+## [1.13.2](https://github.com/akash-network/console/compare/notifications/v1.13.1...notifications/v1.13.2) (2025-06-24)
+
+
+### Bug Fixes
+
+* **alert:** properly calculates deployment escrow balance ([4ea20e4](https://github.com/akash-network/console/commit/4ea20e4a7846a0fa588b9d8b8ad036f8165409c8))
+
 ## [1.13.1](https://github.com/akash-network/console/compare/notifications/v1.13.0...notifications/v1.13.1) (2025-06-23)
 
 

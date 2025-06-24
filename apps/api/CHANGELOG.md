@@ -1,5 +1,12 @@
 
 
+## [2.102.2](https://github.com/akash-network/console/compare/console-api/v2.102.1...console-api/v2.102.2) (2025-06-24)
+
+
+### Bug Fixes
+
+* **alert:** properly calculates deployment escrow balance ([4ea20e4](https://github.com/akash-network/console/commit/4ea20e4a7846a0fa588b9d8b8ad036f8165409c8))
+
 ## [2.102.1](https://github.com/akash-network/console/compare/console-api/v2.102.0...console-api/v2.102.1) (2025-06-24)
 
 
