@@ -2,6 +2,7 @@ export const netConfigData = {
   mainnet: {
     version: "0.38.0",
     apiUrls: [
+      "https://public-proxy.akt.dev/rest",
       "https://api.akashnet.net:443",
       "https://akash-api.polkachu.com:443",
       "https://akash.c29r3.xyz:443/api",
