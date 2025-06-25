@@ -251,6 +251,9 @@ export class AnalyticsService {
 const localStorage = isBrowser ? window.localStorage : undefined;
 const gtag = isBrowser ? window.gtag : undefined;
 
+/**
+ * @deprecated use useServices() instead
+ */
 export const analyticsService = new AnalyticsService(
   {
     amplitude: {

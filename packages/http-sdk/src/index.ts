@@ -20,3 +20,4 @@ export * from "./git-hub/git-hub-http.service";
 export * from "./cosmos";
 export * from "./coin-gecko";
 export * from "./node";
+export * from "./certificates/certificates.service";
