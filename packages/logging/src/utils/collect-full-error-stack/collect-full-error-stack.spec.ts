@@ -79,4 +79,39 @@ describe(collectFullErrorStack.name, () => {
     expect(result).toContain("error 1");
     expect(result).toContain("error 2");
   });
+
+  it("collects response/request full info", () => {
+    const error = new Error("test error");
+    Object.assign(error, {
+      response: {
+        status: 400,
+        data: { message: "Fatal error" },
+        config: {
+          url: "https://api.example.com/resource",
+          method: "GET"
+        }
+      }
+    });
+
+    const result = collectFullErrorStack(error);
+    expect(result).toContain("test error");
+    expect(result).toContain("Status: 400");
+    expect(result).toContain("Request: GET https://api.example.com/resource");
+    expect(result).toContain("Error: Fatal error");
+  });
+
+  it("collects response/request partial info", () => {
+    const error = new Error("test error");
+    Object.assign(error, {
+      response: {
+        status: 400
+      }
+    });
+
+    const result = collectFullErrorStack(error);
+    expect(result).toContain("test error");
+    expect(result).toContain("Status: 400");
+    expect(result).toContain("Request: Unknown request");
+    expect(result).toContain("Error: Not specified");
+  });
 });
