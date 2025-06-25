@@ -8,6 +8,7 @@ import { DeploymentRepository } from "@src/deployment/repositories/deployment/de
 import { GpuRepository } from "@src/gpu/repositories/gpu.repository";
 import type { GpuBidType, GpuProviderType, GpuWithPricesType, ProviderWithBestBid } from "@src/gpu/types/gpu.type";
 import { averageBlockCountInAMonth, averageBlockCountInAnHour } from "@src/utils/constants";
+import { env } from "@src/utils/env";
 import { average, median, round, weightedAverage } from "@src/utils/math";
 import { decodeMsg, uint8arrayToString } from "@src/utils/protobuf";
 import { DayRepository } from "../repositories/day.repository";
@@ -77,7 +78,7 @@ export class GpuPriceService {
                 .map(s => (s?.quantity?.val ? parseInt(uint8arrayToString(s.quantity.val)) : 0))
                 .reduce((a, b) => a + b, 0),
               gpus: decodedBid.resourcesOffer
-                .filter(x => (x.resources?.gpu?.units?.val ? parseInt(uint8arrayToString(x.resources.gpu.units.val)) : 0 > 0))
+                .filter(x => (x.resources?.gpu?.units?.val ? parseInt(uint8arrayToString(x.resources.gpu.units.val)) : 0) > 0)
                 .flatMap(r => (r.resources?.gpu?.attributes ? this.getGpusFromAttributes(r.resources.gpu.attributes) : []))
             },
             data: decodedBid
@@ -126,7 +127,7 @@ export class GpuPriceService {
             const providerBids = x.prices.filter(b => b.provider === p.owner);
             const providerBidsLast14d = providerBids.filter(x => x.datetime > addDays(new Date(), -14));
 
-            const pricingBotAddress = "akash1pas6v0905jgyznpvnjhg7tsthuyqek60gkz7uf";
+            const pricingBotAddress = env.PRICING_BOT_ADDRESS;
             const bidsFromPricingBot = providerBids.filter(x => x.deployment.owner === pricingBotAddress && x.deployment.cpuUnits === 100);
 
             let bestBid = null;

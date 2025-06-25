@@ -167,7 +167,7 @@ const getGpuPricesRoute = createRoute({
 const handleGetGpuPrices = async <E extends Env>(
   c: Context<
     E,
-    "/v1/gpu-models",
+    "/v1/gpu-prices",
     {
       in: {
         query: never;

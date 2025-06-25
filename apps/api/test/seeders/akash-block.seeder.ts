@@ -7,7 +7,7 @@ import { createAkashAddress } from "./akash-address.seeder";
 export const createAkashBlock = async (input: Partial<CreationAttributes<AkashBlock>> = {}): Promise<AkashBlock> => {
   return await AkashBlock.create({
     height: input.height || faker.number.int({ min: 0, max: 10000000 }),
-    datetime: input.datetime || faker.date.past().toISOString(),
+    datetime: input.datetime || faker.date.past(),
     hash: input.hash || createAkashAddress(),
     proposer: input.proposer || createAkashAddress(),
     dayId: input.dayId || faker.string.uuid(),

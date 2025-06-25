@@ -6,21 +6,6 @@ import { app } from "@src/app";
 import { createAkashBlock, createTransaction } from "@test/seeders";
 
 describe("Transactions", () => {
-  let transactions: Transaction[];
-
-  beforeAll(async () => {
-    const block = await createAkashBlock();
-
-    transactions = await Promise.all(
-      Array.from({ length: 101 }, (_, i) => {
-        return createTransaction({
-          height: block.height,
-          index: i + 1
-        });
-      })
-    );
-  });
-
   const expectTransactions = (transactionsFound: Transaction[], transactionsExpected: Transaction[]) => {
     expect(transactionsFound.length).toBe(transactionsExpected.length);
 
@@ -32,6 +17,7 @@ describe("Transactions", () => {
 
   describe("GET /v1/transactions", () => {
     it("resolves list of most recent transactions", async () => {
+      const { transactions } = await setup();
       const response = await app.request("/v1/transactions?limit=2", {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json" })
@@ -43,6 +29,7 @@ describe("Transactions", () => {
     });
 
     it("will not resolve more than 100 transactions", async () => {
+      await setup();
       const response = await app.request("/v1/transactions?limit=101", {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json" })
@@ -54,6 +41,7 @@ describe("Transactions", () => {
 
   describe("GET /v1/transactions/{hash}", () => {
     it("resolves transaction by hash", async () => {
+      const { transactions } = await setup();
       const response = await app.request(`/v1/transactions/${transactions[0].hash}`, {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json" })
@@ -65,6 +53,7 @@ describe("Transactions", () => {
     });
 
     it("responds 404 for an unknown hash", async () => {
+      await setup();
       const response = await app.request("/v1/transactions/unknown-hash", {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json" })
@@ -73,4 +62,19 @@ describe("Transactions", () => {
       expect(response.status).toBe(404);
     });
   });
+
+  async function setup() {
+    const block = await createAkashBlock();
+
+    const transactions = await Promise.all(
+      Array.from({ length: 101 }, (_, i) => {
+        return createTransaction({
+          height: block.height,
+          index: i + 1
+        });
+      })
+    );
+
+    return { transactions };
+  }
 });
