@@ -1,5 +1,12 @@
 
 
+## [1.12.2](https://github.com/akash-network/console/compare/provider-proxy/v1.12.1...provider-proxy/v1.12.2) (2025-06-25)
+
+
+### Bug Fixes
+
+* adds blockchain node API proxy to the list of mainnet nework urls ([#1553](https://github.com/akash-network/console/issues/1553)) ([35cd01a](https://github.com/akash-network/console/commit/35cd01a5969b2bdd78abd4eaa8baacdd3a676bc3))
+
 ## [1.12.1](https://github.com/akash-network/console/compare/provider-proxy/v1.12.0...provider-proxy/v1.12.1) (2025-06-23)
 
 
