@@ -1,5 +1,12 @@
 
 
+## [2.102.3](https://github.com/akash-network/console/compare/console-api/v2.102.2...console-api/v2.102.3) (2025-06-25)
+
+
+### Bug Fixes
+
+* adds blockchain node API proxy to the list of mainnet nework urls ([#1553](https://github.com/akash-network/console/issues/1553)) ([35cd01a](https://github.com/akash-network/console/commit/35cd01a5969b2bdd78abd4eaa8baacdd3a676bc3))
+
 ## [2.102.2](https://github.com/akash-network/console/compare/console-api/v2.102.1...console-api/v2.102.2) (2025-06-24)
 
 
