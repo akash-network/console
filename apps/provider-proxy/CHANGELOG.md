@@ -1,5 +1,12 @@
 
 
+## [1.12.4](https://github.com/akash-network/console/compare/provider-proxy/v1.12.3...provider-proxy/v1.12.4) (2025-06-26)
+
+
+### Bug Fixes
+
+* ensure getAllItems doesn't stuck inside infinite loop ([#1562](https://github.com/akash-network/console/issues/1562)) ([f8a8ba2](https://github.com/akash-network/console/commit/f8a8ba277f5b8b8cd25d1c4a831d0642e9505557))
+
 ## [1.12.3](https://github.com/akash-network/console/compare/provider-proxy/v1.12.2...provider-proxy/v1.12.3) (2025-06-26)
 
 
