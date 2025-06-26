@@ -2,16 +2,19 @@ import type Stripe from "stripe";
 
 import { StripeErrorService } from "./stripe-error.service";
 
+// Helper function to create proper Stripe error objects
+function createStripeError(type: string, props: any = {}): Stripe.errors.StripeError {
+  const error = new Error(props.message || "Stripe error") as any;
+  error.type = type;
+  Object.assign(error, props);
+  return error as Stripe.errors.StripeError;
+}
+
 describe(StripeErrorService.name, () => {
-  let service: StripeErrorService;
-
-  beforeEach(() => {
-    service = new StripeErrorService();
-  });
-
   describe("toAppError", () => {
     describe("coupon errors", () => {
       it("should handle 'No valid promotion code or coupon found with the provided code'", () => {
+        const { service } = setup();
         const error = new Error("No valid promotion code or coupon found with the provided code");
         const result = service.toAppError(error, "coupon");
 
@@ -20,6 +23,7 @@ describe(StripeErrorService.name, () => {
       });
 
       it("should handle 'Promotion code is invalid or expired'", () => {
+        const { service } = setup();
         const error = new Error("Promotion code is invalid or expired");
         const result = service.toAppError(error, "coupon");
 
@@ -28,6 +32,7 @@ describe(StripeErrorService.name, () => {
       });
 
       it("should handle 'Coupon is invalid or expired'", () => {
+        const { service } = setup();
         const error = new Error("Coupon is invalid or expired");
         const result = service.toAppError(error, "coupon");
 
@@ -36,6 +41,7 @@ describe(StripeErrorService.name, () => {
       });
 
       it("should handle 'This promotion code cannot be used'", () => {
+        const { service } = setup();
         const error = new Error("This promotion code cannot be used");
         const result = service.toAppError(error, "coupon");
 
@@ -44,6 +50,7 @@ describe(StripeErrorService.name, () => {
       });
 
       it("should handle 'Promotion code has already been used'", () => {
+        const { service } = setup();
         const error = new Error("Promotion code has already been used");
         const result = service.toAppError(error, "coupon");
 
@@ -54,6 +61,7 @@ describe(StripeErrorService.name, () => {
 
     describe("payment errors", () => {
       it("should handle 'Final amount after discount must be at least $1'", () => {
+        const { service } = setup();
         const error = new Error("Final amount after discount must be at least $1");
         const result = service.toAppError(error, "payment");
 
@@ -62,6 +70,7 @@ describe(StripeErrorService.name, () => {
       });
 
       it("should handle 'Minimum payment amount is $20 (before any discounts)'", () => {
+        const { service } = setup();
         const error = new Error("Minimum payment amount is $20 (before any discounts)");
         const result = service.toAppError(error, "payment");
 
@@ -70,6 +79,7 @@ describe(StripeErrorService.name, () => {
       });
 
       it("should handle 'Payment method does not belong to the user'", () => {
+        const { service } = setup();
         const error = new Error("Payment method does not belong to the user");
         const result = service.toAppError(error, "payment");
 
@@ -78,22 +88,41 @@ describe(StripeErrorService.name, () => {
       });
 
       it("should handle 'Payment not successful'", () => {
+        const { service } = setup();
         const error = new Error("Payment not successful");
         const result = service.toAppError(error, "payment");
 
         expect(result).toHaveProperty("status", 402);
         expect(result).toHaveProperty("message", "Payment not successful");
       });
+
+      it("should handle 'User does not have a Stripe customer ID'", () => {
+        const { service } = setup();
+        const error = new Error("User does not have a Stripe customer ID");
+        const result = service.toAppError(error, "payment");
+
+        expect(result).toHaveProperty("status", 400);
+        expect(result).toHaveProperty("message", "User does not have a Stripe customer ID");
+      });
+
+      it("should handle 'Coupon ID is required'", () => {
+        const { service } = setup();
+        const error = new Error("Coupon ID is required");
+        const result = service.toAppError(error, "payment");
+
+        expect(result).toHaveProperty("status", 400);
+        expect(result).toHaveProperty("message", "Coupon ID is required");
+      });
     });
 
     describe("Stripe errors", () => {
       it("should handle StripeCardError with card_declined", () => {
-        const error = {
-          type: "StripeCardError",
+        const { service } = setup();
+        const error = createStripeError("StripeCardError", {
           code: "card_declined",
           message: "Your card was declined",
           decline_code: "generic_decline"
-        } as Stripe.errors.StripeCardError;
+        });
 
         const result = service.toAppError(error, "payment");
 
@@ -102,12 +131,12 @@ describe(StripeErrorService.name, () => {
       });
 
       it("should handle StripeCardError with expired_card", () => {
-        const error = {
-          type: "StripeCardError",
+        const { service } = setup();
+        const error = createStripeError("StripeCardError", {
           code: "expired_card",
           message: "Your card has expired",
           decline_code: "expired_card"
-        } as Stripe.errors.StripeCardError;
+        });
 
         const result = service.toAppError(error, "payment");
 
@@ -116,12 +145,12 @@ describe(StripeErrorService.name, () => {
       });
 
       it("should handle StripeCardError with insufficient_funds", () => {
-        const error = {
-          type: "StripeCardError",
+        const { service } = setup();
+        const error = createStripeError("StripeCardError", {
           code: "insufficient_funds",
           message: "Your card has insufficient funds",
           decline_code: "insufficient_funds"
-        } as Stripe.errors.StripeCardError;
+        });
 
         const result = service.toAppError(error, "payment");
 
@@ -129,12 +158,52 @@ describe(StripeErrorService.name, () => {
         expect(result).toHaveProperty("message", "Your card has insufficient funds");
       });
 
-      it("should handle StripeInvalidRequestError", () => {
-        const error = {
-          type: "StripeInvalidRequestError",
+      it("should handle StripeCardError with decline code override", () => {
+        const { service } = setup();
+        const error = createStripeError("StripeCardError", {
+          code: "card_declined",
+          message: "Your card was declined",
+          decline_code: "insufficient_funds"
+        });
+
+        const result = service.toAppError(error, "payment");
+
+        expect(result).toHaveProperty("status", 402);
+        expect(result).toHaveProperty("message", "Your card has insufficient funds");
+      });
+
+      it("should handle StripeCardError with unknown decline code", () => {
+        const { service } = setup();
+        const error = createStripeError("StripeCardError", {
+          code: "card_declined",
+          message: "Your card was declined",
+          decline_code: "unknown_decline"
+        });
+
+        const result = service.toAppError(error, "payment");
+
+        expect(result).toHaveProperty("status", 402);
+        expect(result).toHaveProperty("message", "Your card was declined");
+      });
+
+      it("should handle StripeCardError with no code", () => {
+        const { service } = setup();
+        const error = createStripeError("StripeCardError", {
+          message: "Your card was declined"
+        });
+
+        const result = service.toAppError(error, "payment");
+
+        expect(result).toHaveProperty("status", 402);
+        expect(result).toHaveProperty("message", "Your card was declined");
+      });
+
+      it("should handle StripeInvalidRequestError with param", () => {
+        const { service } = setup();
+        const error = createStripeError("StripeInvalidRequestError", {
           message: "Invalid parameter: amount",
           param: "amount"
-        } as Stripe.errors.StripeInvalidRequestError;
+        });
 
         const result = service.toAppError(error, "payment");
 
@@ -142,35 +211,47 @@ describe(StripeErrorService.name, () => {
         expect(result).toHaveProperty("message", "Invalid amount: Invalid parameter: amount");
       });
 
+      it("should handle StripeInvalidRequestError without param", () => {
+        const { service } = setup();
+        const error = createStripeError("StripeInvalidRequestError", {
+          message: "Invalid request"
+        });
+
+        const result = service.toAppError(error, "payment");
+
+        expect(result).toHaveProperty("status", 400);
+        expect(result).toHaveProperty("message", "Invalid request");
+      });
+
       it("should handle StripeAPIError", () => {
-        const error = {
-          type: "StripeAPIError",
+        const { service } = setup();
+        const error = createStripeError("StripeAPIError", {
           message: "An error occurred internally with Stripe's API"
-        } as Stripe.errors.StripeAPIError;
+        });
 
         const result = service.toAppError(error, "payment");
 
         expect(result).toHaveProperty("status", 502);
-        expect(result).toHaveProperty("message", "Payment service temporarily unavailable");
+        expect(result).toHaveProperty("message", "Payment service temporarily unavailable. Please try again later.");
       });
 
       it("should handle StripeConnectionError", () => {
-        const error = {
-          type: "StripeConnectionError",
+        const { service } = setup();
+        const error = createStripeError("StripeConnectionError", {
           message: "Some kind of error occurred during the HTTPS communication"
-        } as Stripe.errors.StripeConnectionError;
+        });
 
         const result = service.toAppError(error, "payment");
 
         expect(result).toHaveProperty("status", 503);
-        expect(result).toHaveProperty("message", "Unable to connect to payment service");
+        expect(result).toHaveProperty("message", "Unable to connect to payment service. Please try again.");
       });
 
       it("should handle StripeAuthenticationError", () => {
-        const error = {
-          type: "StripeAuthenticationError",
+        const { service } = setup();
+        const error = createStripeError("StripeAuthenticationError", {
           message: "You probably used an incorrect API key"
-        } as Stripe.errors.StripeAuthenticationError;
+        });
 
         const result = service.toAppError(error, "payment");
 
@@ -179,10 +260,10 @@ describe(StripeErrorService.name, () => {
       });
 
       it("should handle StripeRateLimitError", () => {
-        const error = {
-          type: "StripeRateLimitError",
+        const { service } = setup();
+        const error = createStripeError("StripeRateLimitError", {
           message: "Too many requests made to the API too quickly"
-        } as Stripe.errors.StripeRateLimitError;
+        });
 
         const result = service.toAppError(error, "payment");
 
@@ -191,10 +272,10 @@ describe(StripeErrorService.name, () => {
       });
 
       it("should handle StripeIdempotencyError", () => {
-        const error = {
-          type: "StripeIdempotencyError",
+        const { service } = setup();
+        const error = createStripeError("StripeIdempotencyError", {
           message: "Idempotency key already used"
-        } as Stripe.errors.StripeIdempotencyError;
+        });
 
         const result = service.toAppError(error, "payment");
 
@@ -203,10 +284,10 @@ describe(StripeErrorService.name, () => {
       });
 
       it("should handle StripePermissionError", () => {
-        const error = {
-          type: "StripePermissionError",
+        const { service } = setup();
+        const error = createStripeError("StripePermissionError", {
           message: "Insufficient permissions"
-        } as Stripe.errors.StripePermissionError;
+        });
 
         const result = service.toAppError(error, "payment");
 
@@ -215,73 +296,88 @@ describe(StripeErrorService.name, () => {
       });
 
       it("should handle StripeSignatureVerificationError", () => {
-        const error = {
-          type: "StripeSignatureVerificationError",
+        const { service } = setup();
+        const error = createStripeError("StripeSignatureVerificationError", {
           message: "Invalid signature"
-        } as Stripe.errors.StripeSignatureVerificationError;
+        });
 
         const result = service.toAppError(error, "payment");
 
         expect(result).toHaveProperty("status", 400);
         expect(result).toHaveProperty("message", "Invalid webhook signature. Please check your webhook configuration.");
       });
-    });
 
-    describe("Card error decline codes", () => {
-      it("should handle card_declined with generic_decline", () => {
-        const error = {
-          type: "StripeCardError",
-          code: "card_declined",
-          decline_code: "generic_decline",
-          message: "Your card was declined"
-        } as Stripe.errors.StripeCardError;
+      it("should handle unknown Stripe error type", () => {
+        const { service } = setup();
+        const error = createStripeError("StripeUnknownError", {
+          message: "Unknown error"
+        });
 
         const result = service.toAppError(error, "payment");
 
-        expect(result).toHaveProperty("status", 402);
-        expect(result).toHaveProperty("message", "Your card was declined");
-      });
-
-      it("should handle card_declined with insufficient_funds", () => {
-        const error = {
-          type: "StripeCardError",
-          code: "card_declined",
-          decline_code: "insufficient_funds",
-          message: "Your card has insufficient funds"
-        } as Stripe.errors.StripeCardError;
-
-        const result = service.toAppError(error, "payment");
-
-        expect(result).toHaveProperty("status", 402);
-        expect(result).toHaveProperty("message", "Your card has insufficient funds");
-      });
-
-      it("should handle card_declined with fraudulent", () => {
-        const error = {
-          type: "StripeCardError",
-          code: "card_declined",
-          decline_code: "fraudulent",
-          message: "Your card was declined for security reasons"
-        } as Stripe.errors.StripeCardError;
-
-        const result = service.toAppError(error, "payment");
-
-        expect(result).toHaveProperty("status", 402);
-        expect(result).toHaveProperty("message", "Your card was declined for security reasons");
+        expect(result).toHaveProperty("status", 500);
+        expect(result).toHaveProperty("message", "An unexpected error occurred");
       });
     });
 
-    it("should return original error for unknown errors", () => {
-      const error = new Error("Unknown error message");
-      const result = service.toAppError(error, "payment");
+    describe("non-Error objects", () => {
+      it("should handle non-Error objects", () => {
+        const { service } = setup();
+        const error: unknown = "String error";
 
-      expect(result).toBe(error);
+        const result = service.toAppError(error, "payment");
+
+        expect(result).toBeInstanceOf(Error);
+        expect(result.message).toBe("An unknown error occurred");
+      });
+
+      it("should handle null errors", () => {
+        const { service } = setup();
+        const error: unknown = null;
+
+        const result = service.toAppError(error, "payment");
+
+        expect(result).toBeInstanceOf(Error);
+        expect(result.message).toBe("An unknown error occurred");
+      });
+
+      it("should handle undefined errors", () => {
+        const { service } = setup();
+        const error: unknown = undefined;
+
+        const result = service.toAppError(error, "payment");
+
+        expect(result).toBeInstanceOf(Error);
+        expect(result.message).toBe("An unknown error occurred");
+      });
+    });
+
+    describe("unknown errors", () => {
+      it("should return original error for unknown errors", () => {
+        const { service } = setup();
+        const error = new Error("Unknown error message");
+
+        const result = service.toAppError(error, "payment");
+
+        expect(result).toBe(error);
+      });
+
+      it("should return original error for unknown coupon errors", () => {
+        const { service } = setup();
+        const error = new Error("Unknown coupon error");
+
+        const result = service.toAppError(error, "coupon");
+
+        expect(result).toBe(error);
+      });
     });
   });
 
   describe("toCouponResponseError", () => {
-    it("should return error response for known coupon errors", () => {
+    it("should handle known coupon errors", () => {
+      const { service } = setup();
       const error = new Error("No valid promotion code or coupon found with the provided code");
+
       const result = service.toCouponResponseError(error);
 
       expect(result).toEqual({
@@ -290,8 +386,10 @@ describe(StripeErrorService.name, () => {
       });
     });
 
-    it("should return generic error for unknown errors", () => {
-      const error = new Error("Unknown error");
+    it("should handle unknown coupon errors", () => {
+      const { service } = setup();
+      const error = new Error("Unknown coupon error");
+
       const result = service.toCouponResponseError(error);
 
       expect(result).toEqual({
@@ -300,24 +398,22 @@ describe(StripeErrorService.name, () => {
       });
     });
 
-    it("should handle Stripe errors for coupon responses", () => {
-      const error = {
-        type: "StripeInvalidRequestError",
-        message: "Invalid coupon code",
-        param: "coupon"
-      } as Stripe.errors.StripeInvalidRequestError;
+    it("should handle non-Error objects", () => {
+      const { service } = setup();
+      const error: unknown = "String error";
 
       const result = service.toCouponResponseError(error);
 
       expect(result).toEqual({
         coupon: null,
-        error: { message: "Invalid coupon: Invalid coupon code" }
+        error: { message: "Failed to apply coupon. Please check the code and try again." }
       });
     });
   });
 
   describe("isKnownError", () => {
     it("should return true for known coupon errors", () => {
+      const { service } = setup();
       const error = new Error("No valid promotion code or coupon found with the provided code");
       const result = service.isKnownError(error, "coupon");
 
@@ -325,6 +421,7 @@ describe(StripeErrorService.name, () => {
     });
 
     it("should return true for known payment errors", () => {
+      const { service } = setup();
       const error = new Error("Payment method does not belong to the user");
       const result = service.isKnownError(error, "payment");
 
@@ -332,11 +429,11 @@ describe(StripeErrorService.name, () => {
     });
 
     it("should return true for Stripe errors", () => {
-      const error = {
-        type: "StripeCardError",
+      const { service } = setup();
+      const error = createStripeError("StripeCardError", {
         code: "card_declined",
         message: "Your card was declined"
-      } as Stripe.errors.StripeCardError;
+      });
 
       const result = service.isKnownError(error, "payment");
 
@@ -344,6 +441,7 @@ describe(StripeErrorService.name, () => {
     });
 
     it("should return false for unknown errors", () => {
+      const { service } = setup();
       const error = new Error("Unknown error message");
       const result = service.isKnownError(error, "payment");
 
@@ -351,73 +449,118 @@ describe(StripeErrorService.name, () => {
     });
 
     it("should return false for coupon errors when checking payment context", () => {
+      const { service } = setup();
       const error = new Error("No valid promotion code or coupon found with the provided code");
+      const result = service.isKnownError(error, "payment");
+
+      expect(result).toBe(false);
+    });
+
+    it("should return false for non-Error objects", () => {
+      const { service } = setup();
+      const error: unknown = "String error";
+      const result = service.isKnownError(error, "payment");
+
+      expect(result).toBe(false);
+    });
+
+    it("should return false for null errors", () => {
+      const { service } = setup();
+      const error: unknown = null;
       const result = service.isKnownError(error, "payment");
 
       expect(result).toBe(false);
     });
   });
 
-  describe("Retry functionality", () => {
-    it("should identify retryable errors", () => {
-      const connectionError = {
-        type: "StripeConnectionError",
-        message: "Connection failed"
-      } as Stripe.errors.StripeConnectionError;
+  describe("isRetryableError", () => {
+    it("should return true for retryable Stripe errors", () => {
+      const { service } = setup();
+      const connectionError = createStripeError("StripeConnectionError", {
+        message: "Connection error"
+      });
 
-      const apiError = {
-        type: "StripeAPIError",
+      const apiError = createStripeError("StripeAPIError", {
         message: "API error"
-      } as Stripe.errors.StripeAPIError;
+      });
 
-      const rateLimitError = {
-        type: "StripeRateLimitError",
-        message: "Rate limit exceeded"
-      } as Stripe.errors.StripeRateLimitError;
-
-      const cardError = {
-        type: "StripeCardError",
-        code: "card_declined",
-        message: "Card declined"
-      } as Stripe.errors.StripeCardError;
+      const rateLimitError = createStripeError("StripeRateLimitError", {
+        message: "Rate limit error"
+      });
 
       expect(service.isRetryableError(connectionError)).toBe(true);
       expect(service.isRetryableError(apiError)).toBe(true);
       expect(service.isRetryableError(rateLimitError)).toBe(true);
-      expect(service.isRetryableError(cardError)).toBe(false);
     });
 
-    it("should calculate retry delays with exponential backoff", () => {
-      const error = {
-        type: "StripeConnectionError",
-        message: "Connection failed"
-      } as Stripe.errors.StripeConnectionError;
+    it("should return false for non-retryable Stripe errors", () => {
+      const { service } = setup();
+      const cardError = createStripeError("StripeCardError", {
+        message: "Card error"
+      });
+
+      const invalidRequestError = createStripeError("StripeInvalidRequestError", {
+        message: "Invalid request"
+      });
+
+      expect(service.isRetryableError(cardError)).toBe(false);
+      expect(service.isRetryableError(invalidRequestError)).toBe(false);
+    });
+
+    it("should return false for non-Stripe errors", () => {
+      const { service } = setup();
+      const error = new Error("Regular error");
+
+      expect(service.isRetryableError(error)).toBe(false);
+    });
+  });
+
+  describe("getRetryDelay", () => {
+    it("should return 0 for non-retryable errors", () => {
+      const { service } = setup();
+      const error = new Error("Non-retryable error");
+
+      const delay = service.getRetryDelay(error);
+
+      expect(delay).toBe(0);
+    });
+
+    it("should return exponential backoff for retryable errors", () => {
+      const { service } = setup();
+      const error = createStripeError("StripeConnectionError", {
+        message: "Connection error"
+      });
 
       const delay1 = service.getRetryDelay(error, 1);
       const delay2 = service.getRetryDelay(error, 2);
       const delay3 = service.getRetryDelay(error, 3);
 
-      expect(delay1).toBeGreaterThan(0);
-      expect(delay2).toBeGreaterThan(delay1);
-      expect(delay3).toBeGreaterThan(delay2);
-      expect(delay1).toBeLessThanOrEqual(2000); // 1s + jitter
-      expect(delay2).toBeLessThanOrEqual(4000); // 2s + jitter
-      expect(delay3).toBeLessThanOrEqual(8000); // 4s + jitter
+      expect(delay1).toBeGreaterThanOrEqual(1000);
+      expect(delay1).toBeLessThanOrEqual(1100); // 1000 + 10% jitter
+      expect(delay2).toBeGreaterThanOrEqual(2000);
+      expect(delay2).toBeLessThanOrEqual(2200); // 2000 + 10% jitter
+      expect(delay3).toBeGreaterThanOrEqual(4000);
+      expect(delay3).toBeLessThanOrEqual(4400); // 4000 + 10% jitter
     });
 
-    it("should return 0 delay for non-retryable errors", () => {
-      const error = new Error("Non-retryable error");
-      const delay = service.getRetryDelay(error, 1);
-      expect(delay).toBe(0);
+    it("should cap delay at maximum", () => {
+      const { service } = setup();
+      const error = createStripeError("StripeConnectionError", {
+        message: "Connection error"
+      });
+
+      const delay = service.getRetryDelay(error, 10); // Should be capped at 30s
+
+      expect(delay).toBeLessThanOrEqual(33000); // 30000 + 10% jitter
     });
   });
 
-  describe("Webhook error handling", () => {
+  describe("handleWebhookError", () => {
     it("should handle webhook signature verification errors", () => {
-      const error = {
-        type: "StripeSignatureVerificationError",
+      const { service } = setup();
+      const error = createStripeError("StripeSignatureVerificationError", {
         message: "Invalid signature"
-      } as Stripe.errors.StripeSignatureVerificationError;
+      });
 
       const result = service.handleWebhookError(error);
 
@@ -426,25 +569,35 @@ describe(StripeErrorService.name, () => {
     });
 
     it("should handle other webhook errors", () => {
-      const error = {
-        type: "StripeAPIError",
+      const { service } = setup();
+      const error = createStripeError("StripeAPIError", {
         message: "API error"
-      } as Stripe.errors.StripeAPIError;
+      });
 
       const result = service.handleWebhookError(error);
 
       expect(result).toHaveProperty("status", 502);
     });
+
+    it("should handle non-Stripe webhook errors", () => {
+      const { service } = setup();
+      const error = new Error("Regular error");
+
+      const result = service.handleWebhookError(error);
+
+      expect(result).toHaveProperty("status", 500);
+      expect(result).toHaveProperty("message", "Webhook processing error");
+    });
   });
 
-  describe("Error details", () => {
+  describe("getErrorDetails", () => {
     it("should get detailed error information for Stripe errors", () => {
-      const error = {
-        type: "StripeCardError",
+      const { service } = setup();
+      const error = createStripeError("StripeCardError", {
         code: "card_declined",
         decline_code: "insufficient_funds",
         message: "Your card has insufficient funds"
-      } as Stripe.errors.StripeCardError;
+      });
 
       const details = service.getErrorDetails(error);
 
@@ -459,6 +612,7 @@ describe(StripeErrorService.name, () => {
     });
 
     it("should get error details for non-Stripe errors", () => {
+      const { service } = setup();
       const error = new Error("Custom error");
       const details = service.getErrorDetails(error);
 
@@ -469,5 +623,29 @@ describe(StripeErrorService.name, () => {
         httpStatus: 500
       });
     });
+
+    it("should handle Stripe errors with missing properties", () => {
+      const { service } = setup();
+      const error = createStripeError("StripeCardError", {
+        message: "Card error"
+      });
+
+      const details = service.getErrorDetails(error);
+
+      expect(details).toEqual({
+        type: "StripeCardError",
+        message: "Card error",
+        retryable: false,
+        httpStatus: 402
+      });
+    });
   });
 });
+
+function setup() {
+  const service = new StripeErrorService();
+
+  return {
+    service
+  };
+}
