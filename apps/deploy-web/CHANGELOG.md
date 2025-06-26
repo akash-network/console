@@ -1,5 +1,17 @@
 
 
+## [2.89.4](https://github.com/akash-network/console/compare/console-web/v2.89.3...console-web/v2.89.4) (2025-06-26)
+
+
+### Bug Fixes
+
+* makes axios not to throw on 400 error for getting deployment ([#1552](https://github.com/akash-network/console/issues/1552)) ([f85947e](https://github.com/akash-network/console/commit/f85947efd64ac4b566f020d9a4691ab092fb46ab))
+
+
+### Code Refactoring
+
+* ensure alerts are not rendered when they are disabled ([#1557](https://github.com/akash-network/console/issues/1557)) ([8c3d8b9](https://github.com/akash-network/console/commit/8c3d8b98f3ec640c1f49d2f0ac08f9db6e259ffe))
+
 ## [2.89.3](https://github.com/akash-network/console/compare/console-web/v2.89.2...console-web/v2.89.3) (2025-06-25)
 
 

@@ -1,5 +1,12 @@
 
 
+## [0.28.1](https://github.com/akash-network/console/compare/stats-web/v0.28.0...stats-web/v0.28.1) (2025-06-26)
+
+
+### Bug Fixes
+
+* makes axios not to throw on 400 error for getting deployment ([#1552](https://github.com/akash-network/console/issues/1552)) ([f85947e](https://github.com/akash-network/console/commit/f85947efd64ac4b566f020d9a4691ab092fb46ab))
+
 ## [0.28.0](https://github.com/akash-network/console/compare/stats-web/v0.27.0...stats-web/v0.28.0) (2025-06-17)
 
 
