@@ -1,5 +1,12 @@
 
 
+## [0.28.2](https://github.com/akash-network/console/compare/stats-web/v0.28.1...stats-web/v0.28.2) (2025-06-26)
+
+
+### Bug Fixes
+
+* ensure getAllItems doesn't stuck inside infinite loop ([#1562](https://github.com/akash-network/console/issues/1562)) ([f8a8ba2](https://github.com/akash-network/console/commit/f8a8ba277f5b8b8cd25d1c4a831d0642e9505557))
+
 ## [0.28.1](https://github.com/akash-network/console/compare/stats-web/v0.28.0...stats-web/v0.28.1) (2025-06-26)
 
 
