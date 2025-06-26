@@ -146,6 +146,27 @@ describe("usePaymentQueries", () => {
       });
     });
 
+    it("should handle coupon application error response", async () => {
+      const mockErrorResponse = {
+        coupon: null,
+        error: {
+          message: "No valid promotion code or coupon found with the provided code"
+        }
+      };
+      (useServices().stripe.applyCoupon as jest.Mock).mockResolvedValue(mockErrorResponse);
+      const { result } = setupQuery(() => usePaymentMutations());
+
+      await act(async () => {
+        const response = await result.current.applyCoupon.mutateAsync({ coupon: "INVALID" });
+        expect(response.error).toBeDefined();
+        expect(response.error?.message).toBe("No valid promotion code or coupon found with the provided code");
+      });
+
+      await waitFor(() => {
+        expect(useServices().stripe.applyCoupon).toHaveBeenCalledWith("INVALID");
+      });
+    });
+
     it("should remove payment method and invalidate methods", async () => {
       const mockRemovedPaymentMethod = createMockRemovedPaymentMethod();
       (useServices().stripe.removePaymentMethod as jest.Mock).mockResolvedValue(mockRemovedPaymentMethod);

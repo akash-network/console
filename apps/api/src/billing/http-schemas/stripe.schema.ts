@@ -55,8 +55,7 @@ export const ConfirmPaymentRequestSchema = z.object({
     userId: z.string(),
     paymentMethodId: z.string(),
     amount: z.number(),
-    currency: z.string(),
-    coupon: z.string().optional()
+    currency: z.string()
   })
 });
 

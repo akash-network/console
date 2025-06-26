@@ -6,15 +6,15 @@ import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
 import { ConfirmPaymentRequest, Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
+import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import { Semaphore } from "@src/core/lib/semaphore.decorator";
-import { UserRepository } from "@src/user/repositories";
 
 @singleton()
 export class StripeController {
   constructor(
     private readonly stripe: StripeService,
-    private readonly userRepository: UserRepository,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly stripeErrorService: StripeErrorService
   ) {}
 
   @Protected([{ action: "read", subject: "StripePayment" }])
@@ -51,32 +51,47 @@ export class StripeController {
 
     assert(currentUser.stripeCustomerId, 400, "User does not have a Stripe customer ID");
 
-    // Verify payment method ownership
-    const paymentMethod = await this.stripe.paymentMethods.retrieve(params.paymentMethodId);
-    const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
-    assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
+    try {
+      // Verify payment method ownership
+      const paymentMethod = await this.stripe.paymentMethods.retrieve(params.paymentMethodId);
+      const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
+      assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
 
-    const { success } = await this.stripe.createPaymentIntent({
-      customer: currentUser.stripeCustomerId,
-      payment_method: params.paymentMethodId,
-      amount: params.amount,
-      currency: params.currency,
-      confirm: true,
-      ...(params.coupon ? { coupon: params.coupon } : {})
-    });
+      const { success } = await this.stripe.createPaymentIntent({
+        customer: currentUser.stripeCustomerId,
+        payment_method: params.paymentMethodId,
+        amount: params.amount,
+        currency: params.currency,
+        confirm: true
+      });
 
-    assert(success, 402, "Payment not successful");
+      assert(success, 402, "Payment not successful");
+    } catch (error: unknown) {
+      if (this.stripeErrorService.isKnownError(error, "payment")) {
+        throw this.stripeErrorService.toAppError(error, "payment");
+      }
+
+      throw error;
+    }
   }
 
   @Protected([{ action: "create", subject: "StripePayment" }])
-  async applyCoupon(couponId: string): Promise<{ data: { coupon: Stripe.Coupon | Stripe.PromotionCode | null } }> {
+  async applyCoupon(couponId: string): Promise<{ data: { coupon: Stripe.Coupon | Stripe.PromotionCode | null; error?: { message: string } } }> {
     const { currentUser } = this.authService;
 
     assert(currentUser.stripeCustomerId, 400, "User does not have a Stripe customer ID");
     assert(couponId, 400, "Coupon ID is required");
 
-    const coupon = await this.stripe.applyCoupon(currentUser.stripeCustomerId, couponId);
-    return { data: { coupon } };
+    try {
+      const coupon = await this.stripe.applyCoupon(currentUser.stripeCustomerId, couponId);
+      return { data: { coupon } };
+    } catch (error: unknown) {
+      if (this.stripeErrorService.isKnownError(error, "coupon")) {
+        return { data: this.stripeErrorService.toCouponResponseError(error) };
+      }
+
+      throw error;
+    }
   }
 
   @Protected([{ action: "delete", subject: "StripePayment" }])
@@ -85,12 +100,20 @@ export class StripeController {
 
     assert(currentUser.stripeCustomerId, 400, "User does not have a Stripe customer ID");
 
-    // Verify payment method ownership
-    const paymentMethod = await this.stripe.paymentMethods.retrieve(paymentMethodId);
-    const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
-    assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
+    try {
+      // Verify payment method ownership
+      const paymentMethod = await this.stripe.paymentMethods.retrieve(paymentMethodId);
+      const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
+      assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
 
-    await this.stripe.paymentMethods.detach(paymentMethodId);
+      await this.stripe.paymentMethods.detach(paymentMethodId);
+    } catch (error: unknown) {
+      if (this.stripeErrorService.isKnownError(error, "payment")) {
+        throw this.stripeErrorService.toAppError(error, "payment");
+      }
+
+      throw error;
+    }
   }
 
   @Protected([{ action: "read", subject: "StripePayment" }])

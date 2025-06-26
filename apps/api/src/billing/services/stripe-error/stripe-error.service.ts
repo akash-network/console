@@ -1,0 +1,340 @@
+import createError, { HttpError } from "http-errors";
+import Stripe from "stripe";
+import { singleton } from "tsyringe";
+
+@singleton()
+export class StripeErrorService {
+  private readonly COUPON_ERRORS = {
+    "No valid promotion code or coupon found with the provided code": {
+      code: 400,
+      message: "No valid promotion code or coupon found with the provided code"
+    },
+    "Promotion code is invalid or expired": {
+      code: 400,
+      message: "Promotion code is invalid or expired"
+    },
+    "Coupon is invalid or expired": {
+      code: 400,
+      message: "Coupon is invalid or expired"
+    },
+    "This promotion code cannot be used": {
+      code: 400,
+      message: "This promotion code cannot be used"
+    },
+    "Promotion code has already been used": {
+      code: 400,
+      message: "Promotion code has already been used"
+    }
+  };
+
+  private readonly PAYMENT_ERRORS = {
+    "Final amount after discount must be at least $1": {
+      code: 400,
+      message: "Final amount after discount must be at least $1"
+    },
+    "Minimum payment amount is $20 (before any discounts)": {
+      code: 400,
+      message: "Minimum payment amount is $20 (before any discounts)"
+    },
+    "Payment method does not belong to the user": {
+      code: 403,
+      message: "Payment method does not belong to the user"
+    },
+    "Payment not successful": {
+      code: 402,
+      message: "Payment not successful"
+    },
+    "User does not have a Stripe customer ID": {
+      code: 400,
+      message: "User does not have a Stripe customer ID"
+    },
+    "Coupon ID is required": {
+      code: 400,
+      message: "Coupon ID is required"
+    }
+  };
+
+  public toAppError(error: unknown, context: "coupon" | "payment" = "payment"): HttpError | Error {
+    // Ensure error is an Error object
+    if (!(error instanceof Error)) {
+      return new Error("An unknown error occurred");
+    }
+
+    // Handle Stripe-specific errors first
+    if (this.isStripeError(error)) {
+      return this.handleStripeError(error);
+    }
+
+    // Handle our custom business logic errors
+    const errorMap = context === "coupon" ? this.COUPON_ERRORS : this.PAYMENT_ERRORS;
+    const clues = Object.keys(errorMap) as (keyof typeof errorMap)[];
+
+    const clue = clues.find(clue => error.message.includes(clue));
+
+    if (!clue) {
+      // Return original error for unknown errors
+      return error;
+    }
+
+    const { message, code } = errorMap[clue];
+    return createError(code, message, { originalError: error });
+  }
+
+  public toCouponResponseError(error: unknown): { coupon: null; error: { message: string } } {
+    const appError = this.toAppError(error, "coupon");
+
+    // If it's a known coupon error, return it as a response error
+    if (appError instanceof HttpError && appError.status >= 400 && appError.status < 500) {
+      return {
+        coupon: null,
+        error: { message: appError.message }
+      };
+    }
+
+    // For unknown errors, return a generic message
+    return {
+      coupon: null,
+      error: { message: "Failed to apply coupon. Please check the code and try again." }
+    };
+  }
+
+  public isKnownError(error: unknown, context: "coupon" | "payment" = "payment"): boolean {
+    // Ensure error is an Error object
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    // Check if it's a Stripe error
+    if (this.isStripeError(error)) {
+      return true;
+    }
+
+    // Check our custom business logic errors
+    const errorMap = context === "coupon" ? this.COUPON_ERRORS : this.PAYMENT_ERRORS;
+    const clues = Object.keys(errorMap) as (keyof typeof errorMap)[];
+
+    return clues.some(clue => error.message.includes(clue));
+  }
+
+  private isStripeError(error: Error | Stripe.errors.StripeError): error is Stripe.errors.StripeError {
+    return error && typeof error === "object" && "type" in error && error.type?.startsWith("Stripe");
+  }
+
+  private handleStripeError(error: Stripe.errors.StripeError): HttpError {
+    switch (error.type) {
+      case "StripeCardError":
+        return this.handleCardError(error as Stripe.errors.StripeCardError);
+      case "StripeInvalidRequestError":
+        return this.handleInvalidRequestError(error as Stripe.errors.StripeInvalidRequestError);
+      case "StripeAPIError":
+        return this.handleAPIError(error as Stripe.errors.StripeAPIError);
+      case "StripeConnectionError":
+        return this.handleConnectionError(error as Stripe.errors.StripeConnectionError);
+      case "StripeAuthenticationError":
+        return this.handleAuthenticationError(error as Stripe.errors.StripeAuthenticationError);
+      case "StripeRateLimitError":
+        return this.handleRateLimitError(error as Stripe.errors.StripeRateLimitError);
+      case "StripeIdempotencyError":
+        return this.handleIdempotencyError(error as Stripe.errors.StripeIdempotencyError);
+      case "StripePermissionError":
+        return this.handlePermissionError(error as Stripe.errors.StripePermissionError);
+      case "StripeSignatureVerificationError":
+        return this.handleSignatureVerificationError(error as Stripe.errors.StripeSignatureVerificationError);
+      default:
+        return createError(500, "An unexpected error occurred", { originalError: error });
+    }
+  }
+
+  private handleCardError(error: Stripe.errors.StripeCardError): HttpError {
+    // Map common card error codes to user-friendly messages
+    const cardErrorMessages: Record<string, string> = {
+      card_declined: "Your card was declined",
+      expired_card: "Your card has expired",
+      incorrect_cvc: "Invalid CVC",
+      processing_error: "An error occurred while processing your card",
+      insufficient_funds: "Your card has insufficient funds",
+      invalid_cvc: "Invalid CVC",
+      invalid_expiry_month: "Invalid expiry month",
+      invalid_expiry_year: "Invalid expiry year",
+      invalid_number: "Invalid card number"
+    };
+
+    // Enhanced decline code handling
+    const declineCodeMessages: Record<string, string> = {
+      generic_decline: "Your card was declined",
+      insufficient_funds: "Your card has insufficient funds",
+      lost_card: "Your card was declined",
+      stolen_card: "Your card was declined",
+      expired_card: "Your card has expired",
+      incorrect_cvc: "Incorrect CVC",
+      processing_error: "An error occurred while processing your card",
+      incorrect_number: "Incorrect card number",
+      fraudulent: "Your card was declined for security reasons",
+      currency_not_supported: "Your card does not support this currency",
+      duplicate_transaction: "A transaction with identical amount and credit card information was submitted very recently",
+      card_not_supported: "Your card is not supported for this type of purchase",
+      restricted_card: "Your card is not supported for this type of purchase",
+      try_again_later: "The card was declined for an unknown reason",
+      invalid_cvc: "The card's security code is incorrect",
+      invalid_expiry_month: "The card's expiration month is incorrect",
+      invalid_expiry_year: "The card's expiration year is incorrect",
+      invalid_swipe_data: "The card's swipe data is invalid",
+      incorrect_zip: "The card's zip code failed validation",
+      incorrect_address: "The card's address failed validation",
+      incorrect_pin: "The card's PIN is incorrect",
+      card_velocity_exceeded: "You have exceeded the maximum number of attempts for this card",
+      customer_declined: "The customer declined the payment",
+      new_account_information_available: "The card was declined, but the customer should contact their bank for more information",
+      no_action_taken: "The card was declined, but no specific reason was given",
+      not_permitted: "The payment is not permitted",
+      pickup_card: "The card has been declined for pick up",
+      soft_decline: "The card was declined, but the customer should contact their bank for more information",
+      withdrawal_count_limit_exceeded: "The customer has exceeded the maximum number of withdrawals for this card"
+    };
+
+    let message = (error.code && cardErrorMessages[error.code]) || error.message || "Your card was declined";
+
+    // Use decline code message if available and more specific
+    if (error.decline_code && declineCodeMessages[error.decline_code]) {
+      message = declineCodeMessages[error.decline_code];
+    }
+
+    return createError(402, message, { originalError: error });
+  }
+
+  private handleInvalidRequestError(error: Stripe.errors.StripeInvalidRequestError): HttpError {
+    // Handle specific invalid request errors
+    if (error.param) {
+      return createError(400, `Invalid ${error.param}: ${error.message}`, { originalError: error });
+    }
+    return createError(400, error.message || "Invalid request", { originalError: error });
+  }
+
+  private handleAPIError(error: Stripe.errors.StripeAPIError): HttpError {
+    return createError(502, "Payment service temporarily unavailable. Please try again later.", {
+      originalError: error,
+      retryable: true
+    });
+  }
+
+  private handleConnectionError(error: Stripe.errors.StripeConnectionError): HttpError {
+    return createError(503, "Unable to connect to payment service. Please try again.", {
+      originalError: error,
+      retryable: true
+    });
+  }
+
+  private handleAuthenticationError(error: Stripe.errors.StripeAuthenticationError): HttpError {
+    return createError(500, "Payment service configuration error", { originalError: error });
+  }
+
+  private handleRateLimitError(error: Stripe.errors.StripeRateLimitError): HttpError {
+    return createError(429, "Too many requests. Please try again later.", {
+      originalError: error,
+      retryable: true
+    });
+  }
+
+  private handleIdempotencyError(error: Stripe.errors.StripeIdempotencyError): HttpError {
+    return createError(409, "This request conflicts with a previous request. Please try again with different parameters.", {
+      originalError: error
+    });
+  }
+
+  private handlePermissionError(error: Stripe.errors.StripePermissionError): HttpError {
+    return createError(403, "You do not have permission to perform this action.", {
+      originalError: error
+    });
+  }
+
+  private handleSignatureVerificationError(error: Stripe.errors.StripeSignatureVerificationError): HttpError {
+    return createError(400, "Invalid webhook signature. Please check your webhook configuration.", {
+      originalError: error
+    });
+  }
+
+  /**
+   * Check if an error is retryable based on Stripe's recommendations
+   */
+  public isRetryableError(error: Error | Stripe.errors.StripeError): boolean {
+    if (this.isStripeError(error)) {
+      return ["StripeConnectionError", "StripeAPIError", "StripeRateLimitError"].includes(error.type);
+    }
+    return false;
+  }
+
+  /**
+   * Get retry delay in milliseconds for retryable errors
+   */
+  public getRetryDelay(error: Error | Stripe.errors.StripeError, attempt: number = 1): number {
+    if (!this.isRetryableError(error)) {
+      return 0;
+    }
+
+    // Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 30s
+    const baseDelay = 1000; // 1 second
+    const maxDelay = 30000; // 30 seconds
+    const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), maxDelay);
+
+    // Add jitter to prevent thundering herd
+    const jitter = Math.random() * 0.1 * delay; // 10% jitter
+    return delay + jitter;
+  }
+
+  /**
+   * Handle webhook-specific errors
+   */
+  public handleWebhookError(error: Error | Stripe.errors.StripeError): HttpError {
+    if (this.isStripeError(error) && error.type === "StripeSignatureVerificationError") {
+      return this.handleSignatureVerificationError(error as Stripe.errors.StripeSignatureVerificationError);
+    }
+
+    // For other webhook errors, treat them as general errors
+    const appError = this.toAppError(error, "payment");
+    if (appError instanceof HttpError) {
+      return appError;
+    }
+
+    // If it's not an HttpError, create a generic one
+    return createError(500, "Webhook processing error", { originalError: error });
+  }
+
+  /**
+   * Get detailed error information for logging and debugging
+   */
+  public getErrorDetails(error: Error | Stripe.errors.StripeError): {
+    type: string;
+    code?: string;
+    decline_code?: string;
+    param?: string;
+    message: string;
+    retryable: boolean;
+    httpStatus: number;
+  } {
+    const appError = this.toAppError(error);
+    let httpStatus = 500;
+
+    if (appError instanceof HttpError) {
+      httpStatus = appError.status;
+    }
+
+    if (this.isStripeError(error)) {
+      return {
+        type: error.type,
+        code: "code" in error ? error.code : undefined,
+        decline_code: "decline_code" in error ? error.decline_code : undefined,
+        param: "param" in error ? error.param : undefined,
+        message: error.message,
+        retryable: this.isRetryableError(error),
+        httpStatus
+      };
+    }
+
+    return {
+      type: "Unknown",
+      message: error.message,
+      retryable: false,
+      httpStatus
+    };
+  }
+}
