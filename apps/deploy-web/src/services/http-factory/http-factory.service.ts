@@ -1,6 +1,7 @@
+import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { ApiKeyHttpService, AuthHttpService, DeploymentSettingHttpService, TemplateHttpService, TxHttpService, UserHttpService } from "@akashnetwork/http-sdk";
 import { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
-import type { Axios, AxiosResponse, InternalAxiosRequestConfig } from "axios";
+import type { Axios, AxiosInstance, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
 
 import { analyticsService } from "@src/services/analytics/analytics.service";
@@ -11,14 +12,14 @@ import { ProviderProxyService } from "../provider-proxy/provider-proxy.service";
 
 export const createServices = (config: ServicesConfig) => {
   const apiConfig = { baseURL: config.BASE_API_MAINNET_URL };
-  return createContainer({
+  const container = createContainer({
     user: () =>
       withInterceptors(new UserHttpService(apiConfig), {
         request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader],
         response: [
           response => {
             if (response.config.url?.startsWith("/v1/anonymous-users") && response.config.method === "post" && response.status === 200) {
-              analyticsService.track("anonymous_user_created", { category: "user", label: "Anonymous User Created" });
+              container.analyticsService.track("anonymous_user_created", { category: "user", label: "Anonymous User Created" });
             }
             return response;
           }
@@ -52,11 +53,18 @@ export const createServices = (config: ServicesConfig) => {
       withInterceptors(new ApiKeyHttpService(), {
         request: [config.globalRequestMiddleware]
       }),
-    axios: () =>
-      withInterceptors(axios.create(), {
-        request: [config.globalRequestMiddleware]
-      })
+    axios: () => container.createAxios(),
+    createAxios:
+      () =>
+      (options?: CreateAxiosDefaults): AxiosInstance =>
+        withInterceptors(axios.create(options), {
+          request: [config.globalRequestMiddleware]
+        }),
+    certificateManager: () => certificateManager,
+    analyticsService: () => analyticsService
   });
+
+  return container;
 };
 
 export interface ServicesConfig {

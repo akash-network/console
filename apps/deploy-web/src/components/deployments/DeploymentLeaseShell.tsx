@@ -15,6 +15,7 @@ import { useProviderList } from "@src/queries/useProvidersQuery";
 import type { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
 import { UrlService } from "@src/utils/urlUtils";
+import { CreateCertificateButton } from "./CreateCertificateButton/CreateCertificateButton";
 import { LeaseSelect } from "./LeaseSelect";
 import { ServiceSelect } from "./ServiceSelect";
 import { ShellDownloadModal } from "./ShellDownloadModal";
@@ -35,7 +36,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const [isChangingSocket, setIsChangingSocket] = useState(false);
   const [showArrowAndTabWarning, setShowArrowAndTabWarning] = useState(false);
   const { data: providers } = useProviderList();
-  const { localCert, isLocalCertMatching, createCertificate, isCreatingCert } = useCertificate();
+  const { localCert, isLocalCertMatching } = useCertificate();
   const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);
   const {
     data: leaseStatus,
@@ -285,13 +286,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
           )}
         </>
       ) : (
-        <div className="p-4">
-          <Alert variant="warning">You need a valid certificate to access the lease shell.</Alert>
-
-          <Button variant="default" className="mt-4" disabled={isCreatingCert} onClick={() => createCertificate()}>
-            {isCreatingCert ? <Spinner size="small" /> : "Create Certificate"}
-          </Button>
-        </div>
+        <CreateCertificateButton containerClassName="py-4" warningText="You need to create a certificate to access the lease shell." />
       )}
     </div>
   );

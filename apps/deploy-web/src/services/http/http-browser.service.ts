@@ -6,6 +6,15 @@ export const services = createServices({
   BASE_PROVIDER_PROXY_URL: browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL
 });
 
+/**
+ * @deprecated use useServices() instead
+ */
 export const userHttpService = services.user;
+/**
+ * @deprecated use useServices() instead
+ */
 export const stripeService = services.stripe;
+/**
+ * @deprecated use useServices() instead
+ */
 export const txHttpService = services.tx;

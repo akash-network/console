@@ -4,7 +4,7 @@ import type { FC } from "react";
 import { useCallback } from "react";
 import { useMemo } from "react";
 import { createRef, useEffect, useState } from "react";
-import { Alert, Button, buttonVariants, Spinner, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { buttonVariants, Spinner, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { ArrowLeft } from "iconoir-react";
 import Link from "next/link";
@@ -29,6 +29,7 @@ import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
+import { CreateCertificateButton } from "./CreateCertificateButton/CreateCertificateButton";
 import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
 import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
 import { DeploymentLogs } from "./DeploymentLogs";
@@ -44,7 +45,9 @@ type Tab = "ALERTS" | "EVENTS" | "LOGS" | "SHELL" | "EDIT" | "LEASES";
 
 export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const router = useRouter();
+
   const [activeTab, setActiveTab] = useState<Tab>("LEASES");
+
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
   const { address, isWalletLoaded, isManaged } = useWallet();
   const { isSettingsInit } = useSettings();
@@ -53,7 +56,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const isRemoteDeploy: boolean = !!editedManifest && !!isCiCdImageInYaml(editedManifest);
   const repo: string | null = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
   const user = useUser();
-  const isAlertsEnabled = useFlag("alerts") && user?.userId && isManaged;
+  const isAlertsEnabled = useFlag("alerts") && !!user?.userId && isManaged;
   const [badgedTabs, setBadgedTabs] = useState<Partial<Record<Tab, boolean>>>({});
 
   const { data: deployment, isFetching: isLoadingDeployment, refetch: getDeploymentDetail, error: deploymentError } = useDeploymentDetail(address, dseq);
@@ -88,7 +91,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
 
   const isDeploymentNotFound = deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
   const hasLeases = leases && leases.length > 0;
-  const { isLocalCertMatching, localCert, isCreatingCert, createCertificate } = useCertificate();
+  const { isLocalCertMatching, localCert } = useCertificate();
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
   useEffect(() => {
     if (deployment) {
@@ -175,11 +178,6 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     }
   }
 
-  async function _createCertificate() {
-    await createCertificate();
-    loadDeploymentDetail();
-  }
-
   const changeTab = (tab: Tab) => {
     setActiveTab(tab);
 
@@ -202,7 +200,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   );
 
   useNavigationGuard({
-    enabled: !!badgedTabs.ALERTS,
+    enabled: isAlertsEnabled && !!badgedTabs.ALERTS,
     message: "You have unsaved alert configuration changes that will be lost. Would you like to continue?",
     skipWhen: params => params.to.startsWith(`/deployments/${dseq}`)
   });
@@ -276,19 +274,19 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
             {activeTab === "LOGS" && <DeploymentLogs leases={leases} selectedLogsMode="logs" />}
             {activeTab === "EVENTS" && <DeploymentLogs leases={leases} selectedLogsMode="events" />}
             {activeTab === "SHELL" && <DeploymentLeaseShell leases={leases} />}
-            <div className={cn({ hidden: activeTab !== "ALERTS" })}>
-              <DeploymentAlerts deployment={deployment} onStateChange={recordAlertsChange} />
-            </div>
+            {isAlertsEnabled && (
+              <div className={cn({ hidden: activeTab !== "ALERTS" })}>
+                <DeploymentAlerts deployment={deployment} onStateChange={recordAlertsChange} />
+              </div>
+            )}
             {activeTab === "LEASES" && (
               <div className="py-4">
                 {leases && (!localCert || !isLocalCertMatching) && (
-                  <div className="mb-4">
-                    <Alert variant="warning">You do not have a valid local certificate. You need to create a new one to view lease status and details.</Alert>
-
-                    <Button className="mt-4" disabled={isCreatingCert} onClick={() => _createCertificate()}>
-                      {isCreatingCert ? <Spinner size="small" /> : "Create Certificate"}
-                    </Button>
-                  </div>
+                  <CreateCertificateButton
+                    containerClassName="mb-4"
+                    warningText="You need to create a certificate to view lease status and details."
+                    afterCreate={loadDeploymentDetail}
+                  />
                 )}
 
                 {leases &&
