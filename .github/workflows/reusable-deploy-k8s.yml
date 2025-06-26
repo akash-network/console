@@ -164,9 +164,6 @@ jobs:
           TS_OAUTH_CLIENT_ID: ${{ vars.OP_TS_OAUTH_CLIENT_ID_URI }}
           TS_OAUTH_SECRET: ${{ vars.OP_TS_OAUTH_CLIENT_SECRET_URI }}
 
-      - name: Install jq
-        uses: dcarbone/install-jq-action@v3.0.1
-
       - name: Tailscale
         uses: tailscale/github-action@v3
         with:
