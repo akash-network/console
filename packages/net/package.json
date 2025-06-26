@@ -18,7 +18,7 @@
     "validate:types": "tsc --noEmit && echo"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
+    "jest": "^30.0.3",
     "typescript": "~5.8.2"
   }
 }
