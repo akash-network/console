@@ -35,3 +35,24 @@ export async function loadWithPagination<T>(baseUrl: string, dataKey: string, li
 export function hasQueryParam(url: string): boolean {
   return new URL(url).searchParams.size > 0;
 }
+
+export async function getAllItems<T>(
+  getItems: (params: Record<string, string | number>) => Promise<{ items: T[]; pagination: { next_key: string | null } }>
+): Promise<T[]> {
+  let items: T[] = [];
+  let nextKey: string | null = null;
+
+  do {
+    const params: Record<string, string | number> = {
+      "pagination.count_total": "true"
+    };
+    if (nextKey) params["pagination.key"] = nextKey;
+
+    const itemsOnPage = await getItems(params);
+
+    items = items.concat(itemsOnPage.items);
+    nextKey = itemsOnPage.pagination.next_key;
+  } while (nextKey);
+
+  return items;
+}

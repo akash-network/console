@@ -1,14 +1,11 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
-import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
-import { analyticsService } from "@src/services/analytics/analytics.service";
-import type { RestApiCertificate } from "@src/types/certificate";
-import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { getStorageWallets, updateWallet } from "@src/utils/walletUtils";
+import { useServices } from "../ServicesProvider";
 import { useSettings } from "../SettingsProvider";
 import { useWallet } from "../WalletProvider";
 
@@ -37,7 +34,7 @@ export type ChainCertificate = {
   };
 };
 
-type ContextType = {
+export type ContextType = {
   loadValidCertificates: (showSnackbar?: boolean) => Promise<ChainCertificate[]>;
   selectedCertificate: ChainCertificate | null;
   setSelectedCertificate: React.Dispatch<ChainCertificate | null>;
@@ -60,6 +57,7 @@ type ContextType = {
 const CertificateProviderContext = React.createContext<ContextType>({} as ContextType);
 
 export const CertificateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { certificateManager, analyticsService, certificatesService } = useServices();
   const [isCreatingCert, setIsCreatingCert] = useState(false);
   const [validCertificates, setValidCertificates] = useState<Array<ChainCertificate>>([]);
   const [selectedCertificate, setSelectedCertificate] = useState<ChainCertificate | null>(null);
@@ -67,17 +65,16 @@ export const CertificateProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [localCerts, setLocalCerts] = useState<Array<LocalCert> | null>(null);
   const [localCert, setLocalCert] = useState<LocalCert | null>(null);
   const [isLocalCertMatching, setIsLocalCertMatching] = useState(false);
-  const { settings, isSettingsInit } = useSettings();
   const { enqueueSnackbar } = useSnackbar();
   const { address, signAndBroadcastTx } = useWallet();
-  const { apiEndpoint } = settings;
+  const { isSettingsInit } = useSettings();
 
   const loadValidCertificates = useCallback(
     async (showSnackbar?: boolean): Promise<ChainCertificate[]> => {
       setIsLoadingCertificates(true);
 
       try {
-        const certificates = await loadWithPagination<RestApiCertificate[]>(ApiUrlService.certificatesList(apiEndpoint, address), "certificates", 1000);
+        const certificates = await certificatesService.getAllCertificates({ address, state: "valid" });
         const certs = (certificates || []).map(cert => {
           const parsed = atob(cert.certificate.cert);
           const pem = certificateManager.parsePem(parsed);
@@ -109,7 +106,7 @@ export const CertificateProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [address, apiEndpoint, localCert, selectedCertificate]
+    [address, certificatesService, localCert, selectedCertificate]
   );
 
   /**
