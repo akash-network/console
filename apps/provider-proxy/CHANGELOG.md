@@ -1,5 +1,12 @@
 
 
+## [1.12.3](https://github.com/akash-network/console/compare/provider-proxy/v1.12.2...provider-proxy/v1.12.3) (2025-06-26)
+
+
+### Bug Fixes
+
+* makes axios not to throw on 400 error for getting deployment ([#1552](https://github.com/akash-network/console/issues/1552)) ([f85947e](https://github.com/akash-network/console/commit/f85947efd64ac4b566f020d9a4691ab092fb46ab))
+
 ## [1.12.2](https://github.com/akash-network/console/compare/provider-proxy/v1.12.1...provider-proxy/v1.12.2) (2025-06-25)
 
 
