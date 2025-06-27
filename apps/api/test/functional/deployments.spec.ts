@@ -237,7 +237,9 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result).toEqual({
         error: "NotFoundError",
-        message: "Deployment not found"
+        message: "Deployment not found",
+        code: "not_found",
+        type: "client_error"
       });
     });
 
@@ -248,6 +250,13 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(401);
+      const result = await response.json();
+      expect(result).toEqual({
+        error: "UnauthorizedError",
+        message: "Unauthorized",
+        code: "unauthorized",
+        type: "client_error"
+      });
     });
 
     it("returns all deployments when skip and limit are not provided", async () => {
@@ -539,7 +548,9 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result).toEqual({
         error: "NotFoundError",
-        message: "Deployment not found"
+        message: "Deployment not found",
+        code: "not_found",
+        type: "client_error"
       });
     });
 
@@ -553,7 +564,9 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result).toEqual({
         error: "UnauthorizedError",
-        message: "Unauthorized"
+        message: "Unauthorized",
+        code: "unauthorized",
+        type: "client_error"
       });
     });
   });
@@ -608,7 +621,9 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result).toEqual({
         error: "NotFoundError",
-        message: "Deployment not found"
+        message: "Deployment not found",
+        code: "not_found",
+        type: "client_error"
       });
     });
 
@@ -628,7 +643,9 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result).toEqual({
         error: "UnauthorizedError",
-        message: "Unauthorized"
+        message: "Unauthorized",
+        code: "unauthorized",
+        type: "client_error"
       });
     });
 
@@ -716,7 +733,9 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result).toEqual({
         error: "NotFoundError",
-        message: "Deployment not found"
+        message: "Deployment not found",
+        code: "not_found",
+        type: "client_error"
       });
     });
 
@@ -739,7 +758,9 @@ describe("Deployments API", () => {
       const result = await response.json();
       expect(result).toEqual({
         error: "UnauthorizedError",
-        message: "Unauthorized"
+        message: "Unauthorized",
+        code: "unauthorized",
+        type: "client_error"
       });
     });
 
@@ -798,7 +819,10 @@ describe("Deployments API", () => {
             received: "undefined"
           }
         ],
-        error: "BadRequestError"
+        error: "BadRequestError",
+        message: "Validation error",
+        code: "validation_error",
+        type: "validation_error"
       });
     });
   });

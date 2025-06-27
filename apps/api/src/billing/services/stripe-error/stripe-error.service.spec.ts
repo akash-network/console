@@ -292,7 +292,7 @@ describe(StripeErrorService.name, () => {
         const result = service.toAppError(error, "payment");
 
         expect(result).toHaveProperty("status", 403);
-        expect(result).toHaveProperty("message", "You do not have permission to perform this action.");
+        expect(result).toHaveProperty("message", "You don't have permission to perform this action.");
       });
 
       it("should handle StripeSignatureVerificationError", () => {
@@ -382,7 +382,11 @@ describe(StripeErrorService.name, () => {
 
       expect(result).toEqual({
         coupon: null,
-        error: { message: "No valid promotion code or coupon found with the provided code" }
+        error: {
+          message: "No valid promotion code or coupon found with the provided code",
+          code: "invalid_coupon_code",
+          type: "coupon_error"
+        }
       });
     });
 
@@ -394,7 +398,11 @@ describe(StripeErrorService.name, () => {
 
       expect(result).toEqual({
         coupon: null,
-        error: { message: "Failed to apply coupon. Please check the code and try again." }
+        error: {
+          message: "Failed to apply coupon. Please check the code and try again.",
+          code: "invalid_coupon_code",
+          type: "coupon_error"
+        }
       });
     });
 
@@ -406,7 +414,11 @@ describe(StripeErrorService.name, () => {
 
       expect(result).toEqual({
         coupon: null,
-        error: { message: "Failed to apply coupon. Please check the code and try again." }
+        error: {
+          message: "Failed to apply coupon. Please check the code and try again.",
+          code: "invalid_coupon_code",
+          type: "coupon_error"
+        }
       });
     });
   });
