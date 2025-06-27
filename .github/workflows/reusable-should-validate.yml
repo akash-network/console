@@ -7,6 +7,10 @@ on:
         description: "The app to release" # dir name in ./apps/*
         required: true
         type: string
+      workflow-trigger:
+        description: "Github event that triggered the caller workflow"
+        required: true
+        type: string
     outputs:
       enabled:
         description: "Whether should validate"
@@ -23,8 +27,8 @@ jobs:
   should-validate:
     runs-on: ubuntu-latest
     outputs:
-      enabled: ${{ github.event_name == 'push' || steps.has_changes.outputs.app == 'true' }}
-      has_changes: ${{ steps.has_changes.outputs.app }}
+      enabled: ${{ inputs.workflow-trigger == 'push' || steps.has_changes.outputs.app == 'true' }}
+      has_changes: ${{ inputs.workflow-trigger == 'pull_request' && steps.has_changes.outputs.app }}
 
     steps:
       - name: Checkout repository
