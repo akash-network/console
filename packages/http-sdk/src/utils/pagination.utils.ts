@@ -55,8 +55,9 @@ export async function getAllItems<T>(
 
     const itemsOnPage = await getItems(params);
 
-    if (nextKey === itemsOnPage.pagination.next_key) {
-      logger.error({ event: "HTTP_SDK_CIRCULAR_LOOP" });
+    // nextKey is null when the first page is returned
+    if (nextKey !== null && nextKey === itemsOnPage.pagination.next_key) {
+      logger.error({ event: "HTTP_SDK_CIRCULAR_LOOP", message: "Did you forget to pass pagination.key to request?" });
       break;
     }
     items = items.concat(itemsOnPage.items);

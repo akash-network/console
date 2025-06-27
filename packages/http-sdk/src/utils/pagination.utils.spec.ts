@@ -27,7 +27,20 @@ describe("Pagination utils", () => {
 
       expect(allItems).toEqual(items.slice(0, 20));
       expect(getItems).toHaveBeenCalledTimes(2);
-      expect(logger.error).toHaveBeenCalledWith({ event: "HTTP_SDK_CIRCULAR_LOOP" });
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "HTTP_SDK_CIRCULAR_LOOP" }));
+    });
+
+    it("does not report cyclic loop if the next key is null", async () => {
+      const items = Array.from({ length: 100 }, (_, i) => i);
+      const getItems = jest.fn(async () => {
+        return { items, pagination: { next_key: null } };
+      });
+      const logger = { error: jest.fn() };
+      const allItems = await getAllItems(getItems, logger);
+
+      expect(allItems).toEqual(items);
+      expect(getItems).toHaveBeenCalledTimes(1);
+      expect(logger.error).not.toHaveBeenCalled();
     });
   });
 });
