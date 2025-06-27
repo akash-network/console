@@ -5,32 +5,26 @@ describe("StripeErrorHandler", () => {
     it("should handle 402 payment declined errors", () => {
       const error = {
         response: {
-          status: 402,
-          data: {
-            message: "Your card was declined"
-          }
+          status: 402
         }
       };
 
       const result = handleStripeError(error);
 
-      expect(result.message).toBe("Your card was declined");
+      expect(result.message).toBe("Your payment was declined. Please check your payment method and try again.");
       expect(result.userAction).toBe("Try a different payment method or contact your bank.");
     });
 
     it("should handle 400 bad request errors", () => {
       const error = {
         response: {
-          status: 400,
-          data: {
-            message: "Invalid payment information"
-          }
+          status: 400
         }
       };
 
       const result = handleStripeError(error);
 
-      expect(result.message).toBe("Invalid payment information");
+      expect(result.message).toBe("Invalid payment information. Please check your details and try again.");
       expect(result.userAction).toBe("Verify your payment details and try again.");
     });
 
@@ -86,9 +80,17 @@ describe("StripeErrorHandler", () => {
       expect(result.userAction).toBe("Try the payment again.");
     });
 
-    it("should handle insufficient funds error messages", () => {
+    it("should handle insufficient funds error codes", () => {
       const error = {
-        message: "Your card has insufficient funds"
+        response: {
+          status: 402,
+          data: {
+            error: "PaymentError",
+            message: "Your card has insufficient funds",
+            code: "insufficient_funds",
+            type: "payment_error"
+          }
+        }
       };
 
       const result = handleStripeError(error);
@@ -97,9 +99,17 @@ describe("StripeErrorHandler", () => {
       expect(result.userAction).toBe("Try a different card or payment method.");
     });
 
-    it("should handle expired card error messages", () => {
+    it("should handle card expired error codes", () => {
       const error = {
-        message: "Your card has expired"
+        response: {
+          status: 402,
+          data: {
+            error: "PaymentError",
+            message: "Your card has expired",
+            code: "card_expired",
+            type: "payment_error"
+          }
+        }
       };
 
       const result = handleStripeError(error);
@@ -108,9 +118,17 @@ describe("StripeErrorHandler", () => {
       expect(result.userAction).toBe("Update your card information or use a different card.");
     });
 
-    it("should handle declined card error messages", () => {
+    it("should handle card declined error codes", () => {
       const error = {
-        message: "Your card was declined"
+        response: {
+          status: 402,
+          data: {
+            error: "PaymentError",
+            message: "Your card was declined",
+            code: "card_declined",
+            type: "payment_error"
+          }
+        }
       };
 
       const result = handleStripeError(error);
@@ -119,9 +137,17 @@ describe("StripeErrorHandler", () => {
       expect(result.userAction).toBe("Contact your bank or try a different card.");
     });
 
-    it("should handle minimum payment amount errors", () => {
+    it("should handle minimum payment amount error codes", () => {
       const error = {
-        message: "Payment amount must be at least $20"
+        response: {
+          status: 400,
+          data: {
+            error: "ValidationError",
+            message: "Payment amount must be at least $20",
+            code: "minimum_payment_amount",
+            type: "validation_error"
+          }
+        }
       };
 
       const result = handleStripeError(error);
@@ -130,9 +156,17 @@ describe("StripeErrorHandler", () => {
       expect(result.userAction).toBe("Increase your payment amount to at least $20.");
     });
 
-    it("should handle final amount after discount errors", () => {
+    it("should handle final amount too low error codes", () => {
       const error = {
-        message: "Final amount after discount must be at least $1"
+        response: {
+          status: 400,
+          data: {
+            error: "ValidationError",
+            message: "Final amount after discount must be at least $1",
+            code: "final_amount_too_low",
+            type: "validation_error"
+          }
+        }
       };
 
       const result = handleStripeError(error);
@@ -141,33 +175,72 @@ describe("StripeErrorHandler", () => {
       expect(result.userAction).toBe("Increase your payment amount or use a smaller discount.");
     });
 
-    it("should handle unknown errors gracefully", () => {
+    it("should handle payment method not owned error codes", () => {
       const error = {
         response: {
-          status: 500
+          status: 403,
+          data: {
+            error: "ForbiddenError",
+            message: "Payment method does not belong to the user",
+            code: "payment_method_not_owned",
+            type: "authorization_error"
+          }
         }
       };
 
       const result = handleStripeError(error);
 
-      expect(result.message).toBe("Payment processing error. Please try again.");
+      expect(result.message).toBe("Payment method not found. Please select a different payment method.");
+      expect(result.userAction).toBe("Select a different payment method or add a new one.");
+    });
+
+    it("should handle unknown error codes gracefully", () => {
+      const error = {
+        response: {
+          status: 500,
+          data: {
+            error: "InternalServerError",
+            message: "Custom error message",
+            code: "unknown_error_code",
+            type: "server_error"
+          }
+        }
+      };
+
+      const result = handleStripeError(error);
+
+      expect(result.message).toBe("Custom error message");
       expect(result.userAction).toBe("Try again or contact support if the problem persists.");
     });
 
-    it("should handle errors without response or message", () => {
+    it("should handle errors without response structure", () => {
       const error = {};
 
       const result = handleStripeError(error);
 
       expect(result.message).toBe("An unexpected error occurred. Please try again.");
+      expect(result.userAction).toBe("Try again or contact support if the problem persists.");
+    });
+
+    it("should handle errors with message but no response structure", () => {
+      const error = {
+        message: "Some error message"
+      };
+
+      const result = handleStripeError(error);
+
+      expect(result.message).toBe("An unexpected error occurred. Please try again.");
+      expect(result.userAction).toBe("Try again or contact support if the problem persists.");
     });
   });
 
   describe("handleCouponError", () => {
-    it("should handle invalid coupon codes", () => {
+    it("should handle invalid coupon code error codes", () => {
       const response = {
         error: {
-          message: "No valid promotion code"
+          message: "No valid promotion code found",
+          code: "invalid_coupon_code",
+          type: "coupon_error"
         }
       };
 
@@ -177,10 +250,12 @@ describe("StripeErrorHandler", () => {
       expect(result.userAction).toBe("Verify your coupon code or try a different one.");
     });
 
-    it("should handle expired coupons", () => {
+    it("should handle coupon expired error codes", () => {
       const response = {
         error: {
-          message: "This promotion code is invalid"
+          message: "Coupon is invalid or expired",
+          code: "coupon_expired",
+          type: "coupon_error"
         }
       };
 
@@ -190,10 +265,12 @@ describe("StripeErrorHandler", () => {
       expect(result.userAction).toBe("Try a different coupon or proceed without one.");
     });
 
-    it("should handle already used coupons", () => {
+    it("should handle coupon already used error codes", () => {
       const response = {
         error: {
-          message: "This coupon has already been used"
+          message: "Promotion code has already been used",
+          code: "coupon_already_used",
+          type: "coupon_error"
         }
       };
 
@@ -203,19 +280,50 @@ describe("StripeErrorHandler", () => {
       expect(result.userAction).toBe("Try a different coupon or proceed without one.");
     });
 
-    it("should handle unknown coupon errors", () => {
+    it("should handle coupon not applicable error codes", () => {
       const response = {
         error: {
-          message: "Unknown coupon error"
+          message: "This promotion code cannot be used",
+          code: "coupon_not_applicable",
+          type: "coupon_error"
         }
       };
 
       const result = handleCouponError(response);
 
-      expect(result.message).toBe("Unknown coupon error");
+      expect(result.message).toBe("This coupon cannot be used for this purchase.");
+      expect(result.userAction).toBe("Try a different coupon or proceed without one.");
     });
 
-    it("should handle responses without error", () => {
+    it("should handle unknown coupon error codes gracefully", () => {
+      const response = {
+        error: {
+          message: "Custom coupon error",
+          code: "unknown_coupon_error",
+          type: "coupon_error"
+        }
+      };
+
+      const result = handleCouponError(response);
+
+      expect(result.message).toBe("Custom coupon error");
+      expect(result.userAction).toBe("Try again or contact support if the problem persists.");
+    });
+
+    it("should handle coupon errors without code", () => {
+      const response = {
+        error: {
+          message: "Custom error message"
+        }
+      };
+
+      const result = handleCouponError(response);
+
+      expect(result.message).toBe("Custom error message");
+      expect(result.userAction).toBe("Try again or contact support if the problem persists.");
+    });
+
+    it("should handle response without error", () => {
       const response = {};
 
       const result = handleCouponError(response);

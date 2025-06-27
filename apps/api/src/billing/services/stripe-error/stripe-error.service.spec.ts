@@ -96,13 +96,13 @@ describe(StripeErrorService.name, () => {
         expect(result).toHaveProperty("message", "Payment not successful");
       });
 
-      it("should handle 'User does not have a Stripe customer ID'", () => {
+      it("should handle 'Payment account configuration error", () => {
         const { service } = setup();
-        const error = new Error("User does not have a Stripe customer ID");
+        const error = new Error("Payment account not properly configured. Please contact support.");
         const result = service.toAppError(error, "payment");
 
-        expect(result).toHaveProperty("status", 400);
-        expect(result).toHaveProperty("message", "User does not have a Stripe customer ID");
+        expect(result).toHaveProperty("status", 500);
+        expect(result).toHaveProperty("message", "Payment account not properly configured. Please contact support.");
       });
 
       it("should handle 'Coupon ID is required'", () => {

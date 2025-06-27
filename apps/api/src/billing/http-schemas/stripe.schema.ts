@@ -79,7 +79,9 @@ export const ApplyCouponResponseSchema = z.object({
     coupon: CouponSchema.nullable().optional(),
     error: z
       .object({
-        message: z.string()
+        message: z.string(),
+        code: z.string().optional(),
+        type: z.string().optional()
       })
       .optional()
   })
@@ -136,6 +138,12 @@ export const CustomerTransactionsQuerySchema = z.object({
     description: "ID of the last transaction from the previous page",
     example: "ch_1234567890"
   })
+});
+
+export const ErrorResponseSchema = z.object({
+  message: z.string(),
+  code: z.string().optional(),
+  type: z.string().optional()
 });
 
 export type SetupIntentResponse = z.infer<typeof SetupIntentResponseSchema>;

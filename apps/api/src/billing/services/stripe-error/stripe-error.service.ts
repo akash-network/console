@@ -44,9 +44,9 @@ export class StripeErrorService {
       code: 402,
       message: "Payment not successful"
     },
-    "User does not have a Stripe customer ID": {
-      code: 400,
-      message: "User does not have a Stripe customer ID"
+    "Payment account not properly configured. Please contact support.": {
+      code: 500,
+      message: "Payment account not properly configured. Please contact support."
     },
     "Coupon ID is required": {
       code: 400,
@@ -77,25 +77,105 @@ export class StripeErrorService {
     }
 
     const { message, code } = errorMap[clue];
-    return createError(code, message, { originalError: error });
+    const errorCode = this.getPaymentErrorCodeFromMessage(message);
+    const errorType = context === "coupon" ? "coupon_error" : "payment_error";
+
+    return createError(code, message, {
+      originalError: error,
+      errorCode,
+      errorType
+    });
   }
 
-  public toCouponResponseError(error: unknown): { coupon: null; error: { message: string } } {
+  public toCouponResponseError(error: unknown): { coupon: null; error: { message: string; code?: string; type?: string } } {
     const appError = this.toAppError(error, "coupon");
 
     // If it's a known coupon error, return it as a response error
     if (appError instanceof HttpError && appError.status >= 400 && appError.status < 500) {
+      const errorCode = this.getCouponErrorCode(appError.message);
       return {
         coupon: null,
-        error: { message: appError.message }
+        error: {
+          message: appError.message,
+          code: errorCode,
+          type: "coupon_error"
+        }
       };
     }
 
     // For unknown errors, return a generic message
     return {
       coupon: null,
-      error: { message: "Failed to apply coupon. Please check the code and try again." }
+      error: {
+        message: "Failed to apply coupon. Please check the code and try again.",
+        code: "unknown_coupon_error",
+        type: "coupon_error"
+      }
     };
+  }
+
+  /**
+   * Get error code for payment errors to be used by frontend
+   */
+  public getPaymentErrorCode(error: unknown): { message: string; code: string; type: string } {
+    const appError = this.toAppError(error, "payment");
+
+    if (appError instanceof HttpError) {
+      const errorCode = this.getPaymentErrorCodeFromMessage(appError.message);
+      return {
+        message: appError.message,
+        code: errorCode,
+        type: "payment_error"
+      };
+    }
+
+    return {
+      message: "An unexpected payment error occurred",
+      code: "unknown_payment_error",
+      type: "payment_error"
+    };
+  }
+
+  private getCouponErrorCode(message: string): string {
+    const messageLower = message.toLowerCase();
+
+    if (messageLower.includes("no valid promotion code")) {
+      return "invalid_coupon_code";
+    } else if (messageLower.includes("invalid") || messageLower.includes("expired")) {
+      return "coupon_expired";
+    } else if (messageLower.includes("already been used")) {
+      return "coupon_already_used";
+    } else if (messageLower.includes("cannot be used")) {
+      return "coupon_not_applicable";
+    }
+
+    return "unknown_coupon_error";
+  }
+
+  private getPaymentErrorCodeFromMessage(message: string): string {
+    const messageLower = message.toLowerCase();
+
+    if (messageLower.includes("insufficient funds")) {
+      return "insufficient_funds";
+    } else if (messageLower.includes("expired")) {
+      return "card_expired";
+    } else if (messageLower.includes("declined")) {
+      return "card_declined";
+    } else if (messageLower.includes("invalid")) {
+      return "invalid_card_info";
+    } else if (messageLower.includes("minimum payment amount")) {
+      return "minimum_payment_amount";
+    } else if (messageLower.includes("final amount after discount")) {
+      return "final_amount_too_low";
+    } else if (messageLower.includes("payment method does not belong")) {
+      return "payment_method_not_owned";
+    } else if (messageLower.includes("payment account not properly configured")) {
+      return "no_stripe_customer";
+    } else if (messageLower.includes("coupon id is required")) {
+      return "coupon_id_required";
+    }
+
+    return "unknown_payment_error";
   }
 
   public isKnownError(error: unknown, context: "coupon" | "payment" = "payment"): boolean {
@@ -199,57 +279,97 @@ export class StripeErrorService {
       message = declineCodeMessages[error.decline_code];
     }
 
-    return createError(402, message, { originalError: error });
+    // Map Stripe error codes to our internal error codes
+    let errorCode = "card_declined";
+    if (error.code === "insufficient_funds" || error.decline_code === "insufficient_funds") {
+      errorCode = "insufficient_funds";
+    } else if (error.code === "expired_card" || error.decline_code === "expired_card") {
+      errorCode = "card_expired";
+    } else if (error.code === "incorrect_cvc" || error.decline_code === "incorrect_cvc") {
+      errorCode = "invalid_card_info";
+    } else if (error.code === "invalid_number" || error.decline_code === "incorrect_number") {
+      errorCode = "invalid_card_info";
+    }
+
+    return createError(402, message, {
+      originalError: error,
+      errorCode,
+      errorType: "payment_error"
+    });
   }
 
   private handleInvalidRequestError(error: Stripe.errors.StripeInvalidRequestError): HttpError {
     // Handle specific invalid request errors
     if (error.param) {
-      return createError(400, `Invalid ${error.param}: ${error.message}`, { originalError: error });
+      return createError(400, `Invalid ${error.param}: ${error.message}`, {
+        originalError: error,
+        errorCode: "validation_error",
+        errorType: "validation_error"
+      });
     }
-    return createError(400, error.message || "Invalid request", { originalError: error });
+    return createError(400, error.message || "Invalid request", {
+      originalError: error,
+      errorCode: "bad_request",
+      errorType: "validation_error"
+    });
   }
 
   private handleAPIError(error: Stripe.errors.StripeAPIError): HttpError {
     return createError(502, "Payment service temporarily unavailable. Please try again later.", {
       originalError: error,
-      retryable: true
+      retryable: true,
+      errorCode: "service_unavailable",
+      errorType: "server_error"
     });
   }
 
   private handleConnectionError(error: Stripe.errors.StripeConnectionError): HttpError {
     return createError(503, "Unable to connect to payment service. Please try again.", {
       originalError: error,
-      retryable: true
+      retryable: true,
+      errorCode: "service_unavailable",
+      errorType: "server_error"
     });
   }
 
   private handleAuthenticationError(error: Stripe.errors.StripeAuthenticationError): HttpError {
-    return createError(500, "Payment service configuration error", { originalError: error });
+    return createError(500, "Payment service configuration error", {
+      originalError: error,
+      errorCode: "internal_server_error",
+      errorType: "server_error"
+    });
   }
 
   private handleRateLimitError(error: Stripe.errors.StripeRateLimitError): HttpError {
     return createError(429, "Too many requests. Please try again later.", {
       originalError: error,
-      retryable: true
+      retryable: true,
+      errorCode: "rate_limited",
+      errorType: "client_error"
     });
   }
 
   private handleIdempotencyError(error: Stripe.errors.StripeIdempotencyError): HttpError {
     return createError(409, "This request conflicts with a previous request. Please try again with different parameters.", {
-      originalError: error
+      originalError: error,
+      errorCode: "conflict",
+      errorType: "client_error"
     });
   }
 
   private handlePermissionError(error: Stripe.errors.StripePermissionError): HttpError {
-    return createError(403, "You do not have permission to perform this action.", {
-      originalError: error
+    return createError(403, "You don't have permission to perform this action.", {
+      originalError: error,
+      errorCode: "forbidden",
+      errorType: "authorization_error"
     });
   }
 
   private handleSignatureVerificationError(error: Stripe.errors.StripeSignatureVerificationError): HttpError {
     return createError(400, "Invalid webhook signature. Please check your webhook configuration.", {
-      originalError: error
+      originalError: error,
+      errorCode: "validation_error",
+      errorType: "validation_error"
     });
   }
 

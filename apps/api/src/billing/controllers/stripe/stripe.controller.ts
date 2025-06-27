@@ -49,7 +49,7 @@ export class StripeController {
   async confirmPayment(params: ConfirmPaymentRequest["data"]): Promise<void> {
     const { currentUser } = this.authService;
 
-    assert(currentUser.stripeCustomerId, 400, "User does not have a Stripe customer ID");
+    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
 
     try {
       // Verify payment method ownership
@@ -79,7 +79,7 @@ export class StripeController {
   async applyCoupon(couponId: string): Promise<{ data: { coupon: Stripe.Coupon | Stripe.PromotionCode | null; error?: { message: string } } }> {
     const { currentUser } = this.authService;
 
-    assert(currentUser.stripeCustomerId, 400, "User does not have a Stripe customer ID");
+    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
     assert(couponId, 400, "Coupon ID is required");
 
     try {
@@ -98,7 +98,7 @@ export class StripeController {
   async removePaymentMethod(paymentMethodId: string): Promise<void> {
     const { currentUser } = this.authService;
 
-    assert(currentUser.stripeCustomerId, 400, "User does not have a Stripe customer ID");
+    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
 
     try {
       // Verify payment method ownership
@@ -120,7 +120,7 @@ export class StripeController {
   async getCustomerDiscounts(): Promise<{ data: { discounts: Discount[] } }> {
     const { currentUser } = this.authService;
 
-    assert(currentUser.stripeCustomerId, 400, "User does not have a Stripe customer ID");
+    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
 
     const discounts = await this.stripe.getCustomerDiscounts(currentUser.stripeCustomerId);
     return { data: { discounts } };
@@ -133,7 +133,7 @@ export class StripeController {
   }): Promise<{ data: { transactions: Transaction[]; hasMore: boolean; nextPage: string | null } }> {
     const { currentUser } = this.authService;
 
-    assert(currentUser.stripeCustomerId, 400, "User does not have a Stripe customer ID");
+    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
 
     const response = await this.stripe.getCustomerTransactions(currentUser.stripeCustomerId, options);
     return { data: response };

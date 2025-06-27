@@ -21,6 +21,8 @@ export interface CouponResponse {
   coupon: Coupon | null;
   error?: {
     message: string;
+    code?: string;
+    type?: string;
   };
 }
 
