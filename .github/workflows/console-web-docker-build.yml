@@ -6,40 +6,20 @@ on:
   push:
     branches: ["main"]
 
-
 jobs:
   should-validate:
-    name: Decide Whether to Validate
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
       app: deploy-web
+      workflow-trigger: ${{ github.event_name }}
 
   validate-deploy-web:
-    runs-on: ubuntu-latest
     needs: should-validate
     if: needs.should-validate.outputs.enabled == 'true'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/setup-app-deps
-        with:
-          app: deploy-web
-
-      - name: Run static code analysis
-        if: github.event_name == 'pull_request'
-        run: npm run lint -w apps/deploy-web -- --quiet
-
-      - name: Run tests
-        run: npm run test:cov --workspace=apps/deploy-web
-
-      - name: Upload Test Coverage
-        uses: codecov/codecov-action@v5
-        with:
-          fail_ci_if_error: true
-          directory: ./apps/deploy-web/coverage
-          flags: deploy-web
-          token: ${{ secrets.CODECOV_TOKEN }}
+    uses: ./.github/workflows/reusable-validate-app.yml
+    secrets: inherit
+    with:
+      app: deploy-web
 
   test-deploy-web-build:
     runs-on: ubuntu-latest
@@ -48,20 +28,4 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Build the Docker image
-        run: packages/docker/script/dc.sh build deploy-web --build-arg DEPLOYMENT_ENV=production
-
-  security:
-    runs-on: ubuntu-latest
-    needs: should-validate
-    if: needs.should-validate.outputs.has_changes == 'true' && github.event_name == 'pull_request'
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run security checks
-        uses: ./.github/actions/app-sec
-        with:
-          path: apps/deploy-web
-          snyk-token: ${{ secrets.SNYK_TOKEN }}
+      - run: packages/docker/script/dc.sh build deploy-web --build-arg DEPLOYMENT_ENV=production

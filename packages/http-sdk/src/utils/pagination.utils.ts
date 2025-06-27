@@ -1,3 +1,7 @@
+import type { LoggerService } from "@akashnetwork/logging";
+
+import { sdkLogger } from "./logger";
+
 /**
  * Helper function to load data with pagination
  * @param baseUrl Base URL for the API request
@@ -37,7 +41,8 @@ export function hasQueryParam(url: string): boolean {
 }
 
 export async function getAllItems<T>(
-  getItems: (params: Record<string, string | number>) => Promise<{ items: T[]; pagination: { next_key: string | null } }>
+  getItems: (params: Record<string, string | number>) => Promise<{ items: T[]; pagination: { next_key: string | null } }>,
+  logger: Pick<LoggerService, "error"> = sdkLogger
 ): Promise<T[]> {
   let items: T[] = [];
   let nextKey: string | null = null;
@@ -50,6 +55,11 @@ export async function getAllItems<T>(
 
     const itemsOnPage = await getItems(params);
 
+    // nextKey is null when the first page is returned
+    if (nextKey !== null && nextKey === itemsOnPage.pagination.next_key) {
+      logger.error({ event: "HTTP_SDK_CIRCULAR_LOOP", message: "Did you forget to pass pagination.key to request?" });
+      break;
+    }
     items = items.concat(itemsOnPage.items);
     nextKey = itemsOnPage.pagination.next_key;
   } while (nextKey);

@@ -12,44 +12,20 @@ jobs:
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
       app: stats-web
+      workflow-trigger: ${{ github.event_name }}
 
   validate-stats-web:
-    runs-on: ubuntu-latest
     needs: should-validate
     if: needs.should-validate.outputs.enabled == 'true'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/setup-app-deps
-        with:
-          app: stats-web
-
-      - name: Run static code analysis
-        if: github.event_name == 'pull_request'
-        run: npm run lint -w apps/stats-web -- --quiet
+    uses: ./.github/workflows/reusable-validate-app.yml
+    secrets: inherit
+    with:
+      app: stats-web
 
   test-stats-web-build:
     runs-on: ubuntu-latest
     needs: should-validate
-    if: needs.should-validate.outputs.has_changes == 'true' && github.event_name == 'pull_request'
-
+    if: needs.should-validate.outputs.has_changes == 'true'
     steps:
       - uses: actions/checkout@v4
-      - name: Build the Docker image
-        run: packages/docker/script/dc.sh build stats-web --build-arg DEPLOYMENT_ENV=production
-
-  security:
-    runs-on: ubuntu-latest
-    needs: should-validate
-    if: needs.should-validate.outputs.has_changes == 'true'
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run security checks
-        uses: ./.github/actions/app-sec
-        with:
-          path: apps/stats-web
-          snyk-token: ${{ secrets.SNYK_TOKEN }}
+      - run: packages/docker/script/dc.sh build stats-web --build-arg DEPLOYMENT_ENV=production

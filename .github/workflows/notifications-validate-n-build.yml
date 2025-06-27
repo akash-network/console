@@ -16,50 +16,25 @@ jobs:
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
       app: notifications
+      workflow-trigger: ${{ github.event_name }}
 
   validate-notifications:
-    runs-on: ubuntu-latest
     needs: should-validate
     if: needs.should-validate.outputs.enabled == 'true'
+    uses: ./.github/workflows/reusable-validate-app.yml
+    secrets: inherit
+    with:
+      app: notifications
+      test-command: |
+        export POSTGRES_SKIP_IMPORT=true;
+        npm run dc:up:db;
+        npm run test:cov --workspace=apps/notifications;
+        npm run dc:down;
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/setup-app-deps
-        with:
-          app: notifications
-
-      - name: Run static code analysis
-        if: github.event_name == 'pull_request'
-        run: npm run lint -w apps/notifications -- --quiet
-
-      - name: Run tests
-        env:
-          POSTGRES_SKIP_IMPORT: true
-        run: |
-          npm run dc:up:db
-          npm run test:cov --workspace=apps/notifications
-          npm run dc:down
-
-      - name: Upload Test Coverage
-        uses: codecov/codecov-action@v5
-        with:
-          fail_ci_if_error: true
-          directory: ./apps/notifications/coverage
-          flags: notifications
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-  security:
+  test-notifications-build:
     runs-on: ubuntu-latest
     needs: should-validate
-    if: needs.should-validate.outputs.has_changes == 'true' && github.event_name == 'pull_request'
-
+    if: needs.should-validate.outputs.has_changes == 'true'
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run security checks
-        uses: ./.github/actions/app-sec
-        with:
-          path: apps/notifications
-          snyk-token: ${{ secrets.SNYK_TOKEN }}
+      - uses: actions/checkout@v4
+      - run: packages/docker/script/dc.sh build notifications

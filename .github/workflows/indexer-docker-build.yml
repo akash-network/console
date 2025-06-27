@@ -12,6 +12,15 @@ jobs:
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
       app: indexer
+      workflow-trigger: ${{ github.event_name }}
+
+  validate-indexer:
+    needs: should-validate
+    if: needs.should-validate.outputs.enabled == 'true'
+    uses: ./.github/workflows/reusable-validate-app.yml
+    secrets: inherit
+    with:
+      app: indexer
 
   test-indexer-build:
     runs-on: ubuntu-latest
@@ -20,20 +29,4 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Build the Docker image
-        run: packages/docker/script/dc.sh build indexer
-
-  security:
-    runs-on: ubuntu-latest
-    needs: should-validate
-    if: needs.should-validate.outputs.has_changes == 'true' && github.event_name == 'pull_request'
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run security checks
-        uses: ./.github/actions/app-sec
-        with:
-          path: apps/indexer
-          snyk-token: ${{ secrets.SNYK_TOKEN }}
+      - run: packages/docker/script/dc.sh build indexer
