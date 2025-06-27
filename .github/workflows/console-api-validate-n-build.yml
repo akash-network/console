@@ -1,4 +1,4 @@
-name: API CI
+name: "API CI"
 
 on:
   pull_request:
@@ -15,22 +15,17 @@ jobs:
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
       app: api
-      workflow-trigger: ${{ github.event_name }}
 
-  validate-api:
+  validate:
     needs: should-validate
     if: needs.should-validate.outputs.enabled == 'true'
+    name: "API CI - Validate"
     uses: ./.github/workflows/reusable-validate-app.yml
     secrets: inherit
     with:
       app: api
-      test-command: |
-        export POSTGRES_SKIP_IMPORT=true;
-        npm run dc:up:db;
-        npm run test:cov --workspace=apps/api;
-        npm run dc:down;
 
-  test-api-build:
+  test-build:
     runs-on: ubuntu-latest
     needs: should-validate
     if: needs.should-validate.outputs.has_changes == 'true'
@@ -42,3 +37,20 @@ jobs:
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: packages/docker/script/dc.sh build api
+
+  api-ci:
+    runs-on: ubuntu-latest
+    needs: [should-validate, validate, test-build]
+    if: always()
+    steps:
+      - name: Check statuses
+        if: needs.should-validate.outputs.has_changes == 'true'
+        env:
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          TEST_BUILD_RESULT: ${{ needs.test-build.result }}
+        run: |
+          echo "Validate: $VALIDATE_RESULT"
+          echo "Test Build: $TEST_BUILD_RESULT"
+          if [[ "$VALIDATE_RESULT" != "success" || "$TEST_BUILD_RESULT" != "success" ]]; then
+            exit 1
+          fi

@@ -7,10 +7,6 @@ on:
         description: "The app to release" # dir name in ./apps/*
         required: true
         type: string
-      workflow-trigger:
-        description: "Github event that triggered the caller workflow"
-        required: true
-        type: string
     outputs:
       enabled:
         description: "Whether should validate"
@@ -27,8 +23,13 @@ jobs:
   should-validate:
     runs-on: ubuntu-latest
     outputs:
-      enabled: ${{ inputs.workflow-trigger == 'push' || steps.has_changes.outputs.app == 'true' }}
-      has_changes: ${{ inputs.workflow-trigger == 'pull_request' && steps.has_changes.outputs.app }}
+      enabled: ${{ github.event_name == 'push' || steps.has_changes.outputs.app == 'true' }}
+      has_changes: ${{ github.event_name == 'pull_request' && steps.has_changes.outputs.app }}
+
+    env:
+      APP_ALIAS: ${{ inputs.app == 'deploy-web' && 'console-web' ||
+        inputs.app == 'api' && 'console-api' ||
+        inputs.app }}
 
     steps:
       - name: Checkout repository
@@ -49,6 +50,7 @@ jobs:
               - "apps/${{ inputs.app }}/**"
               - package-lock.json
               - ".github/workflows/${{ inputs.app }}-validate-n-build.yml"
-              - ".github/workflows/${{ inputs.app == 'deploy-web' && 'console-web' || inputs.app }}-docker-build.yml"
+              - ".github/workflows/${{ env.APP_ALIAS }}-docker-build.yml"
               - ".github/workflows/reusable-should-validate.yml"
+              - ".github/workflows/reusable-validate-app.yml"
               - *local_deps

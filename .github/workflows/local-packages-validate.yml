@@ -1,4 +1,4 @@
-name: Local Package CI
+name: "Local Package CI"
 
 on:
   pull_request:
