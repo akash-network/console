@@ -400,7 +400,7 @@ describe(StripeErrorService.name, () => {
         coupon: null,
         error: {
           message: "Failed to apply coupon. Please check the code and try again.",
-          code: "invalid_coupon_code",
+          code: "unknown_coupon_error",
           type: "coupon_error"
         }
       });
@@ -416,7 +416,7 @@ describe(StripeErrorService.name, () => {
         coupon: null,
         error: {
           message: "Failed to apply coupon. Please check the code and try again.",
-          code: "invalid_coupon_code",
+          code: "unknown_coupon_error",
           type: "coupon_error"
         }
       });

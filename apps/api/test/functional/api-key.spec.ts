@@ -278,6 +278,7 @@ describe("API Keys", () => {
       const result = await response.json();
       expect(result).toEqual({
         error: "BadRequestError",
+        message: "Validation error",
         data: [
           {
             code: "custom",
