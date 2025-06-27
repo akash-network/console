@@ -38,5 +38,5 @@ export const sendVerificationEmailRouter = new OpenApiHonoHandler();
 
 sendVerificationEmailRouter.openapi(route, async function verifyEmail(c) {
   await container.resolve(AuthController).sendVerificationEmail(c.req.valid("json"));
-  return c.text("", 200);
+  return c.text("", 200) as never;
 });

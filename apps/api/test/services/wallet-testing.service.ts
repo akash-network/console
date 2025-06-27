@@ -12,7 +12,7 @@ export class WalletTestingService {
       }),
       headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` })
     });
-    const { data: wallet } = await walletResponse.json();
+    const { data: wallet } = (await walletResponse.json()) as any;
 
     return { user, token, wallet };
   }
@@ -22,7 +22,7 @@ export class WalletTestingService {
       method: "POST",
       headers: new Headers({ "Content-Type": "application/json" })
     });
-    const { data: user, token } = await userResponse.json();
+    const { data: user, token } = (await userResponse.json()) as any;
 
     return { user, token };
   }
@@ -31,7 +31,7 @@ export class WalletTestingService {
     const walletResponse = await this.app.request(`/v1/wallets?userId=${userId}`, {
       headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` })
     });
-    const { data } = await walletResponse.json();
+    const { data } = (await walletResponse.json()) as any;
 
     return data[0];
   }

@@ -206,7 +206,7 @@ describe("Provider Graph Data", () => {
       it(`returns provider graph data for ${dataName}`, async () => {
         const response = await app.request(`/v1/provider-graph-data/${dataName}`);
 
-        const data = await response.json();
+        const data = (await response.json()) as any;
 
         expect(response.status).toBe(200);
 
@@ -281,7 +281,7 @@ describe("Provider Graph Data", () => {
       });
 
       const response = await app.request("/v1/provider-graph-data/count");
-      const data = await response.json();
+      const data = (await response.json()) as any;
 
       expect(response.status).toBe(200);
 

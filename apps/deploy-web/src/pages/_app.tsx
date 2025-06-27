@@ -12,6 +12,7 @@ import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
 import type { AppProps } from "next/app";
 import Router from "next/router";
+import { NavigationGuardProvider } from "next-navigation-guard";
 import type { NextSeoProps } from "next-seo/lib/types";
 import { ThemeProvider } from "next-themes";
 import NProgress from "nprogress";
@@ -78,7 +79,9 @@ const App: React.FunctionComponent<Props> = props => {
             <WalletProvider>
               <CertificateProvider>
                 <BackgroundTaskProvider>
-                  <Component {...pageProps} />
+                  <NavigationGuardProvider>
+                    <Component {...pageProps} />
+                  </NavigationGuardProvider>
                 </BackgroundTaskProvider>
               </CertificateProvider>
             </WalletProvider>

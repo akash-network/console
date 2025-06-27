@@ -16,6 +16,7 @@ import type { NotificationChannelsOutput } from "@src/components/alerts/Notifica
 import { DeploymentBalanceAlert } from "@src/components/deployments/DeploymentBalanceAlert/DeploymentBalanceAlert";
 import { DeploymentCloseAlert } from "@src/components/deployments/DeploymentCloseAlert/DeploymentCloseAlert";
 import { LoadingBlocker } from "@src/components/layout/LoadingBlocker/LoadingBlocker";
+import type { ChangeableComponentProps } from "@src/types/changeable-component-props.type";
 import type { DeploymentDto } from "@src/types/deployment";
 import { ceilDecimal } from "@src/utils/mathHelpers";
 
@@ -24,13 +25,12 @@ const COMPONENTS = {
   DeploymentBalanceAlert
 };
 
-export type Props = {
+export type Props = ChangeableComponentProps<{
   components?: typeof COMPONENTS;
   maxBalanceThreshold: number;
-  onStateChange: (params: { hasChanges: boolean }) => void;
   notificationChannels: NotificationChannelsOutput;
   disabled?: boolean;
-};
+}>;
 
 const schema = z.object({
   deploymentBalance: z.object({
@@ -108,6 +108,9 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   const values = form.watch();
 
   useEffect(() => {
+    if (!onStateChange) {
+      return;
+    }
     const hasChangesNext = !isEqual(providedValues, values);
     if (hasChanges !== hasChangesNext) {
       setHasChanges(hasChangesNext);

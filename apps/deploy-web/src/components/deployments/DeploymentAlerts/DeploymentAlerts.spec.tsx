@@ -16,7 +16,7 @@ describe("DeploymentAlerts", () => {
     fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentBalance.enabled"]' }));
     fireEvent.click(screen.getByLabelText("Enabled", { selector: '[name="deploymentClosed.enabled"]' }));
 
-    fireEvent.change(screen.getByRole("combobox", { name: /deployment balance notification channel/i }), {
+    fireEvent.change(screen.getByRole("combobox", { name: /escrow balance notification channel/i }), {
       target: { value: componentProps.notificationChannels[0].id }
     });
     fireEvent.change(screen.getByRole("combobox", { name: /deployment close notification channel/i }), {
@@ -68,7 +68,7 @@ describe("DeploymentAlerts", () => {
         return (
           <div>
             <input type="checkbox" {...register("deploymentBalance.enabled")} aria-label="Enabled" disabled={disabled} />
-            <select {...register("deploymentBalance.notificationChannelId")} aria-label="Deployment Balance Notification Channel" disabled={disabled}>
+            <select {...register("deploymentBalance.notificationChannelId")} aria-label="Escrow Balance Notification Channel" disabled={disabled}>
               <option value={channel1Id}>Channel 1</option>
               <option value={channel2Id}>Channel 2</option>
             </select>

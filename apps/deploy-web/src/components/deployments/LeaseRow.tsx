@@ -1,5 +1,4 @@
 "use client";
-import type { SetStateAction } from "react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Badge, Button, Card, CardContent, CardHeader, CustomTooltip, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -13,7 +12,6 @@ import { AuditorButton } from "@src/components/providers/AuditorButton";
 import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import { FavoriteButton } from "@src/components/shared/FavoriteButton";
 import { LabelValueOld } from "@src/components/shared/LabelValueOld";
-import { LinkTo } from "@src/components/shared/LinkTo";
 import { PriceEstimateTooltip } from "@src/components/shared/PriceEstimateTooltip";
 import { PricePerMonth } from "@src/components/shared/PricePerMonth";
 import { SpecDetail } from "@src/components/shared/SpecDetail";
@@ -39,7 +37,6 @@ import { ProviderName } from "../shared/ProviderName";
 type Props = {
   index: number;
   lease: LeaseDto;
-  setActiveTab: (value: SetStateAction<string>) => void;
   deploymentManifest: string;
   dseq: string;
   providers: ApiProviderList[];
@@ -53,7 +50,7 @@ export type AcceptRefType = {
 };
 
 export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
-  ({ index, lease, setActiveTab, deploymentManifest, dseq, providers, loadDeploymentDetail, isRemoteDeploy, repo }, ref) => {
+  ({ index, lease, deploymentManifest, dseq, providers, loadDeploymentDetail, isRemoteDeploy, repo }, ref) => {
     const provider = providers?.find(p => p.owner === lease?.provider);
     const { localCert } = useCertificate();
     const isLeaseActive = lease.state === "active";
@@ -114,11 +111,6 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
     useEffect(() => {
       loadLeaseStatus();
     }, [lease, provider, localCert, loadLeaseStatus]);
-
-    function handleEditManifestClick(ev: React.MouseEvent) {
-      ev.preventDefault();
-      setActiveTab("EDIT");
-    }
 
     const chainNetwork = networkStore.useSelectedNetworkId();
     async function sendManifest() {
@@ -188,9 +180,9 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
 
             {isLeaseActive && (
               <div className="ml-4 inline-flex">
-                <LinkTo className="text-sm" onClick={() => setActiveTab("LOGS")}>
+                <Link className="text-sm" href={`/deployments/${dseq}?tab=LOGS`}>
                   View logs
-                </LinkTo>
+                </Link>
               </div>
             )}
           </div>
@@ -247,7 +239,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
           {isLeaseNotFound && (
             <Alert variant="warning">
               The lease was not found on this provider. This can happen if no manifest was sent to the provider. To send one you can update your deployment in
-              the <LinkTo onClick={handleEditManifestClick}>VIEW / EDIT MANIFEST</LinkTo> tab.
+              the <Link href={`/deployments/${dseq}?tab=EDIT`}>VIEW / EDIT MANIFEST</Link> tab.
               {deploymentManifest && (
                 <>
                   <div className="my-4">
@@ -288,9 +280,9 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
                             <>
                               Workloads can take some time to spin up. If you see an error when browsing the uri, it is recommended to refresh and wait a bit.
                               Check the{" "}
-                              <LinkTo onClick={() => setActiveTab("LOGS")} className="text-white">
+                              <Link href={`/deployments/${dseq}?tab=LOGS`} className="text-white">
                                 logs
-                              </LinkTo>{" "}
+                              </Link>{" "}
                               for more information.
                             </>
                           }

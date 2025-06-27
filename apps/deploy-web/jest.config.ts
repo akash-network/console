@@ -16,7 +16,8 @@ const getConfig = createJestConfig({
   moduleNameMapper: {
     "^@src(.*)$": "<rootDir>/src/$1",
     "@interchain-ui\\/react\\/styles$": styleMockPath,
-    "@interchain-ui\\/react\\/globalStyles$": styleMockPath
+    "@interchain-ui\\/react\\/globalStyles$": styleMockPath,
+    "^next-navigation-guard$": "<rootDir>/../../node_modules/next-navigation-guard/dist/index.js"
   },
   setupFilesAfterEnv: ["<rootDir>/tests/unit/setup.ts"]
 });

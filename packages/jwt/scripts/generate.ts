@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = normalize(joinPath(scriptDir, "..", "..", ".."));
 const PACKAGE_DIR = normalize(joinPath(scriptDir, ".."));
+const OUT_TEST_DIR = joinPath(PACKAGE_DIR, "src", "test", "generated");
 const OUT_DIR = joinPath(PACKAGE_DIR, "src", "generated");
 const BRANCH = process.env.AKASH_API_BRANCH || "refs/heads/main";
 const JWT_SCHEMA_URL = `https://raw.githubusercontent.com/akash-network/akash-api/${BRANCH}/specs/jwt-schema.json`;
@@ -28,15 +29,15 @@ async function main() {
     await Promise.all([
       fsp.writeFile(joinPath(OUT_DIR, "jwt-schema-data.ts"), `export const jwtSchemaData = ${JSON.stringify(schema, null, 2)}`),
       fsp.writeFile(
-        joinPath(OUT_DIR, "jwt-signing-test-cases.ts"),
+        joinPath(OUT_TEST_DIR, "jwt-signing-test-cases.ts"),
         `// This file contains test cases for JWT signing validation\nexport const jwtSigningTestCases = ${JSON.stringify(signingTestCases, null, 2)};`
       ),
       fsp.writeFile(
-        joinPath(OUT_DIR, "jwt-claims-test-cases.ts"),
+        joinPath(OUT_TEST_DIR, "jwt-claims-test-cases.ts"),
         `// This file contains test cases for JWT claims validation\nexport const jwtClaimsTestCases = ${JSON.stringify(claimsTestCases, null, 2)};`
       ),
       fsp.writeFile(
-        joinPath(OUT_DIR, "jwt-mnemonic.ts"),
+        joinPath(OUT_TEST_DIR, "jwt-mnemonic.ts"),
         `// This file contains the test mnemonic for JWT signing\nexport const jwtMnemonic = "${mnemonic.trim()}";`
       )
     ]);

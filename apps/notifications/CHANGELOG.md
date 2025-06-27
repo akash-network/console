@@ -1,5 +1,62 @@
 
 
+## [1.13.4](https://github.com/akash-network/console/compare/notifications/v1.13.3...notifications/v1.13.4) (2025-06-26)
+
+
+### Bug Fixes
+
+* ensure getAllItems doesn't stuck inside infinite loop ([#1562](https://github.com/akash-network/console/issues/1562)) ([f8a8ba2](https://github.com/akash-network/console/commit/f8a8ba277f5b8b8cd25d1c4a831d0642e9505557))
+
+## [1.13.3](https://github.com/akash-network/console/compare/notifications/v1.13.2...notifications/v1.13.3) (2025-06-26)
+
+
+### Bug Fixes
+
+* makes axios not to throw on 400 error for getting deployment ([#1552](https://github.com/akash-network/console/issues/1552)) ([f85947e](https://github.com/akash-network/console/commit/f85947efd64ac4b566f020d9a4691ab092fb46ab))
+
+
+### Code Refactoring
+
+* ensure alerts are not rendered when they are disabled ([#1557](https://github.com/akash-network/console/issues/1557)) ([8c3d8b9](https://github.com/akash-network/console/commit/8c3d8b98f3ec640c1f49d2f0ac08f9db6e259ffe))
+
+## [1.13.2](https://github.com/akash-network/console/compare/notifications/v1.13.1...notifications/v1.13.2) (2025-06-24)
+
+
+### Bug Fixes
+
+* **alert:** properly calculates deployment escrow balance ([4ea20e4](https://github.com/akash-network/console/commit/4ea20e4a7846a0fa588b9d8b8ad036f8165409c8))
+
+## [1.13.1](https://github.com/akash-network/console/compare/notifications/v1.13.0...notifications/v1.13.1) (2025-06-23)
+
+
+### Bug Fixes
+
+* **alert:** extracts permitted alert fields correctly ([f1ce6ea](https://github.com/akash-network/console/commit/f1ce6ea4b46e620eccff31c1c3dfeb502ccd81bc))
+
+## [1.13.0](https://github.com/akash-network/console/compare/notifications/v1.12.0...notifications/v1.13.0) (2025-06-23)
+
+
+### Features
+
+* **alert:** implements notification channel safe delete ([e023ce0](https://github.com/akash-network/console/commit/e023ce09fd6612c9c2d0d3e9dc3178648975bd5d))
+
+## [1.12.0](https://github.com/akash-network/console/compare/notifications/v1.11.0...notifications/v1.12.0) (2025-06-22)
+
+
+### Features
+
+* **alert:** improves deployment alerts list UI ([d81d92d](https://github.com/akash-network/console/commit/d81d92da218186d2af454c4411a2d641762722b0))
+
+
+### Bug Fixes
+
+* adds suppressBySystem flag to alerts params ([#1521](https://github.com/akash-network/console/issues/1521)) ([46e8a19](https://github.com/akash-network/console/commit/46e8a19d2758abe7c749a19e67bc842e85c6957d))
+
+
+### Code Refactoring
+
+* move /v1/nodes and /v1/version to a module ([#1458](https://github.com/akash-network/console/issues/1458)) ([fc814db](https://github.com/akash-network/console/commit/fc814db50418300b608b7ddeb7173b3a3882aa38)), closes [#1271](https://github.com/akash-network/console/issues/1271) [#1276](https://github.com/akash-network/console/issues/1276)
+
 ## [1.11.0](https://github.com/akash-network/console/compare/notifications/v1.10.0...notifications/v1.11.0) (2025-06-17)
 
 

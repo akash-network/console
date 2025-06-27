@@ -37,7 +37,7 @@ describe("Provider Dashboard", () => {
     it("returns dashboard data for the owner", async () => {
       const response = await app.request(`/v1/provider-dashboard/${provider.owner}`);
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
 
       expect(response.status).toBe(200);
       expect(data.current.date).toEqual(blocks[0].datetime.toISOString());
@@ -51,7 +51,7 @@ describe("Provider Dashboard", () => {
       const response = await app.request(`/v1/provider-dashboard/${nonExistentOwner}`);
 
       expect(response.status).toBe(404);
-      const data = await response.json();
+      const data = (await response.json()) as any;
       expect(data.message).toBe("Provider not found");
     });
   });

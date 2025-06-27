@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/stats-web",
-  "version": "0.28.0",
+  "version": "0.28.2",
   "private": true,
   "scripts": {
     "build": "npm run build-env-schemas && next build",
@@ -50,7 +50,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@akashnetwork/akashjs": "@akashnetwork/akashjs",
+    "@akashnetwork/akashjs": "^0.11.1",
     "@akashnetwork/dev-config": "*",
     "@akashnetwork/docker": "*",
     "@akashnetwork/releaser": "*",

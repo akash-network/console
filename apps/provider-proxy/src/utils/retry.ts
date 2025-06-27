@@ -33,17 +33,25 @@ async function retryWithBackoff<T>(
   } catch (error: unknown) {
     if (attempt < maxRetries && canRetryOnError(error)) {
       return retryWithBackoff(callback, shouldRetryOnResponse, maxRetries, attempt + 1);
-    } else {
-      throw error;
     }
+
+    if (attempt >= maxRetries) {
+      throw new Error(`Max retries reached: ${maxRetries}`, { cause: error });
+    }
+
+    throw new Error("Fail to retry due to receiving non-retriable error", { cause: error });
   }
 }
 
-const isRetriableError = (code: string) => code === "ECONNREFUSED" || code === "ECONNRESET" || code === "ERR_TLS_SESSION_REJECTED";
-function canRetryOnError(error: unknown): boolean {
-  if (!error) return false;
-  if (Object.hasOwn(error as Error, "code")) return isRetriableError((error as { code: string }).code);
+const isRetriableError = (code: string) =>
+  code === "ECONNREFUSED" || code === "ECONNRESET" || code === "ERR_TLS_SESSION_REJECTED" || code === "ETIMEDOUT" || code === "ESOCKETTIMEDOUT";
 
-  const errorCode = ((error as Error).cause as { code: string })?.code;
-  return isRetriableError(errorCode);
+export function canRetryOnError(error: unknown): boolean {
+  if (!error) return false;
+
+  if (Object.hasOwn(error as Error, "code")) {
+    return isRetriableError((error as { code: string }).code);
+  }
+
+  return canRetryOnError((error as Error).cause);
 }

@@ -20,13 +20,12 @@ import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBalances } from "@src/queries/useBalancesQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
-import { txHttpService } from "@src/services/http/http-browser.service";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
 import { UrlService } from "@src/utils/urlUtils";
 import { getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
+import { useServices } from "../ServicesProvider";
 import { useSettings } from "../SettingsProvider";
 import { settingsIdAtom } from "../SettingsProvider/settingsStore";
 
@@ -40,7 +39,7 @@ const ERROR_MESSAGES = {
   25: "Invalid gas adjustment"
 };
 
-type ContextType = {
+export type ContextType = {
   address: string;
   walletName: string;
   isWalletConnected: boolean;
@@ -58,7 +57,10 @@ type ContextType = {
   hasManagedWallet: boolean;
 };
 
-const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
+/**
+ * @private for testing only
+ */
+export const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
 
 const MESSAGE_STATES: Record<string, LoadingState> = {
   "/akash.deployment.v1beta3.MsgCloseDeployment": "closingDeployment",
@@ -72,6 +74,8 @@ const MESSAGE_STATES: Record<string, LoadingState> = {
  * WalletProvider is a client only component
  */
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { analyticsService, tx: txHttpService } = useServices();
+
   const [, setSettingsId] = useAtom(settingsIdAtom);
   const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
   const [loadingState, setLoadingState] = useState<LoadingState | undefined>(undefined);

@@ -38,7 +38,7 @@ describe(AlertsListView.name, () => {
     setup({ data: [mockAlert] });
 
     expect(screen.getByText(mockAlert.deploymentName)).toBeInTheDocument();
-    expect(screen.getByText("Threshold")).toBeInTheDocument();
+    expect(screen.getByText("Escrow Threshold")).toBeInTheDocument();
     expect(screen.getByText(capitalize(mockAlert.status))).toBeInTheDocument();
 
     const checkbox = screen.getByRole("checkbox");

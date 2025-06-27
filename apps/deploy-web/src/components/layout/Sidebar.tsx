@@ -105,7 +105,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
       }
     ];
 
-    if (isAlertsEnabled && user?.userId) {
+    if (isAlertsEnabled && user?.userId && wallet.isManaged) {
       routes.push({
         title: "Alerts",
         icon: props => <MessageAlert {...props} />,
@@ -115,7 +115,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
     }
 
     return routes;
-  }, [isAlertsEnabled, user?.userId]);
+  }, [isAlertsEnabled, user?.userId, wallet.isManaged]);
 
   const routeGroups: ISidebarGroupMenu[] = useMemo(
     () => [

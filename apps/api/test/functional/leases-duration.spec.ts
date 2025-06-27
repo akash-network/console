@@ -135,7 +135,7 @@ describe("GET /v1/leases-duration/{owner}", () => {
     response: Response,
     expected: { leaseCount: number; totalDurationInSeconds: number; totalDurationInHours: number; dseqs: string[] }
   ) => {
-    const data = await response.json();
+    const data = (await response.json()) as any;
 
     expect(data.leaseCount).toBe(expected.leaseCount);
     expect(data.totalDurationInSeconds).toBe(expected.totalDurationInSeconds);

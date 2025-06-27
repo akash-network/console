@@ -1,5 +1,5 @@
 import type { SupportedChainNetworks } from "@akashnetwork/net";
-import { setTimeout } from "timers/promises";
+import { setTimeout as wait } from "timers/promises";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";
 import { generateBech32, startChainApiServer, stopChainAPIServer } from "../setup/chainApiServer";
@@ -197,7 +197,7 @@ describe("Provider HTTP proxy", () => {
         network
       })
     });
-    await setTimeout(200);
+    await wait(200);
     await startChainApiServer([validCertPair.cert]);
     const response = await responsePromise;
 
@@ -213,8 +213,15 @@ describe("Provider HTTP proxy", () => {
     });
 
     const providerUrl = await startProviderServer({ certPair: validCertPair });
+    let isRespondedWith502 = false;
     await startChainApiServer([validCertPair.cert], {
-      respondOnceWith: 502
+      interceptRequest(_, res) {
+        if (isRespondedWith502) return false;
+        isRespondedWith502 = true;
+        res.writeHead(502);
+        res.end();
+        return true;
+      }
     });
 
     const response = await request("/", {
@@ -238,7 +245,23 @@ describe("Provider HTTP proxy", () => {
       commonName: providerAddress
     });
 
-    const providerUrl = await startProviderServer({ certPair: validCertPair });
+    let returned5xx = false;
+    const providerUrl = await startProviderServer({
+      certPair: validCertPair,
+      handlers: {
+        "/5xx-once"(_, res) {
+          if (!returned5xx) {
+            returned5xx = true;
+            res.writeHead(502);
+            res.end();
+            return;
+          }
+
+          res.writeHead(200, "OK", { "Content-Type": "text/plain" });
+          res.end("Success");
+        }
+      }
+    });
     await startChainApiServer([validCertPair.cert]);
 
     const response = await request("/", {
@@ -262,7 +285,27 @@ describe("Provider HTTP proxy", () => {
       commonName: providerAddress
     });
 
-    const providerUrl = await startProviderServer({ certPair: validCertPair });
+    let wasSlow = false;
+    const providerUrl = await startProviderServer({
+      certPair: validCertPair,
+      handlers: {
+        "/slow-once"(_, res) {
+          if (!wasSlow) {
+            wasSlow = true;
+            const timeout = setTimeout(() => {
+              clearSlowTimer();
+              res.writeHead(200);
+              res.end("Slow");
+            }, 1000);
+            const clearSlowTimer = () => clearTimeout(timeout);
+            return clearSlowTimer;
+          }
+
+          res.writeHead(200, "OK", { "Content-Type": "text/plain" });
+          res.end("Fast");
+        }
+      }
+    });
     await startChainApiServer([validCertPair.cert]);
 
     const response = await request("/", {
@@ -287,7 +330,15 @@ describe("Provider HTTP proxy", () => {
       commonName: providerAddress
     });
 
-    const providerUrl = await startProviderServer({ certPair: validCertPair });
+    const providerUrl = await startProviderServer({
+      certPair: validCertPair,
+      handlers: {
+        "/500"(_, res) {
+          res.writeHead(500);
+          res.end("Internal Server Error");
+        }
+      }
+    });
     await startChainApiServer([validCertPair.cert]);
 
     const response = await request("/", {
@@ -295,6 +346,61 @@ describe("Provider HTTP proxy", () => {
       body: JSON.stringify({
         method: "GET",
         url: `${providerUrl}/500`,
+        providerAddress,
+        network
+      })
+    });
+
+    expect(response.status).toBe(503);
+    const body = await response.text();
+    expect(body).toBe(`Provider ${providerUrl} is temporarily unavailable`);
+  });
+
+  it("responds with 503 if provider host is not reachable", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = createX509CertPair({
+      commonName: providerAddress
+    });
+
+    await startChainApiServer([validCertPair.cert]);
+    const providerUrl = `https://some-unknown-host-${Date.now()}.com/200`;
+
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({
+        method: "GET",
+        url: providerUrl,
+        providerAddress,
+        network
+      })
+    });
+
+    expect(response.status).toBe(503);
+    const body = await response.text();
+    expect(body).toBe(`Provider ${new URL(providerUrl).origin} is temporarily unavailable`);
+  });
+
+  it("responds with 503 if provider host hangs up connection", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = createX509CertPair({
+      commonName: providerAddress
+    });
+
+    const providerUrl = await startProviderServer({
+      certPair: validCertPair,
+      handlers: {
+        "/hangs-up"(req) {
+          req.destroy();
+        }
+      }
+    });
+    await startChainApiServer([validCertPair.cert]);
+
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({
+        method: "GET",
+        url: `${providerUrl}/hangs-up`,
         providerAddress,
         network
       })

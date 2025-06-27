@@ -28,7 +28,7 @@ describe("start trial", () => {
       const {
         data: { id: userId },
         token
-      } = await userResponse.json();
+      } = (await userResponse.json()) as any;
       const headers = new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` });
       const createWalletResponse = await app.request("/v1/start-trial", {
         method: "POST",

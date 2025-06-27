@@ -142,7 +142,8 @@ export class DeploymentHttpService extends HttpService {
         params: {
           "id.owner": owner,
           "id.dseq": dseq
-        }
+        },
+        validateStatus: status => (status >= 200 && status < 300) || (status >= 400 && status < 500)
       })
     );
   }

@@ -39,7 +39,7 @@ describe("Transactions", () => {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json" })
       });
-      const transactionsFound = await response.json();
+      const transactionsFound = (await response.json()) as any;
 
       expect(response.status).toBe(200);
       expectTransactions(transactionsFound, transactions.slice(0, 2));
@@ -61,7 +61,7 @@ describe("Transactions", () => {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json" })
       });
-      const transactionFound = await response.json();
+      const transactionFound = (await response.json()) as any;
 
       expect(response.status).toBe(200);
       expectTransactions([transactions[0]], [transactionFound]);

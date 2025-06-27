@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Alert, Button, CustomTooltip, Snackbar, Spinner } from "@akashnetwork/ui/components";
+import { Alert, Button, CustomTooltip, Snackbar } from "@akashnetwork/ui/components";
 import { InfoCircle, WarningCircle } from "iconoir-react";
 import yaml from "js-yaml";
 import { useSnackbar } from "notistack";
@@ -24,6 +24,7 @@ import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import RemoteDeployUpdate from "../remote-deploy/update/RemoteDeployUpdate";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import { Title } from "../shared/Title";
+import { CreateCertificateButton } from "./CreateCertificateButton/CreateCertificateButton";
 
 type Props = {
   deployment: DeploymentDto;
@@ -49,7 +50,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged: isManagedWallet } = useWallet();
   const { data: providers } = useProviderList();
-  const { localCert, isLocalCertMatching, createCertificate, isCreatingCert } = useCertificate();
+  const { localCert, isLocalCertMatching } = useCertificate();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   useEffect(() => {
@@ -244,15 +245,12 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
               <div>
                 {!localCert || !isLocalCertMatching ? (
-                  <div className="flex items-center space-x-4">
-                    <Alert variant="warning" className="py-2 text-sm">
-                      You do not have a valid certificate. You need to create a new one to update an existing deployment.
-                    </Alert>
-
-                    <Button size="sm" disabled={isCreatingCert} onClick={() => createCertificate()}>
-                      {isCreatingCert ? <Spinner size="small" /> : "Create Certificate"}
-                    </Button>
-                  </div>
+                  <CreateCertificateButton
+                    containerClassName="flex items-center space-x-4 text-sm"
+                    className=""
+                    size="sm"
+                    warningText="You need to create a certificate to update an existing deployment."
+                  />
                 ) : (
                   <Button
                     disabled={!!parsingError || !editedManifest || !providers || isSendingManifest || deployment.state !== "active"}

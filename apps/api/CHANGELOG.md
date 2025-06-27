@@ -1,5 +1,62 @@
 
 
+## [2.102.5](https://github.com/akash-network/console/compare/console-api/v2.102.4...console-api/v2.102.5) (2025-06-26)
+
+
+### Bug Fixes
+
+* ensure getAllItems doesn't stuck inside infinite loop ([#1562](https://github.com/akash-network/console/issues/1562)) ([f8a8ba2](https://github.com/akash-network/console/commit/f8a8ba277f5b8b8cd25d1c4a831d0642e9505557))
+
+## [2.102.4](https://github.com/akash-network/console/compare/console-api/v2.102.3...console-api/v2.102.4) (2025-06-26)
+
+
+### Bug Fixes
+
+* makes axios not to throw on 400 error for getting deployment ([#1552](https://github.com/akash-network/console/issues/1552)) ([f85947e](https://github.com/akash-network/console/commit/f85947efd64ac4b566f020d9a4691ab092fb46ab))
+
+
+### Code Refactoring
+
+* ensure alerts are not rendered when they are disabled ([#1557](https://github.com/akash-network/console/issues/1557)) ([8c3d8b9](https://github.com/akash-network/console/commit/8c3d8b98f3ec640c1f49d2f0ac08f9db6e259ffe))
+
+## [2.102.3](https://github.com/akash-network/console/compare/console-api/v2.102.2...console-api/v2.102.3) (2025-06-25)
+
+
+### Bug Fixes
+
+* adds blockchain node API proxy to the list of mainnet nework urls ([#1553](https://github.com/akash-network/console/issues/1553)) ([35cd01a](https://github.com/akash-network/console/commit/35cd01a5969b2bdd78abd4eaa8baacdd3a676bc3))
+
+## [2.102.2](https://github.com/akash-network/console/compare/console-api/v2.102.1...console-api/v2.102.2) (2025-06-24)
+
+
+### Bug Fixes
+
+* **alert:** properly calculates deployment escrow balance ([4ea20e4](https://github.com/akash-network/console/commit/4ea20e4a7846a0fa588b9d8b8ad036f8165409c8))
+
+## [2.102.1](https://github.com/akash-network/console/compare/console-api/v2.102.0...console-api/v2.102.1) (2025-06-24)
+
+
+### Code Refactoring
+
+* run npm audit fix to fix security issues ([#1529](https://github.com/akash-network/console/issues/1529)) ([e00581e](https://github.com/akash-network/console/commit/e00581ef45d97c5dfabbe78688d39e715ff1ffde))
+
+## [2.102.0](https://github.com/akash-network/console/compare/console-api/v2.101.0...console-api/v2.102.0) (2025-06-22)
+
+
+### Features
+
+* **alert:** improves deployment alerts list UI ([d81d92d](https://github.com/akash-network/console/commit/d81d92da218186d2af454c4411a2d641762722b0))
+
+
+### Bug Fixes
+
+* skips init phase for feature flags service if FEATURES_ENABlED_ALL=true ([#1523](https://github.com/akash-network/console/issues/1523)) ([78d5b70](https://github.com/akash-network/console/commit/78d5b70f73a71c4892974e7ad484900977d0f3fe))
+
+
+### Code Refactoring
+
+* move /v1/nodes and /v1/version to a module ([#1458](https://github.com/akash-network/console/issues/1458)) ([fc814db](https://github.com/akash-network/console/commit/fc814db50418300b608b7ddeb7173b3a3882aa38)), closes [#1271](https://github.com/akash-network/console/issues/1271) [#1276](https://github.com/akash-network/console/issues/1276)
+
 ## [2.101.0](https://github.com/akash-network/console/compare/console-api/v2.100.0...console-api/v2.101.0) (2025-06-17)
 
 

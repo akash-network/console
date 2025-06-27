@@ -1,4 +1,4 @@
-name: Local Package Validation
+name: Local Package CI
 
 on:
   pull_request:

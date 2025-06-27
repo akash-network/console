@@ -15,6 +15,13 @@
       "when": 1749739128369,
       "tag": "0001_foamy_spitfire",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1750681348747,
+      "tag": "0002_bumpy_cargill",
+      "breakpoints": true
     }
   ]
 }

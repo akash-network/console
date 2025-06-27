@@ -22,9 +22,12 @@ export default wrapApiHandlerInExecutionContext(async function refreshGitLabToke
     const tokens = await gitlabAuth.refreshTokensUsingRefreshToken(refreshToken);
     res.status(200).json(tokens);
   } catch (error: any) {
-    res.status(500).send({
-      error: error.response?.data?.error,
-      message: error.response?.data?.error_description
+    console.error("gitlab refresh error", {
+      status: error.response?.status || 0,
+      message: error.response?.data?.error_description,
+      error
     });
+
+    res.status(500).end("An unexpected error occurred. Please try again later.");
   }
 });

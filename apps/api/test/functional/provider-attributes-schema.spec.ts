@@ -5,7 +5,7 @@ describe("ProviderAttributesSchema", () => {
     it("returns schema for provider attributes", async () => {
       const response = await app.request("/v1/provider-attributes-schema");
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
 
       expect(response.status).toBe(200);
 

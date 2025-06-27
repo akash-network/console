@@ -10,7 +10,7 @@ describe("Users", () => {
       method: "POST",
       headers: new Headers({ "Content-Type": "application/json" })
     });
-    const body = await userResponse.json();
+    const body = (await userResponse.json()) as any;
     user = body.data;
     token = body.token;
   });
@@ -52,7 +52,7 @@ describe("Users", () => {
         method: "POST",
         headers: new Headers({ "Content-Type": "application/json" })
       });
-      const { token: differentUserToken } = await differentUserResponse.json();
+      const { token: differentUserToken } = (await differentUserResponse.json()) as any;
       const res = await app.request(`/v1/anonymous-users/${user.id}`, {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${differentUserToken}` })

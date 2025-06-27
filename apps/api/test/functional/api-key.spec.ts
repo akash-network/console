@@ -146,7 +146,7 @@ describe("API Keys", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as any;
       expect(result.data).toHaveLength(2);
       expect(result.data[0].keyFormat).toMatch(OBFUSCATED_API_KEY_PATTERN);
       expect(result.data[1].keyFormat).toMatch(OBFUSCATED_API_KEY_PATTERN);
@@ -193,7 +193,7 @@ describe("API Keys", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as any;
       expect(result.data).toMatchObject({
         id: createdKey.id,
         name: "Test key",
@@ -240,7 +240,7 @@ describe("API Keys", () => {
       });
 
       expect(response.status).toBe(201);
-      const result = await response.json();
+      const result = (await response.json()) as any;
       expect(result.data).toMatchObject({
         name: "Test key",
         expiresAt: futureDate.toISOString(),
@@ -353,7 +353,7 @@ describe("API Keys", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as any;
       expect(result.data).toMatchObject({
         id: createdKey.id,
         name: "Updated key"

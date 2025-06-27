@@ -31,6 +31,7 @@ if (process.env.NODE_ENV === "test") {
  */
 const moduleExports = {
   reactStrictMode: false,
+  productionBrowserSourceMaps: true,
   compiler: {
     // Enables the styled-components SWC transform
     styledComponents: true

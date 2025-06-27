@@ -9,6 +9,7 @@ import { NotificationChannelForm } from "@src/components/alerts/NotificationChan
 import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import { useBackNav } from "@src/hooks/useBackNav";
+import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationGuard";
 import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
 
 export const EditNotificationChannelPage: React.FunctionComponent<Props> = ({ notificationChannel }: Props) => {
   const goBack = useBackNav(UrlService.notificationChannels());
+  const navGuard = useNavigationGuard();
 
   return (
     <Layout containerClassName="flex h-full flex-col">
@@ -37,6 +39,7 @@ export const EditNotificationChannelPage: React.FunctionComponent<Props> = ({ no
             isLoading={props.isLoading}
             onSubmit={props.onEdit}
             onCancel={goBack}
+            onStateChange={navGuard.toggle}
           />
         )}
       </NotificationChannelEditContainer>

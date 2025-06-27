@@ -2,7 +2,7 @@ import type { AxiosRequestConfig } from "axios";
 
 import { HttpService } from "../http/http.service";
 
-type RestAkashLeaseListResponse = {
+export type RestAkashLeaseListResponse = {
   leases: {
     lease: {
       lease_id: {

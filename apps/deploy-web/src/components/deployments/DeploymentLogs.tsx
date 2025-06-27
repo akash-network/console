@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Checkbox, CheckboxWithLabel, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
+import { Button, Checkbox, CheckboxWithLabel, DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { Monaco } from "@monaco-editor/react";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
@@ -21,6 +21,7 @@ import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { LeaseDto } from "@src/types/deployment";
+import { CreateCertificateButton } from "./CreateCertificateButton/CreateCertificateButton";
 import { LeaseSelect } from "./LeaseSelect";
 
 export type LOGS_MODE = "logs" | "events";
@@ -43,7 +44,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   const [stickToBottom, setStickToBottom] = useState(true);
   const [selectedLease, setSelectedLease] = useState<LeaseDto | null>(null);
   const { data: providers } = useProviderList();
-  const { localCert, isLocalCertMatching, isCreatingCert, createCertificate } = useCertificate();
+  const { localCert, isLocalCertMatching } = useCertificate();
   const { downloadLogs } = useBackgroundTask();
   const monacoEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
@@ -326,13 +327,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
           )}
         </>
       ) : (
-        <div className="p-4">
-          <Alert variant="warning">You need a valid certificate to view deployment logs.</Alert>
-
-          <Button variant="default" className="mt-4" disabled={isCreatingCert} onClick={() => createCertificate()}>
-            {isCreatingCert ? <Spinner /> : "Create Certificate"}
-          </Button>
-        </div>
+        <CreateCertificateButton containerClassName="py-4" warningText="You need to create a certificate to view deployment logs." />
       )}
     </div>
   );

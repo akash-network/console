@@ -22,9 +22,12 @@ export default wrapApiHandlerInExecutionContext(async function exchangeGitHubCod
     const accessToken = await gitHubAuth.exchangeAuthorizationCodeForToken(code);
     res.status(200).json({ accessToken });
   } catch (error: any) {
-    res.status(500).send({
-      error: "Something went wrong",
-      message: error
+    console.error("github authenticate error", {
+      status: error.response?.status || 0,
+      message: error.response?.data?.error_description,
+      error
     });
+
+    res.status(500).end("An unexpected error occurred. Please try again later.");
   }
 });

@@ -9,15 +9,9 @@ let chainServer: http.Server | undefined;
  * @see https://github.com/mswjs/msw/discussions/2416
  */
 export function startChainApiServer(certificates: X509Certificate[], options?: ChainApiOptions) {
-  let isRespondedWithCustomStatus = false;
   return new Promise<http.Server>(resolve => {
     const server = http.createServer((req, res) => {
-      if (options?.respondOnceWith && !isRespondedWithCustomStatus) {
-        isRespondedWithCustomStatus = true;
-        res.writeHead(options?.respondOnceWith);
-        res.end();
-        return;
-      }
+      if (options?.interceptRequest?.(req, res)) return;
 
       if (!req.url?.includes("/akash/cert/v1beta3/certificates/list")) {
         res.writeHead(404, "Not Found");
@@ -58,7 +52,7 @@ export function stopChainAPIServer(): void {
 }
 
 export interface ChainApiOptions {
-  respondOnceWith?: number;
+  interceptRequest?(req: http.IncomingMessage, res: http.ServerResponse): boolean;
 }
 
 let index = 0;

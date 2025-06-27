@@ -22,9 +22,12 @@ export default wrapApiHandlerInExecutionContext(async function exchangeBitBucket
     const tokens = await bitbucketAuth.exchangeAuthorizationCodeForTokens(code);
     res.status(200).json(tokens);
   } catch (error: any) {
-    res.status(500).send({
-      error: error.response?.data?.error,
-      message: error.response?.data?.error_description
+    console.error("bitbucket authenticate error", {
+      status: error.response?.status || 0,
+      message: error.response?.data?.error_description,
+      error
     });
+
+    res.status(500).end("An unexpected error occurred. Please try again later.");
   }
 });

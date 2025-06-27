@@ -103,7 +103,7 @@ describe("Providers", () => {
     it("returns all providers by default", async () => {
       const response = await app.request("/v1/providers");
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
 
       expect(response.status).toBe(200);
       expectProviders(data, providers);
@@ -112,7 +112,7 @@ describe("Providers", () => {
     it("returns all providers when scope=all", async () => {
       const response = await app.request("/v1/providers?scope=all");
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
 
       expect(response.status).toBe(200);
       expectProviders(data, providers);
@@ -121,7 +121,7 @@ describe("Providers", () => {
     it("returns trial providers when scope=trial", async () => {
       const response = await app.request("/v1/providers?scope=trial");
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
 
       expect(response.status).toBe(200);
       expectProviders(data, [providers[0]]);
@@ -132,7 +132,7 @@ describe("Providers", () => {
     it("returns a provider by address", async () => {
       const response = await app.request(`/v1/providers/${providers[0].owner}`);
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
 
       expect(response.status).toBe(200);
       expect(data.owner).toEqual(providers[0].owner);

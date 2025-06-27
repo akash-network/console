@@ -137,7 +137,7 @@ describe("Provider deployments", () => {
     it("returns deployments", async () => {
       const response = await app.request(`/v1/providers/${provider.owner}/deployments/0/2`);
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
 
       expect(response.status).toBe(200);
       expect(data.total).toBe(3);
@@ -147,7 +147,7 @@ describe("Provider deployments", () => {
     it("returns deployments, paginated", async () => {
       const response = await app.request(`/v1/providers/${provider.owner}/deployments/1/2`);
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
 
       expect(response.status).toBe(200);
       expect(data.total).toBe(3);
@@ -157,7 +157,7 @@ describe("Provider deployments", () => {
     it("respects status filter", async () => {
       const response = await app.request(`/v1/providers/${provider.owner}/deployments/0/2?status=closed`);
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
 
       expect(response.status).toBe(200);
       expect(data.total).toBe(1);

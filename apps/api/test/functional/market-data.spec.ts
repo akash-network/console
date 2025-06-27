@@ -44,7 +44,7 @@ describe("Market Data", () => {
       const response = await app.request(`/v1/market-data`);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = (await response.json()) as any;
       expect(data.price).toBe(1.39);
       expect(data.volume).toBe(24486696);
       expect(data.marketCap).toBe(377551881);
@@ -77,7 +77,7 @@ describe("Market Data", () => {
         const response = await app.request(`/v1/market-data/${coin}`);
 
         expect(response.status).toBe(200);
-        const data = await response.json();
+        const data = (await response.json()) as any;
         expect(data.price).toBe(price);
         expect(data.volume).toBe(volume);
         expect(data.marketCap).toBe(marketCap);

@@ -68,7 +68,7 @@ blocksRouter.openapi(listBlocksRoute, async function routeListBlocks(c) {
 blocksRouter.openapi(getBlockByHeightRoute, async function routeGetBlockByHeight(c) {
   const { height } = c.req.valid("param");
 
-  const block = await container.resolve(BlockController).getBlockByHeight(height);
+  const block = await container.resolve(BlockController).getBlockWithTransactionsByHeight(height);
   if (block) {
     return c.json(block);
   } else {

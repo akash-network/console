@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, jsonb, pgEnum, pgTable, uuid, varchar } from "drizzle-orm/pg-core";
+import { index, jsonb, pgEnum, pgTable, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { timestamps } from "@src/lib/db/timestamps";
 
@@ -16,6 +16,7 @@ export const NotificationChannel = pgTable(
     userId: uuid("user_id").notNull(),
     type: NotificationChannelType("type").notNull(),
     config: jsonb("config").notNull(),
+    deletedAt: timestamp("deleted_at"),
 
     ...timestamps
   },

@@ -1,7 +1,7 @@
 import type { AnyAbility } from "@casl/ability";
 import { InjectDrizzle } from "@knaadh/nestjs-drizzle-pg";
 import { Injectable } from "@nestjs/common";
-import { count, eq } from "drizzle-orm";
+import { and, count, eq, isNull, sql } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { SQL } from "drizzle-orm/sql/sql";
 import { randomUUID } from "node:crypto";
@@ -24,7 +24,7 @@ export type NotificationChannelInput = Omit<InternalNotificationChannelInput, "c
 };
 
 type InternalNotificationChannelOutput = typeof schema.NotificationChannel.$inferSelect;
-export type NotificationChannelOutput = Omit<InternalNotificationChannelOutput, "config"> & {
+export type NotificationChannelOutput = Omit<InternalNotificationChannelOutput, "config" | "deletedAt"> & {
   config: NotificationChannelConfig;
 };
 
@@ -69,9 +69,13 @@ export class NotificationChannelRepository {
     return this.ability?.whereAccessibleBy(where) || where;
   }
 
+  private nonDeleted(where?: SQL) {
+    return and(where, isNull(schema.NotificationChannel.deletedAt));
+  }
+
   async findById(id: NotificationChannelOutput["id"]): Promise<NotificationChannelOutput | undefined> {
     const notificationChannel = await this.db.query.NotificationChannel.findFirst({
-      where: eq(schema.NotificationChannel.id, id)
+      where: this.whereAccessibleBy(this.nonDeleted(eq(schema.NotificationChannel.id, id)))
     });
 
     return notificationChannel && this.toOutput(notificationChannel);
@@ -81,7 +85,7 @@ export class NotificationChannelRepository {
     const page = options.page || 1;
     const limit = options.limit || 10;
     const offset = (page - 1) * limit;
-    const where = this.whereAccessibleBy();
+    const where = this.nonDeleted(this.whereAccessibleBy());
 
     const notificationChannels = await this.db.query.NotificationChannel.findMany({
       where,
@@ -123,7 +127,7 @@ export class NotificationChannelRepository {
     const [notificationChannel] = await this.db
       .update(schema.NotificationChannel)
       .set(this.toInput(input))
-      .where(this.whereAccessibleBy(eq(schema.NotificationChannel.id, id)))
+      .where(this.nonDeleted(this.whereAccessibleBy(eq(schema.NotificationChannel.id, id))))
       .returning();
 
     return notificationChannel && this.toOutput(notificationChannel);
@@ -133,6 +137,16 @@ export class NotificationChannelRepository {
     const [notificationChannel] = await this.db
       .delete(schema.NotificationChannel)
       .where(this.whereAccessibleBy(eq(schema.NotificationChannel.id, id)))
+      .returning();
+
+    return notificationChannel && this.toOutput(notificationChannel);
+  }
+
+  async deleteSafelyById(id: string): Promise<NotificationChannelOutput | undefined> {
+    const [notificationChannel] = await this.db
+      .update(schema.NotificationChannel)
+      .set({ deletedAt: sql`NOW()` })
+      .where(this.nonDeleted(this.whereAccessibleBy(eq(schema.NotificationChannel.id, id))))
       .returning();
 
     return notificationChannel && this.toOutput(notificationChannel);
@@ -153,7 +167,7 @@ export class NotificationChannelRepository {
     return notificationChannels.map(notificationChannel => this.toOutput(notificationChannel));
   }
 
-  private toOutput(notificationChannel: InternalNotificationChannelOutput): NotificationChannelOutput {
+  private toOutput({ deletedAt, ...notificationChannel }: InternalNotificationChannelOutput): NotificationChannelOutput {
     return {
       ...notificationChannel,
       config: notificationChannelConfigSchema.parse(notificationChannel.config)

@@ -215,7 +215,7 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as { data: unknown };
       expect(result.data).toEqual({
         deployment: expect.any(Object),
         escrow_account: expect.any(Object),
@@ -271,7 +271,7 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as { data: unknown };
       expect(result.data).toEqual({
         deployments: expect.arrayContaining([
           expect.objectContaining({
@@ -310,15 +310,15 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as { data: unknown };
       expect(result.data).toEqual({
-        deployments: expect.arrayContaining([
+        deployments: [
           expect.objectContaining({
             deployment: expect.any(Object),
             escrow_account: expect.any(Object),
             leases: expect.arrayContaining([expect.any(Object)])
           })
-        ]),
+        ],
         pagination: {
           total: expect.any(Number),
           skip: 0,
@@ -326,7 +326,6 @@ describe("Deployments API", () => {
           hasMore: true
         }
       });
-      expect(result.data.deployments).toHaveLength(1);
     });
 
     it("returns 400 if skip is negative", async () => {
@@ -372,7 +371,7 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as { data: { deployments: unknown[] } };
       expect(result.data.deployments).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -411,7 +410,7 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(201);
-      const result = await response.json();
+      const result = (await response.json()) as { data: unknown };
       expect(result.data).toEqual({
         dseq: expect.any(String),
         manifest: expect.any(String),
@@ -455,7 +454,7 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(400);
-      const result = await response.json();
+      const result = (await response.json()) as { message: string };
       expect(result.message).toContain("Invalid SDL");
     });
 
@@ -474,7 +473,7 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(400);
-      const result = await response.json();
+      const result = (await response.json()) as { message: string };
       expect(result.message).toContain("Invalid SDL");
     });
 
@@ -683,7 +682,7 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as { data: unknown };
       expect(result.data).toEqual({
         deployment: expect.any(Object),
         escrow_account: expect.any(Object),
@@ -763,7 +762,7 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(400);
-      const result = await response.json();
+      const result = (await response.json()) as { message: string };
       expect(result.message).toContain("Invalid SDL");
     });
 
@@ -848,7 +847,7 @@ describe("Deployments API", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as { owner: string; dseq: string };
       expect(result.owner).toEqual(wallets[0].address);
       expect(result.dseq).toEqual(dseq);
     });
