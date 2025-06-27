@@ -30,6 +30,7 @@
     "src/billing/**/*.ts",
     "src/user/**/*.ts",
     "src/provider/**/*.ts",
+    "src/auth/**/*.ts",
     "src/certificate/**/*.ts",
     "src/deployment/**/*.ts",
     "src/network/**/*.ts"
