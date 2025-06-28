@@ -31,6 +31,10 @@ jobs:
 
       - id: matrix
         run: |
+          echo "--------------------------------"
+          npm query .workspace
+          echo "--------------------------------"
+          npm query .workspace | jq --compact-output '[.[].location | select(. | startswith("apps/"))]'
           workspaces="$(npm query .workspace | jq --compact-output '[.[].location | select(. | startswith("apps/"))] + ["packages"]')"
           echo 'value={"workspace":'"$workspaces"'}' >> "$GITHUB_OUTPUT"
           echo "workspaces=$workspaces"
