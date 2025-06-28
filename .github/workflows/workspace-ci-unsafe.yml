@@ -25,6 +25,10 @@ jobs:
             github.event.pull_request.head.ref ||
             github.event.pull_request.base.ref }}
 
+      - uses: ./.github/actions/setup-app-deps
+        with:
+          setup-only-nodejs: true
+
       - id: matrix
         run: |
           workspaces="$(npm query .workspace | jq --compact-output '[.[].location | select(. | startswith("apps/"))] + ["packages"]')"
@@ -47,7 +51,6 @@ jobs:
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     runs-on: ubuntu-latest
     if: needs.should-validate.outputs.has_changes == 'true'
-    name: Security ${{ matrix.workspace }}
     steps:
       - name: Checkout UNTRUSTED user's fork
         uses: actions/checkout@v4
