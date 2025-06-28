@@ -60,11 +60,16 @@ jobs:
           token: ${{ secrets.gh-token }}
           filters: |
             local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
-            value:
-              - "${{ inputs.path }}/**"
-              - package-lock.json
+            app_workflows: &app_workflows
               - ".github/workflows/${{ steps.package_name.outputs.value }}-validate-n-build.yml"
               - ".github/workflows/${{ steps.package_name.outputs.value }}-docker-build.yml"
               - ".github/workflows/reusable-should-validate.yml"
               - ".github/workflows/reusable-validate-app.yml"
+              - ".github/workflows/reusable-validate-app-unsafe.yml"
+            package_workflows: &package_workflows
+              - ".github/workflows/local-packages-validate.yml"
+            value:
+              - "${{ inputs.path }}/**"
+              - package-lock.json
               - *local_deps
+              - ${{ contains(inputs.path, 'apps/') && '*app_workflows' || '*package_workflows' }}

@@ -1,4 +1,4 @@
-name: "CI: validate app" # this name is used in app-security-check.yml
+name: "CI: validate app"
 
 on:
   workflow_call:
