@@ -7,10 +7,6 @@ on:
         description: "The app to release" # dir name in ./apps/*
         required: true
         type: string
-      test-command:
-        description: "The command to run to test the app"
-        required: false
-        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.app }}
@@ -38,11 +34,9 @@ jobs:
           echo "has_tests=$has_tests" >> "$GITHUB_OUTPUT"
 
           if [[ "$has_tests" == "true" ]]; then
-            if [[ -z "${{ inputs.test-command }}" ]]; then
-              npm run test:cov --workspace=apps/${{ inputs.app }}
-            else
-              echo "${{ inputs.test-command }}" | bash
-            fi
+            npm run --if-present --workspace=apps/${{ inputs.app }} test:ci-setup
+            npm run test:cov --workspace=apps/${{ inputs.app }}
+            npm run --if-present --workspace=apps/${{ inputs.app }} test:ci-teardown
           fi
 
       - name: Upload Test Coverage

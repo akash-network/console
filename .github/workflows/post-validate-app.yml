@@ -1,0 +1,84 @@
+# We need a separate workflow to get access to secrets because github doesn't share secrets on pull_request events.
+#
+# !!!! PLEASE be extra careful here and treat forked repository as untrusted user input !!!!
+
+name: Post app validation checks
+
+on:
+  workflow_run:
+    workflows: [
+      'API CI - Validate',
+      'Local Package CI - Validate',
+      'Deploy Web CI - Validate',
+      'Indexer CI - Validate',
+      'Notifications CI - Validate',
+      'Provider Console CI - Validate',
+      'Provider Proxy CI - Validate',
+      'Stats Web CI - Validate'
+    ]
+    types: [completed]
+    branches-ignore: [main]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout trusted repository base branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Checkout UNTRUSTED user's fork
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: ./untrusted-user-fork
+
+      - name: Debug
+        env:
+          CONTEXT: ${{ toJson(github) }}
+        run: |
+          echo "$CONTEXT"
+
+      - name: Extract path to test
+        id: path_to_test
+        env:
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          case "$WORKFLOW_NAME" in
+            "API CI"*)
+              echo "path=apps/api" >> "$GITHUB_OUTPUT"
+              ;;
+            "Local Package CI"*)
+              echo "path=packages" >> "$GITHUB_OUTPUT"
+              ;;
+            "Deploy Web CI"*)
+              echo "path=apps/deploy-web" >> "$GITHUB_OUTPUT"
+              ;;
+            "Indexer CI"*)
+              echo "path=apps/indexer" >> "$GITHUB_OUTPUT"
+              ;;
+            "Notifications CI"*)
+              echo "path=apps/notifications" >> "$GITHUB_OUTPUT"
+              ;;
+            "Provider Console CI"*)
+              echo "path=apps/provider-console" >> "$GITHUB_OUTPUT"
+              ;;
+            "Provider Proxy CI"*)
+              echo "path=apps/provider-proxy" >> "$GITHUB_OUTPUT"
+              ;;
+            "Stats Web CI"*)
+              echo "path=apps/stats-web" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unexpected workflow: $WORKFLOW_NAME"
+              exit 1
+            ;;
+          esac
+
+      - name: Run security checks
+        uses: ./.github/actions/app-sec
+        with:
+          path: ./untrusted-user-fork/${{ steps.path_to_test.outputs.path }}
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
