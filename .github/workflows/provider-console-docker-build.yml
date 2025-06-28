@@ -16,7 +16,6 @@ jobs:
   validate:
     needs: should-validate
     if: needs.should-validate.outputs.enabled == 'true'
-    name: "Provider Console CI - Validate"
     uses: ./.github/workflows/reusable-validate-app.yml
     secrets: inherit
     with:
@@ -33,10 +32,11 @@ jobs:
 
   provider-console-ci:
     runs-on: ubuntu-latest
-    needs: [validate, test-build]
+    needs: [should-validate, validate, test-build]
     if: always()
     steps:
       - name: Check statuses
+        if: needs.should-validate.outputs.has_changes == 'true'
         env:
           VALIDATE_RESULT: ${{ needs.validate.result }}
           TEST_BUILD_RESULT: ${{ needs.test-build.result }}
