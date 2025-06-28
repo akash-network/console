@@ -7,14 +7,14 @@ name: Post app validation checks
 on:
   workflow_run:
     workflows: [
-      'API CI - Validate',
-      'Local Package CI - Validate',
-      'Deploy Web CI - Validate',
-      'Indexer CI - Validate',
-      'Notifications CI - Validate',
-      'Provider Console CI - Validate',
-      'Provider Proxy CI - Validate',
-      'Stats Web CI - Validate'
+      'API CI',
+      'Local Package CI',
+      'Deploy Web CI',
+      'Indexer CI',
+      'Notifications CI',
+      'Provider Console CI',
+      'Provider Proxy CI',
+      'Stats Web CI'
     ]
     types: [completed]
     branches-ignore: [main]
@@ -47,28 +47,28 @@ jobs:
           WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
         run: |
           case "$WORKFLOW_NAME" in
-            "API CI"*)
+            "API CI")
               echo "path=apps/api" >> "$GITHUB_OUTPUT"
               ;;
-            "Local Package CI"*)
+            "Local Package CI")
               echo "path=packages" >> "$GITHUB_OUTPUT"
               ;;
-            "Deploy Web CI"*)
+            "Deploy Web CI")
               echo "path=apps/deploy-web" >> "$GITHUB_OUTPUT"
               ;;
-            "Indexer CI"*)
+            "Indexer CI")
               echo "path=apps/indexer" >> "$GITHUB_OUTPUT"
               ;;
-            "Notifications CI"*)
+            "Notifications CI")
               echo "path=apps/notifications" >> "$GITHUB_OUTPUT"
               ;;
-            "Provider Console CI"*)
+            "Provider Console CI")
               echo "path=apps/provider-console" >> "$GITHUB_OUTPUT"
               ;;
-            "Provider Proxy CI"*)
+            "Provider Proxy CI")
               echo "path=apps/provider-proxy" >> "$GITHUB_OUTPUT"
               ;;
-            "Stats Web CI"*)
+            "Stats Web CI")
               echo "path=apps/stats-web" >> "$GITHUB_OUTPUT"
               ;;
             *)

@@ -20,7 +20,6 @@ jobs:
   validate:
     needs: should-validate
     if: needs.should-validate.outputs.enabled == 'true'
-    name: "Notifications CI - Validate"
     uses: ./.github/workflows/reusable-validate-app.yml
     secrets: inherit
     with:
