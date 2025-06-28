@@ -20,9 +20,32 @@ on:
     branches-ignore: [main]
 
 jobs:
-  security:
+  should-validate:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      enabled: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request' && steps.check-status.outputs.conclusion == 'success' }}
+    steps:
+      - name: Check if workflow status was skipped
+        id: check-status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRIGGERED_WORKFLOW_URL: ${{ github.event.workflow_run.url }}
+        run: |
+          conclusion=$(curl -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            "$TRIGGERED_WORKFLOW_URL/jobs" | jq -r '.jobs[] | select(.name | endswith("-ci")) | .steps[] | select(.name == "Check statuses") | .conclusion')
+
+          if [ -z "$conclusion" ]; then
+            # if couldn't find the job, there is a bug and we should run the security checks for this case
+            conclusion="success"
+          fi
+
+          echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+
+  security:
+    needs: should-validate
+    runs-on: ubuntu-latest
+    if: needs.should-validate.outputs.enabled == 'true'
     steps:
       - name: Checkout trusted repository base branch
         uses: actions/checkout@v4
