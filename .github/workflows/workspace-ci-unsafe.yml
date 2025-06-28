@@ -3,9 +3,14 @@
 #
 # !!!! PLEASE be extra careful here and treat forked repository as untrusted user input !!!!
 
+name: Workspace CI (unsafe)
 on:
   pull_request_target:
     branches: ["main"]
+
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
   setup:
@@ -17,12 +22,15 @@ jobs:
         run: |
           workspaces="$(npm query .workspace | jq --compact-output '[.[].location | select(. | startswith("apps/"))] + ["packages"]')"
           echo 'value={"workspace":'"$workspaces"'}' >> "$GITHUB_OUTPUT"
+          echo "workspaces=$workspaces"
 
   should-validate:
     needs: setup
     strategy:
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     uses: ./.github/workflows/reusable-should-validate.yml
+    secrets:
+      gh-token: ${{ secrets.GITHUB_TOKEN }}
     with:
       path: ${{ matrix.workspace }}
 
@@ -32,6 +40,7 @@ jobs:
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     runs-on: ubuntu-latest
     if: needs.should-validate.outputs.has_changes == 'true'
+    name: Security ${{ matrix.workspace }}
     steps:
       - name: Checkout UNTRUSTED user's fork
         uses: actions/checkout@v4
