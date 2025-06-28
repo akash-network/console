@@ -15,7 +15,7 @@ jobs:
     name: Decide Whether to Validate
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
-      app: provider-proxy
+      path: apps/provider-proxy
 
   validate:
     needs: should-validate
