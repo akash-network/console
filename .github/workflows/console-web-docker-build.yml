@@ -10,7 +10,7 @@ jobs:
   should-validate:
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
-      app: deploy-web
+      path: apps/deploy-web
 
   validate:
     needs: should-validate

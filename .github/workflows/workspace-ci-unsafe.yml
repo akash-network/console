@@ -1,0 +1,59 @@
+# We need a separate workflow to get access to secrets because github doesn't share secrets on pull_request events.
+# https://docs.github.com/en/actions/reference/events-that-trigger-workflows#pull_request_target
+#
+# !!!! PLEASE be extra careful here and treat forked repository as untrusted user input !!!!
+
+on:
+  pull_request_target:
+    branches: ["main"]
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.value }}
+    steps:
+      - id: matrix
+        run: |
+          workspaces="$(npm query .workspace | jq --compact-output '[.[].location | select(. | startswith("apps/"))] + ["packages"]')"
+          echo 'value={"workspace":'"$workspaces"'}' >> "$GITHUB_OUTPUT"
+
+  should-validate:
+    needs: setup
+    strategy:
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+    uses: ./.github/workflows/reusable-should-validate.yml
+    with:
+      path: ${{ matrix.workspace }}
+
+  security:
+    needs: [setup, should-validate]
+    strategy:
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    if: needs.should-validate.outputs.has_changes == 'true'
+    steps:
+      - name: Checkout UNTRUSTED user's fork
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          path: ./untrusted-user-fork
+
+      - name: DEBUG
+        run: |
+          echo ${{ matrix.workspace }}
+          echo "--------------------------------"
+          ls -l .
+          echo "--------------------------------"
+          ls -l ./untrusted-user-fork
+
+      - name: Copy .dcignore
+        shell: bash
+        run: cp ./untrusted-user-fork/.dcignore ./untrusted-user-fork/${{ matrix.workspace }}/.dcignore
+      - name: Test code for security issues
+        uses: snyk/actions/node@4a528b5c534bb771b6e3772656a8e0e9dc902f8b
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code
+          args: test ./untrusted-user-fork/${{ matrix.workspace }} --severity-threshold=medium
