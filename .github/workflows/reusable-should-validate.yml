@@ -54,7 +54,7 @@ jobs:
           echo "value=$package_name" >> "$GITHUB_OUTPUT"
 
       - name: Check for changes
-        uses: dorny/paths-filter@v2
+        uses: dorny/paths-filter@v3.0.2
         id: has_changes
         with:
           token: ${{ secrets.gh-token }}
