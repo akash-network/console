@@ -1,8 +1,8 @@
 name: Detect dependencies on in-repo packages
 
 inputs:
-  app:
-    description: 'Application to check'
+  path:
+    description: 'Path to the workspace package'
     required: true
 
 outputs:
@@ -19,7 +19,7 @@ runs:
       run: |
         node -e '
           const findLocalPackageDependencies = require("./packages/releaser/find-local-package-dependencies");
-          const localDependencies = findLocalPackageDependencies("./apps/${{ inputs.app }}")
+          const localDependencies = findLocalPackageDependencies("./${{ inputs.path }}")
             .map(path => `${path}/**`);
           console.log(JSON.stringify(localDependencies));
         ' | xargs -I "{}" -0 echo "deps_json={}" >> $GITHUB_OUTPUT

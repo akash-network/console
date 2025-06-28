@@ -3,8 +3,8 @@ name: Decide Whether to Validate
 on:
   workflow_call:
     inputs:
-      app:
-        description: "The app to release" # dir name in ./apps/*
+      path:
+        description: "The path to the package to check for changes"
         required: true
         type: string
     outputs:
@@ -16,29 +16,41 @@ on:
         value: ${{ jobs.should-validate.outputs.has_changes }}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.app }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.path }}
   cancel-in-progress: true
 
 jobs:
   should-validate:
     runs-on: ubuntu-latest
     outputs:
-      enabled: ${{ github.event_name == 'push' || steps.has_changes.outputs.app == 'true' }}
-      has_changes: ${{ github.event_name == 'pull_request' && steps.has_changes.outputs.app }}
-
-    env:
-      APP_ALIAS: ${{ inputs.app == 'deploy-web' && 'console-web' ||
-        inputs.app == 'api' && 'console-api' ||
-        inputs.app }}
+      enabled: ${{ github.event_name == 'push' || steps.has_changes.outputs.value == 'true' }}
+      has_changes: ${{ github.event_name == 'pull_request' && steps.has_changes.outputs.value }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.event.pull_request.base.ref }}
 
       - uses: ./.github/actions/local-dependencies
         id: local_deps
         with:
-          app: ${{ inputs.app }}
+          path: ${{ inputs.path }}
+
+      - name: Get package name
+        id: package_name
+        env:
+          WORKSPACE_PATH: ${{ inputs.path }}
+        run: |
+          package_name=${WORKSPACE_PATH##*/}
+
+          if [[ "$package_name" == "deploy-web" ]]; then
+            package_name="console-web"
+          elif [[ "$package_name" == "api" ]]; then
+            package_name="console-api"
+          fi
+
+          echo "value=$package_name" >> "$GITHUB_OUTPUT"
 
       - name: Check for changes
         uses: dorny/paths-filter@v2
@@ -46,11 +58,11 @@ jobs:
         with:
           filters: |
             local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
-            app:
-              - "apps/${{ inputs.app }}/**"
+            value:
+              - "${{ inputs.path }}/**"
               - package-lock.json
-              - ".github/workflows/${{ inputs.app }}-validate-n-build.yml"
-              - ".github/workflows/${{ env.APP_ALIAS }}-docker-build.yml"
+              - ".github/workflows/${{ steps.package_name.outputs.value }}-validate-n-build.yml"
+              - ".github/workflows/${{ steps.package_name.outputs.value }}-docker-build.yml"
               - ".github/workflows/reusable-should-validate.yml"
               - ".github/workflows/reusable-validate-app.yml"
               - *local_deps

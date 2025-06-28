@@ -14,7 +14,7 @@ jobs:
   should-validate:
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
-      app: api
+      path: apps/api
 
   validate:
     needs: should-validate
