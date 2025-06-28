@@ -1,5 +1,13 @@
 
 
+## [1.13.5](https://github.com/akash-network/console/compare/notifications/v1.13.4...notifications/v1.13.5) (2025-06-28)
+
+
+### Bug Fixes
+
+* ensure getAllItems cyclic loop check happens after the 1st iteration ([#1573](https://github.com/akash-network/console/issues/1573)) ([349e15a](https://github.com/akash-network/console/commit/349e15a578df1a801a786d5b7a27e1354385d537))
+* upgrades nodejs to higher version ([#1563](https://github.com/akash-network/console/issues/1563)) ([dac08eb](https://github.com/akash-network/console/commit/dac08ebadcc29164eda2e76417ac85ec210ea1b0))
+
 ## [1.13.4](https://github.com/akash-network/console/compare/notifications/v1.13.3...notifications/v1.13.4) (2025-06-26)
 
 

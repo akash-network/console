@@ -1,5 +1,12 @@
 
 
+## [1.12.5](https://github.com/akash-network/console/compare/provider-proxy/v1.12.4...provider-proxy/v1.12.5) (2025-06-28)
+
+
+### Bug Fixes
+
+* upgrades nodejs to higher version ([#1563](https://github.com/akash-network/console/issues/1563)) ([dac08eb](https://github.com/akash-network/console/commit/dac08ebadcc29164eda2e76417ac85ec210ea1b0))
+
 ## [1.12.4](https://github.com/akash-network/console/compare/provider-proxy/v1.12.3...provider-proxy/v1.12.4) (2025-06-26)
 
 

@@ -1,5 +1,14 @@
 
 
+## [2.89.6](https://github.com/akash-network/console/compare/console-web/v2.89.5...console-web/v2.89.6) (2025-06-28)
+
+
+### Bug Fixes
+
+* ensure getAllItems cyclic loop check happens after the 1st iteration ([#1573](https://github.com/akash-network/console/issues/1573)) ([349e15a](https://github.com/akash-network/console/commit/349e15a578df1a801a786d5b7a27e1354385d537))
+* updates @akashnetwork/akashjs ([#1575](https://github.com/akash-network/console/issues/1575)) ([ae86837](https://github.com/akash-network/console/commit/ae868378ae35db3342ff5d44f9d270644178c507))
+* upgrades nodejs to higher version ([#1563](https://github.com/akash-network/console/issues/1563)) ([dac08eb](https://github.com/akash-network/console/commit/dac08ebadcc29164eda2e76417ac85ec210ea1b0))
+
 ## [2.89.5](https://github.com/akash-network/console/compare/console-web/v2.89.4...console-web/v2.89.5) (2025-06-26)
 
 

@@ -1,5 +1,12 @@
 
 
+## [1.13.2](https://github.com/akash-network/console/compare/indexer/v1.13.1...indexer/v1.13.2) (2025-06-28)
+
+
+### Bug Fixes
+
+* upgrades nodejs to higher version ([#1563](https://github.com/akash-network/console/issues/1563)) ([dac08eb](https://github.com/akash-network/console/commit/dac08ebadcc29164eda2e76417ac85ec210ea1b0))
+
 ## [1.13.1](https://github.com/akash-network/console/compare/indexer/v1.13.0...indexer/v1.13.1) (2025-06-24)
 
 
