@@ -25,6 +25,13 @@ jobs:
             github.event.pull_request.head.ref ||
             github.event.pull_request.base.ref }}
 
+      - name: Debug
+        run: |
+          ls -l .
+          echo "--------------------------------"
+          ls -lf ./console
+          echo "npm version: $(npm --version)"
+
       - uses: ./.github/actions/setup-app-deps
         with:
           setup-only-nodejs: true
