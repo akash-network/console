@@ -1,4 +1,4 @@
-name: Indexer CI
+name: "Indexer CI"
 
 on:
   push:
@@ -12,17 +12,17 @@ jobs:
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
       app: indexer
-      workflow-trigger: ${{ github.event_name }}
 
-  validate-indexer:
+  validate:
     needs: should-validate
     if: needs.should-validate.outputs.enabled == 'true'
+    name: "Indexer CI - Validate"
     uses: ./.github/workflows/reusable-validate-app.yml
     secrets: inherit
     with:
       app: indexer
 
-  test-indexer-build:
+  test-build:
     runs-on: ubuntu-latest
     needs: should-validate
     if: needs.should-validate.outputs.has_changes == 'true'
@@ -30,3 +30,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: packages/docker/script/dc.sh build indexer
+
+  indexer-ci:
+    runs-on: ubuntu-latest
+    needs: [should-validate, validate, test-build]
+    if: always()
+    steps:
+      - name: Check statuses
+        if: needs.should-validate.outputs.has_changes == 'true'
+        env:
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          TEST_BUILD_RESULT: ${{ needs.test-build.result }}
+        run: |
+          echo "Validate: $VALIDATE_RESULT"
+          echo "Test Build: $TEST_BUILD_RESULT"
+          if [[ "$VALIDATE_RESULT" != "success" || "$TEST_BUILD_RESULT" != "success" ]]; then
+            exit 1
+          fi
