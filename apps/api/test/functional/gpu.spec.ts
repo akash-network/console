@@ -11,6 +11,7 @@ import nock from "nock";
 
 import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/core";
+import type { ListGpuResponse } from "@src/gpu/http-schemas/gpu.schema";
 
 import {
   createAkashBlock,
@@ -41,7 +42,7 @@ describe("GPU API", () => {
       const response = await app.request(`/v1/gpu`);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = (await response.json()) as ListGpuResponse;
 
       expect(data.gpus.total.allocatable).toBe(30);
       expect(data.gpus.total.allocated).toBe(15);
@@ -54,7 +55,7 @@ describe("GPU API", () => {
       const response = await app.request(`/v1/gpu?vendor=nvidia`);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = (await response.json()) as ListGpuResponse;
 
       expect(data.gpus.total.allocatable).toBe(6);
       expect(data.gpus.total.allocated).toBe(3);
@@ -69,7 +70,7 @@ describe("GPU API", () => {
       const response = await app.request(`/v1/gpu?model=gpu0`);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = (await response.json()) as ListGpuResponse;
 
       expect(data.gpus.total.allocatable).toBe(2);
       expect(data.gpus.total.allocated).toBe(1);
@@ -84,8 +85,7 @@ describe("GPU API", () => {
       const response = await app.request(`/v1/gpu?memory_size=2048`);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
-      console.log(data);
+      const data = (await response.json()) as ListGpuResponse;
 
       expect(data.gpus.total.allocatable).toBe(4);
       expect(data.gpus.total.allocated).toBe(2);
@@ -100,8 +100,7 @@ describe("GPU API", () => {
       const response = await app.request(`/v1/gpu?provider=${providers[0].owner}`);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
-      console.log(data);
+      const data = (await response.json()) as ListGpuResponse;
 
       expect(data.gpus.total.allocatable).toBe(6);
       expect(data.gpus.total.allocated).toBe(3);
@@ -116,7 +115,7 @@ describe("GPU API", () => {
       const response = await app.request(`/v1/gpu?provider=${providers[1].hostUri}`);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = (await response.json()) as ListGpuResponse;
 
       expect(data.gpus.total.allocatable).toBe(24);
       expect(data.gpus.total.allocated).toBe(12);

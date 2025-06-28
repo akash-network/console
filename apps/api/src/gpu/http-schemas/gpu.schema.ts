@@ -26,6 +26,7 @@ export const ListGpuResponseSchema = z.object({
     )
   })
 });
+export type ListGpuResponse = z.infer<typeof ListGpuResponseSchema>;
 
 export const ListGpuModelsResponseSchema = z.array(
   z.object({
