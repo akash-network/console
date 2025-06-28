@@ -7,6 +7,9 @@ on:
         description: "The path to the package to check for changes"
         required: true
         type: string
+    secrets:
+      gh-token:
+        required: false
     outputs:
       enabled:
         description: "Whether should validate"
@@ -24,13 +27,11 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       enabled: ${{ github.event_name == 'push' || steps.has_changes.outputs.value == 'true' }}
-      has_changes: ${{ github.event_name == 'pull_request' && steps.has_changes.outputs.value }}
+      has_changes: ${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && steps.has_changes.outputs.value }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.event.pull_request.base.ref }}
 
       - uses: ./.github/actions/local-dependencies
         id: local_deps
@@ -56,6 +57,7 @@ jobs:
         uses: dorny/paths-filter@v2
         id: has_changes
         with:
+          token: ${{ secrets.gh-token }}
           filters: |
             local_deps: &local_deps ${{ steps.local_deps.outputs.deps_json }}
             value:
