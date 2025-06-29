@@ -59,15 +59,12 @@ export const createMockPaymentResponse = (overrides = {}) => ({
 });
 
 export const createMockCouponResponse = (overrides = {}) => ({
-  id: `di_${faker.string.alphanumeric(24)}`,
   coupon: {
     id: faker.helpers.arrayElement(["25OFF", "WELCOME10", "SUMMER20"]),
     percent_off: faker.helpers.arrayElement([10, 15, 20, 25]),
-    duration: "forever",
+    valid: true,
     name: faker.helpers.arrayElement(["25% Off Forever", "Welcome 10% Off", "Summer 20% Off"])
   },
-  start: faker.date.past().getTime(),
-  end: null,
   ...overrides
 });
 

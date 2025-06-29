@@ -20,18 +20,90 @@ export class HonoErrorHandlerService {
 
     if (isHttpError(error)) {
       const { name } = error.constructor;
-      return c.json({ error: name, message: error.message, data: error.data }, { status: error.status });
+      const errorCode = error.data?.errorCode || this.getErrorCode(error);
+      const errorType = error.data?.errorType || this.getErrorType(error);
+
+      return c.json(
+        {
+          error: name,
+          message: error.message,
+          code: errorCode,
+          type: errorType,
+          data: error.data
+        },
+        { status: error.status }
+      );
     }
 
     if (error instanceof ZodError) {
-      return c.json({ error: "BadRequestError", data: error.errors }, { status: 400 });
+      return c.json(
+        {
+          error: "BadRequestError",
+          message: "Validation error",
+          code: "validation_error",
+          type: "validation_error",
+          data: error.errors
+        },
+        { status: 400 }
+      );
     }
 
     if (error instanceof ForbiddenError) {
-      return c.json({ error: "ForbiddenError", message: "Forbidden" }, { status: 403 });
+      return c.json(
+        {
+          error: "ForbiddenError",
+          message: "Forbidden",
+          code: "forbidden",
+          type: "authorization_error"
+        },
+        { status: 403 }
+      );
     }
 
-    return c.json({ error: "InternalServerError" }, { status: 500 });
+    return c.json(
+      {
+        error: "InternalServerError",
+        message: "Internal server error",
+        code: "internal_server_error",
+        type: "server_error"
+      },
+      { status: 500 }
+    );
+  }
+
+  private getErrorCode(error: { status?: number; message?: string }): string {
+    // HTTP status-based codes (primary method)
+    switch (error.status) {
+      case 400:
+        return "bad_request";
+      case 401:
+        return "unauthorized";
+      case 403:
+        return "forbidden";
+      case 404:
+        return "not_found";
+      case 409:
+        return "conflict";
+      case 429:
+        return "rate_limited";
+      case 502:
+        return "service_unavailable";
+      case 503:
+        return "service_unavailable";
+      default:
+        return "unknown_error";
+    }
+  }
+
+  private getErrorType(error: { status?: number }): string {
+    // Determine error type based on HTTP status
+    if (error.status && error.status >= 500) {
+      return "server_error";
+    } else if (error.status && error.status >= 400) {
+      return "client_error";
+    }
+
+    return "unknown_error";
   }
 
   private toLoggableError(error: unknown) {

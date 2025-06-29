@@ -15,7 +15,16 @@ describe(HonoErrorHandlerService.name, () => {
     const result = await service.handle(error, { json } as unknown as AppContext);
 
     expect(result).toEqual(response);
-    expect(json).toHaveBeenCalledWith({ error: "BadRequestError", data: error.errors }, { status: 400 });
+    expect(json).toHaveBeenCalledWith(
+      {
+        error: "BadRequestError",
+        message: "Validation error",
+        code: "validation_error",
+        type: "validation_error",
+        data: error.errors
+      },
+      { status: 400 }
+    );
   });
 
   it("returns 500 status error on unknown error", async () => {
@@ -27,7 +36,15 @@ describe(HonoErrorHandlerService.name, () => {
     const result = await service.handle(error, { json } as unknown as AppContext);
 
     expect(result).toEqual(response);
-    expect(json).toHaveBeenCalledWith({ error: "InternalServerError" }, { status: 500 });
+    expect(json).toHaveBeenCalledWith(
+      {
+        error: "InternalServerError",
+        message: "Internal server error",
+        code: "internal_server_error",
+        type: "server_error"
+      },
+      { status: 500 }
+    );
   });
 
   it("logs error", async () => {

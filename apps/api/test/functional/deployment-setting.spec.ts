@@ -74,7 +74,9 @@ describe("Deployment Settings", () => {
       expect(response.status).toBe(404);
       expect(await response.json()).toEqual({
         error: "NotFoundError",
-        message: "Deployment setting not found"
+        message: "Deployment setting not found",
+        code: "not_found",
+        type: "client_error"
       });
     });
 
@@ -154,7 +156,9 @@ describe("Deployment Settings", () => {
       expect(response.status).toBe(403);
       expect(await response.json()).toEqual({
         error: "ForbiddenError",
-        message: "Forbidden"
+        message: "Forbidden",
+        code: "forbidden",
+        type: "authorization_error"
       });
     });
 
@@ -274,7 +278,9 @@ describe("Deployment Settings", () => {
       expect(response.status).toBe(404);
       expect(await response.json()).toEqual({
         error: "NotFoundError",
-        message: "Deployment setting not found"
+        message: "Deployment setting not found",
+        code: "not_found",
+        type: "client_error"
       });
     });
 

@@ -50,7 +50,9 @@ export const UpdateApiKeyRequestSchema = z.object({
 });
 
 export const ErrorResponseSchema = z.object({
-  message: z.string()
+  message: z.string(),
+  code: z.string().optional(),
+  type: z.string().optional()
 });
 
 export type ApiKeyResponse = z.infer<typeof ApiKeyResponseSchema>;
