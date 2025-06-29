@@ -81,7 +81,7 @@ describe(UsageRepository.name, () => {
       expect(results).toHaveLength(3);
       expect(results[0]).toMatchObject({
         date: startDate,
-        activeLeases: 0,
+        activeDeployments: 0,
         dailyAktSpent: 0,
         totalAktSpent: 0,
         dailyUsdcSpent: 0,
@@ -131,7 +131,7 @@ describe(UsageRepository.name, () => {
 
       expect(results[0]).toMatchObject({
         date: "2023-01-01",
-        activeLeases: 1,
+        activeDeployments: 1,
         dailyAktSpent: 100,
         totalAktSpent: 100,
         dailyUsdSpent: 250,
@@ -140,7 +140,7 @@ describe(UsageRepository.name, () => {
 
       expect(results[1]).toMatchObject({
         date: "2023-01-02",
-        activeLeases: 1,
+        activeDeployments: 1,
         dailyAktSpent: 100,
         totalAktSpent: 200,
         dailyUsdSpent: 275,
@@ -176,7 +176,7 @@ describe(UsageRepository.name, () => {
       expect(results).toHaveLength(1);
       expect(results[0]).toMatchObject({
         date: "2023-01-01",
-        activeLeases: 1,
+        activeDeployments: 1,
         dailyAktSpent: 0,
         dailyUsdcSpent: 50,
         totalUsdcSpent: 50,
@@ -221,7 +221,7 @@ describe(UsageRepository.name, () => {
       expect(results).toHaveLength(1);
       expect(results[0]).toMatchObject({
         date: "2023-01-01",
-        activeLeases: 2,
+        activeDeployments: 2,
         dailyAktSpent: 200,
         dailyUsdcSpent: 150,
         dailyUsdSpent: 750
@@ -264,7 +264,7 @@ describe(UsageRepository.name, () => {
 
       expect(results).toHaveLength(1);
       expect(results[0]).toMatchObject({
-        activeLeases: 1,
+        activeDeployments: 1,
         dailyAktSpent: 100
       });
     });

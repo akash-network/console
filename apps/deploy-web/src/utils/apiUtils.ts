@@ -81,6 +81,12 @@ export class ApiUrlService {
   static templates() {
     return `${this.baseApiUrl}/v1/templates`;
   }
+  static usage() {
+    return `${this.baseApiUrl}/v1/usage/history`;
+  }
+  static usageStats() {
+    return `${this.baseApiUrl}/v1/usage/history/stats`;
+  }
   static validators() {
     return `${this.baseApiUrl}/v1/validators`;
   }

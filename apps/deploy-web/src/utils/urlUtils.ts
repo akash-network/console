@@ -37,6 +37,8 @@ export class UrlService {
   static userApiKeys = () => "/user/api-keys";
   static userFavorites = () => `/user/settings/favorites`;
   static userProfile = (username: string) => `/profile/${username}`;
+  static usage = () => "/usage";
+  static billing = () => "/billing";
   static login = (returnUrl?: string) => {
     let from = "/";
     if (returnUrl) {

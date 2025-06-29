@@ -13,6 +13,7 @@ import {
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import { Key, User } from "iconoir-react";
 import { Bell, LogOut, MultiplePages, Settings, Star } from "iconoir-react";
+import { LineChart } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
@@ -91,6 +92,9 @@ export function AccountMenu() {
                         </CustomDropdownLinkItem>
                         <CustomDropdownLinkItem onClick={() => window.open("https://blockspy.io", "_blank")?.focus()} icon={<Bell />}>
                           My Alerts
+                        </CustomDropdownLinkItem>
+                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.usage())} icon={<LineChart />}>
+                          Billing & Usage
                         </CustomDropdownLinkItem>
                         <DropdownMenuSeparator />
                         <CustomDropdownLinkItem onClick={() => (window.location.href = UrlService.logout())} icon={<LogOut />}>

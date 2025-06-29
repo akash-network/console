@@ -51,7 +51,7 @@ export const UsageHistoryResponseSchema = z.array(
       description: "Date in YYYY-MM-DD format",
       example: "2024-01-15"
     }),
-    activeLeases: z.number().openapi({
+    activeDeployments: z.number().openapi({
       description: "Number of active leases on this date",
       example: 3
     }),
@@ -87,16 +87,16 @@ export const UsageHistoryStatsResponseSchema = z.object({
     description: "Total amount spent in USD",
     example: 1234.56
   }),
-  averagePerDay: z.number().openapi({
+  averageSpentPerDay: z.number().openapi({
     description: "Average spending per day in USD",
     example: 12.34
   }),
-  totalLeases: z.number().openapi({
-    description: "Total number of leases deployed",
+  totalDeployments: z.number().openapi({
+    description: "Total number of deployments deployed",
     example: 15
   }),
-  averageLeasesPerDay: z.number().openapi({
-    description: "Average number of leases deployed per day",
+  averageDeploymentsPerDay: z.number().openapi({
+    description: "Average number of deployments deployed per day",
     example: 1.5
   })
 });
