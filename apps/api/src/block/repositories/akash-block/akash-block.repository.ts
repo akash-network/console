@@ -1,5 +1,6 @@
 import { AkashBlock, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
 import { Transaction, Validator } from "@akashnetwork/database/dbSchemas/base";
+import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
 import { GetBlockByHeightResponse, ListBlocksResponse } from "@src/block/http-schemas/block.schema";
@@ -96,5 +97,9 @@ export class AkashBlockRepository {
 
   async getLatestBlock(): Promise<AkashBlock | null> {
     return await AkashBlock.findOne({ order: [["height", "DESC"]] });
+  }
+
+  async getFirstBlockAfter(date: Date): Promise<AkashBlock | null> {
+    return await AkashBlock.findOne({ where: { datetime: { [Op.gte]: date } }, order: ["datetime"] });
   }
 }

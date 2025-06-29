@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import { betaTypeVersion } from "@src/utils/constants";
-import { AkashAddressSeeder } from "./akash-address.seeder";
+import { createAkashAddress } from "./akash-address.seeder";
 import { DenomSeeder } from "./denom.seeder";
 
 export interface DeploymentInfoSeederInput {
@@ -24,7 +24,7 @@ export interface DeploymentInfoErrorSeederInput {
 export class DeploymentInfoSeeder {
   static create(input: DeploymentInfoSeederInput = {}): RestAkashDeploymentInfoResponse {
     const {
-      owner = AkashAddressSeeder.create(),
+      owner = createAkashAddress(),
       dseq = faker.string.numeric(),
       state = "active",
       version = betaTypeVersion,

@@ -1,7 +1,7 @@
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
 import { CachedBalanceService } from "./cached-balance.service";
 
-import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
+import { createAkashAddress } from "@test/seeders";
 
 describe(CachedBalanceService.name, () => {
   let service: CachedBalanceService;
@@ -16,7 +16,7 @@ describe(CachedBalanceService.name, () => {
   });
 
   describe("get", () => {
-    const address = AkashAddressSeeder.create();
+    const address = createAkashAddress();
     const DEPLOYMENT_LIMIT = 1000;
 
     beforeEach(() => {

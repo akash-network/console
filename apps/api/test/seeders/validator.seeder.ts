@@ -2,27 +2,20 @@ import { Validator } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
 import type { CreationAttributes } from "sequelize";
 
-import { AkashAddressSeeder } from "./akash-address.seeder";
+import { createAkashAddress } from "./akash-address.seeder";
 
-export class ValidatorSeeder {
-  static create(input: Partial<CreationAttributes<Validator>> = {}): CreationAttributes<Validator> {
-    return {
-      id: input.id || faker.string.uuid(),
-      operatorAddress: input.operatorAddress || AkashAddressSeeder.create(),
-      accountAddress: input.accountAddress || AkashAddressSeeder.create(),
-      hexAddress: input.hexAddress || AkashAddressSeeder.create(),
-      moniker: input.moniker || faker.company.name(),
-      rate: input.rate || faker.number.int({ min: 0, max: 10000000 }),
-      maxRate: input.maxRate || faker.number.int({ min: 0, max: 10000000 }),
-      maxChangeRate: input.maxChangeRate || faker.number.int({ min: 0, max: 10000000 }),
-      minSelfDelegation: input.minSelfDelegation || faker.number.int({ min: 0, max: 10000000 }),
-      keybaseUsername: input.keybaseUsername || faker.internet.userName(),
-      keybaseAvatarUrl: input.keybaseAvatarUrl || faker.image.avatar()
-    };
-  }
-
-  static async createInDatabase(overrides: Partial<CreationAttributes<Validator>> = {}): Promise<Validator> {
-    const seed = ValidatorSeeder.create(overrides);
-    return await Validator.create(seed);
-  }
-}
+export const createValidator = async (overrides: Partial<CreationAttributes<Validator>> = {}): Promise<Validator> => {
+  return await Validator.create({
+    id: overrides.id || faker.string.uuid(),
+    operatorAddress: overrides.operatorAddress || createAkashAddress(),
+    accountAddress: overrides.accountAddress || createAkashAddress(),
+    hexAddress: overrides.hexAddress || createAkashAddress(),
+    moniker: overrides.moniker || faker.company.name(),
+    rate: overrides.rate || faker.number.int({ min: 0, max: 10000000 }),
+    maxRate: overrides.maxRate || faker.number.int({ min: 0, max: 10000000 }),
+    maxChangeRate: overrides.maxChangeRate || faker.number.int({ min: 0, max: 10000000 }),
+    minSelfDelegation: overrides.minSelfDelegation || faker.number.int({ min: 0, max: 10000000 }),
+    keybaseUsername: overrides.keybaseUsername || faker.internet.userName(),
+    keybaseAvatarUrl: overrides.keybaseAvatarUrl || faker.image.avatar()
+  });
+};

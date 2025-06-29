@@ -4,11 +4,7 @@ import { format, subWeeks } from "date-fns";
 
 import { app, initDb } from "@src/app";
 
-import { BlockSeeder } from "@test/seeders/block.seeder";
-import { DeploymentSeeder } from "@test/seeders/deployment.seeder";
-import { DeploymentGroupSeeder } from "@test/seeders/deployment-group.seeder";
-import { LeaseSeeder } from "@test/seeders/lease.seeder";
-import { ProviderSeeder } from "@test/seeders/provider.seeder";
+import { createAkashBlock, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
 
 describe("GET /v1/leases-duration/{owner}", () => {
   let providers: Provider[];
@@ -26,47 +22,47 @@ describe("GET /v1/leases-duration/{owner}", () => {
   beforeAll(async () => {
     await initDb();
 
-    providers = await Promise.all([ProviderSeeder.createInDatabase({ deletedHeight: null }), ProviderSeeder.createInDatabase({ deletedHeight: null })]);
+    providers = await Promise.all([createProvider({ deletedHeight: null }), createProvider({ deletedHeight: null })]);
 
     blocks = await Promise.all([
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: blockDates[0],
         height: 1
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: blockDates[1],
         height: 101
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: blockDates[2],
         height: 201
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: blockDates[3],
         height: 301
       })
     ]);
 
     deployments = await Promise.all([
-      DeploymentSeeder.createInDatabase({
+      createDeployment({
         owner: providers[0].owner,
         dseq: "1",
         createdHeight: blocks[0].height,
         closedHeight: blocks[1].height
       }),
-      DeploymentSeeder.createInDatabase({
+      createDeployment({
         owner: providers[0].owner,
         dseq: "2",
         createdHeight: blocks[1].height,
         closedHeight: blocks[2].height
       }),
-      DeploymentSeeder.createInDatabase({
+      createDeployment({
         owner: providers[0].owner,
         dseq: "3",
         createdHeight: blocks[2].height,
         closedHeight: blocks[3].height
       }),
-      DeploymentSeeder.createInDatabase({
+      createDeployment({
         owner: providers[1].owner,
         dseq: "4",
         createdHeight: blocks[2].height,
@@ -75,16 +71,16 @@ describe("GET /v1/leases-duration/{owner}", () => {
     ]);
 
     deploymentGroups = await Promise.all([
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[0].id
       }),
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[1].id
       }),
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[2].id
       }),
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[3].id
       })
     ]);
@@ -92,7 +88,7 @@ describe("GET /v1/leases-duration/{owner}", () => {
     owners = [faker.finance.ethereumAddress(), faker.finance.ethereumAddress()];
 
     await Promise.all([
-      LeaseSeeder.createInDatabase({
+      createLease({
         owner: owners[0],
         providerAddress: providers[0].owner,
         createdHeight: blocks[0].height,
@@ -101,7 +97,7 @@ describe("GET /v1/leases-duration/{owner}", () => {
         deploymentGroupId: deploymentGroups[0].id,
         dseq: deployments[0].dseq
       }),
-      LeaseSeeder.createInDatabase({
+      createLease({
         owner: owners[0],
         providerAddress: providers[0].owner,
         createdHeight: blocks[1].height,
@@ -110,7 +106,7 @@ describe("GET /v1/leases-duration/{owner}", () => {
         deploymentGroupId: deploymentGroups[1].id,
         dseq: deployments[1].dseq
       }),
-      LeaseSeeder.createInDatabase({
+      createLease({
         owner: owners[0],
         providerAddress: providers[0].owner,
         createdHeight: blocks[2].height,
@@ -119,7 +115,7 @@ describe("GET /v1/leases-duration/{owner}", () => {
         deploymentGroupId: deploymentGroups[2].id,
         dseq: deployments[2].dseq
       }),
-      LeaseSeeder.createInDatabase({
+      createLease({
         owner: owners[1],
         providerAddress: providers[1].owner,
         createdHeight: blocks[2].height,

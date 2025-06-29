@@ -10,7 +10,7 @@ import { averageBlockCountInAnHour } from "@src/utils/constants";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import { DrainingDeploymentService } from "./draining-deployment.service";
 
-import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
+import { createAkashAddress } from "@test/seeders";
 import { AutoTopUpDeploymentSeeder } from "@test/seeders/auto-top-up-deployment.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
@@ -186,7 +186,7 @@ describe(DrainingDeploymentService.name, () => {
   describe("calculateTopUpAmountForDseqAndUserId", () => {
     const userId = faker.string.uuid();
     const dseq = faker.string.numeric(6);
-    const address = AkashAddressSeeder.create();
+    const address = createAkashAddress();
     const userWallet = UserWalletSeeder.create({ address });
     const expectedTopUpAmount = 100000;
 

@@ -11,7 +11,7 @@ import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { getGpuModelsAvailability } from "@src/routes/v1/gpu";
+import { GpuService } from "@src/gpu/services/gpu.service";
 import { apiNodeUrl } from "@src/utils/constants";
 import { sleep } from "@src/utils/delay";
 import { env } from "@src/utils/env";
@@ -23,7 +23,8 @@ export class GpuBidsCreatorService {
 
   constructor(
     private readonly config: BillingConfigService,
-    private readonly bidHttpService: BidHttpService
+    private readonly bidHttpService: BidHttpService,
+    private readonly gpuService: GpuService
   ) {}
 
   async createGpuBids() {
@@ -46,7 +47,7 @@ export class GpuBidsCreatorService {
     const akt = Math.round((balanceBeforeUAkt / 1_000_000) * 100) / 100;
     this.logger.info({ event: "CLIENT_CONNECTED", balance: akt });
 
-    const gpuModels = await getGpuModelsAvailability();
+    const gpuModels = await this.gpuService.getGpuList();
 
     await this.createBidsForAllModels(gpuModels, client, account.address, false);
     await this.createBidsForAllModels(gpuModels, client, account.address, true);
@@ -77,7 +78,7 @@ export class GpuBidsCreatorService {
   }
 
   private async createBidsForAllModels(
-    gpuModels: Awaited<ReturnType<typeof getGpuModelsAvailability>>,
+    gpuModels: Awaited<ReturnType<typeof GpuService.prototype.getGpuList>>,
     client: SigningStargateClient,
     walletAddress: string,
     includeInterface: boolean

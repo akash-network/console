@@ -4,8 +4,7 @@ import { map } from "lodash";
 
 import { app } from "@src/app";
 
-import { BlockSeeder } from "@test/seeders/block.seeder";
-import { ValidatorSeeder } from "@test/seeders/validator.seeder";
+import { createAkashBlock, createValidator } from "@test/seeders";
 
 describe("Blocks", () => {
   const blockFrequency = 15;
@@ -19,12 +18,12 @@ describe("Blocks", () => {
       return testData;
     }
 
-    const validator = await ValidatorSeeder.createInDatabase();
+    const validator = await createValidator();
 
     const baseTime = new Date();
     testData.blocks = await Promise.all(
       Array.from({ length: 101 }, (_, i) => {
-        return BlockSeeder.createInDatabase({
+        return createAkashBlock({
           height: i + 1,
           proposer: validator.hexAddress,
           datetime: subSeconds(baseTime, (101 - i) * blockFrequency)

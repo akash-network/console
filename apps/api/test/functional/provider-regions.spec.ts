@@ -4,7 +4,7 @@ import { ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
 import { app, initDb } from "@src/app";
 import type { ProviderRegionsResponse } from "@src/provider/http-schemas/provider-regions.schema";
 
-import { ProviderSeeder } from "@test/seeders/provider.seeder";
+import { createProvider } from "@test/seeders";
 
 describe("ProviderRegions", () => {
   let providers: Provider[];
@@ -12,7 +12,7 @@ describe("ProviderRegions", () => {
   beforeAll(async () => {
     await initDb();
 
-    providers = await Promise.all([ProviderSeeder.createInDatabase(), ProviderSeeder.createInDatabase(), ProviderSeeder.createInDatabase()]);
+    providers = await Promise.all([createProvider(), createProvider(), createProvider()]);
     await ProviderAttribute.create({
       provider: providers[0].owner,
       key: "location-region",

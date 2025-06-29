@@ -2,8 +2,7 @@ import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 
 import { app, initDb } from "@src/app";
 
-import { ProviderSeeder } from "@test/seeders/provider.seeder";
-import { ProviderSnapshotSeeder } from "@test/seeders/provider-snapshot.seeder";
+import { createProvider, createProviderSnapshot } from "@test/seeders";
 
 describe("Provider Dashboard", () => {
   let providers: Provider[];
@@ -12,46 +11,46 @@ describe("Provider Dashboard", () => {
     await initDb();
 
     providers = await Promise.all([
-      ProviderSeeder.createInDatabase({
+      createProvider({
         akashVersion: "1.0.0",
         isOnline: true
       }),
-      ProviderSeeder.createInDatabase({
+      createProvider({
         akashVersion: "2.0.0",
         isOnline: true
       }),
-      ProviderSeeder.createInDatabase({
+      createProvider({
         akashVersion: "1.0.0",
         isOnline: true
       }),
-      ProviderSeeder.createInDatabase({
+      createProvider({
         akashVersion: "3.0.0",
         isOnline: true
       }),
-      ProviderSeeder.createInDatabase({
+      createProvider({
         akashVersion: null,
         isOnline: true
       })
     ]);
 
     const providerSnapshots = await Promise.all([
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[0].owner,
         checkDate: Date.now()
       }),
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[1].owner,
         checkDate: Date.now()
       }),
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[2].owner,
         checkDate: Date.now()
       }),
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[3].owner,
         checkDate: Date.now()
       }),
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[4].owner,
         checkDate: Date.now()
       })

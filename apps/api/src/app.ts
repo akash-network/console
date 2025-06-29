@@ -51,6 +51,7 @@ import {
 } from "./billing";
 import { blockPredictionRouter, blocksRouter } from "./block";
 import { dashboardDataRouter, graphDataRouter, leasesDurationRouter, marketDataRouter, networkCapacityRouter } from "./dashboard";
+import { gpuRouter } from "./gpu";
 import { networkRouter } from "./network";
 import { pricingRouter } from "./pricing";
 import {
@@ -141,6 +142,7 @@ appHono.route("/", transactionsRouter);
 appHono.route("/", marketDataRouter);
 appHono.route("/", validatorsRouter);
 appHono.route("/", pricingRouter);
+appHono.route("/", gpuRouter);
 appHono.route("/", leasesDurationRouter);
 appHono.route("/", networkRouter);
 

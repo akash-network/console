@@ -6,12 +6,7 @@ import nock from "nock";
 import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/db/dbConnection";
 
-import { BlockSeeder } from "@test/seeders/block.seeder";
-import { DaySeeder } from "@test/seeders/day.seeder";
-import { DeploymentSeeder } from "@test/seeders/deployment.seeder";
-import { DeploymentGroupSeeder } from "@test/seeders/deployment-group.seeder";
-import { LeaseSeeder } from "@test/seeders/lease.seeder";
-import { ProviderSeeder } from "@test/seeders/provider.seeder";
+import { createAkashBlock, createDay, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
 
 describe("Provider deployments", () => {
   let provider: Provider;
@@ -20,31 +15,31 @@ describe("Provider deployments", () => {
   beforeAll(async () => {
     await initDb();
 
-    const day = await DaySeeder.createInDatabase({
+    const day = await createDay({
       date: new Date(),
       firstBlockHeight: 1,
       lastBlockHeight: 100,
       lastBlockHeightYet: 100
     });
 
-    provider = await ProviderSeeder.createInDatabase();
+    provider = await createProvider();
 
     deployments = await Promise.all([
-      DeploymentSeeder.createInDatabase({
+      createDeployment({
         owner: provider.owner,
         dseq: "dseq1",
         denom: "denom1",
         createdHeight: 1,
         closedHeight: null
       }),
-      DeploymentSeeder.createInDatabase({
+      createDeployment({
         owner: provider.owner,
         dseq: "dseq2",
         denom: "denom1",
         createdHeight: 2,
         closedHeight: null
       }),
-      DeploymentSeeder.createInDatabase({
+      createDeployment({
         owner: provider.owner,
         dseq: "dseq3",
         denom: "denom1",
@@ -54,19 +49,19 @@ describe("Provider deployments", () => {
     ]);
 
     const deploymentGroups = await Promise.all([
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[0].id
       }),
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[1].id
       }),
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[2].id
       })
     ]);
 
     await Promise.all([
-      LeaseSeeder.createInDatabase({
+      createLease({
         providerAddress: provider.owner,
         createdHeight: 1,
         closedHeight: null,
@@ -75,7 +70,7 @@ describe("Provider deployments", () => {
         dseq: deployments[0].dseq,
         state: "active"
       }),
-      LeaseSeeder.createInDatabase({
+      createLease({
         providerAddress: provider.owner,
         createdHeight: 2,
         closedHeight: null,
@@ -84,7 +79,7 @@ describe("Provider deployments", () => {
         dseq: deployments[1].dseq,
         state: "active"
       }),
-      LeaseSeeder.createInDatabase({
+      createLease({
         providerAddress: provider.owner,
         createdHeight: 3,
         closedHeight: 4,
@@ -96,19 +91,19 @@ describe("Provider deployments", () => {
     ]);
 
     await Promise.all([
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         height: 1,
         timestamp: day.date
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         height: 2,
         timestamp: day.date
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         height: 3,
         timestamp: day.date
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         height: 4,
         timestamp: day.date
       })

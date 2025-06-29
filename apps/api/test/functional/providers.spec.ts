@@ -9,12 +9,7 @@ import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/db/dbConnection";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 
-import { DaySeeder } from "@test/seeders/day.seeder";
-import { DeploymentSeeder } from "@test/seeders/deployment.seeder";
-import { DeploymentGroupSeeder } from "@test/seeders/deployment-group.seeder";
-import { LeaseSeeder } from "@test/seeders/lease.seeder";
-import { ProviderSeeder } from "@test/seeders/provider.seeder";
-import { ProviderSnapshotSeeder } from "@test/seeders/provider-snapshot.seeder";
+import { createDay, createDeployment, createDeploymentGroup, createLease, createProvider, createProviderSnapshot } from "@test/seeders";
 
 describe("Providers", () => {
   let providers: Provider[];
@@ -23,9 +18,9 @@ describe("Providers", () => {
   beforeAll(async () => {
     await initDb();
 
-    providers = await Promise.all([ProviderSeeder.createInDatabase(), ProviderSeeder.createInDatabase(), ProviderSeeder.createInDatabase()]);
+    providers = await Promise.all([createProvider(), createProvider(), createProvider()]);
     providerSnapshots = await Promise.all([
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[0].owner,
         checkDate: subDays(new Date("2025-01-01T00:00:00.000Z"), 1),
         availableCPU: 1,
@@ -34,7 +29,7 @@ describe("Providers", () => {
         availablePersistentStorage: 4,
         availableEphemeralStorage: 5
       }),
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[0].owner,
         checkDate: subDays(new Date("2025-01-01T00:00:00.000Z"), 2),
         availableCPU: 11,
@@ -43,7 +38,7 @@ describe("Providers", () => {
         availablePersistentStorage: 14,
         availableEphemeralStorage: 15
       }),
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[1].owner,
         checkDate: subDays(new Date("2025-01-01T00:00:00.000Z"), 1),
         availableCPU: 21,
@@ -52,7 +47,7 @@ describe("Providers", () => {
         availablePersistentStorage: 24,
         availableEphemeralStorage: 25
       }),
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[1].owner,
         checkDate: subDays(new Date("2025-01-01T00:00:00.000Z"), 2),
         availableCPU: 31,
@@ -148,32 +143,32 @@ describe("Providers", () => {
   describe("GET /v1/providers/{providerAddress}/active-leases-graph-data", () => {
     it("returns the active leases graph data for a provider", async () => {
       const providerAddress = "akash18ga02jzaq8cw52anyhzkwta5wygufgu6zsz6xc";
-      const days = [
-        await DaySeeder.createInDatabase({
+      const days = await Promise.all([
+        createDay({
           date: subDays(new Date(), 2),
           firstBlockHeight: 1,
           lastBlockHeight: 100,
           lastBlockHeightYet: 100
         }),
-        await DaySeeder.createInDatabase({
+        createDay({
           date: subDays(new Date(), 1),
           firstBlockHeight: 101,
           lastBlockHeight: 200,
           lastBlockHeightYet: 200
         })
-      ];
-      const provider = await ProviderSeeder.createInDatabase({
+      ]);
+      const provider = await createProvider({
         owner: providerAddress,
         createdHeight: days[0].lastBlockHeightYet - 1
       });
 
-      const deployment = await DeploymentSeeder.createInDatabase();
+      const deployment = await createDeployment();
 
-      const deploymentGroup = await DeploymentGroupSeeder.createInDatabase({
+      const deploymentGroup = await createDeploymentGroup({
         deploymentId: deployment.id
       });
 
-      await LeaseSeeder.createInDatabase({
+      await createLease({
         providerAddress: provider.owner,
         createdHeight: days[0].lastBlockHeightYet - 1,
         closedHeight: null,
@@ -182,7 +177,7 @@ describe("Providers", () => {
         deploymentGroupId: deploymentGroup.id,
         state: "active"
       });
-      await LeaseSeeder.createInDatabase({
+      await createLease({
         providerAddress: provider.owner,
         createdHeight: days[0].lastBlockHeightYet - 1,
         closedHeight: null,
@@ -191,7 +186,7 @@ describe("Providers", () => {
         deploymentGroupId: deploymentGroup.id,
         state: "active"
       });
-      await LeaseSeeder.createInDatabase({
+      await createLease({
         providerAddress: provider.owner,
         createdHeight: days[1].lastBlockHeightYet - 1,
         closedHeight: null,
