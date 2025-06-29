@@ -1,4 +1,4 @@
-name: API CI
+name: "API CI"
 
 on:
   pull_request:
@@ -12,45 +12,19 @@ concurrency:
 
 jobs:
   should-validate:
-    name: Decide Whether to Validate
     uses: ./.github/workflows/reusable-should-validate.yml
+    with:
+      path: apps/api
+
+  validate:
+    needs: should-validate
+    if: needs.should-validate.outputs.enabled == 'true'
+    uses: ./.github/workflows/reusable-validate-app.yml
+    secrets: inherit
     with:
       app: api
 
-  validate-api:
-    runs-on: ubuntu-latest
-    needs: should-validate
-    if: needs.should-validate.outputs.enabled == 'true'
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - uses: ./.github/actions/setup-app-deps
-        with:
-          app: api
-
-      - name: Run static code analysis
-        if: github.event_name == 'pull_request'
-        run: npm run lint -w apps/api -- --quiet
-
-      - name: Run tests
-        env:
-          POSTGRES_SKIP_IMPORT: true
-        run: |
-          npm run dc:up:db
-          npm run test:cov --workspace=apps/api
-          npm run dc:down
-
-      - name: Upload Test Coverage
-        uses: codecov/codecov-action@v5
-        with:
-          fail_ci_if_error: true
-          directory: ./apps/api/coverage
-          flags: api
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-  test-api-build:
+  test-build:
     runs-on: ubuntu-latest
     needs: should-validate
     if: needs.should-validate.outputs.has_changes == 'true'
@@ -58,8 +32,24 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Build the Docker image for API
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: packages/docker/script/dc.sh build api
+
+  api-ci:
+    runs-on: ubuntu-latest
+    needs: [should-validate, validate, test-build]
+    if: always()
+    steps:
+      - name: Check statuses
+        if: needs.should-validate.outputs.has_changes == 'true'
+        env:
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          TEST_BUILD_RESULT: ${{ needs.test-build.result }}
+        run: |
+          echo "Validate: $VALIDATE_RESULT"
+          echo "Test Build: $TEST_BUILD_RESULT"
+          if [[ "$VALIDATE_RESULT" != "success" || "$TEST_BUILD_RESULT" != "success" ]]; then
+            exit 1
+          fi

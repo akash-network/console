@@ -1,0 +1,56 @@
+# We need a separate workflow to get access to secrets because github doesn't share secrets on pull_request events.
+# https://docs.github.com/en/actions/reference/events-that-trigger-workflows#pull_request_target
+#
+# !!!! PLEASE be extra careful here and treat forked repository as untrusted user input !!!!
+
+name: Unsafe CI
+on:
+  pull_request_target:
+    branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.value }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.repo.full_name == github.repository &&
+            github.event.pull_request.head.ref ||
+            github.event.pull_request.base.ref }}
+      - id: matrix
+        run: |
+          # validate packages all at once because they are shared and validate each app separately
+          results=("packages")
+          for pattern in $(jq -r '.workspaces[] | select(. | startswith("./packages/") | not)' package.json); do
+            for dir in $pattern; do
+              [[ -d "$dir" ]] && results+=("${dir#./}")
+            done
+          done
+
+          workspaces=$(printf '"%s",' "${results[@]}")
+          workspaces="[${workspaces%,}]"
+          echo "workspaces=$workspaces"
+
+          echo 'value={"workspace":'"$workspaces"'}' >> "$GITHUB_OUTPUT"
+
+  validate:
+    needs: setup
+    strategy:
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+    uses: ./.github/workflows/reusable-validate-app-unsafe.yml
+    secrets:
+      gh-token: ${{ secrets.GITHUB_TOKEN }}
+      snyk-token: ${{ secrets.SNYK_TOKEN }}
+    with:
+      path: ${{ matrix.workspace }}

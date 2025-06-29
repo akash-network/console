@@ -1,0 +1,49 @@
+name: "CI: validate app"
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: "The app to release" # dir name in ./apps/*
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.app }}
+  cancel-in-progress: true
+
+jobs:
+  validate-app:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-app-deps
+        with:
+          app: ${{ inputs.app }}
+
+      - name: Run static code analysis
+        if: github.event_name == 'pull_request'
+        run: npm run lint -w apps/${{ inputs.app }} -- --quiet
+
+      - name: Run tests
+        id: run_tests
+        run: |
+          has_tests=$(node -p "require('./apps/${{ inputs.app }}/package.json').scripts['test:cov'] ? 'true' : 'false'")
+          echo "has_tests=$has_tests" >> "$GITHUB_OUTPUT"
+
+          if [[ "$has_tests" == "true" ]]; then
+            npm run --if-present --workspace=apps/${{ inputs.app }} test:ci-setup
+            npm run test:cov --workspace=apps/${{ inputs.app }}
+            npm run --if-present --workspace=apps/${{ inputs.app }} test:ci-teardown
+          fi
+
+      - name: Upload Test Coverage
+        if: steps.run_tests.outputs.has_tests == 'true'
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          directory: ./apps/${{ inputs.app }}/coverage
+          flags: ${{ inputs.app }}
+          token: ${{ secrets.CODECOV_TOKEN }}

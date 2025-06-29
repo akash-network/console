@@ -7,7 +7,7 @@ import type { ClientErrorStatusCode } from "hono/utils/http-status";
 import { Readable } from "stream";
 
 import type { AppContext } from "../types/AppContext";
-import { httpRetry } from "../utils/retry";
+import { canRetryOnError, httpRetry } from "../utils/retry";
 
 const RequestPayload = z.object({
   certPem: z.string().optional(),
@@ -59,7 +59,7 @@ export const proxyRoute = createRoute({
   }
 });
 
-const DEFAULT_TIMEOUT = 5_000;
+const DEFAULT_TIMEOUT = 10_000;
 export async function proxyProviderRequest(ctx: AppContext): Promise<Response | TypedResponse<string>> {
   const { certPem, keyPem, method, body, url, network, providerAddress, timeout } = await ctx.req.json<z.infer<typeof RequestPayload>>();
 
@@ -83,7 +83,11 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
         timeout: Number(timeout || DEFAULT_TIMEOUT) || DEFAULT_TIMEOUT
       }),
     {
-      retryIf: result => result.ok && (!result.response.statusCode || result.response.statusCode > 500)
+      retryIf(result) {
+        const isServerError = result.ok && (!result.response.statusCode || result.response.statusCode > 500);
+        const isConnectionError = result.ok === false && result.code === "connectionError" && canRetryOnError(result.error);
+        return isServerError || isConnectionError;
+      }
     }
   );
 
@@ -93,6 +97,18 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
 
   if (proxyResult.ok === false && proxyResult.code === "invalidCertificate") {
     return ctx.text(`Invalid certificate error: ${proxyResult.reason}`, 495 as ClientErrorStatusCode);
+  }
+
+  if (proxyResult.ok === false && proxyResult.code === "connectionError") {
+    ctx.get("container").appLogger?.warn({
+      event: "PROXY_REQUEST_ERROR",
+      url,
+      method,
+      network,
+      providerAddress,
+      error: proxyResult.error
+    });
+    return ctx.text(`Provider ${new URL(url).origin} is temporarily unavailable`, 503);
   }
 
   const headers = new Headers();

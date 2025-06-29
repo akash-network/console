@@ -1,7 +1,7 @@
 import { format, subDays } from "date-fns";
 
 import { app, initDb } from "@src/app";
-import type { UsageHistoryResponse } from "@src/billing/http-schemas/usage.schema";
+import type { UsageHistoryResponse, UsageHistoryStats } from "@src/billing/http-schemas/usage.schema";
 
 import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
 import { BlockSeeder } from "@test/seeders/block.seeder";
@@ -277,7 +277,7 @@ describe("GET /v1/usage/history", () => {
 
   const expectUsageHistory = async (response: Response, expectedLength: number) => {
     expect(response.status).toBe(200);
-    const data: UsageHistoryResponse = await response.json();
+    const data = (await response.json()) as UsageHistoryResponse;
     expect(Array.isArray(data)).toBe(true);
     expect(data.length).toBe(expectedLength);
 
@@ -414,7 +414,7 @@ describe("GET /v1/usage/history/stats", () => {
 
     const expectUsageStats = async (response: Response) => {
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = (await response.json()) as UsageHistoryStats;
 
       expect(data).toHaveProperty("totalSpent");
       expect(data).toHaveProperty("averageSpentPerDay");

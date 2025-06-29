@@ -20,11 +20,17 @@ async function main() {
       fetchText(`${baseConfigUrl}/version.txt`)
     ]);
 
-    config[network] = {
+    const networkConfig = {
       version: version.trim(),
       apiUrls: apiUrls.trim().split("\n"),
       rpcUrls: rpcUrls.trim().split("\n")
     };
+
+    if (network === "mainnet") {
+      networkConfig.apiUrls.unshift("https://public-proxy.akt.dev/rest");
+    }
+
+    config[network] = networkConfig;
   }
 
   await fsp.mkdir(OUT_DIR, { recursive: true });

@@ -7,6 +7,7 @@ import { Ok } from "ts-results";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
+import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import { NotificationChannelRepository } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 import {
   NotificationChannelController,
@@ -99,16 +100,17 @@ describe(NotificationChannelController.name, () => {
   });
 
   describe("deleteNotificationChannel", () => {
-    it("should call notificationChannelRepository.deleteById() and return the deleted notification channel", async () => {
-      const { controller, notificationChannelRepository } = await setup();
+    it("should call notificationChannelRepository.deleteSafelyById() and return the deleted notification channel", async () => {
+      const { controller, notificationChannelRepository, alertRepository } = await setup();
       const id = faker.string.uuid();
       const output = generateMock(notificationChannelOutputSchema);
 
-      notificationChannelRepository.deleteById.mockResolvedValue(output);
+      alertRepository.countActiveByNotificationChannelId.mockResolvedValue(0);
+      notificationChannelRepository.deleteSafelyById.mockResolvedValue(output);
 
       const result = await controller.deleteNotificationChannel(id);
 
-      expect(notificationChannelRepository.deleteById).toHaveBeenCalledWith(id);
+      expect(notificationChannelRepository.deleteSafelyById).toHaveBeenCalledWith(id);
       expect(result).toEqual(Ok({ data: output }));
     });
 
@@ -116,7 +118,7 @@ describe(NotificationChannelController.name, () => {
       const { controller, notificationChannelRepository } = await setup();
       const id = faker.string.uuid();
 
-      notificationChannelRepository.deleteById.mockResolvedValue(undefined);
+      notificationChannelRepository.deleteSafelyById.mockResolvedValue(undefined);
 
       await expect(controller.deleteNotificationChannel(id)).resolves.toMatchObject({
         err: true,
@@ -124,13 +126,29 @@ describe(NotificationChannelController.name, () => {
           message: "Notification channel not found"
         })
       });
-      expect(notificationChannelRepository.deleteById).toHaveBeenCalledWith(id);
+      expect(notificationChannelRepository.deleteSafelyById).toHaveBeenCalledWith(id);
+    });
+
+    it("should return an error if the notification channel is in use", async () => {
+      const { controller, notificationChannelRepository, alertRepository } = await setup();
+      const id = faker.string.uuid();
+
+      alertRepository.countActiveByNotificationChannelId.mockResolvedValue(1);
+
+      await expect(controller.deleteNotificationChannel(id)).resolves.toMatchObject({
+        err: true,
+        val: expect.objectContaining({
+          message: "Cannot delete notification channel with alerts"
+        })
+      });
+      expect(notificationChannelRepository.deleteSafelyById).not.toHaveBeenCalled();
     });
   });
 
   async function setup(): Promise<{
     controller: NotificationChannelController;
     notificationChannelRepository: MockProxy<NotificationChannelRepository>;
+    alertRepository: MockProxy<AlertRepository>;
     userId: string;
   }> {
     const userId = faker.string.uuid();
@@ -144,6 +162,7 @@ describe(NotificationChannelController.name, () => {
           }
         },
         MockProvider(NotificationChannelRepository),
+        MockProvider(AlertRepository),
         MockProvider(LoggerService)
       ]
     }).compile();
@@ -154,6 +173,7 @@ describe(NotificationChannelController.name, () => {
     return {
       controller: module.get(NotificationChannelController),
       notificationChannelRepository,
+      alertRepository: module.get<MockProxy<AlertRepository>>(AlertRepository),
       userId
     };
   }

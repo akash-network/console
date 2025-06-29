@@ -30,6 +30,10 @@ type NotificationChannelsListContainerProps = {
   children: (props: ChildrenProps) => ReactNode;
 };
 
+const ERROR_MESSAGES: Record<string, string> = {
+  "Cannot delete notification channel with alerts": "Cannot delete notification channel with alerts"
+};
+
 export const NotificationChannelsListContainer: FC<NotificationChannelsListContainerProps> = ({ onFetched, children }) => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -63,7 +67,11 @@ export const NotificationChannelsListContainer: FC<NotificationChannelsListConta
           refetch();
         }
       } catch (error) {
-        notificator.error("Failed to remove notification channel", {
+        const message =
+          error && typeof error === "object" && "message" in error && typeof error?.message === "string" && ERROR_MESSAGES[error.message]
+            ? ERROR_MESSAGES[error.message]
+            : "Failed to remove notification channel";
+        notificator.error(message, {
           dataTestId: "notification-channel-remove-error-notification"
         });
       } finally {

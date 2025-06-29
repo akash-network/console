@@ -1,5 +1,33 @@
 
 
+## [1.12.4](https://github.com/akash-network/console/compare/provider-proxy/v1.12.3...provider-proxy/v1.12.4) (2025-06-26)
+
+
+### Bug Fixes
+
+* ensure getAllItems doesn't stuck inside infinite loop ([#1562](https://github.com/akash-network/console/issues/1562)) ([f8a8ba2](https://github.com/akash-network/console/commit/f8a8ba277f5b8b8cd25d1c4a831d0642e9505557))
+
+## [1.12.3](https://github.com/akash-network/console/compare/provider-proxy/v1.12.2...provider-proxy/v1.12.3) (2025-06-26)
+
+
+### Bug Fixes
+
+* makes axios not to throw on 400 error for getting deployment ([#1552](https://github.com/akash-network/console/issues/1552)) ([f85947e](https://github.com/akash-network/console/commit/f85947efd64ac4b566f020d9a4691ab092fb46ab))
+
+## [1.12.2](https://github.com/akash-network/console/compare/provider-proxy/v1.12.1...provider-proxy/v1.12.2) (2025-06-25)
+
+
+### Bug Fixes
+
+* adds blockchain node API proxy to the list of mainnet nework urls ([#1553](https://github.com/akash-network/console/issues/1553)) ([35cd01a](https://github.com/akash-network/console/commit/35cd01a5969b2bdd78abd4eaa8baacdd3a676bc3))
+
+## [1.12.1](https://github.com/akash-network/console/compare/provider-proxy/v1.12.0...provider-proxy/v1.12.1) (2025-06-23)
+
+
+### Bug Fixes
+
+* handles connection error in provider proxy to return 503 ([#1525](https://github.com/akash-network/console/issues/1525)) ([57d58c8](https://github.com/akash-network/console/commit/57d58c86c32706295b794fdd19dd8878170eb119))
+
 ## [1.12.0](https://github.com/akash-network/console/compare/provider-proxy/v1.11.0...provider-proxy/v1.12.0) (2025-06-19)
 
 

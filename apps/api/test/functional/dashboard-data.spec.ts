@@ -205,7 +205,7 @@ describe("Dashboard Data", () => {
     it("returns data for dashboard", async () => {
       const response = await app.request("/v1/dashboard-data");
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
 
       expect(response.status).toBe(200);
       expect(data.now).toEqual(

@@ -1,4 +1,4 @@
-name: Stats Web CI
+name: "Stats Web CI"
 
 on:
   push:
@@ -11,30 +11,37 @@ jobs:
     name: Decide Whether to Validate
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
-      app: stats-web
+      path: apps/stats-web
 
-  validate-stats-web:
-    runs-on: ubuntu-latest
+  validate:
     needs: should-validate
     if: needs.should-validate.outputs.enabled == 'true'
+    uses: ./.github/workflows/reusable-validate-app.yml
+    secrets: inherit
+    with:
+      app: stats-web
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/setup-app-deps
-        with:
-          app: stats-web
-
-      - name: Run static code analysis
-        if: github.event_name == 'pull_request'
-        run: npm run lint -w apps/stats-web -- --quiet
-
-  test-stats-web-build:
+  test-build:
     runs-on: ubuntu-latest
     needs: should-validate
     if: needs.should-validate.outputs.has_changes == 'true'
-
     steps:
       - uses: actions/checkout@v4
-      - name: Build the Docker image
-        run: packages/docker/script/dc.sh build stats-web --build-arg DEPLOYMENT_ENV=production
+      - run: packages/docker/script/dc.sh build stats-web --build-arg DEPLOYMENT_ENV=production
+
+  stats-web-ci:
+    runs-on: ubuntu-latest
+    needs: [should-validate, validate, test-build]
+    if: always()
+    steps:
+      - name: Check statuses
+        if: needs.should-validate.outputs.has_changes == 'true'
+        env:
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          TEST_BUILD_RESULT: ${{ needs.test-build.result }}
+        run: |
+          echo "Validate: $VALIDATE_RESULT"
+          echo "Test Build: $TEST_BUILD_RESULT"
+          if [[ "$VALIDATE_RESULT" != "success" || "$TEST_BUILD_RESULT" != "success" ]]; then
+            exit 1
+          fi

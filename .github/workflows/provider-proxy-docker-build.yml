@@ -1,4 +1,4 @@
-name: Provider Proxy CI
+name: "Provider Proxy CI"
 
 on:
   pull_request:
@@ -15,41 +15,38 @@ jobs:
     name: Decide Whether to Validate
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
-      app: provider-proxy
+      path: apps/provider-proxy
 
-  validate-provider-proxy:
-    runs-on: ubuntu-latest
+  validate:
     needs: should-validate
     if: needs.should-validate.outputs.enabled == 'true'
+    uses: ./.github/workflows/reusable-validate-app.yml
+    secrets: inherit
+    with:
+      app: provider-proxy
 
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-app-deps
-        with:
-          app: provider-proxy
-
-      - name: Run static code analysis
-        if: github.event_name == 'pull_request'
-        run: npm run lint -w apps/provider-proxy -- --quiet
-
-      - name: Run tests
-        run: npm run test:cov --workspace=apps/provider-proxy
-
-      - name: Upload Test Coverage
-        uses: codecov/codecov-action@v5
-        with:
-          fail_ci_if_error: true
-          directory: ./apps/provider-proxy/coverage
-          flags: provider-proxy
-          token: ${{ secrets.CODECOV_TOKEN }}
-          base_sha: ${{ github.event.pull_request.base.sha }}
-
-  test-provider-proxy-build:
+  test-build:
     runs-on: ubuntu-latest
     needs: should-validate
     if: needs.should-validate.outputs.has_changes == 'true'
 
     steps:
       - uses: actions/checkout@v4
-      - name: Build the Docker image
-        run: packages/docker/script/dc.sh build provider-proxy
+      - run: packages/docker/script/dc.sh build provider-proxy
+
+  provider-proxy-ci:
+    runs-on: ubuntu-latest
+    needs: [should-validate, validate, test-build]
+    if: always()
+    steps:
+      - name: Check statuses
+        if: needs.should-validate.outputs.has_changes == 'true'
+        env:
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          TEST_BUILD_RESULT: ${{ needs.test-build.result }}
+        run: |
+          echo "Validate: $VALIDATE_RESULT"
+          echo "Test Build: $TEST_BUILD_RESULT"
+          if [[ "$VALIDATE_RESULT" != "success" || "$TEST_BUILD_RESULT" != "success" ]]; then
+            exit 1
+          fi

@@ -6,7 +6,7 @@ describe("Auditors", () => {
     it("returns auditors", async () => {
       const response = await app.request("/v1/auditors");
 
-      const data: AuditorListResponse = await response.json();
+      const data = (await response.json()) as AuditorListResponse;
 
       expect(response.status).toBe(200);
 

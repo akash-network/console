@@ -186,7 +186,7 @@ describe("Graph Data", () => {
       it(`returns graph data for ${dataName}`, async () => {
         const response = await app.request(`/v1/graph-data/${dataName}`);
 
-        const data = await response.json();
+        const data = (await response.json()) as any;
 
         expect(response.status).toBe(200);
 

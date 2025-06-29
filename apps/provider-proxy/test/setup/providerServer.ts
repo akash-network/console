@@ -1,4 +1,4 @@
-import type { RequestListener } from "http";
+import type { IncomingMessage, ServerResponse } from "http";
 import type { ServerOptions } from "https";
 import https from "https";
 import type { AddressInfo } from "net";
@@ -17,9 +17,8 @@ export function startProviderServer(options: ProviderServerOptions): Promise<str
       cert: certPair.cert.toJSON()
     };
 
-    const state: Record<string, boolean> = {};
     let cleanupHandlers = new Set<() => void>();
-    const handlers: Record<string, RequestListener> = {
+    const handlers: RequestHandlers = {
       "/200.txt"(_, res) {
         res.writeHead(200, "OK", { "Content-Type": "text/plain" });
         res.end("Hello, World!");
@@ -31,43 +30,13 @@ export function startProviderServer(options: ProviderServerOptions): Promise<str
         });
         res.end(JSON.stringify({ ok: true }));
       },
-      async "/slow-once"(_, res) {
-        if (!state.wasSlow) {
-          state.wasSlow = true;
-          const timeout = setTimeout(() => {
-            clearSlowTimer();
-            cleanupHandlers.delete(clearSlowTimer);
-            res.writeHead(200);
-            res.end("Slow");
-          }, 1000);
-          const clearSlowTimer = () => clearTimeout(timeout);
-          cleanupHandlers.add(clearSlowTimer);
-          return;
-        }
-
-        res.writeHead(200, "OK", { "Content-Type": "text/plain" });
-        res.end("Fast");
-      },
-      "/5xx-once"(_, res) {
-        if (!state.returned5xx) {
-          state.returned5xx = true;
-          res.writeHead(502);
-          res.end();
-          return;
-        }
-
-        res.writeHead(200, "OK", { "Content-Type": "text/plain" });
-        res.end("Success");
-      },
-      "/500"(_, res) {
-        res.writeHead(500);
-        res.end("Internal Server Error");
-      }
+      ...options.handlers
     };
 
     const server = https.createServer(httpServerOptions, (req, res) => {
       if (req.url && Object.hasOwn(handlers, req.url)) {
-        handlers[req.url](req, res);
+        const cleanup = handlers[req.url](req, res);
+        if (cleanup) cleanupHandlers.add(cleanup);
       } else {
         res.writeHead(404, "Not found", { "Content-Type": "text/plain" });
         res.end("Not Found");
@@ -98,8 +67,10 @@ export function stopProviderServer() {
   runningServer?.close();
 }
 
+type RequestHandlers = Record<string, (req: IncomingMessage, res: ServerResponse) => (() => void) | undefined | void>;
 export interface ProviderServerOptions {
   certPair?: CertPair;
+  handlers?: RequestHandlers;
   websocketServer?: {
     enable: boolean;
     onConnection?(ws: WebSocket): void;

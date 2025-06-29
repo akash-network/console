@@ -178,7 +178,7 @@ describe("Deployment Settings", () => {
       });
 
       expect(response.status).toBe(201);
-      const result = await response.json();
+      const result = (await response.json()) as { data: unknown };
       expect(result.data).toMatchObject({
         userId: user.id,
         dseq,
@@ -231,7 +231,7 @@ describe("Deployment Settings", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as { data: unknown };
       expect(result.data).toMatchObject({
         userId: user.id,
         dseq,
@@ -302,7 +302,7 @@ describe("Deployment Settings", () => {
       });
 
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = (await response.json()) as { data: unknown };
       expect(result.data).toMatchObject({
         id: settings.id,
         userId: user.id,

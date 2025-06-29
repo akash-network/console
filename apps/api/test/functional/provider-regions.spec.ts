@@ -40,7 +40,7 @@ describe("ProviderRegions", () => {
     it("returns providers grouped by regions", async () => {
       const response = await app.request("/v1/provider-regions");
 
-      const data = await response.json();
+      const data = (await response.json()) as any;
 
       expect(response.status).toBe(200);
       expectRegion(data, "na-ca-west", [providers[0].owner]);

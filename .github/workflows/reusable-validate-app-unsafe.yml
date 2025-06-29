@@ -1,0 +1,51 @@
+# We need a separate workflow to get access to secrets because github doesn't share secrets on pull_request events.
+# https://docs.github.com/en/actions/reference/events-that-trigger-workflows#pull_request_target
+#
+# !!!! PLEASE be extra careful here and treat forked repository as untrusted user input !!!!
+
+name: "CI: validate app unsafe"
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: "The path to the workspace to validate"
+        required: true
+        type: string
+    secrets:
+      gh-token:
+        description: "github token used to fetch changed files in PR"
+        required: true
+      snyk-token:
+        description: "snyk token used to test code for security issues"
+        required: true
+
+jobs:
+  should-validate-unsafe:
+    uses: ./.github/workflows/reusable-should-validate.yml
+    secrets:
+      gh-token: ${{ secrets.gh-token }}
+    with:
+      path: ${{ inputs.path }}
+
+  validate-unsafe:
+    needs: should-validate-unsafe
+    runs-on: ubuntu-latest
+    if: needs.should-validate-unsafe.outputs.has_changes == 'true'
+    steps:
+      - name: Checkout UNTRUSTED user's fork
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          path: ./untrusted-user-fork
+      - name: Copy .dcignore
+        shell: bash
+        run: cp ./untrusted-user-fork/.dcignore ./untrusted-user-fork/${{ inputs.path }}/.dcignore
+      - name: Test code for security issues
+        uses: snyk/actions/node@4a528b5c534bb771b6e3772656a8e0e9dc902f8b
+        env:
+          SNYK_TOKEN: ${{ secrets.snyk-token }}
+        with:
+          command: code
+          args: test ./untrusted-user-fork/${{ inputs.path }} --severity-threshold=medium

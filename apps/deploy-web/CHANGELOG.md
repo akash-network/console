@@ -1,5 +1,85 @@
 
 
+## [2.89.5](https://github.com/akash-network/console/compare/console-web/v2.89.4...console-web/v2.89.5) (2025-06-26)
+
+
+### Bug Fixes
+
+* ensure getAllItems doesn't stuck inside infinite loop ([#1562](https://github.com/akash-network/console/issues/1562)) ([f8a8ba2](https://github.com/akash-network/console/commit/f8a8ba277f5b8b8cd25d1c4a831d0642e9505557))
+
+## [2.89.4](https://github.com/akash-network/console/compare/console-web/v2.89.3...console-web/v2.89.4) (2025-06-26)
+
+
+### Bug Fixes
+
+* makes axios not to throw on 400 error for getting deployment ([#1552](https://github.com/akash-network/console/issues/1552)) ([f85947e](https://github.com/akash-network/console/commit/f85947efd64ac4b566f020d9a4691ab092fb46ab))
+
+
+### Code Refactoring
+
+* ensure alerts are not rendered when they are disabled ([#1557](https://github.com/akash-network/console/issues/1557)) ([8c3d8b9](https://github.com/akash-network/console/commit/8c3d8b98f3ec640c1f49d2f0ac08f9db6e259ffe))
+
+## [2.89.3](https://github.com/akash-network/console/compare/console-web/v2.89.2...console-web/v2.89.3) (2025-06-25)
+
+
+### Bug Fixes
+
+* adds blockchain node API proxy to the list of mainnet nework urls ([#1553](https://github.com/akash-network/console/issues/1553)) ([35cd01a](https://github.com/akash-network/console/commit/35cd01a5969b2bdd78abd4eaa8baacdd3a676bc3))
+
+## [2.89.2](https://github.com/akash-network/console/compare/console-web/v2.89.1...console-web/v2.89.2) (2025-06-24)
+
+
+### Bug Fixes
+
+* **alert:** properly calculates deployment escrow balance ([4ea20e4](https://github.com/akash-network/console/commit/4ea20e4a7846a0fa588b9d8b8ad036f8165409c8))
+
+## [2.89.1](https://github.com/akash-network/console/compare/console-web/v2.89.0...console-web/v2.89.1) (2025-06-24)
+
+
+### Bug Fixes
+
+* **alert:** clear up unsaved changes for a closed deployment ([8792ec7](https://github.com/akash-network/console/commit/8792ec771419e1a94e288b983e00530c88489e8d))
+
+## [2.89.0](https://github.com/akash-network/console/compare/console-web/v2.88.0...console-web/v2.89.0) (2025-06-24)
+
+
+### Features
+
+* **alert:** uses back nav blocker having unsaved changes ([ace5358](https://github.com/akash-network/console/commit/ace53583d029387d54e3ae0714c8d995c0f7b2f3))
+
+
+### Bug Fixes
+
+* enable sourcemaps for deploy-web ([#1538](https://github.com/akash-network/console/issues/1538)) ([a9beccd](https://github.com/akash-network/console/commit/a9beccd9aa7a9c22853b70125ea10dbc625ae729))
+
+## [2.88.0](https://github.com/akash-network/console/compare/console-web/v2.87.1...console-web/v2.88.0) (2025-06-23)
+
+
+### Features
+
+* **alert:** implements notification channel safe delete ([e023ce0](https://github.com/akash-network/console/commit/e023ce09fd6612c9c2d0d3e9dc3178648975bd5d))
+
+## [2.87.1](https://github.com/akash-network/console/compare/console-web/v2.87.0...console-web/v2.87.1) (2025-06-23)
+
+
+### Bug Fixes
+
+* **alert:** convert akt denom to udenom when saving balance alert threshold ([5da379a](https://github.com/akash-network/console/commit/5da379ae430971637396f19f9784fc4806f6a505))
+
+## [2.87.0](https://github.com/akash-network/console/compare/console-web/v2.86.0...console-web/v2.87.0) (2025-06-22)
+
+
+### Features
+
+* **alert:** disables form if deployment is closed ([cc46ea9](https://github.com/akash-network/console/commit/cc46ea9ed37e9fece145f4ce740fe190fd177ea6))
+* **alert:** improves deployment alerts list UI ([d81d92d](https://github.com/akash-network/console/commit/d81d92da218186d2af454c4411a2d641762722b0))
+* **alert:** improves deployment alerts UI  ([04a55a9](https://github.com/akash-network/console/commit/04a55a94d1bfac91acfc448f07641bab752192eb))
+
+
+### Code Refactoring
+
+* move /v1/nodes and /v1/version to a module ([#1458](https://github.com/akash-network/console/issues/1458)) ([fc814db](https://github.com/akash-network/console/commit/fc814db50418300b608b7ddeb7173b3a3882aa38)), closes [#1271](https://github.com/akash-network/console/issues/1271) [#1276](https://github.com/akash-network/console/issues/1276)
+
 ## [2.86.0](https://github.com/akash-network/console/compare/console-web/v2.85.0...console-web/v2.86.0) (2025-06-17)
 
 

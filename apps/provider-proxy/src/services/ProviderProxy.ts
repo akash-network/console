@@ -42,6 +42,7 @@ export class ProviderProxy {
           try {
             const socket = res.socket;
             if (!socket || !(socket instanceof TLSSocket)) {
+              res.destroy();
               return resolve({ ok: false, code: "insecureConnection" });
             }
 
@@ -62,6 +63,7 @@ export class ProviderProxy {
                 this.agentsCache.delete(genAgentsCacheKey(agentOptions));
                 resolve({ ok: false, code: "invalidCertificate", reason: validationResult.code });
                 req.off("error", reject);
+                res.destroy();
                 req.destroy();
                 agent.destroy();
                 return;
@@ -70,13 +72,16 @@ export class ProviderProxy {
 
             resolve({ ok: true, response: res });
           } catch (error) {
-            reject(error);
+            res.destroy();
+            resolve({ ok: false, code: "connectionError", error });
           }
         }
       );
 
       if (!req.reusedSocket) {
-        req.on("error", reject);
+        req.on("error", error => {
+          resolve({ ok: false, code: "connectionError", error });
+        });
         req.on("timeout", () => {
           // here we are just notified that response take more than specified in request options timeout
           // then we manually destroy request and it drops connection and
@@ -85,7 +90,7 @@ export class ProviderProxy {
         });
       }
 
-      if (options.body) req.write(options.body);
+      if (options.body && options.method !== "GET") req.write(options.body);
       req.end();
     });
   }
@@ -126,7 +131,8 @@ interface ProxyConnectionResultSuccess {
 
 type ProxyConnectionResultError =
   | { ok: false; code: "invalidCertificate"; reason: CertValidationResultError["code"] }
-  | { ok: false; code: "insecureConnection" };
+  | { ok: false; code: "insecureConnection" }
+  | { ok: false; code: "connectionError"; error: unknown };
 
 interface TLSChainAgentOptions extends https.AgentOptions {
   chainNetwork: SupportedChainNetworks;

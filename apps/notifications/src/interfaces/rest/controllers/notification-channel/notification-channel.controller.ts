@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiQuery } from "@nestjs/swagger";
 import { createZodDto } from "nestjs-zod";
 import { Err, Ok, Result } from "ts-results";
@@ -7,6 +7,7 @@ import { z } from "zod";
 import { NotFoundErrorResponse, ValidateHttp } from "@src/interfaces/rest/decorators/http-validate/http-validate.decorator";
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { toPaginatedQuery, toPaginatedResponse } from "@src/lib/http-schema/http-schema";
+import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import {
   notificationChannelConfigSchema,
   NotificationChannelOutput as RepoNotificationChannelOutput,
@@ -50,6 +51,7 @@ class NotificationChannelListOutput extends createZodDto(toPaginatedResponse(not
 export class NotificationChannelController {
   constructor(
     private readonly notificationChannelRepository: NotificationChannelRepository,
+    private readonly alertRepository: AlertRepository,
     private readonly authService: AuthService
   ) {}
 
@@ -128,8 +130,13 @@ export class NotificationChannelController {
     200: { schema: NotificationChannelOutput, description: "Returns the deleted notification channel" },
     404: { schema: NotFoundErrorResponse, description: "Returns 404 if the notification channel is not found" }
   })
-  async deleteNotificationChannel(@Param("id") id: string): Promise<Result<NotificationChannelOutputResponse, NotFoundException>> {
-    const notificationChannel = await this.notificationChannelRepository.accessibleBy(this.authService.ability, "delete").deleteById(id);
+  async deleteNotificationChannel(@Param("id") id: string): Promise<Result<NotificationChannelOutputResponse, NotFoundException | BadRequestException>> {
+    const count = await this.alertRepository.countActiveByNotificationChannelId(id);
+    if (count > 0) {
+      return Err(new BadRequestException("Cannot delete notification channel with alerts"));
+    }
+
+    const notificationChannel = await this.notificationChannelRepository.accessibleBy(this.authService.ability, "delete").deleteSafelyById(id);
     return this.toResponse(notificationChannel);
   }
 

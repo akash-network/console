@@ -4,7 +4,12 @@ description: 'Sets up Node.js and installs dependencies with caching'
 inputs:
   app:
     description: 'App name for cache key and workspace'
-    required: true
+    required: false
+    default: 'all'
+  setup-only-nodejs:
+    description: 'Setup only Node.js'
+    required: false
+    default: 'false'
 
 runs:
   using: "composite"
@@ -15,6 +20,7 @@ runs:
         node-version: 22.14.0
 
     - name: Restore root node_modules cache
+      if: inputs.setup-only-nodejs == 'false' && inputs.app != 'all'
       uses: actions/cache@v4
       id: cache
       with:
@@ -25,6 +31,13 @@ runs:
         key: ${{ inputs.app }}-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
     - name: Install dependencies
-      if: steps.cache.outputs.cache-hit != 'true'
+      if: inputs.setup-only-nodejs == 'false' && steps.cache.outputs.cache-hit != 'true'
       shell: bash
-      run: npm ci
+      env:
+        APP_UNDER_TEST: ${{ inputs.app }}
+      run: |
+        if [[ "$APP_UNDER_TEST" == "all" ]]; then
+          npm ci
+        else
+          npm ci -w "apps/$APP_UNDER_TEST"
+        fi

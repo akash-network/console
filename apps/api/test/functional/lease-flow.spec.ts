@@ -104,7 +104,7 @@ describe("Lease Flow", () => {
         })
       });
 
-      const result = await response.json();
+      const result = (await response.json()) as { data: BidResponse[] };
       if (result.data?.length > 0) {
         return result.data;
       }
@@ -127,7 +127,7 @@ describe("Lease Flow", () => {
       })
     });
     expect(initialBalancesResponse.status).toBe(200);
-    const initialBalances = (await initialBalancesResponse.json()).data;
+    const { data: initialBalances } = (await initialBalancesResponse.json()) as { data: { balance: number; deployments: number; total: number } };
     const initialBalance = initialBalances.balance;
     const initialDeployments = initialBalances.deployments;
     const initialTotal = initialBalances.total;
@@ -138,7 +138,7 @@ describe("Lease Flow", () => {
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
     });
     expect(certResponse.status).toBe(200);
-    const { certPem, encryptedKey } = (await certResponse.json()).data;
+    const { certPem, encryptedKey } = ((await certResponse.json()) as any).data;
 
     // 4. Create deployment
     const deployResponse = await app.request("/v1/deployments", {
@@ -152,7 +152,7 @@ describe("Lease Flow", () => {
       })
     });
     expect(deployResponse.status).toBe(201);
-    const { dseq, manifest } = (await deployResponse.json()).data;
+    const { dseq, manifest } = ((await deployResponse.json()) as any).data;
 
     // 5. Check balances after deployment creation
     const afterDeployBalancesResponse = await app.request("/v1/balances", {
@@ -163,7 +163,7 @@ describe("Lease Flow", () => {
       })
     });
     expect(afterDeployBalancesResponse.status).toBe(200);
-    const afterDeployBalances = (await afterDeployBalancesResponse.json()).data;
+    const afterDeployBalances = ((await afterDeployBalancesResponse.json()) as any).data;
     // Balance should be reduced by the deposit amount
     expect(afterDeployBalances.balance).toBeLessThan(initialBalance);
     // Deployments should be increased by the deposit amount
@@ -199,7 +199,7 @@ describe("Lease Flow", () => {
       body: JSON.stringify(body)
     });
     expect(leaseResponse.status).toBe(200);
-    const leaseResult = await leaseResponse.json();
+    const leaseResult = (await leaseResponse.json()) as any;
     expect(leaseResult.data.leases[0].status).toEqual(LeaseStatusSeeder.create());
 
     // 8. Deposit into deployment
@@ -219,7 +219,7 @@ describe("Lease Flow", () => {
       })
     });
     expect(afterDepositBalancesResponse.status).toBe(200);
-    const afterDepositBalances = (await afterDepositBalancesResponse.json()).data;
+    const afterDepositBalances = ((await afterDepositBalancesResponse.json()) as any).data;
     // Balance should be reduced by the additional deposit amount
     expect(afterDepositBalances.balance).toBeLessThan(afterDeployBalances.balance);
     // Deployments should be increased by the additional deposit amount
@@ -239,7 +239,7 @@ describe("Lease Flow", () => {
       body: JSON.stringify({ data: { sdl: ymlUpdate, certificate: { certPem, keyPem: encryptedKey } } })
     });
     expect(updateResponse.status).toBe(200);
-    const updateResult = await updateResponse.json();
+    const updateResult = (await updateResponse.json()) as any;
     expect(updateResult.data.leases[0].status).toEqual(LeaseStatusSeeder.create());
 
     // 11. Close deployment
@@ -248,7 +248,7 @@ describe("Lease Flow", () => {
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
     });
     expect(closeResponse.status).toBe(200);
-    const closeResult = await closeResponse.json();
+    const closeResult = (await closeResponse.json()) as any;
     expect(closeResult.data.success).toBe(true);
 
     // 12. Check final balances
@@ -260,7 +260,7 @@ describe("Lease Flow", () => {
       })
     });
     expect(finalBalancesResponse.status).toBe(200);
-    const finalBalances = (await finalBalancesResponse.json()).data;
+    const finalBalances = ((await finalBalancesResponse.json()) as any).data;
     // Balance should be increased back to initial level (minus fees)
     expect(finalBalances.balance).toBeGreaterThan(afterDepositBalances.balance);
     // Deployments should be decreased back to initial level
