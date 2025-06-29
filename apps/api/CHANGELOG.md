@@ -1,5 +1,19 @@
 
 
+## [2.102.6](https://github.com/akash-network/console/compare/console-api/v2.102.5...console-api/v2.102.6) (2025-06-28)
+
+
+### Bug Fixes
+
+* ensure getAllItems cyclic loop check happens after the 1st iteration ([#1573](https://github.com/akash-network/console/issues/1573)) ([349e15a](https://github.com/akash-network/console/commit/349e15a578df1a801a786d5b7a27e1354385d537))
+* updates @akashnetwork/akashjs ([#1575](https://github.com/akash-network/console/issues/1575)) ([ae86837](https://github.com/akash-network/console/commit/ae868378ae35db3342ff5d44f9d270644178c507))
+* upgrades nodejs to higher version ([#1563](https://github.com/akash-network/console/issues/1563)) ([dac08eb](https://github.com/akash-network/console/commit/dac08ebadcc29164eda2e76417ac85ec210ea1b0))
+
+
+### Code Refactoring
+
+* move block prediction endpoints to modules ([#1444](https://github.com/akash-network/console/issues/1444)) ([e9f2acd](https://github.com/akash-network/console/commit/e9f2acdf47074cc9447bf09bfabe71c24449012a)), closes [#1270](https://github.com/akash-network/console/issues/1270)
+
 ## [2.102.5](https://github.com/akash-network/console/compare/console-api/v2.102.4...console-api/v2.102.5) (2025-06-26)
 
 
