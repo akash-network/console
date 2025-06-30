@@ -3,7 +3,7 @@ import { faker } from "@faker-js/faker";
 import { merge } from "lodash";
 import type { PartialDeep } from "type-fest";
 
-import { AkashAddressSeeder } from "./akash-address.seeder";
+import { createAkashAddress } from "./akash-address.seeder";
 
 import { DenomSeeder } from "@test/seeders/denom.seeder";
 
@@ -11,8 +11,8 @@ export class DeploymentGrantSeeder {
   static create(input: PartialDeep<DepositDeploymentGrant> = {}): DepositDeploymentGrant {
     return merge(
       {
-        granter: AkashAddressSeeder.create(),
-        grantee: AkashAddressSeeder.create(),
+        granter: createAkashAddress(),
+        grantee: createAkashAddress(),
         authorization: {
           "@type": "/akash.deployment.v1beta3.DepositDeploymentAuthorization",
           spend_limit: {

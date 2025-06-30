@@ -4,10 +4,7 @@ import { format, subDays } from "date-fns";
 import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/core";
 
-import { BlockSeeder } from "@test/seeders/block.seeder";
-import { DaySeeder } from "@test/seeders/day.seeder";
-import { ProviderSeeder } from "@test/seeders/provider.seeder";
-import { ProviderSnapshotSeeder } from "@test/seeders/provider-snapshot.seeder";
+import { createAkashBlock, createDay, createProvider, createProviderSnapshot } from "@test/seeders";
 
 describe("Provider Graph Data", () => {
   let providers: Provider[];
@@ -22,19 +19,19 @@ describe("Provider Graph Data", () => {
     await initDb();
 
     await Promise.all([
-      DaySeeder.createInDatabase({
+      createDay({
         date: format(threeDaysAgo, "yyyy-MM-dd"),
         firstBlockHeight: 1,
         lastBlockHeight: 100,
         lastBlockHeightYet: 100
       }),
-      DaySeeder.createInDatabase({
+      createDay({
         date: format(twoDaysAgo, "yyyy-MM-dd"),
         firstBlockHeight: 101,
         lastBlockHeight: 200,
         lastBlockHeightYet: 200
       }),
-      DaySeeder.createInDatabase({
+      createDay({
         date: format(yesterday, "yyyy-MM-dd"),
         firstBlockHeight: 201,
         lastBlockHeight: 300,
@@ -42,9 +39,9 @@ describe("Provider Graph Data", () => {
       })
     ]);
 
-    providers = await Promise.all([ProviderSeeder.createInDatabase(), ProviderSeeder.createInDatabase()]);
+    providers = await Promise.all([createProvider(), createProvider()]);
     providerSnapshots = await Promise.all([
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[0].owner,
         checkDate: threeDaysAgo,
         isOnline: true,
@@ -65,7 +62,7 @@ describe("Provider Graph Data", () => {
         availablePersistentStorage: 114,
         availableEphemeralStorage: 115
       }),
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[0].owner,
         checkDate: twoDaysAgo,
         isOnline: true,
@@ -86,7 +83,7 @@ describe("Provider Graph Data", () => {
         availablePersistentStorage: 214,
         availableEphemeralStorage: 215
       }),
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[0].owner,
         checkDate: yesterday,
         isOnline: true,
@@ -107,7 +104,7 @@ describe("Provider Graph Data", () => {
         availablePersistentStorage: 314,
         availableEphemeralStorage: 315
       }),
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[1].owner,
         checkDate: threeDaysAgo,
         isOnline: true,
@@ -128,7 +125,7 @@ describe("Provider Graph Data", () => {
         availablePersistentStorage: 414,
         availableEphemeralStorage: 415
       }),
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[1].owner,
         checkDate: twoDaysAgo,
         isOnline: true,
@@ -149,7 +146,7 @@ describe("Provider Graph Data", () => {
         availablePersistentStorage: 514,
         availableEphemeralStorage: 515
       }),
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[1].owner,
         checkDate: yesterday,
         isOnline: true,
@@ -181,15 +178,15 @@ describe("Provider Graph Data", () => {
     ]);
 
     await Promise.all([
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: threeDaysAgo,
         height: 100
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: twoDaysAgo,
         height: 200
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: yesterday,
         height: 300,
         isProcessed: true
@@ -246,7 +243,7 @@ describe("Provider Graph Data", () => {
       const today = new Date();
       today.setHours(0, 14, 59, 999);
 
-      await ProviderSnapshotSeeder.createInDatabase({
+      await createProviderSnapshot({
         owner: providers[0].owner,
         checkDate: today,
         isOnline: true,
@@ -268,14 +265,14 @@ describe("Provider Graph Data", () => {
         availableEphemeralStorage: 1000
       });
 
-      await DaySeeder.createInDatabase({
+      await createDay({
         date: format(today, "yyyy-MM-dd"),
         firstBlockHeight: 301,
         lastBlockHeight: 400,
         lastBlockHeightYet: 400
       });
 
-      await BlockSeeder.createInDatabase({
+      await createAkashBlock({
         datetime: today,
         height: 400
       });
