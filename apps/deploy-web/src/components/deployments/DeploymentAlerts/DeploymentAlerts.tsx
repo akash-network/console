@@ -6,10 +6,14 @@ import { LoadingButton } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { merge } from "lodash";
 import isEqual from "lodash/isEqual";
-import pick from "lodash/pick";
 import { z } from "zod";
 
-import type { ChildrenProps, ContainerInput, FullAlertsInput } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
+import type {
+  ChildrenProps,
+  ContainerInput,
+  DeploymentAlertsOutput,
+  FullAlertsInput
+} from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { DeploymentAlertsContainer } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { NotificationChannelsGuard } from "@src/components/alerts/NotificationChannelsGuard/NotificationChannelsGuard";
 import type { NotificationChannelsOutput } from "@src/components/alerts/NotificationChannelsListContainer/NotificationChannelsListContainer";
@@ -58,16 +62,6 @@ const DEFAULT_VALUES = {
   }
 };
 
-const pickFormValues = (providedValues: NonNullable<ChildrenProps["data"]>["alerts"]) => {
-  return pick(providedValues, [
-    "deploymentBalance.enabled",
-    "deploymentBalance.notificationChannelId",
-    "deploymentBalance.threshold",
-    "deploymentClosed.enabled",
-    "deploymentClosed.notificationChannelId"
-  ]) as z.infer<typeof schema>;
-};
-
 export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   isLoading,
   data,
@@ -87,10 +81,12 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
     });
   }, [maxBalanceThreshold]);
 
-  const providedValues = useMemo(() => {
-    return data?.alerts && Object.keys(data?.alerts).length
-      ? pickFormValues(data.alerts)
-      : merge({}, DEFAULT_VALUES, {
+  const assignDefaults = useCallback(
+    (alerts?: DeploymentAlertsOutput["alerts"]) => {
+      return merge(
+        {},
+        DEFAULT_VALUES,
+        {
           deploymentBalance: {
             notificationChannelId: notificationChannels[0]?.id || "",
             threshold: ceilDecimal(0.3 * maxBalanceThreshold)
@@ -98,8 +94,16 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
           deploymentClosed: {
             notificationChannelId: notificationChannels[0]?.id || ""
           }
-        });
-  }, [data?.alerts, maxBalanceThreshold, notificationChannels]);
+        },
+        alerts
+      );
+    },
+    [maxBalanceThreshold, notificationChannels]
+  );
+
+  const providedValues = useMemo(() => {
+    return assignDefaults(data?.alerts);
+  }, [assignDefaults, data?.alerts]);
 
   const form = useForm({
     defaultValues: providedValues,
@@ -135,9 +139,9 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
 
     const nextValues = await upsert({ alerts: payload as ContainerInput["alerts"] });
     if (nextValues) {
-      form.reset(pickFormValues(nextValues.alerts));
+      form.reset(assignDefaults(nextValues.alerts));
     }
-  }, [values, providedValues.deploymentBalance, providedValues.deploymentClosed, upsert, form]);
+  }, [values, providedValues.deploymentBalance, providedValues.deploymentClosed, upsert, form, assignDefaults]);
 
   return (
     <FormProvider {...form}>

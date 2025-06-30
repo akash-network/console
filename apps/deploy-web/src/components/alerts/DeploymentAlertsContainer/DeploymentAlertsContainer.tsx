@@ -15,7 +15,7 @@ import type { DeploymentDto } from "@src/types/deployment";
 import { ceilDecimal, denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 
 type DeploymentAlertsInput = components["schemas"]["DeploymentAlertCreateInput"]["data"];
-type DeploymentAlertsOutput = components["schemas"]["DeploymentAlertsResponse"]["data"];
+export type DeploymentAlertsOutput = components["schemas"]["DeploymentAlertsResponse"]["data"];
 
 export type FullAlertsInput = {
   deploymentClosed: NonNullable<DeploymentAlertsInput["alerts"]["deploymentClosed"]>;
