@@ -8,35 +8,41 @@ import { closeConnections } from "@src/db/dbConnection";
 import { apiNodeUrl } from "@src/utils/constants";
 
 import { createAddressReferenceInDatabase } from "@test/seeders/address-reference.seeder";
-import { AkashMessageSeeder } from "@test/seeders/akash-message.seeder";
-import { BlockSeeder } from "@test/seeders/block.seeder";
-import { DaySeeder } from "@test/seeders/day.seeder";
-import { DeploymentSeeder } from "@test/seeders/deployment.seeder";
-import { DeploymentGroupSeeder } from "@test/seeders/deployment-group.seeder";
-import { LeaseSeeder } from "@test/seeders/lease.seeder";
-import { ProviderSeeder } from "@test/seeders/provider.seeder";
-import { TransactionSeeder } from "@test/seeders/transaction.seeder";
-import { ValidatorSeeder } from "@test/seeders/validator.seeder";
+import { createAkashBlock } from "@test/seeders/akash-block.seeder";
+import { createAkashMessage } from "@test/seeders/akash-message.seeder";
+import { createDay } from "@test/seeders/day.seeder";
+import { createDeployment } from "@test/seeders/deployment.seeder";
+import { createDeploymentGroup } from "@test/seeders/deployment-group.seeder";
+import { createLease } from "@test/seeders/lease.seeder";
+import { createProvider } from "@test/seeders/provider.seeder";
+import { createTransaction } from "@test/seeders/transaction.seeder";
+import { createValidator } from "@test/seeders/validator.seeder";
 
 describe("Addresses API", () => {
-  let validators: Validator[];
-  let transactions: Transaction[];
-  const address = "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm";
-  const currentHeight = 100;
+  const testData: {
+    validators?: Validator[];
+    transactions?: Transaction[];
+    address?: string;
+  } = {};
+  let isDbInitialized = false;
 
-  beforeAll(async () => {
+  const setup = async () => {
     await initDb();
+    if (isDbInitialized) {
+      return testData;
+    }
 
-    validators = await Promise.all([
-      ValidatorSeeder.createInDatabase({
-        accountAddress: address
+    testData.address = "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm";
+    testData.validators = await Promise.all([
+      createValidator({
+        accountAddress: testData.address
       }),
-      ValidatorSeeder.createInDatabase()
+      createValidator()
     ]);
 
     nock(apiNodeUrl)
       .persist()
-      .get(`/cosmos/bank/v1beta1/balances/${address}?pagination.limit=1000`)
+      .get(`/cosmos/bank/v1beta1/balances/${testData.address}?pagination.limit=1000`)
       .reply(200, {
         balances: [
           {
@@ -52,13 +58,13 @@ describe("Addresses API", () => {
 
     nock(apiNodeUrl)
       .persist()
-      .get(`/cosmos/staking/v1beta1/delegations/${address}?pagination.limit=1000`)
+      .get(`/cosmos/staking/v1beta1/delegations/${testData.address}?pagination.limit=1000`)
       .reply(200, {
         delegation_responses: [
           {
             delegation: {
-              delegator_address: address,
-              validator_address: validators[0].operatorAddress,
+              delegator_address: testData.address,
+              validator_address: testData.validators[0].operatorAddress,
               shares: "1000000"
             },
             balance: {
@@ -75,14 +81,14 @@ describe("Addresses API", () => {
 
     nock(apiNodeUrl)
       .persist()
-      .get(`/cosmos/staking/v1beta1/delegators/${address}/redelegations?pagination.limit=1000`)
+      .get(`/cosmos/staking/v1beta1/delegators/${testData.address}/redelegations?pagination.limit=1000`)
       .reply(200, {
         redelegation_responses: [
           {
             redelegation: {
-              delegator_address: address,
-              validator_src_address: validators[0].operatorAddress,
-              validator_dst_address: validators[1].operatorAddress
+              delegator_address: testData.address,
+              validator_src_address: testData.validators[0].operatorAddress,
+              validator_dst_address: testData.validators[1].operatorAddress
             },
             entries: [
               {
@@ -105,7 +111,7 @@ describe("Addresses API", () => {
 
     nock(apiNodeUrl)
       .persist()
-      .get(`/cosmos/distribution/v1beta1/delegators/${address}/rewards`)
+      .get(`/cosmos/distribution/v1beta1/delegators/${testData.address}/rewards`)
       .reply(200, {
         total: [
           {
@@ -115,7 +121,7 @@ describe("Addresses API", () => {
         ],
         rewards: [
           {
-            validator_address: validators[0].operatorAddress,
+            validator_address: testData.validators[0].operatorAddress,
             reward: [
               {
                 denom: "uakt",
@@ -128,24 +134,24 @@ describe("Addresses API", () => {
 
     nock(apiNodeUrl)
       .persist()
-      .get(`/cosmos/distribution/v1beta1/validators/${validators[0].operatorAddress}/commission`)
+      .get(`/cosmos/distribution/v1beta1/validators/${testData.validators[0].operatorAddress}/commission`)
       .reply(200, {
         commission: { commission: [{ denom: "uakt", amount: "10" }] }
       });
 
-    const provider = await ProviderSeeder.createInDatabase();
+    const provider = await createProvider();
 
     const deployments = await Promise.all([
-      DeploymentSeeder.createInDatabase({
-        owner: address,
+      createDeployment({
+        owner: testData.address,
         dseq: "1234",
         createdHeight: 100,
         balance: 1000000,
         deposit: 1000000,
         denom: "uakt"
       }),
-      DeploymentSeeder.createInDatabase({
-        owner: address,
+      createDeployment({
+        owner: testData.address,
         dseq: "1234",
         createdHeight: 100,
         balance: 1000000,
@@ -155,19 +161,19 @@ describe("Addresses API", () => {
     ]);
 
     const deploymentGroup = await Promise.all([
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[0].id,
-        owner: address
+        owner: testData.address
       }),
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[1].id,
-        owner: address
+        owner: testData.address
       })
     ]);
 
     await Promise.all([
-      LeaseSeeder.createInDatabase({
-        owner: address,
+      createLease({
+        owner: testData.address,
         dseq: "1234",
         gseq: 1,
         oseq: 1,
@@ -176,8 +182,8 @@ describe("Addresses API", () => {
         deploymentGroupId: deploymentGroup[0].id,
         providerAddress: provider.owner
       }),
-      LeaseSeeder.createInDatabase({
-        owner: address,
+      createLease({
+        owner: testData.address,
         dseq: "1234",
         gseq: 1,
         oseq: 1,
@@ -191,14 +197,14 @@ describe("Addresses API", () => {
     nock(apiNodeUrl)
       .persist()
       .get(
-        `/akash/deployment/v1beta3/deployments/list?filters.owner=${address}&pagination.limit=10&pagination.offset=0&pagination.count_total=true&pagination.reverse=false`
+        `/akash/deployment/v1beta3/deployments/list?filters.owner=${testData.address}&pagination.limit=10&pagination.offset=0&pagination.count_total=true&pagination.reverse=false`
       )
       .reply(200, {
         deployments: [
           {
             deployment: {
               deployment_id: {
-                owner: address,
+                owner: testData.address,
                 dseq: "111"
               },
               state: "active",
@@ -222,7 +228,7 @@ describe("Addresses API", () => {
           {
             deployment: {
               deployment_id: {
-                owner: address,
+                owner: testData.address,
                 dseq: "222"
               },
               state: "active",
@@ -251,13 +257,13 @@ describe("Addresses API", () => {
 
     nock(apiNodeUrl)
       .persist()
-      .get(`/akash/market/v1beta4/leases/list?filters.owner=${address}&filters.state=active`)
+      .get(`/akash/market/v1beta4/leases/list?filters.owner=${testData.address}&filters.state=active`)
       .reply(200, {
         leases: [
           {
             lease: {
               lease_id: {
-                owner: address,
+                owner: testData.address,
                 dseq: "111"
               }
             }
@@ -265,7 +271,7 @@ describe("Addresses API", () => {
           {
             lease: {
               lease_id: {
-                owner: address,
+                owner: testData.address,
                 dseq: "222"
               }
             }
@@ -276,14 +282,14 @@ describe("Addresses API", () => {
     const now = new Date();
     const height = 100;
 
-    await DaySeeder.createInDatabase({
+    await createDay({
       date: format(now, "yyyy-MM-dd"),
       firstBlockHeight: height,
       lastBlockHeight: height,
       lastBlockHeightYet: height
     });
 
-    await BlockSeeder.createInDatabase({
+    await createAkashBlock({
       height,
       datetime: new Date().toISOString(),
       hash: faker.string.hexadecimal({ length: 64 }),
@@ -291,14 +297,14 @@ describe("Addresses API", () => {
       txCount: 1
     });
 
-    transactions = await Promise.all([
-      TransactionSeeder.createInDatabase({
+    testData.transactions = await Promise.all([
+      createTransaction({
         height,
         index: 1,
         hash: faker.string.hexadecimal({ length: 64 }),
         msgCount: 1
       }),
-      TransactionSeeder.createInDatabase({
+      createTransaction({
         height,
         index: 2,
         hash: faker.string.hexadecimal({ length: 64 }),
@@ -306,16 +312,17 @@ describe("Addresses API", () => {
       })
     ]);
 
+    const currentHeight = 100;
     const messages = await Promise.all([
-      AkashMessageSeeder.createInDatabase({
-        txId: transactions[0].id,
+      createAkashMessage({
+        txId: testData.transactions[0].id,
         height: currentHeight,
         type: "/cosmos.bank.v1beta1.MsgSend",
         typeCategory: "cosmos",
         amount: "100"
       }),
-      AkashMessageSeeder.createInDatabase({
-        txId: transactions[1].id,
+      createAkashMessage({
+        txId: testData.transactions[1].id,
         height: currentHeight,
         type: "/cosmos.bank.v1beta1.MsgSend",
         typeCategory: "cosmos",
@@ -325,19 +332,23 @@ describe("Addresses API", () => {
 
     await Promise.all([
       createAddressReferenceInDatabase({
-        transactionId: transactions[0].id,
+        transactionId: testData.transactions[0].id,
         messageId: messages[0].id,
         address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm",
         type: "sender"
       }),
       createAddressReferenceInDatabase({
-        transactionId: transactions[1].id,
+        transactionId: testData.transactions[1].id,
         messageId: messages[1].id,
         address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm",
         type: "sender"
       })
     ]);
-  });
+
+    isDbInitialized = true;
+
+    return testData;
+  };
 
   afterAll(async () => {
     await closeConnections();
@@ -345,12 +356,10 @@ describe("Addresses API", () => {
     nock.cleanAll();
   });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
   describe("GET /v1/addresses/{address}", () => {
     it("returns address information", async () => {
+      const { validators, transactions, address } = await setup();
+
       const response = await app.request(`/v1/addresses/${address}`);
 
       expect(response.status).toBe(200);
@@ -411,6 +420,8 @@ describe("Addresses API", () => {
     });
 
     it("returns 400 when address is not a valid akash address", async () => {
+      await setup();
+
       const response = await app.request("/v1/addresses/invalid-address");
 
       expect(response.status).toBe(400);
@@ -419,6 +430,8 @@ describe("Addresses API", () => {
 
   describe("GET /v1/addresses/{address}/transactions/{skip}/{limit}", () => {
     it("returns paginated transactions for an address", async () => {
+      const { address, transactions } = await setup();
+
       const response = await app.request(`/v1/addresses/${address}/transactions/0/10`);
 
       expect(response.status).toBe(200);
@@ -437,18 +450,24 @@ describe("Addresses API", () => {
     });
 
     it("returns 400 when address is not a valid akash address", async () => {
+      await setup();
+
       const response = await app.request("/v1/addresses/invalid-address/transactions/0/10");
 
       expect(response.status).toBe(400);
     });
 
     it("returns 400 when skip is not a number", async () => {
+      const { address } = await setup();
+
       const response = await app.request(`/v1/addresses/${address}/transactions/invalid/10`);
 
       expect(response.status).toBe(400);
     });
 
     it("returns 400 when limit is not a number", async () => {
+      const { address } = await setup();
+
       const response = await app.request(`/v1/addresses/${address}/transactions/0/invalid`);
 
       expect(response.status).toBe(400);
@@ -457,6 +476,8 @@ describe("Addresses API", () => {
 
   describe("GET /v1/addresses/{address}/deployments/{skip}/{limit}", () => {
     it("returns paginated deployments for an address", async () => {
+      const { address } = await setup();
+
       const response = await app.request(`/v1/addresses/${address}/deployments/0/10`);
 
       expect(response.status).toBe(200);
@@ -472,24 +493,32 @@ describe("Addresses API", () => {
     });
 
     it("returns 400 when address is not a valid akash address", async () => {
+      await setup();
+
       const response = await app.request("/v1/addresses/invalid-address/deployments/0/10");
 
       expect(response.status).toBe(400);
     });
 
     it("returns 400 when skip is not a number", async () => {
+      const { address } = await setup();
+
       const response = await app.request(`/v1/addresses/${address}/deployments/invalid/10`);
 
       expect(response.status).toBe(400);
     });
 
     it("returns 400 when limit is not a number", async () => {
+      const { address } = await setup();
+
       const response = await app.request(`/v1/addresses/${address}/deployments/0/invalid`);
 
       expect(response.status).toBe(400);
     });
 
     it("returns 400 when status is not active or closed", async () => {
+      const { address } = await setup();
+
       const response = await app.request(`/v1/addresses/${address}/deployments/0/10?status=invalid`);
 
       expect(response.status).toBe(400);
