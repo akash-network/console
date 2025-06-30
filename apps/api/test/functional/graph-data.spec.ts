@@ -5,12 +5,7 @@ import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/core";
 import { AuthorizedGraphDataNames } from "@src/services/db/statsService";
 
-import { BlockSeeder } from "@test/seeders/block.seeder";
-import { DaySeeder } from "@test/seeders/day.seeder";
-import { ProviderSeeder } from "@test/seeders/provider.seeder";
-import { ProviderSnapshotSeeder } from "@test/seeders/provider-snapshot.seeder";
-import { ProviderSnapshotNodeSeeder } from "@test/seeders/provider-snapshot-node.seeder";
-import { ProviderSnapshotNodeGpuSeeder } from "@test/seeders/provider-snapshot-node-gpu.seeder";
+import { createAkashBlock, createDay, createProvider, createProviderSnapshot, createProviderSnapshotNode, createProviderSnapshotNodeGpu } from "@test/seeders";
 
 describe("Graph Data", () => {
   let providers: Provider[];
@@ -25,19 +20,19 @@ describe("Graph Data", () => {
     await initDb();
 
     await Promise.all([
-      DaySeeder.createInDatabase({
+      createDay({
         date: format(threeDaysAgo, "yyyy-MM-dd"),
         firstBlockHeight: 1,
         lastBlockHeight: 100,
         lastBlockHeightYet: 100
       }),
-      DaySeeder.createInDatabase({
+      createDay({
         date: format(twoDaysAgo, "yyyy-MM-dd"),
         firstBlockHeight: 101,
         lastBlockHeight: 200,
         lastBlockHeightYet: 200
       }),
-      DaySeeder.createInDatabase({
+      createDay({
         date: format(yesterday, "yyyy-MM-dd"),
         firstBlockHeight: 201,
         lastBlockHeight: 300,
@@ -45,9 +40,9 @@ describe("Graph Data", () => {
       })
     ]);
 
-    providers = await Promise.all([ProviderSeeder.createInDatabase(), ProviderSeeder.createInDatabase()]);
+    providers = await Promise.all([createProvider(), createProvider()]);
     providerSnapshots = await Promise.all([
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[0].owner,
         checkDate: threeDaysAgo,
         isOnline: true,
@@ -68,7 +63,7 @@ describe("Graph Data", () => {
         availablePersistentStorage: 114,
         availableEphemeralStorage: 115
       }),
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[0].owner,
         checkDate: twoDaysAgo,
         isOnline: true,
@@ -89,7 +84,7 @@ describe("Graph Data", () => {
         availablePersistentStorage: 214,
         availableEphemeralStorage: 215
       }),
-      ProviderSnapshotSeeder.createInDatabase({
+      createProviderSnapshot({
         owner: providers[0].owner,
         checkDate: yesterday,
         isOnline: true,
@@ -113,19 +108,19 @@ describe("Graph Data", () => {
     ]);
 
     const providerSnapshotNodes = await Promise.all([
-      ProviderSnapshotNodeSeeder.createInDatabase({
+      createProviderSnapshotNode({
         snapshotId: providerSnapshots[0].id,
         name: "GPU 1",
         gpuAllocatable: 100,
         gpuAllocated: 50
       }),
-      ProviderSnapshotNodeSeeder.createInDatabase({
+      createProviderSnapshotNode({
         snapshotId: providerSnapshots[1].id,
         name: "GPU 1",
         gpuAllocatable: 100,
         gpuAllocated: 50
       }),
-      ProviderSnapshotNodeSeeder.createInDatabase({
+      createProviderSnapshotNode({
         snapshotId: providerSnapshots[2].id,
         name: "GPU 1",
         gpuAllocatable: 100,
@@ -134,23 +129,17 @@ describe("Graph Data", () => {
     ]);
 
     await Promise.all([
-      ProviderSnapshotNodeGpuSeeder.createInDatabase({
+      createProviderSnapshotNodeGpu({
         snapshotNodeId: providerSnapshotNodes[0].id,
-        name: "GPU 1",
-        gpuAllocatable: 100,
-        gpuAllocated: 50
+        name: "GPU 1"
       }),
-      ProviderSnapshotNodeGpuSeeder.createInDatabase({
+      createProviderSnapshotNodeGpu({
         snapshotNodeId: providerSnapshotNodes[1].id,
-        name: "GPU 1",
-        gpuAllocatable: 100,
-        gpuAllocated: 50
+        name: "GPU 1"
       }),
-      ProviderSnapshotNodeGpuSeeder.createInDatabase({
+      createProviderSnapshotNodeGpu({
         snapshotNodeId: providerSnapshotNodes[2].id,
-        name: "GPU 1",
-        gpuAllocatable: 100,
-        gpuAllocated: 50
+        name: "GPU 1"
       })
     ]);
 
@@ -161,15 +150,15 @@ describe("Graph Data", () => {
     ]);
 
     await Promise.all([
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: threeDaysAgo,
         height: 100
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: twoDaysAgo,
         height: 200
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: yesterday,
         height: 300,
         isProcessed: true

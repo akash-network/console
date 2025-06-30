@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 
 import type { AutoTopUpDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import { AkashAddressSeeder } from "./akash-address.seeder";
+import { createAkashAddress } from "./akash-address.seeder";
 
 export class AutoTopUpDeploymentSeeder {
   static create(overrides: Partial<AutoTopUpDeployment> = {}): AutoTopUpDeployment {
@@ -9,7 +9,7 @@ export class AutoTopUpDeploymentSeeder {
       id: faker.string.uuid(),
       walletId: faker.number.int(),
       dseq: faker.string.numeric(),
-      address: AkashAddressSeeder.create(),
+      address: createAkashAddress(),
       ...overrides
     };
   }

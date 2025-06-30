@@ -2,8 +2,7 @@ import "@test/setup-functional-tests"; // eslint-disable-line simple-import-sort
 
 import { Provider, ProviderAttribute, ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
 import { chainDb } from "@src/db/dbConnection";
-import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
-import { ProviderSeeder } from "@test/seeders/provider.seeder";
+import { createAkashAddress, createProviderSeed } from "@test/seeders";
 import type { CreationAttributes } from "sequelize";
 import { Op } from "sequelize";
 import type { ModelCtor } from "sequelize-typescript";
@@ -151,16 +150,16 @@ describe(ProviderRepository.name, () => {
 
     it("returns providers urls by plain signed attributes with allOf.length = 1", async () => {
       const { providerRepository } = setup();
-      const auditor = AkashAddressSeeder.create();
+      const auditor = createAkashAddress();
       const providers = await Promise.all([
         createProvider({
           providerAttributeSignatures: [{ key: "region", value: "us-east", auditor }]
         }),
         createProvider({
-          providerAttributeSignatures: [{ key: "region", value: "us-east", auditor: AkashAddressSeeder.create() }]
+          providerAttributeSignatures: [{ key: "region", value: "us-east", auditor: createAkashAddress() }]
         }),
         createProvider({
-          providerAttributeSignatures: [{ key: "region", value: "us-east", auditor: AkashAddressSeeder.create() }]
+          providerAttributeSignatures: [{ key: "region", value: "us-east", auditor: createAkashAddress() }]
         })
       ]);
 
@@ -171,7 +170,7 @@ describe(ProviderRepository.name, () => {
 
     it("returns providers urls by plain signed attributes with allOf.length > 1", async () => {
       const { providerRepository } = setup();
-      const auditors = [AkashAddressSeeder.create(), AkashAddressSeeder.create()];
+      const auditors = [createAkashAddress(), createAkashAddress()];
 
       const providers = await Promise.all([
         createProvider({
@@ -195,7 +194,7 @@ describe(ProviderRepository.name, () => {
 
     it("returns providers urls by plain signed attributes with anyOf", async () => {
       const { providerRepository } = setup();
-      const auditors = [AkashAddressSeeder.create(), AkashAddressSeeder.create()];
+      const auditors = [createAkashAddress(), createAkashAddress()];
 
       const providers = await Promise.all([
         createProvider({
@@ -211,7 +210,7 @@ describe(ProviderRepository.name, () => {
           providerAttributeSignatures: [{ key: "region", value: "us-east", auditor: auditors[1] }]
         }),
         createProvider({
-          providerAttributeSignatures: [{ key: "region", value: "us-east", auditor: AkashAddressSeeder.create() }]
+          providerAttributeSignatures: [{ key: "region", value: "us-east", auditor: createAkashAddress() }]
         })
       ]);
 
@@ -223,7 +222,7 @@ describe(ProviderRepository.name, () => {
 
     it("returns providers urls by signed attributes with allOf and anyOf", async () => {
       const { providerRepository } = setup();
-      const auditors = Array.from({ length: 4 }, () => AkashAddressSeeder.create());
+      const auditors = Array.from({ length: 4 }, () => createAkashAddress());
 
       const providers = await Promise.all([
         createProvider({
@@ -281,7 +280,7 @@ describe(ProviderRepository.name, () => {
 
     const provider = await Provider.create(
       {
-        ...ProviderSeeder.create({
+        ...createProviderSeed({
           hostUri: `https://test-provider-${++providerIndex}-${Date.now()}.com`,
           isOnline: true,
           createdHeight: height,

@@ -20,6 +20,7 @@ export const env = z
       .optional()
       .default(3 * 60),
     NODE_API_BASE_PATH: z.string().optional().default("https://raw.githubusercontent.com/akash-network"),
-    GPU_BOT_WALLET_MNEMONIC: z.string().optional()
+    GPU_BOT_WALLET_MNEMONIC: z.string().optional(),
+    PRICING_BOT_ADDRESS: z.string().optional().default("akash1pas6v0905jgyznpvnjhg7tsthuyqek60gkz7uf")
   })
   .parse(process.env);

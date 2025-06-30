@@ -3,13 +3,7 @@ import { format, subDays } from "date-fns";
 import { app, initDb } from "@src/app";
 import type { UsageHistoryResponse, UsageHistoryStats } from "@src/billing/http-schemas/usage.schema";
 
-import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
-import { BlockSeeder } from "@test/seeders/block.seeder";
-import { DaySeeder } from "@test/seeders/day.seeder";
-import { DeploymentSeeder } from "@test/seeders/deployment.seeder";
-import { DeploymentGroupSeeder } from "@test/seeders/deployment-group.seeder";
-import { LeaseSeeder } from "@test/seeders/lease.seeder";
-import { ProviderSeeder } from "@test/seeders/provider.seeder";
+import { createAkashAddress, createAkashBlock, createDay, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
 
 describe("GET /v1/usage/history", () => {
   let isDbInitialized = false;
@@ -20,9 +14,9 @@ describe("GET /v1/usage/history", () => {
 
     const dates = [subDays(now, 7), subDays(now, 6), subDays(now, 5), subDays(now, 4), subDays(now, 3), subDays(now, 2), subDays(now, 1), now];
 
-    const providers = await Promise.all([ProviderSeeder.createInDatabase({ deletedHeight: null }), ProviderSeeder.createInDatabase({ deletedHeight: null })]);
+    const providers = await Promise.all([createProvider({ deletedHeight: null }), createProvider({ deletedHeight: null })]);
 
-    const owners = [AkashAddressSeeder.create(), AkashAddressSeeder.create(), AkashAddressSeeder.create()];
+    const owners = [createAkashAddress(), createAkashAddress(), createAkashAddress()];
 
     if (isDbInitialized) {
       return {
@@ -35,56 +29,56 @@ describe("GET /v1/usage/history", () => {
     await initDb();
 
     await Promise.all([
-      DaySeeder.createInDatabase({
+      createDay({
         date: format(dates[0], "yyyy-MM-dd"),
         firstBlockHeight: 1,
         lastBlockHeight: 100,
         lastBlockHeightYet: 100,
         aktPrice: 2.5
       }),
-      DaySeeder.createInDatabase({
+      createDay({
         date: format(dates[1], "yyyy-MM-dd"),
         firstBlockHeight: 101,
         lastBlockHeight: 200,
         lastBlockHeightYet: 200,
         aktPrice: 2.75
       }),
-      DaySeeder.createInDatabase({
+      createDay({
         date: format(dates[2], "yyyy-MM-dd"),
         firstBlockHeight: 201,
         lastBlockHeight: 300,
         lastBlockHeightYet: 300,
         aktPrice: 3.0
       }),
-      DaySeeder.createInDatabase({
+      createDay({
         date: format(dates[3], "yyyy-MM-dd"),
         firstBlockHeight: 301,
         lastBlockHeight: 400,
         lastBlockHeightYet: 400,
         aktPrice: 3.25
       }),
-      DaySeeder.createInDatabase({
+      createDay({
         date: format(dates[4], "yyyy-MM-dd"),
         firstBlockHeight: 401,
         lastBlockHeight: 500,
         lastBlockHeightYet: 500,
         aktPrice: 3.5
       }),
-      DaySeeder.createInDatabase({
+      createDay({
         date: format(dates[5], "yyyy-MM-dd"),
         firstBlockHeight: 501,
         lastBlockHeight: 600,
         lastBlockHeightYet: 600,
         aktPrice: 3.75
       }),
-      DaySeeder.createInDatabase({
+      createDay({
         date: format(dates[6], "yyyy-MM-dd"),
         firstBlockHeight: 601,
         lastBlockHeight: 700,
         lastBlockHeightYet: 700,
         aktPrice: 4.0
       }),
-      DaySeeder.createInDatabase({
+      createDay({
         date: format(dates[7], "yyyy-MM-dd"),
         firstBlockHeight: 701,
         lastBlockHeight: 800,
@@ -94,77 +88,77 @@ describe("GET /v1/usage/history", () => {
     ]);
 
     const blocks = await Promise.all([
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: dates[0],
         height: 50
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: dates[1],
         height: 150
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: dates[2],
         height: 250
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: dates[3],
         height: 350
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: dates[4],
         height: 450
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: dates[5],
         height: 550
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: dates[6],
         height: 650
       }),
-      BlockSeeder.createInDatabase({
+      createAkashBlock({
         datetime: dates[7],
         height: 750
       })
     ]);
 
     const deployments = await Promise.all([
-      DeploymentSeeder.createInDatabase({
+      createDeployment({
         owner: owners[0],
         dseq: "1001",
         createdHeight: blocks[0].height,
         closedHeight: blocks[3].height,
         denom: "uakt"
       }),
-      DeploymentSeeder.createInDatabase({
+      createDeployment({
         owner: owners[0],
         dseq: "1002",
         createdHeight: blocks[1].height,
         closedHeight: blocks[5].height,
         denom: "uusdc"
       }),
-      DeploymentSeeder.createInDatabase({
+      createDeployment({
         owner: owners[0],
         dseq: "1003",
         createdHeight: blocks[2].height,
         closedHeight: null,
         denom: "uakt"
       }),
-      DeploymentSeeder.createInDatabase({
+      createDeployment({
         owner: owners[1],
         dseq: "2001",
         createdHeight: blocks[1].height,
         closedHeight: blocks[4].height,
         denom: "uakt"
       }),
-      DeploymentSeeder.createInDatabase({
+      createDeployment({
         owner: owners[1],
         dseq: "2002",
         createdHeight: blocks[3].height,
         closedHeight: null,
         denom: "uusdc"
       }),
-      DeploymentSeeder.createInDatabase({
+      createDeployment({
         owner: owners[2],
         dseq: "3001",
         createdHeight: blocks[4].height,
@@ -174,32 +168,32 @@ describe("GET /v1/usage/history", () => {
     ]);
 
     const deploymentGroups = await Promise.all([
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[0].id,
         owner: owners[0],
         dseq: "1001"
       }),
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[1].id,
         owner: owners[0],
         dseq: "1002"
       }),
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[2].id,
         owner: owners[0],
         dseq: "1003"
       }),
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[3].id,
         owner: owners[1],
         dseq: "2001"
       }),
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[4].id,
         owner: owners[1],
         dseq: "2002"
       }),
-      DeploymentGroupSeeder.createInDatabase({
+      createDeploymentGroup({
         deploymentId: deployments[5].id,
         owner: owners[2],
         dseq: "3001"
@@ -207,7 +201,7 @@ describe("GET /v1/usage/history", () => {
     ]);
 
     await Promise.all([
-      LeaseSeeder.createInDatabase({
+      createLease({
         owner: owners[0],
         dseq: "1001",
         providerAddress: providers[0].owner,
@@ -218,7 +212,7 @@ describe("GET /v1/usage/history", () => {
         price: 50,
         denom: "uakt"
       }),
-      LeaseSeeder.createInDatabase({
+      createLease({
         owner: owners[0],
         dseq: "1002",
         providerAddress: providers[1].owner,
@@ -229,7 +223,7 @@ describe("GET /v1/usage/history", () => {
         price: 25000,
         denom: "uusdc"
       }),
-      LeaseSeeder.createInDatabase({
+      createLease({
         owner: owners[0],
         dseq: "1003",
         providerAddress: providers[0].owner,
@@ -241,7 +235,7 @@ describe("GET /v1/usage/history", () => {
         denom: "uakt",
         predictedClosedHeight: "1000"
       }),
-      LeaseSeeder.createInDatabase({
+      createLease({
         owner: owners[1],
         dseq: "2001",
         providerAddress: providers[1].owner,
@@ -252,7 +246,7 @@ describe("GET /v1/usage/history", () => {
         price: 40,
         denom: "uakt"
       }),
-      LeaseSeeder.createInDatabase({
+      createLease({
         owner: owners[1],
         dseq: "2002",
         providerAddress: providers[0].owner,
@@ -410,7 +404,7 @@ describe("GET /v1/usage/history", () => {
 
 describe("GET /v1/usage/history/stats", () => {
   function setup() {
-    const owners = [AkashAddressSeeder.create(), AkashAddressSeeder.create()];
+    const owners = [createAkashAddress(), createAkashAddress()];
 
     const expectUsageStats = async (response: Response) => {
       expect(response.status).toBe(200);
@@ -453,7 +447,7 @@ describe("GET /v1/usage/history/stats", () => {
 
   it("returns zero stats for address with no usage", async () => {
     const { expectUsageStats } = setup();
-    const unknownAddress = AkashAddressSeeder.create();
+    const unknownAddress = createAkashAddress();
     const response = await app.request(`/v1/usage/history/stats?address=${unknownAddress}`);
     const data = await expectUsageStats(response);
 
