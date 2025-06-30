@@ -12,7 +12,7 @@ import {
 } from "@akashnetwork/ui/components";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import { Key, User } from "iconoir-react";
-import { Bell, LogOut, MultiplePages, Settings, Star } from "iconoir-react";
+import { LogOut, MultiplePages, Settings, Star } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
@@ -88,9 +88,6 @@ export function AccountMenu() {
                         )}
                         <CustomDropdownLinkItem onClick={() => router.push(UrlService.userFavorites())} icon={<Star />}>
                           Favorites
-                        </CustomDropdownLinkItem>
-                        <CustomDropdownLinkItem onClick={() => window.open("https://blockspy.io", "_blank")?.focus()} icon={<Bell />}>
-                          My Alerts
                         </CustomDropdownLinkItem>
                         <DropdownMenuSeparator />
                         <CustomDropdownLinkItem onClick={() => (window.location.href = UrlService.logout())} icon={<LogOut />}>
