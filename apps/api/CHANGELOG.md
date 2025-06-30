@@ -1,5 +1,12 @@
 
 
+## [2.102.7](https://github.com/akash-network/console/compare/console-api/v2.102.6...console-api/v2.102.7) (2025-06-30)
+
+
+### Code Refactoring
+
+* move gpu endpoints to modules ([#1551](https://github.com/akash-network/console/issues/1551)) ([91f9505](https://github.com/akash-network/console/commit/91f9505bb94d48ff89ec3789f1af4f08fc5c917f)), closes [#1279](https://github.com/akash-network/console/issues/1279) [#1279](https://github.com/akash-network/console/issues/1279) [#1279](https://github.com/akash-network/console/issues/1279) [#1279](https://github.com/akash-network/console/issues/1279)
+
 ## [2.102.6](https://github.com/akash-network/console/compare/console-api/v2.102.5...console-api/v2.102.6) (2025-06-28)
 
 
