@@ -17,18 +17,20 @@ import { ceilDecimal, denomToUdenom, udenomToDenom } from "@src/utils/mathHelper
 type DeploymentAlertsInput = components["schemas"]["DeploymentAlertCreateInput"]["data"];
 type DeploymentAlertsOutput = components["schemas"]["DeploymentAlertsResponse"]["data"];
 
+export type FullAlertsInput = {
+  deploymentClosed: NonNullable<DeploymentAlertsInput["alerts"]["deploymentClosed"]>;
+  deploymentBalance: NonNullable<DeploymentAlertsInput["alerts"]["deploymentBalance"]>;
+};
+
 export type ContainerInput = Omit<DeploymentAlertsInput, "owner" | "alerts"> & {
   alerts:
     | {
-        deploymentClosed: NonNullable<DeploymentAlertsInput["alerts"]["deploymentClosed"]>;
+        deploymentClosed: FullAlertsInput["deploymentClosed"];
       }
     | {
-        deploymentBalance: NonNullable<DeploymentAlertsInput["alerts"]["deploymentBalance"]>;
+        deploymentBalance: FullAlertsInput["deploymentBalance"];
       }
-    | {
-        deploymentClosed: NonNullable<DeploymentAlertsInput["alerts"]["deploymentClosed"]>;
-        deploymentBalance: NonNullable<DeploymentAlertsInput["alerts"]["deploymentBalance"]>;
-      };
+    | FullAlertsInput;
 };
 
 export type ChildrenProps = {

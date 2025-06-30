@@ -9,24 +9,26 @@ import isEqual from "lodash/isEqual";
 import pick from "lodash/pick";
 import { z } from "zod";
 
-import type { ChildrenProps } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
+import type { ChildrenProps, ContainerInput, FullAlertsInput } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { DeploymentAlertsContainer } from "@src/components/alerts/DeploymentAlertsContainer/DeploymentAlertsContainer";
 import { NotificationChannelsGuard } from "@src/components/alerts/NotificationChannelsGuard/NotificationChannelsGuard";
 import type { NotificationChannelsOutput } from "@src/components/alerts/NotificationChannelsListContainer/NotificationChannelsListContainer";
 import { DeploymentBalanceAlert } from "@src/components/deployments/DeploymentBalanceAlert/DeploymentBalanceAlert";
 import { DeploymentCloseAlert } from "@src/components/deployments/DeploymentCloseAlert/DeploymentCloseAlert";
 import { LoadingBlocker } from "@src/components/layout/LoadingBlocker/LoadingBlocker";
+import { useFlag } from "@src/hooks/useFlag";
 import type { ChangeableComponentProps } from "@src/types/changeable-component-props.type";
 import type { DeploymentDto } from "@src/types/deployment";
 import { ceilDecimal } from "@src/utils/mathHelpers";
 
-const COMPONENTS = {
+const DEPENDENCIES = {
   DeploymentCloseAlert,
-  DeploymentBalanceAlert
+  DeploymentBalanceAlert,
+  useFlag
 };
 
 export type Props = ChangeableComponentProps<{
-  components?: typeof COMPONENTS;
+  dependencies?: typeof DEPENDENCIES;
   maxBalanceThreshold: number;
   notificationChannels: NotificationChannelsOutput;
   disabled?: boolean;
@@ -74,8 +76,9 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   onStateChange,
   notificationChannels,
   disabled,
-  components: c = COMPONENTS
+  dependencies: d = DEPENDENCIES
 }) => {
+  const isDeploymentClosedEnabled = d.useFlag("ui_deployment_closed_alert");
   const strictSchema = useMemo(() => {
     return schema.extend({
       deploymentBalance: z.object({
@@ -119,11 +122,22 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
   }, [providedValues, onStateChange, values, hasChanges]);
 
   const submit = useCallback(async () => {
-    const nextValues = await upsert({ alerts: values });
+    const { deploymentBalance, deploymentClosed } = values;
+    const payload: Partial<FullAlertsInput> = {};
+
+    if (!isEqual(providedValues.deploymentBalance, deploymentBalance)) {
+      payload.deploymentBalance = deploymentBalance;
+    }
+
+    if (!isEqual(providedValues.deploymentClosed, deploymentClosed)) {
+      payload.deploymentClosed = deploymentClosed;
+    }
+
+    const nextValues = await upsert({ alerts: payload as ContainerInput["alerts"] });
     if (nextValues) {
       form.reset(pickFormValues(nextValues.alerts));
     }
-  }, [upsert, values, form]);
+  }, [values, providedValues.deploymentBalance, providedValues.deploymentClosed, upsert, form]);
 
   return (
     <FormProvider {...form}>
@@ -137,8 +151,8 @@ export const DeploymentAlertsView: FC<ChildrenProps & Props> = ({
           )}
         </div>
         <div className="grid-col-1 mb-4 grid gap-4 md:grid-cols-2">
-          <c.DeploymentBalanceAlert disabled={isLoading || disabled} />
-          <c.DeploymentCloseAlert disabled={isLoading || disabled} />
+          <d.DeploymentBalanceAlert disabled={isLoading || disabled} />
+          {isDeploymentClosedEnabled && <d.DeploymentCloseAlert disabled={isLoading || disabled} />}
         </div>
       </form>
     </FormProvider>

@@ -50,7 +50,8 @@ describe("DeploymentAlerts", () => {
     const channel1Id = faker.string.uuid();
     const channel2Id = faker.string.uuid();
 
-    const COMPONENTS = {
+    const DEPENDENCIES = {
+      useFlag: () => true,
       DeploymentCloseAlert: ({ disabled }: { disabled?: boolean }) => {
         const { register } = useFormContext();
         return (
@@ -105,7 +106,7 @@ describe("DeploymentAlerts", () => {
       isError: false
     };
 
-    render(<DeploymentAlertsView {...componentProps} components={COMPONENTS} />);
+    render(<DeploymentAlertsView {...componentProps} dependencies={DEPENDENCIES} />);
 
     return { componentProps };
   }
