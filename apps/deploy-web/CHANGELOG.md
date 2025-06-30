@@ -1,5 +1,12 @@
 
 
+## [2.90.1](https://github.com/akash-network/console/compare/console-web/v2.90.0...console-web/v2.90.1) (2025-06-30)
+
+
+### Bug Fixes
+
+* **alert:** properly submits existing deployment alert form ([91273df](https://github.com/akash-network/console/commit/91273df73ccb03eb669a16e3a0bc1676507bb2ff))
+
 ## [2.90.0](https://github.com/akash-network/console/compare/console-web/v2.89.6...console-web/v2.90.0) (2025-06-30)
 
 
