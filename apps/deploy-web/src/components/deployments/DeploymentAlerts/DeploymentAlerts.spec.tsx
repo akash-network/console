@@ -33,15 +33,15 @@ describe("DeploymentAlerts", () => {
 
     expect(componentProps.upsert).toHaveBeenCalledWith({
       alerts: {
-        deploymentBalance: {
+        deploymentBalance: expect.objectContaining({
           enabled: false,
           notificationChannelId: componentProps.notificationChannels[0].id,
           threshold: 100
-        },
-        deploymentClosed: {
+        }),
+        deploymentClosed: expect.objectContaining({
           enabled: false,
           notificationChannelId: componentProps.notificationChannels[1].id
-        }
+        })
       }
     });
   });

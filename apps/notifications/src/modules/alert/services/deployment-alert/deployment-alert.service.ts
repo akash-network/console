@@ -162,7 +162,7 @@ export class DeploymentAlertService {
       description: this.getTemplate({
         suspended: `Deployment was closed. Please visit ${consoleLink} to manage your deployment.`,
         triggered: `Please visit ${consoleLink} to add more funds to your deployment before it is closed.`,
-        recovered: `Funds have been added to your deployment. You'll be notified again next time your account threshold is hit. Please visit ${consoleLink} to manage your deployment`
+        recovered: `Escrow account is above threshold. You'll be notified again next time your account threshold is hit. Please visit ${consoleLink} to manage your deployment`
       })
     };
   }
