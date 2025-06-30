@@ -1,5 +1,12 @@
 
 
+## [2.90.0](https://github.com/akash-network/console/compare/console-web/v2.89.6...console-web/v2.90.0) (2025-06-30)
+
+
+### Features
+
+* **alert:** only sends diff for deployment alerts upsert  ([b9fe702](https://github.com/akash-network/console/commit/b9fe7021cd90fe227cdb4c011fff6a31d17ed54b)), closes [#1548](https://github.com/akash-network/console/issues/1548)
+
 ## [2.89.6](https://github.com/akash-network/console/compare/console-web/v2.89.5...console-web/v2.89.6) (2025-06-28)
 
 
