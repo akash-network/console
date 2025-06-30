@@ -1,5 +1,12 @@
 
 
+## [1.13.6](https://github.com/akash-network/console/compare/notifications/v1.13.5...notifications/v1.13.6) (2025-06-30)
+
+
+### Bug Fixes
+
+* **alert:** properly submits existing deployment alert form ([91273df](https://github.com/akash-network/console/commit/91273df73ccb03eb669a16e3a0bc1676507bb2ff))
+
 ## [1.13.5](https://github.com/akash-network/console/compare/notifications/v1.13.4...notifications/v1.13.5) (2025-06-28)
 
 
