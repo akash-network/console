@@ -1,5 +1,17 @@
 
 
+## [2.90.2](https://github.com/akash-network/console/compare/console-web/v2.90.1...console-web/v2.90.2) (2025-07-01)
+
+
+### Bug Fixes
+
+* **config:** replace proxy url ([#1604](https://github.com/akash-network/console/issues/1604)) ([af9aa70](https://github.com/akash-network/console/commit/af9aa70755a176f6d9e8b1cbd981cf55eb181e99))
+
+
+### Code Refactoring
+
+* move /v1/addresses/* to modules ([#1468](https://github.com/akash-network/console/issues/1468)) ([ba0a0f7](https://github.com/akash-network/console/commit/ba0a0f75c56c1656ea4d8f88eaaaa812de5e3aec)), closes [#1267](https://github.com/akash-network/console/issues/1267) [#1267](https://github.com/akash-network/console/issues/1267) [#1267](https://github.com/akash-network/console/issues/1267)
+
 ## [2.90.1](https://github.com/akash-network/console/compare/console-web/v2.90.0...console-web/v2.90.1) (2025-06-30)
 
 
