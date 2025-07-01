@@ -27,6 +27,7 @@ export const GetAddressTransactionsParamsSchema = z.object({
     maximum: maxLimit
   })
 });
+export type GetAddressTransactionsParams = z.infer<typeof GetAddressTransactionsParamsSchema>;
 
 export const ValidatorSchema = z.object({
   address: z.string().optional(),
@@ -89,12 +90,10 @@ export const GetAddressResponseSchema = z.object({
   commission: z.number(),
   latestTransactions: z.array(TransactionSchema)
 });
+export type GetAddressResponse = z.infer<typeof GetAddressResponseSchema>;
 
 export const GetAddressTransactionsResponseSchema = z.object({
   count: z.number(),
   results: z.array(TransactionSchema)
 });
-
-export type GetAddressResponse = z.infer<typeof GetAddressResponseSchema>;
-export type GetAddressTransactionsParams = z.infer<typeof GetAddressTransactionsParamsSchema>;
 export type GetAddressTransactionsResponse = z.infer<typeof GetAddressTransactionsResponseSchema>;

@@ -10,6 +10,8 @@ import {
 } from "@src/address/http-schemas/address.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
+export const addressRouter = new OpenApiHonoHandler();
+
 const getAddressRoute = createRoute({
   method: "get",
   path: "/v1/addresses/{address}",
@@ -31,6 +33,12 @@ const getAddressRoute = createRoute({
       description: "Invalid address"
     }
   }
+});
+addressRouter.openapi(getAddressRoute, async function routeGetAddress(c) {
+  const { address } = c.req.valid("param");
+  const addressDetails = await container.resolve(AddressController).getAddressDetails(address);
+
+  return c.json(addressDetails);
 });
 
 const getAddressTransactionsRoute = createRoute({
@@ -55,16 +63,6 @@ const getAddressTransactionsRoute = createRoute({
     }
   }
 });
-
-export const addressRouter = new OpenApiHonoHandler();
-
-addressRouter.openapi(getAddressRoute, async function routeGetAddress(c) {
-  const { address } = c.req.valid("param");
-  const addressDetails = await container.resolve(AddressController).getAddressDetails(address);
-
-  return c.json(addressDetails);
-});
-
 addressRouter.openapi(getAddressTransactionsRoute, async function routeGetAddressTransactions(c) {
   const { address, skip, limit } = c.req.valid("param");
   const transactions = await container.resolve(AddressController).getTransactions({
