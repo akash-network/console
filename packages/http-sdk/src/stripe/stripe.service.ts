@@ -35,11 +35,19 @@ export class StripeService extends ApiHttpService {
     return this.extractApiData(await this.post("/v1/stripe/transactions/confirm", { data: params }));
   }
 
-  async getCustomerTransactions(options?: { limit?: number; startingAfter?: string }): Promise<{ transactions: Charge[] }> {
-    const { limit, startingAfter } = options || {};
+  async getCustomerTransactions(options?: {
+    limit?: number;
+    startingAfter?: string | null;
+    endingBefore?: string | null;
+    created?: { gt?: number; lt?: number };
+  }): Promise<{ transactions: Charge[]; hasMore: boolean; nextPage: string | null; prevPage: string | null; totalCount: number }> {
+    const { limit, startingAfter, endingBefore, created } = options || {};
     const params = new URLSearchParams({
       ...(limit && { limit: limit.toString() }),
-      ...(startingAfter && { startingAfter })
+      ...(startingAfter && { startingAfter }),
+      ...(endingBefore && { endingBefore }),
+      ...(created?.gt && { "created[gt]": created.gt.toString() }),
+      ...(created?.lt && { "created[lt]": created.lt.toString() })
     });
     const url = `/v1/stripe/transactions${params.toString() ? `?${params}` : ""}`;
     return this.extractApiData(await this.get(url));

@@ -7,8 +7,8 @@ import { ErrorFallback, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/com
 import { cn } from "@akashnetwork/ui/utils";
 import { useRouter } from "next/navigation";
 
+import { Title } from "@src/components/shared/Title";
 import { UrlService } from "@src/utils/urlUtils";
-import { Title } from "../shared/Title";
 
 export enum UsageTabs {
   BILLING = "BILLING",

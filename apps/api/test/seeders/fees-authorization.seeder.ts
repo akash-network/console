@@ -3,7 +3,7 @@ import { faker } from "@faker-js/faker";
 import { merge } from "lodash";
 import type { PartialDeep } from "type-fest";
 
-import { AkashAddressSeeder } from "./akash-address.seeder";
+import { createAkashAddress } from "./akash-address.seeder";
 
 import { DenomSeeder } from "@test/seeders/denom.seeder";
 
@@ -19,8 +19,8 @@ export interface FeeAllowanceSeederInput {
 export class FeesAuthorizationSeeder {
   static create(input: PartialDeep<FeeAllowanceSeederInput> = {}): FeeAllowance {
     return merge({
-      granter: input.granter || AkashAddressSeeder.create(),
-      grantee: input.grantee || AkashAddressSeeder.create(),
+      granter: input.granter || createAkashAddress(),
+      grantee: input.grantee || createAkashAddress(),
       allowance: {
         "@type": "/akash.deployment.v1beta3.DepositDeploymentAuthorization",
         spend_limit: [

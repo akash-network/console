@@ -1,5 +1,33 @@
 
 
+## [2.102.8](https://github.com/akash-network/console/compare/console-api/v2.102.7...console-api/v2.102.8) (2025-07-01)
+
+
+### Code Refactoring
+
+* move /v1/addresses/* to modules ([#1468](https://github.com/akash-network/console/issues/1468)) ([ba0a0f7](https://github.com/akash-network/console/commit/ba0a0f75c56c1656ea4d8f88eaaaa812de5e3aec)), closes [#1267](https://github.com/akash-network/console/issues/1267) [#1267](https://github.com/akash-network/console/issues/1267) [#1267](https://github.com/akash-network/console/issues/1267)
+
+## [2.102.7](https://github.com/akash-network/console/compare/console-api/v2.102.6...console-api/v2.102.7) (2025-06-30)
+
+
+### Code Refactoring
+
+* move gpu endpoints to modules ([#1551](https://github.com/akash-network/console/issues/1551)) ([91f9505](https://github.com/akash-network/console/commit/91f9505bb94d48ff89ec3789f1af4f08fc5c917f)), closes [#1279](https://github.com/akash-network/console/issues/1279) [#1279](https://github.com/akash-network/console/issues/1279) [#1279](https://github.com/akash-network/console/issues/1279) [#1279](https://github.com/akash-network/console/issues/1279)
+
+## [2.102.6](https://github.com/akash-network/console/compare/console-api/v2.102.5...console-api/v2.102.6) (2025-06-28)
+
+
+### Bug Fixes
+
+* ensure getAllItems cyclic loop check happens after the 1st iteration ([#1573](https://github.com/akash-network/console/issues/1573)) ([349e15a](https://github.com/akash-network/console/commit/349e15a578df1a801a786d5b7a27e1354385d537))
+* updates @akashnetwork/akashjs ([#1575](https://github.com/akash-network/console/issues/1575)) ([ae86837](https://github.com/akash-network/console/commit/ae868378ae35db3342ff5d44f9d270644178c507))
+* upgrades nodejs to higher version ([#1563](https://github.com/akash-network/console/issues/1563)) ([dac08eb](https://github.com/akash-network/console/commit/dac08ebadcc29164eda2e76417ac85ec210ea1b0))
+
+
+### Code Refactoring
+
+* move block prediction endpoints to modules ([#1444](https://github.com/akash-network/console/issues/1444)) ([e9f2acd](https://github.com/akash-network/console/commit/e9f2acdf47074cc9447bf09bfabe71c24449012a)), closes [#1270](https://github.com/akash-network/console/issues/1270)
+
 ## [2.102.5](https://github.com/akash-network/console/compare/console-api/v2.102.4...console-api/v2.102.5) (2025-06-26)
 
 

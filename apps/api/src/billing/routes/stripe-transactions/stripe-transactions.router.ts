@@ -54,17 +54,18 @@ stripeTransactionsRouter.openapi(confirmPaymentRoute, async function confirmPaym
     userId: data.userId,
     paymentMethodId: data.paymentMethodId,
     amount: data.amount,
-    currency: data.currency,
-    coupon: data.coupon
+    currency: data.currency
   });
   return c.body(null, 200);
 });
 
 stripeTransactionsRouter.openapi(getCustomerTransactionsRoute, async function getCustomerTransactions(c) {
-  const { limit, startingAfter } = c.req.valid("query");
+  const { limit, startingAfter, endingBefore, created } = c.req.valid("query");
   const response = await container.resolve(StripeController).getCustomerTransactions({
     limit,
-    startingAfter
+    endingBefore,
+    startingAfter,
+    created
   });
   return c.json(response, 200);
 });

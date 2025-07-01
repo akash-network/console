@@ -27,11 +27,11 @@ type ChartData = Array<{
 const chartConfig = {
   credits: {
     label: "Credits",
-    color: "hsl(var(--chart-2))"
+    color: "hsl(var(--success))"
   },
   used: {
     label: "Used",
-    color: "hsl(var(--chart-1))"
+    color: "hsl(var(--primary))"
   }
 } satisfies ChartConfig;
 

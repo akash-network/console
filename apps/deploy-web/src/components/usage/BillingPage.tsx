@@ -2,7 +2,8 @@ import React, { type FC } from "react";
 import { NextSeo } from "next-seo";
 
 import Layout from "@src/components/layout/Layout";
-import { Title } from "@src/components/shared/Title";
+import { BillingContainer } from "@src/components/usage/billing-tab/BillingContainer";
+import { BillingView } from "@src/components/usage/billing-tab/BillingView";
 import { UsageLayout, UsageTabs } from "@src/components/usage/UsageLayout";
 
 export const BillingPage: FC = () => {
@@ -10,7 +11,7 @@ export const BillingPage: FC = () => {
     <Layout containerClassName="flex h-full flex-col justify-between">
       <NextSeo title="Billing" />
       <UsageLayout page={UsageTabs.BILLING}>
-        <Title subTitle>TODO: Implement transactions list</Title>
+        <BillingContainer>{props => <BillingView {...props} />}</BillingContainer>
       </UsageLayout>
     </Layout>
   );

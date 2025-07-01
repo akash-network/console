@@ -43,18 +43,16 @@ export function getPrettyTime(timeMs: number): string {
   }
 }
 
-export function createDateRange(
-  input: {
-    startDate?: Date;
-    endDate?: Date;
-  } = {}
-): [Date, Date] {
-  if (input.startDate && input.endDate && input.startDate > input.endDate) {
+export function createDateRange(input: { from?: Date; to?: Date } = {}): { from: Date; to: Date } {
+  if (input.from && input.to && input.from > input.to) {
     throw new Error("End date must be greater than or equal to start date.");
   }
 
-  const endDate = endOfDay(input.endDate || new Date());
-  const startDate = startOfDay(input.startDate || subDays(endDate, 30));
+  const to = endOfDay(input.to || new Date());
+  const from = startOfDay(input.from || subDays(to, 30));
 
-  return [startDate, endDate];
+  return {
+    from,
+    to
+  };
 }

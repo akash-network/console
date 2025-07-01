@@ -27,12 +27,14 @@
     "src/bid/**/*.ts",
     "src/auth/**/*.ts",
     "src/dashboard/**/*.ts",
+    "src/address/**/*.ts",
     "src/billing/**/*.ts",
     "src/user/**/*.ts",
     "src/provider/**/*.ts",
     "src/auth/**/*.ts",
     "src/certificate/**/*.ts",
     "src/deployment/**/*.ts",
+    "src/gpu/**/*.ts",
     "src/network/**/*.ts"
   ]
 }

@@ -171,7 +171,9 @@ describe("API Keys", () => {
       expect(response.status).toBe(404);
       expect(await response.json()).toEqual({
         error: "NotFoundError",
-        message: "API key not found"
+        message: "API key not found",
+        code: "not_found",
+        type: "client_error"
       });
     });
 
@@ -276,13 +278,16 @@ describe("API Keys", () => {
       const result = await response.json();
       expect(result).toEqual({
         error: "BadRequestError",
+        message: "Validation error",
         data: [
           {
             code: "custom",
             message: "Expiration date must be in the future",
             path: ["data", "expiresAt"]
           }
-        ]
+        ],
+        code: "validation_error",
+        type: "validation_error"
       });
     });
 
@@ -305,7 +310,9 @@ describe("API Keys", () => {
       expect(response.status).toBe(403);
       expect(await response.json()).toEqual({
         error: "ForbiddenError",
-        message: "Forbidden"
+        message: "Forbidden",
+        code: "forbidden",
+        type: "client_error"
       });
     });
   });

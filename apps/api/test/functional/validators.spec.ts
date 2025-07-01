@@ -4,20 +4,20 @@ import nock from "nock";
 import { app } from "@src/app";
 import { apiNodeUrl } from "@src/utils/constants";
 
-import { ValidatorSeeder } from "@test/seeders/validator.seeder";
+import { createValidator } from "@test/seeders";
 
 describe("Validators API", () => {
   let validators: Validator[];
 
   beforeAll(async () => {
     validators = await Promise.all([
-      ValidatorSeeder.createInDatabase({
+      createValidator({
         operatorAddress: "akashvaloper1w3cg3uq7uwlwkrtlrmtatqh80al42m3hzmcjmx"
       }),
-      ValidatorSeeder.createInDatabase({
+      createValidator({
         operatorAddress: "akashvaloper15z8n2zjrs5vzml2tq9emax87jy6p3fjq39pndk"
       }),
-      ValidatorSeeder.createInDatabase({
+      createValidator({
         operatorAddress: "akashvaloper1cva0zc4ll8u4flm5x9q7fj5zxt5mpqt0t2szlp"
       })
     ]);

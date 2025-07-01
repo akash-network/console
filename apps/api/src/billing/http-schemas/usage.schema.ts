@@ -38,10 +38,10 @@ export const GetUsageHistoryQuerySchema = z
 
       const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
 
-      return start <= end && daysDiff <= 365;
+      return start <= end && daysDiff <= 366;
     },
     {
-      message: "Date range cannot exceed 365 days and startDate must be before endDate"
+      message: "Date range cannot exceed 366 days and startDate must be before endDate"
     }
   );
 

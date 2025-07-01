@@ -6,7 +6,7 @@ import type { BillingUsageRawResult, UsageRepository } from "@src/billing/reposi
 import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { UsageService } from "./usage.service";
 
-import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
+import { createAkashAddress } from "@test/seeders";
 import { BillingUsageSeeder } from "@test/seeders/billing-usage.seeder";
 
 describe(UsageService.name, () => {
@@ -190,7 +190,7 @@ describe(UsageService.name, () => {
   });
 
   function setup(input?: { usageData?: BillingUsageRawResult[]; totalDeployments?: number }) {
-    const address = AkashAddressSeeder.create();
+    const address = createAkashAddress();
     const startDate = faker.date.past();
     const totalDeployments = input?.totalDeployments ?? faker.number.int({ min: 1, max: 20 });
 

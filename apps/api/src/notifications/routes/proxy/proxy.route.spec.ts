@@ -6,7 +6,7 @@ import type { AppContext } from "@src/core/types/app-context";
 import type { NotificationsConfig } from "@src/notifications/config";
 import { createProxy } from "@src/notifications/routes/proxy/proxy.route";
 
-import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
+import { createAkashAddress } from "@test/seeders";
 import { stub } from "@test/services/stub";
 
 describe("createProxy", () => {
@@ -73,7 +73,7 @@ describe("createProxy", () => {
       currentUser: { id: userId },
       throwUnlessCan: jest.fn().mockReturnValue(undefined)
     });
-    const owner = AkashAddressSeeder.create();
+    const owner = createAkashAddress();
 
     const userWalletRepository = stub<UserWalletRepository>({
       findOneByUserId() {

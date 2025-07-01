@@ -33,15 +33,15 @@ describe("DeploymentAlerts", () => {
 
     expect(componentProps.upsert).toHaveBeenCalledWith({
       alerts: {
-        deploymentBalance: {
+        deploymentBalance: expect.objectContaining({
           enabled: false,
           notificationChannelId: componentProps.notificationChannels[0].id,
           threshold: 100
-        },
-        deploymentClosed: {
+        }),
+        deploymentClosed: expect.objectContaining({
           enabled: false,
           notificationChannelId: componentProps.notificationChannels[1].id
-        }
+        })
       }
     });
   });
@@ -50,7 +50,8 @@ describe("DeploymentAlerts", () => {
     const channel1Id = faker.string.uuid();
     const channel2Id = faker.string.uuid();
 
-    const COMPONENTS = {
+    const DEPENDENCIES = {
+      useFlag: () => true,
       DeploymentCloseAlert: ({ disabled }: { disabled?: boolean }) => {
         const { register } = useFormContext();
         return (
@@ -105,7 +106,7 @@ describe("DeploymentAlerts", () => {
       isError: false
     };
 
-    render(<DeploymentAlertsView {...componentProps} components={COMPONENTS} />);
+    render(<DeploymentAlertsView {...componentProps} dependencies={DEPENDENCIES} />);
 
     return { componentProps };
   }

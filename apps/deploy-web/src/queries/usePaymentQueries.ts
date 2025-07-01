@@ -26,18 +26,19 @@ export const usePaymentDiscountsQuery = () => {
   });
 };
 
-export interface UsePaymentTransactionsOptions {
+type UsePaymentTransactionsOptions = {
   limit?: number;
-  startingAfter?: string;
-}
+  startingAfter?: string | null;
+  endingBefore?: string | null;
+  created?: { gt?: number; lt?: number };
+};
 
 export const usePaymentTransactionsQuery = (options?: UsePaymentTransactionsOptions) => {
   const { stripe } = useServices();
   return useQuery({
     queryKey: QueryKeys.getPaymentTransactionsKey(options),
     queryFn: async () => {
-      const response = await stripe.getCustomerTransactions(options);
-      return response.transactions;
+      return await stripe.getCustomerTransactions(options);
     }
   });
 };
@@ -57,13 +58,12 @@ export const usePaymentMutations = () => {
   const queryClient = useQueryClient();
 
   const confirmPayment = useMutation({
-    mutationFn: async ({ userId, paymentMethodId, amount, currency, coupon }: ConfirmPaymentParams) => {
+    mutationFn: async ({ userId, paymentMethodId, amount, currency }: ConfirmPaymentParams) => {
       await stripe.confirmPayment({
         userId,
         paymentMethodId,
         amount,
-        currency,
-        ...(coupon && { coupon })
+        currency
       });
     },
     onSuccess: () => {

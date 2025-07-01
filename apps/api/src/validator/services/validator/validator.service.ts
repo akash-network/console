@@ -21,7 +21,8 @@ export class ValidatorService {
       identity: x.description.identity
     }));
     const totalVotingPower = validators.reduce((acc, cur) => acc + cur.votingPower, 0);
-    const validatorsFromDb = await this.validatorRepository.findAll();
+    const validatorsFromDb = await this.validatorRepository.findAllWithAvatarUrl();
+    const avatarMap = new Map(validatorsFromDb.map(v => [v.operatorAddress, v.keybaseAvatarUrl]));
 
     const sortedValidators = validators
       .sort((a, b) => b.votingPower - a.votingPower)
@@ -29,7 +30,7 @@ export class ValidatorService {
         ...x,
         votingPowerRatio: x.votingPower / totalVotingPower,
         rank: i + 1,
-        keybaseAvatarUrl: validatorsFromDb.find(y => y.operatorAddress === x.operatorAddress)?.keybaseAvatarUrl ?? null
+        keybaseAvatarUrl: avatarMap.get(x.operatorAddress) ?? null
       }));
 
     return sortedValidators;

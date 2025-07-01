@@ -8,17 +8,11 @@ import { Op } from "sequelize";
 import { chainDb } from "@src/db/dbConnection";
 import { UsageRepository } from "./usage.repository";
 
-import { AkashAddressSeeder } from "@test/seeders/akash-address.seeder";
-import { BlockSeeder } from "@test/seeders/block.seeder";
-import { DaySeeder } from "@test/seeders/day.seeder";
-import { DeploymentSeeder } from "@test/seeders/deployment.seeder";
-import { DeploymentGroupSeeder } from "@test/seeders/deployment-group.seeder";
-import { LeaseSeeder } from "@test/seeders/lease.seeder";
-import { ProviderSeeder } from "@test/seeders/provider.seeder";
+import { createAkashAddress, createAkashBlock, createDay, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
 
 describe(UsageRepository.name, () => {
   describe("getHistory", () => {
-    const testAddress = AkashAddressSeeder.create();
+    const testAddress = createAkashAddress();
     let createdDayIds: string[] = [];
     let createdLeaseIds: string[] = [];
     let createdBlockHeights: number[] = [];
@@ -230,7 +224,7 @@ describe(UsageRepository.name, () => {
 
     it("excludes leases from other addresses", async () => {
       const { usageRepository } = setup();
-      const otherAddress = AkashAddressSeeder.create();
+      const otherAddress = createAkashAddress();
       const startDate = "2023-01-01";
       const endDate = "2023-01-01";
 
@@ -270,31 +264,31 @@ describe(UsageRepository.name, () => {
     });
 
     async function createTestDay(overrides: Partial<CreationAttributes<Day>> = {}) {
-      const day = await DaySeeder.createInDatabase(overrides);
+      const day = await createDay(overrides);
       createdDayIds.push(day.id);
       return day;
     }
 
     async function createTestBlock(overrides: Partial<CreationAttributes<Block>> = {}) {
-      const block = await BlockSeeder.createInDatabase(overrides);
+      const block = await createAkashBlock(overrides);
       createdBlockHeights.push(block.height);
       return block;
     }
 
     async function createTestProvider(overrides: Partial<CreationAttributes<Provider>> = {}) {
-      const provider = await ProviderSeeder.createInDatabase(overrides);
+      const provider = await createProvider(overrides);
       createdProviderAddresses.push(provider.owner);
       return provider;
     }
 
     async function createTestDeployment(overrides: Partial<CreationAttributes<Deployment>> = {}) {
-      const deployment = await DeploymentSeeder.createInDatabase(overrides);
+      const deployment = await createDeployment(overrides);
       createdDeploymentIds.push(deployment.id);
       return deployment;
     }
 
     async function createTestDeploymentGroup(overrides: Partial<CreationAttributes<DeploymentGroup>> = {}) {
-      const deploymentGroup = await DeploymentGroupSeeder.createInDatabase(overrides);
+      const deploymentGroup = await createDeploymentGroup(overrides);
       createdDeploymentGroupIds.push(deploymentGroup.id);
       return deploymentGroup;
     }
@@ -307,7 +301,7 @@ describe(UsageRepository.name, () => {
         owner: overrides.owner || testAddress
       });
 
-      const lease = await LeaseSeeder.createInDatabase({
+      const lease = await createLease({
         deploymentId: deployment.id,
         deploymentGroupId: deploymentGroup.id,
         providerAddress,

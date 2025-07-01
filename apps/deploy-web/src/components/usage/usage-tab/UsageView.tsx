@@ -1,16 +1,32 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { Card, CardContent, CardHeader, CardTitle, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@akashnetwork/ui/components";
+import { Button, Card, CardContent, CardHeader, CardTitle, DateRangePicker, Label } from "@akashnetwork/ui/components";
 import LinearProgress from "@mui/material/LinearProgress";
-import { subDays } from "date-fns";
-import { Cloud, DollarSign } from "lucide-react";
+import { startOfDay, subYears } from "date-fns";
+import { Cloud, DollarSign, Download } from "lucide-react";
 
 import { Title } from "@src/components/shared/Title";
 import { CreditsUsageAreaChart } from "@src/components/usage/usage-tab/charts/CreditsUsageAreaChart";
 import { CumulativeSpendingLineChart } from "@src/components/usage/usage-tab/charts/CumulativeSpendingLineChart";
 import { DailyUsageBarChart } from "@src/components/usage/usage-tab/charts/DailyUsageBarChart";
-import type { UsageHistory, UsageHistoryStats } from "@src/types";
-import { createDateRange } from "@src/utils/dateUtils";
+
+export type UsageHistory = Array<{
+  date: string;
+  activeDeployments: number;
+  dailyAktSpent: number;
+  totalAktSpent: number;
+  dailyUsdcSpent: number;
+  totalUsdcSpent: number;
+  dailyUsdSpent: number;
+  totalUsdSpent: number;
+}>;
+
+export type UsageHistoryStats = {
+  totalSpent: number;
+  averageSpentPerDay: number;
+  totalDeployments: number;
+  averageDeploymentsPerDay: number;
+};
 
 type UsageViewProps = {
   usageHistoryData: UsageHistory;
@@ -20,8 +36,8 @@ type UsageViewProps = {
     credits: number;
     used: number;
   }>;
-  dateRange: [Date, Date];
-  onDateRangeChange: (range: [Date, Date]) => void;
+  dateRange: { from: Date | undefined; to?: Date };
+  onDateRangeChange: (range?: { from?: Date; to?: Date }) => void;
   isFetchingUsageHistory: boolean;
   isUsageHistoryError: boolean;
   isFetchingUsageHistoryStats: boolean;
@@ -32,48 +48,57 @@ export const UsageView = ({
   usageHistoryData,
   usageHistoryStatsData,
   creditsUsageData,
+  dateRange,
   onDateRangeChange,
   isFetchingUsageHistory,
   isUsageHistoryError,
   isFetchingUsageHistoryStats,
   isUsageHistoryStatsError
 }: UsageViewProps) => {
-  const [daysAgo, setDaysAgo] = React.useState("90");
+  const oneYearAgo = startOfDay(subYears(new Date(), 1));
 
-  React.useEffect(() => {
-    if (Number.isNaN(Number(daysAgo))) {
-      throw new Error("daysAgo should be a valid number string");
-    }
+  const downloadCsv = () => {
+    const csvContent =
+      `data:text/csv;charset=utf-8,Date,Active Deployments,Daily AKT Spent,Total AKT Spent,Daily USDC Spent,Total USDC Spent,Daily USD Spent,Total USD Spent\n` +
+      usageHistoryData
+        .map(row => {
+          return `${row.date},${row.activeDeployments},${row.dailyAktSpent},${row.totalAktSpent},${row.dailyUsdcSpent},${row.totalUsdcSpent},${row.dailyUsdSpent},${row.totalUsdSpent}`;
+        })
+        .join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `usage_data_${new Date().toISOString()}.csv`);
+    document.body.appendChild(link); // Required for FF
+    link.click();
 
-    onDateRangeChange(
-      createDateRange({
-        startDate: subDays(new Date(), Number(daysAgo))
-      })
-    );
-  }, [daysAgo, onDateRangeChange]);
+    const statsCsvContent =
+      `data:text/csv;charset=utf-8,Total Spent,Average Spent Per Day,Total Deployments,Average Deployments Per Day\n` +
+      `${usageHistoryStatsData.totalSpent},${usageHistoryStatsData.averageSpentPerDay},${usageHistoryStatsData.totalDeployments},${usageHistoryStatsData.averageDeploymentsPerDay}`;
+    const statsEncodedUri = encodeURI(statsCsvContent);
+    const statsLink = document.createElement("a");
+    statsLink.setAttribute("href", statsEncodedUri);
+    statsLink.setAttribute("download", `usage_stats_${new Date().toISOString()}.csv`);
+    document.body.appendChild(statsLink); // Required for FF
+    statsLink.click();
+  };
 
   return (
     <div className="h-full space-y-4">
       <div className="flex items-center justify-between">
         <Title subTitle>Overview</Title>
+      </div>
 
-        <Select value={daysAgo} onValueChange={setDaysAgo}>
-          <SelectTrigger className="w-[160px] rounded-lg sm:ml-auto" aria-label="Select a value">
-            <SelectValue placeholder="Last 3 months" />
-          </SelectTrigger>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <Label>Filter by Date:</Label>
+          <DateRangePicker date={dateRange} onDateChange={onDateRangeChange} className="mt-2 w-full" minDate={oneYearAgo} disableFuture maxRangeInDays={366} />
+        </div>
 
-          <SelectContent className="rounded-xl">
-            <SelectItem value="90" className="rounded-lg">
-              Last 3 months
-            </SelectItem>
-            <SelectItem value="30" className="rounded-lg">
-              Last 30 days
-            </SelectItem>
-            <SelectItem value="7" className="rounded-lg">
-              Last 7 days
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        <Button variant="secondary" onClick={downloadCsv} className="h-12 gap-4">
+          <Download size={16} />
+          Export as CSV
+        </Button>
       </div>
 
       {isUsageHistoryStatsError && (
@@ -126,13 +151,12 @@ export const UsageView = ({
                   <p className="text-gray-400">No data</p>
                 ) : (
                   <div className="text-3xl font-bold">
-                    <FormattedNumber value={usageHistoryStatsData.totalDeployments} style="currency" currency="USD" currencyDisplay="narrowSymbol" />
+                    <FormattedNumber value={usageHistoryStatsData.totalDeployments} />
                   </div>
                 )}
                 {!Number.isNaN(Number(usageHistoryStatsData.averageDeploymentsPerDay)) && (
                   <div className="text-sm font-semibold text-gray-400">
-                    <FormattedNumber value={usageHistoryStatsData.averageDeploymentsPerDay} style="currency" currency="USD" currencyDisplay="narrowSymbol" />{" "}
-                    average per day
+                    <FormattedNumber value={usageHistoryStatsData.averageDeploymentsPerDay} /> average per day
                   </div>
                 )}
               </CardContent>
