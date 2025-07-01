@@ -1,6 +1,7 @@
 import nock from "nock";
 
 import { app } from "@src/app";
+import type { GetProposalByIdResponse, GetProposalListResponse } from "@src/proposal/http-schemas/proposal.schema";
 import { apiNodeUrl } from "@src/utils/constants";
 
 describe("Proposals", () => {
@@ -13,7 +14,7 @@ describe("Proposals", () => {
       setup();
 
       const response = await app.request("/v1/proposals");
-      const data = await response.json();
+      const data = (await response.json()) as GetProposalListResponse;
 
       expect(response.status).toBe(200);
       expect(data).toEqual([
@@ -53,7 +54,7 @@ describe("Proposals", () => {
       setup();
 
       const response = await app.request("/v1/proposals/2");
-      const data = await response.json();
+      const data = (await response.json()) as GetProposalByIdResponse;
 
       expect(response.status).toBe(200);
       expect(data).toEqual({
