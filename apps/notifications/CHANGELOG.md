@@ -1,5 +1,12 @@
 
 
+## [1.13.7](https://github.com/akash-network/console/compare/notifications/v1.13.6...notifications/v1.13.7) (2025-07-01)
+
+
+### Code Refactoring
+
+* move /v1/addresses/* to modules ([#1468](https://github.com/akash-network/console/issues/1468)) ([ba0a0f7](https://github.com/akash-network/console/commit/ba0a0f75c56c1656ea4d8f88eaaaa812de5e3aec)), closes [#1267](https://github.com/akash-network/console/issues/1267) [#1267](https://github.com/akash-network/console/issues/1267) [#1267](https://github.com/akash-network/console/issues/1267)
+
 ## [1.13.6](https://github.com/akash-network/console/compare/notifications/v1.13.5...notifications/v1.13.6) (2025-06-30)
 
 
