@@ -18,7 +18,12 @@ export interface Coupon {
 }
 
 export interface CouponResponse {
-  coupon: Coupon;
+  coupon: Coupon | null;
+  error?: {
+    message: string;
+    code?: string;
+    type?: string;
+  };
 }
 
 export interface CustomerDiscountsResponse {
@@ -69,7 +74,6 @@ export interface ConfirmPaymentParams {
   paymentMethodId: string;
   amount: number;
   currency: string;
-  coupon?: string;
 }
 
 export interface ApplyCouponParams {

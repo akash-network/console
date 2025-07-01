@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Button, Snackbar } from "@akashnetwork/ui/components";
+import { Xmark } from "iconoir-react";
 import type { GetServerSideProps } from "next";
 import { useTheme } from "next-themes";
 import { useSnackbar } from "notistack";
@@ -11,6 +12,7 @@ import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuc
 import { useUser } from "@src/hooks/useUser";
 import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
 import { usePaymentDiscountsQuery, usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
+import { handleCouponError, handleStripeError } from "@src/utils/stripeErrorHandler";
 import { withCustomPageAuthRequired } from "@src/utils/withCustomPageAuthRequired";
 
 const PayPage: React.FunctionComponent = () => {
@@ -24,6 +26,7 @@ const PayPage: React.FunctionComponent = () => {
   const [amountError, setAmountError] = useState<string>();
   const [showPaymentSuccess, setShowPaymentSuccess] = useState<{ amount: string; show: boolean }>({ amount: "", show: false });
   const [error, setError] = useState<string>();
+  const [errorAction, setErrorAction] = useState<string>();
   const isDarkMode = resolvedTheme === "dark";
   const { enqueueSnackbar } = useSnackbar();
   const user = useUser();
@@ -59,28 +62,39 @@ const PayPage: React.FunctionComponent = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [discounts]);
 
+  const clearError = () => {
+    if (error) {
+      setError(undefined);
+      setErrorAction(undefined);
+    }
+  };
+
   const handlePayment = async (paymentMethodId: string) => {
     if (!amount) return;
     if (!selectedPaymentMethodId || !paymentMethods.some(method => method.id === selectedPaymentMethodId)) return;
+
+    clearError();
 
     try {
       await confirmPayment({
         userId: user?.id || "",
         paymentMethodId,
         amount: parseFloat(amount),
-        currency: "usd",
-        ...(coupon && { coupon })
+        currency: "usd"
       });
 
       // Payment successful
       setShowPaymentSuccess({ amount, show: true });
       setAmount("");
       setCoupon("");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Payment confirmation failed:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred while processing your payment.";
-      setError(errorMessage);
-      enqueueSnackbar(<Snackbar title={errorMessage} iconVariant="error" />, { variant: "error" });
+
+      const errorInfo = handleStripeError(error);
+
+      setError(errorInfo.message);
+      setErrorAction(errorInfo.userAction);
+      enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
     }
   };
 
@@ -99,13 +113,20 @@ const PayPage: React.FunctionComponent = () => {
     if (!coupon) return;
 
     try {
-      await applyCoupon({ coupon });
+      const response = await applyCoupon({ coupon });
+
+      if (response.error) {
+        const errorInfo = handleCouponError(response);
+        enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
+        return;
+      }
+
       enqueueSnackbar(<Snackbar title="Coupon applied successfully!" iconVariant="success" />, { variant: "success", autoHideDuration: 5_000 });
       refetchDiscounts();
       setCoupon("");
-    } catch (error: any) {
-      const couponError = error.message || "Failed to apply coupon. Please check the code and try again.";
-      enqueueSnackbar(<Snackbar title={couponError} iconVariant="error" />, { variant: "error" });
+    } catch (error: unknown) {
+      const errorInfo = handleStripeError(error);
+      enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
       console.error("Coupon application error:", error);
     }
   };
@@ -121,9 +142,12 @@ const PayPage: React.FunctionComponent = () => {
     try {
       await removePaymentMethod.mutateAsync(cardToDelete);
       setSelectedPaymentMethodId(undefined);
-    } catch (error) {
-      setError("Failed to remove payment method");
-      console.error(error);
+      enqueueSnackbar(<Snackbar title="Payment method removed successfully" iconVariant="success" />, { variant: "success" });
+    } catch (error: unknown) {
+      console.error("Failed to remove payment method:", error);
+
+      const errorInfo = handleStripeError(error);
+      enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
     } finally {
       setShowDeleteConfirmation(false);
       setCardToDelete(undefined);
@@ -178,11 +202,19 @@ const PayPage: React.FunctionComponent = () => {
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setAmount(value);
+    clearError();
+
     if (value !== "") {
       validateAmount(parseFloat(value));
     } else {
       setAmountError(undefined);
     }
+  };
+
+  const handleCouponChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setCoupon(value);
+    clearError();
   };
 
   if (isLoading) {
@@ -198,27 +230,12 @@ const PayPage: React.FunctionComponent = () => {
     );
   }
 
-  if (error) {
-    return (
-      <Layout>
-        <div className="mx-auto max-w-md p-6">
-          <Alert variant="destructive" className="mb-4">
-            <p className="font-medium">Error</p>
-            <p className="text-sm">{error}</p>
-          </Alert>
-          <Button onClick={() => window.location.reload()} variant="default" className="w-full">
-            Try Again
-          </Button>
-        </div>
-      </Layout>
-    );
-  }
-
   return (
     <Layout isLoading={isLoading}>
       <div className="py-12">
         <Title className="text-center">Payment Methods</Title>
         <p className="mt-4 text-center text-gray-600">Manage your payment methods and make payments.</p>
+
         <div className="mx-auto max-w-md py-6">
           <PaymentSuccessAnimation
             show={showPaymentSuccess.show}
@@ -247,7 +264,7 @@ const PayPage: React.FunctionComponent = () => {
                 onAmountChange={handleAmountChange}
                 amountError={amountError}
                 coupon={coupon}
-                onCouponChange={e => setCoupon(e.target.value)}
+                onCouponChange={handleCouponChange}
                 onClaimCoupon={handleClaimCoupon}
                 discounts={discounts}
                 getFinalAmount={getFinalAmount}
@@ -256,6 +273,25 @@ const PayPage: React.FunctionComponent = () => {
                 onPayment={handlePayment}
                 isApplyingCoupon={isApplyingCoupon}
               />
+
+              {/* Show error inline if there's a critical error */}
+              {error && (
+                <div className="mx-auto mt-6 max-w-md">
+                  <Alert variant="destructive" className="mb-4">
+                    <p className="font-medium">Error Loading Payment Information</p>
+                    <p className="text-sm">{error}</p>
+                    {errorAction && (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        <strong>Suggestion:</strong> {errorAction}
+                      </p>
+                    )}
+                    <Button onClick={clearError} variant="default" size="sm" className="mt-2">
+                      <Xmark className="mr-2 h-4 w-4" />
+                      Clear Error
+                    </Button>
+                  </Alert>
+                </div>
+              )}
             </div>
           )}
         </div>

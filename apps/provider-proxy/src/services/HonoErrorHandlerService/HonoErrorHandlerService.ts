@@ -15,9 +15,26 @@ export class HonoErrorHandlerService {
     this.logger.error({ error });
 
     if (error instanceof ZodError) {
-      return c.json({ error: "BadRequestError", data: error.errors }, { status: 400 });
+      return c.json(
+        {
+          error: "BadRequestError",
+          message: "Validation error",
+          code: "validation_error",
+          type: "validation_error",
+          data: error.errors
+        },
+        { status: 400 }
+      );
     }
 
-    return c.json({ error: "InternalServerError" }, { status: 500 });
+    return c.json(
+      {
+        error: "InternalServerError",
+        message: "Internal server error",
+        code: "internal_server_error",
+        type: "server_error"
+      },
+      { status: 500 }
+    );
   }
 }

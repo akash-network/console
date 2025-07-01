@@ -133,13 +133,8 @@ export class StripeService extends Stripe {
     amount: number;
     currency: string;
     confirm: boolean;
-    coupon?: string;
     metadata?: Record<string, string>;
   }): Promise<{ success: boolean; paymentIntentId?: string }> {
-    if (params.coupon) {
-      await this.applyCoupon(params.customer, params.coupon);
-    }
-
     const discounts = await this.getCustomerDiscounts(params.customer);
     // Convert amount to cents immediately for stripe
     let finalAmountCents = Math.round(params.amount * 100);

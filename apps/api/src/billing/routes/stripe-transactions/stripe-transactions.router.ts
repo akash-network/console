@@ -54,8 +54,7 @@ stripeTransactionsRouter.openapi(confirmPaymentRoute, async function confirmPaym
     userId: data.userId,
     paymentMethodId: data.paymentMethodId,
     amount: data.amount,
-    currency: data.currency,
-    coupon: data.coupon
+    currency: data.currency
   });
   return c.body(null, 200);
 });
