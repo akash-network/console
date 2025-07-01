@@ -27,6 +27,7 @@
     "src/bid/**/*.ts",
     "src/auth/**/*.ts",
     "src/dashboard/**/*.ts",
+    "src/address/**/*.ts",
     "src/billing/**/*.ts",
     "src/user/**/*.ts",
     "src/provider/**/*.ts",

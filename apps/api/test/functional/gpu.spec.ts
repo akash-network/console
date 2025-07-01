@@ -33,6 +33,7 @@ describe("GPU API", () => {
 
   afterAll(async () => {
     await closeConnections();
+    nock.cleanAll();
   });
 
   describe("GET /v1/gpu", () => {

@@ -1,7 +1,6 @@
 import { Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
 import type { CreationAttributes } from "sequelize";
-
 export const createTransaction = async (input: Partial<CreationAttributes<Transaction>> = {}): Promise<Transaction> => {
   return await Transaction.create({
     id: input.id || faker.string.uuid(),
