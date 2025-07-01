@@ -356,6 +356,17 @@ echo "Installing npm dependencies (this may take a few minutes)..."
 npm install
 show_success "Dependencies installed successfully"
 
+# Utility: ensure required ports are free
+check_required_ports() {
+  local ports=(3000 3001 3040 3080 3081)
+  for port in "${ports[@]}"; do
+    if lsof -i ":${port}" -sTCP:LISTEN -t >/dev/null 2>&1; then
+      show_error "Port ${port} is already in use. Free it or update docker-compose."
+    fi
+  done
+  show_success "All required ports are free"
+}
+
 # Step 6.5: Check port availability
 show_step "Checking port availability"
 
