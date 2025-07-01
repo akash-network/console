@@ -96,10 +96,19 @@ echo "Checking required software..."
 
 # Check Node.js
 if command -v node &> /dev/null; then
-    NODE_VERSION=$(node --version)
-    show_success "Node.js found: $NODE_VERSION"
+    NODE_VERSION=$(node --version | sed 's/v//')
+    show_success "Node.js found: v$NODE_VERSION"
+
+    # Check if version is compatible (major version should be 22+, minor 14+)
+    NODE_MAJOR=$(echo $NODE_VERSION | cut -d. -f1)
+    NODE_MINOR=$(echo $NODE_VERSION | cut -d. -f2)
+    NODE_PATCH=$(echo $NODE_VERSION | cut -d. -f3)
+
+    if [ "$NODE_MAJOR" -lt 22 ] || ([ "$NODE_MAJOR" -eq 22 ] && [ "$NODE_MINOR" -lt 14 ]); then
+        show_error "Node.js version $NODE_VERSION is below required version 22.14.0. Please install Node.js 22.14.0+ from https://nodejs.org"
+    fi
 else
-    show_error "Node.js not found. Please install Node.js 18+ from https://nodejs.org"
+    show_error "Node.js not found. Please install Node.js 22.14.0+ from https://nodejs.org"
 fi
 
 # Check npm
@@ -346,6 +355,11 @@ show_step "Installing dependencies"
 echo "Installing npm dependencies (this may take a few minutes)..."
 npm install
 show_success "Dependencies installed successfully"
+
+# Step 6.5: Check port availability
+show_step "Checking port availability"
+
+check_required_ports
 
 # Step 7: Start the platform
 show_step "Starting Akash Console"
