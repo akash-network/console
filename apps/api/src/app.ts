@@ -35,6 +35,7 @@ import { userRouter } from "./routers/userRouter";
 import { web3IndexRouter } from "./routers/web3indexRouter";
 import { env } from "./utils/env";
 import { bytesToHumanReadableSize } from "./utils/files";
+import { addressRouter } from "./address";
 import { sendVerificationEmailRouter } from "./auth";
 import {
   checkoutRouter,
@@ -144,6 +145,7 @@ appHono.route("/", validatorsRouter);
 appHono.route("/", pricingRouter);
 appHono.route("/", gpuRouter);
 appHono.route("/", leasesDurationRouter);
+appHono.route("/", addressRouter);
 appHono.route("/", networkRouter);
 
 appHono.route("/", notificationsApiProxy);

@@ -1,7 +1,6 @@
 import { Lease } from "@akashnetwork/database/dbSchemas/akash";
 import { faker } from "@faker-js/faker";
 import type { CreationAttributes } from "sequelize";
-
 export const createLease = async (overrides: Partial<CreationAttributes<Lease>> = {}): Promise<Lease> => {
   return await Lease.create({
     id: overrides.id || faker.string.uuid(),
