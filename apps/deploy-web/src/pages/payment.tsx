@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Button, Snackbar } from "@akashnetwork/ui/components";
+import { AxiosError } from "axios";
 import type { GetServerSideProps } from "next";
 import { useTheme } from "next-themes";
 import { useSnackbar } from "notistack";
@@ -78,9 +79,14 @@ const PayPage: React.FunctionComponent = () => {
       setCoupon("");
     } catch (error) {
       console.error("Payment confirmation failed:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred while processing your payment.";
-      setError(errorMessage);
-      enqueueSnackbar(<Snackbar title={errorMessage} iconVariant="error" />, { variant: "error" });
+
+      if (error instanceof AxiosError && error.response?.data.error === "PaymentRequiredError" && error.response?.data.message) {
+        enqueueSnackbar(<Snackbar title="Payment failed" subTitle={error.response.data.message} iconVariant="error" />, { variant: "error" });
+      } else {
+        const errorMessage = (error instanceof Error && error.message) || "An unexpected error occurred while processing your payment.";
+        setError(errorMessage);
+        enqueueSnackbar(<Snackbar title="Payment failed" subTitle={errorMessage} iconVariant="error" />, { variant: "error" });
+      }
     }
   };
 

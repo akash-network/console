@@ -61,8 +61,8 @@ describe(StripeService.name, () => {
         }
       });
       expect(result).toEqual({
-        success: true,
-        paymentIntentId: StripeSeederCreate().paymentIntent.id
+        err: false,
+        val: StripeSeederCreate().paymentIntent.id
       });
     });
 
@@ -101,9 +101,9 @@ describe(StripeService.name, () => {
       });
 
       expect(refillService.topUpWallet).toHaveBeenCalledWith(10000, user.id);
-      expect(result).toEqual({
-        success: true,
-        paymentIntentId: "pi_zero_amount"
+      expect(result).toMatchObject({
+        err: false,
+        val: "pi_zero_amount"
       });
     });
   });

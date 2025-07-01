@@ -1,4 +1,5 @@
 import assert from "http-assert";
+import { PaymentRequired } from "http-errors";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
@@ -53,19 +54,17 @@ export class StripeController {
   @Semaphore()
   @Protected([{ action: "create", subject: "StripePayment" }])
   async confirmPayment(params: ConfirmPaymentRequest["data"]): Promise<void> {
-    const userId = this.authService.currentUser.userId;
-    const user = await this.userRepository.findOneBy({ userId });
+    const { stripeCustomerId } = this.authService.currentUser;
 
-    assert(user, 404, "User not found");
-    assert(user.stripeCustomerId, 400, "User does not have a Stripe customer ID");
+    assert(stripeCustomerId, 400, "User does not have a Stripe customer ID");
 
     // Verify payment method ownership
     const paymentMethod = await this.stripe.paymentMethods.retrieve(params.paymentMethodId);
     const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
-    assert(customerId === user.stripeCustomerId, 403, "Payment method does not belong to the user");
+    assert(customerId === stripeCustomerId, 403, "Payment method does not belong to the user");
 
-    const { success } = await this.stripe.createPaymentIntent({
-      customer: user.stripeCustomerId,
+    const { err, val } = await this.stripe.createPaymentIntent({
+      customer: stripeCustomerId,
       payment_method: params.paymentMethodId,
       amount: params.amount,
       currency: params.currency,
@@ -73,7 +72,9 @@ export class StripeController {
       ...(params.coupon ? { coupon: params.coupon } : {})
     });
 
-    assert(success, 402, "Payment not successful");
+    if (err) {
+      throw new PaymentRequired(val.message);
+    }
   }
 
   @Protected([{ action: "create", subject: "StripePayment" }])
@@ -129,6 +130,7 @@ export class StripeController {
     assert(user.stripeCustomerId, 400, "User does not have a Stripe customer ID");
 
     const response = await this.stripe.getCustomerTransactions(user.stripeCustomerId, options);
+
     return { data: response };
   }
 }

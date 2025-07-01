@@ -1,6 +1,7 @@
 import assert from "http-assert";
 import orderBy from "lodash/orderBy";
 import Stripe from "stripe";
+import { Err, Ok, Result } from "ts-results";
 import { singleton } from "tsyringe";
 
 import { Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
@@ -18,6 +19,12 @@ interface StripePrices {
   unitAmount: number;
   isCustom: boolean;
   currency: string;
+}
+
+class PaymentError extends Error {
+  constructor(message = "Payment not successful") {
+    super(message);
+  }
 }
 
 @singleton()
@@ -110,11 +117,7 @@ export class StripeService extends Stripe {
     return amountCents;
   }
 
-  private async handleZeroAmountPayment(
-    customerId: string,
-    originalAmountCents: number,
-    discountApplied: boolean
-  ): Promise<{ success: boolean; paymentIntentId: string }> {
+  private async handleZeroAmountPayment(customerId: string, originalAmountCents: number, discountApplied: boolean): Promise<Ok<string>> {
     const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
     assert(user, 404, "User not found for customer ID");
 
@@ -124,7 +127,7 @@ export class StripeService extends Stripe {
 
     await this.refillService.topUpWallet(originalAmountCents, user.id);
 
-    return { success: true, paymentIntentId: "pi_zero_amount" };
+    return Ok("pi_zero_amount");
   }
 
   async createPaymentIntent(params: {
@@ -135,7 +138,7 @@ export class StripeService extends Stripe {
     confirm: boolean;
     coupon?: string;
     metadata?: Record<string, string>;
-  }): Promise<{ success: boolean; paymentIntentId?: string }> {
+  }): Promise<Result<string, PaymentError>> {
     if (params.coupon) {
       await this.applyCoupon(params.customer, params.coupon);
     }
@@ -174,20 +177,28 @@ export class StripeService extends Stripe {
       throw new Error("Minimum payment amount is $20 (before any discounts)");
     }
 
-    const paymentIntent = await this.paymentIntents.create({
-      customer: params.customer,
-      payment_method: params.payment_method,
-      amount: finalAmountCents,
-      currency: params.currency,
-      confirm: params.confirm,
-      metadata,
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: "never"
-      }
-    });
+    try {
+      const paymentIntent = await this.paymentIntents.create({
+        customer: params.customer,
+        payment_method: params.payment_method,
+        amount: finalAmountCents,
+        currency: params.currency,
+        confirm: params.confirm,
+        metadata,
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: "never"
+        }
+      });
 
-    return { success: paymentIntent.status === "succeeded", paymentIntentId: paymentIntent.id };
+      return paymentIntent.status === "succeeded" ? Ok(paymentIntent.id) : Err(new PaymentError());
+    } catch (error) {
+      if (error instanceof Stripe.errors.StripeCardError && error.code === "card_declined") {
+        return Err(new PaymentError("Payment declined. Please check your card details and try again."));
+      }
+
+      throw error;
+    }
   }
 
   async listPromotionCodes() {
