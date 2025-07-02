@@ -34,7 +34,7 @@ export interface PaymentMethod {
   id: string;
   type: string;
   created: number;
-  card: {
+  card?: {
     brand: string;
     last4: string;
     exp_month: number;
