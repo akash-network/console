@@ -1,5 +1,22 @@
 
 
+## [2.103.0](https://github.com/akash-network/console/compare/console-api/v2.102.8...console-api/v2.103.0) (2025-07-02)
+
+
+### Features
+
+* **billing:** filter payment methods ([#1610](https://github.com/akash-network/console/issues/1610)) ([3db9833](https://github.com/akash-network/console/commit/3db9833084e7dfcf5370298aead681ae527609db))
+
+
+### Bug Fixes
+
+* **billing:** improve stripe error handling ([#1569](https://github.com/akash-network/console/issues/1569)) ([f567c75](https://github.com/akash-network/console/commit/f567c75f9c63ecadbd3f9eec8d58588be195743c))
+
+
+### Code Refactoring
+
+* move /v1/proposals to modules ([#1434](https://github.com/akash-network/console/issues/1434)) ([d6cd3c5](https://github.com/akash-network/console/commit/d6cd3c5cc53090784c79334195ae5c298a07a68e)), closes [#1269](https://github.com/akash-network/console/issues/1269) [#1269](https://github.com/akash-network/console/issues/1269)
+
 ## [2.102.8](https://github.com/akash-network/console/compare/console-api/v2.102.7...console-api/v2.102.8) (2025-07-01)
 
 
