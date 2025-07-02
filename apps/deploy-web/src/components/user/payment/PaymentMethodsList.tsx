@@ -46,7 +46,7 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
                     </div>
                   ) : (
                     <div>
-                      <span className="font-medium capitalize">{method.type.replace("_", " ")}</span>
+                      <span className="font-medium capitalize">{method.type.replace(/_/g, " ")}</span>
                     </div>
                   )}
                 </div>
