@@ -1,5 +1,12 @@
 
 
+## [2.91.1](https://github.com/akash-network/console/compare/console-web/v2.91.0...console-web/v2.91.1) (2025-07-02)
+
+
+### Bug Fixes
+
+* **auth:** revert absolute path to proxy ([#1611](https://github.com/akash-network/console/issues/1611)) ([b881749](https://github.com/akash-network/console/commit/b8817495a63ef6ccebcb7a3457e5941001b13e9e))
+
 ## [2.91.0](https://github.com/akash-network/console/compare/console-web/v2.90.2...console-web/v2.91.0) (2025-07-02)
 
 
