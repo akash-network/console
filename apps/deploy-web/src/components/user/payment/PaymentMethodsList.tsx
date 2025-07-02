@@ -36,13 +36,19 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <RadioGroupItem value={method.id} id={method.id} />
-                  <div>
-                    <span className="font-medium capitalize">{method.card.brand}</span>
-                    <span className="ml-2">•••• {method.card.last4}</span>
-                    <div className="text-sm text-muted-foreground">
-                      Expires {method.card.exp_month}/{method.card.exp_year}
+                  {method.card ? (
+                    <div>
+                      <span className="font-medium capitalize">{method.card.brand}</span>
+                      <span className="ml-2">•••• {method.card.last4}</span>
+                      <div className="text-sm text-muted-foreground">
+                        Expires {method.card.exp_month}/{method.card.exp_year}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div>
+                      <span className="font-medium capitalize">{method.type.replace(/_/g, " ")}</span>
+                    </div>
+                  )}
                 </div>
                 <Button
                   variant="ghost"
