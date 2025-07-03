@@ -6,12 +6,13 @@ import WebSocket from "ws";
 
 import type { CertPair } from "../seeders/createX509CertPair";
 import { createX509CertPair } from "../seeders/createX509CertPair";
+import { generateBech32 } from "./chainApiServer";
 
 let runningServer: https.Server | undefined;
 
 export function startProviderServer(options: ProviderServerOptions): Promise<string> {
   return new Promise<string>(resolve => {
-    const certPair = options.certPair || createX509CertPair();
+    const certPair = options.certPair || createX509CertPair({ commonName: generateBech32() });
     const httpServerOptions: ServerOptions = {
       key: certPair.key,
       cert: certPair.cert.toJSON()
