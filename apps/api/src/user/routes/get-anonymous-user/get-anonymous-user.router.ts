@@ -1,7 +1,8 @@
-import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 import { z } from "zod";
 
+import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { GetUserResponseOutputSchema } from "@src/user/schemas/user.schema";
 
@@ -30,7 +31,7 @@ const route = createRoute({
     }
   }
 });
-export const getAnonymousUserRouter = new OpenAPIHono();
+export const getAnonymousUserRouter = new OpenApiHonoHandler();
 
 getAnonymousUserRouter.openapi(route, async function routeWallet(c) {
   return c.json(await container.resolve(UserController).getById(c.req.valid("param")), 200);

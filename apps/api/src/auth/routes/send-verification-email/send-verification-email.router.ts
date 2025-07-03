@@ -17,6 +17,7 @@ const route = createRoute({
   method: "post",
   path: "/v1/send-verification-email",
   summary: "Resends a verification email",
+  tags: ["Users"],
   request: {
     body: {
       required: true,
