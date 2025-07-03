@@ -24,7 +24,7 @@ const PayPage: React.FunctionComponent = () => {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [cardToDelete, setCardToDelete] = useState<string>();
   const [amountError, setAmountError] = useState<string>();
-  const [showPaymentSuccess, setShowPaymentSuccess] = useState<{ amount: string; show: boolean }>({ amount: "", show: false });
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState<{ amount: string; show: boolean; message?: string }>({ amount: "", show: false });
   const [error, setError] = useState<string>();
   const [errorAction, setErrorAction] = useState<string>();
   const isDarkMode = resolvedTheme === "dark";
@@ -84,7 +84,7 @@ const PayPage: React.FunctionComponent = () => {
       });
 
       // Payment successful
-      setShowPaymentSuccess({ amount, show: true });
+      setShowPaymentSuccess({ amount, show: true, message: undefined });
       setAmount("");
       setCoupon("");
     } catch (error: unknown) {
@@ -121,7 +121,16 @@ const PayPage: React.FunctionComponent = () => {
         return;
       }
 
-      enqueueSnackbar(<Snackbar title="Coupon applied successfully!" iconVariant="success" />, { variant: "success", autoHideDuration: 5_000 });
+      // All valid coupons now provide direct funding
+      if (response.fundedAmount) {
+        enqueueSnackbar(<Snackbar title={`Account funded with $${response.fundedAmount.toFixed(2)}!`} iconVariant="success" />, {
+          variant: "success",
+          autoHideDuration: 5_000
+        });
+        // Show payment success animation for the funded amount with coupon message
+        setShowPaymentSuccess({ amount: response.fundedAmount.toString(), show: true, message: "Coupon successfully claimed!" });
+      }
+
       refetchDiscounts();
       setCoupon("");
     } catch (error: unknown) {
@@ -240,7 +249,8 @@ const PayPage: React.FunctionComponent = () => {
           <PaymentSuccessAnimation
             show={showPaymentSuccess.show}
             amount={showPaymentSuccess.amount}
-            onComplete={() => setShowPaymentSuccess({ amount: "", show: false })}
+            message={showPaymentSuccess.message}
+            onComplete={() => setShowPaymentSuccess({ amount: "", show: false, message: undefined })}
           />
           <div className="mb-6">
             <h2 className="mb-3 text-lg font-semibold">Your Payment Methods</h2>
@@ -268,7 +278,7 @@ const PayPage: React.FunctionComponent = () => {
                 onClaimCoupon={handleClaimCoupon}
                 discounts={discounts}
                 getFinalAmount={getFinalAmount}
-                processing={isConfirmingPayment}
+                processing={isConfirmingPayment || isApplyingCoupon}
                 selectedPaymentMethodId={selectedPaymentMethodId}
                 onPayment={handlePayment}
                 isApplyingCoupon={isApplyingCoupon}

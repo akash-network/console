@@ -2,59 +2,45 @@ import createError, { HttpError } from "http-errors";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
+// Base error classes for different categories
+export class CouponError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CouponError";
+  }
+}
+
+export class PaymentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PaymentError";
+  }
+}
+
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ValidationError";
+  }
+}
+
 @singleton()
 export class StripeErrorService {
   private readonly COUPON_ERRORS = {
-    "No valid promotion code or coupon found with the provided code": {
+    CouponError: {
       code: 400,
-      message: "No valid promotion code or coupon found with the provided code"
-    },
-    "Promotion code is invalid or expired": {
-      code: 400,
-      message: "Promotion code is invalid or expired"
-    },
-    "Coupon is invalid or expired": {
-      code: 400,
-      message: "Coupon is invalid or expired"
-    },
-    "This promotion code cannot be used": {
-      code: 400,
-      message: "This promotion code cannot be used"
-    },
-    "Promotion code has already been used": {
-      code: 400,
-      message: "Promotion code has already been used"
-    },
-    "This coupon type is not supported. Only direct credit coupons are accepted.": {
-      code: 400,
-      message: "This coupon type is not supported. Only direct credit coupons are accepted."
+      message: "Coupon error occurred"
     }
   };
 
   private readonly PAYMENT_ERRORS = {
-    "Final amount after discount must be at least $1": {
+    PaymentError: {
       code: 400,
-      message: "Final amount after discount must be at least $1"
+      message: "Payment error occurred"
     },
-    "Minimum payment amount is $20 (before any discounts)": {
+    ValidationError: {
       code: 400,
-      message: "Minimum payment amount is $20 (before any discounts)"
-    },
-    "Payment method does not belong to the user": {
-      code: 403,
-      message: "Payment method does not belong to the user"
-    },
-    "Payment not successful": {
-      code: 402,
-      message: "Payment not successful"
-    },
-    "Payment account not properly configured. Please contact support.": {
-      code: 500,
-      message: "Payment account not properly configured. Please contact support."
-    },
-    "Coupon ID is required": {
-      code: 400,
-      message: "Coupon ID is required"
+      message: "Validation error occurred"
     }
   };
 
@@ -69,26 +55,25 @@ export class StripeErrorService {
       return this.handleStripeError(error);
     }
 
-    // Handle our custom business logic errors
+    // Handle our custom error types
     const errorMap = context === "coupon" ? this.COUPON_ERRORS : this.PAYMENT_ERRORS;
-    const clues = Object.keys(errorMap) as (keyof typeof errorMap)[];
 
-    const clue = clues.find(clue => error.message.includes(clue));
+    // Check if it's one of our custom error types
+    const errorType = error.constructor.name as keyof typeof errorMap;
+    if (errorMap[errorType]) {
+      const { code } = errorMap[errorType];
+      const errorCode = this.getPaymentErrorCodeFromMessage(error.message);
+      const errorTypeName = context === "coupon" ? "coupon_error" : "payment_error";
 
-    if (!clue) {
-      // Return original error for unknown errors
-      return error;
+      return createError(code, error.message, {
+        originalError: error,
+        errorCode,
+        errorType: errorTypeName
+      });
     }
 
-    const { message, code } = errorMap[clue];
-    const errorCode = this.getPaymentErrorCodeFromMessage(message);
-    const errorType = context === "coupon" ? "coupon_error" : "payment_error";
-
-    return createError(code, message, {
-      originalError: error,
-      errorCode,
-      errorType
-    });
+    // Return original error for unknown errors
+    return error;
   }
 
   public toCouponResponseError(error: unknown): { coupon: null; error: { message: string; code?: string; type?: string } } {
@@ -151,6 +136,8 @@ export class StripeErrorService {
       return "coupon_already_used";
     } else if (messageLower.includes("cannot be used")) {
       return "coupon_not_applicable";
+    } else if (messageLower.includes("not supported")) {
+      return "unsupported_coupon_type";
     }
 
     return "unknown_coupon_error";
@@ -193,11 +180,11 @@ export class StripeErrorService {
       return true;
     }
 
-    // Check our custom business logic errors
+    // Check our custom error types
     const errorMap = context === "coupon" ? this.COUPON_ERRORS : this.PAYMENT_ERRORS;
-    const clues = Object.keys(errorMap) as (keyof typeof errorMap)[];
+    const errorType = error.constructor.name as keyof typeof errorMap;
 
-    return clues.some(clue => error.message.includes(clue));
+    return errorMap[errorType] !== undefined;
   }
 
   private isStripeError(error: Error | Stripe.errors.StripeError): error is Stripe.errors.StripeError {

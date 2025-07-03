@@ -134,7 +134,8 @@ describe("usePaymentQueries", () => {
 
     it("should apply coupon and invalidate discounts", async () => {
       const mockCouponResponse = createMockCouponResponse();
-      (useServices().stripe.applyCoupon as jest.Mock).mockResolvedValue(mockCouponResponse);
+      const mockResponseWithFunding = { ...mockCouponResponse, fundedAmount: 10.5 };
+      (useServices().stripe.applyCoupon as jest.Mock).mockResolvedValue(mockResponseWithFunding);
       const { result } = setupQuery(() => usePaymentMutations());
 
       await act(async () => {
@@ -143,6 +144,22 @@ describe("usePaymentQueries", () => {
 
       await waitFor(() => {
         expect(useServices().stripe.applyCoupon).toHaveBeenCalledWith(mockCouponResponse.coupon.id);
+      });
+    });
+
+    it("should handle direct credit coupon with fundedAmount", async () => {
+      const mockDirectCreditResponse = {
+        coupon: createMockCouponResponse().coupon,
+        fundedAmount: 10.5
+      };
+      (useServices().stripe.applyCoupon as jest.Mock).mockResolvedValue(mockDirectCreditResponse);
+      const { result } = setupQuery(() => usePaymentMutations());
+
+      const response = await act(async () => result.current.applyCoupon.mutateAsync({ coupon: "DIRECT_CREDIT" }));
+      expect(response.fundedAmount).toBe(10.5);
+
+      await waitFor(() => {
+        expect(useServices().stripe.applyCoupon).toHaveBeenCalledWith("DIRECT_CREDIT");
       });
     });
 

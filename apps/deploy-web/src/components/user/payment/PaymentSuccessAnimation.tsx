@@ -9,6 +9,7 @@ interface PaymentSuccessAnimationProps {
   show: boolean;
   amount: string;
   onComplete?: () => void;
+  message?: string;
 }
 
 interface Particle {
@@ -21,7 +22,7 @@ interface Particle {
   delay: number;
 }
 
-export function PaymentSuccessAnimation({ show, amount, onComplete }: PaymentSuccessAnimationProps) {
+export function PaymentSuccessAnimation({ show, amount, onComplete, message }: PaymentSuccessAnimationProps) {
   const [particles, setParticles] = useState<Particle[]>([]);
 
   useEffect(() => {
@@ -153,7 +154,7 @@ export function PaymentSuccessAnimation({ show, amount, onComplete }: PaymentSuc
             {/* Success message */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.5 }} className="text-center">
               <motion.h2 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="mb-2 text-3xl font-bold text-foreground">
-                Payment Successful!
+                {message || "Payment Successful!"}
               </motion.h2>
 
               <motion.div

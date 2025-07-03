@@ -19,6 +19,7 @@ export interface Coupon {
 
 export interface CouponResponse {
   coupon: Coupon | null;
+  fundedAmount?: number;
   error?: {
     message: string;
     code?: string;
