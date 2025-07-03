@@ -30,7 +30,7 @@ export const REPOSITORIES = {
 };
 
 export class TemplateFetcherService {
-  private githubRequestsRemaining: string | null | undefined = null;
+  private _githubRequestsRemaining: string | null = null;
   private _octokit: Octokit | undefined = undefined;
 
   constructor(
@@ -40,6 +40,16 @@ export class TemplateFetcherService {
     if (!githubPAT) throw new Error("Cannot fetch templates without GitHub PAT");
 
     this._octokit = getOctokit(githubPAT);
+  }
+
+  get githubRequestsRemaining(): string | null {
+    return this._githubRequestsRemaining;
+  }
+
+  private setGithubRequestsRemaining(value?: string) {
+    if (value) {
+      this._githubRequestsRemaining = value;
+    }
   }
 
   private get octokit(): Octokit {
@@ -58,7 +68,7 @@ export class TemplateFetcherService {
       branch: mainBranch
     });
 
-    this.githubRequestsRemaining = response.headers["x-ratelimit-remaining"];
+    this.setGithubRequestsRemaining(response.headers["x-ratelimit-remaining"]);
 
     if (response.status !== 200) {
       throw new Error(`Failed to fetch latest version of ${repoOwner}/${repoName} from github`);
@@ -82,7 +92,7 @@ export class TemplateFetcherService {
       }
     });
 
-    this.githubRequestsRemaining = response.headers["x-ratelimit-remaining"];
+    this.setGithubRequestsRemaining(response.headers["x-ratelimit-remaining"]);
 
     if (response.status !== 200) {
       throw new Error(`Failed to fetch content from ${owner}/${repo}/${path}`);
@@ -102,7 +112,7 @@ export class TemplateFetcherService {
       }
     });
 
-    this.githubRequestsRemaining = response.headers["x-ratelimit-remaining"];
+    this.setGithubRequestsRemaining(response.headers["x-ratelimit-remaining"]);
 
     if (!Array.isArray(response.data)) {
       throw new Error(`Failed to fetch directory content from ${owner}/${repo}/${path}`);
@@ -118,7 +128,7 @@ export class TemplateFetcherService {
       throw new Error(`Could not fetch chain.json for ${chainPath}`);
     }
 
-    return response.json() as unknown as GithubChainRegistryChainResponse;
+    return (await response.json()) as GithubChainRegistryChainResponse;
   }
 
   private async findFileContentAsync(filename: string | string[], fileList: GithubDirectoryItem[]): Promise<string | null> {
@@ -131,10 +141,6 @@ export class TemplateFetcherService {
     return response.text();
   }
 
-  getGithubRequestsRemaining(): string | null | undefined {
-    return this.githubRequestsRemaining;
-  }
-
   private async processTemplateSource(
     templateSource: TemplateSource,
     directoryItems: GithubDirectoryItem[],
@@ -142,7 +148,7 @@ export class TemplateFetcherService {
   ): Promise<any> {
     try {
       if (templateSource.path.startsWith("http:") || templateSource.path.startsWith("https:")) {
-        throw "Absolute URL";
+        throw new Error("Absolute URL not supported");
       }
 
       const readme = await this.findFileContentAsync("README.md", directoryItems);

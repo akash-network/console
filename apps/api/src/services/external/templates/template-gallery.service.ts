@@ -48,7 +48,7 @@ export class TemplateGalleryService {
 
       this.lastServedData = templateGallery;
 
-      console.log(`${this.templateFetcher.getGithubRequestsRemaining()} requests remaining`);
+      console.log(`${this.templateFetcher.githubRequestsRemaining} requests remaining`);
 
       return templateGallery;
     } catch (err) {

@@ -7,7 +7,7 @@ import { env } from "@src/utils/env";
 
 const fakeHeaders = {
   headers: {
-    "x-ratelimit-remaining": 100
+    "x-ratelimit-remaining": "100"
   }
 };
 
