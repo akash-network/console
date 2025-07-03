@@ -197,7 +197,8 @@ export class StripeErrorService {
       "StripeRateLimitError",
       "StripeIdempotencyError",
       "StripePermissionError",
-      "StripeSignatureVerificationError"
+      "StripeSignatureVerificationError",
+      "StripeUnknownError"
     ];
     return (
       !!error &&
