@@ -45,34 +45,27 @@ export class StripeErrorService {
   };
 
   public toAppError(error: unknown, context: "coupon" | "payment" = "payment"): HttpError | Error {
-    // Ensure error is an Error object
-    if (!(error instanceof Error)) {
-      return new Error("An unknown error occurred");
-    }
-
     // Handle Stripe-specific errors first
     if (this.isStripeError(error)) {
       return this.handleStripeError(error);
     }
-
+    // Ensure error is an Error object
+    if (!(error instanceof Error)) {
+      return createError(500, "An unknown error occurred");
+    }
     // Handle our custom error types
     const errorMap = context === "coupon" ? this.COUPON_ERRORS : this.PAYMENT_ERRORS;
-
-    // Check if it's one of our custom error types
     const errorType = error.constructor.name as keyof typeof errorMap;
     if (errorMap[errorType]) {
       const { code } = errorMap[errorType];
-      const errorCode = this.getPaymentErrorCodeFromMessage(error.message);
       const errorTypeName = context === "coupon" ? "coupon_error" : "payment_error";
-
       return createError(code, error.message, {
         originalError: error,
-        errorCode,
+        errorCode: context === "coupon" ? this.getCouponErrorCode(error.message) : this.getPaymentErrorCodeFromMessage(error.message),
         errorType: errorTypeName
       });
     }
-
-    // Return original error for unknown errors
+    // For unknown error types, return the original error (test expects this)
     return error;
   }
 
@@ -108,16 +101,29 @@ export class StripeErrorService {
    */
   public getPaymentErrorCode(error: unknown): { message: string; code: string; type: string } {
     const appError = this.toAppError(error, "payment");
-
     if (appError instanceof HttpError) {
-      const errorCode = this.getPaymentErrorCodeFromMessage(appError.message);
+      // If this is a coupon error, map to coupon_error
+      if (appError.errorType === "coupon_error") {
+        return {
+          message: appError.message,
+          code: appError.errorCode || "unknown_coupon_error",
+          type: "coupon_error"
+        };
+      }
       return {
         message: appError.message,
-        code: errorCode,
+        code: appError.errorCode || this.getPaymentErrorCodeFromMessage(appError.message),
         type: "payment_error"
       };
     }
-
+    // If the error is a CouponError, map as coupon_error
+    if (error instanceof CouponError) {
+      return {
+        message: error.message,
+        code: this.getCouponErrorCode(error.message),
+        type: "coupon_error"
+      };
+    }
     return {
       message: "An unexpected payment error occurred",
       code: "unknown_payment_error",
@@ -170,25 +176,36 @@ export class StripeErrorService {
   }
 
   public isKnownError(error: unknown, context: "coupon" | "payment" = "payment"): boolean {
-    // Ensure error is an Error object
-    if (!(error instanceof Error)) {
-      return false;
-    }
-
-    // Check if it's a Stripe error
     if (this.isStripeError(error)) {
       return true;
     }
-
-    // Check our custom error types
+    if (!(error instanceof Error)) {
+      return false;
+    }
     const errorMap = context === "coupon" ? this.COUPON_ERRORS : this.PAYMENT_ERRORS;
     const errorType = error.constructor.name as keyof typeof errorMap;
-
     return errorMap[errorType] !== undefined;
   }
 
-  private isStripeError(error: Error | Stripe.errors.StripeError): error is Stripe.errors.StripeError {
-    return error && typeof error === "object" && "type" in error && error.type?.startsWith("Stripe");
+  private isStripeError(error: unknown): error is Stripe.errors.StripeError {
+    const knownTypes = [
+      "StripeCardError",
+      "StripeInvalidRequestError",
+      "StripeAPIError",
+      "StripeConnectionError",
+      "StripeAuthenticationError",
+      "StripeRateLimitError",
+      "StripeIdempotencyError",
+      "StripePermissionError",
+      "StripeSignatureVerificationError"
+    ];
+    return (
+      !!error &&
+      typeof error === "object" &&
+      error !== null &&
+      typeof (error as { type?: unknown }).type === "string" &&
+      knownTypes.includes((error as { type: string }).type)
+    );
   }
 
   private handleStripeError(error: Stripe.errors.StripeError): HttpError {
@@ -212,6 +229,7 @@ export class StripeErrorService {
       case "StripeSignatureVerificationError":
         return this.handleSignatureVerificationError(error as Stripe.errors.StripeSignatureVerificationError);
       default:
+        // For unknown Stripe errors, use the expected message
         return createError(500, "An unexpected error occurred", { originalError: error });
     }
   }
@@ -368,8 +386,9 @@ export class StripeErrorService {
    * Check if an error is retryable based on Stripe's recommendations
    */
   public isRetryableError(error: Error | Stripe.errors.StripeError): boolean {
-    if (this.isStripeError(error)) {
-      return ["StripeConnectionError", "StripeAPIError", "StripeRateLimitError"].includes(error.type);
+    if (this.isStripeError(error as unknown)) {
+      const stripeError = error as Stripe.errors.StripeError;
+      return ["StripeConnectionError", "StripeAPIError", "StripeRateLimitError"].includes(stripeError.type);
     }
     return false;
   }
@@ -381,33 +400,25 @@ export class StripeErrorService {
     if (!this.isRetryableError(error)) {
       return 0;
     }
-
     // Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 30s
     const baseDelay = 1000; // 1 second
     const maxDelay = 30000; // 30 seconds
-    const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), maxDelay);
-
+    let delay = baseDelay * Math.pow(2, attempt - 1);
+    if (delay > maxDelay) delay = maxDelay;
     // Add jitter to prevent thundering herd
     const jitter = Math.random() * 0.1 * delay; // 10% jitter
-    return delay + jitter;
+    return Math.min(delay + jitter, maxDelay);
   }
 
   /**
    * Handle webhook-specific errors
    */
   public handleWebhookError(error: Error | Stripe.errors.StripeError): HttpError {
-    if (this.isStripeError(error) && error.type === "StripeSignatureVerificationError") {
+    if (this.isStripeError(error as unknown) && (error as Stripe.errors.StripeError).type === "StripeSignatureVerificationError") {
       return this.handleSignatureVerificationError(error as Stripe.errors.StripeSignatureVerificationError);
     }
-
-    // For other webhook errors, treat them as general errors
-    const appError = this.toAppError(error, "payment");
-    if (appError instanceof HttpError) {
-      return appError;
-    }
-
-    // If it's not an HttpError, create a generic one
-    return createError(500, "Webhook processing error", { originalError: error });
+    // For other webhook errors, treat them as client errors (400)
+    return createError(400, error.message || "Webhook processing error", { originalError: error });
   }
 
   /**
@@ -424,23 +435,54 @@ export class StripeErrorService {
   } {
     const appError = this.toAppError(error);
     let httpStatus = 500;
-
     if (appError instanceof HttpError) {
       httpStatus = appError.status;
+    } else if (this.isStripeError(error as unknown)) {
+      const stripeError = error as Stripe.errors.StripeError;
+      // Map Stripe error types to HTTP status
+      switch (stripeError.type) {
+        case "StripeCardError":
+          httpStatus = 402;
+          break;
+        case "StripeInvalidRequestError":
+        case "StripeSignatureVerificationError":
+          httpStatus = 400;
+          break;
+        case "StripeAPIError":
+          httpStatus = 502;
+          break;
+        case "StripeConnectionError":
+          httpStatus = 503;
+          break;
+        case "StripeAuthenticationError":
+          httpStatus = 500;
+          break;
+        case "StripeRateLimitError":
+          httpStatus = 429;
+          break;
+        case "StripeIdempotencyError":
+          httpStatus = 409;
+          break;
+        case "StripePermissionError":
+          httpStatus = 403;
+          break;
+        default:
+          httpStatus = 500;
+      }
     }
-
-    if (this.isStripeError(error)) {
+    if (this.isStripeError(error as unknown)) {
+      const stripeError = error as Stripe.errors.StripeError;
       return {
-        type: error.type,
-        code: "code" in error ? error.code : undefined,
-        decline_code: "decline_code" in error ? error.decline_code : undefined,
-        param: "param" in error ? error.param : undefined,
-        message: error.message,
+        type: stripeError.type,
+        code: "code" in stripeError ? stripeError.code : undefined,
+        decline_code: "decline_code" in stripeError ? stripeError.decline_code : undefined,
+        param: "param" in stripeError ? stripeError.param : undefined,
+        message: stripeError.message,
         retryable: this.isRetryableError(error),
         httpStatus
       };
     }
-
+    // For custom errors, use 'Unknown' as type
     return {
       type: "Unknown",
       message: error.message,
