@@ -1,9 +1,7 @@
 {
   "compilerOptions": {
     "outDir": "dist",
-    "noEmit": true,
-    "target": "es2022",
-    "lib": ["ESNext"]
+    "noEmit": true
   },
   "exclude": ["node_modules", "dist", "build", "test"],
   "extends": "./tsconfig.build.json"
