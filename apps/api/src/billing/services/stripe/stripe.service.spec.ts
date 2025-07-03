@@ -1,8 +1,10 @@
 import { mock } from "jest-mock-extended";
+import type Stripe from "stripe";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
+import { CouponError, ValidationError } from "./stripe-error/stripe-error.service";
 import { StripeService } from "./stripe.service";
 
 import { create as StripeSeederCreate } from "@test/seeders/stripe.seeder";
@@ -80,7 +82,7 @@ describe(StripeService.name, () => {
         if (query?.id && user.id === query.id) {
           return user;
         }
-        return null;
+        return undefined;
       });
       const stripeData = StripeSeederCreate();
       jest.spyOn(service, "getCustomerDiscounts").mockResolvedValue([
@@ -152,23 +154,71 @@ describe(StripeService.name, () => {
   });
 
   describe("applyCoupon", () => {
-    it("applies promotion code successfully", async () => {
+    it("applies direct credit promotion code successfully", async () => {
+      const { service, refillService, userRepository } = setup();
+      const stripeData = StripeSeederCreate();
+      const user = UserSeeder.create({ id: "test-user-id-001", stripeCustomerId: "cus_123" });
+
+      // Create a promotion code with amount_off (direct credit)
+      const directCreditPromo: Stripe.PromotionCode = {
+        ...stripeData.promotionCode,
+        coupon: {
+          ...stripeData.promotionCode.coupon,
+          amount_off: 1000, // $10.00
+          percent_off: null
+        }
+      };
+
+      (userRepository as unknown as { lastUser: typeof user }).lastUser = user;
+      userRepository.findOneBy.mockImplementation(async (query: { stripeCustomerId?: string }) => {
+        if (query?.stripeCustomerId && user.stripeCustomerId === query.stripeCustomerId) {
+          return user;
+        }
+        return undefined;
+      });
+
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(directCreditPromo);
+
+      const result = await service.applyCoupon("cus_123", directCreditPromo.code);
+
+      expect(service.customers.update).toHaveBeenCalledWith("cus_123", {
+        promotion_code: directCreditPromo.id
+      });
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(1000, user.id);
+      expect(result).toEqual({
+        coupon: directCreditPromo,
+        fundedAmount: 10 // $10.00 converted from cents
+      });
+    });
+
+    it("throws error for percentage-based promotion code", async () => {
       const { service } = setup();
       const stripeData = StripeSeederCreate();
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(stripeData.promotionCode as any);
 
-      const result = await service.applyCoupon("cus_123", stripeData.promotionCode.code);
-      expect(service.customers.update).toHaveBeenCalledWith("cus_123", {
-        promotion_code: stripeData.promotionCode.id
-      });
-      expect(result).toEqual(stripeData.promotionCode);
+      // Create a promotion code with percent_off but no amount_off (percentage-based)
+      const percentagePromo: Stripe.PromotionCode = {
+        ...stripeData.promotionCode,
+        coupon: {
+          ...stripeData.promotionCode.coupon,
+          amount_off: null,
+          percent_off: 50 // 50% off
+        }
+      };
+
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(percentagePromo);
+
+      await expect(service.applyCoupon("cus_123", percentagePromo.code)).rejects.toThrowError(
+        new ValidationError("This coupon type is not supported. Only direct credit coupons are accepted.")
+      );
     });
 
     it("throws error for invalid promotion code", async () => {
       const { service } = setup();
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(null as any);
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
 
-      await expect(service.applyCoupon("cus_123", "INVALID")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
+      await expect(service.applyCoupon("cus_123", "INVALID")).rejects.toThrowError(
+        new CouponError("No valid promotion code or coupon found with the provided code")
+      );
     });
   });
 
@@ -389,7 +439,7 @@ function setup() {
     if (query?.id) {
       return { id: query.id, stripeCustomerId: null };
     }
-    return null;
+    return undefined;
   });
   userRepository.updateBy.mockImplementation(async (query, update) => {
     if (lastUser && lastUser.id === query.id) {

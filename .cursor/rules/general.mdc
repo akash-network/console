@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- Never use type any.
+
+- Never use deprecated methods from libraries.

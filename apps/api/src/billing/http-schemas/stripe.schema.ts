@@ -77,6 +77,7 @@ export const CouponSchema = z.object({
 export const ApplyCouponResponseSchema = z.object({
   data: z.object({
     coupon: CouponSchema.nullable().optional(),
+    fundedAmount: z.number().optional(),
     error: z
       .object({
         message: z.string(),

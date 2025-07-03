@@ -6,7 +6,7 @@ import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
 import { ConfirmPaymentRequest, Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
-import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
+import { StripeErrorService } from "@src/billing/services/stripe/stripe-error/stripe-error.service";
 import { Semaphore } from "@src/core/lib/semaphore.decorator";
 
 @singleton()
@@ -76,15 +76,17 @@ export class StripeController {
   }
 
   @Protected([{ action: "create", subject: "StripePayment" }])
-  async applyCoupon(couponId: string): Promise<{ data: { coupon: Stripe.Coupon | Stripe.PromotionCode | null; error?: { message: string } } }> {
+  async applyCoupon(
+    couponId: string
+  ): Promise<{ data: { coupon: Stripe.Coupon | Stripe.PromotionCode | null; fundedAmount?: number; error?: { message: string } } }> {
     const { currentUser } = this.authService;
 
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
     assert(couponId, 400, "Coupon ID is required");
 
     try {
-      const coupon = await this.stripe.applyCoupon(currentUser.stripeCustomerId, couponId);
-      return { data: { coupon } };
+      const result = await this.stripe.applyCoupon(currentUser.stripeCustomerId, couponId);
+      return { data: { coupon: result.coupon, fundedAmount: result.fundedAmount } };
     } catch (error: unknown) {
       if (this.stripeErrorService.isKnownError(error, "coupon")) {
         return { data: this.stripeErrorService.toCouponResponseError(error) };

@@ -1,6 +1,7 @@
 import type { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
 import { mock } from "jest-mock-extended";
 
+import { useServices } from "@src/context/ServicesProvider";
 import {
   usePaymentDiscountsQuery,
   usePaymentMethodsQuery,
@@ -140,7 +141,23 @@ describe("usePaymentQueries", () => {
       });
     });
 
-    it("handles coupon application error response", async () => {
+    it("should handle direct credit coupon with fundedAmount", async () => {
+      const mockDirectCreditResponse = {
+        coupon: createMockCouponResponse().coupon,
+        fundedAmount: 10.5
+      };
+      (useServices().stripe.applyCoupon as jest.Mock).mockResolvedValue(mockDirectCreditResponse);
+      const { result } = setupQuery(() => usePaymentMutations());
+
+      const response = await act(async () => result.current.applyCoupon.mutateAsync({ coupon: "DIRECT_CREDIT" }));
+      expect(response.fundedAmount).toBe(10.5);
+
+      await waitFor(() => {
+        expect(useServices().stripe.applyCoupon).toHaveBeenCalledWith("DIRECT_CREDIT");
+      });
+    });
+
+    it("should handle coupon application error response", async () => {
       const mockErrorResponse = {
         coupon: null,
         error: {

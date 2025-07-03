@@ -7,6 +7,7 @@ import { Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
+import { CouponError, ValidationError } from "./stripe-error/stripe-error.service";
 
 interface CheckoutOptions {
   customerId: string;
@@ -164,9 +165,9 @@ export class StripeService extends Stripe {
 
     const finalAmountDollars = finalAmountCents / 100;
     if (finalAmountDollars > 0 && finalAmountDollars < 1) {
-      throw new Error("Final amount after discount must be at least $1");
+      throw new ValidationError("Final amount after discount must be at least $1");
     } else if (!discounts.length && finalAmountDollars > 0 && finalAmountDollars < 20) {
-      throw new Error("Minimum payment amount is $20 (before any discounts)");
+      throw new ValidationError("Minimum payment amount is $20 (before any discounts)");
     }
 
     const paymentIntent = await this.paymentIntents.create({
@@ -192,7 +193,7 @@ export class StripeService extends Stripe {
     return { promotionCodes: promotionCodes.data };
   }
 
-  async findPromotionCodeByCode(code: string) {
+  async findPromotionCodeByCode(code: string): Promise<Stripe.PromotionCode | undefined> {
     const { data: promotionCodes } = await this.promotionCodes.list({
       code,
       expand: ["data.coupon"]
@@ -200,17 +201,29 @@ export class StripeService extends Stripe {
     return promotionCodes[0];
   }
 
-  async applyCoupon(customerId: string, couponCode: string): Promise<Stripe.Coupon | Stripe.PromotionCode> {
+  async applyCoupon(customerId: string, couponCode: string): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; fundedAmount: number }> {
     const promotionCode = await this.findPromotionCodeByCode(couponCode);
 
     if (promotionCode) {
       if (!promotionCode.coupon.valid) {
-        throw new Error("Promotion code is invalid or expired");
+        throw new CouponError("Promotion code is invalid or expired");
       }
-      await this.customers.update(customerId, {
-        promotion_code: promotionCode.id
-      });
-      return promotionCode;
+
+      // Check if this coupon provides direct funding
+      if (promotionCode.coupon.amount_off) {
+        // This is a direct credit coupon - fund the account immediately
+        await this.customers.update(customerId, {
+          promotion_code: promotionCode.id
+        });
+        await this.handleZeroAmountPayment(customerId, promotionCode.coupon.amount_off, true);
+        return {
+          coupon: promotionCode,
+          fundedAmount: promotionCode.coupon.amount_off / 100 // Convert cents to dollars
+        };
+      } else {
+        // Percentage-based coupons don't provide direct funding - treat as invalid
+        throw new ValidationError("This coupon type is not supported. Only direct credit coupons are accepted.");
+      }
     }
 
     // If no promotion code found, try to find a matching coupon
@@ -219,15 +232,27 @@ export class StripeService extends Stripe {
 
     if (matchingCoupon) {
       if (!matchingCoupon.valid) {
-        throw new Error("Coupon is invalid or expired");
+        throw new CouponError("Coupon is invalid or expired");
       }
-      await this.customers.update(customerId, {
-        coupon: matchingCoupon.id
-      });
-      return matchingCoupon;
+
+      // Check if this coupon provides direct funding
+      if (matchingCoupon.amount_off) {
+        // This is a direct credit coupon - fund the account immediately
+        await this.customers.update(customerId, {
+          coupon: matchingCoupon.id
+        });
+        await this.handleZeroAmountPayment(customerId, matchingCoupon.amount_off, true);
+        return {
+          coupon: matchingCoupon,
+          fundedAmount: matchingCoupon.amount_off / 100 // Convert cents to dollars
+        };
+      } else {
+        // Percentage-based coupons don't provide direct funding - treat as invalid
+        throw new ValidationError("This coupon type is not supported. Only direct credit coupons are accepted.");
+      }
     }
 
-    throw new Error("No valid promotion code or coupon found with the provided code");
+    throw new CouponError("No valid promotion code or coupon found with the provided code");
   }
 
   async listCoupons() {
