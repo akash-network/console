@@ -121,13 +121,11 @@ const PayPage: React.FunctionComponent = () => {
         return;
       }
 
-      // All valid coupons now provide direct funding
       if (response.fundedAmount) {
         enqueueSnackbar(<Snackbar title={`Account funded with $${response.fundedAmount.toFixed(2)}!`} iconVariant="success" />, {
           variant: "success",
           autoHideDuration: 5_000
         });
-        // Show payment success animation for the funded amount with coupon message
         setShowPaymentSuccess({ amount: response.fundedAmount.toString(), show: true, message: "Coupon successfully claimed!" });
       }
 
