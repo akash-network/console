@@ -209,9 +209,8 @@ export class StripeService extends Stripe {
         throw new CouponError("Promotion code is invalid or expired");
       }
 
-      // Check if this coupon provides direct funding
+      // Only allow direct credit coupons, no percentage-based coupons
       if (promotionCode.coupon.amount_off) {
-        // This is a direct credit coupon - fund the account immediately
         await this.customers.update(customerId, {
           promotion_code: promotionCode.id
         });
@@ -221,7 +220,6 @@ export class StripeService extends Stripe {
           fundedAmount: promotionCode.coupon.amount_off / 100 // Convert cents to dollars
         };
       } else {
-        // Percentage-based coupons don't provide direct funding - treat as invalid
         throw new ValidationError("This coupon type is not supported. Only direct credit coupons are accepted.");
       }
     }
@@ -235,9 +233,8 @@ export class StripeService extends Stripe {
         throw new CouponError("Coupon is invalid or expired");
       }
 
-      // Check if this coupon provides direct funding
+      // Only allow direct credit coupons, no percentage-based coupons
       if (matchingCoupon.amount_off) {
-        // This is a direct credit coupon - fund the account immediately
         await this.customers.update(customerId, {
           coupon: matchingCoupon.id
         });
@@ -247,7 +244,6 @@ export class StripeService extends Stripe {
           fundedAmount: matchingCoupon.amount_off / 100 // Convert cents to dollars
         };
       } else {
-        // Percentage-based coupons don't provide direct funding - treat as invalid
         throw new ValidationError("This coupon type is not supported. Only direct credit coupons are accepted.");
       }
     }
