@@ -1,5 +1,12 @@
 
 
+## [1.12.7](https://github.com/akash-network/console/compare/provider-proxy/v1.12.6...provider-proxy/v1.12.7) (2025-07-03)
+
+
+### Bug Fixes
+
+* enable proper traceId propagation for websocket server ([#1614](https://github.com/akash-network/console/issues/1614)) ([7b5dc79](https://github.com/akash-network/console/commit/7b5dc79feec7006314f0d130dd333f506f8c107e))
+
 ## [1.12.6](https://github.com/akash-network/console/compare/provider-proxy/v1.12.5...provider-proxy/v1.12.6) (2025-07-02)
 
 
