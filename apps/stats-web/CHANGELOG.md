@@ -1,5 +1,12 @@
 
 
+## [0.28.4](https://github.com/akash-network/console/compare/stats-web/v0.28.3...stats-web/v0.28.4) (2025-07-04)
+
+
+### Code Refactoring
+
+* replaces direct dep on axios to injected via useServices one ([#1622](https://github.com/akash-network/console/issues/1622)) ([dfb52ae](https://github.com/akash-network/console/commit/dfb52ae5f154c854aaf9b9cfa4d1ef25892bce31))
+
 ## [0.28.3](https://github.com/akash-network/console/compare/stats-web/v0.28.2...stats-web/v0.28.3) (2025-06-28)
 
 
