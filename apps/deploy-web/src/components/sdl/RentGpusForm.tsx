@@ -16,7 +16,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
 import { useGpuModels } from "@src/queries/useGpuQuery";
-import { useDepositParams } from "@src/queries/useSettings";
+import { useDepositParams } from "@src/queries/useSaveSettings";
 import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";

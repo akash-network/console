@@ -1,20 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 
+import { useServices } from "@src/context/ServicesProvider";
 import type { GpuVendor } from "@src/types/gpu";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
-async function getGpuModels() {
-  const response = await axios.get(ApiUrlService.gpuModels());
-
-  return response.data as GpuVendor[];
-}
-
 export function useGpuModels(options = {}) {
+  const { axios } = useServices();
   return useQuery({
     queryKey: QueryKeys.getGpuModelsKey(),
-    queryFn: getGpuModels,
+    queryFn: () => axios.get<GpuVendor[]>(ApiUrlService.gpuModels()).then(response => response.data),
     ...options,
     refetchInterval: false,
     refetchIntervalInBackground: false,

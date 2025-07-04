@@ -1,16 +1,16 @@
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import type { AxiosInstance } from "axios";
 
+import { useServices } from "@src/context/ServicesProvider";
 import type { BidDto, RpcBid } from "@src/types/deployment";
 import { ApiUrlService } from "@src/utils/apiUtils";
-import { useSettings } from "../context/SettingsProvider";
 import { QueryKeys } from "./queryKeys";
 
-async function getBidList(apiEndpoint: string, address: string, dseq: string): Promise<Array<BidDto> | null> {
+async function getBidList(apiClient: AxiosInstance, address: string, dseq: string): Promise<Array<BidDto> | null> {
   if (!address || !dseq) return null;
 
-  const response = await axios.get<{ bids: RpcBid[] }>(ApiUrlService.bidList(apiEndpoint, address, dseq));
+  const response = await apiClient.get<{ bids: RpcBid[] }>(ApiUrlService.bidList("", address, dseq));
   const { bids } = response.data;
 
   return bids.map((b: RpcBid) => ({
@@ -27,28 +27,28 @@ async function getBidList(apiEndpoint: string, address: string, dseq: string): P
 }
 
 export function useBidList(address: string, dseq: string, options?: Omit<UseQueryOptions<BidDto[] | null>, "queryKey" | "queryFn">) {
-  const { settings } = useSettings();
+  const { chainApiHttpClient } = useServices();
 
   return useQuery({
     queryKey: QueryKeys.getBidListKey(address, dseq) as QueryKey,
-    queryFn: () => getBidList(settings.apiEndpoint, address, dseq),
+    queryFn: () => getBidList(chainApiHttpClient, address, dseq),
     ...options
   });
 }
 
-async function getBidInfo(apiEndpoint: string, address: string, dseq: string, gseq: number, oseq: number, provider: string): Promise<RpcBid | null> {
+async function getBidInfo(apiClient: AxiosInstance, address: string, dseq: string, gseq: number, oseq: number, provider: string): Promise<RpcBid | null> {
   if (!address || !dseq || !gseq || !oseq || !provider) return null;
 
-  const response = await axios.get(ApiUrlService.bidInfo(apiEndpoint, address, dseq, gseq, oseq, provider));
+  const response = await apiClient.get(ApiUrlService.bidInfo("", address, dseq, gseq, oseq, provider));
 
   return response.data;
 }
 
 export function useBidInfo(address: string, dseq: string, gseq: number, oseq: number, provider: string, options = {}) {
-  const { settings } = useSettings();
+  const { chainApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getBidInfoKey(address, dseq, gseq, oseq, provider),
-    queryFn: () => getBidInfo(settings.apiEndpoint, address, dseq, gseq, oseq, provider),
+    queryFn: () => getBidInfo(chainApiHttpClient, address, dseq, gseq, oseq, provider),
     ...options
   });
 }

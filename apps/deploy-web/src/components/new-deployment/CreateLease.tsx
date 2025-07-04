@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useWhen } from "@src/hooks/useWhen";
@@ -40,7 +41,6 @@ import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
 import { TRIAL_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
-import { sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { addScriptToHead } from "@src/utils/domUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -67,6 +67,8 @@ const WARNING_NUM_OF_BID_REQUESTS = Math.round((60 * 1000) / REFRESH_BIDS_INTERV
 const TRIAL_SIGNUP_WARNING_TIMEOUT = 33000;
 
 export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
+  const { providerProxy } = useServices();
+
   const [isSendingManifest, setIsSendingManifest] = useState(false);
   const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
   const [isFilteringAudited, setIsFilteringAudited] = useState(false);
@@ -158,7 +160,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
         if (!provider) {
           throw new Error("Provider not found");
         }
-        await sendManifestToProvider(provider, mani, { dseq, localCert, chainNetwork });
+        await providerProxy.sendManifest(provider, mani, { dseq, localCert, chainNetwork });
       }
 
       // Ad tracking script

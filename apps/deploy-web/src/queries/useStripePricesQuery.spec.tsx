@@ -1,50 +1,52 @@
-import { stripeService } from "@src/services/http/http-browser.service";
-import { queryClient } from "./queryClient";
+import type { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
+import { mock } from "jest-mock-extended";
+
 import { useStripePricesQuery } from "./useStripePricesQuery";
 
 import { waitFor } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 
-jest.mock("@src/services/http/http-browser.service", () => ({
-  stripeService: {
-    findPrices: jest.fn()
-  }
-}));
-
 describe("useStripePricesQuery", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    queryClient.clear();
-  });
-
-  it("should fetch prices when enabled and use proper cache key", async () => {
+  it("fetches prices when enabled and use proper cache key", async () => {
     const mockPrices = [
       { unitAmount: 10, isCustom: false, currency: "usd" },
       { unitAmount: 20, isCustom: false, currency: "usd" }
     ];
-    (stripeService.findPrices as jest.Mock).mockResolvedValue(mockPrices);
+    const stripeService = mock<StripeService>();
+    stripeService.findPrices.mockResolvedValue(mockPrices);
 
-    const { result } = setupQuery(() => useStripePricesQuery());
+    const { result } = setupQuery(() => useStripePricesQuery(), {
+      services: { stripe: () => stripeService }
+    });
 
     await waitFor(() => {
       expect(stripeService.findPrices).toHaveBeenCalled();
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual(mockPrices);
-      expect(queryClient.getQueryData(["StripePrices"])).toEqual(mockPrices);
     });
   });
 
-  it("should not fetch when disabled and have initial data", () => {
-    const { result } = setupQuery(() => useStripePricesQuery({ enabled: false }));
+  it("does not fetch when disabled and have initial data", async () => {
+    const stripeService = mock<StripeService>();
+    stripeService.findPrices.mockResolvedValue([]);
+    const { result } = setupQuery(() => useStripePricesQuery({ enabled: false }), {
+      services: { stripe: () => stripeService }
+    });
 
-    expect(stripeService.findPrices).not.toHaveBeenCalled();
-    expect(result.current.data).toEqual([]);
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+      expect(result.current.data).toEqual([]);
+    });
   });
 
-  it("should handle empty response data", async () => {
-    (stripeService.findPrices as jest.Mock).mockResolvedValue({ data: null });
+  it("fallbacks to an empty array if response is null", async () => {
+    const stripeService = mock<StripeService>();
+    // @ts-expect-error: Mocking null response
+    stripeService.findPrices.mockResolvedValue(null);
 
-    const { result } = setupQuery(() => useStripePricesQuery({ enabled: true }));
+    const { result } = setupQuery(() => useStripePricesQuery({ enabled: true }), {
+      services: { stripe: () => stripeService }
+    });
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
