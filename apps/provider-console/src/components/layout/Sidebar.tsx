@@ -106,7 +106,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
           disabled: false
         },
         {
-          title: "API Keys",
+          title: "API Key",
           icon: props => <Key {...props} />,
           url: UrlService.apiKeys(),
           activeRoutes: [UrlService.apiKeys()],
