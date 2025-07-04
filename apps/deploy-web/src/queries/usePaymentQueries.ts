@@ -26,19 +26,18 @@ export const usePaymentDiscountsQuery = () => {
   });
 };
 
-type UsePaymentTransactionsOptions = {
+export interface UsePaymentTransactionsOptions {
   limit?: number;
-  startingAfter?: string | null;
-  endingBefore?: string | null;
-  created?: { gt?: number; lt?: number };
-};
+  startingAfter?: string;
+}
 
 export const usePaymentTransactionsQuery = (options?: UsePaymentTransactionsOptions) => {
   const { stripe } = useServices();
   return useQuery({
     queryKey: QueryKeys.getPaymentTransactionsKey(options),
     queryFn: async () => {
-      return await stripe.getCustomerTransactions(options);
+      const response = await stripe.getCustomerTransactions(options);
+      return response.transactions;
     }
   });
 };

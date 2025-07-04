@@ -3,4 +3,3 @@ export * from "./snackbar";
 export * from "./popup";
 export * from "./error-fallback";
 export * from "./file-button";
-export * from "./date-range-picker";

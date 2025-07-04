@@ -1,12 +1,10 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { Button, Card, CardContent, CardHeader, CardTitle, DateRangePicker, Label } from "@akashnetwork/ui/components";
+import { Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/components";
 import LinearProgress from "@mui/material/LinearProgress";
-import { startOfDay, subYears } from "date-fns";
-import { Cloud, DollarSign, Download } from "lucide-react";
+import { Cloud, DollarSign } from "lucide-react";
 
 import { Title } from "@src/components/shared/Title";
-import { CreditsUsageAreaChart } from "@src/components/usage/usage-tab/charts/CreditsUsageAreaChart";
 import { CumulativeSpendingLineChart } from "@src/components/usage/usage-tab/charts/CumulativeSpendingLineChart";
 import { DailyUsageBarChart } from "@src/components/usage/usage-tab/charts/DailyUsageBarChart";
 
@@ -31,13 +29,6 @@ export type UsageHistoryStats = {
 type UsageViewProps = {
   usageHistoryData: UsageHistory;
   usageHistoryStatsData: UsageHistoryStats;
-  creditsUsageData: Array<{
-    date: string;
-    credits: number;
-    used: number;
-  }>;
-  dateRange: { from: Date | undefined; to?: Date };
-  onDateRangeChange: (range?: { from?: Date; to?: Date }) => void;
   isFetchingUsageHistory: boolean;
   isUsageHistoryError: boolean;
   isFetchingUsageHistoryStats: boolean;
@@ -47,59 +38,14 @@ type UsageViewProps = {
 export const UsageView = ({
   usageHistoryData,
   usageHistoryStatsData,
-  creditsUsageData,
-  dateRange,
-  onDateRangeChange,
   isFetchingUsageHistory,
   isUsageHistoryError,
   isFetchingUsageHistoryStats,
   isUsageHistoryStatsError
 }: UsageViewProps) => {
-  const oneYearAgo = startOfDay(subYears(new Date(), 1));
-
-  const downloadCsv = () => {
-    const csvContent =
-      `data:text/csv;charset=utf-8,Date,Active Deployments,Daily AKT Spent,Total AKT Spent,Daily USDC Spent,Total USDC Spent,Daily USD Spent,Total USD Spent\n` +
-      usageHistoryData
-        .map(row => {
-          return `${row.date},${row.activeDeployments},${row.dailyAktSpent},${row.totalAktSpent},${row.dailyUsdcSpent},${row.totalUsdcSpent},${row.dailyUsdSpent},${row.totalUsdSpent}`;
-        })
-        .join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `usage_data_${new Date().toISOString()}.csv`);
-    document.body.appendChild(link); // Required for FF
-    link.click();
-
-    const statsCsvContent =
-      `data:text/csv;charset=utf-8,Total Spent,Average Spent Per Day,Total Deployments,Average Deployments Per Day\n` +
-      `${usageHistoryStatsData.totalSpent},${usageHistoryStatsData.averageSpentPerDay},${usageHistoryStatsData.totalDeployments},${usageHistoryStatsData.averageDeploymentsPerDay}`;
-    const statsEncodedUri = encodeURI(statsCsvContent);
-    const statsLink = document.createElement("a");
-    statsLink.setAttribute("href", statsEncodedUri);
-    statsLink.setAttribute("download", `usage_stats_${new Date().toISOString()}.csv`);
-    document.body.appendChild(statsLink); // Required for FF
-    statsLink.click();
-  };
-
   return (
     <div className="h-full space-y-4">
-      <div className="flex items-center justify-between">
-        <Title subTitle>Overview</Title>
-      </div>
-
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <Label>Filter by Date:</Label>
-          <DateRangePicker date={dateRange} onDateChange={onDateRangeChange} className="mt-2 w-full" minDate={oneYearAgo} disableFuture maxRangeInDays={366} />
-        </div>
-
-        <Button variant="secondary" onClick={downloadCsv} className="h-12 gap-4">
-          <Download size={16} />
-          Export as CSV
-        </Button>
-      </div>
+      <Title subTitle>Overview</Title>
 
       {isUsageHistoryStatsError && (
         <div className="mt-4 flex h-full items-center justify-center">
@@ -176,7 +122,6 @@ export const UsageView = ({
       {!isUsageHistoryError && (
         <>
           <DailyUsageBarChart data={usageHistoryData} isFetching={isFetchingUsageHistory} />
-          <CreditsUsageAreaChart data={creditsUsageData} isFetching={isFetchingUsageHistory} />
           <CumulativeSpendingLineChart data={usageHistoryData} isFetching={isFetchingUsageHistory} />
         </>
       )}
