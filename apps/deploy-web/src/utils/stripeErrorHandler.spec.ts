@@ -1,4 +1,4 @@
-import { handleCouponError, handleStripeError } from "../../src/utils/stripeErrorHandler";
+import { handleCouponError, handleStripeError } from "./stripeErrorHandler";
 
 describe("StripeErrorHandler", () => {
   describe("handleStripeError", () => {
