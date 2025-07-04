@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 
 import type { ApiProviderDetail } from "@src/types/provider";
 import { genWalletAddress } from "./wallet";
+
 export function buildProvider(overrides?: Partial<ApiProviderDetail>): ApiProviderDetail {
   return {
     owner: genWalletAddress(),

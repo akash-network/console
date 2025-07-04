@@ -1,16 +1,13 @@
 import { useMemo } from "react";
-import type { TemplateCategory, TemplateOutputSummary } from "@akashnetwork/http-sdk";
+import type { TemplateCategory, TemplateHttpService, TemplateOutputSummary } from "@akashnetwork/http-sdk";
 import { Snackbar } from "@akashnetwork/ui/components";
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { services } from "@src/services/http/http-browser.service";
 import type { ITemplate } from "@src/types";
-import { UrlService } from "@src/utils/urlUtils";
 import { QueryKeys } from "./queryKeys";
 
 export function useUserTemplates(username: string, options?: Omit<UseQueryOptions<ITemplate[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
@@ -42,9 +39,12 @@ export function useTemplate(id: string, options?: Omit<UseQueryOptions<ITemplate
   });
 }
 
-export function useSaveUserTemplate(isNew: boolean = false) {
+export function useSaveUserTemplate(
+  options: {
+    onSuccess?: (template: Partial<ITemplate>) => void;
+  } = {}
+) {
   const queryClient = useQueryClient();
-  const router = useRouter();
   const { axios } = useServices();
 
   return useMutation({
@@ -63,10 +63,7 @@ export function useSaveUserTemplate(isNew: boolean = false) {
       queryClient.setQueryData<Partial<ITemplate>>(QueryKeys.getTemplateKey(_response.data), oldData => {
         return { ...oldData, ...newTemplate };
       });
-
-      if (isNew && _response.data) {
-        router.push(UrlService.sdlBuilder(_response.data));
-      }
+      options.onSuccess?.(_response.data);
     }
   });
 }
@@ -112,8 +109,8 @@ export function useRemoveFavoriteTemplate(id: string) {
   });
 }
 
-async function getTemplates() {
-  const response = await services.template.findGroupedByCategory();
+async function getTemplates(templateService: TemplateHttpService) {
+  const response = await templateService.findGroupedByCategory();
 
   if (!response.data) {
     return { categories: [], templates: [] };
@@ -151,9 +148,10 @@ export interface CategoriesAndTemplatesResult extends CategoriesAndTemplates {
 }
 
 export function useTemplates(options = {}): CategoriesAndTemplatesResult {
+  const { template: templateService } = useServices();
   const query = useQuery({
     queryKey: QueryKeys.getTemplatesKey(),
-    queryFn: getTemplates,
+    queryFn: () => getTemplates(templateService),
     ...options,
     refetchInterval: 60000 * 2, // Refetch templates every 2 minutes
     refetchIntervalInBackground: false,

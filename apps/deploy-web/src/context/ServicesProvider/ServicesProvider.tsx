@@ -5,7 +5,6 @@ import { requestFn } from "@openapi-qraft/react";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { queryClient } from "@src/queries/queryClient";
-import { browserApiUrlService } from "@src/services/api-url/browser-api-url.service";
 import type { DIContainer, Factories } from "@src/services/container/createContainer";
 import { createChildContainer } from "@src/services/container/createContainer";
 import { services as rootContainer } from "@src/services/http/http-browser.service";
@@ -35,7 +34,6 @@ export function useServices() {
 
 function createAppContainer<T extends Factories>(settings: Settings, services: T) {
   const di = createChildContainer(rootContainer, {
-    browserApiUrlService: () => browserApiUrlService,
     notificationsApi: () =>
       createAPIClient({
         requestFn,
