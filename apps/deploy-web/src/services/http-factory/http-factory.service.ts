@@ -7,6 +7,7 @@ import axios from "axios";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import { authService } from "@src/services/auth/auth.service";
 import { customRegistry } from "@src/utils/customRegistry";
+import { generateTraceparent } from "@src/utils/otel";
 import { createContainer } from "../container/createContainer";
 import { ProviderProxyService } from "../provider-proxy/provider-proxy.service";
 
@@ -15,7 +16,7 @@ export const createServices = (config: ServicesConfig) => {
   const container = createContainer({
     user: () =>
       withInterceptors(new UserHttpService(apiConfig), {
-        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader],
+        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader, otelInterceptor],
         response: [
           response => {
             if (response.config.url?.startsWith("/v1/anonymous-users") && response.config.method === "post" && response.status === 200) {
@@ -27,33 +28,36 @@ export const createServices = (config: ServicesConfig) => {
       }),
     stripe: () =>
       withInterceptors(new StripeService(apiConfig), {
-        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader]
+        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader, otelInterceptor]
       }),
     tx: () =>
       withInterceptors(new TxHttpService(customRegistry, apiConfig), {
-        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader]
+        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader, otelInterceptor]
       }),
     template: () =>
       withInterceptors(new TemplateHttpService(apiConfig), {
-        request: [config.globalRequestMiddleware]
+        request: [config.globalRequestMiddleware, otelInterceptor]
       }),
     auth: () =>
       withInterceptors(new AuthHttpService(apiConfig), {
-        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader]
+        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader, otelInterceptor]
       }),
-    providerProxy: () =>
-      withInterceptors(new ProviderProxyService({ baseURL: config.BASE_PROVIDER_PROXY_URL }), {
-        request: [config.globalRequestMiddleware]
-      }),
+    providerProxy: () => new ProviderProxyService(container.createTracedAxios({ baseURL: config.BASE_PROVIDER_PROXY_URL })),
     deploymentSetting: () =>
       withInterceptors(new DeploymentSettingHttpService(apiConfig), {
-        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader]
+        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader, otelInterceptor]
       }),
     apiKey: () =>
       withInterceptors(new ApiKeyHttpService(), {
-        request: [config.globalRequestMiddleware]
+        request: [config.globalRequestMiddleware, otelInterceptor]
       }),
     axios: () => container.createAxios(),
+    createTracedAxios:
+      () =>
+      (options?: CreateAxiosDefaults): AxiosInstance =>
+        withInterceptors(container.createAxios(options), {
+          request: [otelInterceptor]
+        }),
     createAxios:
       () =>
       (options?: CreateAxiosDefaults): AxiosInstance =>
@@ -83,4 +87,9 @@ type Interceptor<T> = (value: T) => T | Promise<T>;
 interface Interceptors {
   request?: Array<Interceptor<InternalAxiosRequestConfig> | undefined>;
   response?: Array<Interceptor<AxiosResponse> | undefined>;
+}
+
+function otelInterceptor(config: InternalAxiosRequestConfig) {
+  config.headers.set("Traceparent", generateTraceparent());
+  return config;
 }

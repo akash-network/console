@@ -12,14 +12,14 @@ import { services as rootContainer } from "@src/services/http/http-browser.servi
 import { WalletBalancesService } from "@src/services/wallet-balances/wallet-balances.service";
 import type { Settings } from "../SettingsProvider/SettingsProviderContext";
 import { useSettings } from "../SettingsProvider/SettingsProviderContext";
+import { ServicesContext } from "./ServicesContext";
 
-type Props = {
+export type Props = {
   children: React.ReactNode;
   services?: Partial<AppDIContainer extends DIContainer<infer TFactories> ? TFactories : never>;
 };
 
 export type AppDIContainer = ReturnType<typeof createAppContainer>;
-const ServicesContext = React.createContext<AppDIContainer>({} as AppDIContainer);
 
 export const ServicesProvider: React.FC<Props> = ({ children, services }) => {
   const { settings } = useSettings();
@@ -30,11 +30,10 @@ export const ServicesProvider: React.FC<Props> = ({ children, services }) => {
 };
 
 export function useServices() {
-  return useContext(ServicesContext);
+  return useContext(ServicesContext) as AppDIContainer;
 }
 
 function createAppContainer<T extends Factories>(settings: Settings, services: T) {
-  const apiHttpClient = rootContainer.createAxios({ baseURL: settings?.apiEndpoint });
   const di = createChildContainer(rootContainer, {
     browserApiUrlService: () => browserApiUrlService,
     notificationsApi: () =>
@@ -43,11 +42,11 @@ function createAppContainer<T extends Factories>(settings: Settings, services: T
         baseUrl: "/api/proxy",
         queryClient
       }),
-    authzHttpService: () => new AuthzHttpService({ baseURL: settings.apiEndpoint }),
+    authzHttpService: () => new AuthzHttpService({ baseURL: settings?.apiEndpoint }),
     walletBalancesService: () =>
       new WalletBalancesService(di.authzHttpService, di.axios, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS, settings.apiEndpoint),
-    certificatesService: () => new CertificatesService(apiHttpClient),
-    apiHttpClient: () => apiHttpClient,
+    certificatesService: () => new CertificatesService(di.chainApiHttpClient),
+    chainApiHttpClient: () => rootContainer.createAxios({ baseURL: settings?.apiEndpoint }),
     ...services
   });
 

@@ -21,7 +21,7 @@ import { useImportSimpleSdl } from "@src/hooks/useImportSimpleSdl";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
-import { useDepositParams } from "@src/queries/useSettings";
+import { useDepositParams } from "@src/queries/useSaveSettings";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
