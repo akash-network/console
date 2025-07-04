@@ -1,68 +1,76 @@
 import { faker } from "@faker-js/faker";
+import { useQueryClient } from "@tanstack/react-query";
+import { mock } from "jest-mock-extended";
 
-import { queryClient } from "./queryClient";
+import type { ManagedWalletHttpService } from "@src/services/managed-wallet-http/managed-wallet-http.service";
 import { useCreateManagedWalletMutation, useManagedWalletQuery } from "./useManagedWalletQuery";
 
 import { act, waitFor } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 
-jest.mock("@src/services/managed-wallet-http/managed-wallet-http.service", () => ({
-  managedWalletHttpService: {
-    getWallet: jest.fn(),
-    createWallet: jest.fn()
-  }
-}));
-
-describe("useManagedWalletQuery", () => {
-  const mockManagedWalletService = jest.requireMock("@src/services/managed-wallet-http/managed-wallet-http.service").managedWalletHttpService;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  describe("useManagedWalletQuery", () => {
+describe(useManagedWalletQuery.name, () => {
+  describe(useManagedWalletQuery.name, () => {
     it("should fetch wallet when userId is provided", async () => {
       const mockData = {
         userId: faker.string.uuid(),
         address: faker.finance.ethereumAddress()
       };
-      mockManagedWalletService.getWallet.mockResolvedValue(mockData);
+      const managedWalletService = mock<ManagedWalletHttpService>({
+        getWallet: jest.fn().mockResolvedValue(mockData)
+      });
 
-      const { result } = setupQuery(() => useManagedWalletQuery(mockData.userId));
+      const { result } = setupQuery(() => useManagedWalletQuery(mockData.userId), {
+        services: { managedWalletService: () => managedWalletService }
+      });
 
       await waitFor(() => {
-        expect(mockManagedWalletService.getWallet).toHaveBeenCalledWith(mockData.userId);
+        expect(managedWalletService.getWallet).toHaveBeenCalledWith(mockData.userId);
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
       });
     });
 
     it("should not fetch when userId is not provided", () => {
-      const { result } = setupQuery(() => useManagedWalletQuery());
+      const managedWalletService = mock<ManagedWalletHttpService>({
+        getWallet: jest.fn().mockResolvedValue({})
+      });
+      const { result } = setupQuery(() => useManagedWalletQuery(), {
+        services: { managedWalletService: () => managedWalletService }
+      });
 
-      expect(mockManagedWalletService.getWallet).not.toHaveBeenCalled();
+      expect(managedWalletService.getWallet).not.toHaveBeenCalled();
       expect(result.current.isLoading).toBe(false);
     });
   });
 
-  describe("useCreateManagedWalletMutation", () => {
+  describe(useCreateManagedWalletMutation.name, () => {
     it("should create wallet and update query cache", async () => {
       const mockData = {
         userId: faker.string.uuid(),
         address: faker.finance.ethereumAddress()
       };
-      mockManagedWalletService.createWallet.mockResolvedValue(mockData);
-
-      const { result } = setupQuery(() => useCreateManagedWalletMutation());
-
-      await act(async () => {
-        await result.current.mutateAsync(mockData.userId);
+      const mockManagedWalletService = mock<ManagedWalletHttpService>({
+        createWallet: jest.fn().mockResolvedValue(mockData)
       });
+
+      const { result } = setupQuery(
+        () => {
+          const mutation = useCreateManagedWalletMutation();
+          const queryClient = useQueryClient();
+
+          return { mutation, queryClient };
+        },
+        {
+          services: { managedWalletService: () => mockManagedWalletService }
+        }
+      );
+
+      await act(async () => result.current.mutation.mutateAsync(mockData.userId));
 
       await waitFor(() => {
         expect(mockManagedWalletService.createWallet).toHaveBeenCalledWith(mockData.userId);
-        expect(result.current.isSuccess).toBe(true);
-        expect(queryClient.getQueryData(["MANAGED_WALLET", mockData.userId])).toEqual(mockData);
+        expect(result.current.mutation.isSuccess).toBe(true);
+        expect(result.current.queryClient.getQueryData(["MANAGED_WALLET", mockData.userId])).toEqual(mockData);
       });
     });
   });

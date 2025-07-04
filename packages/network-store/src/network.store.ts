@@ -109,7 +109,7 @@ export class NetworkStore {
   }
 
   private async initiateNetworks() {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || (typeof process !== "undefined" && process.env.NODE_ENV === "test")) {
       return;
     }
 

@@ -2,15 +2,15 @@ import type { ApiManagedWalletOutput, ApiWalletOutput } from "@akashnetwork/http
 import { ManagedWalletHttpService as ManagedWalletHttpServiceOriginal } from "@akashnetwork/http-sdk";
 import type { AxiosRequestConfig } from "axios";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
-import { analyticsService } from "@src/services/analytics/analytics.service";
-import { browserApiUrlService } from "@src/services/api-url/browser-api-url.service";
-import { authService } from "@src/services/auth/auth.service";
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 
-class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
+export class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
   private checkoutSessionId: string | null = null;
 
-  constructor(config?: AxiosRequestConfig) {
+  constructor(
+    config: AxiosRequestConfig,
+    private readonly analyticsService: AnalyticsService
+  ) {
     super(config);
 
     this.extractSessionResults();
@@ -24,12 +24,12 @@ class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
     }
 
     if (query.get("payment-canceled") === "true") {
-      analyticsService.track("payment_cancelled", "Amplitude");
+      this.analyticsService.track("payment_cancelled", "Amplitude");
       this.clearSessionResults();
     }
 
     if (query.get("payment-success") === "true") {
-      analyticsService.track("payment_success", "Amplitude");
+      this.analyticsService.track("payment_success", "Amplitude");
       this.checkoutSessionId = query.get("session_id");
     }
   }
@@ -64,16 +64,3 @@ class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
     }
   }
 }
-
-export const managedWalletHttpService = new ManagedWalletHttpService({
-  baseURL: browserApiUrlService.getBaseApiUrlFor(browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)
-});
-
-managedWalletHttpService.interceptors.request.use(authService.withAnonymousUserHeader);
-
-managedWalletHttpService.interceptors.response.use(response => {
-  if (response.config.url === "v1/start-trial" && response.config.method === "post" && response.status === 200) {
-    analyticsService.track("trial_started", { category: "billing", label: "Trial Started" });
-  }
-  return response;
-});

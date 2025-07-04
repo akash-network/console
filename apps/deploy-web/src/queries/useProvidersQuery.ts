@@ -1,6 +1,5 @@
 import type { QueryKey, UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
@@ -14,12 +13,12 @@ export function useProviderDetail(
   owner: string,
   options: Omit<UseQueryOptions<ApiProviderDetail | null>, "queryKey" | "queryFn">
 ): UseQueryResult<ApiProviderDetail | null> {
-  const services = useServices();
+  const { axios } = useServices();
   return useQuery({
     queryKey: QueryKeys.getProviderDetailKey(owner) as QueryKey,
     queryFn: async () => {
       if (!owner) return null;
-      const response = await services.axios.get(ApiUrlService.providerDetail(owner));
+      const response = await axios.get(ApiUrlService.providerDetail(owner));
       return response.data;
     },
     ...options
@@ -49,62 +48,42 @@ export function useProviderStatus(
   });
 }
 
-async function getNetworkCapacity() {
-  const response = await axios.get(ApiUrlService.networkCapacity());
-
-  return getNetworkCapacityDto(response.data);
-}
-
 export function useNetworkCapacity(options = {}) {
+  const { axios } = useServices();
   return useQuery({
     queryKey: QueryKeys.getNetworkCapacity(),
-    queryFn: () => getNetworkCapacity(),
+    queryFn: () => axios.get(ApiUrlService.networkCapacity()).then(response => getNetworkCapacityDto(response.data)),
     ...options
   });
-}
-
-async function getAuditors() {
-  const response = await axios.get(ApiUrlService.auditors());
-
-  return response.data;
 }
 
 export function useAuditors(options = {}) {
+  const { axios } = useServices();
   return useQuery<Array<Auditor>>({
     queryKey: QueryKeys.getAuditorsKey(),
-    queryFn: () => getAuditors(),
+    queryFn: () => axios.get(ApiUrlService.auditors()).then(response => response.data),
     ...options,
     refetchInterval: false,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false
   });
-}
-
-async function getProviderActiveLeasesGraph(providerAddress: string) {
-  const response = await axios.get(ApiUrlService.providerActiveLeasesGraph(providerAddress));
-
-  return response.data;
 }
 
 export function useProviderActiveLeasesGraph(providerAddress: string, options = {}) {
+  const { axios } = useServices();
   return useQuery({
     queryKey: QueryKeys.getProviderActiveLeasesGraph(providerAddress),
-    queryFn: () => getProviderActiveLeasesGraph(providerAddress),
+    queryFn: () => axios.get(ApiUrlService.providerActiveLeasesGraph(providerAddress)).then(response => response.data),
     ...options
   });
 }
 
-async function getProviderAttributesSchema() {
-  const response = await axios.get(ApiUrlService.providerAttributesSchema());
-
-  return response.data as ProviderAttributesSchema;
-}
-
 export function useProviderAttributesSchema(options = {}) {
+  const { axios } = useServices();
   return useQuery({
     queryKey: QueryKeys.getProviderAttributesSchema(),
-    queryFn: () => getProviderAttributesSchema(),
+    queryFn: () => axios.get<ProviderAttributesSchema>(ApiUrlService.providerAttributesSchema()).then(response => response.data),
     ...options,
     refetchInterval: false,
     refetchIntervalInBackground: false,
@@ -113,30 +92,20 @@ export function useProviderAttributesSchema(options = {}) {
   });
 }
 
-async function getProviderList(): Promise<Array<ApiProviderList>> {
-  const response = await axios.get(ApiUrlService.providerList());
-
-  return response.data;
-}
-
 export function useProviderList(options = {}) {
+  const { axios } = useServices();
   return useQuery({
     queryKey: QueryKeys.getProviderListKey(),
-    queryFn: () => getProviderList(),
+    queryFn: () => axios.get<ApiProviderList[]>(ApiUrlService.providerList()).then(response => response.data),
     ...options
   });
 }
 
-async function getProviderRegions(): Promise<Array<ApiProviderRegion>> {
-  const response = await axios.get(ApiUrlService.providerRegions());
-
-  return response.data;
-}
-
 export function useProviderRegions(options = {}) {
+  const { axios } = useServices();
   return useQuery({
     queryKey: QueryKeys.getProviderRegionsKey(),
-    queryFn: () => getProviderRegions(),
+    queryFn: () => axios.get<ApiProviderRegion[]>(ApiUrlService.providerRegions()).then(response => response.data),
     ...options
   });
 }

@@ -1,0 +1,426 @@
+import type { TemplateHttpService } from "@akashnetwork/http-sdk";
+import type { UserProfile } from "@auth0/nextjs-auth0/client";
+import { UserProvider } from "@auth0/nextjs-auth0/client";
+import type { AxiosInstance } from "axios";
+import { mock } from "jest-mock-extended";
+
+import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
+import type { ITemplate } from "@src/types";
+import { CustomSnackbarProvider } from "../../../../packages/ui/context/CustomSnackbarProvider";
+import { setupQuery } from "../../tests/unit/query-client";
+import {
+  useAddFavoriteTemplate,
+  useDeleteTemplate,
+  useRemoveFavoriteTemplate,
+  useSaveUserTemplate,
+  useTemplate,
+  useTemplates,
+  useUserFavoriteTemplates,
+  useUserTemplates
+} from "./useTemplateQuery";
+
+import { act, screen, waitFor } from "@testing-library/react";
+
+const mockTemplate: ITemplate = {
+  id: "template-1",
+  title: "Test Template",
+  description: "Test Description",
+  sdl: "version: '2.0'",
+  isPublic: true,
+  cpu: 1000,
+  ram: 1024,
+  storage: 2048,
+  username: "test-user",
+  isFavorite: false,
+  userId: "user-123"
+};
+
+const mockTemplateCategory = {
+  title: "Web Applications",
+  templates: [
+    {
+      id: "template-1",
+      title: "Test Template",
+      description: "Test Description",
+      githubUrl: "https://github.com/test",
+      summary: "Test summary",
+      readme: "Test readme",
+      deploy: "Test deploy",
+      guide: "Test guide",
+      logoUrl: "https://example.com/logo.png",
+      persistentStorageEnabled: false,
+      category: "Web Applications"
+    }
+  ]
+};
+
+describe("useTemplateQuery", () => {
+  describe(useUserTemplates.name, () => {
+    it("fetches user templates successfully", async () => {
+      const axios = mock<AxiosInstance>();
+      axios.get.mockResolvedValue({ data: [mockTemplate] });
+
+      const { result } = setupQuery(() => useUserTemplates("test-user"), {
+        services: {
+          axios: () => axios
+        }
+      });
+
+      await waitFor(() => {
+        expect(axios.get).toHaveBeenCalledWith("/api/proxy/user/templates/test-user");
+        expect(result.current.isSuccess).toBe(true);
+        expect(result.current.data).toEqual([mockTemplate]);
+      });
+    });
+
+    it("handles error when fetching user templates", async () => {
+      const axios = mock<AxiosInstance>();
+      axios.get.mockRejectedValue(new Error("Failed to fetch templates"));
+
+      const { result } = setupQuery(() => useUserTemplates("test-user"), {
+        services: {
+          axios: () => axios
+        }
+      });
+
+      await waitFor(() => expect(result.current.isError).toBe(true));
+    });
+  });
+
+  describe("useUserFavoriteTemplates", () => {
+    it("fetches user favorite templates successfully", async () => {
+      const axios = mock<AxiosInstance>();
+      const favoriteTemplates = [{ id: "template-1", title: "Favorite Template" }];
+      axios.get.mockResolvedValue({ data: favoriteTemplates });
+
+      const { result } = setup({
+        services: {
+          axios: () => axios
+        }
+      });
+
+      await waitFor(() => {
+        expect(axios.get).toHaveBeenCalledWith("/api/proxy/user/favoriteTemplates");
+        expect(result.current.isSuccess).toBe(true);
+        expect(result.current.data).toEqual(favoriteTemplates);
+      });
+    });
+
+    it("handles error when fetching user favorite templates", async () => {
+      const axios = mock<AxiosInstance>();
+      axios.get.mockRejectedValue(new Error("Failed to fetch favorite templates"));
+
+      const { result } = setup({
+        services: {
+          axios: () => axios
+        }
+      });
+
+      await waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      });
+    });
+
+    function setup(input?: { services?: ServicesProviderProps["services"]; user?: UserProfile }) {
+      return setupQuery(() => useUserFavoriteTemplates(), {
+        services: input?.services,
+        wrapper: ({ children }) => <UserProvider user={input?.user || { email: "test@akash.network" }}>{children}</UserProvider>
+      });
+    }
+  });
+
+  describe(useTemplate.name, () => {
+    it("fetches single template successfully", async () => {
+      const axios = mock<AxiosInstance>();
+      axios.get.mockResolvedValue({ data: mockTemplate });
+
+      const { result } = setup({
+        services: {
+          axios: () => axios
+        }
+      });
+
+      await waitFor(() => {
+        expect(axios.get).toHaveBeenCalledWith("/api/proxy/user/template/template-1");
+        expect(result.current.isSuccess).toBe(true);
+        expect(result.current.data).toEqual(mockTemplate);
+      });
+    });
+
+    it("handles error when fetching single template", async () => {
+      const axios = mock<AxiosInstance>();
+      axios.get.mockRejectedValue(new Error("Template not found"));
+
+      const { result } = setup({
+        services: {
+          axios: () => axios
+        }
+      });
+
+      await waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      });
+    });
+
+    function setup(input?: { services?: ServicesProviderProps["services"]; templateId?: string }) {
+      return setupQuery(() => useTemplate(input?.templateId || "template-1"), {
+        services: input?.services
+      });
+    }
+  });
+
+  describe(useSaveUserTemplate.name, () => {
+    it("saves template successfully", async () => {
+      const axios = mock<AxiosInstance>();
+      axios.post.mockResolvedValue({ data: "saved-template-id" });
+
+      const { result } = setup({
+        services: {
+          axios: () => axios
+        }
+      });
+
+      const templateData = {
+        title: "New Template",
+        sdl: "version: '2.0'",
+        isPublic: true
+      };
+
+      act(() => result.current.mutate(templateData));
+      await waitFor(() => {
+        expect(axios.post).toHaveBeenCalledWith("/api/proxy/user/saveTemplate", {
+          id: undefined,
+          sdl: "version: '2.0'",
+          isPublic: true,
+          title: "New Template",
+          description: undefined,
+          cpu: undefined,
+          ram: undefined,
+          storage: undefined
+        });
+        expect(result.current.isSuccess).toBe(true);
+      });
+    });
+
+    it("handles error when saving template", async () => {
+      const axios = mock<AxiosInstance>();
+      axios.post.mockRejectedValue(new Error("Failed to save template"));
+
+      const { result } = setup({
+        services: {
+          axios: () => axios
+        }
+      });
+
+      const templateData = { title: "New Template", sdl: "version: '2.0'" };
+
+      act(() => result.current.mutate(templateData));
+      await waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      });
+    });
+
+    function setup(input?: { services?: ServicesProviderProps["services"] }) {
+      return setupQuery(() => useSaveUserTemplate(), {
+        services: input?.services
+      });
+    }
+  });
+
+  describe(useDeleteTemplate.name, () => {
+    it("deletes template successfully", async () => {
+      const axios = mock<AxiosInstance>();
+      axios.delete.mockResolvedValue({});
+
+      const { result } = setup({
+        services: {
+          axios: () => axios
+        }
+      });
+
+      act(() => result.current.mutate());
+      await waitFor(() => {
+        expect(axios.delete).toHaveBeenCalledWith("/api/proxy/user/deleteTemplate/template-1");
+        expect(result.current.isSuccess).toBe(true);
+      });
+    });
+
+    it("handles error when deleting template", async () => {
+      const axios = mock<AxiosInstance>();
+      axios.delete.mockRejectedValue(new Error("Failed to delete template"));
+
+      const { result } = setup({
+        services: {
+          axios: () => axios
+        }
+      });
+
+      act(() => result.current.mutate());
+      await waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      });
+    });
+
+    function setup(input?: { services?: ServicesProviderProps["services"]; templateId?: string }) {
+      return setupQuery(() => useDeleteTemplate(input?.templateId || "template-1"), {
+        services: input?.services,
+        wrapper: ({ children }) => <UserProvider user={{ email: "test@example.com" }}>{children}</UserProvider>
+      });
+    }
+  });
+
+  describe("useAddFavoriteTemplate", () => {
+    it("adds favorite template successfully and shows snackbar", async () => {
+      const axios = mock<AxiosInstance>();
+      axios.post.mockResolvedValue({});
+
+      const { result } = setup({
+        services: {
+          axios: () => axios
+        }
+      });
+
+      act(() => result.current.mutate());
+      await waitFor(async () => {
+        expect(axios.post).toHaveBeenCalledWith("/api/proxy/user/addFavoriteTemplate/template-1");
+        expect(result.current.isSuccess).toBe(true);
+        expect(await screen.findByText(/Favorite added!/i)).toBeInTheDocument();
+      });
+    });
+
+    it("handles error when adding favorite template", async () => {
+      const axios = mock<AxiosInstance>();
+      axios.post.mockRejectedValue(new Error("Failed to add favorite"));
+
+      const { result } = setup({
+        services: {
+          axios: () => axios
+        }
+      });
+
+      act(() => result.current.mutate());
+      await waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      });
+    });
+
+    function setup(input?: { services?: ServicesProviderProps["services"]; templateId?: string }) {
+      return setupQuery(() => useAddFavoriteTemplate(input?.templateId || "template-1"), {
+        services: input?.services,
+        wrapper: ({ children }) => <CustomSnackbarProvider>{children}</CustomSnackbarProvider>
+      });
+    }
+  });
+
+  describe("useRemoveFavoriteTemplate", () => {
+    it("removes favorite template successfully and shows snackbar", async () => {
+      const axios = mock<AxiosInstance>();
+      axios.delete.mockResolvedValue({});
+
+      const { result } = setup({
+        services: {
+          axios: () => axios
+        }
+      });
+
+      act(() => result.current.mutate());
+      await waitFor(async () => {
+        expect(axios.delete).toHaveBeenCalledWith("/api/proxy/user/removeFavoriteTemplate/template-1");
+        expect(result.current.isSuccess).toBe(true);
+        expect(await screen.findByText(/Favorite removed/i)).toBeInTheDocument();
+      });
+    });
+
+    it("handles error when removing favorite template", async () => {
+      const axios = mock<AxiosInstance>();
+      axios.delete.mockRejectedValue(new Error("Failed to remove favorite"));
+
+      const { result } = setup({
+        services: {
+          axios: () => axios
+        }
+      });
+
+      act(() => result.current.mutate());
+      await waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      });
+    });
+
+    function setup(input?: { services?: ServicesProviderProps["services"]; templateId?: string }) {
+      return setupQuery(() => useRemoveFavoriteTemplate(input?.templateId || "template-1"), {
+        services: input?.services,
+        wrapper: ({ children }) => <CustomSnackbarProvider>{children}</CustomSnackbarProvider>
+      });
+    }
+  });
+
+  describe("useTemplates", () => {
+    it("fetches templates grouped by category successfully", async () => {
+      const templateService = mock<TemplateHttpService>({
+        findGroupedByCategory: jest.fn().mockResolvedValue({
+          data: [mockTemplateCategory]
+        })
+      });
+
+      const { result } = setup({
+        services: {
+          template: () => templateService
+        }
+      });
+
+      await waitFor(() => {
+        expect(templateService.findGroupedByCategory).toHaveBeenCalled();
+        expect(result.current.categories).toHaveLength(1);
+        expect(result.current.templates).toHaveLength(1);
+        expect(result.current.categories[0].title).toBe("Web Applications");
+      });
+    });
+
+    it("handles empty response when fetching templates", async () => {
+      const templateService = mock<TemplateHttpService>({
+        findGroupedByCategory: jest.fn().mockResolvedValue({
+          data: null
+        })
+      });
+
+      const { result } = setup({
+        services: {
+          template: () => templateService
+        }
+      });
+
+      await waitFor(() => {
+        expect(templateService.findGroupedByCategory).toHaveBeenCalled();
+        expect(result.current.categories).toEqual([]);
+        expect(result.current.templates).toEqual([]);
+      });
+    });
+
+    it("handles error when fetching templates", async () => {
+      const templateService = mock<TemplateHttpService>({
+        findGroupedByCategory: jest.fn().mockRejectedValue(new Error("Failed to fetch templates"))
+      });
+
+      const { result } = setup({
+        services: {
+          template: () => templateService
+        }
+      });
+
+      expect(result.current.isLoading).toBe(true);
+
+      await waitFor(() => {
+        expect(result.current.categories).toEqual([]);
+        expect(result.current.templates).toEqual([]);
+        expect(result.current.isLoading).toBe(false);
+      });
+    });
+
+    function setup(input?: { services?: ServicesProviderProps["services"] }) {
+      return setupQuery(() => useTemplates(), {
+        services: input?.services
+      });
+    }
+  });
+});

@@ -33,6 +33,7 @@ import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
+import { RootContainerProvider } from "@src/context/ServicesProvider/RootContainerProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
 import { useInjectedConfig } from "@src/hooks/useInjectedConfig";
@@ -99,35 +100,37 @@ function AppRoot(props: Props & { children: React.ReactNode }) {
     <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
       <PageHead pageSeo={props.pageProps.seo} />
 
-      <AppCacheProvider {...props}>
-        <CustomIntlProvider>
-          <JotaiProvider store={store}>
-            <QueryClientProvider client={queryClient}>
-              <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
-                <ColorModeProvider>
-                  <CustomSnackbarProvider>
-                    <TooltipProvider>
-                      <PopupProvider>
-                        <PricingProvider>
-                          <SettingsProvider>
-                            <ServicesProvider>
-                              <CustomChainProvider>
-                                <ChainParamProvider>
-                                  <LocalNoteProvider>{props.children}</LocalNoteProvider>
-                                </ChainParamProvider>
-                              </CustomChainProvider>
-                            </ServicesProvider>
-                          </SettingsProvider>
-                        </PricingProvider>
-                      </PopupProvider>
-                    </TooltipProvider>
-                  </CustomSnackbarProvider>
-                </ColorModeProvider>
-              </ThemeProvider>
-            </QueryClientProvider>
-          </JotaiProvider>
-        </CustomIntlProvider>
-      </AppCacheProvider>
+      <RootContainerProvider>
+        <AppCacheProvider {...props}>
+          <CustomIntlProvider>
+            <JotaiProvider store={store}>
+              <QueryClientProvider client={queryClient}>
+                <ThemeProvider attribute="class" defaultTheme="system" storageKey="theme" enableSystem disableTransitionOnChange>
+                  <ColorModeProvider>
+                    <CustomSnackbarProvider>
+                      <TooltipProvider>
+                        <PopupProvider>
+                          <PricingProvider>
+                            <SettingsProvider>
+                              <ServicesProvider>
+                                <CustomChainProvider>
+                                  <ChainParamProvider>
+                                    <LocalNoteProvider>{props.children}</LocalNoteProvider>
+                                  </ChainParamProvider>
+                                </CustomChainProvider>
+                              </ServicesProvider>
+                            </SettingsProvider>
+                          </PricingProvider>
+                        </PopupProvider>
+                      </TooltipProvider>
+                    </CustomSnackbarProvider>
+                  </ColorModeProvider>
+                </ThemeProvider>
+              </QueryClientProvider>
+            </JotaiProvider>
+          </CustomIntlProvider>
+        </AppCacheProvider>
+      </RootContainerProvider>
     </main>
   );
 }

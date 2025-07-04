@@ -1,30 +1,17 @@
-import { useCertificate } from "@src/context/CertificateProvider";
-import { useServices } from "@src/context/ServicesProvider";
-import { useSettings } from "@src/context/SettingsProvider";
-import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
+import type { CertificatesService } from "@akashnetwork/http-sdk";
+import { useQueryClient } from "@tanstack/react-query";
+import type { AxiosInstance } from "axios";
+import { mock } from "jest-mock-extended";
+
+import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
-import type { ApiProviderList } from "@src/types/provider";
-import { loadWithPagination } from "@src/utils/apiUtils";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { setupQuery } from "../../tests/unit/query-client";
-import { queryClient } from "./queryClient";
 import { QueryKeys } from "./queryKeys";
 import { useAllLeases, useDeploymentLeaseList, useLeaseStatus } from "./useLeaseQuery";
 
-import { waitFor } from "@testing-library/react";
-
-jest.mock("@src/context/SettingsProvider");
-jest.mock("@src/context/ServicesProvider");
-jest.mock("@src/context/CertificateProvider");
-jest.mock("@src/hooks/useScopedFetchProviderUrl");
-jest.mock("@src/utils/apiUtils", () => ({
-  ...jest.requireActual("@src/utils/apiUtils"),
-  loadWithPagination: jest.fn()
-}));
-
-const mockSettings = {
-  apiEndpoint: "http://test-api.com"
-};
+import { act, waitFor } from "@testing-library/react";
+import { buildProvider } from "@tests/seeders/provider";
 
 const mockDeployment = {
   dseq: "123",
@@ -119,25 +106,14 @@ const mockLease: LeaseDto = {
   group: mockGroup
 };
 
-const mockCert = {
-  certPem: "cert",
-  keyPem: "key"
-};
-
 describe("useLeaseQuery", () => {
-  afterEach(() => {
-    queryClient.clear();
-    jest.clearAllMocks();
-  });
-
   describe("useDeploymentLeaseList", () => {
-    beforeEach(() => {
-      (useSettings as jest.Mock).mockReturnValue({ settings: mockSettings });
-      (loadWithPagination as jest.Mock).mockResolvedValue(mockLeases);
-    });
-
     it("should return null when deployment is not provided", async () => {
-      const { result } = setupQuery(() => useDeploymentLeaseList("test-address", null));
+      const { result } = setupQuery(() => useDeploymentLeaseList("test-address", null), {
+        services: {
+          chainApiHttpClient: () => mock<AxiosInstance>()
+        }
+      });
 
       await waitFor(() => {
         expect(result.current.data).toBeNull();
@@ -145,48 +121,77 @@ describe("useLeaseQuery", () => {
     });
 
     it("should fetch leases when deployment is provided", async () => {
-      const { result } = setupQuery(() => useDeploymentLeaseList("test-address", mockDeployment));
+      const chainApiHttpClient = mock<AxiosInstance>({
+        defaults: { baseURL: "http://localhost" },
+        get: jest.fn().mockResolvedValue({
+          data: {
+            leases: mockLeases,
+            pagination: { next_key: null, total: mockLeases.length }
+          }
+        })
+      } as unknown as AxiosInstance);
+      const { result } = setupQuery(() => useDeploymentLeaseList("test-address", mockDeployment), {
+        services: {
+          chainApiHttpClient: () => chainApiHttpClient
+        }
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(loadWithPagination).toHaveBeenCalledWith(expect.stringContaining(mockDeployment.dseq), "leases", 1000);
+      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining(`filters.dseq=${mockDeployment.dseq}`));
       expect(result.current.data).toEqual([leaseToDto(mockLeases[0], mockDeployment)]);
     });
 
     it("should provide a remove function that clears the query", async () => {
-      const { result } = setupQuery(() => useDeploymentLeaseList("test-address", mockDeployment));
+      const chainApiHttpClient = mock<AxiosInstance>({
+        defaults: { baseURL: "http://localhost" },
+        get: jest.fn().mockResolvedValue({
+          data: {
+            leases: mockLeases,
+            pagination: { next_key: null, total: mockLeases.length }
+          }
+        })
+      } as unknown as AxiosInstance);
+      const { result } = setupQuery(
+        () => {
+          const deploymentList = useDeploymentLeaseList("test-address", mockDeployment);
+          const queryClient = useQueryClient();
+          return { deploymentList, queryClient };
+        },
+        {
+          services: {
+            chainApiHttpClient: () => chainApiHttpClient
+          }
+        }
+      );
 
       await waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
+        expect(result.current.deploymentList.isSuccess).toBe(true);
       });
 
       const queryKey = QueryKeys.getLeasesKey("test-address", mockDeployment.dseq);
 
-      const queriesBefore = queryClient.getQueryCache().findAll({ queryKey });
+      const queriesBefore = result.current.queryClient.getQueryCache().findAll({ queryKey });
       expect(queriesBefore).toHaveLength(1);
 
-      result.current.remove();
+      act(() => {
+        result.current.deploymentList.remove();
+      });
 
-      const queriesAfter = queryClient.getQueryCache().findAll({ queryKey });
+      const queriesAfter = result.current.queryClient.getQueryCache().findAll({ queryKey });
       expect(queriesAfter).toHaveLength(0);
     });
   });
 
   describe("useAllLeases", () => {
-    const mockAxios = {
-      get: jest.fn()
-    };
-
-    beforeEach(() => {
-      (useSettings as jest.Mock).mockReturnValue({ settings: mockSettings });
-      (useServices as jest.Mock).mockReturnValue({ axios: mockAxios });
-      (loadWithPagination as jest.Mock).mockResolvedValue(mockLeases);
-    });
-
     it("should return null when address is not provided", async () => {
-      const { result } = setupQuery(() => useAllLeases(""));
+      const { result } = setupQuery(() => useAllLeases(""), {
+        services: {
+          chainApiHttpClient: () => mock<AxiosInstance>()
+        }
+      });
 
       await waitFor(() => {
         expect(result.current.data).toBeNull();
@@ -194,24 +199,53 @@ describe("useLeaseQuery", () => {
     });
 
     it("should fetch all leases when address is provided", async () => {
-      const { result } = setupQuery(() => useAllLeases("test-address"));
+      const chainApiHttpClient = mock<AxiosInstance>({
+        get: jest.fn().mockResolvedValue({
+          data: {
+            leases: mockLeases,
+            pagination: { next_key: null, total: mockLeases.length }
+          }
+        })
+      } as unknown as AxiosInstance);
+      const { result } = setupQuery(() => useAllLeases("test-address"), {
+        services: {
+          chainApiHttpClient: () => chainApiHttpClient
+        }
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
-
-      expect(loadWithPagination).toHaveBeenCalledWith(expect.stringContaining("test-address"), "leases", 1000, mockAxios);
+      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("filters.owner=test-address"));
       expect(result.current.data).toEqual([leaseToDto(mockLeases[0], undefined as any)]);
     });
 
     it("should use the correct query key", async () => {
-      const { result } = setupQuery(() => useAllLeases("test-address"));
+      const chainApiHttpClient = mock<AxiosInstance>({
+        get: jest.fn().mockResolvedValue({
+          data: {
+            leases: mockLeases,
+            pagination: { next_key: null, total: mockLeases.length }
+          }
+        })
+      } as unknown as AxiosInstance);
+      const { result } = setupQuery(
+        () => {
+          const leases = useAllLeases("test-address");
+          const queryClient = useQueryClient();
+          return { leases, queryClient };
+        },
+        {
+          services: {
+            chainApiHttpClient: () => chainApiHttpClient
+          }
+        }
+      );
 
       await waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
+        expect(result.current.leases.isSuccess).toBe(true);
       });
-
-      const queryCache = queryClient.getQueryCache();
+      const queryCache = result.current.queryClient.getQueryCache();
       const queries = queryCache.findAll();
       expect(queries[0].queryKey).toContain("ALL_LEASES");
       expect(queries[0].queryKey).toContain("test-address");
@@ -219,79 +253,13 @@ describe("useLeaseQuery", () => {
   });
 
   describe("useLeaseStatus", () => {
-    const mockProvider: ApiProviderList = {
-      owner: "test-owner",
-      name: "test-provider",
-      hostUri: "http://provider.com",
-      createdHeight: 1000,
-      email: "test@provider.com",
-      website: "https://provider.com",
-      lastCheckDate: new Date(),
-      deploymentCount: 0,
-      leaseCount: 0,
-      cosmosSdkVersion: "1.0.0",
-      akashVersion: "1.0.0",
-      ipRegion: "test-region",
-      ipRegionCode: "TR",
-      ipCountry: "test-country",
-      ipCountryCode: "TC",
-      ipLat: "0",
-      ipLon: "0",
-      uptime1d: 100,
-      uptime7d: 100,
-      uptime30d: 100,
-      isValidVersion: true,
-      isOnline: true,
-      lastOnlineDate: new Date().toISOString(),
-      isAudited: true,
-      gpuModels: [],
-      activeStats: { cpu: 0, gpu: 0, memory: 0, storage: 0 },
-      pendingStats: { cpu: 0, gpu: 0, memory: 0, storage: 0 },
-      availableStats: { cpu: 0, gpu: 0, memory: 0, storage: 0 },
-      stats: {
-        cpu: { active: 0, available: 0, pending: 0 },
-        gpu: { active: 0, available: 0, pending: 0 },
-        memory: { active: 0, available: 0, pending: 0 },
-        storage: {
-          ephemeral: { active: 0, available: 0, pending: 0 },
-          persistent: { active: 0, available: 0, pending: 0 }
-        }
-      },
-      attributes: [],
-      host: "test-host",
-      organization: "test-org",
-      statusPage: "https://status.provider.com",
-      locationRegion: "test-region",
-      country: "test-country",
-      city: "test-city",
-      timezone: "UTC",
-      locationType: "datacenter",
-      hostingProvider: "test-hosting",
-      hardwareCpu: "test-cpu",
-      hardwareCpuArch: "x86_64",
-      hardwareGpuVendor: "test-vendor",
-      hardwareGpuModels: [],
-      hardwareDisk: [],
-      featPersistentStorage: true,
-      featPersistentStorageType: [],
-      hardwareMemory: "test-memory",
-      networkProvider: "test-network",
-      networkSpeedDown: 1000,
-      networkSpeedUp: 1000,
-      tier: "test-tier",
-      featEndpointCustomDomain: true,
-      workloadSupportChia: false,
-      workloadSupportChiaCapabilities: [],
-      featEndpointIp: true
-    };
-
-    beforeEach(() => {
-      (useCertificate as jest.Mock).mockReturnValue({ localCert: mockCert });
-      (useScopedFetchProviderUrl as jest.Mock).mockReturnValue(jest.fn().mockResolvedValue({ data: mockLeaseStatus }));
-    });
-
     it("should return null when lease is not provided", async () => {
-      const { result } = setupQuery(() => useLeaseStatus(mockProvider, undefined));
+      const { result } = setupQuery(() => useLeaseStatus(buildProvider(), undefined), {
+        services: {
+          providerProxy: () => mock<ProviderProxyService>(),
+          certificatesService: () => mock<CertificatesService>()
+        }
+      });
 
       await waitFor(() => {
         expect(result.current.data).toBeNull();
@@ -299,13 +267,28 @@ describe("useLeaseQuery", () => {
     });
 
     it("should fetch lease status when lease is provided", async () => {
-      const { result } = setupQuery(() => useLeaseStatus(mockProvider, mockLease));
+      const provider = buildProvider();
+      const providerProxy = mock<ProviderProxyService>({
+        fetchProviderUrl: jest.fn().mockResolvedValue({ data: mockLeaseStatus })
+      });
+      const { result } = setupQuery(() => useLeaseStatus(provider, mockLease), {
+        services: {
+          providerProxy: () => providerProxy,
+          certificatesService: () => mock<CertificatesService>()
+        }
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(useScopedFetchProviderUrl).toHaveBeenCalledWith(mockProvider);
+      expect(providerProxy.fetchProviderUrl).toHaveBeenCalledWith(
+        expect.stringContaining(`/lease/${mockLease.dseq}/${mockLease.gseq}/${mockLease.oseq}/status`),
+        expect.objectContaining({
+          method: "GET",
+          providerIdentity: provider
+        })
+      );
       expect(result.current.data).toEqual(mockLeaseStatus);
     });
   });

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Alert, Form, FormField, FormInput, Label, Popup, RadioGroup, RadioGroupItem, Snackbar } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/router";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
@@ -13,6 +14,7 @@ import { getShortText } from "@src/hooks/useShortText";
 import { useSaveUserTemplate } from "@src/queries/useTemplateQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { EnvironmentVariableType, ITemplate, ServiceType } from "@src/types";
+import { UrlService } from "@src/utils/urlUtils";
 
 type Props = {
   services: ServiceType[];
@@ -36,7 +38,14 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
   const { user, isLoading: isLoadingUser } = useCustomUser();
   const isRestricted = !isLoadingUser && !user;
   const isCurrentUserTemplate = !isRestricted && user?.sub === templateMetadata?.userId;
-  const { mutate: saveTemplate } = useSaveUserTemplate(!isCurrentUserTemplate);
+  const router = useRouter();
+  const { mutate: saveTemplate } = useSaveUserTemplate({
+    onSuccess(template) {
+      if (!isCurrentUserTemplate && template) {
+        router.push(UrlService.sdlBuilder(template.id));
+      }
+    }
+  });
   const form = useForm<FormValues>({
     defaultValues: {
       title: "",
@@ -61,7 +70,7 @@ export const SaveTemplateModal: React.FunctionComponent<Props> = ({ onClose, get
   const onSubmit = async (data: FormValues) => {
     const template = getTemplateData();
 
-    await saveTemplate({ ...template, title: data.title, isPublic: data.visibility !== "private" });
+    saveTemplate({ ...template, title: data.title, isPublic: data.visibility !== "private" });
 
     const newTemplateMetadata = { ...templateMetadata, title: data.title, isPublic: data.visibility !== "private" };
     if (!isCurrentUserTemplate) {

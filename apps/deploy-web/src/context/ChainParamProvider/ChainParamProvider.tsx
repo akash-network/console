@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useUsdcDenom } from "@src/hooks/useDenom";
-import { useDepositParams } from "@src/queries/useSettings";
+import { useDepositParams } from "@src/queries/useSaveSettings";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { useSettings } from "../SettingsProvider";

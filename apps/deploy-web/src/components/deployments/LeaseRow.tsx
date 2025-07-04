@@ -18,6 +18,7 @@ import { SpecDetail } from "@src/components/shared/SpecDetail";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useBidInfo } from "@src/queries/useBidQuery";
 import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
@@ -27,7 +28,7 @@ import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { copyTextToClipboard } from "@src/utils/copyClipboard";
 import { deploymentData } from "@src/utils/deploymentData";
-import { getGpusFromAttributes, sendManifestToProvider } from "@src/utils/deploymentUtils";
+import { getGpusFromAttributes } from "@src/utils/deploymentUtils";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { sshVmImages } from "@src/utils/sdl/data";
 import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
@@ -51,6 +52,7 @@ export type AcceptRefType = {
 
 export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
   ({ index, lease, deploymentManifest, dseq, providers, loadDeploymentDetail, isRemoteDeploy, repo }, ref) => {
+    const { providerProxy } = useServices();
     const provider = providers?.find(p => p.owner === lease?.provider);
     const { localCert } = useCertificate();
     const isLeaseActive = lease.state === "active";
@@ -118,7 +120,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
       try {
         const manifest = deploymentData.getManifest(parsedManifest, true);
 
-        await sendManifestToProvider(provider, manifest, { dseq, localCert, chainNetwork });
+        await providerProxy.sendManifest(provider, manifest, { dseq, localCert, chainNetwork });
 
         enqueueSnackbar(<Snackbar title="Manifest sent!" iconVariant="success" />, { variant: "success", autoHideDuration: 10_000 });
 

@@ -10,12 +10,12 @@ import { QueryKeys } from "./queryKeys";
 
 const REFETCH_INTERVAL = 1000 * 60 * 5;
 export function useFeatureFlags(options?: Omit<UseQueryOptions<Features>, "queryKey" | "queryFn">): UseQueryResult<Features> {
-  const { axios, browserApiUrlService } = useServices();
+  const { axios, apiUrlService } = useServices();
   const networkId = networkStore.useSelectedNetworkId();
   return useQuery({
     ...options,
     queryKey: QueryKeys.getFeatureFlagsKey(networkId),
-    queryFn: () => getFeatureFlags(networkId, axios, browserApiUrlService),
+    queryFn: () => getFeatureFlags(networkId, axios, apiUrlService),
     refetchInterval: REFETCH_INTERVAL
   });
 }

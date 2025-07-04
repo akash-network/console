@@ -12,9 +12,16 @@ import dynamic from "next/dynamic";
 
 import { useWhen } from "@src/hooks/useWhen";
 import { services } from "@src/services/http/http-browser.service";
-import { managedWalletHttpService } from "@src/services/managed-wallet-http/managed-wallet-http.service";
 
-const HTTP_SERVICES = [managedWalletHttpService, services.user, services.stripe, services.tx, services.template, services.auth, services.deploymentSetting];
+const HTTP_SERVICES = [
+  services.managedWalletService,
+  services.user,
+  services.stripe,
+  services.tx,
+  services.template,
+  services.auth,
+  services.deploymentSetting
+];
 
 let originalFetch: typeof fetch | undefined;
 

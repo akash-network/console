@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Alert, Button, Form, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import axios from "axios";
 import { NavArrowRight } from "iconoir-react";
 import { useAtom } from "jotai";
 import { nanoid } from "nanoid";
@@ -13,6 +12,7 @@ import { useSnackbar } from "notistack";
 
 import { SimpleServiceFormControl } from "@src/components/sdl/SimpleServiceFormControl";
 import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
+import { useServices } from "@src/context/ServicesProvider";
 import useFormPersist from "@src/hooks/useFormPersist";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import { analyticsService } from "@src/services/analytics/analytics.service";
@@ -34,6 +34,7 @@ const DEFAULT_SERVICES = {
 };
 
 export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
+  const { axios } = useServices();
   const [error, setError] = useState(null);
   const [templateMetadata, setTemplateMetadata] = useState<ITemplate | null>(null);
   const [serviceCollapsed, setServiceCollapsed] = useState<number[]>([]);

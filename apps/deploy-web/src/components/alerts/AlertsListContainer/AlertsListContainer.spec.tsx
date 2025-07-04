@@ -13,7 +13,7 @@ import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { buildAlert } from "@tests/seeders/alert";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 
@@ -25,7 +25,7 @@ describe(AlertsListContainer.name, () => {
 
   it("calls delete endpoint and shows success notification when alert removal succeeds", async () => {
     const { mockData, requestFn, child } = await setup();
-    child.onRemove(mockData.data[0].id);
+    await act(() => child.onRemove(mockData.data[0].id));
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
@@ -39,7 +39,7 @@ describe(AlertsListContainer.name, () => {
   it("calls delete endpoint and shows error notification when alert removal fails", async () => {
     const { mockData, requestFn, child } = await setup();
     requestFn.mockRejectedValue(new Error());
-    child.onRemove(mockData.data[0].id);
+    await act(() => child.onRemove(mockData.data[0].id));
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
@@ -52,7 +52,7 @@ describe(AlertsListContainer.name, () => {
 
   it("handles pagination correctly", async () => {
     const { requestFn, child } = await setup();
-    child.onPaginationChange({ page: child.pagination.page + 1, limit: child.pagination.limit });
+    await act(() => child.onPaginationChange({ page: child.pagination.page + 1, limit: child.pagination.limit }));
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(

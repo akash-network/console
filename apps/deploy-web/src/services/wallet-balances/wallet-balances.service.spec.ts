@@ -1,5 +1,6 @@
 import type { AuthzHttpService } from "@akashnetwork/http-sdk";
-import type { Axios, AxiosResponse } from "axios";
+import type { AxiosInstance } from "axios";
+import { type AxiosResponse } from "axios";
 import { mock } from "jest-mock-extended";
 
 import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
@@ -105,7 +106,7 @@ describe(WalletBalancesService.name, () => {
 
           return Promise.reject(new Error("Not implemented"));
         }
-      }) as unknown as Axios,
+      }) as unknown as AxiosInstance,
       input.masterWalletAddress || "akash1234",
       input.apiEndpoint || "http://test.com"
     );
