@@ -1,6 +1,5 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
-import axios from "axios";
 
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
@@ -10,6 +9,7 @@ import type { FCWithChildren } from "@src/types/component";
 import type { NodeStatus } from "@src/types/node";
 import { initAppTypes } from "@src/utils/init";
 import { migrateLocalStorage } from "@src/utils/localStorage";
+import { useRootContainer } from "../ServicesProvider/RootContainerProvider";
 
 export type BlockchainNode = {
   api: string;
@@ -50,6 +50,7 @@ const defaultSettings: Settings = {
 };
 
 export const SettingsProvider: FCWithChildren = ({ children }) => {
+  const { axios } = useRootContainer();
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSettingsInit, setIsSettingsInit] = useState(false);

@@ -10,6 +10,7 @@ import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkele
 import { LinkTo } from "@src/components/shared/LinkTo";
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { useCertificate } from "@src/context/CertificateProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useProviderList } from "@src/queries/useProvidersQuery";
@@ -19,7 +20,6 @@ import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { deploymentData } from "@src/utils/deploymentData";
 import { getDeploymentLocalData, saveDeploymentManifest } from "@src/utils/deploymentLocalDataUtils";
-import { sendManifestToProvider } from "@src/utils/deploymentUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import RemoteDeployUpdate from "../remote-deploy/update/RemoteDeployUpdate";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
@@ -43,6 +43,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   editedManifest,
   onManifestChange
 }) => {
+  const { providerProxy } = useServices();
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
   const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
@@ -125,7 +126,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const chainNetwork = networkStore.useSelectedNetworkId();
   async function sendManifest(providerInfo: ApiProviderList, manifest: any) {
     try {
-      return await sendManifestToProvider(providerInfo, manifest, {
+      return await providerProxy.sendManifest(providerInfo, manifest, {
         dseq: deployment.dseq,
         localCert,
         chainNetwork

@@ -3,55 +3,41 @@ import type { TemplateCategory, TemplateOutputSummary } from "@akashnetwork/http
 import { Snackbar } from "@akashnetwork/ui/components";
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
+import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { services } from "@src/services/http/http-browser.service";
 import type { ITemplate } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import { QueryKeys } from "./queryKeys";
 
-async function getUserTemplates(username: string): Promise<ITemplate[]> {
-  const response = await axios.get(`/api/proxy/user/templates/${username}`);
-
-  return response.data;
-}
-
 export function useUserTemplates(username: string, options?: Omit<UseQueryOptions<ITemplate[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
+  const { axios } = useServices();
   return useQuery<ITemplate[], Error>({
     queryKey: QueryKeys.getUserTemplatesKey(username),
-    queryFn: () => getUserTemplates(username),
+    queryFn: () => axios.get<ITemplate[]>(`/api/proxy/user/templates/${username}`).then(response => response.data),
     ...options
   });
-}
-
-async function getUserFavoriteTemplates(): Promise<Partial<ITemplate>[]> {
-  const response = await axios.get(`/api/proxy/user/favoriteTemplates`);
-
-  return response.data;
 }
 
 export function useUserFavoriteTemplates(options?: Omit<UseQueryOptions<Partial<ITemplate>[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
   const { user } = useCustomUser();
+  const { axios } = useServices();
   return useQuery<Partial<ITemplate>[], Error>({
     queryKey: QueryKeys.getUserFavoriteTemplatesKey(user?.sub || ""),
-    queryFn: getUserFavoriteTemplates,
+    queryFn: () => axios.get<Partial<ITemplate>[]>(`/api/proxy/user/favoriteTemplates`).then(response => response.data),
     ...options
   });
 }
 
-async function getTemplate(id: string): Promise<ITemplate> {
-  const response = await axios.get(`/api/proxy/user/template/${id}`);
-
-  return response.data;
-}
-
 export function useTemplate(id: string, options?: Omit<UseQueryOptions<ITemplate, Error, any, QueryKey>, "queryKey" | "queryFn">) {
+  const { axios } = useServices();
+
   return useQuery<ITemplate, Error>({
     queryKey: QueryKeys.getTemplateKey(id),
-    queryFn: () => getTemplate(id),
+    queryFn: () => axios.get<ITemplate>(`/api/proxy/user/template/${id}`).then(response => response.data),
     ...options
   });
 }
@@ -59,6 +45,7 @@ export function useTemplate(id: string, options?: Omit<UseQueryOptions<ITemplate
 export function useSaveUserTemplate(isNew: boolean = false) {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { axios } = useServices();
 
   return useMutation({
     mutationFn: (template: Partial<ITemplate>) =>
@@ -87,6 +74,7 @@ export function useSaveUserTemplate(isNew: boolean = false) {
 export function useDeleteTemplate(id: string) {
   const { user } = useCustomUser();
   const queryClient = useQueryClient();
+  const { axios } = useServices();
 
   return useMutation({
     mutationFn: () => axios.delete(`/api/proxy/user/deleteTemplate/${id}`),
@@ -102,6 +90,8 @@ export function useDeleteTemplate(id: string) {
 
 export function useAddFavoriteTemplate(id: string) {
   const { enqueueSnackbar } = useSnackbar();
+  const { axios } = useServices();
+
   return useMutation({
     mutationFn: () => axios.post(`/api/proxy/user/addFavoriteTemplate/${id}`),
     onSuccess: () => {
@@ -112,6 +102,7 @@ export function useAddFavoriteTemplate(id: string) {
 
 export function useRemoveFavoriteTemplate(id: string) {
   const { enqueueSnackbar } = useSnackbar();
+  const { axios } = useServices();
 
   return useMutation({
     mutationFn: () => axios.delete(`/api/proxy/user/removeFavoriteTemplate/${id}`),

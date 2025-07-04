@@ -1,58 +1,11 @@
-import type { AxiosResponse } from "axios";
-
 import type { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
-import { services } from "@src/services/http/http-browser.service";
 import type { ExposeType, TemplateCreation } from "@src/types";
-import type { ApiProviderList } from "@src/types/provider";
-import { wait } from "./timer";
 
 export interface SendManifestToProviderOptions {
   dseq: string;
   localCert?: LocalCert | null;
   chainNetwork: string;
 }
-
-export const sendManifestToProvider = async (providerInfo: ApiProviderList | undefined | null, manifest: unknown, options: SendManifestToProviderOptions) => {
-  if (!providerInfo) return;
-  console.log("Sending manifest to " + providerInfo?.owner);
-
-  let jsonStr = JSON.stringify(manifest);
-  jsonStr = jsonStr.replaceAll('"quantity":{"val', '"size":{"val');
-
-  // Waiting for provider to have lease
-  await wait(5000);
-
-  let response: AxiosResponse | undefined;
-
-  for (let i = 1; i <= 3 && !response; i++) {
-    console.log("Try #" + i);
-    try {
-      if (!response) {
-        response = await services.providerProxy.fetchProviderUrl(`/deployment/${options.dseq}/manifest`, {
-          method: "PUT",
-          certPem: options.localCert?.certPem,
-          keyPem: options.localCert?.keyPem,
-          body: jsonStr,
-          timeout: 60_000,
-          providerIdentity: providerInfo,
-          chainNetwork: options.chainNetwork
-        });
-      }
-    } catch (err) {
-      if (typeof err === "string" && err.includes && err.includes("no lease for deployment") && i < 3) {
-        console.log("Lease not found, retrying...");
-        await wait(6000);
-      } else {
-        throw new Error((err as any)?.response?.data || err);
-      }
-    }
-  }
-
-  // Waiting for provider to boot up workload
-  await wait(5000);
-
-  return response;
-};
 
 /**
  * Validate values to change in the template

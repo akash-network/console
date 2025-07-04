@@ -14,7 +14,3 @@ export const userHttpService = services.user;
  * @deprecated use useServices() instead
  */
 export const stripeService = services.stripe;
-/**
- * @deprecated use useServices() instead
- */
-export const txHttpService = services.tx;

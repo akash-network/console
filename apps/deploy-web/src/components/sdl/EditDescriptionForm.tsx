@@ -4,10 +4,10 @@ import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Form, FormField, FormItem, FormMessage, Snackbar, Spinner, Textarea } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
-import axios from "axios";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { FormPaper } from "./FormPaper";
 
 type Props = {
@@ -27,6 +27,7 @@ export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, descri
   const formRef = useRef<HTMLFormElement>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
+  const { axios } = useServices();
   const form = useForm<FormValues>({
     defaultValues: {
       description: description || ""

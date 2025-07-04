@@ -4,7 +4,7 @@ import type { TxOutput } from "@akashnetwork/http-sdk";
 import { Snackbar } from "@akashnetwork/ui/components";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { useManager } from "@cosmos-kit/react";
-import axios from "axios";
+import { isAxiosError } from "axios";
 import { OpenNewWindow } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
@@ -250,7 +250,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (err: any) {
       console.error(err);
 
-      if (axios.isAxiosError(err) && err.response?.status !== 500) {
+      if (isAxiosError(err) && err.response?.status !== 500) {
         const [title, message] = err.response?.data?.message.split(": ") ?? [];
         showTransactionSnackbar(title || message || "Error", message, "", "error");
       } else {
