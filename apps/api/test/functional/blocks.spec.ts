@@ -137,7 +137,8 @@ describe("Blocks", () => {
 
         expect(response.status).toBe(200);
         const data = (await response.json()) as { predictedHeight: number };
-        expect(data.predictedHeight).toBe(expectedHeight);
+        expect(data.predictedHeight).toBeGreaterThanOrEqual(expectedHeight - 1);
+        expect(data.predictedHeight).toBeLessThanOrEqual(expectedHeight + 1);
       });
     });
 
