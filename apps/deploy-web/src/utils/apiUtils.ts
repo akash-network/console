@@ -1,5 +1,4 @@
-import type { Axios } from "axios";
-import axios from "axios";
+import type { AxiosInstance } from "axios";
 
 import { browserApiUrlService } from "@src/services/api-url/browser-api-url.service";
 import networkStore from "@src/store/networkStore";
@@ -134,7 +133,7 @@ export class ApiUrlService {
 
 // TODO: implement proper pagination on clients
 //   Issue: https://github.com/akash-network/console/milestone/7
-export async function loadWithPagination<T>(baseUrl: string, dataKey: string, limit: number, httpClient: Axios = axios) {
+export async function loadWithPagination<T>(baseUrl: string, dataKey: string, limit: number, httpClient: AxiosInstance) {
   let items: T[] = [];
   let nextKey: string | null = null;
   // let callCount = 1;

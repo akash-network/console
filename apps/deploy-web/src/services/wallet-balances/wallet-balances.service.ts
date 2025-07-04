@@ -1,5 +1,5 @@
 import type { AuthzHttpService } from "@akashnetwork/http-sdk";
-import type { Axios } from "axios";
+import type { AxiosInstance } from "axios";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { getUsdcDenom } from "@src/hooks/useDenom";
@@ -12,7 +12,7 @@ import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 export class WalletBalancesService {
   constructor(
     private readonly authzHttpService: AuthzHttpService,
-    private readonly axios: Axios,
+    private readonly axios: AxiosInstance,
     private readonly masterWalletAddress: string,
     private readonly apiEndpoint: string
   ) {}

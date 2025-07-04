@@ -14,7 +14,11 @@ export default wrapApiHandlerInExecutionContext(
       rewriteLocalRedirect(res);
 
       await handleLogin(req, res, {
-        returnTo: returnUrl
+        returnTo: returnUrl,
+        // Reduce the scope to minimize session data
+        authorizationParams: {
+          scope: "openid profile email"
+        }
       });
     },
     logout: serverEnvConfig.AUTH0_LOCAL_ENABLED

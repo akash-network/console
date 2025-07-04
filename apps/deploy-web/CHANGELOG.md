@@ -1,5 +1,37 @@
 
 
+## [2.91.2](https://github.com/akash-network/console/compare/console-web/v2.91.1...console-web/v2.91.2) (2025-07-04)
+
+
+### Code Refactoring
+
+* replaces direct dep on axios to injected via useServices one ([#1622](https://github.com/akash-network/console/issues/1622)) ([dfb52ae](https://github.com/akash-network/console/commit/dfb52ae5f154c854aaf9b9cfa4d1ef25892bce31))
+
+## [2.91.1](https://github.com/akash-network/console/compare/console-web/v2.91.0...console-web/v2.91.1) (2025-07-02)
+
+
+### Bug Fixes
+
+* **auth:** revert absolute path to proxy ([#1611](https://github.com/akash-network/console/issues/1611)) ([b881749](https://github.com/akash-network/console/commit/b8817495a63ef6ccebcb7a3457e5941001b13e9e))
+
+## [2.91.0](https://github.com/akash-network/console/compare/console-web/v2.90.2...console-web/v2.91.0) (2025-07-02)
+
+
+### Features
+
+* **billing:** filter payment methods ([#1610](https://github.com/akash-network/console/issues/1610)) ([3db9833](https://github.com/akash-network/console/commit/3db9833084e7dfcf5370298aead681ae527609db))
+
+
+### Bug Fixes
+
+* **auth:** recude cookie size for auth0 ([#1606](https://github.com/akash-network/console/issues/1606)) ([0536aff](https://github.com/akash-network/console/commit/0536aff17430887a74b64af759730c64c7bc44ab))
+* **billing:** improve stripe error handling ([#1569](https://github.com/akash-network/console/issues/1569)) ([f567c75](https://github.com/akash-network/console/commit/f567c75f9c63ecadbd3f9eec8d58588be195743c))
+
+
+### Code Refactoring
+
+* move /v1/proposals to modules ([#1434](https://github.com/akash-network/console/issues/1434)) ([d6cd3c5](https://github.com/akash-network/console/commit/d6cd3c5cc53090784c79334195ae5c298a07a68e)), closes [#1269](https://github.com/akash-network/console/issues/1269) [#1269](https://github.com/akash-network/console/issues/1269)
+
 ## [2.90.2](https://github.com/akash-network/console/compare/console-web/v2.90.1...console-web/v2.90.2) (2025-07-01)
 
 

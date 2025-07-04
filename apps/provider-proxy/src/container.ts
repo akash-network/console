@@ -26,7 +26,7 @@ export function createContainer() {
     isLoggingDisabled ? undefined : createCertificateValidatorInstrumentation(new LoggerService({ name: "cert-validator" }))
   );
   const providerProxy = new ProviderProxy(certificateValidator);
-  const createWsLogger = isLoggingDisabled ? undefined : (id: string) => new LoggerService({ name: "ws", context: id });
+  const wsLogger = isLoggingDisabled ? undefined : new LoggerService({ name: "ws" });
   const httpLogger = isLoggingDisabled ? undefined : new LoggerService({ name: "http" });
   const httpLoggerInterceptor = new HttpLoggerIntercepter(httpLogger);
   const appLogger = isLoggingDisabled ? undefined : new LoggerService({ name: "app" });
@@ -37,7 +37,7 @@ export function createContainer() {
     certificateValidator,
     httpLogger,
     httpLoggerInterceptor,
-    createWsLogger,
+    wsLogger,
     netConfig,
     appLogger
   };

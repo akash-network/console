@@ -1,14 +1,18 @@
-import { HttpService } from "@akashnetwork/http-sdk";
-import type { AxiosRequestConfig, AxiosResponse } from "axios";
+import type { AxiosInstance, AxiosResponse } from "axios";
 
-export class ProviderProxyService extends HttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
-  }
+import type { ApiProviderList } from "@src/types/provider";
+import type { SendManifestToProviderOptions } from "@src/utils/deploymentUtils";
+import { wait } from "@src/utils/timer";
+
+export class ProviderProxyService {
+  constructor(
+    private readonly axios: AxiosInstance,
+    private readonly logger = console
+  ) {}
 
   fetchProviderUrl<T>(url: string, options: ProviderProxyPayload): Promise<AxiosResponse<T>> {
     const { chainNetwork, providerIdentity, timeout, ...params } = options;
-    return this.post(
+    return this.axios.post(
       "/",
       {
         ...params,
@@ -19,6 +23,47 @@ export class ProviderProxyService extends HttpService {
       },
       { timeout }
     );
+  }
+
+  async sendManifest(providerInfo: ApiProviderList | undefined | null, manifest: unknown, options: SendManifestToProviderOptions) {
+    if (!providerInfo) return;
+    this.logger.info(`Sending manifest to ${providerInfo?.owner}`);
+
+    const jsonStr = JSON.stringify(manifest).replaceAll('"quantity":{"val', '"size":{"val');
+
+    // Waiting for provider to have lease
+    await wait(5000);
+
+    let response: AxiosResponse | undefined;
+
+    for (let i = 1; i <= 3 && !response; i++) {
+      this.logger.info(`Attempt #${i}`);
+      try {
+        if (!response) {
+          response = await this.fetchProviderUrl(`/deployment/${options.dseq}/manifest`, {
+            method: "PUT",
+            certPem: options.localCert?.certPem,
+            keyPem: options.localCert?.keyPem,
+            body: jsonStr,
+            timeout: 60_000,
+            providerIdentity: providerInfo,
+            chainNetwork: options.chainNetwork
+          });
+        }
+      } catch (err) {
+        if (typeof err === "string" && err.indexOf("no lease for deployment") !== -1 && i < 3) {
+          this.logger.info("Lease not found, retrying...");
+          await wait(6000);
+        } else {
+          throw new Error((err as any)?.response?.data || err);
+        }
+      }
+    }
+
+    // Waiting for provider to boot up workload
+    await wait(5000);
+
+    return response;
   }
 }
 

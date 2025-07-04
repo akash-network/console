@@ -1,48 +1,16 @@
-import { AuthzHttpService } from "@akashnetwork/http-sdk";
+import type { AuthzHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
+import type { AxiosInstance } from "axios";
+import { mock } from "jest-mock-extended";
 
-import { loadWithPagination } from "@src/utils/apiUtils";
 import { useAllowancesGranted, useAllowancesIssued, useGranteeGrants, useGranterGrants } from "./useGrantsQuery";
 
 import { waitFor } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 
-jest.mock("@akashnetwork/http-sdk", () => {
-  const mockService = {
-    getAllDepositDeploymentGrants: jest.fn(),
-    getPaginatedDepositDeploymentGrants: jest.fn(),
-    getPaginatedFeeAllowancesForGranter: jest.fn()
-  };
-
-  return {
-    ...jest.requireActual("@akashnetwork/http-sdk"),
-    AuthzHttpService: jest.fn(() => mockService)
-  };
-});
-
-jest.mock("@src/context/SettingsProvider", () => ({
-  useSettings: () => ({
-    settings: {
-      apiEndpoint: "test-api-endpoint"
-    }
-  })
-}));
-
-jest.mock("@src/utils/apiUtils", () => ({
-  ...jest.requireActual("@src/utils/apiUtils"),
-  loadWithPagination: jest.fn()
-}));
-
 describe("useGrantsQuery", () => {
-  let mockAllowanceHttpService: any;
-
-  beforeEach(() => {
-    mockAllowanceHttpService = new AuthzHttpService();
-    jest.clearAllMocks();
-  });
-
-  describe("useGranterGrants", () => {
-    it("should fetch granter grants when address is provided", async () => {
+  describe(useGranterGrants.name, () => {
+    it("fetches granter grants when address is provided", async () => {
       const mockData = {
         grants: [
           {
@@ -58,26 +26,41 @@ describe("useGrantsQuery", () => {
         ],
         pagination: { total: 2 }
       };
-      mockAllowanceHttpService.getPaginatedDepositDeploymentGrants.mockResolvedValue(mockData);
 
-      const { result } = setupQuery(() => useGranterGrants("test-address", 0, 1000));
+      const authzHttpService = mock<AuthzHttpService>({
+        defaults: { baseURL: "https://api.akash.network" },
+        getPaginatedDepositDeploymentGrants: jest.fn().mockResolvedValue(mockData)
+      });
+      const { result } = setupQuery(() => useGranterGrants("test-address", 0, 1000), {
+        services: {
+          authzHttpService: () => authzHttpService
+        }
+      });
 
       await waitFor(() => {
-        expect(mockAllowanceHttpService.getPaginatedDepositDeploymentGrants).toHaveBeenCalledWith({ granter: "test-address", limit: 1000, offset: 0 });
+        expect(authzHttpService.getPaginatedDepositDeploymentGrants).toHaveBeenCalledWith({ granter: "test-address", limit: 1000, offset: 0 });
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
       });
     });
 
-    it("should not fetch when address is not provided", () => {
-      setupQuery(() => useGranterGrants("", 0, 1000));
+    it("does not fetch when address is not provided", () => {
+      const authzHttpService = mock<AuthzHttpService>({
+        defaults: { baseURL: "https://api.akash.network" },
+        getPaginatedDepositDeploymentGrants: jest.fn().mockResolvedValue([])
+      });
+      setupQuery(() => useGranterGrants("", 0, 1000), {
+        services: {
+          authzHttpService: () => authzHttpService
+        }
+      });
 
-      expect(mockAllowanceHttpService.getPaginatedDepositDeploymentGrants).not.toHaveBeenCalled();
+      expect(authzHttpService.getPaginatedDepositDeploymentGrants).not.toHaveBeenCalled();
     });
   });
 
-  describe("useGranteeGrants", () => {
-    it("should fetch grantee grants when address is provided", async () => {
+  describe(useGranteeGrants.name, () => {
+    it("fetches grantee grants when address is provided", async () => {
       const mockData = [
         {
           authorization: {
@@ -85,66 +68,119 @@ describe("useGrantsQuery", () => {
           }
         }
       ];
-      mockAllowanceHttpService.getAllDepositDeploymentGrants.mockResolvedValue(mockData);
+      const authzHttpService = mock<AuthzHttpService>({
+        defaults: { baseURL: "https://api.akash.network" },
+        getAllDepositDeploymentGrants: jest.fn().mockResolvedValue(mockData)
+      });
 
-      const { result } = setupQuery(() => useGranteeGrants("test-address"));
+      const { result } = setupQuery(() => useGranteeGrants("test-address"), {
+        services: {
+          authzHttpService: () => authzHttpService
+        }
+      });
 
       await waitFor(() => {
-        expect(mockAllowanceHttpService.getAllDepositDeploymentGrants).toHaveBeenCalledWith({ grantee: "test-address", limit: 1000 });
+        expect(authzHttpService.getAllDepositDeploymentGrants).toHaveBeenCalledWith({ grantee: "test-address", limit: 1000 });
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
       });
     });
 
-    it("should not fetch when address is not provided", () => {
-      setupQuery(() => useGranteeGrants(""));
+    it("does not fetch when address is not provided", () => {
+      const authzHttpService = mock<AuthzHttpService>({
+        defaults: { baseURL: "https://api.akash.network" },
+        getAllDepositDeploymentGrants: jest.fn().mockResolvedValue([])
+      });
+      setupQuery(() => useGranteeGrants(""), {
+        services: {
+          authzHttpService: () => authzHttpService
+        }
+      });
 
-      expect(mockAllowanceHttpService.getAllDepositDeploymentGrants).not.toHaveBeenCalled();
+      expect(authzHttpService.getAllDepositDeploymentGrants).not.toHaveBeenCalled();
     });
   });
 
-  describe("useAllowancesIssued", () => {
-    it("should fetch allowances issued when address is provided", async () => {
+  describe(useAllowancesIssued.name, () => {
+    it("fetches allowances issued when address is provided", async () => {
       const mockData = {
         allowances: [{ id: faker.string.uuid() }],
         pagination: { total: 1 }
       };
-      mockAllowanceHttpService.getPaginatedFeeAllowancesForGranter.mockResolvedValue(mockData);
+      const authzHttpService = mock<AuthzHttpService>({
+        defaults: { baseURL: "https://api.akash.network" },
+        getPaginatedFeeAllowancesForGranter: jest.fn().mockResolvedValue(mockData)
+      });
 
-      const { result } = setupQuery(() => useAllowancesIssued("test-address", 0, 1000));
+      const { result } = setupQuery(() => useAllowancesIssued("test-address", 0, 1000), {
+        services: {
+          authzHttpService: () => authzHttpService
+        }
+      });
 
       await waitFor(() => {
-        expect(mockAllowanceHttpService.getPaginatedFeeAllowancesForGranter).toHaveBeenCalledWith("test-address", 1000, 0);
+        expect(authzHttpService.getPaginatedFeeAllowancesForGranter).toHaveBeenCalledWith("test-address", 1000, 0);
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
       });
     });
 
-    it("should not fetch when address is not provided", () => {
-      setupQuery(() => useAllowancesIssued("", 0, 1000));
+    it("does not fetch when address is not provided", () => {
+      const authzHttpService = mock<AuthzHttpService>({
+        defaults: { baseURL: "https://api.akash.network" },
+        getPaginatedFeeAllowancesForGranter: jest.fn().mockResolvedValue([])
+      });
+      setupQuery(() => useAllowancesIssued("", 0, 1000), {
+        services: {
+          authzHttpService: () => authzHttpService
+        }
+      });
 
-      expect(mockAllowanceHttpService.getPaginatedFeeAllowancesForGranter).not.toHaveBeenCalled();
+      expect(authzHttpService.getPaginatedFeeAllowancesForGranter).not.toHaveBeenCalled();
     });
   });
 
-  describe("useAllowancesGranted", () => {
-    it("should fetch allowances granted when address is provided", async () => {
+  describe(useAllowancesGranted.name, () => {
+    it("fetches allowances granted when address is provided", async () => {
       const mockData = [{ id: faker.string.uuid() }];
-      (loadWithPagination as jest.Mock).mockResolvedValue(mockData);
+      const chainApiHttpClient = mock<AxiosInstance>({
+        defaults: { baseURL: "https://api.akash.network" },
+        get: jest.fn().mockResolvedValue({
+          data: {
+            allowances: mockData,
+            pagination: { next_key: null, total: mockData.length }
+          }
+        })
+      } as any);
 
-      const { result } = setupQuery(() => useAllowancesGranted("test-address"));
+      const { result } = setupQuery(() => useAllowancesGranted("test-address"), {
+        services: {
+          chainApiHttpClient: () => chainApiHttpClient
+        }
+      });
 
       await waitFor(() => {
-        expect(loadWithPagination).toHaveBeenCalledWith(expect.any(String), "allowances", 1000);
+        expect(chainApiHttpClient.get).toHaveBeenCalledWith(
+          expect.stringContaining("/cosmos/feegrant/v1beta1/allowances/test-address?pagination.limit=1000&pagination.count_total=true")
+        );
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockData);
       });
     });
 
-    it("should not fetch when address is not provided", () => {
+    it("does not fetch when address is not provided", () => {
+      const chainApiHttpClient = mock<AxiosInstance>({
+        defaults: { baseURL: "https://api.akash.network" },
+        get: jest.fn().mockResolvedValue({
+          data: {
+            allowances: [],
+            pagination: { next_key: null, total: 0 }
+          }
+        })
+      } as any);
       setupQuery(() => useAllowancesGranted(""));
 
-      expect(loadWithPagination).not.toHaveBeenCalled();
+      expect(chainApiHttpClient.get).not.toHaveBeenCalled();
     });
   });
 });

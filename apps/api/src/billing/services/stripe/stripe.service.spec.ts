@@ -181,7 +181,8 @@ describe(StripeService.name, () => {
       const result = await service.createSetupIntent("cus_123");
       expect(service.setupIntents.create).toHaveBeenCalledWith({
         customer: "cus_123",
-        usage: "off_session"
+        usage: "off_session",
+        payment_method_types: ["card", "link"]
       });
       expect(result).toEqual(stripeData.setupIntent);
     });
@@ -281,8 +282,7 @@ describe(StripeService.name, () => {
 
       const result = await service.getPaymentMethods("cus_123");
       expect(service.paymentMethods.list).toHaveBeenCalledWith({
-        customer: "cus_123",
-        type: "card"
+        customer: "cus_123"
       });
       expect(result).toEqual(mockPaymentMethods);
     });

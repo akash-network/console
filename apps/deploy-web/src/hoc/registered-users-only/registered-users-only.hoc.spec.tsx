@@ -66,19 +66,16 @@ describe("RegisteredUsersOnly", () => {
     );
     TestComponent.displayName = "TestComponent";
 
-    const getProfile = jest.fn().mockResolvedValue(
-      isRegistered
-        ? {
-            userId: faker.string.uuid(),
-            email: faker.internet.email()
-          }
-        : {}
-    );
-
+    const user = isRegistered
+      ? {
+          userId: faker.string.uuid(),
+          email: faker.internet.email()
+        }
+      : {};
     const WrappedComponent = RegisteredUsersOnly(TestComponent, FallbackComponent);
 
     render(
-      <UserProvider fetcher={getProfile}>
+      <UserProvider user={user}>
         <WrappedComponent {...props} />
       </UserProvider>
     );

@@ -55,7 +55,7 @@ export async function startAppServer(port: number): Promise<AppServer> {
     fetch: app.fetch,
     port
   }) as http.Server;
-  const wss = new WebsocketServer(httpAppServer, container.certificateValidator, container.wsStats, container.createWsLogger);
+  const wss = new WebsocketServer(httpAppServer, container.certificateValidator, container.wsStats, container.wsLogger);
   wss.listen();
 
   return {

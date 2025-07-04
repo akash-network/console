@@ -1,5 +1,5 @@
 import type { UseQueryOptions } from "@tanstack/react-query";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -9,17 +9,15 @@ import type { ApiProviderList } from "@src/types/provider";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { useCertificate } from "../context/CertificateProvider";
-import { useSettings } from "../context/SettingsProvider";
-import { queryClient } from "./queryClient";
 import { QueryKeys } from "./queryKeys";
 
 // Leases
-async function getDeploymentLeases(apiEndpoint: string, address: string, deployment: Pick<DeploymentDto, "dseq" | "groups">) {
+async function getDeploymentLeases(chainApiHttpClient: AxiosInstance, address: string, deployment: Pick<DeploymentDto, "dseq" | "groups">) {
   if (!address) {
     return null;
   }
 
-  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList(apiEndpoint, address, deployment?.dseq), "leases", 1000);
+  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList("", address, deployment?.dseq), "leases", 1000, chainApiHttpClient);
   const leases = response.map(l => leaseToDto(l, deployment));
 
   return leases;
@@ -30,14 +28,15 @@ export function useDeploymentLeaseList(
   deployment: Pick<DeploymentDto, "dseq" | "groups"> | null | undefined,
   options: Omit<UseQueryOptions<LeaseDto[] | null>, "queryKey" | "queryFn"> = {}
 ) {
-  const { settings } = useSettings();
+  const { chainApiHttpClient } = useServices();
+  const queryClient = useQueryClient();
 
   const queryKey = QueryKeys.getLeasesKey(address, deployment?.dseq || "");
   const query = useQuery({
     queryKey,
     queryFn: async () => {
       if (!deployment) return null;
-      return getDeploymentLeases(settings.apiEndpoint, address, deployment);
+      return getDeploymentLeases(chainApiHttpClient, address, deployment);
     },
     ...options
   });
@@ -48,24 +47,23 @@ export function useDeploymentLeaseList(
   };
 }
 
-async function getAllLeases(apiEndpoint: string, address: string, deployment?: any, httpClient?: AxiosInstance) {
+async function getAllLeases(chainApiHttpClient: AxiosInstance, address: string, deployment?: any) {
   if (!address) {
     return null;
   }
 
-  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList(apiEndpoint, address, deployment?.dseq), "leases", 1000, httpClient);
+  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList("", address, deployment?.dseq), "leases", 1000, chainApiHttpClient);
   const leases = response.map(l => leaseToDto(l, deployment));
 
   return leases;
 }
 
 export function useAllLeases(address: string, options = {}) {
-  const { settings } = useSettings();
-  const { axios } = useServices();
+  const { chainApiHttpClient } = useServices();
 
   return useQuery({
     queryKey: QueryKeys.getAllLeasesKey(address),
-    queryFn: () => getAllLeases(settings.apiEndpoint, address, undefined, axios),
+    queryFn: () => getAllLeases(chainApiHttpClient, address),
     ...options
   });
 }

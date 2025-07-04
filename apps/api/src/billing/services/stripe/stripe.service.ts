@@ -36,7 +36,8 @@ export class StripeService extends Stripe {
   async createSetupIntent(customerId: string) {
     return await this.setupIntents.create({
       customer: customerId,
-      usage: "off_session"
+      usage: "off_session",
+      payment_method_types: ["card", "link"]
     });
   }
 
@@ -89,8 +90,7 @@ export class StripeService extends Stripe {
 
   async getPaymentMethods(customerId: string) {
     const paymentMethods = await this.paymentMethods.list({
-      customer: customerId,
-      type: "card"
+      customer: customerId
     });
     return paymentMethods.data;
   }

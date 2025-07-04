@@ -1,5 +1,6 @@
-import { useServices } from "@src/context/ServicesProvider";
-import { queryClient } from "./queryClient";
+import type { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
+import { mock } from "jest-mock-extended";
+
 import {
   usePaymentDiscountsQuery,
   usePaymentMethodsQuery,
@@ -21,102 +22,91 @@ import {
 } from "@tests/seeders/payment";
 import { setupQuery } from "@tests/unit/query-client";
 
-jest.mock("@src/context/ServicesProvider");
-
-jest.mock("@src/services/http/http-browser.service", () => ({
-  stripeService: {
-    getPaymentMethods: jest.fn(),
-    getCustomerDiscounts: jest.fn(),
-    getCustomerTransactions: jest.fn(),
-    createSetupIntent: jest.fn(),
-    confirmPayment: jest.fn(),
-    applyCoupon: jest.fn(),
-    removePaymentMethod: jest.fn()
-  }
-}));
-
 describe("usePaymentQueries", () => {
-  beforeEach(() => {
-    (useServices as jest.Mock).mockReturnValue({
-      stripe: {
-        getPaymentMethods: jest.fn(),
-        getCustomerDiscounts: jest.fn(),
-        getCustomerTransactions: jest.fn(),
-        createSetupIntent: jest.fn(),
-        confirmPayment: jest.fn(),
-        applyCoupon: jest.fn(),
-        removePaymentMethod: jest.fn()
-      }
-    });
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
-    queryClient.clear();
-  });
-
-  it("should fetch payment methods", async () => {
+  it("fetches payment methods", async () => {
     const mockMethods = createMockItems(createMockPaymentMethod, 2);
-    (useServices().stripe.getPaymentMethods as jest.Mock).mockResolvedValue(mockMethods);
-    const { result } = setupQuery(() => usePaymentMethodsQuery());
+    const stripeService = mock<StripeService>({
+      getPaymentMethods: jest.fn().mockResolvedValue(mockMethods)
+    });
+    const { result } = setupQuery(() => usePaymentMethodsQuery(), {
+      services: { stripe: () => stripeService }
+    });
     await waitFor(() => {
-      expect(useServices().stripe.getPaymentMethods).toHaveBeenCalled();
+      expect(stripeService.getPaymentMethods).toHaveBeenCalled();
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual(mockMethods);
     });
   });
 
-  it("should fetch payment discounts", async () => {
+  it("fetches payment discounts", async () => {
     const mockDiscounts = {
       discounts: createMockItems(createMockDiscount, 2)
     };
-    (useServices().stripe.getCustomerDiscounts as jest.Mock).mockResolvedValue(mockDiscounts);
-    const { result } = setupQuery(() => usePaymentDiscountsQuery());
+    const stripeService = mock<StripeService>({
+      getCustomerDiscounts: jest.fn().mockResolvedValue(mockDiscounts)
+    });
+    const { result } = setupQuery(() => usePaymentDiscountsQuery(), {
+      services: { stripe: () => stripeService }
+    });
     await waitFor(() => {
-      expect(useServices().stripe.getCustomerDiscounts).toHaveBeenCalled();
+      expect(stripeService.getCustomerDiscounts).toHaveBeenCalled();
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual(mockDiscounts.discounts);
     });
   });
 
-  it("should handle empty discounts response", async () => {
-    (useServices().stripe.getCustomerDiscounts as jest.Mock).mockResolvedValue({});
-    const { result } = setupQuery(() => usePaymentDiscountsQuery());
+  it("fallbacks to an empty array if 'discounts' field is not present", async () => {
+    const stripeService = mock<StripeService>({
+      getCustomerDiscounts: jest.fn().mockResolvedValue({})
+    });
+    const { result } = setupQuery(() => usePaymentDiscountsQuery(), {
+      services: { stripe: () => stripeService }
+    });
     await waitFor(() => {
       expect(result.current.data).toEqual([]);
     });
   });
 
-  it("should fetch payment transactions", async () => {
+  it("fetches payment transactions", async () => {
     const mockTransactions = {
       transactions: createMockItems(createMockTransaction, 2)
     };
-    (useServices().stripe.getCustomerTransactions as jest.Mock).mockResolvedValue(mockTransactions);
-    const { result } = setupQuery(() => usePaymentTransactionsQuery({ limit: 2 }));
+    const stripeService = mock<StripeService>({
+      getCustomerTransactions: jest.fn().mockResolvedValue(mockTransactions)
+    });
+    const { result } = setupQuery(() => usePaymentTransactionsQuery({ limit: 2 }), {
+      services: { stripe: () => stripeService }
+    });
     await waitFor(() => {
-      expect(useServices().stripe.getCustomerTransactions).toHaveBeenCalledWith({ limit: 2 });
+      expect(stripeService.getCustomerTransactions).toHaveBeenCalledWith({ limit: 2 });
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual(mockTransactions.transactions);
     });
   });
 
-  it("should create setup intent", async () => {
+  it("creates setup intent", async () => {
     const mockSetupIntent = createMockSetupIntent();
-    (useServices().stripe.createSetupIntent as jest.Mock).mockResolvedValue(mockSetupIntent);
-    const { result } = setupQuery(() => useSetupIntentMutation());
-    await act(async () => {
-      await result.current.mutateAsync();
+    const stripeService = mock<StripeService>({
+      createSetupIntent: jest.fn().mockResolvedValue(mockSetupIntent)
     });
+    const { result } = setupQuery(() => useSetupIntentMutation(), {
+      services: { stripe: () => stripeService }
+    });
+    await act(async () => result.current.mutateAsync());
     await waitFor(() => {
-      expect(useServices().stripe.createSetupIntent).toHaveBeenCalled();
+      expect(stripeService.createSetupIntent).toHaveBeenCalled();
     });
   });
 
   describe("usePaymentMutations", () => {
-    it("should confirm payment and invalidate queries", async () => {
+    it("confirms payment and invalidate queries", async () => {
       const mockPaymentResponse = createMockPaymentResponse();
-      (useServices().stripe.confirmPayment as jest.Mock).mockResolvedValue(mockPaymentResponse);
-      const { result } = setupQuery(() => usePaymentMutations());
+      const stripeService = mock<StripeService>({
+        confirmPayment: jest.fn().mockResolvedValue(mockPaymentResponse)
+      });
+      const { result } = setupQuery(() => usePaymentMutations(), {
+        services: { stripe: () => stripeService }
+      });
 
       await act(async () => {
         await result.current.confirmPayment.mutateAsync({
@@ -128,53 +118,65 @@ describe("usePaymentQueries", () => {
       });
 
       await waitFor(() => {
-        expect(useServices().stripe.confirmPayment).toHaveBeenCalled();
+        expect(stripeService.confirmPayment).toHaveBeenCalled();
       });
     });
 
-    it("should apply coupon and invalidate discounts", async () => {
+    it("applies coupon and invalidate discounts", async () => {
       const mockCouponResponse = createMockCouponResponse();
-      (useServices().stripe.applyCoupon as jest.Mock).mockResolvedValue(mockCouponResponse);
-      const { result } = setupQuery(() => usePaymentMutations());
+      const stripeService = mock<StripeService>({
+        applyCoupon: jest.fn().mockResolvedValue(mockCouponResponse)
+      });
+      const { result } = setupQuery(() => usePaymentMutations(), {
+        services: { stripe: () => stripeService }
+      });
 
       await act(async () => {
         await result.current.applyCoupon.mutateAsync({ coupon: mockCouponResponse.coupon.id });
       });
 
       await waitFor(() => {
-        expect(useServices().stripe.applyCoupon).toHaveBeenCalledWith(mockCouponResponse.coupon.id);
+        expect(stripeService.applyCoupon).toHaveBeenCalledWith(mockCouponResponse.coupon.id);
       });
     });
 
-    it("should handle coupon application error response", async () => {
+    it("handles coupon application error response", async () => {
       const mockErrorResponse = {
         coupon: null,
         error: {
           message: "No valid promotion code or coupon found with the provided code"
         }
       };
-      (useServices().stripe.applyCoupon as jest.Mock).mockResolvedValue(mockErrorResponse);
-      const { result } = setupQuery(() => usePaymentMutations());
+      const stripeService = mock<StripeService>({
+        applyCoupon: jest.fn().mockResolvedValue(mockErrorResponse)
+      });
+      const { result } = setupQuery(() => usePaymentMutations(), {
+        services: { stripe: () => stripeService }
+      });
 
       const response = await act(async () => result.current.applyCoupon.mutateAsync({ coupon: "INVALID" }));
       expect(response.error?.message).toBe("No valid promotion code or coupon found with the provided code");
 
       await waitFor(() => {
-        expect(useServices().stripe.applyCoupon).toHaveBeenCalledWith("INVALID");
+        expect(stripeService.applyCoupon).toHaveBeenCalledWith("INVALID");
       });
     });
 
-    it("should remove payment method and invalidate methods", async () => {
+    it("removes payment method and invalidate methods", async () => {
       const mockRemovedPaymentMethod = createMockRemovedPaymentMethod();
-      (useServices().stripe.removePaymentMethod as jest.Mock).mockResolvedValue(mockRemovedPaymentMethod);
-      const { result } = setupQuery(() => usePaymentMutations());
+      const stripeService = mock<StripeService>({
+        removePaymentMethod: jest.fn().mockResolvedValue(mockRemovedPaymentMethod)
+      });
+      const { result } = setupQuery(() => usePaymentMutations(), {
+        services: { stripe: () => stripeService }
+      });
 
       await act(async () => {
         await result.current.removePaymentMethod.mutateAsync(mockRemovedPaymentMethod.id);
       });
 
       await waitFor(() => {
-        expect(useServices().stripe.removePaymentMethod).toHaveBeenCalledWith(mockRemovedPaymentMethod.id);
+        expect(stripeService.removePaymentMethod).toHaveBeenCalledWith(mockRemovedPaymentMethod.id);
       });
     });
   });

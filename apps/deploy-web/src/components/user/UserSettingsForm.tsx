@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { MdHighlightOff } from "react-icons/md";
 import { Alert, Button, Form, FormField, FormInput, Spinner, Switch, Textarea } from "@akashnetwork/ui/components";
-import axios from "axios";
 import { CheckCircle } from "iconoir-react";
 import { NextSeo } from "next-seo";
 import { z } from "zod";
@@ -11,7 +10,8 @@ import { FormPaper } from "@src/components/sdl/FormPaper";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import type { RequiredUserConsumer } from "@src/components/user/RequiredUserContainer";
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
-import { useSaveSettings } from "@src/queries/useSettings";
+import { useServices } from "@src/context/ServicesProvider";
+import { useSaveSettings } from "@src/queries/useSaveSettings";
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { UserSettings } from "@src/types/user";
 import Layout from "../layout/Layout";
@@ -30,6 +30,7 @@ const formSchema = z.object({
 });
 
 export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
+  const { axios } = useServices();
   const [isCheckingAvailability, setIsCheckingAvailability] = useState<boolean>(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const form = useForm<z.infer<typeof formSchema>>({

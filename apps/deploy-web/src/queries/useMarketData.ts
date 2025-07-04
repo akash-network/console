@@ -1,20 +1,16 @@
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 
+import { useServices } from "@src/context/ServicesProvider";
 import type { MarketData } from "@src/types";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
-async function getMarketData(): Promise<MarketData> {
-  const response = await axios.get(ApiUrlService.marketData());
-  return response.data;
-}
-
 export function useMarketData(options?: Omit<UseQueryOptions<MarketData, Error, any, QueryKey>, "queryKey" | "queryFn">) {
+  const { axios } = useServices();
   return useQuery<MarketData, Error>({
     queryKey: QueryKeys.getFinancialDataKey(),
-    queryFn: () => getMarketData(),
+    queryFn: () => axios.get<MarketData>(ApiUrlService.marketData()).then(response => response.data),
     ...options
   });
 }

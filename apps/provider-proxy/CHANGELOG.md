@@ -1,5 +1,22 @@
 
 
+## [1.12.8](https://github.com/akash-network/console/compare/provider-proxy/v1.12.7...provider-proxy/v1.12.8) (2025-07-04)
+
+## [1.12.7](https://github.com/akash-network/console/compare/provider-proxy/v1.12.6...provider-proxy/v1.12.7) (2025-07-03)
+
+
+### Bug Fixes
+
+* enable proper traceId propagation for websocket server ([#1614](https://github.com/akash-network/console/issues/1614)) ([7b5dc79](https://github.com/akash-network/console/commit/7b5dc79feec7006314f0d130dd333f506f8c107e))
+
+## [1.12.6](https://github.com/akash-network/console/compare/provider-proxy/v1.12.5...provider-proxy/v1.12.6) (2025-07-02)
+
+
+### Bug Fixes
+
+* **auth:** recude cookie size for auth0 ([#1606](https://github.com/akash-network/console/issues/1606)) ([0536aff](https://github.com/akash-network/console/commit/0536aff17430887a74b64af759730c64c7bc44ab))
+* **billing:** improve stripe error handling ([#1569](https://github.com/akash-network/console/issues/1569)) ([f567c75](https://github.com/akash-network/console/commit/f567c75f9c63ecadbd3f9eec8d58588be195743c))
+
 ## [1.12.5](https://github.com/akash-network/console/compare/provider-proxy/v1.12.4...provider-proxy/v1.12.5) (2025-06-28)
 
 

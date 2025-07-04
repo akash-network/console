@@ -11,7 +11,7 @@ import type { NotificationChannelsListViewProps } from "@src/components/alerts/N
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 
@@ -23,7 +23,7 @@ describe("NotificationChannelsListContainer", () => {
 
   it("calls delete endpoint and shows success notification when removing a notification channel succeeds", async () => {
     const { mockData, requestFn, child } = await setup();
-    child.onRemove(mockData.data[0].id);
+    await act(() => child.onRemove(mockData.data[0].id));
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
@@ -37,7 +37,7 @@ describe("NotificationChannelsListContainer", () => {
   it("calls delete endpoint and shows error notification when removing a notification channel fails", async () => {
     const { mockData, requestFn, child } = await setup();
     requestFn.mockRejectedValue(new Error());
-    child.onRemove(mockData.data[0].id);
+    await act(() => child.onRemove(mockData.data[0].id));
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
@@ -50,7 +50,7 @@ describe("NotificationChannelsListContainer", () => {
 
   it("handles pagination correctly", async () => {
     const { requestFn, child } = await setup();
-    child.onPaginationChange({ page: child.pagination.page + 1, limit: child.pagination.limit });
+    await act(() => child.onPaginationChange({ page: child.pagination.page + 1, limit: child.pagination.limit }));
 
     await waitFor(() => {
       expect(requestFn).toHaveBeenCalledWith(
