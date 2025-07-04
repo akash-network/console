@@ -1,5 +1,7 @@
 
 
+## [1.12.8](https://github.com/akash-network/console/compare/provider-proxy/v1.12.7...provider-proxy/v1.12.8) (2025-07-04)
+
 ## [1.12.7](https://github.com/akash-network/console/compare/provider-proxy/v1.12.6...provider-proxy/v1.12.7) (2025-07-03)
 
 

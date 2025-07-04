@@ -1,5 +1,12 @@
 
 
+## [2.91.2](https://github.com/akash-network/console/compare/console-web/v2.91.1...console-web/v2.91.2) (2025-07-04)
+
+
+### Code Refactoring
+
+* replaces direct dep on axios to injected via useServices one ([#1622](https://github.com/akash-network/console/issues/1622)) ([dfb52ae](https://github.com/akash-network/console/commit/dfb52ae5f154c854aaf9b9cfa4d1ef25892bce31))
+
 ## [2.91.1](https://github.com/akash-network/console/compare/console-web/v2.91.0...console-web/v2.91.1) (2025-07-02)
 
 
