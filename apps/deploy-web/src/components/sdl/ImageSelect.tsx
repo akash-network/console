@@ -1,6 +1,6 @@
 "use client";
-import type { ReactNode } from "react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { ReactNode, RefObject } from "react";
+import { createRef, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Control } from "react-hook-form";
 import { Controller } from "react-hook-form";
 import { buttonVariants, CustomTooltip } from "@akashnetwork/ui/components";
@@ -31,22 +31,23 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
   const [hoveredTemplate, setHoveredTemplate] = useState<TemplateOutputSummaryWithCategory | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateOutputSummaryWithCategory | null>(null);
   const [popperWidth, setPopperWidth] = useState<number | null>(null);
-  // TODO: https://github.com/akash-network/console/issues/1045
-  const eleRefs = useRef(null) as any;
+  const templateLiRefs = useMemo(() => {
+    const map = new Map<string, RefObject<HTMLLIElement>>();
+    gpuTemplates.forEach(template => {
+      map.set(template.id, createRef<HTMLLIElement>());
+    });
+
+    return map;
+  }, [gpuTemplates]);
   const textFieldRef = useRef<HTMLInputElement>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const filteredGpuTemplates = gpuTemplates.filter(x => x.name?.toLowerCase().includes(currentService.image));
   const open = Boolean(anchorEl) && filteredGpuTemplates.length > 0;
 
-  useEffect(() => {
-    // Populate ref list
-    gpuTemplates.forEach(template => (eleRefs[template.id as string] = { current: null }));
-  }, [gpuTemplates]);
-
   // Effect that scrolls active element when it changes
   useLayoutEffect(() => {
     if (selectedTemplate) {
-      eleRefs[selectedTemplate.id as string].current?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+      templateLiRefs.get(selectedTemplate.id)?.current?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
     }
   }, [gpuTemplates, selectedTemplate]);
 
@@ -174,7 +175,7 @@ export const ImageSelect: React.FunctionComponent<Props> = ({ control, currentSe
               {filteredGpuTemplates.map((template, i) => (
                 <li
                   className="MuiAutocomplete-option flex w-full cursor-pointer items-center justify-between px-4 py-2 text-sm hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                  ref={eleRefs[template.id as string]}
+                  ref={templateLiRefs.get(template.id)}
                   key={`${template.id}-${i}`}
                   onClick={() => _onSelectTemplate(template)}
                   onMouseOver={() => {
