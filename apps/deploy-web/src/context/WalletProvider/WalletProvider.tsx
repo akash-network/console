@@ -1,10 +1,9 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import type { TxOutput } from "@akashnetwork/http-sdk";
+import { isHttpError, type TxOutput } from "@akashnetwork/http-sdk";
 import { Snackbar } from "@akashnetwork/ui/components";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { useManager } from "@cosmos-kit/react";
-import { isAxiosError } from "axios";
 import { OpenNewWindow } from "iconoir-react";
 import { useAtom } from "jotai";
 import Link from "next/link";
@@ -250,7 +249,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (err: any) {
       console.error(err);
 
-      if (isAxiosError(err) && err.response?.status !== 500) {
+      if (isHttpError(err) && err.response?.status !== 500) {
         const [title, message] = err.response?.data?.message.split(": ") ?? [];
         showTransactionSnackbar(title || message || "Error", message, "", "error");
       } else {
