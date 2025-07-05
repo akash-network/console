@@ -9,6 +9,7 @@ const route = createRoute({
   method: "post",
   path: "/v1/stripe-webhook",
   summary: "Stripe Webhook Handler",
+  tags: ["Payment"],
   request: {
     body: {
       content: {
@@ -21,11 +22,7 @@ const route = createRoute({
   responses: {
     200: {
       description: "Webhook processed successfully",
-      content: {
-        "application/json": {
-          schema: z.void()
-        }
-      }
+      content: {}
     },
     400: {
       description: "Stripe signature is required",
@@ -49,5 +46,5 @@ stripeWebhook.openapi(route, async function routeStripeWebhook(c) {
   }
 
   await container.resolve(CheckoutController).webhook(sig, await c.req.text());
-  return c.json(null, 200) as never;
+  return c.text("", 200) as never;
 });
