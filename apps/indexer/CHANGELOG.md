@@ -1,5 +1,12 @@
 
 
+## [1.13.3](https://github.com/akash-network/console/compare/indexer/v1.13.2...indexer/v1.13.3) (2025-07-05)
+
+
+### Bug Fixes
+
+* ignore errors in SQL formatting ([#1630](https://github.com/akash-network/console/issues/1630)) ([ad21ab0](https://github.com/akash-network/console/commit/ad21ab0e8c581db930d6e5987de9492a8d717f6d))
+
 ## [1.13.2](https://github.com/akash-network/console/compare/indexer/v1.13.1...indexer/v1.13.2) (2025-06-28)
 
 
