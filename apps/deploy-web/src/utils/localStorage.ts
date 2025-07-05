@@ -1,9 +1,8 @@
 "use client";
 
-import getConfig from "next/config";
 import { gt, neq } from "semver";
 
-const { publicRuntimeConfig } = getConfig();
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0";
 
 const migrations: Record<string, () => void> = {
   "0.14.0": () => {}
@@ -13,7 +12,7 @@ const migrations: Record<string, () => void> = {
 // Check if latestUpdatedVersion is < currentVersion
 // If so run all the version > until current is reached.
 export const migrateLocalStorage = () => {
-  const currentVersion: string = publicRuntimeConfig.version;
+  const currentVersion = APP_VERSION;
   const version = getVersion();
   const hasPreviousVersion = version && neq(currentVersion, version);
 
@@ -46,5 +45,5 @@ function getVersion(): string {
     return "1.0.0";
   }
 
-  return publicRuntimeConfig.version;
+  return APP_VERSION;
 }

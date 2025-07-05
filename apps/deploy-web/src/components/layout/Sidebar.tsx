@@ -33,7 +33,6 @@ import {
   Youtube
 } from "iconoir-react";
 import { useAtom } from "jotai";
-import getConfig from "next/config";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -47,8 +46,6 @@ import { MobileSidebarUser } from "./MobileSidebarUser";
 import { ModeToggle } from "./ModeToggle";
 import { NodeStatusBar } from "./NodeStatusBar";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
-
-const { publicRuntimeConfig } = getConfig();
 
 type Props = {
   children?: ReactNode;
@@ -273,7 +270,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
                     customComponent: (
                       <div className="text-muted-foreground">
                         <Separator className="my-1" />
-                        <div className="px-4 py-2 text-sm">Version {publicRuntimeConfig?.version}</div>
+                        <div className="px-4 py-2 text-sm">Version {process.env.NEXT_PUBLIC_APP_VERSION}</div>
 
                         <div className="px-4 py-2">
                           <ModeToggle />
