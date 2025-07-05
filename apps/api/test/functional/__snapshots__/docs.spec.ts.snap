@@ -4,8 +4,8 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
 {
   "components": {},
   "info": {
-    "description": "Access Akash data from our indexer",
-    "title": "Console API",
+    "description": "API providing data to the Akash Network Console",
+    "title": "Akash Network Console API",
     "version": "v1",
   },
   "openapi": "3.0.0",
