@@ -1,5 +1,17 @@
 
 
+## [2.92.0](https://github.com/akash-network/console/compare/console-web/v2.91.3...console-web/v2.92.0) (2025-07-05)
+
+
+### Features
+
+* adds error handling for react queries ([#1626](https://github.com/akash-network/console/issues/1626)) ([0b96968](https://github.com/akash-network/console/commit/0b96968346701b0b1f32a4b8f8f2445d6a54d6c2))
+
+
+### Bug Fixes
+
+* ignore errors in SQL formatting ([#1630](https://github.com/akash-network/console/issues/1630)) ([ad21ab0](https://github.com/akash-network/console/commit/ad21ab0e8c581db930d6e5987de9492a8d717f6d))
+
 ## [2.91.3](https://github.com/akash-network/console/compare/console-web/v2.91.2...console-web/v2.91.3) (2025-07-05)
 
 
