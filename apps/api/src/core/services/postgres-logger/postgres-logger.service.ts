@@ -26,7 +26,11 @@ export class PostgresLoggerService implements LogWriter {
     let formatted = message.replace(this.isDrizzle ? /^Query: / : /^Executing \(default\):/, "");
 
     if (this.useFormat) {
-      formatted = format(formatted, { language: "postgresql" });
+      try {
+        formatted = format(formatted, { language: "postgresql" });
+      } catch {
+        // do nothing if formatting fails, we still have the raw SQL
+      }
     }
 
     this.logger.debug(formatted);
