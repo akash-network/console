@@ -33,11 +33,10 @@ import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
-import { RootContainerProvider } from "@src/context/ServicesProvider/RootContainerProvider";
+import { RootContainerProvider, useRootContainer } from "@src/context/ServicesProvider/RootContainerProvider";
 import { SettingsProvider } from "@src/context/SettingsProvider";
 import { WalletProvider } from "@src/context/WalletProvider";
 import { useInjectedConfig } from "@src/hooks/useInjectedConfig";
-import { queryClient } from "@src/queries";
 import { store } from "@src/store/global-store";
 
 interface Props extends AppProps {
@@ -96,6 +95,7 @@ const App: React.FunctionComponent<Props> = props => {
 export default App;
 
 function AppRoot(props: Props & { children: React.ReactNode }) {
+  const { queryClient } = useRootContainer();
   return (
     <main className={cn("h-full bg-background font-sans tracking-wide antialiased", GeistSans.variable)}>
       <PageHead pageSeo={props.pageProps.seo} />

@@ -2,6 +2,7 @@ import { certificateManager } from "@akashnetwork/akashjs/build/certificates/cer
 import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import { ApiKeyHttpService, AuthHttpService, DeploymentSettingHttpService, TemplateHttpService, TxHttpService, UserHttpService } from "@akashnetwork/http-sdk";
 import { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
+import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { Axios, AxiosInstance, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
 
@@ -11,6 +12,7 @@ import { customRegistry } from "@src/utils/customRegistry";
 import { generateTraceparent } from "@src/utils/otel";
 import type { ApiUrlService } from "../api-url/api-url.service";
 import { createContainer } from "../container/createContainer";
+import { ErrorHandlerService } from "../error-handler/error-handler.service";
 import { ManagedWalletHttpService } from "../managed-wallet-http/managed-wallet-http.service";
 import { ProviderProxyService } from "../provider-proxy/provider-proxy.service";
 
@@ -89,7 +91,17 @@ export const createServices = (config: ServicesConfig) => {
             }
           ]
         }
-      )
+      ),
+    queryClient: () =>
+      new QueryClient({
+        queryCache: new QueryCache({
+          onError: error => container.errorHandler.handleError(error)
+        }),
+        mutationCache: new MutationCache({
+          onError: error => container.errorHandler.handleError(error)
+        })
+      }),
+    errorHandler: () => new ErrorHandlerService()
   });
 
   return container;
