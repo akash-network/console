@@ -1,5 +1,13 @@
 
 
+## [2.91.3](https://github.com/akash-network/console/compare/console-web/v2.91.2...console-web/v2.91.3) (2025-07-05)
+
+
+### Bug Fixes
+
+* fixes url for gpu-models ([#1627](https://github.com/akash-network/console/issues/1627)) ([aa15984](https://github.com/akash-network/console/commit/aa1598487a377f18dbe3387c9d82365b30037d35))
+* properly propagate cpu value from slider ([#1629](https://github.com/akash-network/console/issues/1629)) ([0dc2174](https://github.com/akash-network/console/commit/0dc2174028105cff27d144e18e698cb1b50f5781))
+
 ## [2.91.2](https://github.com/akash-network/console/compare/console-web/v2.91.1...console-web/v2.91.2) (2025-07-04)
 
 
