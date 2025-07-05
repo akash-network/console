@@ -4,7 +4,6 @@ import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { requestFn } from "@openapi-qraft/react";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { queryClient } from "@src/queries/queryClient";
 import type { DIContainer, Factories } from "@src/services/container/createContainer";
 import { createChildContainer } from "@src/services/container/createContainer";
 import { services as rootContainer } from "@src/services/http/http-browser.service";
@@ -38,7 +37,7 @@ function createAppContainer<T extends Factories>(settings: Settings, services: T
       createAPIClient({
         requestFn,
         baseUrl: "/api/proxy",
-        queryClient
+        queryClient: di.queryClient
       }),
     authzHttpService: () => new AuthzHttpService({ baseURL: settings?.apiEndpoint }),
     walletBalancesService: () =>
