@@ -60,12 +60,10 @@ stripeTransactionsRouter.openapi(confirmPaymentRoute, async function confirmPaym
 });
 
 stripeTransactionsRouter.openapi(getCustomerTransactionsRoute, async function getCustomerTransactions(c) {
-  const { limit, startingAfter, endingBefore, created } = c.req.valid("query");
+  const { limit, startingAfter } = c.req.valid("query");
   const response = await container.resolve(StripeController).getCustomerTransactions({
     limit,
-    endingBefore,
-    startingAfter,
-    created
+    startingAfter
   });
   return c.json(response, 200);
 });

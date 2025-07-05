@@ -6,7 +6,6 @@ import { singleton } from "tsyringe";
 import { Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
-import getMockTransactions from "@src/billing/services/stripe/mock-transactions-data";
 import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 
 interface CheckoutOptions {
@@ -294,25 +293,17 @@ export class StripeService extends Stripe {
 
   async getCustomerTransactions(
     customerId: string,
-    options?: { limit?: number; startingAfter?: string; endingBefore?: string; created?: { gt?: number; lt?: number } }
+    options?: { limit?: number; startingAfter?: string }
   ): Promise<{
     transactions: Transaction[];
     hasMore: boolean;
     nextPage: string | null;
-    prevPage: string | null;
-    totalCount: number;
   }> {
-    if (process.env.USE_MOCK_TRANSACTIONS) {
-      return getMockTransactions(options);
-    }
-
     const charges = await this.charges.list({
       customer: customerId,
       limit: options?.limit ?? 100,
-      created: options?.created,
       starting_after: options?.startingAfter,
-      ending_before: options?.endingBefore,
-      expand: ["data.payment_intent", "total_count"]
+      expand: ["data.payment_intent"]
     });
 
     const transactions = charges.data.map(charge => ({
@@ -330,9 +321,7 @@ export class StripeService extends Stripe {
     return {
       transactions,
       hasMore: charges.has_more,
-      nextPage: charges.data[charges.data.length - 1]?.id,
-      prevPage: options?.startingAfter ? charges.data[0]?.id : null,
-      totalCount: "total_count" in charges ? (charges.total_count as number) : transactions.length
+      nextPage: charges.data[charges.data.length - 1]?.id
     };
   }
 

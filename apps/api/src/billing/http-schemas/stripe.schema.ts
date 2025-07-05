@@ -121,56 +121,24 @@ export const CustomerTransactionsResponseSchema = z.object({
   data: z.object({
     transactions: z.array(TransactionSchema),
     hasMore: z.boolean(),
-    nextPage: z.string().nullable().optional(),
-    prevPage: z.string().nullable().optional()
+    nextPage: z.string().nullable().optional()
   })
 });
 
-export const CustomerTransactionsQuerySchema = z
-  .object({
-    limit: z.coerce.number().optional().openapi({
-      type: "number",
-      minimum: 1,
-      maximum: 100,
-      description: "Number of transactions to return",
-      example: 100,
-      default: 100
-    }),
-    startingAfter: z.string().optional().openapi({
-      description: "ID of the last transaction from the previous page (if paginating forwards)",
-      example: "ch_1234567890"
-    }),
-    endingBefore: z.string().optional().openapi({
-      description: "ID of the first transaction from the previous page (if paginating backwards)",
-      example: "ch_0987654321"
-    }),
-    "created[gt]": z.coerce.number().optional(),
-    "created[lt]": z.coerce.number().optional()
+export const CustomerTransactionsQuerySchema = z.object({
+  limit: z.number().optional().openapi({
+    type: "number",
+    minimum: 1,
+    maximum: 100,
+    description: "Number of transactions to return",
+    example: 100,
+    default: 100
+  }),
+  startingAfter: z.string().optional().openapi({
+    description: "ID of the last transaction from the previous page",
+    example: "ch_1234567890"
   })
-  .transform(data => ({
-    ...data,
-    created: {
-      ...(data["created[gt]"] && { gt: data["created[gt]"] }),
-      ...(data["created[lt]"] && { lt: data["created[lt]"] })
-    }
-  }))
-  .refine(
-    data => {
-      if (!data.created?.gt || !data.created?.lt) {
-        return true;
-      }
-
-      const start = new Date(data.created.gt);
-      const end = new Date(data.created.lt);
-
-      const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
-
-      return start <= end && daysDiff <= 365;
-    },
-    {
-      message: "Date range cannot exceed 365 days and startDate must be before endDate"
-    }
-  );
+});
 
 export const ErrorResponseSchema = z.object({
   message: z.string(),

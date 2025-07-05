@@ -52,7 +52,7 @@ export const UsageHistoryResponseSchema = z.array(
       example: "2024-01-15"
     }),
     activeDeployments: z.number().openapi({
-      description: "Number of active leases on this date",
+      description: "Number of active deployments on this date",
       example: 3
     }),
     dailyAktSpent: z.number().openapi({

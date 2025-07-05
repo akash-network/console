@@ -73,29 +73,13 @@ export class QueryKeys {
   static getPaymentMethodsKey = () => ["PAYMENT_METHODS"];
   static getPaymentDiscountsKey = () => ["PAYMENT_DISCOUNTS"];
 
-  static getPaymentTransactionsKey = (options?: {
-    limit?: number;
-    startingAfter?: string | null;
-    endingBefore?: string | null;
-    created?: { gt?: number; lt?: number };
-  }) => {
+  static getPaymentTransactionsKey = (options?: { limit?: number; startingAfter?: string | null }) => {
     const key = ["STRIPE_TRANSACTIONS"];
     if (options?.limit) {
       key.push("limit", options.limit.toString());
     }
     if (options?.startingAfter) {
       key.push("after", options.startingAfter);
-    }
-    if (options?.endingBefore) {
-      key.push("before", options.endingBefore);
-    }
-    if (options?.created) {
-      if (options.created.gt) {
-        key.push("gt", options.created.gt.toString());
-      }
-      if (options.created.lt) {
-        key.push("lt", options.created.lt.toString());
-      }
     }
     return key;
   };

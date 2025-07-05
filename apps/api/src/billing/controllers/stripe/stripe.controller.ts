@@ -130,14 +130,10 @@ export class StripeController {
   async getCustomerTransactions(options?: {
     limit?: number;
     startingAfter?: string;
-    endingBefore?: string;
-    created?: { gt?: number; lt?: number };
-  }): Promise<{ data: { transactions: Transaction[]; hasMore: boolean; nextPage: string | null; prevPage: string | null } }> {
+  }): Promise<{ data: { transactions: Transaction[]; hasMore: boolean; nextPage: string | null } }> {
     const { currentUser } = this.authService;
 
-    // if (!process.env.USE_MOCK_TRANSACTIONS) {
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
-    // }
 
     const response = await this.stripe.getCustomerTransactions(currentUser.stripeCustomerId, options);
     return { data: response };
