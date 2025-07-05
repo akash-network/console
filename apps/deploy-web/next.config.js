@@ -32,6 +32,9 @@ if (process.env.NODE_ENV === "test") {
 const moduleExports = {
   reactStrictMode: false,
   productionBrowserSourceMaps: true,
+  env: {
+    NEXT_PUBLIC_APP_VERSION: version
+  },
   compiler: {
     // Enables the styled-components SWC transform
     styledComponents: true
@@ -49,9 +52,6 @@ const moduleExports = {
   transpilePackages,
   experimental: {
     instrumentationHook: true
-  },
-  publicRuntimeConfig: {
-    version
   },
   i18n: {
     locales: ["en-US"],
