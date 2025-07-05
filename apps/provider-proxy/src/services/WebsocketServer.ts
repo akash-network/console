@@ -13,20 +13,25 @@ import { propagateTracingContext, traceActiveSpan } from "../utils/telemetry";
 import type { CertificateValidator } from "./CertificateValidator";
 import type { ClientWebSocketStats, WebsocketStats, WebSocketUsage } from "./WebsocketStats";
 
-const MESSAGE_SCHEMA = z.object({
-  type: z.enum(["ping", "websocket"]),
-  url: z.string().url(),
-  certPem: z.string().optional(),
-  keyPem: z.string().optional(),
-  chainNetwork: z.enum(netConfig.getSupportedNetworks() as [SupportedChainNetworks]),
-  providerAddress: z.string().refine(v => !!bech32.decodeUnsafe(v), "is not bech32 address"),
-  data: z
-    .string()
-    .optional()
-    .describe(
-      "Currently it's used only for service shell communication and stores only buffered representation of string in char codes something like this: Array.from(Uint8Array).join(', ')"
-    )
-});
+const MESSAGE_SCHEMA = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("ping")
+  }),
+  z.object({
+    type: z.literal("websocket"),
+    url: z.string().url(),
+    certPem: z.string().optional(),
+    keyPem: z.string().optional(),
+    chainNetwork: z.enum(netConfig.getSupportedNetworks() as [SupportedChainNetworks]),
+    providerAddress: z.string().refine(v => !!bech32.decodeUnsafe(v), "is not bech32 address"),
+    data: z
+      .string()
+      .optional()
+      .describe(
+        "Currently it's used only for service shell communication and stores only buffered representation of string in char codes something like this: Array.from(Uint8Array).join(', ')"
+      )
+  })
+]);
 type WsMessage = z.infer<typeof MESSAGE_SCHEMA> & { id: unknown };
 
 // @see https://www.rfc-editor.org/rfc/rfc6455.html#page-46
@@ -190,8 +195,6 @@ export class WebsocketServer {
         );
       } else if (message.type === "websocket") {
         this.proxyMessageToProvider(message, ws, stats);
-      } else {
-        throw new Error(`Unknown message type: ${message.type}`);
       }
     } catch (err) {
       this.logger?.error({
@@ -208,7 +211,7 @@ export class WebsocketServer {
     }
   }
 
-  private proxyMessageToProvider(message: WsMessage, ws: WebSocket, stats: ClientWebSocketStats): void {
+  private proxyMessageToProvider(message: Extract<WsMessage, { type: "websocket" }>, ws: WebSocket, stats: ClientWebSocketStats): void {
     const url = message.url.replace("https://", "wss://");
 
     let socketDetails = this.openProviderSockets[stats.id];

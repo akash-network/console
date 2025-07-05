@@ -47,6 +47,32 @@ describe("Provider proxy ws", () => {
     expect(await waitForMessage(ws)).toEqual(providerMessage(JSON.stringify(["hello", "test", "flush"])));
   });
 
+  it("responds to ping messages", async () => {
+    const proxyServerUrl = await startServer();
+    const providerAddress = generateBech32();
+    const certPair = createX509CertPair({ commonName: providerAddress });
+    await startChainApiServer([certPair.cert]);
+    await startProviderServer({
+      certPair,
+      websocketServer: {
+        enable: true,
+        onConnection: pws => {
+          pws.on("message", (data: Buffer) => {
+            if (data.toString() === "ping") {
+              pws.send("pong");
+            }
+          });
+        }
+      }
+    });
+    const ws = new WebSocket(`${proxyServerUrl}/ws`);
+
+    await new Promise(resolve => ws.once("open", resolve));
+    ws.send(JSON.stringify({ type: "ping" }));
+
+    expect(await waitForMessage(ws)).toEqual({ type: "pong" });
+  });
+
   it("does not connect to provider socket until 1st message is sent", async () => {
     const proxyServerUrl = await startServer();
     const providerAddress = generateBech32();
