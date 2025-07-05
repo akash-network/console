@@ -57,9 +57,6 @@ const moduleExports = {
     locales: ["en-US"],
     defaultLocale: "en-US"
   },
-  sentry: {
-    hideSourceMaps: true
-  },
   webpack: config => {
     // Fixes npm packages that depend on `node:crypto` module
     config.externals.push({
@@ -149,6 +146,11 @@ const moduleExports = {
   }
 };
 
+/**
+ * For all available options, see:
+ * https://github.com/getsentry/sentry-webpack-plugin#options.
+ * @type {import('@sentry/nextjs').SentryBuildOptions}
+ */
 const sentryWebpackPluginOptions = {
   // Additional config options for the Sentry Webpack plugin. Keep in mind that
   // the following options are set automatically, and overriding them is not
@@ -156,15 +158,18 @@ const sentryWebpackPluginOptions = {
   //   release, url, org, project, authToken, configFile, stripPrefix,
   //   urlPrefix, include, ignore
 
-  silent: true, // Suppresses all logs,
-  dryRun: true,
-  release: version,
+  // silent: !process.env.CI, // Suppresses all logs,
+  // dryRun: true,
+  release: {
+    name: version
+  },
+  debug: !process.env.CI,
+  reactComponentAnnotation: {
+    enabled: true
+  },
   unstable_sentryWebpackPluginOptions: {
     applicationKey: process.env.NEXT_PUBLIC_SENTRY_APPLICATION_KEY
   }
-
-  // For all available options, see:
-  // https://github.com/getsentry/sentry-webpack-plugin#options.
 };
 
 // Make sure adding Sentry options is the last code to run before exporting, to
