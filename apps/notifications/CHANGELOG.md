@@ -1,5 +1,12 @@
 
 
+## [1.14.1](https://github.com/akash-network/console/compare/notifications/v1.14.0...notifications/v1.14.1) (2025-07-05)
+
+
+### Bug Fixes
+
+* ignore errors in SQL formatting ([#1630](https://github.com/akash-network/console/issues/1630)) ([ad21ab0](https://github.com/akash-network/console/commit/ad21ab0e8c581db930d6e5987de9492a8d717f6d))
+
 ## [1.14.0](https://github.com/akash-network/console/compare/notifications/v1.13.7...notifications/v1.14.0) (2025-07-02)
 
 
