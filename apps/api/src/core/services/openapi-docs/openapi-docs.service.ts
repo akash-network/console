@@ -12,8 +12,8 @@ export class OpenApiDocsService {
       openapi: "3.0.0",
       servers: [{ url: `${env.SERVER_ORIGIN}/${version}` }],
       info: {
-        title: "Console API",
-        description: "Access Akash data from our indexer",
+        title: "Akash Network Console API",
+        description: "API providing data to the Akash Network Console",
         version: version
       },
       paths: {},

@@ -4,8 +4,8 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
 {
   "components": {},
   "info": {
-    "description": "Access Akash data from our indexer",
-    "title": "Console API",
+    "description": "API providing data to the Akash Network Console",
+    "title": "Akash Network Console API",
     "version": "v1",
   },
   "openapi": "3.0.0",
@@ -10854,6 +10854,289 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         "summary": "Confirm a payment using a saved payment method",
         "tags": [
           "Payment",
+        ],
+      },
+    },
+    "/v1/templates": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "properties": {
+                      "templates": {
+                        "items": {
+                          "properties": {
+                            "config": {
+                              "properties": {
+                                "ssh": {
+                                  "type": "boolean",
+                                },
+                              },
+                              "type": "object",
+                            },
+                            "deploy": {
+                              "type": "string",
+                            },
+                            "githubUrl": {
+                              "type": "string",
+                            },
+                            "guide": {
+                              "type": "string",
+                            },
+                            "id": {
+                              "type": "string",
+                            },
+                            "logoUrl": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "name": {
+                              "type": "string",
+                            },
+                            "path": {
+                              "type": "string",
+                            },
+                            "persistentStorageEnabled": {
+                              "type": "boolean",
+                            },
+                            "readme": {
+                              "type": "string",
+                            },
+                            "summary": {
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "path",
+                            "logoUrl",
+                            "summary",
+                            "readme",
+                            "deploy",
+                            "persistentStorageEnabled",
+                            "githubUrl",
+                            "config",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      "title": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "title",
+                      "templates",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+            },
+            "description": "Returns a list of deployment templates grouped by categories",
+          },
+        },
+        "tags": [
+          "Other",
+        ],
+      },
+    },
+    "/v1/templates-list": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "templates": {
+                            "items": {
+                              "properties": {
+                                "config": {
+                                  "properties": {
+                                    "ssh": {
+                                      "type": "boolean",
+                                    },
+                                  },
+                                  "type": "object",
+                                },
+                                "deploy": {
+                                  "type": "string",
+                                },
+                                "githubUrl": {
+                                  "type": "string",
+                                },
+                                "guide": {
+                                  "type": "string",
+                                },
+                                "id": {
+                                  "type": "string",
+                                },
+                                "logoUrl": {
+                                  "nullable": true,
+                                  "type": "string",
+                                },
+                                "name": {
+                                  "type": "string",
+                                },
+                                "path": {
+                                  "type": "string",
+                                },
+                                "persistentStorageEnabled": {
+                                  "type": "boolean",
+                                },
+                                "readme": {
+                                  "type": "string",
+                                },
+                                "summary": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "path",
+                                "logoUrl",
+                                "summary",
+                                "readme",
+                                "deploy",
+                                "persistentStorageEnabled",
+                                "githubUrl",
+                                "config",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                          "title": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "title",
+                          "templates",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns a list of deployment templates grouped by categories",
+          },
+        },
+        "tags": [
+          "Other",
+        ],
+      },
+    },
+    "/v1/templates/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Template ID",
+              "example": "akash-network-cosmos-omnibus-agoric",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "config": {
+                          "properties": {
+                            "ssh": {
+                              "type": "boolean",
+                            },
+                          },
+                          "type": "object",
+                        },
+                        "deploy": {
+                          "type": "string",
+                        },
+                        "githubUrl": {
+                          "type": "string",
+                        },
+                        "guide": {
+                          "type": "string",
+                        },
+                        "id": {
+                          "type": "string",
+                        },
+                        "logoUrl": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "name": {
+                          "type": "string",
+                        },
+                        "path": {
+                          "type": "string",
+                        },
+                        "persistentStorageEnabled": {
+                          "type": "boolean",
+                        },
+                        "readme": {
+                          "type": "string",
+                        },
+                        "summary": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "path",
+                        "logoUrl",
+                        "summary",
+                        "readme",
+                        "deploy",
+                        "persistentStorageEnabled",
+                        "githubUrl",
+                        "config",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Return a template by id",
+          },
+          "404": {
+            "description": "Template not found",
+          },
+        },
+        "tags": [
+          "Other",
         ],
       },
     },
