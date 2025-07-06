@@ -1,5 +1,17 @@
 
 
+## [2.92.1](https://github.com/akash-network/console/compare/console-web/v2.92.0...console-web/v2.92.1) (2025-07-06)
+
+
+### Bug Fixes
+
+* ensure next uses app version as sentry release number ([#1634](https://github.com/akash-network/console/issues/1634)) ([68a86d1](https://github.com/akash-network/console/commit/68a86d1f448af8a4ba1d20c76a97f7026664f40c))
+
+
+### Code Refactoring
+
+* gets rid of next.js publicRuntimeConfig ([#1633](https://github.com/akash-network/console/issues/1633)) ([a4decb6](https://github.com/akash-network/console/commit/a4decb6655fc35c1195e3e3924cd1de46b6c1bfa))
+
 ## [2.92.0](https://github.com/akash-network/console/compare/console-web/v2.91.3...console-web/v2.92.0) (2025-07-05)
 
 
