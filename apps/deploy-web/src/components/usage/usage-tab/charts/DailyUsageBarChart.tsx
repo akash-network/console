@@ -33,9 +33,9 @@ export type DailyUsageBarChartProps = {
 export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, data }) => {
   return (
     <Card className="w-full py-0">
-      <CardHeader className="flex flex-row items-center gap-2 space-y-0 border-b px-6">
+      <CardHeader className="flex flex-row items-center gap-3 space-y-0 border-b px-6">
         <CardTitle className="text-lg">Daily Usage</CardTitle>
-        {isFetching && <Spinner size="small" />}
+        {isFetching && <Spinner size="small" variant="dark" />}
       </CardHeader>
       <CardContent className="px-2 sm:p-6">
         <ChartContainer config={chartConfig} className={cn("aspect-auto h-[250px] w-full", isFetching && "pointer-events-none")}>

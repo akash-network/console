@@ -53,9 +53,9 @@ export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> =
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center gap-2 space-y-0 px-6">
+      <CardHeader className="flex flex-row items-center gap-3 space-y-0 px-6">
         <CardTitle className="text-lg">Cumulative Spending</CardTitle>
-        {isFetching && <Spinner size="small" />}
+        {isFetching && <Spinner size="small" variant="dark" />}
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className={cn("h-[298px] w-full", isFetching && "pointer-events-none")}>

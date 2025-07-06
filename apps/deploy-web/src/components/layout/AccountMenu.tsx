@@ -17,6 +17,7 @@ import { LineChart } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { useFeatureFlags } from "@src/queries/featureFlags";
 import { UrlService } from "@src/utils/urlUtils";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 
@@ -25,6 +26,7 @@ export function AccountMenu() {
   const { user, isLoading } = useCustomUser();
   const username = user?.username;
   const router = useRouter();
+  const { data: features } = useFeatureFlags();
 
   return (
     <React.Fragment>
@@ -90,9 +92,11 @@ export function AccountMenu() {
                         <CustomDropdownLinkItem onClick={() => router.push(UrlService.userFavorites())} icon={<Star />}>
                           Favorites
                         </CustomDropdownLinkItem>
-                        <CustomDropdownLinkItem onClick={() => router.push(UrlService.usage())} icon={<LineChart />}>
-                          Billing & Usage
-                        </CustomDropdownLinkItem>
+                        {features?.allowViewingUsage && (
+                          <CustomDropdownLinkItem onClick={() => router.push(UrlService.usage())} icon={<LineChart />}>
+                            Billing & Usage
+                          </CustomDropdownLinkItem>
+                        )}
                         <DropdownMenuSeparator />
                         <CustomDropdownLinkItem onClick={() => (window.location.href = UrlService.logout())} icon={<LogOut />}>
                           Logout

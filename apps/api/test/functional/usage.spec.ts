@@ -278,7 +278,7 @@ describe("GET /v1/usage/history", () => {
     if (data.length > 0) {
       const firstItem = data[0];
       expect(firstItem).toHaveProperty("date");
-      expect(firstItem).toHaveProperty("activeLeases");
+      expect(firstItem).toHaveProperty("activeDeployments");
       expect(firstItem).toHaveProperty("dailyAktSpent");
       expect(firstItem).toHaveProperty("totalAktSpent");
       expect(firstItem).toHaveProperty("dailyUsdcSpent");
@@ -318,7 +318,7 @@ describe("GET /v1/usage/history", () => {
     const data = await expectUsageHistory(response, 31);
 
     data.forEach(day => {
-      expect(day.activeLeases).toBe(0);
+      expect(day.activeDeployments).toBe(0);
       expect(day.dailyAktSpent).toBe(0);
       expect(day.totalAktSpent).toBe(0);
       expect(day.dailyUsdcSpent).toBe(0);
