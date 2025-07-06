@@ -1,5 +1,12 @@
 
 
+## [1.12.10](https://github.com/akash-network/console/compare/provider-proxy/v1.12.9...provider-proxy/v1.12.10) (2025-07-06)
+
+
+### Bug Fixes
+
+* ensure next uses app version as sentry release number ([#1634](https://github.com/akash-network/console/issues/1634)) ([68a86d1](https://github.com/akash-network/console/commit/68a86d1f448af8a4ba1d20c76a97f7026664f40c))
+
 ## [1.12.9](https://github.com/akash-network/console/compare/provider-proxy/v1.12.8...provider-proxy/v1.12.9) (2025-07-05)
 
 
