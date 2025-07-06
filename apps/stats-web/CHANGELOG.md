@@ -1,5 +1,12 @@
 
 
+## [0.28.6](https://github.com/akash-network/console/compare/stats-web/v0.28.5...stats-web/v0.28.6) (2025-07-06)
+
+
+### Bug Fixes
+
+* ensure next uses app version as sentry release number ([#1634](https://github.com/akash-network/console/issues/1634)) ([68a86d1](https://github.com/akash-network/console/commit/68a86d1f448af8a4ba1d20c76a97f7026664f40c))
+
 ## [0.28.5](https://github.com/akash-network/console/compare/stats-web/v0.28.4...stats-web/v0.28.5) (2025-07-05)
 
 

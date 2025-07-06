@@ -1,5 +1,12 @@
 
 
+## [2.103.2](https://github.com/akash-network/console/compare/console-api/v2.103.1...console-api/v2.103.2) (2025-07-06)
+
+
+### Bug Fixes
+
+* ensure next uses app version as sentry release number ([#1634](https://github.com/akash-network/console/issues/1634)) ([68a86d1](https://github.com/akash-network/console/commit/68a86d1f448af8a4ba1d20c76a97f7026664f40c))
+
 ## [2.103.1](https://github.com/akash-network/console/compare/console-api/v2.103.0...console-api/v2.103.1) (2025-07-05)
 
 
