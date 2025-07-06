@@ -26,7 +26,7 @@ export type UsageHistoryStats = {
   averageDeploymentsPerDay: number;
 };
 
-type UsageViewProps = {
+export type UsageViewProps = {
   usageHistoryData: UsageHistory;
   usageHistoryStatsData: UsageHistoryStats;
   isFetchingUsageHistory: boolean;

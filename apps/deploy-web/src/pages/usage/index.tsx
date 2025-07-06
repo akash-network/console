@@ -1,5 +1,7 @@
 import { UsagePage } from "@src/components/usage/UsagePage";
-// TODO: Should UsagePage be protected with RegisteredUsersOnly?
-// import { RegisteredUsersOnly } from "@src/hoc/registered-users-only/registered-users-only.hoc";
+import { RegisteredUsersOnly } from "@src/hoc/registered-users-only/registered-users-only.hoc";
+import { routeProtector } from "@src/services/route-protector";
 
-export default UsagePage;
+export default RegisteredUsersOnly(UsagePage);
+
+export const getServerSideProps = routeProtector.showToRegisteredUserIfEnabled("usage");

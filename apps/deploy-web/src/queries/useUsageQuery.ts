@@ -27,7 +27,7 @@ async function getUsage(params: UsageParams): Promise<UsageHistory> {
 
 export function useUsage(params: UsageParams, options?: Omit<UseQueryOptions<UsageHistory, Error, any, QueryKey>, "queryKey" | "queryFn">) {
   return useQuery<UsageHistory, Error>({
-    queryKey: [...QueryKeys.getUsageDataKey(), params.address, params.startDate?.toISOString(), params.endDate?.toISOString()],
+    queryKey: [...QueryKeys.getUsageDataKey(params.address, params.startDate?.toISOString(), params.endDate?.toISOString())],
     queryFn: () => getUsage(params),
     ...options
   });
@@ -47,7 +47,7 @@ async function getUsageStats(params: UsageParams): Promise<UsageHistoryStats> {
 
 export function useUsageStats(params: UsageParams, options?: Omit<UseQueryOptions<UsageHistoryStats, Error, any, QueryKey>, "queryKey" | "queryFn">) {
   return useQuery<UsageHistoryStats, Error>({
-    queryKey: [...QueryKeys.getUsageStatsDataKey(), params.address, params.startDate?.toISOString(), params.endDate?.toISOString()],
+    queryKey: [...QueryKeys.getUsageStatsDataKey(params.address, params.startDate?.toISOString(), params.endDate?.toISOString())],
     queryFn: () => getUsageStats(params),
     ...options
   });

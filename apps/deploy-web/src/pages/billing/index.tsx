@@ -1,5 +1,7 @@
 import { BillingPage } from "@src/components/usage/BillingPage";
-// TODO: Should BillingPage be protected with RegisteredUsersOnly?
-// import { RegisteredUsersOnly } from "@src/hoc/registered-users-only/registered-users-only.hoc";
+import { RegisteredUsersOnly } from "@src/hoc/registered-users-only/registered-users-only.hoc";
+import { routeProtector } from "@src/services/route-protector";
 
-export default BillingPage;
+export default RegisteredUsersOnly(BillingPage);
+
+export const getServerSideProps = routeProtector.showToRegisteredUserIfEnabled("usage");

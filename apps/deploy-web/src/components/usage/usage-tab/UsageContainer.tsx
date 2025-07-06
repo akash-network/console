@@ -4,7 +4,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useUsage, useUsageStats } from "@src/queries";
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
 
-type ChildrenProps = {
+export type ChildrenProps = {
   usageHistoryData: UsageHistory;
   usageHistoryStatsData: UsageHistoryStats;
   isFetchingUsageHistory: boolean;

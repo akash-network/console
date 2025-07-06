@@ -25,7 +25,7 @@ type ChartData = Array<{
   dailyUsdSpent: number;
 }>;
 
-type DailyUsageBarChartProps = {
+export type DailyUsageBarChartProps = {
   isFetching: boolean;
   data: ChartData;
 };

@@ -2,8 +2,7 @@
 
 import React, { type FC } from "react";
 import type { ChartConfig } from "@akashnetwork/ui/components";
-import { Spinner } from "@akashnetwork/ui/components";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, ChartContainer, ChartTooltip, ChartTooltipContent } from "@akashnetwork/ui/components";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, ChartContainer, ChartTooltip, ChartTooltipContent, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { format, isAfter, isBefore, startOfTomorrow, subDays } from "date-fns";
 import { TrendingDown, TrendingUp } from "lucide-react";
@@ -20,7 +19,7 @@ const chartConfig = {
   }
 } satisfies ChartConfig;
 
-type CumulativeSpendingLineChartProps = {
+export type CumulativeSpendingLineChartProps = {
   isFetching: boolean;
   data: ChartData;
 };
