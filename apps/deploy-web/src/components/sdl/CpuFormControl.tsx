@@ -46,7 +46,6 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
                   <InfoCircle className="ml-2 text-xs text-muted-foreground" />
                 </CustomTooltip>
               </div>
-
               <Input
                 type="number"
                 color="secondary"
@@ -68,7 +67,7 @@ export const CpuFormControl: React.FunctionComponent<Props> = ({ control, servic
                 step={1}
                 color="secondary"
                 aria-label="CPU"
-                onValueChange={newValue => field.onChange(newValue)}
+                onValueChange={newValue => field.onChange(newValue[0])}
               />
             </div>
 

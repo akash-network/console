@@ -1,5 +1,20 @@
 
 
+## [1.12.10](https://github.com/akash-network/console/compare/provider-proxy/v1.12.9...provider-proxy/v1.12.10) (2025-07-06)
+
+
+### Bug Fixes
+
+* ensure next uses app version as sentry release number ([#1634](https://github.com/akash-network/console/issues/1634)) ([68a86d1](https://github.com/akash-network/console/commit/68a86d1f448af8a4ba1d20c76a97f7026664f40c))
+
+## [1.12.9](https://github.com/akash-network/console/compare/provider-proxy/v1.12.8...provider-proxy/v1.12.9) (2025-07-05)
+
+
+### Bug Fixes
+
+* ignore errors in SQL formatting ([#1630](https://github.com/akash-network/console/issues/1630)) ([ad21ab0](https://github.com/akash-network/console/commit/ad21ab0e8c581db930d6e5987de9492a8d717f6d))
+* respond to ping messages in provider-proxy ([#1631](https://github.com/akash-network/console/issues/1631)) ([b8a644b](https://github.com/akash-network/console/commit/b8a644b8e7b4caac8deacaaa8530115029b8d459))
+
 ## [1.12.8](https://github.com/akash-network/console/compare/provider-proxy/v1.12.7...provider-proxy/v1.12.8) (2025-07-04)
 
 ## [1.12.7](https://github.com/akash-network/console/compare/provider-proxy/v1.12.6...provider-proxy/v1.12.7) (2025-07-03)

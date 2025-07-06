@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
-import { queryClient } from "@src/queries/queryClient";
 import networkStore from "@src/store/networkStore";
 import type { FCWithChildren } from "@src/types/component";
 import type { NodeStatus } from "@src/types/node";
@@ -50,7 +49,7 @@ const defaultSettings: Settings = {
 };
 
 export const SettingsProvider: FCWithChildren = ({ children }) => {
-  const { axios } = useRootContainer();
+  const { axios, queryClient } = useRootContainer();
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSettingsInit, setIsSettingsInit] = useState(false);

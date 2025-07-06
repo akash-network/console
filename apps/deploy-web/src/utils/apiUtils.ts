@@ -117,7 +117,7 @@ export class ApiUrlService {
     return `${this.baseApiUrl}/v1/network-capacity`;
   }
   static gpuModels() {
-    return `${this.baseApiUrl}/internal/gpu-models`;
+    return `${this.baseApiUrl}/v1/gpu-models`;
   }
   static auditors() {
     return `${this.baseApiUrl}/v1/auditors`;

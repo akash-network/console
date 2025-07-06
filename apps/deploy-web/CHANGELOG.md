@@ -1,5 +1,37 @@
 
 
+## [2.92.1](https://github.com/akash-network/console/compare/console-web/v2.92.0...console-web/v2.92.1) (2025-07-06)
+
+
+### Bug Fixes
+
+* ensure next uses app version as sentry release number ([#1634](https://github.com/akash-network/console/issues/1634)) ([68a86d1](https://github.com/akash-network/console/commit/68a86d1f448af8a4ba1d20c76a97f7026664f40c))
+
+
+### Code Refactoring
+
+* gets rid of next.js publicRuntimeConfig ([#1633](https://github.com/akash-network/console/issues/1633)) ([a4decb6](https://github.com/akash-network/console/commit/a4decb6655fc35c1195e3e3924cd1de46b6c1bfa))
+
+## [2.92.0](https://github.com/akash-network/console/compare/console-web/v2.91.3...console-web/v2.92.0) (2025-07-05)
+
+
+### Features
+
+* adds error handling for react queries ([#1626](https://github.com/akash-network/console/issues/1626)) ([0b96968](https://github.com/akash-network/console/commit/0b96968346701b0b1f32a4b8f8f2445d6a54d6c2))
+
+
+### Bug Fixes
+
+* ignore errors in SQL formatting ([#1630](https://github.com/akash-network/console/issues/1630)) ([ad21ab0](https://github.com/akash-network/console/commit/ad21ab0e8c581db930d6e5987de9492a8d717f6d))
+
+## [2.91.3](https://github.com/akash-network/console/compare/console-web/v2.91.2...console-web/v2.91.3) (2025-07-05)
+
+
+### Bug Fixes
+
+* fixes url for gpu-models ([#1627](https://github.com/akash-network/console/issues/1627)) ([aa15984](https://github.com/akash-network/console/commit/aa1598487a377f18dbe3387c9d82365b30037d35))
+* properly propagate cpu value from slider ([#1629](https://github.com/akash-network/console/issues/1629)) ([0dc2174](https://github.com/akash-network/console/commit/0dc2174028105cff27d144e18e698cb1b50f5781))
+
 ## [2.91.2](https://github.com/akash-network/console/compare/console-web/v2.91.1...console-web/v2.91.2) (2025-07-04)
 
 
