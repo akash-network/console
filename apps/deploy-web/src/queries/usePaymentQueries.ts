@@ -28,7 +28,9 @@ export const usePaymentDiscountsQuery = () => {
 
 export interface UsePaymentTransactionsOptions {
   limit?: number;
-  startingAfter?: string;
+  startingAfter?: string | null;
+  endingBefore?: string | null;
+  created?: { gt?: number; lt?: number };
 }
 
 export const usePaymentTransactionsQuery = (options?: UsePaymentTransactionsOptions) => {

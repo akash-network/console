@@ -1,7 +1,16 @@
 import type { AxiosRequestConfig } from "axios";
 
 import { ApiHttpService } from "../api-http/api-http.service";
-import type { Charge, ConfirmPaymentParams, CouponResponse, CustomerDiscountsResponse, PaymentMethod, SetupIntentResponse, StripePrice } from "./stripe.types";
+import type {
+  ConfirmPaymentParams,
+  CouponResponse,
+  CustomerDiscountsResponse,
+  CustomerTransactionsParams,
+  CustomerTransactionsResponse,
+  PaymentMethod,
+  SetupIntentResponse,
+  StripePrice
+} from "./stripe.types";
 
 export class StripeService extends ApiHttpService {
   constructor(config?: AxiosRequestConfig) {
@@ -35,11 +44,14 @@ export class StripeService extends ApiHttpService {
     return this.extractApiData(await this.post("/v1/stripe/transactions/confirm", { data: params }));
   }
 
-  async getCustomerTransactions(options?: { limit?: number; startingAfter?: string }): Promise<{ transactions: Charge[] }> {
-    const { limit, startingAfter } = options || {};
+  async getCustomerTransactions(options?: CustomerTransactionsParams): Promise<CustomerTransactionsResponse> {
+    const { limit, startingAfter, endingBefore, created } = options || {};
     const params = new URLSearchParams({
       ...(limit && { limit: limit.toString() }),
-      ...(startingAfter && { startingAfter })
+      ...(startingAfter && { startingAfter }),
+      ...(endingBefore && { endingBefore }),
+      ...(created?.gt && { "created[gt]": created.gt.toString() }),
+      ...(created?.lt && { "created[lt]": created.lt.toString() })
     });
     const url = `/v1/stripe/transactions${params.toString() ? `?${params}` : ""}`;
     return this.extractApiData(await this.get(url));

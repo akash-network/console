@@ -80,7 +80,7 @@ describe("usePaymentQueries", () => {
     await waitFor(() => {
       expect(stripeService.getCustomerTransactions).toHaveBeenCalledWith({ limit: 2 });
       expect(result.current.isSuccess).toBe(true);
-      expect(result.current.data.transactions).toEqual(mockTransactions.transactions);
+      expect(result.current.data?.transactions).toEqual(mockTransactions.transactions);
     });
   });
 

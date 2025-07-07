@@ -79,3 +79,18 @@ export interface ConfirmPaymentParams {
 export interface ApplyCouponParams {
   coupon: string;
 }
+
+export interface CustomerTransactionsParams {
+  limit?: number;
+  startingAfter?: string | null;
+  endingBefore?: string | null;
+  created?: { gt?: number; lt?: number };
+}
+
+export interface CustomerTransactionsResponse {
+  transactions: Charge[];
+  hasMore: boolean;
+  nextPage: string | null;
+  prevPage: string | null;
+  totalCount: number;
+}

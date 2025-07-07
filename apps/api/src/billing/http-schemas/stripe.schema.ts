@@ -127,7 +127,7 @@ export const CustomerTransactionsResponseSchema = z.object({
 
 export const CustomerTransactionsQuerySchema = z
   .object({
-    limit: z.number().optional().openapi({
+    limit: z.coerce.number().optional().openapi({
       type: "number",
       minimum: 1,
       maximum: 100,
@@ -136,7 +136,7 @@ export const CustomerTransactionsQuerySchema = z
       default: 100
     }),
     startingAfter: z.string().optional().openapi({
-      description: "ID of the last transaction from the previous page",
+      description: "ID of the last transaction from the previous page (if paginating forwards)",
       example: "ch_1234567890"
     }),
     endingBefore: z.string().optional().openapi({
