@@ -24,6 +24,7 @@ interface DateRangePickerProps {
   maxRangeInDays?: number;
   disableFuture?: boolean;
   showPresets?: boolean;
+  showWeekNumber?: boolean;
 }
 
 export function DateRangePicker({
@@ -35,7 +36,8 @@ export function DateRangePicker({
   maxDate,
   maxRangeInDays,
   disableFuture = false,
-  showPresets = true
+  showPresets = true,
+  showWeekNumber = true
 }: DateRangePickerProps) {
   const [selectedRange, setSelectedRange] = React.useState<DateRange | undefined>(date);
   const [currentYear, setCurrentYear] = React.useState(new Date().getFullYear());
@@ -43,14 +45,13 @@ export function DateRangePicker({
   const [calendarMonth, setCalendarMonth] = React.useState<Date>(date?.from || new Date());
   const [presetsOpen, setPresetsOpen] = React.useState(false);
   const [monthsOpen, setMonthsOpen] = React.useState(false);
-
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  const today = startOfToday();
-  const effectiveMaxDate = disableFuture ? today : maxDate;
-  const effectiveMinDate = minDate;
+  const today = React.useMemo(() => startOfToday(), []);
+  const effectiveMaxDate = React.useMemo(() => (disableFuture ? today : maxDate), [disableFuture, today, maxDate]);
+  const effectiveMinDate = React.useMemo(() => minDate, [minDate]);
 
-  const months = Array.from({ length: 12 }, (_, i) => format(new Date(2024, i, 1), "MMMM"));
+  const months = React.useMemo(() => Array.from({ length: 12 }, (_, i) => format(new Date(2024, i, 1), "MMMM")), []);
 
   const presets = React.useMemo(
     () => [
@@ -111,90 +112,105 @@ export function DateRangePicker({
     [effectiveMinDate, effectiveMaxDate, maxRangeInDays]
   );
 
-  const handleDateSelect = (range: DateRange | undefined) => {
-    const error = validateDateRange(range);
+  const handleDateSelect = React.useCallback(
+    (range: DateRange | undefined) => {
+      const error = validateDateRange(range);
 
-    if (error) {
-      onError?.(error);
-      return;
-    }
+      if (error) {
+        onError?.(error);
+        return;
+      }
 
-    setSelectedRange(range);
-  };
+      setSelectedRange(range);
+    },
+    [onError, validateDateRange]
+  );
 
-  const handlePresetSelect = (preset: (typeof presets)[0]) => {
-    const range = preset.getValue();
-    const error = validateDateRange(range);
+  const handlePresetSelect = React.useCallback(
+    (preset: (typeof presets)[0]) => {
+      const range = preset.getValue();
+      const error = validateDateRange(range);
 
-    if (error) {
-      onError?.(error);
-      return;
-    }
+      if (error) {
+        onError?.(error);
+        return;
+      }
 
-    setCalendarMonth(range.from);
-    handleDateSelect(range);
+      setCalendarMonth(range.from);
+      handleDateSelect(range);
 
-    if (isMobile) {
-      setPresetsOpen(false);
-    }
-  };
+      if (isMobile) {
+        setPresetsOpen(false);
+      }
+    },
+    [handleDateSelect, isMobile, onError, validateDateRange]
+  );
 
-  const handleMonthSelect = (monthIndex: number) => {
-    const startDate = new Date(currentYear, monthIndex, 1);
-    const endDate = new Date(currentYear, monthIndex + 1, 0);
-    const range = { from: startDate, to: endDate };
+  const handleMonthSelect = React.useCallback(
+    (monthIndex: number) => {
+      const startDate = new Date(currentYear, monthIndex, 1);
+      const endDate = new Date(currentYear, monthIndex + 1, 0);
+      const range = { from: startDate, to: endDate };
 
-    const error = validateDateRange(range);
+      const error = validateDateRange(range);
 
-    if (error) {
-      onError?.(error);
-      return;
-    }
+      if (error) {
+        onError?.(error);
+        return;
+      }
 
-    setCalendarMonth(startDate);
-    handleDateSelect(range);
+      setCalendarMonth(startDate);
+      handleDateSelect(range);
 
-    if (isMobile) {
-      setMonthsOpen(false);
-    }
-  };
+      if (isMobile) {
+        setMonthsOpen(false);
+      }
+    },
+    [currentYear, handleDateSelect, isMobile, onError, validateDateRange]
+  );
 
-  const handleApply = () => {
+  const handleApply = React.useCallback(() => {
     onChange?.(selectedRange);
     setOpen(false);
-  };
+  }, [onChange, selectedRange]);
 
-  const handleClear = () => {
+  const handleClear = React.useCallback(() => {
     handleDateSelect(undefined);
-  };
+  }, [handleDateSelect]);
 
-  const handleYearChange = (increment: number) => {
-    const newYear = currentYear + increment;
-    setCurrentYear(newYear);
-    setCalendarMonth(new Date(newYear, calendarMonth.getMonth(), 1));
-  };
+  const handleYearChange = React.useCallback(
+    (increment: number) => {
+      const newYear = currentYear + increment;
+      setCurrentYear(newYear);
+      setCalendarMonth(new Date(newYear, calendarMonth.getMonth(), 1));
+    },
+    [currentYear, calendarMonth]
+  );
 
-  const isDateDisabled = (date: Date) => {
-    if (effectiveMinDate && isBefore(date, effectiveMinDate)) return true;
+  const isDateDisabled = React.useCallback(
+    (date: Date) => {
+      if (effectiveMinDate && isBefore(date, effectiveMinDate)) return true;
 
-    return !!(effectiveMaxDate && isAfter(date, effectiveMaxDate));
-  };
+      return !!(effectiveMaxDate && isAfter(date, effectiveMaxDate));
+    },
+    [effectiveMinDate, effectiveMaxDate]
+  );
 
-  const handleMontsOpenChange = (open: boolean) => {
+  const handleMonthsOpenChange = React.useCallback((open: boolean) => {
     setMonthsOpen(open);
 
     if (open) {
       setPresetsOpen(false);
     }
-  };
+  }, []);
 
-  const handlePresetsOpenChange = (open: boolean) => {
+  const handlePresetsOpenChange = React.useCallback((open: boolean) => {
     setPresetsOpen(open);
 
     if (open) {
       setMonthsOpen(false);
     }
-  };
+  }, []);
 
   if (isMobile) {
     return (
@@ -269,7 +285,7 @@ export function DateRangePicker({
                 </Collapsible>
               )}
 
-              <Collapsible open={monthsOpen} onOpenChange={handleMontsOpenChange}>
+              <Collapsible open={monthsOpen} onOpenChange={handleMonthsOpenChange}>
                 <CollapsibleTrigger asChild>
                   <Button variant="outline" className="h-12 w-full justify-between bg-transparent">
                     <span>Select Month</span>
@@ -450,7 +466,7 @@ export function DateRangePicker({
             <div className="p-3">
               <Calendar
                 initialFocus
-                showWeekNumber
+                showWeekNumber={showWeekNumber}
                 mode="range"
                 defaultMonth={calendarMonth}
                 selected={selectedRange}
@@ -466,7 +482,6 @@ export function DateRangePicker({
                   [UI.WeekNumberHeader]: "w-6",
                   [UI.WeekNumber]: "w-6 flex items-center justify-center text-xs text-muted-foreground",
                   [UI.MonthCaption]: "flex justify-center items-center h-7 mb-4"
-                  // [UI.Nav]: "rdp-nav mb-4"
                 }}
               />
 
