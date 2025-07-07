@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import type { DateRange } from "react-day-picker";
-import { differenceInDays, format, isAfter, isBefore, startOfDay, subDays, subMonths, subYears } from "date-fns";
+import { UI } from "react-day-picker";
+import { differenceInDays, format, isAfter, isBefore, isSameDay, startOfToday, subDays, subMonths, subYears } from "date-fns";
 import { CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, X } from "lucide-react";
 
 import { useMediaQuery } from "../../hooks";
@@ -16,7 +17,8 @@ import { Separator } from "../separator";
 interface DateRangePickerProps {
   className?: string;
   date?: DateRange;
-  onDateChange?: (date: DateRange | undefined) => void;
+  onChange?: (date: DateRange | undefined) => void;
+  onError?: (error: string) => void;
   minDate?: Date;
   maxDate?: Date;
   maxRangeInDays?: number;
@@ -27,7 +29,8 @@ interface DateRangePickerProps {
 export function DateRangePicker({
   className,
   date,
-  onDateChange,
+  onChange,
+  onError,
   minDate,
   maxDate,
   maxRangeInDays,
@@ -43,67 +46,76 @@ export function DateRangePicker({
 
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  const today = startOfDay(new Date());
+  const today = startOfToday();
   const effectiveMaxDate = disableFuture ? today : maxDate;
   const effectiveMinDate = minDate;
 
   const months = Array.from({ length: 12 }, (_, i) => format(new Date(2024, i, 1), "MMMM"));
 
-  const presets = [
-    {
-      label: "Last 7 days",
-      getValue: () => ({
-        from: subDays(today, 6),
-        to: today
-      })
-    },
-    {
-      label: "Last 30 days",
-      getValue: () => ({
-        from: subDays(today, 29),
-        to: today
-      })
-    },
-    {
-      label: "Last 3 months",
-      getValue: () => ({
-        from: subMonths(today, 3),
-        to: today
-      })
-    },
-    {
-      label: "Last year",
-      getValue: () => ({
-        from: subYears(today, 1),
-        to: today
-      })
-    }
-  ];
-
-  const validateDateRange = (range: DateRange | undefined): string | null => {
-    if (!range?.from || !range?.to) return null;
-
-    if (effectiveMinDate && isBefore(range.from, effectiveMinDate)) {
-      return `Start date cannot be before ${format(effectiveMinDate, "MMM dd, yyyy")}`;
-    }
-    if (effectiveMaxDate && isAfter(range.to, effectiveMaxDate)) {
-      return `End date cannot be after ${format(effectiveMaxDate, "MMM dd, yyyy")}`;
-    }
-
-    if (maxRangeInDays) {
-      const daysDiff = differenceInDays(range.to, range.from) + 1;
-      if (daysDiff > maxRangeInDays) {
-        return `Date range cannot exceed ${maxRangeInDays} days`;
+  const presets = React.useMemo(
+    () => [
+      {
+        label: "Last 7 days",
+        getValue: () => ({
+          from: subDays(today, 6),
+          to: today
+        })
+      },
+      {
+        label: "Last 30 days",
+        getValue: () => ({
+          from: subDays(today, 29),
+          to: today
+        })
+      },
+      {
+        label: "Last 3 months",
+        getValue: () => ({
+          from: subMonths(today, 3),
+          to: today
+        })
+      },
+      {
+        label: "Last year",
+        getValue: () => ({
+          from: subYears(today, 1),
+          to: today
+        })
       }
-    }
+    ],
+    [today]
+  );
 
-    return null;
-  };
+  const validateDateRange = React.useCallback(
+    (range: DateRange | undefined): string | null => {
+      if (!range?.from || !range?.to) return null;
+
+      if (effectiveMinDate && isBefore(range.from, effectiveMinDate)) {
+        return `Start date cannot be before ${format(effectiveMinDate, "MMM dd, yyyy")}`;
+      }
+
+      if (effectiveMaxDate && isAfter(range.to, effectiveMaxDate)) {
+        return `End date cannot be after ${format(effectiveMaxDate, "MMM dd, yyyy")}`;
+      }
+
+      if (maxRangeInDays) {
+        const daysDiff = differenceInDays(range.to, range.from) + 1;
+
+        if (daysDiff > maxRangeInDays) {
+          return `Date range cannot exceed ${maxRangeInDays} days`;
+        }
+      }
+
+      return null;
+    },
+    [effectiveMinDate, effectiveMaxDate, maxRangeInDays]
+  );
 
   const handleDateSelect = (range: DateRange | undefined) => {
     const error = validateDateRange(range);
+
     if (error) {
-      console.warn(error);
+      onError?.(error);
       return;
     }
 
@@ -113,13 +125,15 @@ export function DateRangePicker({
   const handlePresetSelect = (preset: (typeof presets)[0]) => {
     const range = preset.getValue();
     const error = validateDateRange(range);
+
     if (error) {
-      console.warn(error);
+      onError?.(error);
       return;
     }
 
     setCalendarMonth(range.from);
     handleDateSelect(range);
+
     if (isMobile) {
       setPresetsOpen(false);
     }
@@ -131,20 +145,22 @@ export function DateRangePicker({
     const range = { from: startDate, to: endDate };
 
     const error = validateDateRange(range);
+
     if (error) {
-      console.warn(error);
+      onError?.(error);
       return;
     }
 
     setCalendarMonth(startDate);
     handleDateSelect(range);
+
     if (isMobile) {
       setMonthsOpen(false);
     }
   };
 
   const handleApply = () => {
-    onDateChange?.(selectedRange);
+    onChange?.(selectedRange);
     setOpen(false);
   };
 
@@ -160,8 +176,24 @@ export function DateRangePicker({
 
   const isDateDisabled = (date: Date) => {
     if (effectiveMinDate && isBefore(date, effectiveMinDate)) return true;
-    if (effectiveMaxDate && isAfter(date, effectiveMaxDate)) return true;
-    return false;
+
+    return !!(effectiveMaxDate && isAfter(date, effectiveMaxDate));
+  };
+
+  const handleMontsOpenChange = (open: boolean) => {
+    setMonthsOpen(open);
+
+    if (open) {
+      setPresetsOpen(false);
+    }
+  };
+
+  const handlePresetsOpenChange = (open: boolean) => {
+    setPresetsOpen(open);
+
+    if (open) {
+      setMonthsOpen(false);
+    }
   };
 
   if (isMobile) {
@@ -206,7 +238,7 @@ export function DateRangePicker({
           <PopoverContent className="mx-4 w-screen max-w-sm p-0" align="center">
             <div className="space-y-4 p-4">
               {showPresets && (
-                <Collapsible open={presetsOpen} onOpenChange={setPresetsOpen}>
+                <Collapsible open={presetsOpen} onOpenChange={handlePresetsOpenChange}>
                   <CollapsibleTrigger asChild>
                     <Button variant="outline" className="h-12 w-full justify-between bg-transparent">
                       <span>Quick Select</span>
@@ -214,16 +246,30 @@ export function DateRangePicker({
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-2 space-y-2">
-                    {presets.map(preset => (
-                      <Button key={preset.label} variant="ghost" size="lg" className="h-12 w-full justify-start" onClick={() => handlePresetSelect(preset)}>
-                        {preset.label}
-                      </Button>
-                    ))}
+                    {presets.map(preset => {
+                      const { from, to } = preset.getValue();
+                      const isSelected = selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, from) && isSameDay(selectedRange.to, to);
+
+                      return (
+                        <Button
+                          key={preset.label}
+                          variant="ghost"
+                          size="lg"
+                          className={cn(
+                            "h-12 w-full justify-start",
+                            isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                          )}
+                          onClick={() => handlePresetSelect(preset)}
+                        >
+                          {preset.label}
+                        </Button>
+                      );
+                    })}
                   </CollapsibleContent>
                 </Collapsible>
               )}
 
-              <Collapsible open={monthsOpen} onOpenChange={setMonthsOpen}>
+              <Collapsible open={monthsOpen} onOpenChange={handleMontsOpenChange}>
                 <CollapsibleTrigger asChild>
                   <Button variant="outline" className="h-12 w-full justify-between bg-transparent">
                     <span>Select Month</span>
@@ -232,12 +278,12 @@ export function DateRangePicker({
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-2 space-y-3">
                   <div className="flex items-center justify-between">
-                    <Button variant="outline" size="lg" onClick={() => handleYearChange(-1)} className="h-12 px-6">
+                    <Button variant="outline" size="lg" onClick={() => handleYearChange(-1)} className="h-12 gap-1 px-6">
                       <ChevronLeft className="h-4 w-4" />
                       {currentYear - 1}
                     </Button>
                     <span className="text-lg font-medium">{currentYear}</span>
-                    <Button variant="outline" size="lg" onClick={() => handleYearChange(1)} className="h-12 px-6">
+                    <Button variant="outline" size="lg" onClick={() => handleYearChange(1)} className="h-12 gap-1 px-6">
                       {currentYear + 1}
                       <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -247,9 +293,18 @@ export function DateRangePicker({
                       const monthStart = new Date(currentYear, index, 1);
                       const monthEnd = new Date(currentYear, index + 1, 0);
                       const isDisabled = isDateDisabled(monthStart) || isDateDisabled(monthEnd);
+                      const isSelected =
+                        selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, monthStart) && isSameDay(selectedRange.to, monthEnd);
 
                       return (
-                        <Button key={month} variant="ghost" size="lg" className="h-12 text-sm" onClick={() => handleMonthSelect(index)} disabled={isDisabled}>
+                        <Button
+                          key={month}
+                          variant="ghost"
+                          size="lg"
+                          className={cn("h-12 text-sm", isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}
+                          onClick={() => handleMonthSelect(index)}
+                          disabled={isDisabled}
+                        >
                           {month}
                         </Button>
                       );
@@ -294,19 +349,21 @@ export function DateRangePicker({
     <div className={cn("grid gap-2", className)}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button id="date" variant="outline" className={cn("w-full justify-start text-left font-normal", !selectedRange && "text-muted-foreground")}>
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {selectedRange?.from ? (
-              selectedRange.to ? (
-                <>
-                  {format(selectedRange.from, "LLL dd, y")} - {format(selectedRange.to, "LLL dd, y")}
-                </>
+          <Button id="date" variant="outline" className={cn("w-full justify-between text-left font-normal", !selectedRange && "text-muted-foreground")}>
+            <div className="flex items-center">
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {selectedRange?.from ? (
+                selectedRange.to ? (
+                  <>
+                    {format(selectedRange.from, "LLL dd, y")} - {format(selectedRange.to, "LLL dd, y")}
+                  </>
+                ) : (
+                  format(selectedRange.from, "LLL dd, y")
+                )
               ) : (
-                format(selectedRange.from, "LLL dd, y")
-              )
-            ) : (
-              <span>Pick a date range</span>
-            )}
+                <span>Pick a date range</span>
+              )}
+            </div>
             {selectedRange && (
               <Button
                 variant="ghost"
@@ -329,17 +386,25 @@ export function DateRangePicker({
                 <>
                   <div className="text-muted-foreground mb-2 text-xs font-medium">Quick Select</div>
                   <div className="mb-4 grid gap-1">
-                    {presets.map(preset => (
-                      <Button
-                        key={preset.label}
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 justify-start px-2 text-xs"
-                        onClick={() => handlePresetSelect(preset)}
-                      >
-                        {preset.label}
-                      </Button>
-                    ))}
+                    {presets.map(preset => {
+                      const { from, to } = preset.getValue();
+                      const isSelected = selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, from) && isSameDay(selectedRange.to, to);
+
+                      return (
+                        <Button
+                          key={preset.label}
+                          variant="ghost"
+                          size="sm"
+                          className={cn(
+                            "h-8 justify-start px-2 text-xs",
+                            isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                          )}
+                          onClick={() => handlePresetSelect(preset)}
+                        >
+                          {preset.label}
+                        </Button>
+                      );
+                    })}
                   </div>
                   <Separator className="mb-3" />
                 </>
@@ -360,13 +425,18 @@ export function DateRangePicker({
                   const monthStart = new Date(currentYear, index, 1);
                   const monthEnd = new Date(currentYear, index + 1, 0);
                   const isDisabled = isDateDisabled(monthStart) || isDateDisabled(monthEnd);
+                  const isSelected =
+                    selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, monthStart) && isSameDay(selectedRange.to, monthEnd);
 
                   return (
                     <Button
                       key={month}
                       variant="ghost"
                       size="sm"
-                      className="h-8 justify-start px-2 text-xs"
+                      className={cn(
+                        "h-8 justify-start px-2 text-xs",
+                        isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                      )}
                       onClick={() => handleMonthSelect(index)}
                       disabled={isDisabled}
                     >
@@ -380,6 +450,7 @@ export function DateRangePicker({
             <div className="p-3">
               <Calendar
                 initialFocus
+                showWeekNumber
                 mode="range"
                 defaultMonth={calendarMonth}
                 selected={selectedRange}
@@ -390,6 +461,13 @@ export function DateRangePicker({
                 disabled={isDateDisabled}
                 fromDate={effectiveMinDate}
                 toDate={effectiveMaxDate}
+                classNames={{
+                  [UI.Month]: "[&:not(:last-of-type)]:mb-4",
+                  [UI.WeekNumberHeader]: "w-6",
+                  [UI.WeekNumber]: "w-6 flex items-center justify-center text-xs text-muted-foreground",
+                  [UI.MonthCaption]: "flex justify-center items-center h-7 mb-4"
+                  // [UI.Nav]: "rdp-nav mb-4"
+                }}
               />
 
               <Separator className="my-3" />
