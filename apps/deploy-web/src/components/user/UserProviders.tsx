@@ -3,16 +3,17 @@ import { UserProvider } from "@auth0/nextjs-auth0/client";
 import { UserInitLoader } from "@src/components/user/UserInitLoader";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { AnonymousUserProvider } from "@src/context/AnonymousUserProvider/AnonymousUserProvider";
-import { authHttpService } from "@src/services/user/user-http.service";
+import { useServices } from "@src/context/ServicesProvider";
 import type { FCWithChildren } from "@src/types/component";
 
 /**
  * UserProviders is a client only component because it uses the UserProvider
  * which is a client only component.
  */
-export const UserProviders: FCWithChildren = ({ children }) =>
-  browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED ? (
-    <UserProvider fetcher={authHttpService.getProfile}>
+export const UserProviders: FCWithChildren = ({ children }) => {
+  const { userProviderService } = useServices();
+  return browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED ? (
+    <UserProvider fetcher={userProviderService.getProfile}>
       <UserInitLoader>
         <AnonymousUserProvider>{children}</AnonymousUserProvider>
       </UserInitLoader>
@@ -20,3 +21,4 @@ export const UserProviders: FCWithChildren = ({ children }) =>
   ) : (
     <UserProvider>{children}</UserProvider>
   );
+};

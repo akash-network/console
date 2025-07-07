@@ -19,5 +19,3 @@ export class AuthService {
     return config;
   }
 }
-
-export const authService = new AuthService();
