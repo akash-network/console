@@ -73,7 +73,6 @@ describe(StripeService.name, () => {
       // Create a user with a unique id and stripeCustomerId
       const user = UserSeeder.create({ id: "test-user-id-001", stripeCustomerId: "cus_123" });
       // Set lastUser in the mock context so findOneBy returns this user
-      // (userRepository as any).lastUser = user;
       jest.spyOn(userRepository, "findOneBy").mockResolvedValue(user);
       // Patch the mock to use this lastUser
       userRepository.findOneBy.mockImplementation(async query => {
