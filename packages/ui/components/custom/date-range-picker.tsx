@@ -279,7 +279,7 @@ export function DateRangePicker({
                 <Button variant="outline" size="lg" onClick={handleClear} disabled={!selectedRange} className="h-12 flex-1 bg-transparent">
                   Clear
                 </Button>
-                <Button size="lg" onClick={() => setOpen(false)} disabled={!selectedRange?.from || !selectedRange?.to} className="h-12 flex-1">
+                <Button size="lg" onClick={handleApply} disabled={!selectedRange?.from || !selectedRange?.to} className="h-12 flex-1">
                   Apply
                 </Button>
               </div>
@@ -406,38 +406,6 @@ export function DateRangePicker({
           </div>
         </PopoverContent>
       </Popover>
-    </div>
-  );
-}
-
-export default function Component() {
-  const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
-  const oneYearAgo = subYears(new Date(), 1);
-
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center space-y-8 p-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-bold">Date Range Picker</h1>
-          <p className="text-muted-foreground">Responsive design for mobile and desktop</p>
-        </div>
-
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium">Try on different screen sizes</h3>
-          <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full" minDate={oneYearAgo} disableFuture={true} maxRangeInDays={365} />
-        </div>
-
-        {dateRange?.from && dateRange?.to && (
-          <div className="bg-muted rounded-lg p-4">
-            <h3 className="mb-2 font-medium">Selected Range:</h3>
-            <p className="text-muted-foreground text-sm">From: {format(dateRange.from, "EEEE, MMMM do, yyyy")}</p>
-            <p className="text-muted-foreground text-sm">To: {format(dateRange.to, "EEEE, MMMM do, yyyy")}</p>
-            <p className="text-muted-foreground mt-2 text-sm">
-              Duration: {Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1} days
-            </p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
