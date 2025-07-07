@@ -2,8 +2,8 @@ import { useState } from "react";
 import * as Sentry from "@sentry/nextjs";
 import type { AxiosError } from "axios";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useWhen } from "@src/hooks/useWhen";
-import { userHttpService } from "@src/services/http/http-browser.service";
 
 export interface UserOutput {
   id: string;
@@ -23,10 +23,11 @@ export function useAnonymousUserQuery(id?: string, options?: { enabled?: boolean
   const [userState, setUserState] = useState<{ user?: UserOutput; isLoading: boolean; token?: string; error?: Error | AxiosError }>({
     isLoading: !!options?.enabled
   });
+  const { user: userService } = useServices();
 
   useWhen(options?.enabled && !userState.user, async () => {
     try {
-      const { data: fetched, ...rest } = await userHttpService.getOrCreateAnonymousUser(id);
+      const { data: fetched, ...rest } = await userService.getOrCreateAnonymousUser(id);
       const token = "token" in rest ? rest.token : undefined;
       setUserState({ user: fetched, token, isLoading: false });
     } catch (error) {

@@ -4,7 +4,7 @@ import type { InternalAxiosRequestConfig } from "axios";
 
 import { ANONYMOUS_USER_TOKEN_KEY } from "@src/config/auth.config";
 
-export class UserHttpService extends HttpService {
+export class UserProviderService extends HttpService {
   constructor() {
     super();
     this.getProfile = this.getProfile.bind(this);
@@ -23,5 +23,3 @@ export class UserHttpService extends HttpService {
     return this.extractData(await this.get<UserProfile | undefined>(url));
   }
 }
-
-export const authHttpService = new UserHttpService();
