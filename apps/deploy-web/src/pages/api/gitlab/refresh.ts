@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { serverEnvConfig } from "@src/config/server-env.config";
 import { wrapApiHandlerInExecutionContext } from "@src/lib/nextjs/wrapApiHandler";
 import GitlabAuth from "@src/services/auth/gitlab.service";
+import { services } from "@src/services/http/http-server.service";
 
 const { NEXT_PUBLIC_GITLAB_CLIENT_ID, GITLAB_CLIENT_SECRET } = serverEnvConfig;
 
@@ -21,13 +22,8 @@ export default wrapApiHandlerInExecutionContext(async function refreshGitLabToke
   try {
     const tokens = await gitlabAuth.refreshTokensUsingRefreshToken(refreshToken);
     res.status(200).json(tokens);
-  } catch (error: any) {
-    console.error("gitlab refresh error", {
-      status: error.response?.status || 0,
-      message: error.response?.data?.error_description,
-      error
-    });
-
+  } catch (error) {
+    services.errorHandler.reportError({ error, tags: { category: "auth", event: "AUTH_REFRESH_TOKEN_ERROR", provider: "gitlab" } });
     res.status(500).end("An unexpected error occurred. Please try again later.");
   }
 });
