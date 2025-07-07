@@ -125,20 +125,51 @@ export const CustomerTransactionsResponseSchema = z.object({
   })
 });
 
-export const CustomerTransactionsQuerySchema = z.object({
-  limit: z.number().optional().openapi({
-    type: "number",
-    minimum: 1,
-    maximum: 100,
-    description: "Number of transactions to return",
-    example: 100,
-    default: 100
-  }),
-  startingAfter: z.string().optional().openapi({
-    description: "ID of the last transaction from the previous page",
-    example: "ch_1234567890"
+export const CustomerTransactionsQuerySchema = z
+  .object({
+    limit: z.number().optional().openapi({
+      type: "number",
+      minimum: 1,
+      maximum: 100,
+      description: "Number of transactions to return",
+      example: 100,
+      default: 100
+    }),
+    startingAfter: z.string().optional().openapi({
+      description: "ID of the last transaction from the previous page",
+      example: "ch_1234567890"
+    }),
+    endingBefore: z.string().optional().openapi({
+      description: "ID of the first transaction from the previous page (if paginating backwards)",
+      example: "ch_0987654321"
+    }),
+    "created[gt]": z.coerce.number().optional(),
+    "created[lt]": z.coerce.number().optional()
   })
-});
+  .transform(data => ({
+    ...data,
+    created: {
+      ...(data["created[gt]"] && { gt: data["created[gt]"] }),
+      ...(data["created[lt]"] && { lt: data["created[lt]"] })
+    }
+  }))
+  .refine(
+    data => {
+      if (!data.created?.gt || !data.created?.lt) {
+        return true;
+      }
+
+      const start = new Date(data.created.gt);
+      const end = new Date(data.created.lt);
+
+      const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+
+      return start <= end && daysDiff <= 366;
+    },
+    {
+      message: "Date range cannot exceed 366 days and startDate must be before endDate"
+    }
+  );
 
 export const ErrorResponseSchema = z.object({
   message: z.string(),

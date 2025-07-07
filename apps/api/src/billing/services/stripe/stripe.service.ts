@@ -293,16 +293,19 @@ export class StripeService extends Stripe {
 
   async getCustomerTransactions(
     customerId: string,
-    options?: { limit?: number; startingAfter?: string }
+    options?: { limit?: number; startingAfter?: string; endingBefore?: string; created?: { gt?: number; lt?: number } }
   ): Promise<{
     transactions: Transaction[];
     hasMore: boolean;
     nextPage: string | null;
+    prevPage: string | null;
   }> {
     const charges = await this.charges.list({
       customer: customerId,
       limit: options?.limit ?? 100,
+      created: options?.created,
       starting_after: options?.startingAfter,
+      ending_before: options?.endingBefore,
       expand: ["data.payment_intent"]
     });
 
@@ -321,7 +324,8 @@ export class StripeService extends Stripe {
     return {
       transactions,
       hasMore: charges.has_more,
-      nextPage: charges.data[charges.data.length - 1]?.id
+      nextPage: charges.data[charges.data.length - 1]?.id,
+      prevPage: options?.startingAfter ? charges.data[0]?.id : null
     };
   }
 

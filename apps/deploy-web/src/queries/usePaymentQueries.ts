@@ -36,8 +36,7 @@ export const usePaymentTransactionsQuery = (options?: UsePaymentTransactionsOpti
   return useQuery({
     queryKey: QueryKeys.getPaymentTransactionsKey(options),
     queryFn: async () => {
-      const response = await stripe.getCustomerTransactions(options);
-      return response.transactions;
+      return await stripe.getCustomerTransactions(options);
     }
   });
 };
