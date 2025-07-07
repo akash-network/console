@@ -159,10 +159,10 @@ export const CustomerTransactionsQuerySchema = z
         return true;
       }
 
-      const start = new Date(data.created.gt);
-      const end = new Date(data.created.lt);
+      const start = new Date(data.created.gt * 1000);
+      const end = new Date(data.created.lt * 1000);
 
-      const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+      const daysDiff = Math.floor((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
 
       return start <= end && daysDiff <= 366;
     },

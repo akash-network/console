@@ -203,7 +203,7 @@ export class StripeService extends Stripe {
   async applyCoupon(customerId: string, couponCode: string): Promise<Stripe.Coupon | Stripe.PromotionCode> {
     const promotionCode = await this.findPromotionCodeByCode(couponCode);
 
-    if (promotionCode) {
+    if (promotionCode && promotionCode.coupon) {
       if (!promotionCode.coupon.valid) {
         throw new Error("Promotion code is invalid or expired");
       }
