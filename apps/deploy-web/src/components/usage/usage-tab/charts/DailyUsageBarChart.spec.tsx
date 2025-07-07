@@ -30,21 +30,25 @@ import { DailyUsageBarChart } from "@src/components/usage/usage-tab/charts/Daily
 
 describe("DailyUsageBarChart", () => {
   it("shows a spinner when fetching", () => {
-    render(<DailyUsageBarChart isFetching data={[]} />);
-    expect(screen.getByTestId("spinner")).toBeInTheDocument();
+    setup({ isFetching: true, data: [] });
+    expect(screen.queryByTestId("spinner")).toBeInTheDocument();
   });
 
   it("renders a bar chart with data and applies pointer-events-none when fetching", () => {
     const sample = [{ date: "2025-07-01", dailyUsdSpent: 25 }];
-    render(<DailyUsageBarChart isFetching data={sample} />);
-    expect(screen.getByTestId("chart-container")).toHaveClass("pointer-events-none");
-    expect(screen.getByTestId("bar-chart")).toHaveTextContent(JSON.stringify(sample));
+    setup({ isFetching: true, data: sample });
+    expect(screen.queryByTestId("chart-container")).toHaveClass("pointer-events-none");
+    expect(screen.queryByTestId("bar-chart")).toHaveTextContent(JSON.stringify(sample));
   });
 
   it("renders a bar chart without disabling pointer events when not fetching", () => {
     const sample = [{ date: "2025-07-01", dailyUsdSpent: 25 }];
-    render(<DailyUsageBarChart isFetching={false} data={sample} />);
-    expect(screen.getByTestId("chart-container")).not.toHaveClass("pointer-events-none");
-    expect(screen.getByTestId("bar-chart")).toHaveTextContent(JSON.stringify(sample));
+    setup({ isFetching: false, data: sample });
+    expect(screen.queryByTestId("chart-container")).not.toHaveClass("pointer-events-none");
+    expect(screen.queryByTestId("bar-chart")).toHaveTextContent(JSON.stringify(sample));
   });
+
+  function setup(props: { isFetching: boolean; data: Array<{ date: string; dailyUsdSpent: number }> }) {
+    render(<DailyUsageBarChart {...props} />);
+  }
 });

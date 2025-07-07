@@ -37,20 +37,20 @@ import { CumulativeSpendingLineChart } from "@src/components/usage/usage-tab/cha
 
 describe("CumulativeSpendingLineChart", () => {
   it("shows a spinner when fetching", () => {
-    render(<CumulativeSpendingLineChart isFetching data={[]} />);
-    expect(screen.getByTestId("spinner")).toBeInTheDocument();
+    setup({ isFetching: true, data: [] });
+    expect(screen.queryByTestId("spinner")).toBeInTheDocument();
   });
 
   it("renders a line chart with data and applies pointer-events-none when fetching", () => {
     const sample = [{ date: "2025-07-01", totalUsdSpent: 100 }];
-    render(<CumulativeSpendingLineChart isFetching data={sample} />);
-    expect(screen.getByTestId("chart-container")).toHaveClass("pointer-events-none");
-    expect(screen.getByTestId("line-chart")).toHaveTextContent(JSON.stringify(sample));
+    setup({ isFetching: true, data: sample });
+    expect(screen.queryByTestId("chart-container")).toHaveClass("pointer-events-none");
+    expect(screen.queryByTestId("line-chart")).toHaveTextContent(JSON.stringify(sample));
   });
 
   it("does not render trend indicator for fewer than 2 data points", () => {
     const sample = [{ date: "2025-07-01", totalUsdSpent: 100 }];
-    render(<CumulativeSpendingLineChart isFetching={false} data={sample} />);
+    setup({ isFetching: false, data: sample });
     expect(screen.queryByText(/Trending/)).toBeNull();
   });
 
@@ -63,9 +63,9 @@ describe("CumulativeSpendingLineChart", () => {
       { date: d1, totalUsdSpent: 50 },
       { date: d2, totalUsdSpent: 100 }
     ];
-    render(<CumulativeSpendingLineChart isFetching={false} data={data} />);
-    expect(screen.getByText(/Trending up by 100%/)).toBeInTheDocument();
-    expect(screen.getByTestId("up-icon")).toBeInTheDocument();
+    setup({ isFetching: false, data });
+    expect(screen.queryByText(/Trending up by 100%/)).toBeInTheDocument();
+    expect(screen.queryByTestId("up-icon")).toBeInTheDocument();
   });
 
   it("renders trending down when data decreases", () => {
@@ -77,8 +77,12 @@ describe("CumulativeSpendingLineChart", () => {
       { date: d1, totalUsdSpent: 100 },
       { date: d2, totalUsdSpent: 50 }
     ];
-    render(<CumulativeSpendingLineChart isFetching={false} data={data} />);
-    expect(screen.getByText(/Trending down by 50%/)).toBeInTheDocument();
-    expect(screen.getByTestId("down-icon")).toBeInTheDocument();
+    setup({ isFetching: false, data });
+    expect(screen.queryByText(/Trending down by 50%/)).toBeInTheDocument();
+    expect(screen.queryByTestId("down-icon")).toBeInTheDocument();
   });
+
+  function setup(props: { isFetching: boolean; data: Array<{ date: string; totalUsdSpent: number }> }) {
+    render(<CumulativeSpendingLineChart {...props} />);
+  }
 });

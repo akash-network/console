@@ -56,12 +56,12 @@ describe(UsageView.name, () => {
 
   it("renders an error message when stats fail to load", () => {
     setup({ isUsageHistoryStatsError: true });
-    expect(screen.getByText("Error loading usage stats")).toBeInTheDocument();
+    expect(screen.queryByText("Error loading usage stats")).toBeInTheDocument();
   });
 
   it("renders two progress bars while stats are fetching", () => {
     setup({ isFetchingUsageHistoryStats: true });
-    const bars = screen.getAllByRole("progressbar");
+    const bars = screen.queryAllByRole("progressbar");
     expect(bars).toHaveLength(2);
   });
 
@@ -74,16 +74,16 @@ describe(UsageView.name, () => {
         averageDeploymentsPerDay: 0.5
       }
     });
-    expect(screen.getByText(usageHistoryStatsData.totalSpent)).toBeInTheDocument();
+    expect(screen.queryByText(usageHistoryStatsData.totalSpent)).toBeInTheDocument();
     expect(
-      screen.getByText((_, element) => {
+      screen.queryByText((_, element) => {
         return element?.textContent === "7 average per day";
       })
     ).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(screen.queryByText("3")).toBeInTheDocument();
 
     expect(
-      screen.getByText((_, element) => {
+      screen.queryByText((_, element) => {
         return element?.textContent === "0.5 average per day";
       })
     ).toBeInTheDocument();
@@ -91,23 +91,23 @@ describe(UsageView.name, () => {
 
   it("renders an error message when history data fails to load", () => {
     setup({ isUsageHistoryError: true });
-    expect(screen.getByText("Error loading usage data")).toBeInTheDocument();
+    expect(screen.queryByText("Error loading usage data")).toBeInTheDocument();
   });
 
   it("renders charts with correct data and loading state", () => {
     const { usageHistoryData } = setup({ isFetchingUsageHistory: true });
 
-    const daily = screen.getByTestId("daily-chart");
+    const daily = screen.queryByTestId("daily-chart");
     expect(daily).toHaveAttribute("data-fetching", "true");
     expect(daily).toHaveTextContent(JSON.stringify(usageHistoryData));
 
-    const cumulative = screen.getByTestId("cumulative-chart");
+    const cumulative = screen.queryByTestId("cumulative-chart");
     expect(cumulative).toHaveAttribute("data-fetching", "true");
   });
 
   it("renders charts in non-loading state by default", () => {
     setup();
-    expect(screen.getByTestId("daily-chart")).toHaveAttribute("data-fetching", "false");
-    expect(screen.getByTestId("cumulative-chart")).toHaveAttribute("data-fetching", "false");
+    expect(screen.queryByTestId("daily-chart")).toHaveAttribute("data-fetching", "false");
+    expect(screen.queryByTestId("cumulative-chart")).toHaveAttribute("data-fetching", "false");
   });
 });
