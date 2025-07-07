@@ -47,7 +47,7 @@ export function DateRangePicker({
   const effectiveMaxDate = disableFuture ? today : maxDate;
   const effectiveMinDate = minDate;
 
-  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const months = Array.from({ length: 12 }, (_, i) => format(new Date(2024, i, 1), "MMMM"));
 
   const presets = [
     {
@@ -246,7 +246,7 @@ export function DateRangePicker({
                     {months.map((month, index) => {
                       const monthStart = new Date(currentYear, index, 1);
                       const monthEnd = new Date(currentYear, index + 1, 0);
-                      const isDisabled = isDateDisabled(monthStart) && isDateDisabled(monthEnd);
+                      const isDisabled = isDateDisabled(monthStart) || isDateDisabled(monthEnd);
 
                       return (
                         <Button key={month} variant="ghost" size="lg" className="h-12 text-sm" onClick={() => handleMonthSelect(index)} disabled={isDisabled}>
@@ -359,7 +359,7 @@ export function DateRangePicker({
                 {months.map((month, index) => {
                   const monthStart = new Date(currentYear, index, 1);
                   const monthEnd = new Date(currentYear, index + 1, 0);
-                  const isDisabled = isDateDisabled(monthStart) && isDateDisabled(monthEnd);
+                  const isDisabled = isDateDisabled(monthStart) || isDateDisabled(monthEnd);
 
                   return (
                     <Button
