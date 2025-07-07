@@ -2,24 +2,28 @@ import { certificateManager } from "@akashnetwork/akashjs/build/certificates/cer
 import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import { ApiKeyHttpService, AuthHttpService, DeploymentSettingHttpService, TemplateHttpService, TxHttpService, UserHttpService } from "@akashnetwork/http-sdk";
 import { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
+import { LoggerService } from "@akashnetwork/logging";
+import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { Axios, AxiosInstance, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
 
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { authService } from "@src/services/auth/auth.service";
 import { customRegistry } from "@src/utils/customRegistry";
 import { generateTraceparent } from "@src/utils/otel";
 import type { ApiUrlService } from "../api-url/api-url.service";
+import { AuthService } from "../auth/auth.service";
 import { createContainer } from "../container/createContainer";
+import { ErrorHandlerService } from "../error-handler/error-handler.service";
 import { ManagedWalletHttpService } from "../managed-wallet-http/managed-wallet-http.service";
 import { ProviderProxyService } from "../provider-proxy/provider-proxy.service";
 
-export const createServices = (config: ServicesConfig) => {
+export const createAppRootContainer = (config: ServicesConfig) => {
   const apiConfig = { baseURL: config.BASE_API_MAINNET_URL };
   const container = createContainer({
+    authService: () => new AuthService(),
     user: () =>
       withInterceptors(new UserHttpService(apiConfig), {
-        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader, otelInterceptor],
+        request: [config.globalRequestMiddleware, container.authService.withAnonymousUserHeader, otelInterceptor],
         response: [
           response => {
             if (response.config.url?.startsWith("/v1/anonymous-users") && response.config.method === "post" && response.status === 200) {
@@ -31,11 +35,11 @@ export const createServices = (config: ServicesConfig) => {
       }),
     stripe: () =>
       withInterceptors(new StripeService(apiConfig), {
-        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader, otelInterceptor]
+        request: [config.globalRequestMiddleware, container.authService.withAnonymousUserHeader, otelInterceptor]
       }),
     tx: () =>
       withInterceptors(new TxHttpService(customRegistry, apiConfig), {
-        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader, otelInterceptor]
+        request: [config.globalRequestMiddleware, container.authService.withAnonymousUserHeader, otelInterceptor]
       }),
     template: () =>
       withInterceptors(new TemplateHttpService(apiConfig), {
@@ -43,12 +47,12 @@ export const createServices = (config: ServicesConfig) => {
       }),
     auth: () =>
       withInterceptors(new AuthHttpService(apiConfig), {
-        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader, otelInterceptor]
+        request: [config.globalRequestMiddleware, container.authService.withAnonymousUserHeader, otelInterceptor]
       }),
     providerProxy: () => new ProviderProxyService(container.createTracedAxios({ baseURL: config.BASE_PROVIDER_PROXY_URL })),
     deploymentSetting: () =>
       withInterceptors(new DeploymentSettingHttpService(apiConfig), {
-        request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader, otelInterceptor]
+        request: [config.globalRequestMiddleware, container.authService.withAnonymousUserHeader, otelInterceptor]
       }),
     apiKey: () =>
       withInterceptors(new ApiKeyHttpService(), {
@@ -79,7 +83,7 @@ export const createServices = (config: ServicesConfig) => {
           container.analyticsService
         ),
         {
-          request: [config.globalRequestMiddleware, authService.withAnonymousUserHeader, otelInterceptor],
+          request: [config.globalRequestMiddleware, container.authService.withAnonymousUserHeader, otelInterceptor],
           response: [
             response => {
               if (response.config.url === "v1/start-trial" && response.config.method === "post" && response.status === 200) {
@@ -89,7 +93,18 @@ export const createServices = (config: ServicesConfig) => {
             }
           ]
         }
-      )
+      ),
+    queryClient: () =>
+      new QueryClient({
+        queryCache: new QueryCache({
+          onError: error => container.errorHandler.handleError(error)
+        }),
+        mutationCache: new MutationCache({
+          onError: error => container.errorHandler.handleError(error)
+        })
+      }),
+    errorHandler: () => new ErrorHandlerService(),
+    logger: () => new LoggerService({ name: `app-${config.runtimeEnv}` })
   });
 
   return container;
@@ -100,6 +115,7 @@ export interface ServicesConfig {
   BASE_PROVIDER_PROXY_URL: string;
   MANAGED_WALLET_NETWORK_ID: NetworkId;
   globalRequestMiddleware?: (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig;
+  runtimeEnv: "nodejs" | "browser";
   apiUrlService: ApiUrlService;
 }
 

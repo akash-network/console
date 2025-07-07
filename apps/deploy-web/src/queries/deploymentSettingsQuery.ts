@@ -1,7 +1,6 @@
 import { useMemo } from "react";
-import type { FindDeploymentSettingParams } from "@akashnetwork/http-sdk";
+import { type FindDeploymentSettingParams, isHttpError } from "@akashnetwork/http-sdk";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { isAxiosError } from "axios";
 import { millisecondsInMinute } from "date-fns/constants";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -26,7 +25,7 @@ export function useDeploymentSettingQuery(params: Omit<FindDeploymentSettingPara
     enabled: !!params.userId && !!params.dseq && !!wallet.isManaged,
     staleTime: 5 * millisecondsInMinute,
     retry: (failureCount, error) => {
-      if (isAxiosError(error) && error.response?.status === 404) {
+      if (isHttpError(error) && error.response?.status === 404) {
         return false;
       }
       return failureCount < 3;

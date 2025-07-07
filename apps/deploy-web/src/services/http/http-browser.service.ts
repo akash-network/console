@@ -1,15 +1,17 @@
 import { browserEnvConfig } from "@src/config/browser-env.config";
-import { createServices } from "@src/services/http-factory/http-factory.service";
+import { createAppRootContainer } from "@src/services/app-di-container/app-di-container";
 import { browserApiUrlService } from "../api-url/browser-api-url.service";
+import { createChildContainer } from "../container/createContainer";
+import { UserProviderService } from "../user-provider/user-provider.service";
 
-export const services = createServices({
+const rootContainer = createAppRootContainer({
+  runtimeEnv: "browser",
   BASE_API_MAINNET_URL: browserEnvConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL,
   BASE_PROVIDER_PROXY_URL: browserEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL,
   MANAGED_WALLET_NETWORK_ID: browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID,
   apiUrlService: browserApiUrlService
 });
 
-/**
- * @deprecated use useServices() instead
- */
-export const userHttpService = services.user;
+export const services = createChildContainer(rootContainer, {
+  userProviderService: () => new UserProviderService()
+});
