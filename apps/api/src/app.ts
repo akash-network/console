@@ -4,12 +4,15 @@ import { LoggerService } from "@akashnetwork/logging";
 import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
 import { serve } from "@hono/node-server";
 import { otel } from "@hono/otel";
+import { swaggerUI } from "@hono/swagger-ui";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { container } from "tsyringe";
 
 import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
 import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
+import type { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+import { OpenApiDocsService } from "@src/core/services/openapi-docs/openapi-docs.service";
 import { RequestContextInterceptor } from "@src/core/services/request-context-interceptor/request-context.interceptor";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import { notificationsApiProxy } from "@src/notifications/routes/proxy/proxy.route";
@@ -106,51 +109,55 @@ appHono.route("/dashboard", dashboardRouter);
 appHono.route("/internal", internalRouter);
 appHono.route("/deployments", deploymentRouter);
 
-appHono.route("/", startTrialRouter);
-appHono.route("/", getWalletListRouter);
-appHono.route("/", signAndBroadcastTxRouter);
-appHono.route("/", checkoutRouter);
-appHono.route("/", stripeWebhook);
-appHono.route("/", stripePricesRouter);
-appHono.route("/", stripeCouponsRouter);
-appHono.route("/", stripePaymentMethodsRouter);
-appHono.route("/", stripeTransactionsRouter);
-appHono.route("/", usageRouter);
-
-appHono.route("/", createAnonymousUserRouter);
-appHono.route("/", getAnonymousUserRouter);
-appHono.route("/", sendVerificationEmailRouter);
-appHono.route("/", deploymentSettingRouter);
-appHono.route("/", deploymentsRouter);
-appHono.route("/", leasesRouter);
-appHono.route("/", apiKeysRouter);
-appHono.route("/", bidsRouter);
-appHono.route("/", certificateRouter);
-appHono.route("/", featuresRouter);
-appHono.route("/", getBalancesRouter);
-appHono.route("/", providersRouter);
-appHono.route("/", auditorsRouter);
-appHono.route("/", providerAttributesSchemaRouter);
-appHono.route("/", providerRegionsRouter);
-appHono.route("/", providerDashboardRouter);
-appHono.route("/", providerVersionsRouter);
-appHono.route("/", providerGraphDataRouter);
-appHono.route("/", providerDeploymentsRouter);
-appHono.route("/", graphDataRouter);
-appHono.route("/", dashboardDataRouter);
-appHono.route("/", networkCapacityRouter);
-appHono.route("/", blocksRouter);
-appHono.route("/", blockPredictionRouter);
-appHono.route("/", transactionsRouter);
-appHono.route("/", marketDataRouter);
-appHono.route("/", validatorsRouter);
-appHono.route("/", pricingRouter);
-appHono.route("/", gpuRouter);
-appHono.route("/", proposalsRouter);
-appHono.route("/", templatesRouter);
-appHono.route("/", leasesDurationRouter);
-appHono.route("/", addressRouter);
-appHono.route("/", networkRouter);
+const openApiHonoHandlers: OpenApiHonoHandler[] = [
+  startTrialRouter,
+  getWalletListRouter,
+  signAndBroadcastTxRouter,
+  checkoutRouter,
+  stripeWebhook,
+  stripePricesRouter,
+  stripeCouponsRouter,
+  stripePaymentMethodsRouter,
+  stripeTransactionsRouter,
+  usageRouter,
+  createAnonymousUserRouter,
+  getAnonymousUserRouter,
+  sendVerificationEmailRouter,
+  deploymentSettingRouter,
+  deploymentsRouter,
+  leasesRouter,
+  apiKeysRouter,
+  bidsRouter,
+  certificateRouter,
+  featuresRouter,
+  getBalancesRouter,
+  providersRouter,
+  auditorsRouter,
+  providerAttributesSchemaRouter,
+  providerRegionsRouter,
+  providerDashboardRouter,
+  providerVersionsRouter,
+  providerGraphDataRouter,
+  providerDeploymentsRouter,
+  graphDataRouter,
+  dashboardDataRouter,
+  networkCapacityRouter,
+  blocksRouter,
+  blockPredictionRouter,
+  transactionsRouter,
+  marketDataRouter,
+  validatorsRouter,
+  pricingRouter,
+  gpuRouter,
+  proposalsRouter,
+  templatesRouter,
+  leasesDurationRouter,
+  addressRouter,
+  networkRouter
+];
+for (const handler of openApiHonoHandlers) {
+  appHono.route("/", handler);
+}
 
 appHono.route("/", notificationsApiProxy);
 
@@ -169,6 +176,11 @@ appHono.get("/status", c => {
 
   return c.json({ version, memory, tasks: tasksStatus });
 });
+
+appHono.get("/v1/doc", c => {
+  return c.json(container.resolve(OpenApiDocsService).generateDocs(openApiHonoHandlers));
+});
+appHono.get("/v1/swagger", swaggerUI({ url: "/v1/doc" }));
 
 appHono.onError(container.resolve(HonoErrorHandlerService).handle);
 
