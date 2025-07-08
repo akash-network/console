@@ -114,4 +114,11 @@ describe(collectFullErrorStack.name, () => {
     expect(result).toContain("Request: Unknown request");
     expect(result).toContain("Error: Not specified");
   });
+
+  it("collects code from error", () => {
+    const error = new Error("test error");
+    Object.assign(error, { code: "TEST_ERROR" });
+    const result = collectFullErrorStack(error);
+    expect(result).toContain("test error (code: TEST_ERROR)");
+  });
 });
