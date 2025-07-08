@@ -1,5 +1,22 @@
 
 
+## [2.104.0](https://github.com/akash-network/console/compare/console-api/v2.103.2...console-api/v2.104.0) (2025-07-08)
+
+
+### Features
+
+* adds error code to collected error stack ([#1595](https://github.com/akash-network/console/issues/1595)) ([fef764f](https://github.com/akash-network/console/commit/fef764f8de77d501e7d0a136b5a9b5692d71d2ad))
+
+
+### Bug Fixes
+
+* serve Swagger docs from app.ts ([#1618](https://github.com/akash-network/console/issues/1618)) ([fc6bcdf](https://github.com/akash-network/console/commit/fc6bcdf743addaa1f325419af37ab39627dceceb))
+
+
+### Code Refactoring
+
+* move /templates endpoints to a module ([#1498](https://github.com/akash-network/console/issues/1498)) ([7f78555](https://github.com/akash-network/console/commit/7f785556853a038e70b04818e0b0cf8a39c2f8e6)), closes [#1273](https://github.com/akash-network/console/issues/1273)
+
 ## [2.103.2](https://github.com/akash-network/console/compare/console-api/v2.103.1...console-api/v2.103.2) (2025-07-06)
 
 

@@ -1,5 +1,17 @@
 
 
+## [1.13.0](https://github.com/akash-network/console/compare/provider-proxy/v1.12.10...provider-proxy/v1.13.0) (2025-07-08)
+
+
+### Features
+
+* adds error code to collected error stack ([#1595](https://github.com/akash-network/console/issues/1595)) ([fef764f](https://github.com/akash-network/console/commit/fef764f8de77d501e7d0a136b5a9b5692d71d2ad))
+
+
+### Bug Fixes
+
+* transform 500 provider error to actual 400 error ([#1643](https://github.com/akash-network/console/issues/1643)) ([175b31c](https://github.com/akash-network/console/commit/175b31c96632755bc520fc8713c2244ada301a81)), closes [#1574](https://github.com/akash-network/console/issues/1574)
+
 ## [1.12.10](https://github.com/akash-network/console/compare/provider-proxy/v1.12.9...provider-proxy/v1.12.10) (2025-07-06)
 
 
