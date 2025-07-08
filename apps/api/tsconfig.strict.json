@@ -31,6 +31,7 @@
     "src/address/**/*.ts",
     "src/billing/**/*.ts",
     "src/user/**/*.ts",
+    "src/template/**/*.ts",
     "src/provider/**/*.ts",
     "src/auth/**/*.ts",
     "src/certificate/**/*.ts",
