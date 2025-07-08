@@ -122,6 +122,11 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
   });
 
   if (proxyResult.response.statusCode === 500) {
+    const chunkedBody = await Array.fromAsync<Buffer>(Readable.toWeb(proxyResult.response));
+    const body = chunkedBody.reduce((acc, chunk) => Buffer.concat([acc, chunk]), Buffer.alloc(0)).toString();
+    const isValidationServerError = ctx.get("container").providerService.isValidationServerError(body);
+    if (isValidationServerError) return ctx.text(body, 400);
+
     ctx.get("container").appLogger?.error({
       event: "PROXY_REQUEST_ERROR",
       url,
@@ -131,7 +136,7 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       httpResponse: {
         status: proxyResult.response.statusCode,
         headers: proxyResult.response.headers,
-        body: (await Array.fromAsync(Readable.toWeb(proxyResult.response))).reduce((acc, chunk) => Buffer.concat([acc, chunk]), Buffer.alloc(0)).toString()
+        body
       }
     });
     return ctx.text(`Provider ${new URL(url).origin} is temporarily unavailable`, 503);

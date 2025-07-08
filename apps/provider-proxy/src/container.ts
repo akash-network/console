@@ -5,7 +5,7 @@ import { netConfig } from "@akashnetwork/net";
 
 import { CertificateValidator, createCertificateValidatorInstrumentation } from "./services/CertificateValidator";
 import { ProviderProxy } from "./services/ProviderProxy";
-import { ProviderService } from "./services/ProviderService";
+import { ProviderService } from "./services/ProviderService/ProviderService";
 import { WebsocketStats } from "./services/WebsocketStats";
 
 export function createContainer() {
@@ -39,7 +39,8 @@ export function createContainer() {
     httpLoggerInterceptor,
     wsLogger,
     netConfig,
-    appLogger
+    appLogger,
+    providerService
   };
 }
 
