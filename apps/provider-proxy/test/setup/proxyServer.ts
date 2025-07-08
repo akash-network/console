@@ -8,8 +8,8 @@ export async function startServer(): Promise<string> {
   return server.host;
 }
 
-export function stopServer(): void {
-  server?.close();
+export async function stopServer(): Promise<void> {
+  await server?.close();
 }
 
 export async function request(url: string, init?: RequestInit): Promise<Response> {
