@@ -24,6 +24,14 @@ export class StripeErrorService {
     "Promotion code has already been used": {
       code: 400,
       message: "Promotion code has already been used"
+    },
+    "Percentage-based coupons are not supported. Only fixed amount coupons are allowed.": {
+      code: 400,
+      message: "Percentage-based coupons are not supported. Only fixed amount coupons are allowed."
+    },
+    "Invalid coupon type. Only fixed amount coupons are supported.": {
+      code: 400,
+      message: "Invalid coupon type. Only fixed amount coupons are supported."
     }
   };
 
@@ -147,6 +155,10 @@ export class StripeErrorService {
       return "coupon_already_used";
     } else if (messageLower.includes("cannot be used")) {
       return "coupon_not_applicable";
+    } else if (messageLower.includes("percentage-based coupons are not supported")) {
+      return "percentage_coupon_not_supported";
+    } else if (messageLower.includes("invalid coupon type")) {
+      return "invalid_coupon_type";
     }
 
     return "unknown_coupon_error";

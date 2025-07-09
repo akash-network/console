@@ -1,0 +1,8 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+- Never use type any or cast to type any. Always define the proper typescript types.
+- Never use deprecated methods from libraries.
+- Don't add unnecessary comments to the code

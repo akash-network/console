@@ -200,17 +200,17 @@ export class StripeService extends Stripe {
     return promotionCodes[0];
   }
 
-  async applyCoupon(customerId: string, couponCode: string): Promise<Stripe.Coupon | Stripe.PromotionCode> {
+  async applyCoupon(customerId: string, couponCode: string): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; amountAdded: number }> {
     const promotionCode = await this.findPromotionCodeByCode(couponCode);
 
     if (promotionCode) {
-      if (!promotionCode.coupon.valid) {
-        throw new Error("Promotion code is invalid or expired");
-      }
-      await this.customers.update(customerId, {
-        promotion_code: promotionCode.id
+      return this._applyCouponOrPromotionCode({
+        customerId,
+        couponOrPromotion: promotionCode,
+        coupon: promotionCode.coupon,
+        updateField: "promotion_code",
+        updateId: promotionCode.id
       });
-      return promotionCode;
     }
 
     // If no promotion code found, try to find a matching coupon
@@ -218,16 +218,62 @@ export class StripeService extends Stripe {
     const matchingCoupon = coupons.find(coupon => coupon.id === couponCode);
 
     if (matchingCoupon) {
-      if (!matchingCoupon.valid) {
-        throw new Error("Coupon is invalid or expired");
-      }
-      await this.customers.update(customerId, {
-        coupon: matchingCoupon.id
+      return this._applyCouponOrPromotionCode({
+        customerId,
+        couponOrPromotion: matchingCoupon,
+        coupon: matchingCoupon,
+        updateField: "coupon",
+        updateId: matchingCoupon.id
       });
-      return matchingCoupon;
     }
 
     throw new Error("No valid promotion code or coupon found with the provided code");
+  }
+
+  private async _applyCouponOrPromotionCode({
+    customerId,
+    couponOrPromotion,
+    coupon,
+    updateField,
+    updateId
+  }: {
+    customerId: string;
+    couponOrPromotion: Stripe.Coupon | Stripe.PromotionCode;
+    coupon: Stripe.Coupon;
+    updateField: "promotion_code" | "coupon";
+    updateId: string;
+  }): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; amountAdded: number }> {
+    if (!coupon.valid) {
+      throw new Error(updateField === "promotion_code" ? "Promotion code is invalid or expired" : "Coupon is invalid or expired");
+    }
+
+    if (coupon.percent_off) {
+      throw new Error("Percentage-based coupons are not supported. Only fixed amount coupons are allowed.");
+    }
+
+    if (!coupon.amount_off) {
+      throw new Error("Invalid coupon type. Only fixed amount coupons are supported.");
+    }
+
+    // First, apply the coupon to the customer (for tracking)
+    await this.customers.update(customerId, {
+      [updateField]: updateId
+    });
+
+    const amountToAdd = coupon.amount_off; // amount_off is already in cents
+
+    if (amountToAdd > 0) {
+      const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
+      assert(user, 404, "User not found for customer ID");
+      await this.refillService.topUpWallet(amountToAdd, user.id);
+    }
+
+    // Then, remove the coupon from the customer
+    await this.customers.update(customerId, {
+      [updateField]: undefined
+    });
+
+    return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100 };
   }
 
   async listCoupons() {
@@ -283,7 +329,7 @@ export class StripeService extends Stripe {
       if (discount.valid) {
         // Remove the active discount based on its type
         await this.customers.update(customerId, {
-          [discount.type === "promotion_code" ? "promotion_code" : "coupon"]: null
+          [discount.type === "promotion_code" ? "promotion_code" : "coupon"]: undefined
         });
         return true;
       }
