@@ -27,22 +27,13 @@ export type NotificationChannelFormProps = ChangeableComponentProps<{
   isLoading?: boolean;
 }>;
 
-export const NotificationChannelForm: FC<NotificationChannelFormProps> = ({
-  onCancel,
-  isLoading,
-  onSubmit,
-  onStateChange,
-  initialValues = {
-    name: "",
-    emails: []
-  }
-}) => {
+export const NotificationChannelForm: FC<NotificationChannelFormProps> = ({ onCancel, isLoading, onSubmit, onStateChange, initialValues }) => {
   const [error, setError] = useState<string | null>(null);
 
   const initialFormValues: FormValues = useMemo(() => {
     return {
-      name: initialValues.name || "",
-      emails: initialValues.emails.join(", ")
+      name: initialValues?.name || "",
+      emails: initialValues?.emails?.join(", ") || ""
     };
   }, [initialValues]);
 
