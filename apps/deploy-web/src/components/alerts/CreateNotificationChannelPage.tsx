@@ -24,7 +24,12 @@ export const CreateNotificationChannelPage: React.FunctionComponent = () => {
         </Link>
         <Title>Create Notification Channel</Title>
       </div>
-      <NotificationChannelCreateContainer onCreate={goBack}>
+      <NotificationChannelCreateContainer
+        onCreate={() => {
+          navGuard.toggle({ hasChanges: false });
+          goBack();
+        }}
+      >
         {props => <NotificationChannelForm isLoading={props.isLoading} onSubmit={props.create} onCancel={goBack} onStateChange={navGuard.toggle} />}
       </NotificationChannelCreateContainer>
     </Layout>

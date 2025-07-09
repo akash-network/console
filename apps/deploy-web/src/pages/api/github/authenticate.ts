@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { serverEnvConfig } from "@src/config/server-env.config";
 import { wrapApiHandlerInExecutionContext } from "@src/lib/nextjs/wrapApiHandler";
 import GitHubAuth from "@src/services/auth/github.service";
+import { services } from "@src/services/http/http-server.service";
 
 const { NEXT_PUBLIC_GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, NEXT_PUBLIC_REDIRECT_URI } = serverEnvConfig;
 
@@ -21,13 +22,8 @@ export default wrapApiHandlerInExecutionContext(async function exchangeGitHubCod
   try {
     const accessToken = await gitHubAuth.exchangeAuthorizationCodeForToken(code);
     res.status(200).json({ accessToken });
-  } catch (error: any) {
-    console.error("github authenticate error", {
-      status: error.response?.status || 0,
-      message: error.response?.data?.error_description,
-      error
-    });
-
+  } catch (error) {
+    services.errorHandler.reportError({ error, tags: { category: "auth", event: "AUTH_EXCHANGE_CODE_FOR_TOKENS_ERROR", provider: "github" } });
     res.status(500).end("An unexpected error occurred. Please try again later.");
   }
 });

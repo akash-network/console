@@ -4,6 +4,7 @@
     "baseUrl": ".",
     "moduleResolution": "bundler",
     "strict": true,
+    "jsx": "react-jsx",
     "plugins": [
       {
         "name": "next"

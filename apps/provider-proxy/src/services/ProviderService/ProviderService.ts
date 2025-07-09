@@ -1,7 +1,7 @@
 import type { SupportedChainNetworks } from "@akashnetwork/net";
 import { X509Certificate } from "crypto";
 
-import { httpRetry } from "../utils/retry";
+import { httpRetry } from "../../utils/retry";
 
 export class ProviderService {
   constructor(
@@ -32,6 +32,12 @@ export class ProviderService {
     }
 
     return null;
+  }
+
+  isValidationServerError(rawBody: unknown): boolean {
+    if (typeof rawBody !== "string") return false;
+    const body = rawBody.trim();
+    return body.startsWith("manifest cross-validation error: ") || body.startsWith("hostname not allowed:");
   }
 }
 

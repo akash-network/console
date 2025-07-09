@@ -4,6 +4,7 @@ import type { ParsedUrlQuery } from "querystring";
 import { services } from "../../services/http/http-server.service";
 import { createRequestExecutionContext, requestExecutionContext } from "./requestExecutionContext";
 
+/** @deprecated Use defineServerSideProps instead */
 export function getServerSidePropsWithServices<
   Props extends Record<string, any> = Record<string, any>,
   Params extends ParsedUrlQuery = ParsedUrlQuery,

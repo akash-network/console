@@ -6,6 +6,7 @@ type ContextParamsSchema = z.ZodObject<Record<string, z.ZodString | z.ZodNumber 
 
 type ContextSchema = z.ZodObject<{ params?: ContextParamsSchema; query?: ContextParamsSchema }>;
 
+/** @deprecated Use defineServerSideProps instead */
 export const getValidatedServerSideProps = <
   Props extends Record<string, any>,
   Schema extends ContextSchema = ContextSchema,
