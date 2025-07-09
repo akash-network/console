@@ -1,8 +1,10 @@
 import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+import { netConfig } from "@akashnetwork/net";
+import type { GetServerSidePropsResult } from "next";
+import { z } from "zod";
 
 import { ProviderDetail } from "@src/components/providers/ProviderDetail";
-import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
-import { serverApiUrlService } from "@src/services/api-url/server-api-url.service";
+import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import type { ApiProviderDetail } from "@src/types/provider";
 
 type Props = {
@@ -16,14 +18,25 @@ const ProviderDetailPage: React.FunctionComponent<Props> = ({ owner, _provider }
 
 export default ProviderDetailPage;
 
-export const getServerSideProps = getServerSidePropsWithServices<Props>(async ({ params, query, services }) => {
-  const apiUrl = serverApiUrlService.getBaseApiUrlFor(query.network as NetworkId);
-  const response = await services.axios.get(`${apiUrl}/v1/providers/${params?.owner}`);
+export const getServerSideProps = defineServerSideProps({
+  route: "/providers/[owner]",
+  schema: z.object({
+    params: z.object({
+      owner: z.string()
+    }),
+    query: z.object({
+      network: z.enum(netConfig.getSupportedNetworks() as [NetworkId, ...NetworkId[]]).optional()
+    })
+  }),
+  async handler({ params, query, services }): Promise<GetServerSidePropsResult<Props>> {
+    const apiUrl = services.apiUrlService.getBaseApiUrlFor(query.network);
+    const response = await services.axios.get(`${apiUrl}/v1/providers/${params.owner}`);
 
-  return {
-    props: {
-      owner: params!.owner as string,
-      _provider: response.data
-    }
-  };
+    return {
+      props: {
+        owner: params.owner,
+        _provider: response.data
+      }
+    };
+  }
 });

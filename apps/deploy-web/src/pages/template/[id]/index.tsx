@@ -1,8 +1,9 @@
 import { getSession } from "@auth0/nextjs-auth0";
+import { z } from "zod";
 
 import { UserTemplate } from "@src/components/templates/UserTemplate";
 import { serverEnvConfig } from "@src/config/server-env.config";
-import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
+import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import type { ITemplate } from "@src/types";
 
 type Props = {
@@ -16,8 +17,14 @@ const TemplatePage: React.FunctionComponent<Props> = ({ id, template }) => {
 
 export default TemplatePage;
 
-export const getServerSideProps = getServerSidePropsWithServices<Props, Pick<Props, "id">>(async ({ params, req, res, services }) => {
-  try {
+export const getServerSideProps = defineServerSideProps({
+  route: "/template/[id]",
+  schema: z.object({
+    params: z.object({
+      id: z.string()
+    })
+  }),
+  async handler({ params, services, req, res }) {
     const session = await getSession(req, res);
     let config = {};
 
@@ -28,22 +35,13 @@ export const getServerSideProps = getServerSidePropsWithServices<Props, Pick<Pro
         }
       };
     }
-
-    const response = await services.axios.get(`${serverEnvConfig.BASE_API_MAINNET_URL}/user/template/${params?.id}`, config);
+    const response = await services.axios.get(`${serverEnvConfig.BASE_API_MAINNET_URL}/user/template/${params.id}`, config);
 
     return {
       props: {
-        id: params!.id,
+        id: params.id,
         template: response.data
       }
     };
-  } catch (error: any) {
-    if (error.response?.status === 404 || error.response?.status === 400) {
-      return {
-        notFound: true
-      };
-    } else {
-      throw error;
-    }
   }
 });

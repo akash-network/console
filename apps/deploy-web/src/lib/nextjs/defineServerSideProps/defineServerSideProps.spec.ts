@@ -1,10 +1,13 @@
+import type { LoggerService } from "@akashnetwork/logging";
+import { AxiosError } from "axios";
 import { mock } from "jest-mock-extended";
 import type { GetServerSidePropsContext, GetServerSidePropsResult } from "next";
 import type { z } from "zod";
-import { z as zod } from "zod";
+import { z as zod, ZodError } from "zod";
 
 import { services } from "@src/services/http/http-server.service";
 import { requestExecutionContext } from "../requestExecutionContext";
+import type { AppTypedContext } from "./defineServerSideProps";
 import { defineServerSideProps } from "./defineServerSideProps";
 
 jest.mock("@src/config/server-env.config", () => ({
@@ -65,22 +68,30 @@ describe(defineServerSideProps, () => {
     expect(result).toEqual({ props: { validated: true } });
   });
 
-  it("throws error when schema validation fails", async () => {
+  it("return NOT_FOUND when schema validation fails", async () => {
     const schema = zod.object({
       query: zod.object({
         id: zod.string()
       })
     });
 
-    await expect(
-      setup({
-        route: "/test",
-        schema,
-        context: {
-          query: {}
-        }
-      })
-    ).rejects.toThrow(/invalid_type/);
+    const logger = mock<LoggerService>();
+    const result = await setup({
+      route: "/test",
+      schema,
+      context: {
+        query: {},
+        services: mock<typeof services>({
+          logger
+        })
+      }
+    });
+
+    expect(logger.warn).toHaveBeenCalledWith({
+      message: "Invalid context for route /test",
+      error: expect.any(ZodError)
+    });
+    expect(result).toEqual({ notFound: true });
   });
 
   it("returns notFound when if condition returns false", async () => {
@@ -212,12 +223,97 @@ describe(defineServerSideProps, () => {
     expect(mockHandler).toHaveBeenCalled();
   });
 
+  it("returns NOT_FOUND when handler throws 400 AxiosError", async () => {
+    const validationError = new AxiosError("Bad request", "400", undefined, undefined, {
+      status: 400,
+      statusText: "Bad request",
+      data: { message: "bad request" },
+      headers: {},
+      config: {} as any
+    });
+    const logger = mock<LoggerService>();
+    const result = await setup({
+      route: "/test",
+      handler: () => Promise.reject(validationError),
+      context: {
+        services: mock<typeof services>({
+          logger
+        })
+      }
+    });
+
+    expect(logger.warn).toHaveBeenCalledWith({
+      message: "Error in handler for route /test",
+      error: validationError
+    });
+    expect(result).toEqual({ notFound: true });
+  });
+
+  it("returns NOT_FOUND when handler throws 404 AxiosError", async () => {
+    const notFoundError = new AxiosError("Not Found", "404", undefined, undefined, {
+      status: 404,
+      statusText: "Not Found",
+      data: { message: "Resource not found" },
+      headers: {},
+      config: {} as any
+    });
+
+    const logger = mock<LoggerService>();
+
+    const result = await setup({
+      route: "/test",
+      handler: () => Promise.reject(notFoundError),
+      context: {
+        services: mock<typeof services>({
+          logger
+        })
+      }
+    });
+
+    expect(logger.warn).toHaveBeenCalledWith({
+      message: "Error in handler for route /test",
+      error: notFoundError
+    });
+    expect(result).toEqual({ notFound: true });
+  });
+
+  it("throws other AxiosError status codes", async () => {
+    const axiosError = new AxiosError("Internal Server Error", "500", undefined, undefined, {
+      status: 500,
+      statusText: "Internal Server Error",
+      data: { message: "Server error" },
+      headers: {},
+      config: {} as any
+    });
+
+    const mockHandler = jest.fn().mockRejectedValue(axiosError);
+
+    await expect(
+      setup({
+        route: "/test",
+        handler: mockHandler
+      })
+    ).rejects.toThrow("Internal Server Error");
+  });
+
+  it("throws non-AxiosError exceptions", async () => {
+    const error = new Error("Custom error");
+    const mockHandler = jest.fn().mockRejectedValue(error);
+
+    await expect(
+      setup({
+        route: "/test",
+        handler: mockHandler
+      })
+    ).rejects.toThrow("Custom error");
+  });
+
   function setup(input: {
     route: string;
     schema?: z.ZodSchema<any>;
     if?: (context: any) => boolean | Promise<boolean> | GetServerSidePropsResult<any> | Promise<GetServerSidePropsResult<any>>;
     handler?: (context: any) => Promise<any> | any;
-    context?: Partial<GetServerSidePropsContext>;
+    context?: Partial<AppTypedContext>;
   }) {
     const context: GetServerSidePropsContext = {
       req: mock<Request>({ url: "/test", originalUrl: "/test", headers: { host: "localhost" } }),
