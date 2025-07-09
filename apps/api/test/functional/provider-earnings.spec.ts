@@ -1,11 +1,12 @@
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import { format, subDays } from "date-fns";
 import mcache from "memory-cache";
 import nock from "nock";
 
 import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/db/dbConnection";
 
-import { createProvider } from "@test/seeders";
+import { createAkashBlock, createProvider } from "@test/seeders";
 
 describe("Provider Earnings API", () => {
   let provider: Provider;
@@ -14,6 +15,22 @@ describe("Provider Earnings API", () => {
     await initDb();
 
     provider = await createProvider();
+    await Promise.all([
+      createAkashBlock({
+        datetime: new Date().toISOString(),
+        isProcessed: true,
+        totalUUsdSpent: 1000,
+        height: 300
+      }),
+      createAkashBlock({
+        datetime: subDays(Date.now(), 1).toISOString(),
+        height: 200
+      }),
+      createAkashBlock({
+        datetime: subDays(Date.now(), 2).toISOString(),
+        height: 100
+      })
+    ]);
   });
 
   afterAll(async () => {
@@ -27,8 +44,8 @@ describe("Provider Earnings API", () => {
 
   describe("GET /internal/provider-earnings/{owner}?from=YYYY-MM-DD&to=YYYY-MM-DD", () => {
     it("should return earnings for a valid provider and date range", async () => {
-      const from = "2023-07-07";
-      const to = "2024-07-07";
+      const from = format(subDays(Date.now(), 2), "yyyy-MM-dd");
+      const to = format(subDays(Date.now(), 1), "yyyy-MM-dd");
 
       const response = await app.request(`/internal/provider-earnings/${provider.owner}?from=${from}&to=${to}`);
 
