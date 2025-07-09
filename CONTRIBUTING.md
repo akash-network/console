@@ -42,6 +42,9 @@ feat(wallet): add a new function to compute wallet balance
 - **Include Unit Tests (When Applicable)**: Verifiable unit tests aid in maintaining code quality and prevent additional bugs from being introduced.
 - **Linting**: Run `npm run lint:fix` to make sure your code is properly formatted.
 
+Some more specific guidelines are separated from this doc. Please check out:
+- [React Component Structure Guidelines](./doc/contributing/react-components.md)
+
 ### Big Features
 
 For large features or significant changes:
