@@ -1,5 +1,12 @@
 
 
+## [1.15.0](https://github.com/akash-network/console/compare/notifications/v1.14.2...notifications/v1.15.0) (2025-07-08)
+
+
+### Features
+
+* adds error code to collected error stack ([#1595](https://github.com/akash-network/console/issues/1595)) ([fef764f](https://github.com/akash-network/console/commit/fef764f8de77d501e7d0a136b5a9b5692d71d2ad))
+
 ## [1.14.2](https://github.com/akash-network/console/compare/notifications/v1.14.1...notifications/v1.14.2) (2025-07-06)
 
 
