@@ -29,7 +29,13 @@ export const EditNotificationChannelPage: React.FunctionComponent<Props> = ({ no
         </Link>
         <Title>Edit Notification Channel</Title>
       </div>
-      <NotificationChannelEditContainer id={notificationChannel.id} onEditSuccess={goBack}>
+      <NotificationChannelEditContainer
+        id={notificationChannel.id}
+        onEditSuccess={() => {
+          navGuard.toggle({ hasChanges: false });
+          goBack();
+        }}
+      >
         {props => (
           <NotificationChannelForm
             initialValues={{
