@@ -5,6 +5,7 @@ import nock from "nock";
 
 import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/db/dbConnection";
+import type { ProviderEarningsResponse } from "@src/provider/http-schemas/provider-earnings.schema";
 
 import { createAkashBlock, createProvider } from "@test/seeders";
 
@@ -49,7 +50,7 @@ describe("Provider Earnings API", () => {
 
       const response = await app.request(`/internal/provider-earnings/${provider.owner}?from=${from}&to=${to}`);
 
-      const data = await response.json();
+      const data = (await response.json()) as ProviderEarningsResponse;
 
       expect(response.status).toBe(200);
       expect(data).toHaveProperty("earnings");
@@ -60,12 +61,13 @@ describe("Provider Earnings API", () => {
 
     it("should return 404 for an invalid provider", async () => {
       const nonExistentOwner = "0x1234567890abcdef1234567890abcdef12345678";
-      const from = "2023-01-01";
-      const to = "2023-02-01";
+      const from = format(subDays(Date.now(), 2), "yyyy-MM-dd");
+      const to = format(subDays(Date.now(), 1), "yyyy-MM-dd");
 
       const res = await app.request(`/internal/provider-earnings/${nonExistentOwner}?from=${from}&to=${to}`);
       expect(res.status).toBe(404);
-      const data = await res.json();
+
+      const data = (await res.json()) as any;
       expect(data.message).toBe("Provider not found");
     });
 
