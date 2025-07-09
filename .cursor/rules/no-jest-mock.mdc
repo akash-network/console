@@ -1,0 +1,48 @@
+---
+description: "Disallow use of jest.mock() in test files"
+globs: **/*.spec.ts,**/*.spec.tsx
+alwaysApply: false
+---
+# Don't use jest.mock
+
+## Description
+
+Don't use `jest.mock()` to mock dependencies. Instead, use `jest-mock-extended` to create mocks and pass mocks as dependencies to the service under test.
+
+## Why
+
+- Avoid implicit dependencies: `jest.mock` mocks internal implementation details
+- Improve maintainability: explicit mocks make tests easier to understand and refactor
+- Better type safety: with jest-mock-extended, you get autocompletion and type checking for mocks.
+- No shared state state between tests: `jest.mock` introduce shared state which can lead to flaky and unreliable tests
+
+## Examples
+
+### Do this
+```ts
+import { mock } from "jest-mock-extended";
+
+describe("UserService", () => {
+  it("creates user", async () => {
+    const userRepository = mock<UserRepository>();
+    const userService = new UserService(userRepository);
+
+    userRepository.create.mockResolvedValue({ id: 1 });
+
+    await expect(userService.create()).resolves.toEqual({ id: 1 });
+  });
+});
+```
+
+### Don't do this
+
+```ts
+jest.mock("./user.repository");
+
+describe("UserService", () => {
+  it("creates user", async () => {
+    const userService = new UserService();
+    await expect(userService.create()).resolves.toEqual({ id: 1 });
+  });
+});
+```
