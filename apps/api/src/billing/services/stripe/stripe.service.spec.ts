@@ -177,7 +177,7 @@ describe(StripeService.name, () => {
         promotion_code: mockPromotionCode.id
       });
       expect(service.customers.update).toHaveBeenNthCalledWith(2, "cus_123", {
-        promotion_code: undefined
+        promotion_code: null
       });
       expect(result).toEqual({
         coupon: mockPromotionCode,
@@ -440,7 +440,7 @@ describe(StripeService.name, () => {
       ]);
       const result = await service.consumeActiveDiscount(customerId);
       expect(result).toBe(true);
-      expect(service.customers.update).toHaveBeenCalledWith(customerId, { promotion_code: undefined });
+      expect(service.customers.update).toHaveBeenCalledWith(customerId, { promotion_code: null });
     });
 
     it("should return false if no active discount", async () => {

@@ -270,7 +270,7 @@ export class StripeService extends Stripe {
 
     // Then, remove the coupon from the customer
     await this.customers.update(customerId, {
-      [updateField]: undefined
+      [updateField]: null
     });
 
     return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100 };
@@ -329,7 +329,7 @@ export class StripeService extends Stripe {
       if (discount.valid) {
         // Remove the active discount based on its type
         await this.customers.update(customerId, {
-          [discount.type === "promotion_code" ? "promotion_code" : "coupon"]: undefined
+          [discount.type === "promotion_code" ? "promotion_code" : "coupon"]: null
         });
         return true;
       }
