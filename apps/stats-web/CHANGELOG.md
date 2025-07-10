@@ -1,5 +1,12 @@
 
 
+## [0.29.0](https://github.com/akash-network/console/compare/stats-web/v0.28.6...stats-web/v0.29.0) (2025-07-08)
+
+
+### Features
+
+* adds error code to collected error stack ([#1595](https://github.com/akash-network/console/issues/1595)) ([fef764f](https://github.com/akash-network/console/commit/fef764f8de77d501e7d0a136b5a9b5692d71d2ad))
+
 ## [0.28.6](https://github.com/akash-network/console/compare/stats-web/v0.28.5...stats-web/v0.28.6) (2025-07-06)
 
 

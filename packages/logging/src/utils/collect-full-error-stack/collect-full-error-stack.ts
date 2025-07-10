@@ -2,7 +2,11 @@ export function collectFullErrorStack(error: Error | AggregateError | ErrorWithR
   const currentError = error;
   if (!currentError) return "";
 
-  const stack: string[] = [currentError.stack!];
+  const stack = currentError.stack ? currentError.stack.split("\n") : [];
+
+  if (stack.length > 0 && "code" in currentError) {
+    stack[0] = `${stack[0]} (code: ${currentError.code})`;
+  }
 
   if (currentError.cause) {
     stack.push("\nCaused by:", collectFullErrorStack(currentError.cause as Error, indent + 2));
@@ -29,6 +33,7 @@ export function collectFullErrorStack(error: Error | AggregateError | ErrorWithR
 }
 
 type ErrorWithResponse = Error & {
+  code?: string;
   response?: {
     status: number;
     config?: {

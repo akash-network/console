@@ -97,13 +97,13 @@ export const createAppRootContainer = (config: ServicesConfig) => {
     queryClient: () =>
       new QueryClient({
         queryCache: new QueryCache({
-          onError: error => container.errorHandler.handleError(error)
+          onError: error => container.errorHandler.reportError({ error })
         }),
         mutationCache: new MutationCache({
-          onError: error => container.errorHandler.handleError(error)
+          onError: error => container.errorHandler.reportError({ error })
         })
       }),
-    errorHandler: () => new ErrorHandlerService(),
+    errorHandler: () => new ErrorHandlerService(container.logger),
     logger: () => new LoggerService({ name: `app-${config.runtimeEnv}` })
   });
 

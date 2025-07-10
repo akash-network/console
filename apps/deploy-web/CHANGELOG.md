@@ -1,5 +1,26 @@
 
 
+## [2.93.1](https://github.com/akash-network/console/compare/console-web/v2.93.0...console-web/v2.93.1) (2025-07-09)
+
+
+### Bug Fixes
+
+* **notification-channel:** goes back after successful form submission without prompt ([ed4b28c](https://github.com/akash-network/console/commit/ed4b28cffcc19849557f229b050be6db63ac73b6))
+
+## [2.93.0](https://github.com/akash-network/console/compare/console-web/v2.92.1...console-web/v2.93.0) (2025-07-08)
+
+
+### Features
+
+* adds error code to collected error stack ([#1595](https://github.com/akash-network/console/issues/1595)) ([fef764f](https://github.com/akash-network/console/commit/fef764f8de77d501e7d0a136b5a9b5692d71d2ad))
+* improves observability of SSR part of deploy-web ([#1642](https://github.com/akash-network/console/issues/1642)) ([ad55727](https://github.com/akash-network/console/commit/ad5572745235ce42691f314cfca61576607fbc1b))
+
+
+### Code Refactoring
+
+* fix hacky ref logic in ImageSelect ([#1624](https://github.com/akash-network/console/issues/1624)) ([e77e2df](https://github.com/akash-network/console/commit/e77e2dff0c198871cf14f98b68d62cf9b2bbc5dc)), closes [#1045](https://github.com/akash-network/console/issues/1045) [#1045](https://github.com/akash-network/console/issues/1045)
+* moves services into DI ([#1636](https://github.com/akash-network/console/issues/1636)) ([d2756f0](https://github.com/akash-network/console/commit/d2756f0383e97578c441faade2ad8a1fe6c66235))
+
 ## [2.92.1](https://github.com/akash-network/console/compare/console-web/v2.92.0...console-web/v2.92.1) (2025-07-06)
 
 

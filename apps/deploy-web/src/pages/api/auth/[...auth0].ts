@@ -5,6 +5,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 import { serverEnvConfig } from "@src/config/server-env.config";
 import { wrapApiHandlerInExecutionContext } from "@src/lib/nextjs/wrapApiHandler";
+import type { SeverityLevel } from "@src/services/error-handler/error-handler.service";
 import { services } from "@src/services/http/http-server.service";
 
 export default wrapApiHandlerInExecutionContext(
@@ -35,7 +36,7 @@ export default wrapApiHandlerInExecutionContext(
         }
       : handleLogout,
     async profile(req: NextApiRequest, res: NextApiResponse) {
-      console.log("server /profile", req.url);
+      services.logger.info({ event: "AUTH_PROFILE_REQUEST", url: req.url });
       try {
         await handleProfile(req, res, {
           refetch: true,
@@ -66,27 +67,22 @@ export default wrapApiHandlerInExecutionContext(
               );
 
               session.user = { ...session.user, ...userSettings.data };
-            } catch (err) {
-              console.error(err);
+            } catch (error) {
+              services.errorHandler.reportError({ error, tags: { category: "auth0" } });
             }
 
             return session;
           }
         });
       } catch (error: any) {
-        const status = error?.status || 0;
-        console.error("auth0 signup error", {
-          status,
-          message: error.message,
-          stack: error.stack,
-          error
-        });
-
-        if (status >= 500) {
-          res.status(503).send({ message: "An unexpected error occurred. Please try again later." });
-        } else {
+        let severity: SeverityLevel = "error";
+        if (error?.status && error.status >= 400 && error.status < 500) {
+          severity = "warning";
           res.status(400).send({ message: error.message });
+        } else {
+          res.status(503).send({ message: "An unexpected error occurred. Please try again later." });
         }
+        services.errorHandler.reportError({ severity, error, tags: { category: "auth0", event: "AUTH_PROFILE_ERROR" } });
       }
     }
   })
