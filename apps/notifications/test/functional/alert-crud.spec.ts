@@ -2,7 +2,8 @@ import { generateMock } from "@anatine/zod-mock";
 import { faker } from "@faker-js/faker";
 import { INestApplication, Module } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { eq } from "drizzle-orm";
+import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import request from "supertest";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
@@ -13,6 +14,7 @@ import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-re
 import RestModule from "@src/interfaces/rest/rest.module";
 import * as alertSchema from "@src/modules/alert/model-schemas";
 import { AlertOutput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+import { ChainMessageParams } from "@src/modules/alert/repositories/alert/alert-json-fields.schema";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 
 import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
@@ -28,15 +30,42 @@ describe("Alerts CRUD", () => {
     const alert = HAS_ROLE_TO_CREATE_ALERTS ? await shouldCreate(userId, notificationChannelId, app) : await prepareAlert(userId, notificationChannelId, app);
     await shouldUpdate(alert, app);
     await shouldRead(alert, app);
+    await shouldList([alert], app);
     await shouldDelete(alert, app);
 
     await app.close();
   });
 
-  async function prepareAlert(userId: string, notificationChannelId: string, app: INestApplication): Promise<AlertOutputMeta> {
+  it("should exclude suppressed alerts from the alerts list", async () => {
+    const { app, userId, notificationChannelId } = await setup();
+
+    const regularAlert = await prepareAlert(userId, notificationChannelId, app);
+    await prepareAlert(userId, notificationChannelId, app, { suppressedBySystem: true });
+
+    await shouldList([regularAlert], app);
+
+    await app.close();
+  });
+
+  async function prepareAlert(
+    userId: string,
+    notificationChannelId: string,
+    app: INestApplication,
+    params: Partial<ChainMessageParams> = {}
+  ): Promise<AlertOutputMeta> {
     const repository = app.get(AlertRepository);
-    const { params, ...input } = generateMock(chainMessageCreateInputSchema);
-    const alert = await repository.create({ ...input, userId, notificationChannelId, enabled: true });
+    const { params: mockParams, ...input } = generateMock(chainMessageCreateInputSchema);
+    const alert = await repository.create({
+      ...input,
+      userId,
+      notificationChannelId,
+      enabled: true,
+      params: {
+        type: (mockParams as ChainMessageParams).type,
+        dseq: (mockParams as ChainMessageParams).dseq,
+        ...params
+      }
+    });
 
     return {
       id: alert.id,
@@ -94,6 +123,13 @@ describe("Alerts CRUD", () => {
     expect(getRes.status).toBe(404);
   }
 
+  async function shouldList(alerts: AlertOutputMeta[], app: INestApplication) {
+    const res = await request(app.getHttpServer()).get("/v1/alerts").set("x-user-id", alerts[0].userId);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((alert: AlertOutput) => alert.id)).toEqual(expect.arrayContaining(alerts.map(alert => alert.id)));
+  }
+
   async function setup(): Promise<{
     app: INestApplication;
     notificationChannelId: string;
@@ -125,6 +161,7 @@ describe("Alerts CRUD", () => {
       .insert(NotificationChannel)
       .values([generateNotificationChannel({ userId })])
       .returning();
+    await db.delete(schema.Alert).where(eq(schema.Alert.userId, userId));
 
     return { app, notificationChannelId: notificationChannel.id, userId };
   }
