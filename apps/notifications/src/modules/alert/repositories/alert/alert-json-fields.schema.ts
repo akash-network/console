@@ -45,6 +45,7 @@ export const chainMessageParamsSchema = z.object({
   type: z.string(),
   suppressedBySystem: z.boolean().optional()
 });
+export type ChainMessageParams = z.infer<typeof chainMessageParamsSchema>;
 
 export const chainMessageTypeSchema = z.literal("CHAIN_MESSAGE");
 export const deploymentBalanceTypeSchema = z.literal("DEPLOYMENT_BALANCE");
