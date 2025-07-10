@@ -10158,9 +10158,13 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                       "couponId": {
                         "type": "string",
                       },
+                      "userId": {
+                        "type": "string",
+                      },
                     },
                     "required": [
                       "couponId",
+                      "userId",
                     ],
                     "type": "object",
                   },
