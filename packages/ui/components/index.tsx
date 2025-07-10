@@ -1,6 +1,6 @@
 export * from "./button";
 export * from "./loading-button";
-export * from "./alert";
+export * from "./alert/alert";
 export * from "./avatar";
 export * from "./badge";
 export * from "./breadcrumb";

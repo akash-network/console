@@ -2,7 +2,7 @@
 import type { ReactNode } from "react";
 import type { FallbackProps } from "react-error-boundary";
 
-import { Alert, AlertTitle } from "../alert";
+import { Alert, AlertTitle } from "../alert/alert";
 import { Button } from "../button";
 
 interface Props extends FallbackProps {
