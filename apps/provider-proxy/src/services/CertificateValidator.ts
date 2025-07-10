@@ -4,7 +4,7 @@ import { bech32 } from "bech32";
 import type { X509Certificate } from "crypto";
 import { LRUCache } from "lru-cache";
 
-import type { ProviderService } from "./ProviderService";
+import type { ProviderService } from "./ProviderService/ProviderService";
 
 export class CertificateValidator {
   private readonly knownCertificatesCache = new LRUCache<string, X509Certificate>({

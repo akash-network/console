@@ -23,7 +23,7 @@ try {
 const transpilePackages = ["geist", "@akashnetwork/ui"];
 
 if (process.env.NODE_ENV === "test") {
-  transpilePackages.push("nanoid", "uint8arrays", "multiformats", "@marsidev/react-turnstile");
+  transpilePackages.push("nanoid", "uint8arrays", "multiformats", "@marsidev/react-turnstile", "@panva/hkdf", "jose");
 }
 
 /**

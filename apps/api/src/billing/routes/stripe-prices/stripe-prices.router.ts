@@ -21,6 +21,7 @@ const route = createRoute({
   method: "get",
   path: "/v1/stripe/prices",
   summary: "",
+  tags: ["Payment"],
   request: {},
   responses: {
     200: {

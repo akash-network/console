@@ -4,12 +4,13 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 import { serverEnvConfig } from "@src/config/server-env.config";
 import { wrapApiHandlerInExecutionContext } from "@src/lib/nextjs/wrapApiHandler";
+import { services } from "@src/services/http/http-server.service";
 
 export default wrapApiHandlerInExecutionContext(async (req: NextApiRequest, res: NextApiResponse) => {
   // removes the api prefix from url
   req.url = req.url?.replace(/^\/api\/proxy/, "");
 
-  console.log("proxy:", req.url);
+  services.logger.info({ event: "PROXY_API_REQUEST", url: req.url });
   const session = await getSession(req, res);
 
   // Extract and forward only cf_clearance cookie if present
@@ -35,7 +36,7 @@ export default wrapApiHandlerInExecutionContext(async (req: NextApiRequest, res:
     proxy
       .once("proxyRes", () => resolve(undefined))
       .once("error", (error: Error) => {
-        console.log("proxy error:", error);
+        services.logger.error({ error, event: "PROXY_API_REQUEST_ERROR" });
         reject();
       })
       .web(req, res);
