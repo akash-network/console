@@ -1,5 +1,12 @@
 
 
+## [2.93.1](https://github.com/akash-network/console/compare/console-web/v2.93.0...console-web/v2.93.1) (2025-07-09)
+
+
+### Bug Fixes
+
+* **notification-channel:** goes back after successful form submission without prompt ([ed4b28c](https://github.com/akash-network/console/commit/ed4b28cffcc19849557f229b050be6db63ac73b6))
+
 ## [2.93.0](https://github.com/akash-network/console/compare/console-web/v2.92.1...console-web/v2.93.0) (2025-07-08)
 
 
