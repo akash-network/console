@@ -131,7 +131,8 @@ export class StripeController {
     limit?: number;
     startingAfter?: string;
     endingBefore?: string;
-    created?: { gt?: number; lt?: number };
+    startDate?: string;
+    endDate?: string;
   }): Promise<{ data: { transactions: Transaction[]; hasMore: boolean; nextPage: string | null; prevPage: string | null } }> {
     const { currentUser } = this.authService;
 

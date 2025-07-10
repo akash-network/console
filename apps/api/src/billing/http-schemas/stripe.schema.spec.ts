@@ -9,77 +9,70 @@ if (!ZodType.prototype.openapi) {
 import { CustomerTransactionsQuerySchema } from "./stripe.schema";
 
 describe("CustomerTransactionsQuerySchema", () => {
-  const ONE_DAY_SECONDS = 24 * 60 * 60;
+  const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
   it("accepts no parameters and returns only an empty created object", () => {
     const { schema } = setup();
     const out = schema.parse({});
-    expect(out).toEqual({ created: {} });
+    expect(out).toEqual({});
   });
 
-  it("carries through startingAfter and endingBefore with empty created", () => {
+  it("carries through startingAfter and endingBefore", () => {
     const { schema } = setup();
-    const input = {
+    const out = schema.parse({
       startingAfter: "ch_after",
       endingBefore: "ch_before"
-    };
-    const out = schema.parse(input);
+    });
     expect(out).toEqual({
       startingAfter: "ch_after",
-      endingBefore: "ch_before",
-      created: {}
+      endingBefore: "ch_before"
     });
   });
 
-  it("parses only created[gt] into created.gt", () => {
+  it("carries through startDate and endDate", () => {
     const { schema } = setup();
-    const gt = 1_600_000_000;
     const out = schema.parse({
-      "created[gt]": gt
+      startDate: new Date("2025-01-01T00:00:00Z").toISOString(),
+      endDate: new Date("2025-01-02T00:00:00Z").toISOString()
     });
-    expect(out.created).toEqual({ gt });
-    expect(out["created[gt]"]).toBe(gt);
+    expect(out).toEqual({
+      startDate: "2025-01-01T00:00:00.000Z",
+      endDate: "2025-01-02T00:00:00.000Z"
+    });
   });
 
-  it("parses only created[lt] into created.lt", () => {
+  it("accepts both startDate and endDate when range ≤ 366 days", () => {
     const { schema } = setup();
-    const lt = 1_700_000_000;
+    const startDate = new Date();
+    const endDate = new Date(startDate.getTime() + ONE_DAY_MS * 366);
     const out = schema.parse({
-      "created[lt]": lt
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
     });
-    expect(out.created).toEqual({ lt });
-    expect(out["created[lt]"]).toBe(lt);
+    expect(out).toEqual({
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
+    });
   });
 
-  it("accepts both created[gt] and created[lt] when range ≤ 366 days", () => {
-    const { schema } = setup();
-    const gt = ONE_DAY_SECONDS;
-    const lt = gt + ONE_DAY_SECONDS * 366;
-    const out = schema.parse({
-      "created[gt]": gt,
-      "created[lt]": lt
-    });
-    expect(out.created).toEqual({ gt, lt });
-  });
-
-  it("rejects when created[gt] > created[lt]", () => {
+  it("rejects when startDate > endDate", () => {
     const { schema } = setup();
     expect(() =>
       schema.parse({
-        "created[gt]": 2_000,
-        "created[lt]": 1_000
+        startDate: new Date("2025-01-02T00:00:00Z").toISOString(),
+        endDate: new Date("2025-01-01T00:00:00Z").toISOString()
       })
     ).toThrow("Date range cannot exceed 366 days and startDate must be before endDate");
   });
 
   it("rejects when range > 366 days", () => {
     const { schema } = setup();
-    const gt = ONE_DAY_SECONDS;
-    const lt = gt + ONE_DAY_SECONDS * 367;
+    const startDate = new Date();
+    const endDate = new Date(startDate.getTime() + ONE_DAY_MS * 367);
     expect(() =>
       schema.parse({
-        "created[gt]": gt,
-        "created[lt]": lt
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
       })
     ).toThrow("Date range cannot exceed 366 days and startDate must be before endDate");
   });

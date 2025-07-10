@@ -143,24 +143,23 @@ export const CustomerTransactionsQuerySchema = z
       description: "ID of the first transaction from the previous page (if paginating backwards)",
       example: "ch_0987654321"
     }),
-    "created[gt]": z.coerce.number().optional(),
-    "created[lt]": z.coerce.number().optional()
+    startDate: z.string().datetime().optional().openapi({
+      description: "Start date for filtering transactions (exclusive)",
+      example: "2025-01-01T00:00:00Z"
+    }),
+    endDate: z.string().datetime().optional().openapi({
+      description: "End date for filtering transactions (exclusive)",
+      example: "2025-01-02T00:00:00Z"
+    })
   })
-  .transform(data => ({
-    ...data,
-    created: {
-      ...(data["created[gt]"] && { gt: data["created[gt]"] }),
-      ...(data["created[lt]"] && { lt: data["created[lt]"] })
-    }
-  }))
   .refine(
     data => {
-      if (!data.created?.gt || !data.created?.lt) {
+      if (!data.startDate || !data.endDate) {
         return true;
       }
 
-      const start = new Date(data.created.gt * 1000);
-      const end = new Date(data.created.lt * 1000);
+      const start = new Date(data.startDate);
+      const end = new Date(data.endDate);
 
       const daysDiff = Math.floor((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
 

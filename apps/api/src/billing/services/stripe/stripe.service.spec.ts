@@ -210,16 +210,21 @@ describe(StripeService.name, () => {
 
       jest.spyOn(service.charges, "list").mockResolvedValue(stub(mockCharges));
 
-      const createdFilter = { gt: 1609459200, lt: 1640995200 };
+      const startDate = new Date("2022-01-01T00:00:00Z").toISOString();
+      const endDate = new Date("2022-12-31T23:59:59Z").toISOString();
       await service.getCustomerTransactions("cus_123", {
-        created: createdFilter,
+        startDate,
+        endDate,
         limit: 25
       });
 
       expect(service.charges.list).toHaveBeenCalledWith({
         customer: "cus_123",
         limit: 25,
-        created: createdFilter,
+        created: {
+          gt: new Date(startDate).getTime() / 1000,
+          lt: new Date(endDate).getTime() / 1000
+        },
         starting_after: undefined,
         ending_before: undefined,
         expand: ["data.payment_intent"]
@@ -331,11 +336,15 @@ describe(StripeService.name, () => {
 
       jest.spyOn(service.charges, "list").mockResolvedValue(stub(mockCharges));
 
+      const startDate = new Date("2021-01-01T00:00:00Z").toISOString();
+      const endDate = new Date("2021-12-31T23:59:59Z").toISOString();
+
       const options = {
         limit: 10,
         startingAfter: "ch_start_id",
         endingBefore: "ch_end_id",
-        created: { gt: 1609459200, lt: 1640995200 }
+        startDate,
+        endDate
       };
 
       await service.getCustomerTransactions("cus_123", options);
@@ -343,7 +352,10 @@ describe(StripeService.name, () => {
       expect(service.charges.list).toHaveBeenCalledWith({
         customer: "cus_123",
         limit: 10,
-        created: { gt: 1609459200, lt: 1640995200 },
+        created: {
+          gt: new Date(startDate).getTime() / 1000,
+          lt: new Date(endDate).getTime() / 1000
+        },
         starting_after: "ch_start_id",
         ending_before: "ch_end_id",
         expand: ["data.payment_intent"]

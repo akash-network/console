@@ -75,26 +75,31 @@ export class QueryKeys {
     limit?: number;
     startingAfter?: string | null;
     endingBefore?: string | null;
-    created?: { gt?: number; lt?: number };
+    startDate?: Date | null;
+    endDate?: Date | null;
   }) => {
     const key = ["STRIPE_TRANSACTIONS"];
+
     if (options?.limit) {
       key.push("limit", options.limit.toString());
     }
+
     if (options?.startingAfter) {
       key.push("after", options.startingAfter);
     }
+
     if (options?.endingBefore) {
       key.push("before", options.endingBefore);
     }
-    if (options?.created) {
-      if (options.created.gt) {
-        key.push("gt", options.created.gt.toString());
-      }
-      if (options.created.lt) {
-        key.push("lt", options.created.lt.toString());
-      }
+
+    if (options?.startDate) {
+      key.push("start_date", options.startDate.toISOString());
     }
+
+    if (options?.endDate) {
+      key.push("end_date", options.endDate.toISOString());
+    }
+
     return key;
   };
 }

@@ -293,17 +293,25 @@ export class StripeService extends Stripe {
 
   async getCustomerTransactions(
     customerId: string,
-    options?: { limit?: number; startingAfter?: string; endingBefore?: string; created?: { gt?: number; lt?: number } }
+    options?: { limit?: number; startingAfter?: string; endingBefore?: string; startDate?: string; endDate?: string }
   ): Promise<{
     transactions: Transaction[];
     hasMore: boolean;
     nextPage: string | null;
     prevPage: string | null;
   }> {
+    const created =
+      options?.startDate || options?.endDate
+        ? {
+            gt: options?.startDate ? Math.floor(new Date(options.startDate).getTime() / 1000) : undefined,
+            lt: options?.endDate ? Math.floor(new Date(options.endDate).getTime() / 1000) : undefined
+          }
+        : undefined;
+
     const charges = await this.charges.list({
+      created,
       customer: customerId,
       limit: options?.limit ?? 100,
-      created: options?.created,
       starting_after: options?.startingAfter,
       ending_before: options?.endingBefore,
       expand: ["data.payment_intent"]

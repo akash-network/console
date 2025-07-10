@@ -84,7 +84,8 @@ export interface CustomerTransactionsParams {
   limit?: number;
   startingAfter?: string | null;
   endingBefore?: string | null;
-  created?: { gt?: number; lt?: number };
+  startDate?: Date | null;
+  endDate?: Date | null;
 }
 
 export interface CustomerTransactionsResponse {

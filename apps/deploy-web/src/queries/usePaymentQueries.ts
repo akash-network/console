@@ -30,7 +30,8 @@ export interface UsePaymentTransactionsOptions {
   limit?: number;
   startingAfter?: string | null;
   endingBefore?: string | null;
-  created?: { gt?: number; lt?: number };
+  startDate?: Date | null;
+  endDate?: Date | null;
 }
 
 export const usePaymentTransactionsQuery = (options?: UsePaymentTransactionsOptions) => {

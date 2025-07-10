@@ -45,18 +45,18 @@ export class StripeService extends ApiHttpService {
   }
 
   async getCustomerTransactions(options?: CustomerTransactionsParams): Promise<CustomerTransactionsResponse> {
-    const { limit, startingAfter, endingBefore, created } = options || {};
+    const { limit, startingAfter, endingBefore, startDate, endDate } = options || {};
 
-    if (created?.gt && created?.lt && created.gt >= created.lt) {
-      throw new Error("created[gt] must be less than created[lt]");
+    if (startDate && endDate && startDate >= endDate) {
+      throw new Error("startDate must be less than endDate");
     }
 
     const params = new URLSearchParams({
       ...(limit && { limit: limit.toString() }),
       ...(startingAfter && { startingAfter }),
       ...(endingBefore && { endingBefore }),
-      ...(created?.gt && { "created[gt]": created.gt.toString() }),
-      ...(created?.lt && { "created[lt]": created.lt.toString() })
+      ...(startDate && { startDate: startDate.toString() }),
+      ...(endDate && { endDate: endDate.toString() })
     });
 
     const url = `/v1/stripe/transactions${params.toString() ? `?${params}` : ""}`;
