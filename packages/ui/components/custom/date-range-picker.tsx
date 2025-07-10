@@ -18,7 +18,6 @@ interface DateRangePickerProps {
   className?: string;
   date?: DateRange;
   onChange?: (date: DateRange | undefined) => void;
-  onError?: (error: string) => void;
   minDate?: Date;
   maxDate?: Date;
   maxRangeInDays?: number;
@@ -30,7 +29,6 @@ export function DateRangePicker({
   className,
   date,
   onChange,
-  onError,
   minDate,
   maxDate,
   maxRangeInDays,
@@ -121,7 +119,7 @@ export function DateRangePicker({
       setErrorMessage(null);
       setSelectedRange(range);
     },
-    [onError, validateDateRange]
+    [validateDateRange]
   );
 
   const handlePresetSelect = React.useCallback(
@@ -136,7 +134,7 @@ export function DateRangePicker({
         setPresetsOpen(false);
       }
     },
-    [handleDateSelect, isMobile, onError, validateDateRange]
+    [handleDateSelect, isMobile]
   );
 
   const handleMonthSelect = React.useCallback(
@@ -154,7 +152,7 @@ export function DateRangePicker({
         setMonthsOpen(false);
       }
     },
-    [currentYear, handleDateSelect, isMobile, onError, validateDateRange]
+    [currentYear, handleDateSelect, isMobile]
   );
 
   const handleApply = React.useCallback(() => {
@@ -223,7 +221,7 @@ export function DateRangePicker({
         isSelected: selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, monthStart) && isSameDay(selectedRange.to, monthEnd)
       };
     },
-    [currentYear, selectedRange]
+    [currentYear, selectedRange, isDateDisabled, maxRangeInDays]
   );
 
   if (isMobile) {
