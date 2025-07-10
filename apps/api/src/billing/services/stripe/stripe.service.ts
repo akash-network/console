@@ -200,12 +200,12 @@ export class StripeService extends Stripe {
     return promotionCodes[0];
   }
 
-  async applyCoupon(customerId: string, couponCode: string): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; amountAdded: number }> {
+  async applyCoupon(currentUser: UserOutput, couponCode: string): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; amountAdded: number }> {
     const promotionCode = await this.findPromotionCodeByCode(couponCode);
 
     if (promotionCode) {
-      return this._applyCouponOrPromotionCode({
-        customerId,
+      return this.applyCouponOrPromotionCode({
+        currentUser,
         couponOrPromotion: promotionCode,
         coupon: promotionCode.coupon,
         updateField: "promotion_code",
@@ -218,8 +218,8 @@ export class StripeService extends Stripe {
     const matchingCoupon = coupons.find(coupon => coupon.id === couponCode);
 
     if (matchingCoupon) {
-      return this._applyCouponOrPromotionCode({
-        customerId,
+      return this.applyCouponOrPromotionCode({
+        currentUser,
         couponOrPromotion: matchingCoupon,
         coupon: matchingCoupon,
         updateField: "coupon",
@@ -230,14 +230,14 @@ export class StripeService extends Stripe {
     throw new Error("No valid promotion code or coupon found with the provided code");
   }
 
-  private async _applyCouponOrPromotionCode({
-    customerId,
+  private async applyCouponOrPromotionCode({
+    currentUser,
     couponOrPromotion,
     coupon,
     updateField,
     updateId
   }: {
-    customerId: string;
+    currentUser: UserOutput;
     couponOrPromotion: Stripe.Coupon | Stripe.PromotionCode;
     coupon: Stripe.Coupon;
     updateField: "promotion_code" | "coupon";
@@ -255,21 +255,21 @@ export class StripeService extends Stripe {
       throw new Error("Invalid coupon type. Only fixed amount coupons are supported.");
     }
 
+    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
+
     // First, apply the coupon to the customer (for tracking)
-    await this.customers.update(customerId, {
+    await this.customers.update(currentUser.stripeCustomerId, {
       [updateField]: updateId
     });
 
     const amountToAdd = coupon.amount_off; // amount_off is already in cents
 
     if (amountToAdd > 0) {
-      const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
-      assert(user, 404, "User not found for customer ID");
-      await this.refillService.topUpWallet(amountToAdd, user.id);
+      await this.refillService.topUpWallet(amountToAdd, currentUser.id);
     }
 
     // Then, remove the coupon from the customer
-    await this.customers.update(customerId, {
+    await this.customers.update(currentUser.stripeCustomerId, {
       [updateField]: null
     });
 

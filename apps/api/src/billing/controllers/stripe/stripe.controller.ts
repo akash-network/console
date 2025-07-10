@@ -85,7 +85,7 @@ export class StripeController {
     assert(couponId, 400, "Coupon ID is required");
 
     try {
-      const result = await this.stripe.applyCoupon(currentUser.stripeCustomerId, couponId);
+      const result = await this.stripe.applyCoupon(currentUser, couponId);
       return { data: { coupon: result.coupon, amountAdded: result.amountAdded } };
     } catch (error: unknown) {
       if (this.stripeErrorService.isKnownError(error, "coupon")) {

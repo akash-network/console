@@ -121,7 +121,6 @@ const PayPage: React.FunctionComponent = () => {
         return;
       }
 
-      // Show success animation with the amount added
       if (response.amountAdded && response.amountAdded > 0) {
         setShowPaymentSuccess({ amount: response.amountAdded.toString(), show: true });
       }
