@@ -26,5 +26,8 @@ export const services = createChildContainer(rootContainer, {
     createAPIClient({
       requestFn,
       baseUrl: serverEnvConfig.BASE_API_MAINNET_URL
-    })
+    }),
+  config: () => serverEnvConfig
 });
+
+export type AppServices = typeof services;
