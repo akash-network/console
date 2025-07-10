@@ -79,4 +79,5 @@ export interface ConfirmPaymentParams {
 
 export interface ApplyCouponParams {
   coupon: string;
+  userId: string;
 }

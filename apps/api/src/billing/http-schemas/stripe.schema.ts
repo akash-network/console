@@ -61,7 +61,8 @@ export const ConfirmPaymentRequestSchema = z.object({
 
 export const ApplyCouponRequestSchema = z.object({
   data: z.object({
-    couponId: z.string()
+    couponId: z.string(),
+    userId: z.string()
   })
 });
 

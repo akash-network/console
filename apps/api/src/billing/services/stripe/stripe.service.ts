@@ -6,7 +6,10 @@ import { singleton } from "tsyringe";
 import { Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
+import { LoggerService } from "@src/core/providers/logging.provider";
 import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
+
+const logger = LoggerService.forContext("StripeService");
 
 interface CheckoutOptions {
   customerId: string;
@@ -257,23 +260,32 @@ export class StripeService extends Stripe {
 
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
 
-    // First, apply the coupon to the customer (for tracking)
-    await this.customers.update(currentUser.stripeCustomerId, {
-      [updateField]: updateId
-    });
-
     const amountToAdd = coupon.amount_off; // amount_off is already in cents
+    let couponApplied = false;
 
-    if (amountToAdd > 0) {
-      await this.refillService.topUpWallet(amountToAdd, currentUser.id);
+    try {
+      // First, apply the coupon to the customer (for tracking)
+      await this.customers.update(currentUser.stripeCustomerId, {
+        [updateField]: updateId
+      });
+      couponApplied = true;
+
+      if (amountToAdd > 0) {
+        await this.refillService.topUpWallet(amountToAdd, currentUser.id);
+      }
+
+      return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100 };
+    } finally {
+      if (couponApplied) {
+        try {
+          await this.customers.update(currentUser.stripeCustomerId, {
+            [updateField]: null
+          });
+        } catch (rollbackError) {
+          logger.error({ event: "FAILED_TO_ROLLBACK_COUPON_APPLICATION", rollbackError });
+        }
+      }
     }
-
-    // Then, remove the coupon from the customer
-    await this.customers.update(currentUser.stripeCustomerId, {
-      [updateField]: null
-    });
-
-    return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100 };
   }
 
   async listCoupons() {

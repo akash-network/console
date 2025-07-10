@@ -113,7 +113,7 @@ const PayPage: React.FunctionComponent = () => {
     if (!coupon) return;
 
     try {
-      const response = await applyCoupon({ coupon });
+      const response = await applyCoupon({ coupon, userId: user?.id || "" });
 
       if (response.error) {
         const errorInfo = handleCouponError(response);

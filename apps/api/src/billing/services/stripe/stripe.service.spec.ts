@@ -2,7 +2,7 @@ import { mock } from "jest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
-import type { UserRepository } from "@src/user/repositories/user/user.repository";
+import type { UserRepository } from "@src/user/repositories";
 import { StripeService } from "./stripe.service";
 
 import { create as StripeSeederCreate } from "@test/seeders/stripe.seeder";
