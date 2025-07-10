@@ -4,7 +4,7 @@ import * as React from "react";
 import type { DateRange } from "react-day-picker";
 import { UI } from "react-day-picker";
 import { differenceInDays, format, isAfter, isBefore, isSameDay, startOfToday, subDays, subMonths, subYears } from "date-fns";
-import { CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, X } from "lucide-react";
+import { Calendar as CalendarIcon, NavArrowDown, NavArrowLeft, NavArrowRight, NavArrowUp, Refresh, Xmark } from "iconoir-react";
 
 import { useMediaQuery } from "../../hooks";
 import { cn } from "../../utils";
@@ -22,7 +22,6 @@ interface DateRangePickerProps {
   minDate?: Date;
   maxDate?: Date;
   maxRangeInDays?: number;
-  disableFuture?: boolean;
   showPresets?: boolean;
   showWeekNumber?: boolean;
 }
@@ -35,7 +34,6 @@ export function DateRangePicker({
   minDate,
   maxDate,
   maxRangeInDays,
-  disableFuture = false,
   showPresets = true,
   showWeekNumber = true
 }: DateRangePickerProps) {
@@ -45,11 +43,10 @@ export function DateRangePicker({
   const [calendarMonth, setCalendarMonth] = React.useState<Date>(date?.from || new Date());
   const [presetsOpen, setPresetsOpen] = React.useState(false);
   const [monthsOpen, setMonthsOpen] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   const today = React.useMemo(() => startOfToday(), []);
-  const effectiveMaxDate = React.useMemo(() => (disableFuture ? today : maxDate), [disableFuture, today, maxDate]);
-  const effectiveMinDate = React.useMemo(() => minDate, [minDate]);
 
   const months = React.useMemo(() => Array.from({ length: 12 }, (_, i) => format(new Date(2024, i, 1), "MMMM")), []);
 
@@ -91,12 +88,12 @@ export function DateRangePicker({
     (range: DateRange | undefined): string | null => {
       if (!range?.from || !range?.to) return null;
 
-      if (effectiveMinDate && isBefore(range.from, effectiveMinDate)) {
-        return `Start date cannot be before ${format(effectiveMinDate, "MMM dd, yyyy")}`;
+      if (minDate && isBefore(range.from, minDate)) {
+        return `Start date cannot be before ${format(minDate, "MMM dd, yyyy")}`;
       }
 
-      if (effectiveMaxDate && isAfter(range.to, effectiveMaxDate)) {
-        return `End date cannot be after ${format(effectiveMaxDate, "MMM dd, yyyy")}`;
+      if (maxDate && isAfter(range.to, maxDate)) {
+        return `End date cannot be after ${format(maxDate, "MMM dd, yyyy")}`;
       }
 
       if (maxRangeInDays) {
@@ -109,7 +106,7 @@ export function DateRangePicker({
 
       return null;
     },
-    [effectiveMinDate, effectiveMaxDate, maxRangeInDays]
+    [minDate, maxDate, maxRangeInDays]
   );
 
   const handleDateSelect = React.useCallback(
@@ -117,10 +114,11 @@ export function DateRangePicker({
       const error = validateDateRange(range);
 
       if (error) {
-        onError?.(error);
+        setErrorMessage(error);
         return;
       }
 
+      setErrorMessage(null);
       setSelectedRange(range);
     },
     [onError, validateDateRange]
@@ -129,14 +127,9 @@ export function DateRangePicker({
   const handlePresetSelect = React.useCallback(
     (preset: (typeof presets)[0]) => {
       const range = preset.getValue();
-      const error = validateDateRange(range);
-
-      if (error) {
-        onError?.(error);
-        return;
-      }
 
       setCalendarMonth(range.from);
+
       handleDateSelect(range);
 
       if (isMobile) {
@@ -150,16 +143,11 @@ export function DateRangePicker({
     (monthIndex: number) => {
       const startDate = new Date(currentYear, monthIndex, 1);
       const endDate = new Date(currentYear, monthIndex + 1, 0);
+
       const range = { from: startDate, to: endDate };
 
-      const error = validateDateRange(range);
-
-      if (error) {
-        onError?.(error);
-        return;
-      }
-
       setCalendarMonth(startDate);
+
       handleDateSelect(range);
 
       if (isMobile) {
@@ -189,11 +177,9 @@ export function DateRangePicker({
 
   const isDateDisabled = React.useCallback(
     (date: Date) => {
-      if (effectiveMinDate && isBefore(date, effectiveMinDate)) return true;
-
-      return !!(effectiveMaxDate && isAfter(date, effectiveMaxDate));
+      return Boolean(minDate && isBefore(date, minDate)) || Boolean(maxDate && isAfter(date, maxDate));
     },
-    [effectiveMinDate, effectiveMaxDate]
+    [minDate, maxDate]
   );
 
   const handleMonthsOpenChange = React.useCallback((open: boolean) => {
@@ -211,6 +197,34 @@ export function DateRangePicker({
       setMonthsOpen(false);
     }
   }, []);
+
+  const getPresetMetadata = React.useCallback(
+    (preset: (typeof presets)[0]) => {
+      const { from, to } = preset.getValue();
+
+      return {
+        isDisabled:
+          !!(minDate && isBefore(from, minDate)) ||
+          !!(maxDate && isAfter(to, maxDate)) ||
+          !!(maxRangeInDays && differenceInDays(to, from) + 1 > maxRangeInDays),
+        isSelected: selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, from) && isSameDay(selectedRange.to, to)
+      };
+    },
+    [selectedRange]
+  );
+
+  const getMonthMetadata = React.useCallback(
+    (monthIndex: number) => {
+      const monthStart = new Date(currentYear, monthIndex, 1);
+      const monthEnd = new Date(currentYear, monthIndex + 1, 0);
+
+      return {
+        isDisabled: isDateDisabled(monthStart) || isDateDisabled(monthEnd) || !!(maxRangeInDays && differenceInDays(monthEnd, monthStart) + 1 > maxRangeInDays),
+        isSelected: selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, monthStart) && isSameDay(selectedRange.to, monthEnd)
+      };
+    },
+    [currentYear, selectedRange]
+  );
 
   if (isMobile) {
     return (
@@ -246,7 +260,7 @@ export function DateRangePicker({
                     handleClear();
                   }}
                 >
-                  <X className="h-4 w-4" />
+                  <Xmark className="h-4 w-4" />
                 </Button>
               )}
             </Button>
@@ -258,19 +272,19 @@ export function DateRangePicker({
                   <CollapsibleTrigger asChild>
                     <Button variant="outline" className="h-12 w-full justify-between bg-transparent">
                       <span>Quick Select</span>
-                      {presetsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      {presetsOpen ? <NavArrowUp className="h-4 w-4" /> : <NavArrowDown className="h-4 w-4" />}
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-2 space-y-2">
                     {presets.map(preset => {
-                      const { from, to } = preset.getValue();
-                      const isSelected = selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, from) && isSameDay(selectedRange.to, to);
+                      const { isDisabled, isSelected } = getPresetMetadata(preset);
 
                       return (
                         <Button
                           key={preset.label}
                           variant="ghost"
                           size="lg"
+                          disabled={isDisabled}
                           className={cn(
                             "h-12 w-full justify-start",
                             isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
@@ -289,28 +303,24 @@ export function DateRangePicker({
                 <CollapsibleTrigger asChild>
                   <Button variant="outline" className="h-12 w-full justify-between bg-transparent">
                     <span>Select Month</span>
-                    {monthsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    {monthsOpen ? <NavArrowUp className="h-4 w-4" /> : <NavArrowDown className="h-4 w-4" />}
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-2 space-y-3">
                   <div className="flex items-center justify-between">
                     <Button variant="outline" size="lg" onClick={() => handleYearChange(-1)} className="h-12 gap-1 px-6">
-                      <ChevronLeft className="h-4 w-4" />
+                      <NavArrowLeft className="h-4 w-4" />
                       {currentYear - 1}
                     </Button>
                     <span className="text-lg font-medium">{currentYear}</span>
                     <Button variant="outline" size="lg" onClick={() => handleYearChange(1)} className="h-12 gap-1 px-6">
                       {currentYear + 1}
-                      <ChevronRight className="h-4 w-4" />
+                      <NavArrowRight className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {months.map((month, index) => {
-                      const monthStart = new Date(currentYear, index, 1);
-                      const monthEnd = new Date(currentYear, index + 1, 0);
-                      const isDisabled = isDateDisabled(monthStart) || isDateDisabled(monthEnd);
-                      const isSelected =
-                        selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, monthStart) && isSameDay(selectedRange.to, monthEnd);
+                      const { isDisabled, isSelected } = getMonthMetadata(index);
 
                       return (
                         <Button
@@ -340,19 +350,26 @@ export function DateRangePicker({
                 className="rounded-md"
                 key={calendarMonth.getTime()}
                 disabled={isDateDisabled}
-                fromDate={effectiveMinDate}
-                toDate={effectiveMaxDate}
+                fromDate={minDate}
+                toDate={maxDate}
               />
 
               <Separator />
 
-              <div className="flex gap-3">
-                <Button variant="outline" size="lg" onClick={handleClear} disabled={!selectedRange} className="h-12 flex-1 bg-transparent">
-                  Clear
+              <div className="flex justify-between">
+                <Button variant="secondary" size="sm" onClick={() => setCalendarMonth(today)}>
+                  <Refresh width={12} className="mr-2" strokeWidth={2} />
+                  Today
                 </Button>
-                <Button size="lg" onClick={handleApply} disabled={!selectedRange?.from || !selectedRange?.to} className="h-12 flex-1">
-                  Apply
-                </Button>
+
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleClear} disabled={!selectedRange}>
+                    Clear
+                  </Button>
+                  <Button size="sm" onClick={handleApply} disabled={!selectedRange?.from || !selectedRange?.to}>
+                    Apply
+                  </Button>
+                </div>
               </div>
             </div>
           </PopoverContent>
@@ -390,7 +407,7 @@ export function DateRangePicker({
                   handleClear();
                 }}
               >
-                <X className="h-3 w-3" />
+                <Xmark className="h-3 w-3" />
               </Button>
             )}
           </Button>
@@ -403,14 +420,14 @@ export function DateRangePicker({
                   <div className="text-muted-foreground mb-2 text-xs font-medium">Quick Select</div>
                   <div className="mb-4 grid gap-1">
                     {presets.map(preset => {
-                      const { from, to } = preset.getValue();
-                      const isSelected = selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, from) && isSameDay(selectedRange.to, to);
+                      const { isDisabled, isSelected } = getPresetMetadata(preset);
 
                       return (
                         <Button
                           key={preset.label}
                           variant="ghost"
                           size="sm"
+                          disabled={isDisabled}
                           className={cn(
                             "h-8 justify-start px-2 text-xs",
                             isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
@@ -428,21 +445,17 @@ export function DateRangePicker({
 
               <div className="mb-3 flex items-center justify-between">
                 <Button variant="outline" size="sm" onClick={() => handleYearChange(-1)} className="h-7 w-7 p-0">
-                  <ChevronLeft className="h-4 w-4" />
+                  <NavArrowLeft className="h-4 w-4" />
                 </Button>
                 <span className="text-sm font-medium">{currentYear}</span>
                 <Button variant="outline" size="sm" onClick={() => handleYearChange(1)} className="h-7 w-7 p-0">
-                  <ChevronRight className="h-4 w-4" />
+                  <NavArrowRight className="h-4 w-4" />
                 </Button>
               </div>
               <div className="grid gap-1">
                 <div className="text-muted-foreground mb-2 text-xs font-medium">Select Month</div>
                 {months.map((month, index) => {
-                  const monthStart = new Date(currentYear, index, 1);
-                  const monthEnd = new Date(currentYear, index + 1, 0);
-                  const isDisabled = isDateDisabled(monthStart) || isDateDisabled(monthEnd);
-                  const isSelected =
-                    selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, monthStart) && isSameDay(selectedRange.to, monthEnd);
+                  const { isDisabled, isSelected } = getMonthMetadata(index);
 
                   return (
                     <Button
@@ -475,8 +488,8 @@ export function DateRangePicker({
                 className="rounded-md"
                 key={calendarMonth.getTime()}
                 disabled={isDateDisabled}
-                fromDate={effectiveMinDate}
-                toDate={effectiveMaxDate}
+                fromDate={minDate}
+                toDate={maxDate}
                 classNames={{
                   [UI.Month]: "[&:not(:last-of-type)]:mb-4",
                   [UI.WeekNumberHeader]: "w-6",
@@ -488,13 +501,30 @@ export function DateRangePicker({
               <Separator className="my-3" />
 
               <div className="flex justify-between">
-                <Button variant="outline" size="sm" onClick={handleClear} disabled={!selectedRange}>
-                  Clear
+                <Button variant="secondary" size="sm" onClick={() => setCalendarMonth(today)}>
+                  <Refresh width={14} className="mr-2" strokeWidth={2} />
+                  Today
                 </Button>
-                <Button size="sm" onClick={handleApply} disabled={!selectedRange?.from || !selectedRange?.to}>
-                  Apply
-                </Button>
+
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleClear} disabled={!selectedRange}>
+                    Clear
+                  </Button>
+                  <Button size="sm" onClick={handleApply} disabled={!selectedRange?.from || !selectedRange?.to}>
+                    Apply
+                  </Button>
+                </div>
               </div>
+
+              {errorMessage && (
+                <>
+                  <Separator className="my-3" />
+                  <div className="text-destructive mt-2 flex items-center gap-1 text-sm">
+                    <Xmark width={18} />
+                    {errorMessage}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </PopoverContent>
