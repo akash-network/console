@@ -264,7 +264,6 @@ export class StripeService extends Stripe {
     let couponApplied = false;
 
     try {
-      // First, apply the coupon to the customer (for tracking)
       await this.customers.update(currentUser.stripeCustomerId, {
         [updateField]: updateId
       });
@@ -274,17 +273,35 @@ export class StripeService extends Stripe {
         await this.refillService.topUpWallet(amountToAdd, currentUser.id);
       }
 
+      await this.customers.update(currentUser.stripeCustomerId, {
+        [updateField]: null
+      });
+
       return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100 };
-    } finally {
+    } catch (error) {
       if (couponApplied) {
         try {
           await this.customers.update(currentUser.stripeCustomerId, {
             [updateField]: null
           });
+          logger.info({
+            event: "COUPON_APPLICATION_ROLLBACK_SUCCESS",
+            userId: currentUser.id,
+            couponId: updateId,
+            error: error instanceof Error ? error.message : String(error)
+          });
         } catch (rollbackError) {
-          logger.error({ event: "FAILED_TO_ROLLBACK_COUPON_APPLICATION", rollbackError });
+          logger.error({
+            event: "COUPON_APPLICATION_ROLLBACK_FAILED",
+            userId: currentUser.id,
+            couponId: updateId,
+            originalError: error instanceof Error ? error.message : String(error),
+            rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
+          });
         }
       }
+
+      throw error;
     }
   }
 

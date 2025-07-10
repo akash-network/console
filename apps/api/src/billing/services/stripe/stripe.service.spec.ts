@@ -259,9 +259,38 @@ describe(StripeService.name, () => {
     it("throws error for invalid promotion code", async () => {
       const { service } = setup();
       const mockUser = UserSeeder.create({ stripeCustomerId: "cus_123" });
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(null as any);
+      jest.spyOn(service.promotionCodes, "list").mockResolvedValue({ data: [] } as any);
+      jest.spyOn(service.coupons, "list").mockResolvedValue({ data: [] } as any);
 
-      await expect(service.applyCoupon(mockUser, "INVALID")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
+      await expect(service.applyCoupon(mockUser, "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
+    });
+
+    it("rolls back coupon application when topUpWallet fails", async () => {
+      const { service, refillService } = setup();
+      // Use a fixed-amount coupon, not a percent-off
+      const basePromotionCode = StripeSeederCreate().promotionCode;
+      const mockPromotionCode = {
+        ...basePromotionCode,
+        coupon: { ...basePromotionCode.coupon, amount_off: 1000, percent_off: null as number | null, valid: true }
+      };
+      const mockUser = UserSeeder.create({ stripeCustomerId: "cus_123" });
+
+      jest.spyOn(service.promotionCodes, "list").mockResolvedValue({ data: [mockPromotionCode] } as any);
+      jest.spyOn(service.customers, "update").mockResolvedValue({} as any);
+
+      // Mock topUpWallet to fail
+      refillService.topUpWallet.mockRejectedValue(new Error("Wallet top-up failed"));
+
+      await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow("Wallet top-up failed");
+
+      // Verify that the coupon was applied and then rolled back
+      expect(service.customers.update).toHaveBeenCalledTimes(2);
+      expect(service.customers.update).toHaveBeenNthCalledWith(1, "cus_123", {
+        promotion_code: mockPromotionCode.id
+      });
+      expect(service.customers.update).toHaveBeenNthCalledWith(2, "cus_123", {
+        promotion_code: null
+      });
     });
   });
 
