@@ -4,4 +4,4 @@ import { routeProtector } from "@src/services/route-protector";
 
 export default RegisteredUsersOnly(BillingPage);
 
-export const getServerSideProps = routeProtector.showToRegisteredUserIfEnabled("allowViewingUsage");
+export const getServerSideProps = routeProtector.showToRegisteredUserIfEnabled("billing_usage");

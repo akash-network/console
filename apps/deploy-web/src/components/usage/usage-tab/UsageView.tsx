@@ -1,29 +1,20 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/components";
+import { Button, Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/components";
 import LinearProgress from "@mui/material/LinearProgress";
-import { Cloud, DollarSign } from "lucide-react";
+import { Cloud, Dollar, Download } from "iconoir-react";
 
 import { Title } from "@src/components/shared/Title";
 import { CumulativeSpendingLineChart } from "@src/components/usage/usage-tab/charts/CumulativeSpendingLineChart";
 import { DailyUsageBarChart } from "@src/components/usage/usage-tab/charts/DailyUsageBarChart";
+import type { UsageHistory, UsageHistoryStats } from "@src/types";
 
-export type UsageHistory = Array<{
-  date: string;
-  activeDeployments: number;
-  dailyAktSpent: number;
-  totalAktSpent: number;
-  dailyUsdcSpent: number;
-  totalUsdcSpent: number;
-  dailyUsdSpent: number;
-  totalUsdSpent: number;
-}>;
-
-export type UsageHistoryStats = {
-  totalSpent: number;
-  averageSpentPerDay: number;
-  totalDeployments: number;
-  averageDeploymentsPerDay: number;
+const DEPENDENCIES = {
+  FormattedNumber,
+  Title,
+  DailyUsageBarChart,
+  CumulativeSpendingLineChart,
+  LinearProgress
 };
 
 export type UsageViewProps = {
@@ -33,6 +24,7 @@ export type UsageViewProps = {
   isUsageHistoryError: boolean;
   isFetchingUsageHistoryStats: boolean;
   isUsageHistoryStatsError: boolean;
+  dependencies?: typeof DEPENDENCIES;
 };
 
 export const UsageView = ({
@@ -41,11 +33,48 @@ export const UsageView = ({
   isFetchingUsageHistory,
   isUsageHistoryError,
   isFetchingUsageHistoryStats,
-  isUsageHistoryStatsError
+  isUsageHistoryStatsError,
+  dependencies: D = DEPENDENCIES
 }: UsageViewProps) => {
+  const exportCSV = () => {
+    const historyCsvContent = usageHistoryData.map(row => Object.values(row).join(",")).join("\n");
+
+    const historyBlob = new Blob([historyCsvContent], { type: "text/csv;charset=utf-8;" });
+    const historyUrl = URL.createObjectURL(historyBlob);
+    const historyLink = document.createElement("a");
+    historyLink.setAttribute("href", historyUrl);
+    historyLink.setAttribute("download", "usage_history.csv");
+    historyLink.style.visibility = "hidden";
+    document.body.appendChild(historyLink);
+    historyLink.click();
+    document.body.removeChild(historyLink);
+
+    const statsCsvContent = [
+      "Total Spent,Average Spent Per Day,Total Deployments,Average Deployments Per Day",
+      `${usageHistoryStatsData.totalSpent},${usageHistoryStatsData.averageSpentPerDay},${usageHistoryStatsData.totalDeployments},${usageHistoryStatsData.averageDeploymentsPerDay}`
+    ].join("\n");
+
+    const statsBlob = new Blob([statsCsvContent], { type: "text/csv;charset=utf-8;" });
+    const statsUrl = URL.createObjectURL(statsBlob);
+    const statsLink = document.createElement("a");
+    statsLink.setAttribute("href", statsUrl);
+    statsLink.setAttribute("download", "usage_stats.csv");
+    statsLink.style.visibility = "hidden";
+    document.body.appendChild(statsLink);
+    statsLink.click();
+    document.body.removeChild(statsLink);
+  };
+
   return (
     <div className="h-full space-y-4">
-      <Title subTitle>Overview</Title>
+      <div className="flex items-center justify-between">
+        <D.Title subTitle>Overview</D.Title>
+
+        <Button variant="secondary" onClick={exportCSV} size="sm">
+          <Download width={16} className="mr-2" />
+          Export CSV
+        </Button>
+      </div>
 
       {isUsageHistoryStatsError && (
         <div className="mt-4 flex h-full items-center justify-center">
@@ -58,11 +87,11 @@ export const UsageView = ({
           <Card className="flex min-h-28 basis-1/2 flex-col">
             <CardHeader className="flex flex-row items-center justify-between pb-0">
               <CardTitle className="text-base">Total Spent</CardTitle>
-              <DollarSign color="#71717a" size={18} />
+              <Dollar color="#71717a" width={18} />
             </CardHeader>
             {isFetchingUsageHistoryStats ? (
               <div className="flex flex-1 items-center">
-                <LinearProgress color="primary" className="mx-auto w-11/12" />
+                <D.LinearProgress color="primary" className="mx-auto w-11/12" />
               </div>
             ) : (
               <CardContent className="pt-2">
@@ -70,13 +99,13 @@ export const UsageView = ({
                   <p className="text-gray-400">No data</p>
                 ) : (
                   <div className="text-3xl font-bold">
-                    <FormattedNumber value={usageHistoryStatsData.totalSpent} style="currency" currency="USD" currencyDisplay="narrowSymbol" />
+                    <D.FormattedNumber value={usageHistoryStatsData.totalSpent} style="currency" currency="USD" currencyDisplay="narrowSymbol" />
                   </div>
                 )}
                 {!Number.isNaN(Number(usageHistoryStatsData.averageSpentPerDay)) && (
                   <div className="text-sm font-semibold text-gray-400">
-                    <FormattedNumber value={usageHistoryStatsData.averageSpentPerDay} style="currency" currency="USD" currencyDisplay="narrowSymbol" /> average
-                    per day
+                    <D.FormattedNumber value={usageHistoryStatsData.averageSpentPerDay} style="currency" currency="USD" currencyDisplay="narrowSymbol" />{" "}
+                    average per day
                   </div>
                 )}
               </CardContent>
@@ -85,11 +114,11 @@ export const UsageView = ({
           <Card className="flex min-h-28 basis-1/2 flex-col">
             <CardHeader className="flex flex-row items-center justify-between pb-0">
               <CardTitle className="text-base">Total Deployments</CardTitle>
-              <Cloud color="#71717a" size={18} />
+              <Cloud color="#71717a" width={18} />
             </CardHeader>
             {isFetchingUsageHistoryStats ? (
               <div className="flex flex-1 items-center">
-                <LinearProgress color="primary" className="mx-auto w-11/12" />
+                <D.LinearProgress color="primary" className="mx-auto w-11/12" />
               </div>
             ) : (
               <CardContent className="pt-2">
@@ -97,12 +126,12 @@ export const UsageView = ({
                   <p className="text-gray-400">No data</p>
                 ) : (
                   <div className="text-3xl font-bold">
-                    <FormattedNumber value={usageHistoryStatsData.totalDeployments} />
+                    <D.FormattedNumber value={usageHistoryStatsData.totalDeployments} />
                   </div>
                 )}
                 {!Number.isNaN(Number(usageHistoryStatsData.averageDeploymentsPerDay)) && (
                   <div className="text-sm font-semibold text-gray-400">
-                    <FormattedNumber value={usageHistoryStatsData.averageDeploymentsPerDay} /> average per day
+                    <D.FormattedNumber value={usageHistoryStatsData.averageDeploymentsPerDay} /> average per day
                   </div>
                 )}
               </CardContent>
@@ -121,8 +150,8 @@ export const UsageView = ({
 
       {!isUsageHistoryError && (
         <>
-          <DailyUsageBarChart data={usageHistoryData} isFetching={isFetchingUsageHistory} />
-          <CumulativeSpendingLineChart data={usageHistoryData} isFetching={isFetchingUsageHistory} />
+          <D.DailyUsageBarChart data={usageHistoryData} isFetching={isFetchingUsageHistory} />
+          <D.CumulativeSpendingLineChart data={usageHistoryData} isFetching={isFetchingUsageHistory} />
         </>
       )}
     </div>

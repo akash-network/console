@@ -22,7 +22,6 @@ export function useFeatureFlags(options?: Omit<UseQueryOptions<Features>, "query
 
 export interface Features {
   allowAnonymousUserTrial?: boolean;
-  allowViewingUsage?: boolean;
 }
 
 export async function getFeatureFlags(networkId: NetworkId, axios: AxiosInstance, apiUrlService: ApiUrlService) {

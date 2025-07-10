@@ -2,27 +2,15 @@ import "@testing-library/jest-dom";
 
 import React from "react";
 
-import type { ChildrenProps } from "@src/components/usage/usage-tab/UsageContainer";
+import type { ChildrenProps, UsageContainerProps } from "@src/components/usage/usage-tab/UsageContainer";
 import { UsageContainer } from "@src/components/usage/usage-tab/UsageContainer";
-import { useWallet } from "@src/context/WalletProvider";
-import { useUsage, useUsageStats } from "@src/queries";
+import type { useWallet } from "@src/context/WalletProvider";
+import type { useUsage, useUsageStats } from "@src/queries";
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
 
 import { render } from "@testing-library/react";
 import { buildUsageHistory, buildUsageHistoryStats } from "@tests/seeders/usage";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
-
-jest.mock("@src/queries", () => ({
-  useUsage: jest.fn(),
-  useUsageStats: jest.fn()
-}));
-jest.mock("@src/context/WalletProvider", () => ({
-  useWallet: jest.fn()
-}));
-
-const mockedUseUsage = useUsage as jest.Mock;
-const mockedUseUsageStats = useUsageStats as jest.Mock;
-const mockedUseWallet = useWallet as jest.Mock;
 
 describe(UsageContainer.name, () => {
   it("renders usage history and stats with data", async () => {
@@ -78,33 +66,36 @@ describe(UsageContainer.name, () => {
       isUsageHistoryStatsError: boolean;
     }> = {}
   ) {
-    const defaultUsageHistoryData: UsageHistory = buildUsageHistory();
-    const defaultUsageHistoryStatsData: UsageHistoryStats = buildUsageHistoryStats();
-
-    const usageHistoryData = overrides.usageHistoryData ?? defaultUsageHistoryData;
-    const usageHistoryStatsData = overrides.usageHistoryStatsData ?? defaultUsageHistoryStatsData;
+    const usageHistoryData = overrides.usageHistoryData ?? buildUsageHistory();
+    const usageHistoryStatsData = overrides.usageHistoryStatsData ?? buildUsageHistoryStats();
     const isFetchingUsageHistory = overrides.isFetchingUsageHistory ?? false;
     const isUsageHistoryError = overrides.isUsageHistoryError ?? false;
     const isFetchingUsageHistoryStats = overrides.isFetchingUsageHistoryStats ?? false;
     const isUsageHistoryStatsError = overrides.isUsageHistoryStatsError ?? false;
 
-    mockedUseWallet.mockReturnValue({ address: "0xABCDEF" });
+    const mockedUseWallet = jest.fn(() => ({ address: "0xABCDEF" })) as unknown as jest.MockedFunction<typeof useWallet>;
 
-    mockedUseUsage.mockReturnValue({
+    const mockedUseUsage = jest.fn(() => ({
       data: usageHistoryData,
       isError: isUsageHistoryError,
       isFetching: isFetchingUsageHistory
-    });
+    })) as unknown as jest.MockedFunction<typeof useUsage>;
 
-    mockedUseUsageStats.mockReturnValue({
+    const mockedUseUsageStats = jest.fn(() => ({
       data: usageHistoryStatsData,
       isError: isUsageHistoryStatsError,
       isFetching: isFetchingUsageHistoryStats
-    });
+    })) as unknown as jest.MockedFunction<typeof useUsageStats>;
+
+    const dependencies: NonNullable<UsageContainerProps["dependencies"]> = {
+      useWallet: mockedUseWallet,
+      useUsage: mockedUseUsage,
+      useUsageStats: mockedUseUsageStats
+    };
 
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
 
-    render(<UsageContainer>{childCapturer.renderChild}</UsageContainer>);
+    render(<UsageContainer dependencies={dependencies}>{childCapturer.renderChild}</UsageContainer>);
 
     const child = await childCapturer.awaitChild(() => true);
 

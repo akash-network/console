@@ -5,7 +5,7 @@ import type { ChartConfig } from "@akashnetwork/ui/components";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, ChartContainer, ChartTooltip, ChartTooltipContent, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { format, isAfter, isBefore, startOfTomorrow, subDays } from "date-fns";
-import { TrendingDown, TrendingUp } from "lucide-react";
+import { GraphDown, GraphUp } from "iconoir-react";
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 
 type ChartData = Array<{
@@ -100,7 +100,7 @@ const TrendIndicator: FC<{ change: number }> = ({ change }) => {
   const isUp = change > 0;
   return (
     <p className="mt-2 text-gray-500">
-      Trending {isUp ? "up" : "down"} by {Math.abs(change)}% {isUp ? <TrendingUp className="inline h-4 w-4" /> : <TrendingDown className="inline h-4 w-4" />}
+      Trending {isUp ? "up" : "down"} by {Math.abs(change)}% {isUp ? <GraphUp className="inline h-4 w-4" /> : <GraphDown className="inline h-4 w-4" />}
     </p>
   );
 };

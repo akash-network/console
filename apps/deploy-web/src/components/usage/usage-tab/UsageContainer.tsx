@@ -4,6 +4,12 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useUsage, useUsageStats } from "@src/queries";
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
 
+const DEPENDENCIES = {
+  useWallet,
+  useUsage,
+  useUsageStats
+};
+
 export type ChildrenProps = {
   usageHistoryData: UsageHistory;
   usageHistoryStatsData: UsageHistoryStats;
@@ -13,17 +19,18 @@ export type ChildrenProps = {
   isUsageHistoryStatsError: boolean;
 };
 
-type UsageContainerProps = {
+export type UsageContainerProps = {
   children: (props: ChildrenProps) => React.ReactNode;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const UsageContainer: FC<UsageContainerProps> = ({ children }) => {
-  const { address } = useWallet();
+export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
+  const { address } = d.useWallet();
   const {
     data: usageHistoryData = [],
     isError: isUsageHistoryError,
     isFetching: isFetchingUsageHistory
-  } = useUsage({
+  } = d.useUsage({
     address
   });
   const {
@@ -35,7 +42,7 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children }) => {
     },
     isError: isUsageHistoryStatsError,
     isFetching: isFetchingUsageHistoryStats
-  } = useUsageStats({
+  } = d.useUsageStats({
     address
   });
 

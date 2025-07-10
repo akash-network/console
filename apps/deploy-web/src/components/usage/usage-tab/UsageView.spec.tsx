@@ -10,50 +10,7 @@ import { UsageView, type UsageViewProps } from "@src/components/usage/usage-tab/
 import { render, screen } from "@testing-library/react";
 import { buildUsageHistory, buildUsageHistoryStats } from "@tests/seeders/usage";
 
-jest.mock("react-intl", () => ({
-  FormattedNumber: ({ value }: { value: number }) => <span>{value}</span>
-}));
-
-jest.mock("@src/components/shared/Title", () => ({
-  Title: ({ children }: { children: React.ReactNode }) => <div>{children}</div>
-}));
-
-jest.mock("@src/components/usage/usage-tab/charts/DailyUsageBarChart", () => ({
-  DailyUsageBarChart: ({ data, isFetching }: DailyUsageBarChartProps) => (
-    <div data-testid="daily-chart" data-fetching={String(isFetching)}>
-      {JSON.stringify(data)}
-    </div>
-  )
-}));
-
-jest.mock("@src/components/usage/usage-tab/charts/CumulativeSpendingLineChart", () => ({
-  CumulativeSpendingLineChart: ({ data, isFetching }: CumulativeSpendingLineChartProps) => (
-    <div data-testid="cumulative-chart" data-fetching={String(isFetching)}>
-      {JSON.stringify(data)}
-    </div>
-  )
-}));
-
-jest.mock("@mui/material/LinearProgress", () => ({
-  __esModule: true,
-  default: (props: Omit<LinearProgressProps, "ref">) => <div role="progressbar" {...props} />
-}));
-
 describe(UsageView.name, () => {
-  function setup(props: Partial<UsageViewProps> = {}) {
-    const defaultProps = {
-      usageHistoryData: buildUsageHistory(props.usageHistoryData),
-      usageHistoryStatsData: buildUsageHistoryStats(props.usageHistoryStatsData),
-      isFetchingUsageHistory: false,
-      isUsageHistoryError: false,
-      isFetchingUsageHistoryStats: false,
-      isUsageHistoryStatsError: false,
-      ...props
-    };
-    render(<UsageView {...defaultProps} />);
-    return defaultProps;
-  }
-
   it("renders an error message when stats fail to load", () => {
     setup({ isUsageHistoryStatsError: true });
     expect(screen.queryByText("Error loading usage stats")).toBeInTheDocument();
@@ -110,4 +67,36 @@ describe(UsageView.name, () => {
     expect(screen.queryByTestId("daily-chart")).toHaveAttribute("data-fetching", "false");
     expect(screen.queryByTestId("cumulative-chart")).toHaveAttribute("data-fetching", "false");
   });
+
+  function setup(props: Partial<UsageViewProps> = {}) {
+    const defaultDependencies: NonNullable<UsageViewProps["dependencies"]> = {
+      FormattedNumber: ({ value }: { value: number }) => <span>{value}</span>,
+      Title: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+      DailyUsageBarChart: ({ data, isFetching }: DailyUsageBarChartProps) => (
+        <div data-testid="daily-chart" data-fetching={String(isFetching)}>
+          {JSON.stringify(data)}
+        </div>
+      ),
+      CumulativeSpendingLineChart: ({ data, isFetching }: CumulativeSpendingLineChartProps) => (
+        <div data-testid="cumulative-chart" data-fetching={String(isFetching)}>
+          {JSON.stringify(data)}
+        </div>
+      ),
+      LinearProgress: (props: Omit<LinearProgressProps, "ref">) => <div role="progressbar" {...props} />
+    };
+
+    const defaultProps = {
+      usageHistoryData: buildUsageHistory(props.usageHistoryData),
+      usageHistoryStatsData: buildUsageHistoryStats(props.usageHistoryStatsData),
+      isFetchingUsageHistory: false,
+      isUsageHistoryError: false,
+      isFetchingUsageHistoryStats: false,
+      isUsageHistoryStatsError: false,
+      dependencies: defaultDependencies,
+      ...props
+    };
+
+    render(<UsageView {...defaultProps} />);
+    return defaultProps;
+  }
 });

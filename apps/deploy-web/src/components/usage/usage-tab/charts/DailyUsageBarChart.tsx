@@ -20,10 +20,7 @@ const chartConfig = {
   }
 } satisfies ChartConfig;
 
-type ChartData = Array<{
-  date: string;
-  dailyUsdSpent: number;
-}>;
+type ChartData = Array<{ date: string; dailyUsdSpent: number }>;
 
 export type DailyUsageBarChartProps = {
   isFetching: boolean;
