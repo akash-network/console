@@ -1,6 +1,6 @@
 import type { AxiosInstance } from "axios";
 
-import { browserApiUrlService } from "@src/services/api-url/browser-api-url.service";
+import { services } from "@src/services/http/http-browser.service";
 import networkStore from "@src/store/networkStore";
 import { appendSearchParams } from "./urlUtils";
 
@@ -127,7 +127,7 @@ export class ApiUrlService {
   }
 
   static get baseApiUrl() {
-    return browserApiUrlService.getBaseApiUrlFor(networkStore.selectedNetworkId);
+    return services.apiUrlService.getBaseApiUrlFor(networkStore.selectedNetworkId);
   }
 }
 

@@ -24,6 +24,14 @@ export class StripeErrorService {
     "Promotion code has already been used": {
       code: 400,
       message: "Promotion code has already been used"
+    },
+    "Percentage-based coupons are not supported. Only fixed amount coupons are allowed.": {
+      code: 400,
+      message: "Percentage-based coupons are not supported. Only fixed amount coupons are allowed."
+    },
+    "Invalid coupon type. Only fixed amount coupons are supported.": {
+      code: 400,
+      message: "Invalid coupon type. Only fixed amount coupons are supported."
     }
   };
 
@@ -147,6 +155,10 @@ export class StripeErrorService {
       return "coupon_already_used";
     } else if (messageLower.includes("cannot be used")) {
       return "coupon_not_applicable";
+    } else if (messageLower.includes("percentage-based coupons are not supported")) {
+      return "percentage_coupon_not_supported";
+    } else if (messageLower.includes("invalid coupon type")) {
+      return "invalid_coupon_type";
     }
 
     return "unknown_coupon_error";
@@ -371,90 +383,5 @@ export class StripeErrorService {
       errorCode: "validation_error",
       errorType: "validation_error"
     });
-  }
-
-  /**
-   * Check if an error is retryable based on Stripe's recommendations
-   */
-  public isRetryableError(error: Error | Stripe.errors.StripeError): boolean {
-    if (this.isStripeError(error)) {
-      return ["StripeConnectionError", "StripeAPIError", "StripeRateLimitError"].includes(error.type);
-    }
-    return false;
-  }
-
-  /**
-   * Get retry delay in milliseconds for retryable errors
-   */
-  public getRetryDelay(error: Error | Stripe.errors.StripeError, attempt: number = 1): number {
-    if (!this.isRetryableError(error)) {
-      return 0;
-    }
-
-    // Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 30s
-    const baseDelay = 1000; // 1 second
-    const maxDelay = 30000; // 30 seconds
-    const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), maxDelay);
-
-    // Add jitter to prevent thundering herd
-    const jitter = Math.random() * 0.1 * delay; // 10% jitter
-    return delay + jitter;
-  }
-
-  /**
-   * Handle webhook-specific errors
-   */
-  public handleWebhookError(error: Error | Stripe.errors.StripeError): HttpError {
-    if (this.isStripeError(error) && error.type === "StripeSignatureVerificationError") {
-      return this.handleSignatureVerificationError(error as Stripe.errors.StripeSignatureVerificationError);
-    }
-
-    // For other webhook errors, treat them as general errors
-    const appError = this.toAppError(error, "payment");
-    if (appError instanceof HttpError) {
-      return appError;
-    }
-
-    // If it's not an HttpError, create a generic one
-    return createError(500, "Webhook processing error", { originalError: error });
-  }
-
-  /**
-   * Get detailed error information for logging and debugging
-   */
-  public getErrorDetails(error: Error | Stripe.errors.StripeError): {
-    type: string;
-    code?: string;
-    decline_code?: string;
-    param?: string;
-    message: string;
-    retryable: boolean;
-    httpStatus: number;
-  } {
-    const appError = this.toAppError(error);
-    let httpStatus = 500;
-
-    if (appError instanceof HttpError) {
-      httpStatus = appError.status;
-    }
-
-    if (this.isStripeError(error)) {
-      return {
-        type: error.type,
-        code: "code" in error ? error.code : undefined,
-        decline_code: "decline_code" in error ? error.decline_code : undefined,
-        param: "param" in error ? error.param : undefined,
-        message: error.message,
-        retryable: this.isRetryableError(error),
-        httpStatus
-      };
-    }
-
-    return {
-      type: "Unknown",
-      message: error.message,
-      retryable: false,
-      httpStatus
-    };
   }
 }

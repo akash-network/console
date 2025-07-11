@@ -12,6 +12,7 @@ import { proxyProviderRequest, proxyRoute } from "./routes/proxyProviderRequest"
 import { HonoErrorHandlerService } from "./services/HonoErrorHandlerService/HonoErrorHandlerService";
 import { WebsocketServer } from "./services/WebsocketServer";
 import type { AppEnv } from "./types/AppContext";
+import { shutdownServer } from "./utils/shutdownServer";
 import type { Container } from "./container";
 import { createContainer } from "./container";
 
@@ -61,9 +62,8 @@ export async function startAppServer(port: number): Promise<AppServer> {
   return {
     host: `http://localhost:${(httpAppServer.address() as AddressInfo).port}`,
     container,
-    close() {
-      wss.close();
-      httpAppServer.close();
+    async close() {
+      await Promise.all([shutdownServer(wss), shutdownServer(httpAppServer)]);
     }
   };
 }
@@ -71,5 +71,5 @@ export async function startAppServer(port: number): Promise<AppServer> {
 export interface AppServer {
   host: string;
   container: Container;
-  close(): void;
+  close(): Promise<void>;
 }

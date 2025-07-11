@@ -52,7 +52,7 @@ export const stripeCouponsRouter = new OpenApiHonoHandler();
 
 stripeCouponsRouter.openapi(applyCouponRoute, async function applyCoupon(c) {
   const { data } = c.req.valid("json");
-  const response = await container.resolve(StripeController).applyCoupon(data.couponId);
+  const response = await container.resolve(StripeController).applyCoupon(data);
   return c.json(response, 200);
 });
 
