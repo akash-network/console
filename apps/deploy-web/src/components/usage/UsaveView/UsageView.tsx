@@ -9,6 +9,27 @@ import { CumulativeSpendingLineChart } from "@src/components/usage/CumulativeSpe
 import { DailyUsageBarChart } from "@src/components/usage/DailyUsageBarChart/DailyUsageBarChart";
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
 
+const escapeCSVValue = (value: string | number): string => {
+  const stringValue = String(value);
+  if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+  return stringValue;
+};
+
+const downloadCSV = (content: string, filename: string) => {
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  link.style.visibility = "hidden";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
 const DEPENDENCIES = {
   FormattedNumber,
   Title,
@@ -38,34 +59,25 @@ export const UsageView = ({
 }: UsageViewProps) => {
   const { FormattedNumber, Title, DailyUsageBarChart, CumulativeSpendingLineChart, LinearProgress } = dependencies;
 
-  const exportCSV = () => {
-    const historyCsvContent = usageHistoryData.map(row => Object.values(row).join(",")).join("\n");
+  const exportCSV = React.useCallback(() => {
+    const historyCsvContent = usageHistoryData.map(row => Object.values(row).map(escapeCSVValue).join(",")).join("\n");
 
-    const historyBlob = new Blob([historyCsvContent], { type: "text/csv;charset=utf-8;" });
-    const historyUrl = URL.createObjectURL(historyBlob);
-    const historyLink = document.createElement("a");
-    historyLink.setAttribute("href", historyUrl);
-    historyLink.setAttribute("download", "usage_history.csv");
-    historyLink.style.visibility = "hidden";
-    document.body.appendChild(historyLink);
-    historyLink.click();
-    document.body.removeChild(historyLink);
+    downloadCSV(historyCsvContent, "usage_history.csv");
 
     const statsCsvContent = [
       "Total Spent,Average Spent Per Day,Total Deployments,Average Deployments Per Day",
-      `${usageHistoryStatsData.totalSpent},${usageHistoryStatsData.averageSpentPerDay},${usageHistoryStatsData.totalDeployments},${usageHistoryStatsData.averageDeploymentsPerDay}`
+      [
+        usageHistoryStatsData.totalSpent,
+        usageHistoryStatsData.averageSpentPerDay,
+        usageHistoryStatsData.totalDeployments,
+        usageHistoryStatsData.averageDeploymentsPerDay
+      ]
+        .map(escapeCSVValue)
+        .join(",")
     ].join("\n");
 
-    const statsBlob = new Blob([statsCsvContent], { type: "text/csv;charset=utf-8;" });
-    const statsUrl = URL.createObjectURL(statsBlob);
-    const statsLink = document.createElement("a");
-    statsLink.setAttribute("href", statsUrl);
-    statsLink.setAttribute("download", "usage_stats.csv");
-    statsLink.style.visibility = "hidden";
-    document.body.appendChild(statsLink);
-    statsLink.click();
-    document.body.removeChild(statsLink);
-  };
+    downloadCSV(statsCsvContent, "usage_stats.csv");
+  }, [usageHistoryData, usageHistoryStatsData]);
 
   return (
     <div className="h-full space-y-4">
