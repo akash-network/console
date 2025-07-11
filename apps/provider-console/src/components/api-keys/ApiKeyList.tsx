@@ -32,23 +32,47 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
 
   const handleCopy = () => {
     if (apiKey?.apiKey) {
-      navigator.clipboard.writeText(apiKey.apiKey);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      navigator.clipboard
+        .writeText(apiKey.apiKey)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch(error => {
+          console.error("Failed to copy API key:", error);
+        });
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return "Invalid Date";
+      }
+      return new Date(dateString).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid Date";
+    }
   };
 
-  const isExpired = apiKey?.expiresAt ? new Date(apiKey.expiresAt) < new Date() : false;
+  const isExpired = apiKey?.expiresAt
+    ? (() => {
+        try {
+          const expirationDate = new Date(apiKey.expiresAt);
+          return !isNaN(expirationDate.getTime()) && expirationDate < new Date();
+        } catch {
+          return false;
+        }
+      })()
+    : false;
 
   return (
     <div className="space-y-6">
@@ -161,7 +185,12 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
                     <h4 className="mb-1 font-medium text-gray-900 dark:text-white">Ready to integrate?</h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Learn how to use your API key with our comprehensive documentation.</p>
                   </div>
-                  <a href="/docs/api" className="text-sm font-medium text-gray-900 hover:underline dark:text-white" target="_blank" rel="noopener noreferrer">
+                  <a
+                    href={`${process.env.NEXT_PUBLIC_API_BASE_URL}/swagger`}
+                    className="text-sm font-medium text-gray-900 hover:underline dark:text-white"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     View API Documentation →
                   </a>
                 </div>
