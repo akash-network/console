@@ -1,25 +1,22 @@
 import { z } from "zod";
 
 import { DeploymentDetail } from "@src/components/deployments/DeploymentDetail";
-import type { ServerServicesContext } from "@src/lib/nextjs/getServerSidePropsWithServices";
-import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
-import type { ValidatedServerSideContext } from "@src/lib/nextjs/getValidatedServerSideProps";
-import { getValidatedServerSideProps } from "@src/lib/nextjs/getValidatedServerSideProps";
+import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 
 export default DeploymentDetail;
 
-const contextSchema = z.object({
-  params: z.object({
-    dseq: z.string().regex(/^\d+$/)
-  })
-});
-
-export const getServerSideProps = getServerSidePropsWithServices(
-  getValidatedServerSideProps(contextSchema, async (ctx: ServerServicesContext & ValidatedServerSideContext<typeof contextSchema>) => {
+export const getServerSideProps = defineServerSideProps({
+  route: "/deployments/[dseq]",
+  schema: z.object({
+    params: z.object({
+      dseq: z.string().regex(/^\d+$/)
+    })
+  }),
+  async handler({ params }) {
     return {
       props: {
-        dseq: ctx.params.dseq
+        dseq: params.dseq
       }
     };
-  })
-);
+  }
+});

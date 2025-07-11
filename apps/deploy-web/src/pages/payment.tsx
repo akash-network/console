@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Button, Snackbar } from "@akashnetwork/ui/components";
 import { Xmark } from "iconoir-react";
-import type { GetServerSideProps } from "next";
 import { useTheme } from "next-themes";
 import { useSnackbar } from "notistack";
 
@@ -10,7 +9,7 @@ import { Title } from "@src/components/shared/Title";
 import { AddPaymentMethodPopup, DeletePaymentMethodPopup, PaymentForm, PaymentMethodsList } from "@src/components/user/payment";
 import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuccessAnimation";
 import { useUser } from "@src/hooks/useUser";
-import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
+import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import { usePaymentDiscountsQuery, usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
 import { handleCouponError, handleStripeError } from "@src/utils/stripeErrorHandler";
 import { withCustomPageAuthRequired } from "@src/utils/withCustomPageAuthRequired";
@@ -320,10 +319,8 @@ const PayPage: React.FunctionComponent = () => {
 
 export default PayPage;
 
-export const getServerSideProps: GetServerSideProps = withCustomPageAuthRequired({
-  getServerSideProps: getServerSidePropsWithServices(async () => {
-    return {
-      props: {}
-    };
+export const getServerSideProps = withCustomPageAuthRequired({
+  getServerSideProps: defineServerSideProps({
+    route: "/payment"
   })
 });
