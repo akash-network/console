@@ -5,7 +5,7 @@ import * as unleashModule from "@unleash/nextjs";
 
 import { serverEnvConfig } from "@src/config/server-env.config";
 import { createAppRootContainer } from "@src/services/app-di-container/app-di-container";
-import { serverApiUrlService } from "../api-url/server-api-url.service";
+import { ApiUrlService } from "../api-url/api-url.service";
 import { clientIpForwardingInterceptor } from "../client-ip-forwarding/client-ip-forwarding.interceptor";
 import { createChildContainer } from "../container/createContainer";
 import { FeatureFlagService } from "../feature-flag/feature-flag.service";
@@ -16,7 +16,7 @@ const rootContainer = createAppRootContainer({
   BASE_PROVIDER_PROXY_URL: serverEnvConfig.NEXT_PUBLIC_PROVIDER_PROXY_URL,
   MANAGED_WALLET_NETWORK_ID: serverEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID,
   globalRequestMiddleware: clientIpForwardingInterceptor,
-  apiUrlService: serverApiUrlService
+  apiUrlService: () => new ApiUrlService(serverEnvConfig)
 });
 
 export const services = createChildContainer(rootContainer, {

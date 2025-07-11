@@ -73,7 +73,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         }),
     certificateManager: () => certificateManager,
     analyticsService: () => analyticsService,
-    apiUrlService: () => config.apiUrlService,
+    apiUrlService: config.apiUrlService,
     managedWalletService: () =>
       withInterceptors(
         new ManagedWalletHttpService(
@@ -116,7 +116,7 @@ export interface ServicesConfig {
   MANAGED_WALLET_NETWORK_ID: NetworkId;
   globalRequestMiddleware?: (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig;
   runtimeEnv: "nodejs" | "browser";
-  apiUrlService: ApiUrlService;
+  apiUrlService: () => ApiUrlService;
 }
 
 function withInterceptors<T extends Axios>(axios: T, interceptors: Interceptors) {

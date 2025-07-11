@@ -2,7 +2,6 @@ import type { GetServerSidePropsResult } from "next";
 import { z } from "zod";
 
 import { UserProfile } from "@src/components/user/UserProfile";
-import { serverEnvConfig } from "@src/config/server-env.config";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import type { IUserSetting } from "@src/types/user";
 
@@ -25,7 +24,7 @@ export const getServerSideProps = defineServerSideProps({
     })
   }),
   async handler({ params, services }): Promise<GetServerSidePropsResult<Props>> {
-    const { data: user } = await services.axios.get(`${serverEnvConfig.BASE_API_MAINNET_URL}/user/byUsername/${params.username}`);
+    const { data: user } = await services.axios.get(`${services.apiUrlService.getBaseApiUrlFor("mainnet")}/user/byUsername/${params.username}`);
 
     return {
       props: {

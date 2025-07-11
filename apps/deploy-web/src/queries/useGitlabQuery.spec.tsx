@@ -1,7 +1,8 @@
 import { faker } from "@faker-js/faker";
 import type { AxiosError } from "axios";
+import { mock } from "jest-mock-extended";
 
-import { GitLabService } from "@src/services/remote-deploy/gitlab-http.service";
+import type { GitLabService } from "@src/services/remote-deploy/gitlab-http.service";
 import {
   useGitLabBranches,
   useGitLabCommits,
@@ -17,45 +18,20 @@ import { act, waitFor } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 import { readToken, writeToken } from "@tests/unit/token";
 
-jest.mock("@src/services/remote-deploy/gitlab-http.service", () => {
-  const mockService = {
-    fetchAccessToken: jest.fn().mockResolvedValue({
-      accessToken: "test-access-token",
-      refreshToken: "test-refresh-token"
-    }),
-    refreshToken: jest.fn(),
-    fetchUserProfile: jest.fn(),
-    fetchGitLabGroups: jest.fn(),
-    fetchReposByGroup: jest.fn(),
-    fetchBranches: jest.fn(),
-    fetchCommits: jest.fn(),
-    fetchPackageJson: jest.fn(),
-    fetchSrcFolders: jest.fn()
-  };
-
-  return {
-    GitLabService: jest.fn(() => mockService)
-  };
-});
-
 describe("useGitlabQuery", () => {
-  let mockGitlabService: any;
-
-  beforeEach(() => {
-    mockGitlabService = new GitLabService();
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe("useGitLabFetchAccessToken", () => {
-    it("should fetch access token and update token state", async () => {
+    it("fetches access token and update token state", async () => {
       const mockData = { accessToken: "test-access-token", refreshToken: "test-refresh-token" };
-      mockGitlabService.fetchAccessToken.mockResolvedValue(mockData);
+      const mockGitlabService = mock<GitLabService>({
+        fetchAccessToken: jest.fn().mockResolvedValue(mockData)
+      });
       const onSuccess = jest.fn();
 
-      const { result } = setupQuery(() => useGitLabFetchAccessToken(onSuccess));
+      const { result } = setupQuery(() => useGitLabFetchAccessToken(onSuccess), {
+        services: {
+          gitlabService: () => mockGitlabService
+        }
+      });
 
       await act(async () => {
         await result.current.mutateAsync("test-code");
@@ -70,12 +46,18 @@ describe("useGitlabQuery", () => {
   });
 
   describe("useGitLabUserProfile", () => {
-    it("should fetch user profile when token is available", async () => {
+    it("fetches user profile when token is available", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockData = { username: "test-username" };
-      mockGitlabService.fetchUserProfile.mockResolvedValue(mockData);
+      const mockGitlabService = mock<GitLabService>({
+        fetchUserProfile: jest.fn().mockResolvedValue(mockData)
+      });
 
-      const { result } = setupQuery(() => useGitLabUserProfile());
+      const { result } = setupQuery(() => useGitLabUserProfile(), {
+        services: {
+          gitlabService: () => mockGitlabService
+        }
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -83,24 +65,28 @@ describe("useGitlabQuery", () => {
       });
     });
 
-    it("should attempt to refresh token on 401 error", async () => {
+    it("attempts to refresh token on 401 error", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockError = { response: { status: 401 } } as AxiosError;
       const mockData = { username: "test-username" };
-      mockGitlabService.fetchUserProfile.mockImplementation((token: string) => {
-        if (token === "test-token") {
-          return Promise.reject(mockError);
+      const mockGitlabService = mock<GitLabService>({
+        fetchUserProfile: jest.fn().mockImplementation((token: string) => {
+          if (token === "test-token") {
+            return Promise.reject(mockError);
+          }
+          return Promise.resolve(mockData);
+        }),
+        refreshToken: jest.fn().mockResolvedValue({
+          accessToken: "new-token",
+          refreshToken: "new-refresh-token"
+        })
+      });
+
+      const { result } = setupQuery(() => useGitLabUserProfile(), {
+        services: {
+          gitlabService: () => mockGitlabService
         }
-
-        return Promise.resolve(mockData);
       });
-
-      mockGitlabService.refreshToken.mockResolvedValueOnce({
-        accessToken: "new-token",
-        refreshToken: "new-refresh-token"
-      });
-
-      const { result } = setupQuery(() => useGitLabUserProfile());
 
       await waitFor(() => {
         expect(mockGitlabService.fetchUserProfile).toHaveBeenCalledWith("test-token");
@@ -111,12 +97,18 @@ describe("useGitlabQuery", () => {
   });
 
   describe("useGitLabCommits", () => {
-    it("should fetch commits when repo and branch are provided", async () => {
+    it("fetches commits when repo and branch are provided", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockData = [{ hash: faker.git.commitSha() }];
-      mockGitlabService.fetchCommits.mockResolvedValue(mockData);
+      const mockGitlabService = mock<GitLabService>({
+        fetchCommits: jest.fn().mockResolvedValue(mockData)
+      });
 
-      const { result } = setupQuery(() => useGitLabCommits("test-repo", "main"));
+      const { result } = setupQuery(() => useGitLabCommits("test-repo", "main"), {
+        services: {
+          gitlabService: () => mockGitlabService
+        }
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -127,12 +119,18 @@ describe("useGitlabQuery", () => {
   });
 
   describe("useGitLabGroups", () => {
-    it("should fetch groups when token is available", async () => {
+    it("fetches groups when token is available", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockData = [{ id: faker.string.uuid() }];
-      mockGitlabService.fetchGitLabGroups.mockResolvedValue(mockData);
+      const mockGitlabService = mock<GitLabService>({
+        fetchGitLabGroups: jest.fn().mockResolvedValue(mockData)
+      });
 
-      const { result } = setupQuery(() => useGitLabGroups());
+      const { result } = setupQuery(() => useGitLabGroups(), {
+        services: {
+          gitlabService: () => mockGitlabService
+        }
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -143,12 +141,18 @@ describe("useGitlabQuery", () => {
   });
 
   describe("useGitLabReposByGroup", () => {
-    it("should fetch repos when group is provided", async () => {
+    it("fetches repos when group is provided", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockData = [{ name: faker.lorem.word() }];
-      mockGitlabService.fetchReposByGroup.mockResolvedValue(mockData);
+      const mockGitlabService = mock<GitLabService>({
+        fetchReposByGroup: jest.fn().mockResolvedValue(mockData)
+      });
 
-      const { result } = setupQuery(() => useGitLabReposByGroup("test-group"));
+      const { result } = setupQuery(() => useGitLabReposByGroup("test-group"), {
+        services: {
+          gitlabService: () => mockGitlabService
+        }
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -157,7 +161,7 @@ describe("useGitlabQuery", () => {
       });
     });
 
-    it("should not fetch when group is not provided", () => {
+    it("does not fetch when group is not provided", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
 
       const { result } = setupQuery(() => useGitLabReposByGroup(undefined));
@@ -166,12 +170,18 @@ describe("useGitlabQuery", () => {
   });
 
   describe("useGitLabBranches", () => {
-    it("should fetch branches when repo is provided", async () => {
+    it("fetches branches when repo is provided", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockData = [{ name: faker.lorem.word() }];
-      mockGitlabService.fetchBranches.mockResolvedValue(mockData);
+      const mockGitlabService = mock<GitLabService>({
+        fetchBranches: jest.fn().mockResolvedValue(mockData)
+      });
 
-      const { result } = setupQuery(() => useGitLabBranches("test-repo"));
+      const { result } = setupQuery(() => useGitLabBranches("test-repo"), {
+        services: {
+          gitlabService: () => mockGitlabService
+        }
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -180,22 +190,28 @@ describe("useGitlabQuery", () => {
       });
     });
 
-    it("should not fetch when repo is not provided", () => {
+    it("does not fetch when repo is not provided", () => {
       const { result } = setupQuery(() => useGitLabBranches());
       expect(result.current.isLoading).toBe(false);
     });
   });
 
   describe("useGitlabPackageJson", () => {
-    it("should fetch package.json and call onSettled callback", async () => {
+    it("fetches package.json and call onSettled callback", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockPackageJson = { dependencies: ["foo", "bar"] };
-      mockGitlabService.fetchPackageJson.mockResolvedValue({
-        content: btoa(JSON.stringify(mockPackageJson))
-      });
       const onSettled = jest.fn();
+      const mockGitlabService = mock<GitLabService>({
+        fetchPackageJson: jest.fn().mockResolvedValue({
+          content: btoa(JSON.stringify(mockPackageJson))
+        })
+      });
 
-      const { result } = setupQuery(() => useGitlabPackageJson(onSettled, "test-repo", "src"));
+      const { result } = setupQuery(() => useGitlabPackageJson(onSettled, "test-repo", "src"), {
+        services: {
+          gitlabService: () => mockGitlabService
+        }
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -206,13 +222,19 @@ describe("useGitlabQuery", () => {
   });
 
   describe("useGitlabSrcFolders", () => {
-    it("should fetch source folders and call onSettled callback", async () => {
+    it("fetches source folders and call onSettled callback", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "gitlab" });
       const mockFolders = [{ name: faker.lorem.word() }];
-      mockGitlabService.fetchSrcFolders.mockResolvedValue(mockFolders);
       const onSettled = jest.fn();
+      const mockGitlabService = mock<GitLabService>({
+        fetchSrcFolders: jest.fn().mockResolvedValue(mockFolders)
+      });
 
-      const { result } = setupQuery(() => useGitlabSrcFolders(onSettled, "test-repo"));
+      const { result } = setupQuery(() => useGitlabSrcFolders(onSettled, "test-repo"), {
+        services: {
+          gitlabService: () => mockGitlabService
+        }
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
