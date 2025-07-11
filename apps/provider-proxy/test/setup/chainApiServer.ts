@@ -3,6 +3,8 @@ import type { X509Certificate } from "crypto";
 import http from "http";
 import type { AddressInfo } from "net";
 
+import { shutdownServer } from "../../src/utils/shutdownServer";
+
 let chainServer: http.Server | undefined;
 /**
  * Cannot mock blockchain API using nock and msw that's why have a separate server
@@ -47,8 +49,8 @@ export function startChainApiServer(certificates: X509Certificate[], options?: C
   });
 }
 
-export function stopChainAPIServer(): void {
-  chainServer?.close();
+export function stopChainAPIServer(): Promise<void> {
+  return shutdownServer(chainServer);
 }
 
 export interface ChainApiOptions {
