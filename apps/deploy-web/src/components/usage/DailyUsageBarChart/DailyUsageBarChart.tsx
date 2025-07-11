@@ -23,18 +23,7 @@ const chartConfig = {
 type ChartData = Array<{ date: string; dailyUsdSpent: number }>;
 
 const DEPENDENCIES = {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  Spinner,
-  BarChart,
-  Bar,
-  CartesianGrid,
-  XAxis
+  BarChart
 };
 
 export type DailyUsageBarChartProps = {
@@ -43,10 +32,7 @@ export type DailyUsageBarChartProps = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, data, dependencies = DEPENDENCIES }) => {
-  const { Card, CardContent, CardHeader, CardTitle, ChartContainer, ChartTooltip, ChartTooltipContent, Spinner, BarChart, Bar, CartesianGrid, XAxis } =
-    dependencies;
-
+export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, data, dependencies: D = DEPENDENCIES }) => {
   return (
     <Card className="w-full py-0">
       <CardHeader className="flex flex-row items-center gap-3 space-y-0 border-b px-6">
@@ -54,22 +40,42 @@ export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, da
         {isFetching && <Spinner size="small" variant="dark" />}
       </CardHeader>
       <CardContent className="px-2 sm:p-6">
-        <ChartContainer config={chartConfig} className={cn("aspect-auto h-[250px] w-full", isFetching && "pointer-events-none")}>
-          <BarChart
+        <ChartContainer config={chartConfig} className={cn("aspect-auto h-[250px] w-full", isFetching && "pointer-events-none")} role="chart-container">
+          <D.BarChart
             accessibilityLayer
             data={data}
             margin={{
               left: 12,
               right: 12
             }}
+            role="bar-chart"
           >
             <CartesianGrid vertical={false} />
-            <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={10} tickFormatter={value => format(new Date(value), "M/d")} />
+            <XAxis
+              dataKey="date"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={10}
+              tickFormatter={value => {
+                const date = new Date(value);
+                return isNaN(date.getTime()) ? value : format(new Date(value), "M/d");
+              }}
+            />
             <ChartTooltip
-              content={<ChartTooltipContent className="w-[150px]" nameKey="dailyUsdSpent" labelFormatter={value => format(new Date(value), "MMM d, yyyy")} />}
+              content={
+                <ChartTooltipContent
+                  className="w-[150px]"
+                  nameKey="dailyUsdSpent"
+                  labelFormatter={value => {
+                    const date = new Date(value);
+                    return isNaN(date.getTime()) ? value : format(new Date(value), "MMM d, yyyy");
+                  }}
+                />
+              }
             />
             <Bar dataKey="dailyUsdSpent" fill="hsl(var(--primary))" className={cn(isFetching && "opacity-80")} />
-          </BarChart>
+          </D.BarChart>
         </ChartContainer>
       </CardContent>
     </Card>

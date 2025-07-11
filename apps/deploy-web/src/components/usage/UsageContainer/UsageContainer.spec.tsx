@@ -2,8 +2,8 @@ import "@testing-library/jest-dom";
 
 import React from "react";
 
-import type { ChildrenProps, UsageContainerProps } from "@src/components/usage/usage-tab/UsageContainer";
-import { UsageContainer } from "@src/components/usage/usage-tab/UsageContainer";
+import type { ChildrenProps, UsageContainerProps } from "@src/components/usage/UsageContainer/UsageContainer";
+import { UsageContainer } from "@src/components/usage/UsageContainer/UsageContainer";
 import type { useWallet } from "@src/context/WalletProvider";
 import type { useUsage, useUsageStats } from "@src/queries";
 import type { UsageHistory, UsageHistoryStats } from "@src/types";

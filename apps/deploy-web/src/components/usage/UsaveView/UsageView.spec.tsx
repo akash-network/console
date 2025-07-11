@@ -3,9 +3,9 @@ import "@testing-library/jest-dom";
 import React from "react";
 import type { LinearProgressProps } from "@mui/material";
 
-import type { CumulativeSpendingLineChartProps } from "@src/components/usage/usage-tab/charts/CumulativeSpendingLineChart";
-import type { DailyUsageBarChartProps } from "@src/components/usage/usage-tab/charts/DailyUsageBarChart";
-import { UsageView, type UsageViewProps } from "@src/components/usage/usage-tab/UsageView";
+import type { CumulativeSpendingLineChartProps } from "@src/components/usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
+import type { DailyUsageBarChartProps } from "@src/components/usage/DailyUsageBarChart/DailyUsageBarChart";
+import { UsageView, type UsageViewProps } from "@src/components/usage/UsaveView/UsageView";
 
 import { render, screen } from "@testing-library/react";
 import { buildUsageHistory, buildUsageHistoryStats } from "@tests/seeders/usage";

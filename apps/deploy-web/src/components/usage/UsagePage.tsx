@@ -2,9 +2,9 @@ import React, { type FC } from "react";
 import { NextSeo } from "next-seo";
 
 import Layout from "@src/components/layout/Layout";
-import { UsageContainer } from "@src/components/usage/usage-tab/UsageContainer";
-import { UsageView } from "@src/components/usage/usage-tab/UsageView";
+import { UsageContainer } from "@src/components/usage/UsageContainer/UsageContainer";
 import { UsageLayout, UsageTabs } from "@src/components/usage/UsageLayout";
+import { UsageView } from "@src/components/usage/UsaveView/UsageView";
 
 export const UsagePage: FC = () => {
   return (

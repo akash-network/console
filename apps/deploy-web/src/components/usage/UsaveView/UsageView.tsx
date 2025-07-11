@@ -5,8 +5,8 @@ import LinearProgress from "@mui/material/LinearProgress";
 import { Cloud, Dollar, Download } from "iconoir-react";
 
 import { Title } from "@src/components/shared/Title";
-import { CumulativeSpendingLineChart } from "@src/components/usage/usage-tab/charts/CumulativeSpendingLineChart";
-import { DailyUsageBarChart } from "@src/components/usage/usage-tab/charts/DailyUsageBarChart";
+import { CumulativeSpendingLineChart } from "@src/components/usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
+import { DailyUsageBarChart } from "@src/components/usage/DailyUsageBarChart/DailyUsageBarChart";
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
 
 const DEPENDENCIES = {
