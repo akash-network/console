@@ -47,6 +47,7 @@
     "@cosmjs/encoding": "^0.32.4",
     "@cosmjs/proto-signing": "^0.33.0",
     "@cosmjs/stargate": "^0.33.0",
+    "@cosmjs/tendermint-rpc": "^0.33.1",
     "@golevelup/nestjs-discovery": "^4.0.3",
     "@knaadh/nestjs-drizzle-pg": "^1.2.0",
     "@nestjs/common": "^11.0.1",
