@@ -1,6 +1,14 @@
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
-import { ApiKeyHttpService, AuthHttpService, DeploymentSettingHttpService, TemplateHttpService, TxHttpService, UserHttpService } from "@akashnetwork/http-sdk";
+import {
+  ApiKeyHttpService,
+  AuthHttpService,
+  DeploymentSettingHttpService,
+  TemplateHttpService,
+  TxHttpService,
+  UsageHttpService,
+  UserHttpService
+} from "@akashnetwork/http-sdk";
 import { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
 import { LoggerService } from "@akashnetwork/logging";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
@@ -43,6 +51,10 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       }),
     template: () =>
       withInterceptors(new TemplateHttpService(apiConfig), {
+        request: [config.globalRequestMiddleware, otelInterceptor]
+      }),
+    usage: () =>
+      withInterceptors(new UsageHttpService(apiConfig), {
         request: [config.globalRequestMiddleware, otelInterceptor]
       }),
     auth: () =>
