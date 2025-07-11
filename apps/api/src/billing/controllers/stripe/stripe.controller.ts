@@ -134,7 +134,10 @@ export class StripeController {
   async getCustomerTransactions(options?: {
     limit?: number;
     startingAfter?: string;
-  }): Promise<{ data: { transactions: Transaction[]; hasMore: boolean; nextPage: string | null } }> {
+    endingBefore?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{ data: { transactions: Transaction[]; hasMore: boolean; nextPage: string | null; prevPage: string | null } }> {
     const { currentUser } = this.authService;
 
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");

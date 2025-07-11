@@ -367,16 +367,27 @@ export class StripeService extends Stripe {
 
   async getCustomerTransactions(
     customerId: string,
-    options?: { limit?: number; startingAfter?: string }
+    options?: { limit?: number; startingAfter?: string; endingBefore?: string; startDate?: string; endDate?: string }
   ): Promise<{
     transactions: Transaction[];
     hasMore: boolean;
     nextPage: string | null;
+    prevPage: string | null;
   }> {
+    const created =
+      options?.startDate || options?.endDate
+        ? {
+            gte: options?.startDate ? Math.floor(new Date(options.startDate).getTime() / 1000) : undefined,
+            lte: options?.endDate ? Math.floor(new Date(options.endDate).getTime() / 1000) : undefined
+          }
+        : undefined;
+
     const charges = await this.charges.list({
+      created,
       customer: customerId,
       limit: options?.limit ?? 100,
       starting_after: options?.startingAfter,
+      ending_before: options?.endingBefore,
       expand: ["data.payment_intent"]
     });
 
@@ -395,7 +406,8 @@ export class StripeService extends Stripe {
     return {
       transactions,
       hasMore: charges.has_more,
-      nextPage: charges.data[charges.data.length - 1]?.id
+      nextPage: charges.data[charges.data.length - 1]?.id,
+      prevPage: options?.startingAfter ? charges.data[0]?.id : null
     };
   }
 
