@@ -69,7 +69,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       }),
     usage: () =>
       withInterceptors(new UsageHttpService(apiConfig), {
-        request: [config.globalRequestMiddleware, otelInterceptor]
+        request: [container.authService.withAnonymousUserHeader]
       }),
     auth: () =>
       container.applyAxiosInterceptors(new AuthHttpService(apiConfig), {

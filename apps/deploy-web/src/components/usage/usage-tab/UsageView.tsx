@@ -34,8 +34,10 @@ export const UsageView = ({
   isUsageHistoryError,
   isFetchingUsageHistoryStats,
   isUsageHistoryStatsError,
-  dependencies: D = DEPENDENCIES
+  dependencies = DEPENDENCIES
 }: UsageViewProps) => {
+  const { FormattedNumber, Title, DailyUsageBarChart, CumulativeSpendingLineChart, LinearProgress } = dependencies;
+
   const exportCSV = () => {
     const historyCsvContent = usageHistoryData.map(row => Object.values(row).join(",")).join("\n");
 
@@ -68,7 +70,7 @@ export const UsageView = ({
   return (
     <div className="h-full space-y-4">
       <div className="flex items-center justify-between">
-        <D.Title subTitle>Overview</D.Title>
+        <Title subTitle>Overview</Title>
 
         <Button variant="secondary" onClick={exportCSV} size="sm">
           <Download width={16} className="mr-2" />
@@ -91,7 +93,7 @@ export const UsageView = ({
             </CardHeader>
             {isFetchingUsageHistoryStats ? (
               <div className="flex flex-1 items-center">
-                <D.LinearProgress color="primary" className="mx-auto w-11/12" />
+                <LinearProgress color="primary" className="mx-auto w-11/12" />
               </div>
             ) : (
               <CardContent className="pt-2">
@@ -99,13 +101,13 @@ export const UsageView = ({
                   <p className="text-gray-400">No data</p>
                 ) : (
                   <div className="text-3xl font-bold">
-                    <D.FormattedNumber value={usageHistoryStatsData.totalSpent} style="currency" currency="USD" currencyDisplay="narrowSymbol" />
+                    <FormattedNumber value={usageHistoryStatsData.totalSpent} style="currency" currency="USD" currencyDisplay="narrowSymbol" />
                   </div>
                 )}
                 {!Number.isNaN(Number(usageHistoryStatsData.averageSpentPerDay)) && (
                   <div className="text-sm font-semibold text-gray-400">
-                    <D.FormattedNumber value={usageHistoryStatsData.averageSpentPerDay} style="currency" currency="USD" currencyDisplay="narrowSymbol" />{" "}
-                    average per day
+                    <FormattedNumber value={usageHistoryStatsData.averageSpentPerDay} style="currency" currency="USD" currencyDisplay="narrowSymbol" /> average
+                    per day
                   </div>
                 )}
               </CardContent>
@@ -118,7 +120,7 @@ export const UsageView = ({
             </CardHeader>
             {isFetchingUsageHistoryStats ? (
               <div className="flex flex-1 items-center">
-                <D.LinearProgress color="primary" className="mx-auto w-11/12" />
+                <LinearProgress color="primary" className="mx-auto w-11/12" />
               </div>
             ) : (
               <CardContent className="pt-2">
@@ -126,12 +128,12 @@ export const UsageView = ({
                   <p className="text-gray-400">No data</p>
                 ) : (
                   <div className="text-3xl font-bold">
-                    <D.FormattedNumber value={usageHistoryStatsData.totalDeployments} />
+                    <FormattedNumber value={usageHistoryStatsData.totalDeployments} />
                   </div>
                 )}
                 {!Number.isNaN(Number(usageHistoryStatsData.averageDeploymentsPerDay)) && (
                   <div className="text-sm font-semibold text-gray-400">
-                    <D.FormattedNumber value={usageHistoryStatsData.averageDeploymentsPerDay} /> average per day
+                    <FormattedNumber value={usageHistoryStatsData.averageDeploymentsPerDay} /> average per day
                   </div>
                 )}
               </CardContent>
@@ -150,8 +152,8 @@ export const UsageView = ({
 
       {!isUsageHistoryError && (
         <>
-          <D.DailyUsageBarChart data={usageHistoryData} isFetching={isFetchingUsageHistory} />
-          <D.CumulativeSpendingLineChart data={usageHistoryData} isFetching={isFetchingUsageHistory} />
+          <DailyUsageBarChart data={usageHistoryData} isFetching={isFetchingUsageHistory} />
+          <CumulativeSpendingLineChart data={usageHistoryData} isFetching={isFetchingUsageHistory} />
         </>
       )}
     </div>

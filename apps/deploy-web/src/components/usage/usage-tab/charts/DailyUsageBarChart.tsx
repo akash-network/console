@@ -22,12 +22,31 @@ const chartConfig = {
 
 type ChartData = Array<{ date: string; dailyUsdSpent: number }>;
 
+const DEPENDENCIES = {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  Spinner,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis
+};
+
 export type DailyUsageBarChartProps = {
   isFetching: boolean;
   data: ChartData;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, data }) => {
+export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, data, dependencies = DEPENDENCIES }) => {
+  const { Card, CardContent, CardHeader, CardTitle, ChartContainer, ChartTooltip, ChartTooltipContent, Spinner, BarChart, Bar, CartesianGrid, XAxis } =
+    dependencies;
+
   return (
     <Card className="w-full py-0">
       <CardHeader className="flex flex-row items-center gap-3 space-y-0 border-b px-6">

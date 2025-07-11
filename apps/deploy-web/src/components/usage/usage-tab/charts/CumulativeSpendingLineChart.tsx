@@ -19,12 +19,47 @@ const chartConfig = {
   }
 } satisfies ChartConfig;
 
+const DEPENDENCIES = {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  Spinner,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  GraphUp,
+  GraphDown
+};
+
 export type CumulativeSpendingLineChartProps = {
   isFetching: boolean;
   data: ChartData;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> = ({ isFetching, data }) => {
+export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> = ({ isFetching, data, dependencies = DEPENDENCIES }) => {
+  const {
+    Card,
+    CardContent,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+    ChartContainer,
+    ChartTooltip,
+    ChartTooltipContent,
+    Spinner,
+    LineChart,
+    Line,
+    CartesianGrid,
+    XAxis
+  } = dependencies;
+
   const calculateSpendingChange = () => {
     if (data.length < 2) return 0;
 
@@ -87,17 +122,25 @@ export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> =
       </CardContent>
       <CardFooter>
         <div className="flex gap-2 text-sm font-medium leading-none">
-          <TrendIndicator change={calculateSpendingChange()} />
+          <TrendIndicator change={calculateSpendingChange()} dependencies={dependencies} />
         </div>
       </CardFooter>
     </Card>
   );
 };
 
-const TrendIndicator: FC<{ change: number }> = ({ change }) => {
+type TrendIndicatorProps = {
+  change: number;
+  dependencies: Pick<CumulativeSpendingLineChartProps, "dependencies">;
+};
+
+const TrendIndicator: FC<TrendIndicatorProps> = ({ change, dependencies = DEPENDENCIES }) => {
   if (change === 0) return null;
 
+  const { GraphUp, GraphDown } = dependencies;
+
   const isUp = change > 0;
+
   return (
     <p className="mt-2 text-gray-500">
       Trending {isUp ? "up" : "down"} by {Math.abs(change)}% {isUp ? <GraphUp className="inline h-4 w-4" /> : <GraphDown className="inline h-4 w-4" />}

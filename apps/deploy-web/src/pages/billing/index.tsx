@@ -1,7 +1,11 @@
 import { BillingPage } from "@src/components/usage/BillingPage";
 import { RegisteredUsersOnly } from "@src/hoc/registered-users-only/registered-users-only.hoc";
-import { routeProtector } from "@src/services/route-protector";
+import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
+import { isAuthenticated, isFeatureEnabled } from "@src/lib/nextjs/pageGuards/pageGuards";
 
 export default RegisteredUsersOnly(BillingPage);
 
-export const getServerSideProps = routeProtector.showToRegisteredUserIfEnabled("billing_usage");
+export const getServerSideProps = defineServerSideProps({
+  route: "/billing",
+  if: async ctx => (await isAuthenticated(ctx)) && (await isFeatureEnabled("billing_usage", ctx))
+});
