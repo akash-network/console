@@ -222,8 +222,8 @@ describe(StripeService.name, () => {
         customer: "cus_123",
         limit: 25,
         created: {
-          gt: new Date(startDate).getTime() / 1000,
-          lt: new Date(endDate).getTime() / 1000
+          gte: new Date(startDate).getTime() / 1000,
+          lte: new Date(endDate).getTime() / 1000
         },
         starting_after: undefined,
         ending_before: undefined,
@@ -353,8 +353,8 @@ describe(StripeService.name, () => {
         customer: "cus_123",
         limit: 10,
         created: {
-          gt: new Date(startDate).getTime() / 1000,
-          lt: new Date(endDate).getTime() / 1000
+          gte: new Date(startDate).getTime() / 1000,
+          lte: new Date(endDate).getTime() / 1000
         },
         starting_after: "ch_start_id",
         ending_before: "ch_end_id",

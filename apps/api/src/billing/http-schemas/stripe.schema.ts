@@ -146,11 +146,11 @@ export const CustomerTransactionsQuerySchema = z
       example: "ch_0987654321"
     }),
     startDate: z.string().datetime().optional().openapi({
-      description: "Start date for filtering transactions (exclusive)",
+      description: "Start date for filtering transactions (inclusive)",
       example: "2025-01-01T00:00:00Z"
     }),
     endDate: z.string().datetime().optional().openapi({
-      description: "End date for filtering transactions (exclusive)",
+      description: "End date for filtering transactions (inclusive)",
       example: "2025-01-02T00:00:00Z"
     })
   })

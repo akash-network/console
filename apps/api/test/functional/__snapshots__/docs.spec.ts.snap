@@ -10628,7 +10628,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "name": "startDate",
             "required": false,
             "schema": {
-              "description": "Start date for filtering transactions (exclusive)",
+              "description": "Start date for filtering transactions (inclusive)",
               "example": "2025-01-01T00:00:00Z",
               "format": "date-time",
               "type": "string",
@@ -10639,7 +10639,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "name": "endDate",
             "required": false,
             "schema": {
-              "description": "End date for filtering transactions (exclusive)",
+              "description": "End date for filtering transactions (inclusive)",
               "example": "2025-01-02T00:00:00Z",
               "format": "date-time",
               "type": "string",

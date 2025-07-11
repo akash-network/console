@@ -6,20 +6,18 @@ if (!ZodType.prototype.openapi) {
   };
 }
 
+import { secondsInDay } from "date-fns/constants";
+
 import { CustomerTransactionsQuerySchema } from "./stripe.schema";
 
 describe("CustomerTransactionsQuerySchema", () => {
-  const ONE_DAY_MS = 1000 * 60 * 60 * 24;
-
   it("accepts no parameters and returns only an empty created object", () => {
-    const { schema } = setup();
-    const out = schema.parse({});
+    const out = CustomerTransactionsQuerySchema.parse({});
     expect(out).toEqual({});
   });
 
   it("carries through startingAfter and endingBefore", () => {
-    const { schema } = setup();
-    const out = schema.parse({
+    const out = CustomerTransactionsQuerySchema.parse({
       startingAfter: "ch_after",
       endingBefore: "ch_before"
     });
@@ -30,8 +28,7 @@ describe("CustomerTransactionsQuerySchema", () => {
   });
 
   it("carries through startDate and endDate", () => {
-    const { schema } = setup();
-    const out = schema.parse({
+    const out = CustomerTransactionsQuerySchema.parse({
       startDate: new Date("2025-01-01T00:00:00Z").toISOString(),
       endDate: new Date("2025-01-02T00:00:00Z").toISOString()
     });
@@ -42,10 +39,9 @@ describe("CustomerTransactionsQuerySchema", () => {
   });
 
   it("accepts both startDate and endDate when range ≤ 366 days", () => {
-    const { schema } = setup();
     const startDate = new Date();
-    const endDate = new Date(startDate.getTime() + ONE_DAY_MS * 366);
-    const out = schema.parse({
+    const endDate = new Date(startDate.getTime() + secondsInDay * 1000 * 366);
+    const out = CustomerTransactionsQuerySchema.parse({
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString()
     });
@@ -56,9 +52,8 @@ describe("CustomerTransactionsQuerySchema", () => {
   });
 
   it("rejects when startDate > endDate", () => {
-    const { schema } = setup();
     expect(() =>
-      schema.parse({
+      CustomerTransactionsQuerySchema.parse({
         startDate: new Date("2025-01-02T00:00:00Z").toISOString(),
         endDate: new Date("2025-01-01T00:00:00Z").toISOString()
       })
@@ -66,20 +61,13 @@ describe("CustomerTransactionsQuerySchema", () => {
   });
 
   it("rejects when range > 366 days", () => {
-    const { schema } = setup();
     const startDate = new Date();
-    const endDate = new Date(startDate.getTime() + ONE_DAY_MS * 367);
+    const endDate = new Date(startDate.getTime() + secondsInDay * 1000 * 367);
     expect(() =>
-      schema.parse({
+      CustomerTransactionsQuerySchema.parse({
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString()
       })
     ).toThrow("Date range cannot exceed 366 days and startDate must be before endDate");
   });
-
-  function setup() {
-    return {
-      schema: CustomerTransactionsQuerySchema
-    };
-  }
 });

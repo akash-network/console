@@ -377,8 +377,8 @@ export class StripeService extends Stripe {
     const created =
       options?.startDate || options?.endDate
         ? {
-            gt: options?.startDate ? Math.floor(new Date(options.startDate).getTime() / 1000) : undefined,
-            lt: options?.endDate ? Math.floor(new Date(options.endDate).getTime() / 1000) : undefined
+            gte: options?.startDate ? Math.floor(new Date(options.startDate).getTime() / 1000) : undefined,
+            lte: options?.endDate ? Math.floor(new Date(options.endDate).getTime() / 1000) : undefined
           }
         : undefined;
 
