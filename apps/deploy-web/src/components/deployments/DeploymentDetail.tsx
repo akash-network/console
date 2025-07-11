@@ -13,6 +13,7 @@ import { NextSeo } from "next-seo";
 
 import { DeploymentAlerts } from "@src/components/deployments/DeploymentAlerts/DeploymentAlerts";
 import { useCertificate } from "@src/context/CertificateProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
@@ -22,7 +23,6 @@ import { useWhen } from "@src/hooks/useWhen";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import { extractRepositoryUrl, isCiCdImageInYaml } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { RouteStep } from "@src/types/route-steps.type";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
@@ -44,6 +44,7 @@ export interface DeploymentDetailProps {
 type Tab = "ALERTS" | "EVENTS" | "LOGS" | "SHELL" | "EDIT" | "LEASES";
 
 export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
+  const { analyticsService } = useServices();
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<Tab>("LEASES");
@@ -67,7 +68,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     remove: removeLeases,
     isSuccess: isLeasesLoaded
   } = useDeploymentLeaseList(address, deployment, {
-    enabled: !!deployment,
+    enabled: deployment?.state === "active",
     refetchOnWindowFocus: false
   });
   useEffect(() => {
@@ -169,12 +170,13 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     }
   }, [tabQuery, logsModeQuery, leases, tabs, isLeasesLoaded, router, dseq]);
 
-  function loadDeploymentDetail() {
+  async function loadDeploymentDetail() {
     if (!isLoadingDeployment) {
-      getDeploymentDetail();
-      getLeases();
-
-      leaseRefs.forEach(lr => lr.current?.getLeaseStatus());
+      const deploymentResult = await getDeploymentDetail();
+      await getLeases();
+      if (deploymentResult.data?.state === "active") {
+        leaseRefs.forEach(lr => lr.current?.getLeaseStatus());
+      }
     }
   }
 

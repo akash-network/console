@@ -33,14 +33,17 @@ const getConfig = createJestConfig({
 
 export default async (): Promise<Config.InitialOptions> => {
   return {
-    collectCoverageFrom: ["<rootDir>/src/**/*.{js,ts,tsx}"],
     rootDir: ".",
     projects: [
       {
+        collectCoverageFrom: ["<rootDir>/src/**/*.{js,ts,tsx}"],
+        coveragePathIgnorePatterns: ["/lib/nextjs/", "/tests/"],
         displayName: "unit",
         ...(await getConfig())
       },
       {
+        collectCoverageFrom: ["<rootDir>/src/lib/nextjs/**/*.{js,ts,tsx}"],
+        coveragePathIgnorePatterns: ["/lib/nextjs/setup-node-tests.ts", "/tests/"],
         displayName: "unit-node",
         testEnvironment: "node",
         testMatch: ["<rootDir>/src/lib/nextjs/**/*.spec.{tsx,ts}"],

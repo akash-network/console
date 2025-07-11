@@ -174,12 +174,12 @@ describe(defineServerSideProps, () => {
     const result = (await setup({
       route: "/test",
       context: {
-        req: mock<Request>({ headers, originalUrl: "/test", url: "/test" })
+        req: createRequest({ headers })
       },
       handler: async (): Promise<Result> => ({ props: { headers: requestExecutionContext.getStore()?.headers } })
     })) as Result;
 
-    expect(Object.fromEntries((result.props as any).headers.entries())).toEqual(headers);
+    expect(Object.fromEntries((result.props as any).headers.entries())).toEqual(expect.objectContaining(headers));
   });
 
   it("executes async & sync handlers", async () => {
@@ -312,7 +312,7 @@ describe(defineServerSideProps, () => {
     context?: Partial<AppTypedContext>;
   }) {
     const context: GetServerSidePropsContext = {
-      req: mock<Request>({ url: "/test", originalUrl: "/test", headers: { host: "localhost" } }),
+      req: createRequest(),
       res: mock<GetServerSidePropsContext["res"]>(),
       query: {},
       params: {},
@@ -330,6 +330,19 @@ describe(defineServerSideProps, () => {
       handler: input.handler
     })(context);
   }
-});
 
-type Request = GetServerSidePropsContext["req"] & { originalUrl?: string };
+  function createRequest({ headers, ...input }: Partial<GetServerSidePropsContext["req"]> = {}) {
+    return mock<GetServerSidePropsContext["req"]>({
+      url: "/test",
+      headers: {
+        host: "localhost",
+        "content-type": "application/json",
+        "x-forwarded-host": "localhost",
+        "x-forwarded-for": "127.0.0.1",
+        "x-forwarded-proto": "http",
+        ...headers
+      },
+      ...input
+    });
+  }
+});

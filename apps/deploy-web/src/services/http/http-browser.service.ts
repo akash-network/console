@@ -1,3 +1,6 @@
+import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
+import { requestFn } from "@openapi-qraft/react";
+
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { createAppRootContainer } from "@src/services/app-di-container/app-di-container";
 import { browserApiUrlService } from "../api-url/browser-api-url.service";
@@ -13,5 +16,11 @@ const rootContainer = createAppRootContainer({
 });
 
 export const services = createChildContainer(rootContainer, {
-  userProviderService: () => new UserProviderService()
+  userProviderService: () => new UserProviderService(),
+  notificationsApi: () =>
+    createAPIClient({
+      requestFn,
+      baseUrl: "/api/proxy",
+      queryClient: services.queryClient
+    })
 });
