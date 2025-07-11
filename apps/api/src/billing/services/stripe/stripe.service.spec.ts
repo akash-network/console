@@ -2,7 +2,7 @@ import { mock } from "jest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
-import type { UserRepository } from "@src/user/repositories/user/user.repository";
+import type { UserRepository } from "@src/user/repositories";
 import { StripeService } from "./stripe.service";
 
 import { create as StripeSeederCreate } from "@test/seeders/stripe.seeder";
@@ -152,23 +152,145 @@ describe(StripeService.name, () => {
   });
 
   describe("applyCoupon", () => {
-    it("applies promotion code successfully", async () => {
-      const { service } = setup();
+    it("applies promotion code successfully and tops up wallet", async () => {
+      const { service, refillService } = setup();
       const stripeData = StripeSeederCreate();
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(stripeData.promotionCode as any);
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockPromotionCode = {
+        ...stripeData.promotionCode,
+        coupon: {
+          ...stripeData.promotionCode.coupon,
+          amount_off: 1000,
+          percent_off: null as any,
+          valid: true
+        }
+      };
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode as any);
+      refillService.topUpWallet.mockResolvedValue();
 
-      const result = await service.applyCoupon("cus_123", stripeData.promotionCode.code);
-      expect(service.customers.update).toHaveBeenCalledWith("cus_123", {
-        promotion_code: stripeData.promotionCode.id
+      const result = await service.applyCoupon(mockUser, mockPromotionCode.code);
+
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(1000, "user_123");
+      expect(service.customers.update).toHaveBeenCalledTimes(2);
+      expect(service.customers.update).toHaveBeenNthCalledWith(1, "cus_123", {
+        promotion_code: mockPromotionCode.id
       });
-      expect(result).toEqual(stripeData.promotionCode);
+      expect(service.customers.update).toHaveBeenNthCalledWith(2, "cus_123", {
+        promotion_code: null
+      });
+      expect(result).toEqual({
+        coupon: mockPromotionCode,
+        amountAdded: 10 // 1000 cents = $10
+      });
+    });
+
+    it("rejects percentage-based promotion codes", async () => {
+      const { service } = setup();
+      const mockUser = UserSeeder.create({ stripeCustomerId: "cus_123" });
+      const stripeData = StripeSeederCreate();
+      const mockPromotionCode = {
+        ...stripeData.promotionCode,
+        coupon: {
+          ...stripeData.promotionCode.coupon,
+          percent_off: 20,
+          amount_off: null as any,
+          valid: true
+        }
+      };
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode as any);
+
+      await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow(
+        "Percentage-based coupons are not supported. Only fixed amount coupons are allowed."
+      );
+    });
+
+    it("rejects promotion codes without amount_off", async () => {
+      const { service } = setup();
+      const mockUser = UserSeeder.create({ stripeCustomerId: "cus_123" });
+      const stripeData = StripeSeederCreate();
+      const mockPromotionCode = {
+        ...stripeData.promotionCode,
+        coupon: {
+          ...stripeData.promotionCode.coupon,
+          percent_off: null as any,
+          amount_off: null as any,
+          valid: true
+        }
+      };
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode as any);
+
+      await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow("Invalid coupon type. Only fixed amount coupons are supported.");
+    });
+
+    it("rejects percentage-based coupons", async () => {
+      const { service } = setup();
+      const mockUser = UserSeeder.create({ stripeCustomerId: "cus_123" });
+      const stripeData = StripeSeederCreate();
+      const mockCoupon = {
+        ...stripeData.promotionCode.coupon,
+        percent_off: 20,
+        amount_off: null as any,
+        valid: true
+      };
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(null as any);
+      jest.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] } as any);
+
+      await expect(service.applyCoupon(mockUser, mockCoupon.id)).rejects.toThrow(
+        "Percentage-based coupons are not supported. Only fixed amount coupons are allowed."
+      );
+    });
+
+    it("rejects coupons without amount_off", async () => {
+      const { service } = setup();
+      const mockUser = UserSeeder.create({ stripeCustomerId: "cus_123" });
+      const stripeData = StripeSeederCreate();
+      const mockCoupon = {
+        ...stripeData.promotionCode.coupon,
+        percent_off: null as any,
+        amount_off: null as any,
+        valid: true
+      };
+      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(null as any);
+      jest.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] } as any);
+
+      await expect(service.applyCoupon(mockUser, mockCoupon.id)).rejects.toThrow("Invalid coupon type. Only fixed amount coupons are supported.");
     });
 
     it("throws error for invalid promotion code", async () => {
       const { service } = setup();
-      jest.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(null as any);
+      const mockUser = UserSeeder.create({ stripeCustomerId: "cus_123" });
+      jest.spyOn(service.promotionCodes, "list").mockResolvedValue({ data: [] } as any);
+      jest.spyOn(service.coupons, "list").mockResolvedValue({ data: [] } as any);
 
-      await expect(service.applyCoupon("cus_123", "INVALID")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
+      await expect(service.applyCoupon(mockUser, "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
+    });
+
+    it("rolls back coupon application when topUpWallet fails", async () => {
+      const { service, refillService } = setup();
+      // Use a fixed-amount coupon, not a percent-off
+      const basePromotionCode = StripeSeederCreate().promotionCode;
+      const mockPromotionCode = {
+        ...basePromotionCode,
+        coupon: { ...basePromotionCode.coupon, amount_off: 1000, percent_off: null as number | null, valid: true }
+      };
+      const mockUser = UserSeeder.create({ stripeCustomerId: "cus_123" });
+
+      jest.spyOn(service.promotionCodes, "list").mockResolvedValue({ data: [mockPromotionCode] } as any);
+      jest.spyOn(service.customers, "update").mockResolvedValue({} as any);
+
+      // Mock topUpWallet to fail
+      refillService.topUpWallet.mockRejectedValue(new Error("Wallet top-up failed"));
+
+      await expect(service.applyCoupon(mockUser, mockPromotionCode.code)).rejects.toThrow("Wallet top-up failed");
+
+      // Verify that the coupon was applied and then rolled back
+      expect(service.customers.update).toHaveBeenCalledTimes(2);
+      expect(service.customers.update).toHaveBeenNthCalledWith(1, "cus_123", {
+        promotion_code: mockPromotionCode.id
+      });
+      expect(service.customers.update).toHaveBeenNthCalledWith(2, "cus_123", {
+        promotion_code: null
+      });
     });
   });
 

@@ -112,12 +112,16 @@ const PayPage: React.FunctionComponent = () => {
     if (!coupon) return;
 
     try {
-      const response = await applyCoupon({ coupon });
+      const response = await applyCoupon({ coupon, userId: user?.id || "" });
 
       if (response.error) {
         const errorInfo = handleCouponError(response);
         enqueueSnackbar(<Snackbar title={errorInfo.message} iconVariant="error" />, { variant: "error" });
         return;
+      }
+
+      if (response.amountAdded && response.amountAdded > 0) {
+        setShowPaymentSuccess({ amount: response.amountAdded.toString(), show: true });
       }
 
       enqueueSnackbar(<Snackbar title="Coupon applied successfully!" iconVariant="success" />, { variant: "success", autoHideDuration: 5_000 });

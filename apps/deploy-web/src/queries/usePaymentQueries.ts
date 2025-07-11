@@ -74,8 +74,8 @@ export const usePaymentMutations = () => {
   });
 
   const applyCoupon = useMutation({
-    mutationFn: async ({ coupon }: ApplyCouponParams) => {
-      const response = await stripe.applyCoupon(coupon);
+    mutationFn: async ({ coupon, userId }: ApplyCouponParams) => {
+      const response = await stripe.applyCoupon(coupon, userId);
       return response;
     },
     onSuccess: () => {
