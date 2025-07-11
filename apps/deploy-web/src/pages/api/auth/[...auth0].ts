@@ -1,18 +1,28 @@
 // pages/api/auth/[...auth0].js
 import { handleAuth, handleLogin, handleLogout, handleProfile } from "@auth0/nextjs-auth0";
 import { AxiosHeaders } from "axios";
+import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-import { serverEnvConfig } from "@src/config/server-env.config";
-import { wrapApiHandlerInExecutionContext } from "@src/lib/nextjs/wrapApiHandler";
+import type { ServerEnvConfig } from "@src/config/env-config.schema";
+import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import type { SeverityLevel } from "@src/services/error-handler/error-handler.service";
-import { services } from "@src/services/http/http-server.service";
+import type { AppServices } from "@src/services/http/http-server.service";
 
-export default wrapApiHandlerInExecutionContext(
+export default defineApiHandler({
+  route: "/api/auth/[...auth0]",
+  async handler({ res, req, services }) {
+    await authHandler(services)(req, res);
+  }
+});
+
+const authHandler = once((services: AppServices) =>
   handleAuth({
     async login(req: NextApiRequest, res: NextApiResponse) {
       const returnUrl = decodeURIComponent((req.query.from as string) ?? "/");
-      rewriteLocalRedirect(res);
+      if (services.config.AUTH0_LOCAL_ENABLED && services.config.AUTH0_REDIRECT_BASE_URL) {
+        rewriteLocalRedirect(res, services.config);
+      }
 
       await handleLogin(req, res, {
         returnTo: returnUrl,
@@ -22,7 +32,7 @@ export default wrapApiHandlerInExecutionContext(
         }
       });
     },
-    logout: serverEnvConfig.AUTH0_LOCAL_ENABLED
+    logout: services.config.AUTH0_LOCAL_ENABLED
       ? async function (req: NextApiRequest, res: NextApiResponse) {
           const cookies = req.cookies;
           const expiredCookies = Object.keys(cookies)
@@ -54,7 +64,7 @@ export default wrapApiHandlerInExecutionContext(
               }
 
               const userSettings = await services.axios.post(
-                `${serverEnvConfig.BASE_API_MAINNET_URL}/user/tokenInfo`,
+                `${services.config.BASE_API_MAINNET_URL}/user/tokenInfo`,
                 {
                   wantedUsername: session.user.nickname,
                   email: session.user.email,
@@ -88,18 +98,14 @@ export default wrapApiHandlerInExecutionContext(
   })
 );
 
-function rewriteLocalRedirect(res: NextApiResponse<any>) {
-  if (serverEnvConfig.AUTH0_LOCAL_ENABLED && serverEnvConfig.AUTH0_REDIRECT_BASE_URL) {
-    const redirect = res.redirect;
+function rewriteLocalRedirect(res: NextApiResponse<any>, config: Pick<ServerEnvConfig, "AUTH0_REDIRECT_BASE_URL" | "AUTH0_ISSUER_BASE_URL">) {
+  const redirect = res.redirect;
 
-    res.redirect = function rewriteLocalRedirect(urlOrStatus: string | number, maybeUrl?: string): NextApiResponse<any> {
-      const code = typeof urlOrStatus === "string" ? 302 : urlOrStatus;
-      const inputUrl = typeof urlOrStatus === "string" ? urlOrStatus : maybeUrl;
-      const rewritten = serverEnvConfig.AUTH0_REDIRECT_BASE_URL
-        ? inputUrl!.replace(serverEnvConfig.AUTH0_ISSUER_BASE_URL, serverEnvConfig.AUTH0_REDIRECT_BASE_URL || "")
-        : inputUrl!;
+  res.redirect = function rewriteLocalRedirect(urlOrStatus: string | number, maybeUrl?: string): NextApiResponse<any> {
+    const code = typeof urlOrStatus === "string" ? 302 : urlOrStatus;
+    const inputUrl = typeof urlOrStatus === "string" ? urlOrStatus : maybeUrl;
+    const rewritten = config.AUTH0_REDIRECT_BASE_URL ? inputUrl!.replace(config.AUTH0_ISSUER_BASE_URL, config.AUTH0_REDIRECT_BASE_URL || "") : inputUrl!;
 
-      return redirect.apply(this, [code, rewritten]);
-    };
-  }
+    return redirect.apply(this, [code, rewritten]);
+  };
 }

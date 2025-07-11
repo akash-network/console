@@ -10,10 +10,6 @@ import { requestExecutionContext } from "../requestExecutionContext";
 import type { AppTypedContext } from "./defineServerSideProps";
 import { defineServerSideProps } from "./defineServerSideProps";
 
-jest.mock("@src/config/server-env.config", () => ({
-  serverEnvConfig: {}
-}));
-
 describe(defineServerSideProps, () => {
   it("returns empty props when no schema, if condition, or handler provided", async () => {
     const result = await setup({ route: "/test" });
