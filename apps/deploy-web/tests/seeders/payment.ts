@@ -65,6 +65,7 @@ export const createMockCouponResponse = (overrides = {}) => ({
     valid: true,
     name: faker.helpers.arrayElement(["25% Off Forever", "Welcome 10% Off", "Summer 20% Off"])
   },
+  amountAdded: faker.number.float({ min: 5, max: 50, fractionDigits: 2 }),
   ...overrides
 });
 

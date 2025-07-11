@@ -1,3 +1,4 @@
+import { isHttpError } from "@akashnetwork/http-sdk";
 import { wrapGetServerSidePropsWithSentry } from "@sentry/nextjs";
 import type { GetServerSideProps, GetServerSidePropsContext, GetServerSidePropsResult, PreviewData } from "next";
 import type { ParsedUrlQuery } from "querystring";
@@ -44,11 +45,17 @@ export function defineServerSideProps<
 >(options: WrapServerSideOptions<TSchema, TProps, TParams, TPreviewData>): GetServerSideProps<TProps, TParams, TPreviewData> {
   return wrapGetServerSidePropsWithSentry(async (context: GetServerSidePropsContext<TParams, TPreviewData>): Promise<GetServerSidePropsResult<TProps>> => {
     return requestExecutionContext.run(createRequestExecutionContext(context.req), async () => {
-      const validatedContext = options.schema ? options.schema.parse(context) : undefined;
+      const logger = "services" in context ? (context.services as typeof services).logger : services.logger;
+      const validatedContext = options.schema ? options.schema.safeParse(context) : undefined;
+      if (validatedContext && !validatedContext.success) {
+        logger.warn({ message: `Invalid context for route ${options.route}`, error: validatedContext.error });
+        return NOT_FOUND;
+      }
+
       const newContext = {
+        services,
         ...context,
-        ...validatedContext,
-        services
+        ...validatedContext?.data
       } as AppTypedContext<TSchema, TParams, TPreviewData>;
 
       const result = await options.if?.(newContext);
@@ -56,7 +63,18 @@ export function defineServerSideProps<
       if (result === false) return NOT_FOUND;
 
       if (options.handler) {
-        return await options.handler(newContext);
+        try {
+          return await options.handler(newContext);
+        } catch (error) {
+          if (isHttpError(error) && (error.response?.status === 404 || error.response?.status === 400)) {
+            logger.warn({
+              message: `Error in handler for route ${options.route}`,
+              error
+            });
+            return NOT_FOUND;
+          }
+          throw error;
+        }
       }
 
       return { props: {} } as any;

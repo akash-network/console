@@ -56,8 +56,13 @@ export class WebsocketServer {
     private readonly logger?: LoggerService
   ) {}
 
-  close(): void {
-    this.wss?.close();
+  get listening(): boolean {
+    return !!this.wss;
+  }
+
+  close(cb?: (error?: Error) => void): void {
+    if (!this.wss) return cb?.();
+    this.wss.close(cb);
   }
 
   listen(): this {

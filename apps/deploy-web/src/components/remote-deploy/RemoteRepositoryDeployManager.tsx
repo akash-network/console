@@ -7,12 +7,10 @@ import { useAtom } from "jotai";
 import { useRouter } from "next/navigation";
 
 import { CI_CD_TEMPLATE_ID, CURRENT_SERVICE, DEFAULT_ENV_IN_YML, protectedEnvironmentVariables } from "@src/config/remote-deploy.config";
+import { useServices } from "@src/context/ServicesProvider";
 import { useWhen } from "@src/hooks/useWhen";
 import { useFetchAccessToken, useUserProfile } from "@src/queries/useGithubQuery";
 import { useGitLabFetchAccessToken, useGitLabUserProfile } from "@src/queries/useGitlabQuery";
-import { BitbucketService } from "@src/services/remote-deploy/bitbucket-http.service";
-import { GitHubService } from "@src/services/remote-deploy/github-http.service";
-import { GitLabService } from "@src/services/remote-deploy/gitlab-http.service";
 import { EnvVarUpdater } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { tokens } from "@src/store/remoteDeployStore";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -41,6 +39,7 @@ const RemoteRepositoryDeployManager = ({
   deploymentName: string;
   setIsRepoInputValid?: Dispatch<boolean>;
 }) => {
+  const { githubService, bitbucketService, gitlabService } = useServices();
   const [token, setToken] = useAtom(tokens);
 
   const [selectedTab, setSelectedTab] = useState("git");
@@ -56,16 +55,12 @@ const RemoteRepositoryDeployManager = ({
 
   const envVarUpdater = useMemo(() => new EnvVarUpdater(services), [services]);
 
-  const { reLoginWithGithub, loginWithGithub } = useMemo(() => new GitHubService(), []);
-
   const { data: userProfile, isLoading: fetchingProfile } = useUserProfile();
   const { mutate: fetchAccessToken, isPending: fetchingToken } = useFetchAccessToken(navigateToNewDeployment);
 
-  const { loginWithBitBucket } = useMemo(() => new BitbucketService(), []);
   const { data: userProfileBit, isLoading: fetchingProfileBit } = useBitUserProfile();
   const { mutate: fetchAccessTokenBit, isPending: fetchingTokenBit } = useBitFetchAccessToken(navigateToNewDeployment);
 
-  const { loginWithGitLab } = useMemo(() => new GitLabService(), []);
   const { data: userProfileGitLab, isLoading: fetchingProfileGitLab } = useGitLabUserProfile();
   const { mutate: fetchAccessTokenGitLab, isPending: fetchingTokenGitLab } = useGitLabFetchAccessToken(navigateToNewDeployment);
 
@@ -162,7 +157,7 @@ const RemoteRepositoryDeployManager = ({
                         onClick={() => {
                           setToken({ accessToken: null, refreshToken: null, type: "bitbucket", alreadyLoggedIn: token?.alreadyLoggedIn });
 
-                          loginWithBitBucket();
+                          bitbucketService.loginWithBitBucket();
                         }}
                         variant="outline"
                       >
@@ -172,7 +167,7 @@ const RemoteRepositoryDeployManager = ({
                       <Button
                         onClick={() => {
                           setToken({ accessToken: null, refreshToken: null, type: "gitlab", alreadyLoggedIn: token?.alreadyLoggedIn });
-                          loginWithGitLab();
+                          gitlabService.loginWithGitLab();
                         }}
                         variant="outline"
                       >
@@ -183,9 +178,9 @@ const RemoteRepositoryDeployManager = ({
                         onClick={() => {
                           setToken({ accessToken: null, refreshToken: null, type: "github", alreadyLoggedIn: token?.alreadyLoggedIn });
                           if (token?.alreadyLoggedIn?.includes("github")) {
-                            reLoginWithGithub();
+                            githubService.reLoginWithGithub();
                           } else {
-                            loginWithGithub();
+                            githubService.loginWithGithub();
                           }
                         }}
                         variant="outline"

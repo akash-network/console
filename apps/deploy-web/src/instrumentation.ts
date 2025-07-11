@@ -10,7 +10,7 @@ export async function register() {
   Sentry.init({
     dsn: process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN,
     // Adjust this value in production, or use tracesSampler for greater control
-    tracesSampleRate: 0.01,
+    tracesSampleRate: 0.1,
     enabled: process.env.NEXT_PUBLIC_SENTRY_ENABLED === "true"
   });
 
