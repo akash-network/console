@@ -10,7 +10,7 @@ import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { toPaginatedQuery } from "@src/lib/http-schema/http-schema";
 import { AlertOutput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 
-class AlertListQuery extends createZodDto(
+export class AlertListQuery extends createZodDto(
   toPaginatedQuery({
     dseq: z.string().optional(),
     type: z.string().optional()

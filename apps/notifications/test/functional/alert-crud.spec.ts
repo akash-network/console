@@ -1,4 +1,3 @@
-import { generateMock } from "@anatine/zod-mock";
 import { faker } from "@faker-js/faker";
 import { INestApplication, Module } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
@@ -8,18 +7,20 @@ import request from "supertest";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
+import { AlertListQuery } from "@src/interfaces/rest/controllers/alert/alert.controller";
 import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
 import { chainMessageCreateInputSchema } from "@src/interfaces/rest/http-schemas/alert.http-schema";
 import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
 import RestModule from "@src/interfaces/rest/rest.module";
 import * as alertSchema from "@src/modules/alert/model-schemas";
-import { AlertOutput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
-import { ChainMessageParams } from "@src/modules/alert/repositories/alert/alert-json-fields.schema";
+import { AlertOutput, AlertRepository, GeneralAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
+import { GeneralParams } from "@src/modules/alert/repositories/alert/alert-json-fields.schema";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 
 import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
+import { generateSafeMock } from "@test/utils/safe-mock";
 
-type AlertOutputMeta = Pick<AlertOutput, "id" | "userId">;
+type AlertOutputMeta = Pick<GeneralAlertOutput, "id" | "userId" | "params">;
 
 describe("Alerts CRUD", () => {
   it("should perform all CRUD operations against raw alerts", async () => {
@@ -27,11 +28,17 @@ describe("Alerts CRUD", () => {
     const HAS_ROLE_TO_CREATE_ALERTS = false;
     const { app, userId, notificationChannelId } = await setup();
 
-    const alert = HAS_ROLE_TO_CREATE_ALERTS ? await shouldCreate(userId, notificationChannelId, app) : await prepareAlert(userId, notificationChannelId, app);
-    await shouldUpdate(alert, app);
-    await shouldRead(alert, app);
-    await shouldList([alert], app);
-    await shouldDelete(alert, app);
+    const alerts = HAS_ROLE_TO_CREATE_ALERTS
+      ? [await shouldCreate(userId, notificationChannelId, app), await shouldCreate(userId, notificationChannelId, app)]
+      : [await prepareAlert(userId, notificationChannelId, app), await prepareAlert(userId, notificationChannelId, app)];
+    await shouldUpdate(alerts[0], app);
+    await shouldRead(alerts[0], app);
+    await shouldList(alerts, app);
+    await shouldList([alerts[0]], app, { dseq: alerts[0].params?.dseq });
+    await shouldList([alerts[1]], app, { type: alerts[1].params?.type });
+    await shouldList([alerts[0]], app, { limit: 1 });
+    await shouldList([alerts[1]], app, { limit: 1, page: 2 });
+    await shouldDelete(alerts[0], app);
 
     await app.close();
   });
@@ -51,30 +58,32 @@ describe("Alerts CRUD", () => {
     userId: string,
     notificationChannelId: string,
     app: INestApplication,
-    params: Partial<ChainMessageParams> = {}
+    params: Partial<GeneralParams> = {}
   ): Promise<AlertOutputMeta> {
     const repository = app.get(AlertRepository);
-    const { params: mockParams, ...input } = generateMock(chainMessageCreateInputSchema);
-    const alert = await repository.create({
+    const mockResult = generateSafeMock(chainMessageCreateInputSchema) as any;
+    const { params: mockParams, ...input } = mockResult;
+    const alert = (await repository.create({
       ...input,
       userId,
       notificationChannelId,
       enabled: true,
       params: {
-        type: (mockParams as ChainMessageParams).type,
-        dseq: (mockParams as ChainMessageParams).dseq,
+        type: (mockParams as GeneralParams).type,
+        dseq: (mockParams as GeneralParams).dseq,
         ...params
       }
-    });
+    })) as GeneralAlertOutput;
 
     return {
       id: alert.id,
-      userId
+      userId,
+      params: alert.params
     };
   }
 
   async function shouldCreate(userId: string, notificationChannelId: string, app: INestApplication): Promise<AlertOutputMeta> {
-    const { params, ...input } = generateMock(chainMessageCreateInputSchema);
+    const { params, ...input } = generateSafeMock(chainMessageCreateInputSchema);
     input.notificationChannelId = notificationChannelId;
     input.enabled = true;
 
@@ -123,8 +132,8 @@ describe("Alerts CRUD", () => {
     expect(getRes.status).toBe(404);
   }
 
-  async function shouldList(alerts: AlertOutputMeta[], app: INestApplication) {
-    const res = await request(app.getHttpServer()).get("/v1/alerts").set("x-user-id", alerts[0].userId);
+  async function shouldList(alerts: AlertOutputMeta[], app: INestApplication, query: AlertListQuery = {}) {
+    const res = await request(app.getHttpServer()).get("/v1/alerts").set("x-user-id", alerts[0].userId).query(query);
 
     expect(res.status).toBe(200);
     expect(res.body.data.map((alert: AlertOutput) => alert.id)).toEqual(expect.arrayContaining(alerts.map(alert => alert.id)));

@@ -45,7 +45,7 @@ export const generalParamsSchema = z.object({
   type: z.string(),
   suppressedBySystem: z.boolean().optional()
 });
-export type ChainMessageParams = z.infer<typeof chainMessageParamsSchema>;
+export type GeneralParams = z.infer<typeof generalParamsSchema>;
 
 export const chainMessageTypeSchema = z.literal("CHAIN_MESSAGE");
 export const chainEventTypeSchema = z.literal("CHAIN_EVENT");

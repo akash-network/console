@@ -30,7 +30,7 @@ export type AlertOutput = GeneralAlertOutput | DeploymentBalanceAlertOutput;
 
 export type AlertType = AlertOutput["type"];
 
-const isNotSuppressed = sql`(${schema.Alert.params}->>'suppressedBySystem' IS NULL OR ${schema.Alert.params}->>'suppressedBySystem' != 'true')`;
+const isNotSuppressed = sql`(${schema.Alert.params} @> '{"suppressedBySystem": null}' OR NOT (${schema.Alert.params} @> '{"suppressedBySystem": true}'))`;
 
 export type AlertInputTypeMap = {
   DEPLOYMENT_BALANCE: DeploymentBalanceAlertInput;
@@ -153,12 +153,9 @@ export class AlertRepository {
       await this.db.query.Alert.findMany({
         where: this.whereAccessibleBy(
           and(
-            sql`${schema.Alert.params}->>'dseq' = ${conditions.dseq}`,
+            sql`${schema.Alert.params} @> ${sql.param(JSON.stringify({ dseq: conditions.dseq }))}`,
             conditions.includeSuppressed ? undefined : isNotSuppressed,
-            or(
-              sql`${schema.Alert.params}->>'type' IS NOT NULL`,
-              and(eq(schema.Alert.type, "DEPLOYMENT_BALANCE"), sql`${schema.Alert.params}->>'owner' IS NOT NULL`)
-            )
+            or(sql`${schema.Alert.params} ? 'type'`, and(eq(schema.Alert.type, "DEPLOYMENT_BALANCE"), sql`${schema.Alert.params} ? 'owner'`))
           )
         )
       })
@@ -191,11 +188,11 @@ export class AlertRepository {
     let where = and(this.whereAccessibleBy(), isNotSuppressed);
 
     if (options.query?.dseq) {
-      where = and(where, sql`${schema.Alert.params}->>'dseq' = ${options.query.dseq}`);
+      where = and(where, sql`${schema.Alert.params} @> ${sql.param(JSON.stringify({ dseq: options.query.dseq }))}`);
     }
 
     if (options.query?.type) {
-      where = and(where, sql`${schema.Alert.params}->>'type' = ${options.query.type}`);
+      where = and(where, sql`${schema.Alert.params} @> ${sql.param(JSON.stringify({ type: options.query.type }))}`);
     }
 
     const alerts = await this.db
