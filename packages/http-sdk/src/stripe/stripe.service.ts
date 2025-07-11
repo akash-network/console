@@ -31,8 +31,8 @@ export class StripeService extends ApiHttpService {
   }
 
   // Coupons
-  async applyCoupon(couponId: string): Promise<CouponResponse> {
-    return this.extractApiData(await this.post("/v1/stripe/coupons/apply", { data: { couponId } }));
+  async applyCoupon(couponId: string, userId: string): Promise<CouponResponse> {
+    return this.extractApiData(await this.post("/v1/stripe/coupons/apply", { data: { couponId, userId } }));
   }
 
   async getCustomerDiscounts(): Promise<CustomerDiscountsResponse> {

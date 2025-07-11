@@ -7,15 +7,15 @@ import type { GithubRepository } from "@src/types/remotedeploy";
 import type { GitHubProfile } from "@src/types/remoteProfile";
 const GITHUB_API_URL = "https://api.github.com";
 
-const axiosInstance = axios.create({
-  baseURL: GITHUB_API_URL,
-  headers: {
-    "Content-Type": "application/json",
-    Accept: "application/json"
-  }
-});
-
 export class GitHubService {
+  private readonly axiosInstance = axios.create({
+    baseURL: GITHUB_API_URL,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json"
+    }
+  });
+
   loginWithGithub() {
     window.location.href = browserEnvConfig.NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL;
   }
@@ -25,7 +25,7 @@ export class GitHubService {
   }
 
   async fetchUserProfile(token?: string | null) {
-    const response = await axiosInstance.get<GitHubProfile>("/user", {
+    const response = await this.axiosInstance.get<GitHubProfile>("/user", {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -34,7 +34,7 @@ export class GitHubService {
   }
 
   async fetchRepos(token?: string | null) {
-    const response = await axiosInstance.get<GithubRepository[]>("/user/repos?per_page=150", {
+    const response = await this.axiosInstance.get<GithubRepository[]>("/user/repos?per_page=150", {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -43,7 +43,7 @@ export class GitHubService {
   }
 
   async fetchBranches(repo?: string, token?: string | null) {
-    const response = await axiosInstance.get(`/repos/${repo}/branches`, {
+    const response = await this.axiosInstance.get(`/repos/${repo}/branches`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -52,7 +52,7 @@ export class GitHubService {
   }
 
   async fetchCommits(repo?: string, branch?: string, token?: string | null) {
-    const response = await axiosInstance.get<GitCommit[]>(`/repos/${repo}/commits?sha=${branch}`, {
+    const response = await this.axiosInstance.get<GitCommit[]>(`/repos/${repo}/commits?sha=${branch}`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -61,7 +61,7 @@ export class GitHubService {
   }
 
   async fetchPackageJson(repo?: string, subFolder?: string | undefined, token?: string | null) {
-    const response = await axiosInstance.get(`/repos/${repo}/contents/${subFolder ? `${subFolder}/` : ""}package.json`, {
+    const response = await this.axiosInstance.get(`/repos/${repo}/contents/${subFolder ? `${subFolder}/` : ""}package.json`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -70,7 +70,7 @@ export class GitHubService {
   }
 
   async fetchSrcFolders(repo: string, token?: string | null) {
-    const response = await axiosInstance.get(`/repos/${repo}/contents`, {
+    const response = await this.axiosInstance.get(`/repos/${repo}/contents`, {
       headers: {
         Authorization: `Bearer ${token}`
       }

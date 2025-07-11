@@ -132,11 +132,11 @@ describe("usePaymentQueries", () => {
       });
 
       await act(async () => {
-        await result.current.applyCoupon.mutateAsync({ coupon: mockCouponResponse.coupon.id });
+        await result.current.applyCoupon.mutateAsync({ coupon: mockCouponResponse.coupon.id, userId: "u1" });
       });
 
       await waitFor(() => {
-        expect(stripeService.applyCoupon).toHaveBeenCalledWith(mockCouponResponse.coupon.id);
+        expect(stripeService.applyCoupon).toHaveBeenCalledWith(mockCouponResponse.coupon.id, "u1");
       });
     });
 
@@ -154,11 +154,11 @@ describe("usePaymentQueries", () => {
         services: { stripe: () => stripeService }
       });
 
-      const response = await act(async () => result.current.applyCoupon.mutateAsync({ coupon: "INVALID" }));
+      const response = await act(async () => result.current.applyCoupon.mutateAsync({ coupon: "INVALID", userId: "u1" }));
       expect(response.error?.message).toBe("No valid promotion code or coupon found with the provided code");
 
       await waitFor(() => {
-        expect(stripeService.applyCoupon).toHaveBeenCalledWith("INVALID");
+        expect(stripeService.applyCoupon).toHaveBeenCalledWith("INVALID", "u1");
       });
     });
 

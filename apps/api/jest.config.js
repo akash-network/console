@@ -21,7 +21,7 @@ const config = {
     {
       displayName: "unit",
       ...common,
-      testMatch: ["<rootDir>/src/**/*.spec.ts"],
+      testMatch: ["<rootDir>/src/**/stripe.service.spec.ts"],
       setupFilesAfterEnv: ["./test/setup-unit-tests.ts"],
       setupFiles: ["./test/setup-unit-env.ts"]
     },

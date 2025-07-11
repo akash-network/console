@@ -61,7 +61,8 @@ export const ConfirmPaymentRequestSchema = z.object({
 
 export const ApplyCouponRequestSchema = z.object({
   data: z.object({
-    couponId: z.string()
+    couponId: z.string(),
+    userId: z.string()
   })
 });
 
@@ -77,6 +78,7 @@ export const CouponSchema = z.object({
 export const ApplyCouponResponseSchema = z.object({
   data: z.object({
     coupon: CouponSchema.nullable().optional(),
+    amountAdded: z.number().optional(),
     error: z
       .object({
         message: z.string(),

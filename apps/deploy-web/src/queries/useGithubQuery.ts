@@ -2,14 +2,14 @@ import { useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 
-import { GitHubService } from "@src/services/remote-deploy/github-http.service";
+import { useServices } from "@src/context/ServicesProvider";
 import { tokens } from "@src/store/remoteDeployStore";
 import type { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import { QueryKeys } from "./queryKeys";
 
-const githubService = new GitHubService();
 const OAuthType = "github";
 export const useUserProfile = () => {
+  const { githubService } = useServices();
   const [token] = useAtom(tokens);
 
   return useQuery({
@@ -20,6 +20,7 @@ export const useUserProfile = () => {
 };
 
 export const useRepos = () => {
+  const { githubService } = useServices();
   const [token] = useAtom(tokens);
   return useQuery({
     queryKey: QueryKeys.getReposKey(token.accessToken),
@@ -29,6 +30,7 @@ export const useRepos = () => {
 };
 
 export const useBranches = (repo?: string) => {
+  const { githubService } = useServices();
   const [token] = useAtom(tokens);
 
   return useQuery({
@@ -39,6 +41,7 @@ export const useBranches = (repo?: string) => {
 };
 
 export const useCommits = (repo?: string, branch?: string) => {
+  const { githubService } = useServices();
   const [token] = useAtom(tokens);
 
   return useQuery({
@@ -49,6 +52,7 @@ export const useCommits = (repo?: string, branch?: string) => {
 };
 
 export const usePackageJson = (onSuccess: (data: PackageJson) => void, repo?: string, subFolder?: string) => {
+  const { githubService } = useServices();
   const [token] = useAtom(tokens);
 
   const query = useQuery({
@@ -74,6 +78,7 @@ export const usePackageJson = (onSuccess: (data: PackageJson) => void, repo?: st
 };
 
 export const useSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void, repo?: string) => {
+  const { githubService } = useServices();
   const [token] = useAtom(tokens);
 
   const query = useQuery({
@@ -92,6 +97,7 @@ export const useSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void,
 };
 
 export const useFetchAccessToken = (onSuccess: () => void) => {
+  const { githubService } = useServices();
   const [, setToken] = useAtom(tokens);
 
   return useMutation({
