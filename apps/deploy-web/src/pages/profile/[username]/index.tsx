@@ -1,6 +1,9 @@
+import type { GetServerSidePropsResult } from "next";
+import { z } from "zod";
+
 import { UserProfile } from "@src/components/user/UserProfile";
 import { serverEnvConfig } from "@src/config/server-env.config";
-import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
+import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import type { IUserSetting } from "@src/types/user";
 
 type Props = {
@@ -14,14 +17,14 @@ const UserProfilePage: React.FunctionComponent<Props> = ({ username, user }) => 
 
 export default UserProfilePage;
 
-export const getServerSideProps = getServerSidePropsWithServices<Props, Pick<Props, "username">>(async ({ params, services }) => {
-  if (!params?.username) {
-    return {
-      notFound: true
-    };
-  }
-
-  try {
+export const getServerSideProps = defineServerSideProps({
+  route: "/profile/[username]",
+  schema: z.object({
+    params: z.object({
+      username: z.string()
+    })
+  }),
+  async handler({ params, services }): Promise<GetServerSidePropsResult<Props>> {
     const { data: user } = await services.axios.get(`${serverEnvConfig.BASE_API_MAINNET_URL}/user/byUsername/${params.username}`);
 
     return {
@@ -30,13 +33,5 @@ export const getServerSideProps = getServerSidePropsWithServices<Props, Pick<Pro
         user
       }
     };
-  } catch (error: any) {
-    if (error.response?.status === 404 || error.response?.status === 400) {
-      return {
-        notFound: true
-      };
-    } else {
-      throw error;
-    }
   }
 });

@@ -10,7 +10,7 @@ export class ApiUrlService {
       | Pick<BrowserEnvConfig, "NEXT_PUBLIC_BASE_API_TESTNET_URL" | "NEXT_PUBLIC_BASE_API_SANDBOX_URL" | "NEXT_PUBLIC_BASE_API_MAINNET_URL">
   ) {}
 
-  getBaseApiUrlFor(network: NetworkId) {
+  getBaseApiUrlFor(network: NetworkId | undefined): string {
     if ("BASE_API_MAINNET_URL" in this.config) {
       switch (network) {
         case TESTNET_ID:

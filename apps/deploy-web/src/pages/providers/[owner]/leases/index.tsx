@@ -1,5 +1,8 @@
+import type { GetServerSidePropsResult } from "next";
+import { z } from "zod";
+
 import { LeaseListContainer } from "@src/components/providers/LeaseListContainer";
-import { getServerSidePropsWithServices } from "@src/lib/nextjs/getServerSidePropsWithServices";
+import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 
 type Props = {
   owner: string;
@@ -11,10 +14,18 @@ const ProviderLeasesPage: React.FunctionComponent<Props> = ({ owner }) => {
 
 export default ProviderLeasesPage;
 
-export const getServerSideProps = getServerSidePropsWithServices<Props, Pick<Props, "owner">>(async ({ params }) => {
-  return {
-    props: {
-      owner: params!.owner
-    }
-  };
+export const getServerSideProps = defineServerSideProps({
+  route: "/providers/[owner]/leases",
+  schema: z.object({
+    params: z.object({
+      owner: z.string()
+    })
+  }),
+  async handler({ params }): Promise<GetServerSidePropsResult<Props>> {
+    return {
+      props: {
+        owner: params.owner
+      }
+    };
+  }
 });

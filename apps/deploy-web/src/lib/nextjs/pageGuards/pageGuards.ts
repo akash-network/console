@@ -8,7 +8,7 @@ export async function isFeatureEnabled(featureName: string, context: AppTypedCon
   return await context.services.featureFlagService.isEnabledForCtx(featureName, context, { userId: session?.user?.id });
 }
 
-export async function isRegisteredUser(context: AppTypedContext): Promise<boolean> {
+export async function isAuthenticated(context: AppTypedContext): Promise<boolean> {
   const session = await context.services.getSession(context.req, context.res);
   return !!session?.user;
 }
