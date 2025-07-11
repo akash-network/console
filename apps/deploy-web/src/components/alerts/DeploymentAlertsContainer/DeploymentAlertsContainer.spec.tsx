@@ -16,7 +16,7 @@ import { ServicesProvider } from "@src/context/ServicesProvider";
 import { queryClient } from "@src/queries";
 import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { buildRpcDeployment } from "@tests/seeders/deployment";
 import { buildNotificationChannel } from "@tests/seeders/notificationChannel";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
@@ -51,7 +51,9 @@ describe(DeploymentAlertsContainer.name, () => {
           }
         })
       );
-      expect(screen.queryByTestId("alert-config-success-notification")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId("alert-config-success-notification")).toBeInTheDocument();
+      });
     });
   });
 

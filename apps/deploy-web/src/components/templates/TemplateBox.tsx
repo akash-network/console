@@ -19,6 +19,7 @@ export const TemplateBox: React.FunctionComponent<Props> = ({ template, linkHref
     <Link
       className={cn(cardClasses, "min-h-[100px] cursor-pointer !no-underline hover:bg-secondary/60 dark:hover:bg-secondary/30")}
       href={linkHref ? linkHref : UrlService.templateDetails(template.id as string)}
+      prefetch={false}
     >
       <CardHeader>
         <div className="flex items-center">
