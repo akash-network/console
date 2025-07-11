@@ -14,6 +14,7 @@ import { NAMESPACE } from "@src/modules/chain/config";
 import { BlockCursorRepository } from "@src/modules/chain/repositories/block-cursor/block-cursor.repository";
 import { BlockMessageService } from "../block-message/block-message.service";
 import type { BlockData } from "../block-message-parser/block-message-parser.service";
+import { TxEventsService } from "../tx-events-service/tx-events.service";
 import { ChainEventsPollerService } from "./chain-events-poller.service";
 
 import { MockProvider } from "@test/mocks/provider.mock";
@@ -54,6 +55,16 @@ describe(ChainEventsPollerService.name, () => {
       {
         eventName: mockBlock.messages[1].type,
         event: mockBlock.messages[1]
+      },
+      {
+        eventName: "akash.v1.deployment.deployment-closed",
+        event: {
+          type: "akash.v1",
+          module: "deployment",
+          action: "deployment-closed",
+          owner: "akash1qh0f0h7jlq4x5gpxghrxvps5l09y7uuvcumcyd",
+          dseq: "22350842"
+        }
       }
     ]);
   });
@@ -95,6 +106,7 @@ describe(ChainEventsPollerService.name, () => {
     blockMessageService: MockProxy<BlockMessageService>;
     blockCursorRepository: MockProxy<BlockCursorRepository>;
     loggerService: MockProxy<LoggerService>;
+    txEventsService: MockProxy<TxEventsService>;
     CURRENT_HEIGHT: number;
   }> {
     const module = await Test.createTestingModule({
@@ -119,7 +131,8 @@ describe(ChainEventsPollerService.name, () => {
         MockProvider(BlockCursorRepository),
         MockProvider(StargateClient as any),
         MockProvider(ShutdownService),
-        MockProvider(LoggerService)
+        MockProvider(LoggerService),
+        MockProvider(TxEventsService)
       ]
     }).compile();
 
@@ -134,12 +147,24 @@ describe(ChainEventsPollerService.name, () => {
       return await cb(height);
     });
 
+    const txEventsService = module.get<MockProxy<TxEventsService>>(TxEventsService);
+    txEventsService.getBlockEvents.mockResolvedValue([
+      {
+        type: "akash.v1",
+        module: "deployment",
+        action: "deployment-closed",
+        owner: "akash1qh0f0h7jlq4x5gpxghrxvps5l09y7uuvcumcyd",
+        dseq: "22350842"
+      }
+    ]);
+
     return {
       module,
       service: module.get(ChainEventsPollerService),
       blockMessageService: module.get(BlockMessageService),
       blockCursorRepository,
       loggerService: module.get(LoggerService),
+      txEventsService,
       CURRENT_HEIGHT
     };
   }

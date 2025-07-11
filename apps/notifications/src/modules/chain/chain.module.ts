@@ -5,6 +5,8 @@ import { CommonModule } from "@src/common/common.module";
 import { BrokerModule } from "@src/infrastructure/broker";
 import { register } from "@src/infrastructure/db/db.module";
 import { DbHealthzService } from "@src/infrastructure/db/services/db-healthz/db-healthz.service";
+import { TendermintClientProvider } from "@src/modules/chain/providers/tendermint-client/tendermint-client.provider";
+import { TxEventsService } from "@src/modules/chain/services/tx-events-service/tx-events.service";
 import { RegistryProvider } from "./providers/registry.provider";
 import { StargateClientProvider } from "./providers/stargate-client/stargate-client.provider";
 import { BlockCursorRepository } from "./repositories/block-cursor/block-cursor.repository";
@@ -26,6 +28,8 @@ import * as schema from "./model-schemas";
     BlockchainClientService,
     MessageDecoderService,
     StargateClientProvider,
+    TendermintClientProvider,
+    TxEventsService,
     CosmjsDecodingService,
     RegistryProvider,
     BlockCursorRepository,

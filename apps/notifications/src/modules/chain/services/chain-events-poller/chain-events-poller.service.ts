@@ -13,6 +13,7 @@ import { BrokerService } from "@src/infrastructure/broker";
 import type { ChainEventsConfig } from "@src/modules/chain/config";
 import { BlockCursorRepository } from "@src/modules/chain/repositories/block-cursor/block-cursor.repository";
 import { BlockData } from "@src/modules/chain/services/block-message-parser/block-message-parser.service";
+import { TxEventsService } from "@src/modules/chain/services/tx-events-service/tx-events.service";
 import { BlockMessageService } from "../block-message/block-message.service";
 
 @Injectable()
@@ -24,6 +25,7 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly brokerService: BrokerService,
     private readonly blockMessageService: BlockMessageService,
+    private readonly txEventsService: TxEventsService,
     private readonly loggerService: LoggerService,
     private readonly blockCursorRepository: BlockCursorRepository,
     private readonly stargateClient: StargateClient,
@@ -90,6 +92,8 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
 
       const block = await this.blockMessageService.getMessages(nextBlockHeight, [MsgCloseDeployment["$type"], MsgCreateDeployment["$type"]]);
 
+      const txEvents = await this.txEventsService.getBlockEvents(nextBlockHeight, { type: "akash.v1", action: ["deployment-closed"] });
+
       await this.brokerService.publishAll([
         {
           eventName: eventKeyRegistry.blockCreated,
@@ -100,6 +104,10 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
         ...block.messages.map(message => ({
           eventName: message.type,
           event: message
+        })),
+        ...txEvents.map(event => ({
+          eventName: `${event.type}.${event.module}.${event.action}`,
+          event: event
         }))
       ]);
 
