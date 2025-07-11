@@ -2,7 +2,6 @@ import { getSession } from "@auth0/nextjs-auth0";
 import { z } from "zod";
 
 import { UserTemplate } from "@src/components/templates/UserTemplate";
-import { serverEnvConfig } from "@src/config/server-env.config";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import type { ITemplate } from "@src/types";
 
@@ -35,7 +34,7 @@ export const getServerSideProps = defineServerSideProps({
         }
       };
     }
-    const response = await services.axios.get(`${serverEnvConfig.BASE_API_MAINNET_URL}/user/template/${params.id}`, config);
+    const response = await services.axios.get(`${services.apiUrlService.getBaseApiUrlFor("mainnet")}/user/template/${params.id}`, config);
 
     return {
       props: {

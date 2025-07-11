@@ -1,7 +1,8 @@
 import { faker } from "@faker-js/faker";
 import type { AxiosError } from "axios";
+import { mock } from "jest-mock-extended";
 
-import { BitbucketService } from "@src/services/remote-deploy/bitbucket-http.service";
+import type { BitbucketService } from "@src/services/remote-deploy/bitbucket-http.service";
 import {
   useBitBranches,
   useBitBucketCommits,
@@ -17,42 +18,20 @@ import { act, waitFor } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 import { readToken, writeToken } from "@tests/unit/token";
 
-jest.mock("@src/services/remote-deploy/bitbucket-http.service", () => {
-  const mockService = {
-    fetchAccessToken: jest.fn(),
-    fetchRefreshToken: jest.fn(),
-    fetchUserProfile: jest.fn(),
-    fetchCommits: jest.fn(),
-    fetchWorkspaces: jest.fn(),
-    fetchReposByWorkspace: jest.fn(),
-    fetchBranches: jest.fn(),
-    fetchPackageJson: jest.fn(),
-    fetchSrcFolders: jest.fn()
-  };
-
-  return {
-    BitbucketService: jest.fn(() => mockService)
-  };
-});
-
 describe("useBitBucketQuery", () => {
-  let mockBitbucketService: any;
-
-  beforeEach(() => {
-    mockBitbucketService = new BitbucketService();
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe("useBitFetchAccessToken", () => {
-    it("should fetch access token and update token state", async () => {
+    it("fetches access token and update token state", async () => {
       const mockData = { accessToken: "test-access-token", refreshToken: "test-refresh-token" };
-      mockBitbucketService.fetchAccessToken.mockResolvedValue(mockData);
+      const mockBitbucketService = mock<BitbucketService>({
+        fetchAccessToken: jest.fn().mockResolvedValue(mockData)
+      });
       const onSuccess = jest.fn();
 
-      const { result } = setupQuery(() => useBitFetchAccessToken(onSuccess));
+      const { result } = setupQuery(() => useBitFetchAccessToken(onSuccess), {
+        services: {
+          bitbucketService: () => mockBitbucketService
+        }
+      });
 
       await act(async () => {
         await result.current.mutateAsync("test-code");
@@ -67,12 +46,34 @@ describe("useBitBucketQuery", () => {
   });
 
   describe("useBitUserProfile", () => {
-    it("should fetch user profile when token is available", async () => {
+    it("fetches user profile when token is available", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
-      const mockData = { username: "test-username" };
-      mockBitbucketService.fetchUserProfile.mockResolvedValue(mockData);
+      const mockData = {
+        display_name: "Test User",
+        links: {
+          self: { href: "https://api.bitbucket.org/2.0/user" },
+          avatar: { href: "https://bitbucket.org/account/testuser/avatar/" },
+          html: { href: "https://bitbucket.org/testuser" },
+          hooks: { href: "https://api.bitbucket.org/2.0/user/hooks" }
+        },
+        created_on: "2023-01-01T00:00:00.000000+00:00",
+        type: "user",
+        uuid: "test-uuid",
+        username: "test-username",
+        account_id: "test-account-id",
+        nickname: "testuser",
+        account_status: "active",
+        location: null
+      };
+      const mockBitbucketService = mock<BitbucketService>({
+        fetchUserProfile: jest.fn().mockResolvedValue(mockData)
+      });
 
-      const { result } = setupQuery(() => useBitUserProfile());
+      const { result } = setupQuery(() => useBitUserProfile(), {
+        services: {
+          bitbucketService: () => mockBitbucketService
+        }
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -80,23 +81,44 @@ describe("useBitBucketQuery", () => {
       });
     });
 
-    it("should attempt to refresh token on 401 error", async () => {
+    it("attempts to refresh token on 401 error", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
       const mockError = { response: { status: 401 } } as AxiosError;
-      const mockData = { username: "test-username" };
-      mockBitbucketService.fetchUserProfile.mockImplementation((token: string) => {
-        if (token === "test-token") {
-          return Promise.reject(mockError);
+      const mockData = {
+        display_name: "Test User",
+        links: {
+          self: { href: "https://api.bitbucket.org/2.0/user" },
+          avatar: { href: "https://bitbucket.org/account/testuser/avatar/" },
+          html: { href: "https://bitbucket.org/testuser" },
+          hooks: { href: "https://api.bitbucket.org/2.0/user/hooks" }
+        },
+        created_on: "2023-01-01T00:00:00.000000+00:00",
+        type: "user",
+        uuid: "test-uuid",
+        username: "test-username",
+        account_id: "test-account-id",
+        nickname: "testuser",
+        account_status: "active",
+        location: null
+      };
+      const mockBitbucketService = mock<BitbucketService>({
+        fetchUserProfile: jest.fn().mockImplementation((token: string) => {
+          if (token === "test-token") {
+            return Promise.reject(mockError);
+          }
+          return Promise.resolve(mockData);
+        }),
+        fetchRefreshToken: jest.fn().mockResolvedValue({
+          accessToken: "new-token",
+          refreshToken: "new-refresh-token"
+        })
+      });
+
+      const { result } = setupQuery(() => useBitUserProfile(), {
+        services: {
+          bitbucketService: () => mockBitbucketService
         }
-
-        return Promise.resolve(mockData);
       });
-      mockBitbucketService.fetchRefreshToken.mockResolvedValueOnce({
-        accessToken: "new-token",
-        refreshToken: "new-refresh-token"
-      });
-
-      const { result } = setupQuery(() => useBitUserProfile());
 
       await waitFor(() => {
         expect(mockBitbucketService.fetchUserProfile).toHaveBeenCalledWith("test-token");
@@ -107,12 +129,18 @@ describe("useBitBucketQuery", () => {
   });
 
   describe("useBitBucketCommits", () => {
-    it("should fetch commits when repo is provided", async () => {
+    it("fetches commits when repo is provided", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
       const mockData = { values: [{ hash: faker.git.commitSha() }] };
-      mockBitbucketService.fetchCommits.mockResolvedValue(mockData);
+      const mockBitbucketService = mock<BitbucketService>({
+        fetchCommits: jest.fn().mockResolvedValue(mockData)
+      });
 
-      const { result } = setupQuery(() => useBitBucketCommits("test-repo"));
+      const { result } = setupQuery(() => useBitBucketCommits("test-repo"), {
+        services: {
+          bitbucketService: () => mockBitbucketService
+        }
+      });
 
       await waitFor(() => {
         expect(mockBitbucketService.fetchCommits).toHaveBeenCalledWith("test-repo", "test-token");
@@ -121,19 +149,25 @@ describe("useBitBucketQuery", () => {
       });
     });
 
-    it("should not fetch when repo is not provided", () => {
+    it("does not fetch when repo is not provided", () => {
       const { result } = setupQuery(() => useBitBucketCommits());
       expect(result.current.isLoading).toBe(false);
     });
   });
 
   describe("useWorkspaces", () => {
-    it("should fetch workspaces when token is available", async () => {
+    it("fetches workspaces when token is available", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
       const mockData = { values: [{ uuid: faker.string.uuid() }] };
-      mockBitbucketService.fetchWorkspaces.mockResolvedValue(mockData);
+      const mockBitbucketService = mock<BitbucketService>({
+        fetchWorkspaces: jest.fn().mockResolvedValue(mockData)
+      });
 
-      const { result } = setupQuery(() => useWorkspaces());
+      const { result } = setupQuery(() => useWorkspaces(), {
+        services: {
+          bitbucketService: () => mockBitbucketService
+        }
+      });
 
       await waitFor(() => {
         expect(mockBitbucketService.fetchWorkspaces).toHaveBeenCalledWith("test-token");
@@ -144,12 +178,18 @@ describe("useBitBucketQuery", () => {
   });
 
   describe("useBitReposByWorkspace", () => {
-    it("should fetch repos when workspace is provided", async () => {
+    it("fetches repos when workspace is provided", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
       const mockData = { values: [{ name: faker.lorem.word() }] };
-      mockBitbucketService.fetchReposByWorkspace.mockResolvedValue(mockData);
+      const mockBitbucketService = mock<BitbucketService>({
+        fetchReposByWorkspace: jest.fn().mockResolvedValue(mockData)
+      });
 
-      const { result } = setupQuery(() => useBitReposByWorkspace("test-workspace"));
+      const { result } = setupQuery(() => useBitReposByWorkspace("test-workspace"), {
+        services: {
+          bitbucketService: () => mockBitbucketService
+        }
+      });
 
       await waitFor(() => {
         expect(mockBitbucketService.fetchReposByWorkspace).toHaveBeenCalledWith("test-workspace", "test-token");
@@ -158,7 +198,7 @@ describe("useBitBucketQuery", () => {
       });
     });
 
-    it("should not fetch when workspace is not provided", () => {
+    it("does not fetch when workspace is not provided", () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
 
       const { result } = setupQuery(() => useBitReposByWorkspace(""));
@@ -167,12 +207,18 @@ describe("useBitBucketQuery", () => {
   });
 
   describe("useBitBranches", () => {
-    it("should fetch branches when repo is provided", async () => {
+    it("fetches branches when repo is provided", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
       const mockData = { values: [{ name: faker.lorem.word() }] };
-      mockBitbucketService.fetchBranches.mockResolvedValue(mockData);
+      const mockBitbucketService = mock<BitbucketService>({
+        fetchBranches: jest.fn().mockResolvedValue(mockData)
+      });
 
-      const { result } = setupQuery(() => useBitBranches("test-repo"));
+      const { result } = setupQuery(() => useBitBranches("test-repo"), {
+        services: {
+          bitbucketService: () => mockBitbucketService
+        }
+      });
 
       await waitFor(() => {
         expect(mockBitbucketService.fetchBranches).toHaveBeenCalledWith("test-repo", "test-token");
@@ -181,20 +227,26 @@ describe("useBitBucketQuery", () => {
       });
     });
 
-    it("should not fetch when repo is not provided", () => {
+    it("does not fetch when repo is not provided", () => {
       const { result } = setupQuery(() => useBitBranches());
       expect(result.current.isLoading).toBe(false);
     });
   });
 
   describe("useBitPackageJson", () => {
-    it("should fetch package.json and call onSettled callback", async () => {
+    it("fetches package.json and call onSettled callback", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
       const mockPackageJson = { dependencies: ["foo", "bar"] };
-      mockBitbucketService.fetchPackageJson.mockResolvedValue(mockPackageJson);
       const onSettled = jest.fn();
+      const mockBitbucketService = mock<BitbucketService>({
+        fetchPackageJson: jest.fn().mockResolvedValue(mockPackageJson)
+      });
 
-      const { result } = setupQuery(() => useBitPackageJson(onSettled, "test-repo", "main", "src"));
+      const { result } = setupQuery(() => useBitPackageJson(onSettled, "test-repo", "main", "src"), {
+        services: {
+          bitbucketService: () => mockBitbucketService
+        }
+      });
 
       await waitFor(() => {
         expect(mockBitbucketService.fetchPackageJson).toHaveBeenCalledWith("test-repo", "main", "src", "test-token");
@@ -205,13 +257,19 @@ describe("useBitBucketQuery", () => {
   });
 
   describe("useBitSrcFolders", () => {
-    it("should fetch source folders and call onSettled callback", async () => {
+    it("fetches source folders and call onSettled callback", async () => {
       writeToken({ accessToken: "test-token", refreshToken: "test-refresh-token", type: "bitbucket" });
       const mockFolders = [{ name: faker.lorem.word() }];
-      mockBitbucketService.fetchSrcFolders.mockResolvedValue({ values: mockFolders });
       const onSettled = jest.fn();
+      const mockBitbucketService = mock<BitbucketService>({
+        fetchSrcFolders: jest.fn().mockResolvedValue({ values: mockFolders })
+      });
 
-      const { result } = setupQuery(() => useBitSrcFolders(onSettled, "test-repo", "main"));
+      const { result } = setupQuery(() => useBitSrcFolders(onSettled, "test-repo", "main"), {
+        services: {
+          bitbucketService: () => mockBitbucketService
+        }
+      });
 
       await waitFor(() => {
         expect(mockBitbucketService.fetchSrcFolders).toHaveBeenCalledWith("test-repo", "main", "test-token");
