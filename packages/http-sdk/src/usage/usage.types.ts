@@ -1,8 +1,3 @@
-export type ChosenPlan = {
-  id: string;
-  title: string;
-};
-
 export type UsageHistory = Array<{
   date: string;
   activeDeployments: number;

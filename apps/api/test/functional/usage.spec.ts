@@ -278,7 +278,7 @@ describe("GET /v1/usage/history", () => {
     if (data.length > 0) {
       const firstItem = data[0];
       expect(firstItem).toHaveProperty("date");
-      expect(firstItem).toHaveProperty("activeLeases");
+      expect(firstItem).toHaveProperty("activeDeployments");
       expect(firstItem).toHaveProperty("dailyAktSpent");
       expect(firstItem).toHaveProperty("totalAktSpent");
       expect(firstItem).toHaveProperty("dailyUsdcSpent");
@@ -318,7 +318,7 @@ describe("GET /v1/usage/history", () => {
     const data = await expectUsageHistory(response, 31);
 
     data.forEach(day => {
-      expect(day.activeLeases).toBe(0);
+      expect(day.activeDeployments).toBe(0);
       expect(day.dailyAktSpent).toBe(0);
       expect(day.totalAktSpent).toBe(0);
       expect(day.dailyUsdcSpent).toBe(0);
@@ -411,14 +411,14 @@ describe("GET /v1/usage/history/stats", () => {
       const data = (await response.json()) as UsageHistoryStats;
 
       expect(data).toHaveProperty("totalSpent");
-      expect(data).toHaveProperty("averagePerDay");
-      expect(data).toHaveProperty("totalLeases");
-      expect(data).toHaveProperty("averageLeasesPerDay");
+      expect(data).toHaveProperty("averageSpentPerDay");
+      expect(data).toHaveProperty("totalDeployments");
+      expect(data).toHaveProperty("averageDeploymentsPerDay");
 
       expect(typeof data.totalSpent).toBe("number");
-      expect(typeof data.averagePerDay).toBe("number");
-      expect(typeof data.totalLeases).toBe("number");
-      expect(typeof data.averageLeasesPerDay).toBe("number");
+      expect(typeof data.averageSpentPerDay).toBe("number");
+      expect(typeof data.totalDeployments).toBe("number");
+      expect(typeof data.averageDeploymentsPerDay).toBe("number");
 
       return data;
     };
@@ -441,8 +441,8 @@ describe("GET /v1/usage/history/stats", () => {
     const response = await app.request(`/v1/usage/history/stats?address=${owners[0]}&startDate=${startDate}&endDate=${endDate}`);
     const data = await expectUsageStats(response);
 
-    expect(data.averagePerDay).toBeGreaterThanOrEqual(0);
-    expect(data.averageLeasesPerDay).toBeGreaterThanOrEqual(0);
+    expect(data.averageSpentPerDay).toBeGreaterThanOrEqual(0);
+    expect(data.averageDeploymentsPerDay).toBeGreaterThanOrEqual(0);
   });
 
   it("returns zero stats for address with no usage", async () => {
@@ -452,9 +452,9 @@ describe("GET /v1/usage/history/stats", () => {
     const data = await expectUsageStats(response);
 
     expect(data.totalSpent).toBe(0);
-    expect(data.averagePerDay).toBe(0);
-    expect(data.totalLeases).toBe(0);
-    expect(data.averageLeasesPerDay).toBe(0);
+    expect(data.averageSpentPerDay).toBe(0);
+    expect(data.totalDeployments).toBe(0);
+    expect(data.averageDeploymentsPerDay).toBe(0);
   });
 
   it("responds with 400 for invalid address format", async () => {
@@ -498,7 +498,7 @@ describe("GET /v1/usage/history/stats", () => {
     const data = await expectUsageStats(response);
 
     if (data.totalSpent > 0) {
-      expect(data.averagePerDay).toBeCloseTo(data.totalSpent / 7, 2);
+      expect(data.averageSpentPerDay).toBeCloseTo(data.totalSpent / 7, 2);
     }
   });
 
@@ -509,7 +509,7 @@ describe("GET /v1/usage/history/stats", () => {
 
     // Check that monetary values are rounded to 2 decimal places
     expect(data.totalSpent.toString()).toMatch(/^\d+(\.\d{1,2})?$/);
-    expect(data.averagePerDay.toString()).toMatch(/^\d+(\.\d{1,2})?$/);
-    expect(data.averageLeasesPerDay.toString()).toMatch(/^\d+(\.\d{1,2})?$/);
+    expect(data.averageSpentPerDay.toString()).toMatch(/^\d+(\.\d{1,2})?$/);
+    expect(data.averageDeploymentsPerDay.toString()).toMatch(/^\d+(\.\d{1,2})?$/);
   });
 });

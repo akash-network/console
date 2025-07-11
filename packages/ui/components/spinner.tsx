@@ -14,7 +14,7 @@ export function Spinner({ className, size = "medium", variant = "primary" }: Spi
         aria-hidden="true"
         className={cn("animate-spin", {
           "fill-red-200 text-red-500 dark:fill-red-500 dark:text-transparent/20": variant === "primary",
-          "fill-red-500 text-white": variant === "dark",
+          "fill-red-500 text-transparent/20 dark:text-white": variant === "dark",
           "h-2 w-2": size === "xSmall",
           "h-4 w-4": size === "small",
           "h-8 w-8": size === "medium",

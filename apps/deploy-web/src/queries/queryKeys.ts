@@ -1,5 +1,7 @@
 export class QueryKeys {
   static getFinancialDataKey = () => ["MARKET_DATA"];
+  static getUsageDataKey = (address: string, startDate?: string, endDate?: string) => ["USAGE_DATA", address, startDate, endDate];
+  static getUsageStatsDataKey = (address: string, startDate?: string, endDate?: string) => ["USAGE_STATS_DATA", address, startDate, endDate];
   static getDashboardDataKey = () => ["DASHBOARD_DATA"];
   static getBlocksKey = (limit: number) => ["BLOCKS", limit];
   static getTransactionsKey = (limit: number) => ["TRANSACTIONS", limit];
@@ -71,7 +73,7 @@ export class QueryKeys {
   static getPaymentMethodsKey = () => ["PAYMENT_METHODS"];
   static getPaymentDiscountsKey = () => ["PAYMENT_DISCOUNTS"];
 
-  static getPaymentTransactionsKey = (options?: { limit?: number; startingAfter?: string }) => {
+  static getPaymentTransactionsKey = (options?: { limit?: number; startingAfter?: string | null }) => {
     const key = ["STRIPE_TRANSACTIONS"];
     if (options?.limit) {
       key.push("limit", options.limit.toString());
