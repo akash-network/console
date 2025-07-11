@@ -142,7 +142,10 @@ describe("defineApiHandler", () => {
   function createRequest(input?: Partial<NextApiRequest>) {
     return mock<NextApiRequest>({
       headers: {
-        "content-type": "application/json"
+        "content-type": "application/json",
+        "x-forwarded-host": "localhost",
+        "x-forwarded-for": "127.0.0.1",
+        "x-forwarded-proto": "http"
       },
       ...input
     });
