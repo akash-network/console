@@ -1,46 +1,46 @@
 import { getSession } from "@auth0/nextjs-auth0";
 import httpProxy from "http-proxy";
-import type { NextApiRequest, NextApiResponse } from "next";
 
-import { serverEnvConfig } from "@src/config/server-env.config";
-import { wrapApiHandlerInExecutionContext } from "@src/lib/nextjs/wrapApiHandler";
-import { services } from "@src/services/http/http-server.service";
+import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 
-export default wrapApiHandlerInExecutionContext(async (req: NextApiRequest, res: NextApiResponse) => {
-  // removes the api prefix from url
-  req.url = req.url?.replace(/^\/api\/proxy/, "");
+export default defineApiHandler({
+  route: "/api/proxy/[...path]",
+  async handler({ req, res, services }) {
+    // removes the api prefix from url
+    req.url = req.url?.replace(/^\/api\/proxy/, "");
 
-  services.logger.info({ event: "PROXY_API_REQUEST", url: req.url });
-  const session = await getSession(req, res);
+    services.logger.info({ event: "PROXY_API_REQUEST", url: req.url });
+    const session = await getSession(req, res);
 
-  // Extract and forward only cf_clearance cookie if present
-  const cookies = req.headers.cookie?.split(";").map(c => c.trim());
-  const cfClearance = cookies?.find(c => c.startsWith("cf_clearance="));
-  req.headers.cookie = cfClearance || "";
+    // Extract and forward only cf_clearance cookie if present
+    const cookies = req.headers.cookie?.split(";").map(c => c.trim());
+    const cfClearance = cookies?.find(c => c.startsWith("cf_clearance="));
+    req.headers.cookie = cfClearance || "";
 
-  if (session?.accessToken) {
-    req.headers.authorization = `Bearer ${session.accessToken}`;
-  }
-
-  const proxy = httpProxy.createProxyServer({
-    changeOrigin: true,
-    target: serverEnvConfig.BASE_API_MAINNET_URL,
-    secure: false,
-    autoRewrite: false,
-    headers: {
-      "cf-connecting-ip": String(req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "")
+    if (session?.accessToken) {
+      req.headers.authorization = `Bearer ${session.accessToken}`;
     }
-  });
 
-  return new Promise((resolve, reject) => {
-    proxy
-      .once("proxyRes", () => resolve(undefined))
-      .once("error", (error: Error) => {
-        services.logger.error({ error, event: "PROXY_API_REQUEST_ERROR" });
-        reject();
-      })
-      .web(req, res);
-  });
+    const proxy = httpProxy.createProxyServer({
+      changeOrigin: true,
+      target: services.config.BASE_API_MAINNET_URL,
+      secure: false,
+      autoRewrite: false,
+      headers: {
+        "cf-connecting-ip": String(req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "")
+      }
+    });
+
+    return new Promise((resolve, reject) => {
+      proxy
+        .once("proxyRes", () => resolve(undefined))
+        .once("error", (error: Error) => {
+          services.logger.error({ error, event: "PROXY_API_REQUEST_ERROR" });
+          reject();
+        })
+        .web(req, res);
+    });
+  }
 });
 
 export const config = {

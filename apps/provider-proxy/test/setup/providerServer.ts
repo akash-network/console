@@ -4,6 +4,7 @@ import https from "https";
 import type { AddressInfo } from "net";
 import WebSocket from "ws";
 
+import { shutdownServer } from "../../src/utils/shutdownServer";
 import type { CertPair } from "../seeders/createX509CertPair";
 import { createX509CertPair } from "../seeders/createX509CertPair";
 import { generateBech32 } from "./chainApiServer";
@@ -64,8 +65,8 @@ export function startProviderServer(options: ProviderServerOptions): Promise<str
   });
 }
 
-export function stopProviderServer() {
-  runningServer?.close();
+export function stopProviderServer(): Promise<void> {
+  return shutdownServer(runningServer);
 }
 
 type RequestHandlers = Record<string, (req: IncomingMessage, res: ServerResponse) => (() => void) | undefined | void>;

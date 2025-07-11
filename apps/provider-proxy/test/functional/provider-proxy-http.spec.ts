@@ -15,13 +15,12 @@ describe("Provider HTTP proxy", () => {
     await startServer();
   });
 
-  afterAll(() => {
-    stopServer();
+  afterAll(async () => {
+    await stopServer();
   });
 
-  afterEach(() => {
-    stopProviderServer();
-    stopChainAPIServer();
+  afterEach(async () => {
+    await Promise.all([stopProviderServer(), stopChainAPIServer()]);
   });
 
   it("proxies request if provider uses self-signed certificate which is available on chain", async () => {

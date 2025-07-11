@@ -3,18 +3,17 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import { useAtom } from "jotai";
 
-import { BitbucketService } from "@src/services/remote-deploy/bitbucket-http.service";
+import { useServices } from "@src/context/ServicesProvider";
 import { tokens } from "@src/store/remoteDeployStore";
 import type { IGithubDirectoryItem, PackageJson } from "@src/types/remotedeploy";
 import type { BitProfile } from "@src/types/remoteProfile";
 import { QueryKeys } from "./queryKeys";
 
 const OAuthType = "bitbucket";
-const bitbucketService = new BitbucketService();
 
 const useFetchRefreshBitToken = () => {
+  const { bitbucketService } = useServices();
   const [token, setToken] = useAtom(tokens);
-
   return useMutation({
     mutationFn: async () => bitbucketService.fetchRefreshToken(token?.refreshToken),
     onSuccess: data => {
@@ -27,6 +26,7 @@ const useFetchRefreshBitToken = () => {
 };
 
 export const useBitFetchAccessToken = (onSuccess: () => void) => {
+  const { bitbucketService } = useServices();
   const [, setToken] = useAtom(tokens);
 
   return useMutation({
@@ -43,6 +43,7 @@ export const useBitFetchAccessToken = (onSuccess: () => void) => {
 };
 
 export const useBitUserProfile = () => {
+  const { bitbucketService } = useServices();
   const [token] = useAtom(tokens);
 
   const { mutate } = useFetchRefreshBitToken();
@@ -62,6 +63,7 @@ export const useBitUserProfile = () => {
 };
 
 export const useBitBucketCommits = (repo?: string) => {
+  const { bitbucketService } = useServices();
   const [token] = useAtom(tokens);
 
   return useQuery({
@@ -72,6 +74,7 @@ export const useBitBucketCommits = (repo?: string) => {
 };
 
 export const useWorkspaces = () => {
+  const { bitbucketService } = useServices();
   const [token] = useAtom(tokens);
 
   return useQuery({
@@ -82,6 +85,7 @@ export const useWorkspaces = () => {
 };
 
 export const useBitReposByWorkspace = (workspace: string) => {
+  const { bitbucketService } = useServices();
   const [token] = useAtom(tokens);
 
   return useQuery({
@@ -92,6 +96,7 @@ export const useBitReposByWorkspace = (workspace: string) => {
 };
 
 export const useBitBranches = (repo?: string) => {
+  const { bitbucketService } = useServices();
   const [token] = useAtom(tokens);
 
   return useQuery({
@@ -102,6 +107,7 @@ export const useBitBranches = (repo?: string) => {
 };
 
 export const useBitPackageJson = (onSettled: (data: PackageJson) => void, repo?: string, branch?: string, subFolder?: string) => {
+  const { bitbucketService } = useServices();
   const [token] = useAtom(tokens);
 
   const query = useQuery({
@@ -120,6 +126,7 @@ export const useBitPackageJson = (onSettled: (data: PackageJson) => void, repo?:
 };
 
 export const useBitSrcFolders = (onSettled: (data: IGithubDirectoryItem[]) => void, repo?: string, branch?: string) => {
+  const { bitbucketService } = useServices();
   const [token] = useAtom(tokens);
 
   const query = useQuery({

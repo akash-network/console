@@ -1,10 +1,10 @@
 import { NewDeploymentContainer } from "@src/components/new-deployment/NewDeploymentContainer";
+import { createServerSideProps } from "@src/components/new-deployment/NewDeploymentPage/createServerSideProps";
 import { withSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
-import { getServerSideProps } from "../new-deployment";
 
 export default withSdlBuilder({
   componentsSet: "ssh",
   imageSource: "ssh-vms"
 })(NewDeploymentContainer);
 
-export { getServerSideProps };
+export const getServerSideProps = createServerSideProps("/deploy-linux");
