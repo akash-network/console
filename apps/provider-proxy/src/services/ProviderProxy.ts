@@ -25,7 +25,8 @@ export class ProviderProxy {
       cert: options.cert,
       key: options.key,
       chainNetwork: options.network,
-      providerAddress: options.providerAddress
+      providerAddress: options.providerAddress,
+      servername: ""
     };
     const agent = this.getHttpsAgent(agentOptions);
     return new Promise<ProxyConnectionResult>((resolve, reject) => {
