@@ -295,8 +295,7 @@ export class StripeService extends Stripe {
             event: "COUPON_APPLICATION_ROLLBACK_FAILED",
             userId: currentUser.id,
             couponId: updateId,
-            originalError: error instanceof Error ? error.message : String(error),
-            rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
+            error: new AggregateError([error, rollbackError])
           });
         }
       }
