@@ -6,7 +6,10 @@ import { singleton } from "tsyringe";
 import { Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
+import { LoggerService } from "@src/core/providers/logging.provider";
 import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
+
+const logger = LoggerService.forContext("StripeService");
 
 interface CheckoutOptions {
   customerId: string;
@@ -200,17 +203,17 @@ export class StripeService extends Stripe {
     return promotionCodes[0];
   }
 
-  async applyCoupon(customerId: string, couponCode: string): Promise<Stripe.Coupon | Stripe.PromotionCode> {
+  async applyCoupon(currentUser: UserOutput, couponCode: string): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; amountAdded: number }> {
     const promotionCode = await this.findPromotionCodeByCode(couponCode);
 
     if (promotionCode) {
-      if (!promotionCode.coupon.valid) {
-        throw new Error("Promotion code is invalid or expired");
-      }
-      await this.customers.update(customerId, {
-        promotion_code: promotionCode.id
+      return this.applyCouponOrPromotionCode({
+        currentUser,
+        couponOrPromotion: promotionCode,
+        coupon: promotionCode.coupon,
+        updateField: "promotion_code",
+        updateId: promotionCode.id
       });
-      return promotionCode;
     }
 
     // If no promotion code found, try to find a matching coupon
@@ -218,16 +221,87 @@ export class StripeService extends Stripe {
     const matchingCoupon = coupons.find(coupon => coupon.id === couponCode);
 
     if (matchingCoupon) {
-      if (!matchingCoupon.valid) {
-        throw new Error("Coupon is invalid or expired");
-      }
-      await this.customers.update(customerId, {
-        coupon: matchingCoupon.id
+      return this.applyCouponOrPromotionCode({
+        currentUser,
+        couponOrPromotion: matchingCoupon,
+        coupon: matchingCoupon,
+        updateField: "coupon",
+        updateId: matchingCoupon.id
       });
-      return matchingCoupon;
     }
 
     throw new Error("No valid promotion code or coupon found with the provided code");
+  }
+
+  private async applyCouponOrPromotionCode({
+    currentUser,
+    couponOrPromotion,
+    coupon,
+    updateField,
+    updateId
+  }: {
+    currentUser: UserOutput;
+    couponOrPromotion: Stripe.Coupon | Stripe.PromotionCode;
+    coupon: Stripe.Coupon;
+    updateField: "promotion_code" | "coupon";
+    updateId: string;
+  }): Promise<{ coupon: Stripe.Coupon | Stripe.PromotionCode; amountAdded: number }> {
+    if (!coupon.valid) {
+      throw new Error(updateField === "promotion_code" ? "Promotion code is invalid or expired" : "Coupon is invalid or expired");
+    }
+
+    if (coupon.percent_off) {
+      throw new Error("Percentage-based coupons are not supported. Only fixed amount coupons are allowed.");
+    }
+
+    if (!coupon.amount_off) {
+      throw new Error("Invalid coupon type. Only fixed amount coupons are supported.");
+    }
+
+    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
+
+    const amountToAdd = coupon.amount_off; // amount_off is already in cents
+    let couponApplied = false;
+
+    try {
+      await this.customers.update(currentUser.stripeCustomerId, {
+        [updateField]: updateId
+      });
+      couponApplied = true;
+
+      if (amountToAdd > 0) {
+        await this.refillService.topUpWallet(amountToAdd, currentUser.id);
+      }
+
+      await this.customers.update(currentUser.stripeCustomerId, {
+        [updateField]: null
+      });
+
+      return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100 };
+    } catch (error) {
+      if (couponApplied) {
+        try {
+          await this.customers.update(currentUser.stripeCustomerId, {
+            [updateField]: null
+          });
+          logger.info({
+            event: "COUPON_APPLICATION_ROLLBACK_SUCCESS",
+            userId: currentUser.id,
+            couponId: updateId,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } catch (rollbackError) {
+          logger.error({
+            event: "COUPON_APPLICATION_ROLLBACK_FAILED",
+            userId: currentUser.id,
+            couponId: updateId,
+            error: new AggregateError([error, rollbackError])
+          });
+        }
+      }
+
+      throw error;
+    }
   }
 
   async listCoupons() {
