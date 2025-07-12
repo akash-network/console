@@ -47,41 +47,43 @@ export function DateRangePicker({
 
   const months = React.useMemo(() => Array.from({ length: 12 }, (_, i) => format(new Date(2024, i, 1), "MMMM")), []);
 
-  const effectiveMinDate = React.useMemo(() => {
+  const remainingRangeInDays = React.useMemo(() => {
     if (!selectedRange?.from || !selectedRange?.to || !maxRangeInDays) {
+      return null;
+    }
+
+    const selectedRangeInDays = differenceInDays(selectedRange.to, selectedRange.from) + 1;
+
+    if (selectedRangeInDays >= maxRangeInDays) {
+      return 0;
+    }
+
+    return maxRangeInDays - selectedRangeInDays;
+  }, [selectedRange?.from, selectedRange?.to, maxRangeInDays]);
+
+  const effectiveMinDate = React.useMemo(() => {
+    if (remainingRangeInDays === null || !selectedRange?.from) {
       return minDate;
     }
 
-    const selectedRangeInDays = differenceInDays(selectedRange.to, selectedRange.from) + 1;
+    const rangedMinDate = subDays(selectedRange.from, remainingRangeInDays);
 
-    const rangeInDaysToSubtract = Math.abs(selectedRangeInDays - maxRangeInDays);
-
-    const rangedMinDate = subDays(selectedRange.from, rangeInDaysToSubtract);
-
-    if (minDate) {
-      return max([minDate, rangedMinDate]);
-    }
-
-    return rangedMinDate;
-  }, [minDate, maxRangeInDays, selectedRange?.from, selectedRange?.to]);
+    return minDate ? max([minDate, rangedMinDate]) : rangedMinDate;
+  }, [minDate, selectedRange?.from, remainingRangeInDays]);
 
   const effectiveMaxDate = React.useMemo(() => {
-    if (!selectedRange?.from || !selectedRange?.to || !maxRangeInDays) {
+    if (remainingRangeInDays === null || !selectedRange?.to) {
       return maxDate;
     }
 
-    const selectedRangeInDays = differenceInDays(selectedRange.to, selectedRange.from) + 1;
-
-    const rangeInDaysToAdd = Math.abs(selectedRangeInDays - maxRangeInDays);
-
-    const rangedMaxDate = addDays(selectedRange.to, rangeInDaysToAdd);
+    const rangedMaxDate = addDays(selectedRange.to, remainingRangeInDays);
 
     if (maxDate) {
       return min([maxDate, rangedMaxDate]);
     }
 
     return rangedMaxDate;
-  }, [maxDate, maxRangeInDays, selectedRange?.from, selectedRange?.to]);
+  }, [maxDate, selectedRange?.to, remainingRangeInDays]);
 
   const presets = React.useMemo(
     () => [
