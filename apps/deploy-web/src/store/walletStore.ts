@@ -5,8 +5,10 @@ const isSignedInWithTrial = atomWithStorage<boolean>("isSignedInWithTrial", fals
 const selectedWalletType = atomWithStorage<"managed" | "custodial">("selectedWalletType", "custodial");
 const isWalletModalOpen = atom<boolean>(false);
 
-export default {
+const walletStore = {
   isSignedInWithTrial,
   selectedWalletType,
   isWalletModalOpen
 };
+
+export default walletStore;
