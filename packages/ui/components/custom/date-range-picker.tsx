@@ -3,7 +3,7 @@
 import * as React from "react";
 import type { DateRange } from "react-day-picker";
 import { UI } from "react-day-picker";
-import { differenceInDays, format, isAfter, isBefore, isSameDay, startOfToday, subDays, subMonths, subYears } from "date-fns";
+import { addDays, differenceInDays, format, isAfter, isBefore, isSameDay, max, min, startOfToday, subDays, subMonths, subYears } from "date-fns";
 import { Calendar as CalendarIcon, NavArrowDown, NavArrowLeft, NavArrowRight, NavArrowUp, Refresh, Xmark } from "iconoir-react";
 
 import { useMediaQuery } from "../../hooks";
@@ -18,8 +18,8 @@ interface DateRangePickerProps {
   className?: string;
   date?: DateRange;
   onChange?: (date: DateRange | undefined) => void;
-  minDate?: Date;
-  maxDate?: Date;
+  minDate?: Date | null;
+  maxDate?: Date | null;
   maxRangeInDays?: number;
   showPresets?: boolean;
   showWeekNumber?: boolean;
@@ -29,8 +29,8 @@ export function DateRangePicker({
   className,
   date,
   onChange,
-  minDate,
-  maxDate,
+  minDate = null,
+  maxDate = null,
   maxRangeInDays,
   showPresets = true,
   showWeekNumber = true
@@ -41,12 +41,47 @@ export function DateRangePicker({
   const [calendarMonth, setCalendarMonth] = React.useState<Date>(date?.from || new Date());
   const [presetsOpen, setPresetsOpen] = React.useState(false);
   const [monthsOpen, setMonthsOpen] = React.useState(false);
-  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   const today = React.useMemo(() => startOfToday(), []);
 
   const months = React.useMemo(() => Array.from({ length: 12 }, (_, i) => format(new Date(2024, i, 1), "MMMM")), []);
+
+  const effectiveMinDate = React.useMemo(() => {
+    if (!selectedRange?.from || !selectedRange?.to || !maxRangeInDays) {
+      return minDate;
+    }
+
+    const selectedRangeInDays = differenceInDays(selectedRange.to, selectedRange.from) + 1;
+
+    const rangeInDaysToSubtract = Math.abs(selectedRangeInDays - maxRangeInDays);
+
+    const rangedMinDate = subDays(selectedRange.from, rangeInDaysToSubtract);
+
+    if (minDate) {
+      return max([minDate, rangedMinDate]);
+    }
+
+    return rangedMinDate;
+  }, [minDate, maxRangeInDays, selectedRange?.from, selectedRange?.to]);
+
+  const effectiveMaxDate = React.useMemo(() => {
+    if (!selectedRange?.from || !selectedRange?.to || !maxRangeInDays) {
+      return maxDate;
+    }
+
+    const selectedRangeInDays = differenceInDays(selectedRange.to, selectedRange.from) + 1;
+
+    const rangeInDaysToAdd = Math.abs(selectedRangeInDays - maxRangeInDays);
+
+    const rangedMaxDate = addDays(selectedRange.to, rangeInDaysToAdd);
+
+    if (maxDate) {
+      return min([maxDate, rangedMaxDate]);
+    }
+
+    return rangedMaxDate;
+  }, [maxDate, maxRangeInDays, selectedRange?.from, selectedRange?.to]);
 
   const presets = React.useMemo(
     () => [
@@ -82,59 +117,19 @@ export function DateRangePicker({
     [today]
   );
 
-  const validateDateRange = React.useCallback(
-    (range: DateRange | undefined): string | null => {
-      if (!range?.from || !range?.to) return null;
-
-      if (minDate && isBefore(range.from, minDate)) {
-        return `Start date cannot be before ${format(minDate, "MMM dd, yyyy")}`;
-      }
-
-      if (maxDate && isAfter(range.to, maxDate)) {
-        return `End date cannot be after ${format(maxDate, "MMM dd, yyyy")}`;
-      }
-
-      if (maxRangeInDays) {
-        const daysDiff = differenceInDays(range.to, range.from) + 1;
-
-        if (daysDiff > maxRangeInDays) {
-          return `Date range cannot exceed ${maxRangeInDays} days`;
-        }
-      }
-
-      return null;
-    },
-    [minDate, maxDate, maxRangeInDays]
-  );
-
-  const handleDateSelect = React.useCallback(
-    (range: DateRange | undefined) => {
-      const error = validateDateRange(range);
-
-      if (error) {
-        setErrorMessage(error);
-        return;
-      }
-
-      setErrorMessage(null);
-      setSelectedRange(range);
-    },
-    [validateDateRange]
-  );
-
   const handlePresetSelect = React.useCallback(
     (preset: (typeof presets)[0]) => {
       const range = preset.getValue();
 
       setCalendarMonth(range.from);
 
-      handleDateSelect(range);
+      setSelectedRange(range);
 
       if (isMobile) {
         setPresetsOpen(false);
       }
     },
-    [handleDateSelect, isMobile]
+    [isMobile]
   );
 
   const handleMonthSelect = React.useCallback(
@@ -146,13 +141,13 @@ export function DateRangePicker({
 
       setCalendarMonth(startDate);
 
-      handleDateSelect(range);
+      setSelectedRange(range);
 
       if (isMobile) {
         setMonthsOpen(false);
       }
     },
-    [currentYear, handleDateSelect, isMobile]
+    [currentYear, isMobile]
   );
 
   const handleApply = React.useCallback(() => {
@@ -161,8 +156,8 @@ export function DateRangePicker({
   }, [onChange, selectedRange]);
 
   const handleClear = React.useCallback(() => {
-    handleDateSelect(undefined);
-  }, [handleDateSelect]);
+    setSelectedRange(undefined);
+  }, []);
 
   const handleYearChange = React.useCallback(
     (increment: number) => {
@@ -175,9 +170,9 @@ export function DateRangePicker({
 
   const isDateDisabled = React.useCallback(
     (date: Date) => {
-      return Boolean(minDate && isBefore(date, minDate)) || Boolean(maxDate && isAfter(date, maxDate));
+      return Boolean(effectiveMinDate && isBefore(date, effectiveMinDate)) || Boolean(effectiveMaxDate && isAfter(date, effectiveMaxDate));
     },
-    [minDate, maxDate]
+    [effectiveMinDate, effectiveMaxDate]
   );
 
   const handleMonthsOpenChange = React.useCallback((open: boolean) => {
@@ -232,7 +227,7 @@ export function DateRangePicker({
             <Button
               id="date"
               variant="outline"
-              className={cn("h-12 w-full justify-between px-4 text-left font-normal", !selectedRange && "text-muted-foreground")}
+              className={cn("h-12 w-full px-4 text-left font-normal", selectedRange ? "justify-between" : "text-muted-foreground")}
             >
               <CalendarIcon className="mr-3 h-5 w-5 flex-shrink-0" />
               <span className="truncate">
@@ -252,13 +247,13 @@ export function DateRangePicker({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="ml-3 h-6 w-6 flex-shrink-0 p-0 hover:bg-transparent"
+                  className="ml-3 flex-shrink-0 p-0 hover:bg-transparent"
                   onClick={e => {
                     e.stopPropagation();
                     handleClear();
                   }}
                 >
-                  <Xmark className="h-4 w-4" />
+                  <Xmark className="h-5 w-5" />
                 </Button>
               )}
             </Button>
@@ -296,7 +291,6 @@ export function DateRangePicker({
                   </CollapsibleContent>
                 </Collapsible>
               )}
-
               <Collapsible open={monthsOpen} onOpenChange={handleMonthsOpenChange}>
                 <CollapsibleTrigger asChild>
                   <Button variant="outline" className="h-12 w-full justify-between bg-transparent">
@@ -304,7 +298,7 @@ export function DateRangePicker({
                     {monthsOpen ? <NavArrowUp className="h-4 w-4" /> : <NavArrowDown className="h-4 w-4" />}
                   </Button>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="mt-2 space-y-3">
+                <CollapsibleContent className="mt-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <Button variant="outline" size="lg" onClick={() => handleYearChange(-1)} className="h-12 gap-1 px-6">
                       <NavArrowLeft className="h-4 w-4" />
@@ -336,24 +330,25 @@ export function DateRangePicker({
                   </div>
                 </CollapsibleContent>
               </Collapsible>
-
               <Separator />
-
               <Calendar
                 mode="range"
+                showWeekNumber={showWeekNumber}
                 defaultMonth={calendarMonth}
                 selected={selectedRange}
-                onSelect={handleDateSelect}
+                onSelect={setSelectedRange}
                 numberOfMonths={1}
                 className="rounded-md"
                 key={calendarMonth.getTime()}
                 disabled={isDateDisabled}
-                fromDate={minDate}
-                toDate={maxDate}
+                classNames={{
+                  [UI.Month]: "[&:not(:last-of-type)]:mb-4",
+                  [UI.WeekNumberHeader]: "w-6",
+                  [UI.WeekNumber]: "w-6 flex items-center justify-center text-xs text-muted-foreground",
+                  [UI.MonthCaption]: "flex justify-center items-center h-7 mb-4"
+                }}
               />
-
               <Separator />
-
               <div className="flex justify-between">
                 <Button variant="secondary" size="sm" onClick={() => setCalendarMonth(today)}>
                   <Refresh width={12} className="mr-2" strokeWidth={2} />
@@ -398,14 +393,13 @@ export function DateRangePicker({
             {selectedRange && (
               <Button
                 variant="ghost"
-                size="sm"
-                className="ml-2 h-4 w-4 p-0 hover:bg-transparent"
+                className="ml-2 p-0 hover:bg-transparent"
                 onClick={e => {
                   e.stopPropagation();
                   handleClear();
                 }}
               >
-                <Xmark className="h-3 w-3" />
+                <Xmark className="h-5 w-5" />
               </Button>
             )}
           </Button>
@@ -476,18 +470,16 @@ export function DateRangePicker({
 
             <div className="p-3">
               <Calendar
-                initialFocus
+                autoFocus
                 showWeekNumber={showWeekNumber}
                 mode="range"
                 defaultMonth={calendarMonth}
                 selected={selectedRange}
-                onSelect={handleDateSelect}
+                onSelect={setSelectedRange}
                 numberOfMonths={2}
                 className="rounded-md"
                 key={calendarMonth.getTime()}
                 disabled={isDateDisabled}
-                fromDate={minDate}
-                toDate={maxDate}
                 classNames={{
                   [UI.Month]: "[&:not(:last-of-type)]:mb-4",
                   [UI.WeekNumberHeader]: "w-6",
@@ -497,7 +489,6 @@ export function DateRangePicker({
               />
 
               <Separator className="my-3" />
-
               <div className="flex justify-between">
                 <Button variant="secondary" size="sm" onClick={() => setCalendarMonth(today)}>
                   <Refresh width={14} className="mr-2" strokeWidth={2} />
@@ -513,16 +504,6 @@ export function DateRangePicker({
                   </Button>
                 </div>
               </div>
-
-              {errorMessage && (
-                <>
-                  <Separator className="my-3" />
-                  <div className="text-destructive mt-2 flex items-center gap-1 text-sm">
-                    <Xmark width={18} />
-                    {errorMessage}
-                  </div>
-                </>
-              )}
             </div>
           </div>
         </PopoverContent>
