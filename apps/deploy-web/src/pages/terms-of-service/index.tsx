@@ -677,9 +677,12 @@ export function TermsOfService() {
 
         <h3 className="mb-2 text-lg font-bold">21.2 Informal Resolution</h3>
         <p className="mb-4">
-          Before filing a claim against Akash, you agree to try to resolve the Dispute by first emailing EMAIL with a description of your claim and proof of
-          your relationship with Akash. If we can&apos;t resolve the Dispute within sixty days of our receipt of your first email, you or Akash may then submit
-          the Dispute to binding arbitration as provided herein.
+          Before filing a claim against Akash, you agree to try to resolve the Dispute by first emailing{" "}
+          <Link href="mailto:consolebilling@akash.network" target="_blank" rel="noopener noreferrer">
+            consolebilling@akash.network
+          </Link>{" "}
+          with a description of your claim and proof of your relationship with Akash. If we can&apos;t resolve the Dispute within sixty days of our receipt of
+          your first email, you or Akash may then submit the Dispute to binding arbitration as provided herein.
         </p>
 
         <h3 className="mb-2 text-lg font-bold">21.3 Arbitration Agreement</h3>
