@@ -18,7 +18,7 @@
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/ui": "*",
     "@chain-registry/types": "^0.50.1",
-    "@cosmjs/proto-signing": "^0.32.4",
+    "@cosmjs/proto-signing": "^0.34.0",
     "@cosmjs/stargate": "~0.28.13",
     "@cosmos-kit/cosmostation-extension": "^2.12.2",
     "@cosmos-kit/keplr": "^2.12.2",
