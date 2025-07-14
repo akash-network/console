@@ -34,7 +34,7 @@ const isValidNumber = (value: number | null | undefined): boolean => {
   return value !== null && value !== undefined && !Number.isNaN(value) && Number.isFinite(value);
 };
 
-const DEPENDENCIES = {
+export const COMPONENTS = {
   FormattedNumber,
   Title,
   DailyUsageBarChart,
@@ -49,7 +49,7 @@ export type UsageViewProps = {
   isUsageHistoryError: boolean;
   isFetchingUsageHistoryStats: boolean;
   isUsageHistoryStatsError: boolean;
-  dependencies?: typeof DEPENDENCIES;
+  components?: typeof COMPONENTS;
 };
 
 export const UsageView = ({
@@ -59,9 +59,9 @@ export const UsageView = ({
   isUsageHistoryError,
   isFetchingUsageHistoryStats,
   isUsageHistoryStatsError,
-  dependencies = DEPENDENCIES
+  components = COMPONENTS
 }: UsageViewProps) => {
-  const { FormattedNumber, Title, DailyUsageBarChart, CumulativeSpendingLineChart, LinearProgress } = dependencies;
+  const { FormattedNumber, Title, DailyUsageBarChart, CumulativeSpendingLineChart, LinearProgress } = components;
 
   const exportCsv = React.useCallback(() => {
     const statsCsvContent = [

@@ -22,17 +22,17 @@ const chartConfig = {
 
 type ChartData = Array<{ date: string; dailyUsdSpent: number }>;
 
-const DEPENDENCIES = {
+export const COMPONENTS = {
   BarChart
 };
 
 export type DailyUsageBarChartProps = {
   isFetching: boolean;
   data: ChartData;
-  dependencies?: typeof DEPENDENCIES;
+  components?: typeof COMPONENTS;
 };
 
-export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, data, dependencies: D = DEPENDENCIES }) => {
+export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, data, components: C = COMPONENTS }) => {
   return (
     <Card className="w-full py-0">
       <CardHeader className="flex flex-row items-center gap-3 space-y-0 border-b px-6">
@@ -41,7 +41,7 @@ export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, da
       </CardHeader>
       <CardContent className="px-2 sm:p-6">
         <ChartContainer config={chartConfig} className={cn("aspect-auto h-[250px] w-full", isFetching && "pointer-events-none")} role="chart-container">
-          <D.BarChart
+          <C.BarChart
             accessibilityLayer
             data={data}
             margin={{
@@ -75,7 +75,7 @@ export const DailyUsageBarChart: FC<DailyUsageBarChartProps> = ({ isFetching, da
               }
             />
             <Bar dataKey="dailyUsdSpent" fill="hsl(var(--primary))" className={cn(isFetching && "opacity-80")} />
-          </D.BarChart>
+          </C.BarChart>
         </ChartContainer>
       </CardContent>
     </Card>

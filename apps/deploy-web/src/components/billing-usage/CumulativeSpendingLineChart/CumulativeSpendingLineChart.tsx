@@ -16,17 +16,17 @@ const chartConfig = {
   }
 } satisfies ChartConfig;
 
-const DEPENDENCIES = {
+export const COMPONENTS = {
   LineChart
 };
 
 export type CumulativeSpendingLineChartProps = {
   isFetching: boolean;
   data: CumulativeSpendingChartData;
-  dependencies?: typeof DEPENDENCIES;
+  components?: typeof COMPONENTS;
 };
 
-export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> = ({ isFetching, data, dependencies: D = DEPENDENCIES }) => {
+export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> = ({ isFetching, data, components: C = COMPONENTS }) => {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center gap-3 space-y-0 px-6">
@@ -35,7 +35,7 @@ export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> =
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className={cn("h-[298px] w-full", isFetching && "pointer-events-none")} role="chart-container">
-          <D.LineChart
+          <C.LineChart
             accessibilityLayer
             data={data}
             margin={{
@@ -77,7 +77,7 @@ export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> =
               strokeWidth={2}
               className={cn(isFetching && "opacity-50")}
             />
-          </D.LineChart>
+          </C.LineChart>
         </ChartContainer>
       </CardContent>
     </Card>
