@@ -7,11 +7,14 @@ export default defineApiHandler({
   route: "/api/auth/signup",
   async handler({ res, req, services }) {
     try {
+      const returnUrl = decodeURIComponent((req.query.returnTo as string) ?? "/");
+
       await handleLogin(req, res, {
+        returnTo: returnUrl,
         authorizationParams: {
           // Note that this can be combined with prompt=login , which indicates if
           // you want to always show the authentication page or you want to skip
-          // if there’s an existing session.
+          // if there's an existing session.
           //screen_hint: "signup" // <== New Universal Signup
           action: "signup" // <== Classic Universal Login
         }
