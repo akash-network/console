@@ -37,7 +37,12 @@ export class ProviderService {
   isValidationServerError(rawBody: unknown): boolean {
     if (typeof rawBody !== "string") return false;
     const body = rawBody.trim();
-    return body.startsWith("manifest cross-validation error: ") || body.startsWith("hostname not allowed:");
+    return (
+      body.startsWith("manifest cross-validation error: ") ||
+      body.startsWith("hostname not allowed:") ||
+      body.includes("SSL alert number 42") ||
+      body.includes("sslv3 alert bad certificate")
+    );
   }
 }
 
