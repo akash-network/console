@@ -1,5 +1,13 @@
 
 
+## [1.16.0](https://github.com/akash-network/console/compare/notifications/v1.15.0...notifications/v1.16.0) (2025-07-14)
+
+
+### Features
+
+* **billing:** apply coupon to balance ([#1658](https://github.com/akash-network/console/issues/1658)) ([e5a0420](https://github.com/akash-network/console/commit/e5a04202cdd267aa55e9152a62a0066df45a5471))
+* **notifications:** implement chain events ([c4db374](https://github.com/akash-network/console/commit/c4db3740a208a7b2ca1887df760d1cdf2b72723e))
+
 ## [1.15.0](https://github.com/akash-network/console/compare/notifications/v1.14.2...notifications/v1.15.0) (2025-07-08)
 
 

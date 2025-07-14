@@ -1,5 +1,12 @@
 
 
+## [2.105.0](https://github.com/akash-network/console/compare/console-api/v2.104.0...console-api/v2.105.0) (2025-07-14)
+
+
+### Features
+
+* **billing:** apply coupon to balance ([#1658](https://github.com/akash-network/console/issues/1658)) ([e5a0420](https://github.com/akash-network/console/commit/e5a04202cdd267aa55e9152a62a0066df45a5471))
+
 ## [2.104.0](https://github.com/akash-network/console/compare/console-api/v2.103.2...console-api/v2.104.0) (2025-07-08)
 
 
