@@ -1,5 +1,7 @@
 import React, { useState } from "react";
+import { FormattedDate } from "react-intl";
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@akashnetwork/ui/components";
+import { copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { Calendar, Clock, Copy, Eye, EyeClosed, Key, Trash } from "iconoir-react";
 
 import type { ApiKey } from "@src/types/apiKey";
@@ -29,39 +31,6 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
   const [copied, setCopied] = useState(false);
 
   const hasApiKey = !!apiKey;
-
-  const handleCopy = () => {
-    if (apiKey?.apiKey) {
-      navigator.clipboard
-        .writeText(apiKey.apiKey)
-        .then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        })
-        .catch(error => {
-          console.error("Failed to copy API key:", error);
-        });
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return "Invalid Date";
-      }
-      return new Date(dateString).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
-      });
-    } catch (error) {
-      console.error("Error formatting date:", error);
-      return "Invalid Date";
-    }
-  };
 
   const isExpired = apiKey?.expiresAt
     ? (() => {
@@ -109,14 +78,18 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                       <span className="text-gray-600 dark:text-gray-400">Created:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">{formatDate(apiKey.createdAt)}</span>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        <FormattedDate value={apiKey.createdAt} year="numeric" month="short" day="numeric" hour="2-digit" minute="2-digit" />
+                      </span>
                     </div>
 
                     {apiKey.lastUsedAt && (
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                         <span className="text-gray-600 dark:text-gray-400">Last used:</span>
-                        <span className="font-medium text-gray-900 dark:text-white">{formatDate(apiKey.lastUsedAt)}</span>
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          <FormattedDate value={apiKey.lastUsedAt} year="numeric" month="short" day="numeric" hour="2-digit" minute="2-digit" />
+                        </span>
                       </div>
                     )}
 
@@ -125,7 +98,7 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
                         <Calendar className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                         <span className="text-gray-600 dark:text-gray-400">Expires:</span>
                         <span className={`font-medium ${isExpired ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white"}`}>
-                          {formatDate(apiKey.expiresAt)}
+                          <FormattedDate value={apiKey.expiresAt} year="numeric" month="short" day="numeric" hour="2-digit" minute="2-digit" />
                         </span>
                       </div>
                     )}
@@ -150,7 +123,13 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleCopy}
+                      onClick={() => {
+                        if (apiKey?.apiKey) {
+                          copyTextToClipboard(apiKey.apiKey);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }
+                      }}
                       className={`flex items-center gap-2 ${copied ? "border-green-200 bg-green-50 dark:border-green-700 dark:bg-green-900/20" : ""}`}
                     >
                       {copied ? (
