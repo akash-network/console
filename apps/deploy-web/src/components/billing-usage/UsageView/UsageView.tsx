@@ -64,11 +64,8 @@ export const UsageView = ({
   const { FormattedNumber, Title, DailyUsageBarChart, CumulativeSpendingLineChart, LinearProgress } = dependencies;
 
   const exportCsv = React.useCallback(() => {
-    const historyCsvContent = usageHistoryData.map(row => Object.values(row).map(escapeCsvValue).join(",")).join("\n");
-
-    downloadCsv(historyCsvContent, "usage_history.csv");
-
     const statsCsvContent = [
+      "Usage Stats",
       "Total Spent,Average Spent Per Day,Total Deployments,Average Deployments Per Day",
       [
         usageHistoryStatsData.totalSpent,
@@ -78,9 +75,17 @@ export const UsageView = ({
       ]
         .map(escapeCsvValue)
         .join(",")
-    ].join("\n");
+    ];
 
-    downloadCsv(statsCsvContent, "usage_stats.csv");
+    const historyCsvContent = [
+      "Usage History",
+      "Date,Active Deployments,Daily AKT Spent,Total AKT Spent,Daily USDC Spent,Total USDC Spent,Daily USD Spent,Total USD Spent",
+      ...usageHistoryData.map(row => Object.values(row).map(escapeCsvValue).join(","))
+    ];
+
+    const combinedCsvContent = [...statsCsvContent, ...historyCsvContent].join("\n");
+
+    downloadCsv(combinedCsvContent, "usage.csv");
   }, [usageHistoryData, usageHistoryStatsData]);
 
   return (
