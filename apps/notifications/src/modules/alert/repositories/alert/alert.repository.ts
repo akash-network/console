@@ -11,7 +11,7 @@ import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config"
 import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 import * as schema from "../../model-schemas";
-import type { ChainMessageJsonFields, DeploymentBalanceJsonFields } from "./alert-json-fields.schema";
+import type { DeploymentBalanceJsonFields, GeneralJsonFields } from "./alert-json-fields.schema";
 import * as jsonFieldsSchemas from "./alert-json-fields.schema";
 
 type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];
@@ -19,25 +19,27 @@ type AbilityParams = [AnyAbility, Parameters<AnyAbility["can"]>[0]];
 type InternalAlertInput = typeof schema.Alert.$inferInsert;
 type InternalAlertOutput = typeof schema.Alert.$inferSelect;
 
-export type ChainMessageAlertInput = Omit<InternalAlertInput, "conditions" | "params" | "type"> & ChainMessageJsonFields;
-export type ChainMessageAlertOutput = Omit<InternalAlertOutput, "conditions" | "params" | "type"> & ChainMessageJsonFields;
+export type GeneralAlertInput = Omit<InternalAlertInput, "conditions" | "params" | "type"> & GeneralJsonFields;
+export type GeneralAlertOutput = Omit<InternalAlertOutput, "conditions" | "params" | "type"> & GeneralJsonFields;
 
 export type DeploymentBalanceAlertInput = Omit<InternalAlertInput, "conditions" | "params" | "type"> & DeploymentBalanceJsonFields;
 export type DeploymentBalanceAlertOutput = Omit<InternalAlertOutput, "conditions" | "params" | "type"> & DeploymentBalanceJsonFields;
 
-export type AlertInput = ChainMessageAlertInput | DeploymentBalanceAlertInput;
-export type AlertOutput = ChainMessageAlertOutput | DeploymentBalanceAlertOutput;
+export type AlertInput = GeneralAlertInput | DeploymentBalanceAlertInput;
+export type AlertOutput = GeneralAlertOutput | DeploymentBalanceAlertOutput;
 
 export type AlertType = AlertOutput["type"];
 
 export type AlertInputTypeMap = {
   DEPLOYMENT_BALANCE: DeploymentBalanceAlertInput;
-  CHAIN_MESSAGE: ChainMessageAlertInput;
+  CHAIN_MESSAGE: GeneralAlertInput;
+  CHAIN_EVENT: GeneralAlertInput;
 };
 
 export type AlertOutputTypeMap = {
   DEPLOYMENT_BALANCE: DeploymentBalanceAlertOutput;
-  CHAIN_MESSAGE: ChainMessageAlertOutput;
+  CHAIN_MESSAGE: GeneralAlertOutput;
+  CHAIN_EVENT: GeneralAlertOutput;
 };
 
 export type PaginatedResult<T> = {
@@ -287,10 +289,10 @@ export class AlertRepository {
   private toOutput<T extends AlertType>(alert: InternalAlertOutput & { type: T }): AlertOutputTypeMap[T] {
     const { conditions, params, type, ...rest } = alert;
 
-    if (type === "CHAIN_MESSAGE") {
+    if (["CHAIN_MESSAGE", "CHAIN_EVENT"].includes(type)) {
       return {
         ...rest,
-        ...jsonFieldsSchemas.chainMessageJsonFieldsSchema.parse({ type, conditions, params: params ?? undefined })
+        ...jsonFieldsSchemas.generalJsonFieldsSchema.parse({ type, conditions, params: params ?? undefined })
       } as AlertOutputTypeMap[T];
     }
 
