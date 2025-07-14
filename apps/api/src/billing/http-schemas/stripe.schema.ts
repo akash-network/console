@@ -1,3 +1,4 @@
+import { differenceInDays } from "date-fns";
 import { z } from "zod";
 
 export const SetupIntentResponseSchema = z.object({
@@ -163,9 +164,7 @@ export const CustomerTransactionsQuerySchema = z
       const start = new Date(data.startDate);
       const end = new Date(data.endDate);
 
-      const daysDiff = Math.floor((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
-
-      return start <= end && daysDiff <= 366;
+      return start <= end && differenceInDays(end, start) <= 366;
     },
     {
       message: "Date range cannot exceed 366 days and startDate must be before endDate"
