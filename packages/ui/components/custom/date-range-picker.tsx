@@ -119,7 +119,7 @@ export function DateRangePicker({
     [today]
   );
 
-  const handlePresetSelect = React.useCallback(
+  const selectPreset = React.useCallback(
     (preset: (typeof presets)[0]) => {
       const range = preset.getValue();
 
@@ -134,7 +134,7 @@ export function DateRangePicker({
     [isMobile]
   );
 
-  const handleMonthSelect = React.useCallback(
+  const selectMonth = React.useCallback(
     (monthIndex: number) => {
       const startDate = new Date(currentYear, monthIndex, 1);
       const endDate = new Date(currentYear, monthIndex + 1, 0);
@@ -152,16 +152,16 @@ export function DateRangePicker({
     [currentYear, isMobile]
   );
 
-  const handleApply = React.useCallback(() => {
+  const applySelection = React.useCallback(() => {
     onChange?.(selectedRange);
     setOpen(false);
   }, [onChange, selectedRange]);
 
-  const handleClear = React.useCallback(() => {
+  const clearSelection = React.useCallback(() => {
     setSelectedRange(undefined);
   }, []);
 
-  const handleYearChange = React.useCallback(
+  const changeYear = React.useCallback(
     (increment: number) => {
       const newYear = currentYear + increment;
       setCurrentYear(newYear);
@@ -177,7 +177,7 @@ export function DateRangePicker({
     [effectiveMinDate, effectiveMaxDate]
   );
 
-  const handleMonthsOpenChange = React.useCallback((open: boolean) => {
+  const toggleMonthsVisibility = React.useCallback((open: boolean) => {
     setMonthsOpen(open);
 
     if (open) {
@@ -185,7 +185,7 @@ export function DateRangePicker({
     }
   }, []);
 
-  const handlePresetsOpenChange = React.useCallback((open: boolean) => {
+  const togglePresetsVisibility = React.useCallback((open: boolean) => {
     setPresetsOpen(open);
 
     if (open) {
@@ -205,7 +205,7 @@ export function DateRangePicker({
         isSelected: selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, from) && isSameDay(selectedRange.to, to)
       };
     },
-    [selectedRange]
+    [selectedRange, minDate, maxDate, maxRangeInDays]
   );
 
   const getMonthMetadata = React.useCallback(
@@ -252,7 +252,7 @@ export function DateRangePicker({
                   className="ml-3 flex-shrink-0 p-0 hover:bg-transparent"
                   onClick={e => {
                     e.stopPropagation();
-                    handleClear();
+                    clearSelection();
                   }}
                 >
                   <Xmark className="h-5 w-5" />
@@ -263,7 +263,7 @@ export function DateRangePicker({
           <PopoverContent className="mx-4 w-screen max-w-sm p-0" align="center">
             <div className="space-y-4 p-4">
               {showPresets && (
-                <Collapsible open={presetsOpen} onOpenChange={handlePresetsOpenChange}>
+                <Collapsible open={presetsOpen} onOpenChange={togglePresetsVisibility}>
                   <CollapsibleTrigger asChild>
                     <Button variant="outline" className="h-12 w-full justify-between bg-transparent">
                       <span>Quick Select</span>
@@ -284,7 +284,7 @@ export function DateRangePicker({
                             "h-12 w-full justify-start",
                             isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
                           )}
-                          onClick={() => handlePresetSelect(preset)}
+                          onClick={() => selectPreset(preset)}
                         >
                           {preset.label}
                         </Button>
@@ -293,7 +293,7 @@ export function DateRangePicker({
                   </CollapsibleContent>
                 </Collapsible>
               )}
-              <Collapsible open={monthsOpen} onOpenChange={handleMonthsOpenChange}>
+              <Collapsible open={monthsOpen} onOpenChange={toggleMonthsVisibility}>
                 <CollapsibleTrigger asChild>
                   <Button variant="outline" className="h-12 w-full justify-between bg-transparent">
                     <span>Select Month</span>
@@ -302,12 +302,12 @@ export function DateRangePicker({
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <Button variant="outline" size="lg" onClick={() => handleYearChange(-1)} className="h-12 gap-1 px-6">
+                    <Button variant="outline" size="lg" onClick={() => changeYear(-1)} className="h-12 gap-1 px-6">
                       <NavArrowLeft className="h-4 w-4" />
                       {currentYear - 1}
                     </Button>
                     <span className="text-lg font-medium">{currentYear}</span>
-                    <Button variant="outline" size="lg" onClick={() => handleYearChange(1)} className="h-12 gap-1 px-6">
+                    <Button variant="outline" size="lg" onClick={() => changeYear(1)} className="h-12 gap-1 px-6">
                       {currentYear + 1}
                       <NavArrowRight className="h-4 w-4" />
                     </Button>
@@ -322,7 +322,7 @@ export function DateRangePicker({
                           variant="ghost"
                           size="lg"
                           className={cn("h-12 text-sm", isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}
-                          onClick={() => handleMonthSelect(index)}
+                          onClick={() => selectMonth(index)}
                           disabled={isDisabled}
                         >
                           {month}
@@ -358,10 +358,10 @@ export function DateRangePicker({
                 </Button>
 
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleClear} disabled={!selectedRange}>
+                  <Button variant="outline" size="sm" onClick={clearSelection} disabled={!selectedRange}>
                     Clear
                   </Button>
-                  <Button size="sm" onClick={handleApply} disabled={!selectedRange?.from || !selectedRange?.to}>
+                  <Button size="sm" onClick={applySelection} disabled={!selectedRange?.from || !selectedRange?.to}>
                     Apply
                   </Button>
                 </div>
@@ -398,7 +398,7 @@ export function DateRangePicker({
                 className="ml-2 p-0 hover:bg-transparent"
                 onClick={e => {
                   e.stopPropagation();
-                  handleClear();
+                  clearSelection();
                 }}
               >
                 <Xmark className="h-5 w-5" />
@@ -426,7 +426,7 @@ export function DateRangePicker({
                             "h-8 justify-start px-2 text-xs",
                             isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
                           )}
-                          onClick={() => handlePresetSelect(preset)}
+                          onClick={() => selectPreset(preset)}
                         >
                           {preset.label}
                         </Button>
@@ -438,11 +438,11 @@ export function DateRangePicker({
               )}
 
               <div className="mb-3 flex items-center justify-between">
-                <Button variant="outline" size="sm" onClick={() => handleYearChange(-1)} className="h-7 w-7 p-0">
+                <Button variant="outline" size="sm" onClick={() => changeYear(-1)} className="h-7 w-7 p-0">
                   <NavArrowLeft className="h-4 w-4" />
                 </Button>
                 <span className="text-sm font-medium">{currentYear}</span>
-                <Button variant="outline" size="sm" onClick={() => handleYearChange(1)} className="h-7 w-7 p-0">
+                <Button variant="outline" size="sm" onClick={() => changeYear(1)} className="h-7 w-7 p-0">
                   <NavArrowRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -460,7 +460,7 @@ export function DateRangePicker({
                         "h-8 justify-start px-2 text-xs",
                         isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
                       )}
-                      onClick={() => handleMonthSelect(index)}
+                      onClick={() => selectMonth(index)}
                       disabled={isDisabled}
                     >
                       {month} {currentYear}
@@ -498,10 +498,10 @@ export function DateRangePicker({
                 </Button>
 
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleClear} disabled={!selectedRange}>
+                  <Button variant="outline" size="sm" onClick={clearSelection} disabled={!selectedRange}>
                     Clear
                   </Button>
-                  <Button size="sm" onClick={handleApply} disabled={!selectedRange?.from || !selectedRange?.to}>
+                  <Button size="sm" onClick={applySelection} disabled={!selectedRange?.from || !selectedRange?.to}>
                     Apply
                   </Button>
                 </div>
