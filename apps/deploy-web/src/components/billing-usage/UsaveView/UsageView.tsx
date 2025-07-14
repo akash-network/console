@@ -4,12 +4,12 @@ import { Button, Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/
 import LinearProgress from "@mui/material/LinearProgress";
 import { Cloud, Dollar, Download } from "iconoir-react";
 
+import { CumulativeSpendingLineChart } from "@src/components/billing-usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
+import { DailyUsageBarChart } from "@src/components/billing-usage/DailyUsageBarChart/DailyUsageBarChart";
 import { Title } from "@src/components/shared/Title";
-import { CumulativeSpendingLineChart } from "@src/components/usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
-import { DailyUsageBarChart } from "@src/components/usage/DailyUsageBarChart/DailyUsageBarChart";
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
 
-const escapeCSVValue = (value: string | number): string => {
+const escapeCsvValue = (value: string | number): string => {
   const stringValue = String(value);
   if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
     return `"${stringValue.replace(/"/g, '""')}"`;
@@ -17,7 +17,7 @@ const escapeCSVValue = (value: string | number): string => {
   return stringValue;
 };
 
-const downloadCSV = (content: string, filename: string) => {
+const downloadCsv = (content: string, filename: string) => {
   const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -59,10 +59,10 @@ export const UsageView = ({
 }: UsageViewProps) => {
   const { FormattedNumber, Title, DailyUsageBarChart, CumulativeSpendingLineChart, LinearProgress } = dependencies;
 
-  const exportCSV = React.useCallback(() => {
-    const historyCsvContent = usageHistoryData.map(row => Object.values(row).map(escapeCSVValue).join(",")).join("\n");
+  const exportCsv = React.useCallback(() => {
+    const historyCsvContent = usageHistoryData.map(row => Object.values(row).map(escapeCsvValue).join(",")).join("\n");
 
-    downloadCSV(historyCsvContent, "usage_history.csv");
+    downloadCsv(historyCsvContent, "usage_history.csv");
 
     const statsCsvContent = [
       "Total Spent,Average Spent Per Day,Total Deployments,Average Deployments Per Day",
@@ -72,11 +72,11 @@ export const UsageView = ({
         usageHistoryStatsData.totalDeployments,
         usageHistoryStatsData.averageDeploymentsPerDay
       ]
-        .map(escapeCSVValue)
+        .map(escapeCsvValue)
         .join(",")
     ].join("\n");
 
-    downloadCSV(statsCsvContent, "usage_stats.csv");
+    downloadCsv(statsCsvContent, "usage_stats.csv");
   }, [usageHistoryData, usageHistoryStatsData]);
 
   return (
@@ -84,7 +84,7 @@ export const UsageView = ({
       <div className="flex items-center justify-between">
         <Title subTitle>Overview</Title>
 
-        <Button variant="secondary" onClick={exportCSV} size="sm">
+        <Button variant="secondary" onClick={exportCsv} size="sm">
           <Download width={16} className="mr-2" />
           Export CSV
         </Button>

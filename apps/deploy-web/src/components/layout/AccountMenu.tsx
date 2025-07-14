@@ -92,7 +92,7 @@ export function AccountMenu() {
                         </CustomDropdownLinkItem>
                         {isBillingUsageEnabled && (
                           <CustomDropdownLinkItem onClick={() => router.push(UrlService.usage())} icon={<GraphUp />}>
-                            Billing & Usage
+                            Usage
                           </CustomDropdownLinkItem>
                         )}
                         <DropdownMenuSeparator />

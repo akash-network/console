@@ -2,12 +2,12 @@ import "@testing-library/jest-dom";
 
 import React from "react";
 
-import type { CumulativeSpendingLineChartProps } from "@src/components/usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
-import { CumulativeSpendingLineChart } from "@src/components/usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
+import type { CumulativeSpendingLineChartProps } from "@src/components/billing-usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
+import { CumulativeSpendingLineChart } from "@src/components/billing-usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
 
 import { render, screen } from "@testing-library/react";
 
-describe("CumulativeSpendingLineChart", () => {
+describe(CumulativeSpendingLineChart.name, () => {
   beforeAll(() => {
     global.ResizeObserver = class MockedResizeObserver {
       observe = jest.fn();

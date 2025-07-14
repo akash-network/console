@@ -1,4 +1,4 @@
-import { UsagePage } from "@src/components/usage/UsagePage";
+import { UsagePage } from "@src/components/billing-usage/UsagePage";
 import { RegisteredUsersOnly } from "@src/hoc/registered-users-only/registered-users-only.hoc";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import { isAuthenticated, isFeatureEnabled } from "@src/lib/nextjs/pageGuards/pageGuards";

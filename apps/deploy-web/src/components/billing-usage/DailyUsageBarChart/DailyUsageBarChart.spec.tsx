@@ -2,12 +2,12 @@ import "@testing-library/jest-dom";
 
 import React from "react";
 
-import type { DailyUsageBarChartProps } from "@src/components/usage/DailyUsageBarChart/DailyUsageBarChart";
-import { DailyUsageBarChart } from "@src/components/usage/DailyUsageBarChart/DailyUsageBarChart";
+import type { DailyUsageBarChartProps } from "@src/components/billing-usage/DailyUsageBarChart/DailyUsageBarChart";
+import { DailyUsageBarChart } from "@src/components/billing-usage/DailyUsageBarChart/DailyUsageBarChart";
 
 import { render, screen } from "@testing-library/react";
 
-describe("DailyUsageBarChart", () => {
+describe(DailyUsageBarChart.name, () => {
   beforeAll(() => {
     global.ResizeObserver = class MockedResizeObserver {
       observe = jest.fn();
