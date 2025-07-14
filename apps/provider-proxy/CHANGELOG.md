@@ -1,5 +1,18 @@
 
 
+## [1.13.1](https://github.com/akash-network/console/compare/provider-proxy/v1.13.0...provider-proxy/v1.13.1) (2025-07-14)
+
+
+### Bug Fixes
+
+* ensure tracing context is propagated during proxing ([#1664](https://github.com/akash-network/console/issues/1664)) ([a19a7db](https://github.com/akash-network/console/commit/a19a7dbc878f879f6a14f02b0f114ff6e26204ed))
+* throw 400 on SSL error on invalid cert ([#1678](https://github.com/akash-network/console/issues/1678)) ([6617500](https://github.com/akash-network/console/commit/661750046e91bead6400c8ccdc3b6d6bcaf5cf84)), closes [#1537](https://github.com/akash-network/console/issues/1537)
+
+
+### Code Refactoring
+
+* properly close servers in functional tests ([#1645](https://github.com/akash-network/console/issues/1645)) ([a73a1c9](https://github.com/akash-network/console/commit/a73a1c9bdac917e5f0680c6abd7aead2ec1f9afd))
+
 ## [1.13.0](https://github.com/akash-network/console/compare/provider-proxy/v1.12.10...provider-proxy/v1.13.0) (2025-07-08)
 
 
