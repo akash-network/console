@@ -63,24 +63,52 @@ describe(ProviderService.name, () => {
   });
 
   describe("isValidationServerError", () => {
-    it('returns true if the body starts with "manifest cross-validation error: "', () => {
-      const service = setup();
-      expect(service.isValidationServerError("manifest cross-validation error: test")).toBe(true);
-      expect(service.isValidationServerError("   manifest cross-validation error: test2")).toBe(true);
-      expect(service.isValidationServerError("validation error: test3")).toBe(false);
-      expect(service.isValidationServerError("")).toBe(false);
-      expect(service.isValidationServerError(null)).toBe(false);
-      expect(service.isValidationServerError(undefined)).toBe(false);
-    });
-
-    it('returns true if the body starts with "hostname not allowed: "', () => {
-      const service = setup();
-      expect(service.isValidationServerError("hostname not allowed: test")).toBe(true);
-      expect(service.isValidationServerError("   hostname not allowed: test2")).toBe(true);
-      expect(service.isValidationServerError("validation error: test3")).toBe(false);
-      expect(service.isValidationServerError("")).toBe(false);
-      expect(service.isValidationServerError(null)).toBe(false);
-      expect(service.isValidationServerError(undefined)).toBe(false);
+    [
+      {
+        name: "starts with manifest cross-validation error",
+        body: "manifest cross-validation error: test",
+        expected: true
+      },
+      {
+        name: "starts with hostname not allowed",
+        body: "hostname not allowed: test",
+        expected: true
+      },
+      {
+        name: "includes SSL alert number 42",
+        body: "SSL alert number 42",
+        expected: true
+      },
+      {
+        name: "includes sslv3 alert bad certificate",
+        body: "sslv3 alert bad certificate",
+        expected: true
+      },
+      {
+        name: "includes other string",
+        body: "bad certificate",
+        expected: false
+      },
+      {
+        name: "is empty",
+        body: "",
+        expected: false
+      },
+      {
+        name: "is null",
+        body: null,
+        expected: false
+      },
+      {
+        name: "is undefined",
+        body: undefined,
+        expected: false
+      }
+    ].forEach(({ name, body, expected }) => {
+      it(`returns ${expected} when body ${name}`, () => {
+        const service = setup();
+        expect(service.isValidationServerError(body)).toBe(expected);
+      });
     });
   });
 
