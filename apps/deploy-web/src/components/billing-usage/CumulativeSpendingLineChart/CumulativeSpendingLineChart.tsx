@@ -1,5 +1,3 @@
-"use client";
-
 import React, { type FC } from "react";
 import type { ChartConfig } from "@akashnetwork/ui/components";
 import { Card, CardContent, CardHeader, CardTitle, ChartContainer, ChartTooltip, ChartTooltipContent, Spinner } from "@akashnetwork/ui/components";

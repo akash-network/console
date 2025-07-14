@@ -30,6 +30,10 @@ const downloadCsv = (content: string, filename: string) => {
   URL.revokeObjectURL(url);
 };
 
+const isValidNumber = (value: number | null | undefined): boolean => {
+  return value !== null && value !== undefined && !Number.isNaN(value) && Number.isFinite(value);
+};
+
 const DEPENDENCIES = {
   FormattedNumber,
   Title,
@@ -109,14 +113,14 @@ export const UsageView = ({
               </div>
             ) : (
               <CardContent className="pt-2">
-                {Number.isNaN(Number(usageHistoryStatsData.totalSpent)) ? (
-                  <p className="text-gray-400">No data</p>
-                ) : (
+                {isValidNumber(usageHistoryStatsData.totalSpent) ? (
                   <div className="text-3xl font-bold">
                     <FormattedNumber value={usageHistoryStatsData.totalSpent} style="currency" currency="USD" currencyDisplay="narrowSymbol" />
                   </div>
+                ) : (
+                  <p className="text-gray-400">No data</p>
                 )}
-                {!Number.isNaN(Number(usageHistoryStatsData.averageSpentPerDay)) && (
+                {isValidNumber(usageHistoryStatsData.averageSpentPerDay) && (
                   <div className="text-sm font-semibold text-gray-400">
                     <FormattedNumber value={usageHistoryStatsData.averageSpentPerDay} style="currency" currency="USD" currencyDisplay="narrowSymbol" /> average
                     per day
@@ -136,14 +140,14 @@ export const UsageView = ({
               </div>
             ) : (
               <CardContent className="pt-2">
-                {Number.isNaN(Number(usageHistoryStatsData.totalDeployments)) ? (
-                  <p className="text-gray-400">No data</p>
-                ) : (
+                {isValidNumber(usageHistoryStatsData.totalDeployments) ? (
                   <div className="text-3xl font-bold">
                     <FormattedNumber value={usageHistoryStatsData.totalDeployments} />
                   </div>
+                ) : (
+                  <p className="text-gray-400">No data</p>
                 )}
-                {!Number.isNaN(Number(usageHistoryStatsData.averageDeploymentsPerDay)) && (
+                {isValidNumber(usageHistoryStatsData.averageDeploymentsPerDay) && (
                   <div className="text-sm font-semibold text-gray-400">
                     <FormattedNumber value={usageHistoryStatsData.averageDeploymentsPerDay} /> average per day
                   </div>

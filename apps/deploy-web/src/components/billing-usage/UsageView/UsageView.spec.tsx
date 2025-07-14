@@ -5,7 +5,7 @@ import type { LinearProgressProps } from "@mui/material";
 
 import type { CumulativeSpendingLineChartProps } from "@src/components/billing-usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
 import type { DailyUsageBarChartProps } from "@src/components/billing-usage/DailyUsageBarChart/DailyUsageBarChart";
-import { UsageView, type UsageViewProps } from "@src/components/billing-usage/UsaveView/UsageView";
+import { UsageView, type UsageViewProps } from "@src/components/billing-usage/UsageView/UsageView";
 
 import { render, screen } from "@testing-library/react";
 import { buildUsageHistory, buildUsageHistoryStats } from "@tests/seeders/usage";
@@ -86,7 +86,7 @@ describe(UsageView.name, () => {
     };
 
     const defaultProps = {
-      usageHistoryData: buildUsageHistory(props.usageHistoryData),
+      usageHistoryData: props.usageHistoryData ?? buildUsageHistory(),
       usageHistoryStatsData: buildUsageHistoryStats(props.usageHistoryStatsData),
       isFetchingUsageHistory: false,
       isUsageHistoryError: false,
