@@ -68,7 +68,7 @@ describe(DeploymentAlertService.name, () => {
           value: [
             {
               field: "action",
-              value: "d",
+              value: "deployment-closed",
               operator: "eq"
             },
             {
@@ -152,13 +152,18 @@ describe(DeploymentAlertService.name, () => {
         conditions: {
           value: [
             {
-              field: "value.id.owner",
+              field: "action",
+              value: "deployment-closed",
+              operator: "eq"
+            },
+            {
+              field: "owner",
               value: owner,
               operator: "eq"
             },
             {
-              field: "type",
-              value: "akash.deployment.v1beta3.MsgCloseDeployment",
+              field: "dseq",
+              value: dseq,
               operator: "eq"
             }
           ],

@@ -63,12 +63,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(new AuthHttpService(apiConfig), {
         request: [container.authService.withAnonymousUserHeader]
       }),
-    providerProxy: () =>
-      new ProviderProxyService(
-        container.applyAxiosInterceptors(container.createAxios({ baseURL: config.BASE_PROVIDER_PROXY_URL }), {
-          request: [container.authService.withAnonymousUserHeader]
-        })
-      ),
+    providerProxy: () => new ProviderProxyService(container.applyAxiosInterceptors(container.createAxios({ baseURL: config.BASE_PROVIDER_PROXY_URL }), {})),
     deploymentSetting: () =>
       container.applyAxiosInterceptors(new DeploymentSettingHttpService(apiConfig), {
         request: [container.authService.withAnonymousUserHeader]

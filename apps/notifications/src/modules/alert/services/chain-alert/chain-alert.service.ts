@@ -8,21 +8,38 @@ import type { MessageCallback } from "@src/modules/alert/types/message-callback.
 
 type AlertCallback = (alert: GeneralAlertOutput) => Promise<void> | void;
 
+type TriggerPayload =
+  | {
+      type: "CHAIN_MESSAGE";
+      payload: {
+        type: string;
+        [key: string]: any;
+      };
+    }
+  | {
+      type: "CHAIN_EVENT";
+      payload: {
+        action: string;
+        dseq: string;
+        owner: string;
+      };
+    };
+
 @Injectable()
-export class ChainMessageAlertService {
+export class ChainAlertService {
   constructor(
     private readonly alertRepository: AlertRepository,
     private readonly conditionsMatcher: ConditionsMatcherService,
     private readonly alertMessageService: AlertMessageService,
     private readonly loggerService: LoggerService
   ) {
-    this.loggerService.setContext(ChainMessageAlertService.name);
+    this.loggerService.setContext(ChainAlertService.name);
   }
 
-  async alertFor(event: object, onMessage: MessageCallback): Promise<void> {
+  async alertFor(event: TriggerPayload, onMessage: MessageCallback): Promise<void> {
     await this.forEachAlert(async alert => {
       try {
-        const isMatching = this.conditionsMatcher.isMatching(alert.conditions, event);
+        const isMatching = this.conditionsMatcher.isMatching(alert.conditions, event.payload);
 
         if (!isMatching) {
           return;
@@ -30,7 +47,7 @@ export class ChainMessageAlertService {
 
         const update: UpdateInput = { status: "TRIGGERED" };
 
-        if ("type" in event && event.type === "akash.deployment.v1beta3.MsgCloseDeployment") {
+        if (event.type === "CHAIN_EVENT" && event.payload.action === "deployment-closed" && alert.params?.dseq) {
           update.enabled = false;
           update.params ??= {};
           update.params.suppressedBySystem = true;
@@ -60,14 +77,14 @@ export class ChainMessageAlertService {
           error
         });
       }
-    });
+    }, event.type);
   }
 
-  private async forEachAlert(onAlert: AlertCallback) {
+  private async forEachAlert(onAlert: AlertCallback, type: "CHAIN_MESSAGE" | "CHAIN_EVENT") {
     try {
       await this.alertRepository.paginateAll({
         // TODO: implement continuous alerts. E.g. same alert can be triggered multiple times
-        query: { type: "CHAIN_MESSAGE", status: "OK" },
+        query: { type: type, status: "OK" },
         limit: 10,
         callback: async alerts => {
           await Promise.all(alerts.map(async alert => onAlert(alert)));
