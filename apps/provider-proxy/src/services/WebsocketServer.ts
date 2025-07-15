@@ -273,7 +273,8 @@ export class WebsocketServer {
       agent: new https.Agent({
         // do not use TLS session resumption for websocket
         sessionTimeout: 0,
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
+        servername: ""
       })
     });
 

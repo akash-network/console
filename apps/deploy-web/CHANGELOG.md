@@ -1,5 +1,25 @@
 
 
+## [2.94.0](https://github.com/akash-network/console/compare/console-web/v2.93.1...console-web/v2.94.0) (2025-07-14)
+
+
+### Features
+
+* adds distributed trace propagation for deploy-web ([#1666](https://github.com/akash-network/console/issues/1666)) ([df003dd](https://github.com/akash-network/console/commit/df003ddc01ec3183333323e2c2c75dbc6369e511))
+* **billing:** apply coupon to balance ([#1658](https://github.com/akash-network/console/issues/1658)) ([e5a0420](https://github.com/akash-network/console/commit/e5a04202cdd267aa55e9152a62a0066df45a5471))
+
+
+### Bug Fixes
+
+* prevent request to provider-proxy when deployment is closed ([#1660](https://github.com/akash-network/console/issues/1660)) ([db15052](https://github.com/akash-network/console/commit/db15052f76abc2419a8f87b6375be57b384d61f7))
+
+
+### Code Refactoring
+
+* creates reusable defineApiHandler ([#1656](https://github.com/akash-network/console/issues/1656)) ([768c503](https://github.com/akash-network/console/commit/768c5037a1a7db8be43f30f9fb65be20ca44d218))
+* hides more services inside DI ([#1665](https://github.com/akash-network/console/issues/1665)) ([705bdb6](https://github.com/akash-network/console/commit/705bdb6a5c5c02f2f27dfb29926b39d231230fbc))
+* replaces getServerSideProps with defineServerSideProps factory ([#1649](https://github.com/akash-network/console/issues/1649)) ([873dafb](https://github.com/akash-network/console/commit/873dafb6199ae5714a7b24cc5c26c80a136be379))
+
 ## [2.93.1](https://github.com/akash-network/console/compare/console-web/v2.93.0...console-web/v2.93.1) (2025-07-09)
 
 

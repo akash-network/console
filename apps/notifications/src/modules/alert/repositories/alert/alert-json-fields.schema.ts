@@ -14,13 +14,13 @@ const toCompound = <T extends { operator: any; value: any; field: any }>(schema:
     schema
   ]);
 
-export const chainMessageConditionsShape = {
+export const generalConditionsShape = {
   operator: z.union([z.literal("eq"), z.literal("lt"), z.literal("gt"), z.literal("lte"), z.literal("gte")]),
   field: z.string(),
   value: z.union([z.string(), z.number(), z.boolean()])
 };
 
-export const chainMessageConditionsSchema = toCompound(z.object(chainMessageConditionsShape));
+export const generalAlertConditionsSchema = toCompound(z.object(generalConditionsShape));
 
 const deploymentBalanceConditionsShape = {
   operator: z.union([z.literal("eq"), z.literal("lt"), z.literal("gt"), z.literal("lte"), z.literal("gte")]),
@@ -40,19 +40,20 @@ export const deploymentBalanceParamsSchema = z.object({
   suppressedBySystem: z.boolean().optional()
 });
 
-export const chainMessageParamsSchema = z.object({
+export const generalParamsSchema = z.object({
   dseq: dseqSchema,
   type: z.string(),
   suppressedBySystem: z.boolean().optional()
 });
 
 export const chainMessageTypeSchema = z.literal("CHAIN_MESSAGE");
+export const chainEventTypeSchema = z.literal("CHAIN_EVENT");
 export const deploymentBalanceTypeSchema = z.literal("DEPLOYMENT_BALANCE");
 
-export const chainMessageJsonFieldsSchema = z.object({
-  type: chainMessageTypeSchema,
-  params: chainMessageParamsSchema.optional(),
-  conditions: chainMessageConditionsSchema
+export const generalJsonFieldsSchema = z.object({
+  type: z.union([chainMessageTypeSchema, chainEventTypeSchema]),
+  params: generalParamsSchema.optional(),
+  conditions: generalAlertConditionsSchema
 });
 
 export const deploymentBalanceJsonFieldsSchema = z.object({
@@ -61,5 +62,5 @@ export const deploymentBalanceJsonFieldsSchema = z.object({
   conditions: deploymentBalanceConditionsSchema
 });
 
-export type ChainMessageJsonFields = z.infer<typeof chainMessageJsonFieldsSchema>;
+export type GeneralJsonFields = z.infer<typeof generalJsonFieldsSchema>;
 export type DeploymentBalanceJsonFields = z.infer<typeof deploymentBalanceJsonFieldsSchema>;
