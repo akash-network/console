@@ -45,8 +45,6 @@ export function DateRangePicker({
 
   const today = React.useMemo(() => startOfToday(), []);
 
-  const months = React.useMemo(() => Array.from({ length: 12 }, (_, i) => format(new Date(2024, i, 1), "MMMM")), []);
-
   const remainingRangeInDays = React.useMemo(() => {
     if (!selectedRange?.from || !selectedRange?.to || !maxRangeInDays) {
       return null;
@@ -85,47 +83,80 @@ export function DateRangePicker({
     return rangedMaxDate;
   }, [maxDate, selectedRange?.to, remainingRangeInDays]);
 
+  const isDateDisabled = React.useCallback(
+    (date: Date) => {
+      return Boolean(effectiveMinDate && isBefore(date, effectiveMinDate)) || Boolean(effectiveMaxDate && isAfter(date, effectiveMaxDate));
+    },
+    [effectiveMinDate, effectiveMaxDate]
+  );
+
+  const getMonthMetadata = React.useCallback(
+    (monthIndex: number) => {
+      const monthStart = new Date(currentYear, monthIndex, 1);
+      const monthEnd = new Date(currentYear, monthIndex + 1, 0);
+
+      return {
+        isDisabled: isDateDisabled(monthStart) || isDateDisabled(monthEnd) || !!(maxRangeInDays && differenceInDays(monthEnd, monthStart) + 1 > maxRangeInDays),
+        isSelected: selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, monthStart) && isSameDay(selectedRange.to, monthEnd)
+      };
+    },
+    [currentYear, selectedRange, isDateDisabled, maxRangeInDays]
+  );
+
+  const months = React.useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) => ({
+        label: format(new Date(2024, i, 1), "MMMM"),
+        ...getMonthMetadata(i)
+      })),
+    [getMonthMetadata]
+  );
+
+  const getPresetMetadata = React.useCallback(
+    (from: Date) => {
+      return {
+        from,
+        to: today,
+        isDisabled:
+          !!(minDate && isBefore(from, minDate)) ||
+          !!(maxDate && isAfter(today, maxDate)) ||
+          !!(maxRangeInDays && differenceInDays(today, from) + 1 > maxRangeInDays),
+        isSelected: selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, from) && isSameDay(selectedRange.to, today)
+      };
+    },
+    [selectedRange, minDate, maxDate, maxRangeInDays]
+  );
+
   const presets = React.useMemo(
     () => [
       {
         label: "Last 7 days",
-        getValue: () => ({
-          from: subDays(today, 6),
-          to: today
-        })
+        ...getPresetMetadata(subDays(today, 6))
       },
       {
         label: "Last 30 days",
-        getValue: () => ({
-          from: subDays(today, 29),
-          to: today
-        })
+        ...getPresetMetadata(subDays(today, 29))
       },
       {
         label: "Last 3 months",
-        getValue: () => ({
-          from: subMonths(today, 3),
-          to: today
-        })
+        ...getPresetMetadata(subMonths(today, 3))
       },
       {
         label: "Last year",
-        getValue: () => ({
-          from: subYears(today, 1),
-          to: today
-        })
+        ...getPresetMetadata(subYears(today, 1))
       }
     ],
     [today]
   );
 
   const selectPreset = React.useCallback(
-    (preset: (typeof presets)[0]) => {
-      const range = preset.getValue();
+    ({ from, to }: (typeof presets)[0]) => {
+      setCalendarMonth(from);
 
-      setCalendarMonth(range.from);
-
-      setSelectedRange(range);
+      setSelectedRange({
+        from,
+        to
+      });
 
       if (isMobile) {
         setPresetsOpen(false);
@@ -170,13 +201,6 @@ export function DateRangePicker({
     [currentYear, calendarMonth]
   );
 
-  const isDateDisabled = React.useCallback(
-    (date: Date) => {
-      return Boolean(effectiveMinDate && isBefore(date, effectiveMinDate)) || Boolean(effectiveMaxDate && isAfter(date, effectiveMaxDate));
-    },
-    [effectiveMinDate, effectiveMaxDate]
-  );
-
   const toggleMonthsVisibility = React.useCallback((open: boolean) => {
     setMonthsOpen(open);
 
@@ -192,34 +216,6 @@ export function DateRangePicker({
       setMonthsOpen(false);
     }
   }, []);
-
-  const getPresetMetadata = React.useCallback(
-    (preset: (typeof presets)[0]) => {
-      const { from, to } = preset.getValue();
-
-      return {
-        isDisabled:
-          !!(minDate && isBefore(from, minDate)) ||
-          !!(maxDate && isAfter(to, maxDate)) ||
-          !!(maxRangeInDays && differenceInDays(to, from) + 1 > maxRangeInDays),
-        isSelected: selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, from) && isSameDay(selectedRange.to, to)
-      };
-    },
-    [selectedRange, minDate, maxDate, maxRangeInDays]
-  );
-
-  const getMonthMetadata = React.useCallback(
-    (monthIndex: number) => {
-      const monthStart = new Date(currentYear, monthIndex, 1);
-      const monthEnd = new Date(currentYear, monthIndex + 1, 0);
-
-      return {
-        isDisabled: isDateDisabled(monthStart) || isDateDisabled(monthEnd) || !!(maxRangeInDays && differenceInDays(monthEnd, monthStart) + 1 > maxRangeInDays),
-        isSelected: selectedRange?.from && selectedRange.to && isSameDay(selectedRange.from, monthStart) && isSameDay(selectedRange.to, monthEnd)
-      };
-    },
-    [currentYear, selectedRange, isDateDisabled, maxRangeInDays]
-  );
 
   if (isMobile) {
     return (
@@ -272,17 +268,15 @@ export function DateRangePicker({
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-2 space-y-2">
                     {presets.map(preset => {
-                      const { isDisabled, isSelected } = getPresetMetadata(preset);
-
                       return (
                         <Button
                           key={preset.label}
                           variant="ghost"
                           size="lg"
-                          disabled={isDisabled}
+                          disabled={preset.isDisabled}
                           className={cn(
                             "h-12 w-full justify-start",
-                            isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                            preset.isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
                           )}
                           onClick={() => selectPreset(preset)}
                         >
@@ -314,18 +308,19 @@ export function DateRangePicker({
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {months.map((month, index) => {
-                      const { isDisabled, isSelected } = getMonthMetadata(index);
-
                       return (
                         <Button
-                          key={month}
+                          key={month.label}
                           variant="ghost"
                           size="lg"
-                          className={cn("h-12 text-sm", isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}
+                          className={cn(
+                            "h-12 text-sm",
+                            month.isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                          )}
                           onClick={() => selectMonth(index)}
-                          disabled={isDisabled}
+                          disabled={month.isDisabled}
                         >
-                          {month}
+                          {month.label}
                         </Button>
                       );
                     })}
@@ -414,17 +409,15 @@ export function DateRangePicker({
                   <div className="text-muted-foreground mb-2 text-xs font-medium">Quick Select</div>
                   <div className="mb-4 grid gap-1">
                     {presets.map(preset => {
-                      const { isDisabled, isSelected } = getPresetMetadata(preset);
-
                       return (
                         <Button
                           key={preset.label}
                           variant="ghost"
                           size="sm"
-                          disabled={isDisabled}
+                          disabled={preset.isDisabled}
                           className={cn(
                             "h-8 justify-start px-2 text-xs",
-                            isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                            preset.isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
                           )}
                           onClick={() => selectPreset(preset)}
                         >
@@ -449,21 +442,19 @@ export function DateRangePicker({
               <div className="grid gap-1">
                 <div className="text-muted-foreground mb-2 text-xs font-medium">Select Month</div>
                 {months.map((month, index) => {
-                  const { isDisabled, isSelected } = getMonthMetadata(index);
-
                   return (
                     <Button
-                      key={month}
+                      key={month.label}
                       variant="ghost"
                       size="sm"
                       className={cn(
                         "h-8 justify-start px-2 text-xs",
-                        isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                        month.isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
                       )}
                       onClick={() => selectMonth(index)}
-                      disabled={isDisabled}
+                      disabled={month.isDisabled}
                     >
-                      {month} {currentYear}
+                      {month.label} {currentYear}
                     </Button>
                   );
                 })}

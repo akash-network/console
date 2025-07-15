@@ -41,7 +41,7 @@ export const Calendar = ({ className, classNames, showOutsideDays = true, ...pro
         [SelectionState.selected]:
           "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
         [SelectionState.range_middle]: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-        [DayFlag.today]: "bg-accent text-accent-foreground",
+        [DayFlag.today]: "bg-neutral-300 dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100",
         [DayFlag.outside]:
           "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
         [DayFlag.disabled]: "text-muted-foreground opacity-50",
