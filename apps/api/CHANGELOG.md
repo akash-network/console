@@ -1,5 +1,12 @@
 
 
+## [2.105.1](https://github.com/akash-network/console/compare/console-api/v2.105.0...console-api/v2.105.1) (2025-07-15)
+
+
+### Bug Fixes
+
+* blockchain proxy cert expired, so ignoring it ([#1685](https://github.com/akash-network/console/issues/1685)) ([3a2e205](https://github.com/akash-network/console/commit/3a2e20587918b60bb836a83704129dba27df9bae))
+
 ## [2.105.0](https://github.com/akash-network/console/compare/console-api/v2.104.0...console-api/v2.105.0) (2025-07-14)
 
 
