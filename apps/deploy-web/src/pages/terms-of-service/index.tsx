@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 import Layout from "@src/components/layout/Layout";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
@@ -10,616 +11,845 @@ export function TermsOfService() {
     <Layout>
       <CustomNextSeo title="Terms of service" url={`${domainName}${UrlService.termsOfService()}`} description="Akash Console webiste terms of service." />
 
-      <div className="mb-8">
-        <Title>Terms of Service</Title>
+      <div className="mx-auto max-w-4xl p-8 leading-relaxed">
+        <Title>Akash Network Terms of Service</Title>
+        <p className="mb-8 italic">Last updated: July 1st, 2025</p>
+
+        <p className="mb-4">
+          These Akash Network Terms of Service (these &quot;Terms&quot; or this &quot;Agreement&quot;) are a contract between you and Overclock Labs Inc.
+          (&quot;Akash,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) and govern your access to and use of the website located at
+          https://akash.network (the &quot;Website&quot;) and the application interface located at https://console.akash.network/ and all related components
+          (the &quot;Platform&quot;), services provided by Akash described below, and such other services, software, applications, features, or products
+          provided by Akash from time to time (together with the Platform, the &quot;Services&quot;).
+        </p>
+
+        <p className="mb-4">
+          By accessing or using any portion of the Services, or, if earlier, by clicking on an &quot;I Agree&quot; button or a check box presented with these
+          Terms, you agree to comply with and be bound by these Terms and any materials expressly incorporated herein. If you do not agree, you are not
+          authorized to access or use any of the Services and may not use the Services.
+        </p>
+
+        <p className="mb-4 font-bold">
+          THESE TERMS INCLUDE A WAIVER OF ANY RIGHT TO PARTICIPATE IN A CLASS ACTION, AS WELL AS A MANDATORY ARBITRATION CLAUSE THAT GOVERNS RESOLUTION OF
+          CERTAIN DISPUTES AND WAIVES YOUR RIGHT TO SUE IN COURT OR HAVE A TRIAL BY JURY. PLEASE READ SECTION 21 CAREFULLY.
+        </p>
+
+        <p className="mb-4 font-bold">Important Definitions: As used throughout this Agreement, the following terms have the following meanings.</p>
+
+        <ul className="mb-4 list-disc pl-8">
+          <li className="mb-2">
+            <strong>&quot;Digital Asset&quot;</strong> means any cryptographic digital representation of value that functions as a medium of exchange, unit of
+            account, or store of value compatible with a blockchain protocol of a computer network.
+          </li>
+          <li className="mb-2">
+            <strong>&quot;Digital Asset Address&quot;</strong> means the alphanumeric identifier that represents a destination for a Digital Asset transaction.
+          </li>
+          <li className="mb-2">
+            <strong>&quot;Digital Asset Wallet&quot;</strong> means a software application or other mechanism that provides a means for holding, storing,
+            transferring, and receiving Digital Assets.
+          </li>
+          <li className="mb-2">
+            <strong>&quot;Person&quot;</strong> means, without limitation, any natural person, individual, association, partnership, corporation, company, or
+            other form of organization, group, or entity.
+          </li>
+          <li className="mb-2">
+            <strong>&quot;Prohibited Jurisdictions&quot;</strong> means, any Person that is a citizen or resident or, or is located or headquartered in a
+            jurisdiction where use of the Services would be illegal or violate applicable law.
+          </li>
+          <li className="mb-2">
+            <strong>&quot;Sanctions Law&quot;</strong> means, without limitation, any export restriction, end-user restriction, antiterrorism law, anti-money
+            laundering law, economic sanction, financial sanction, and trade embargo imposed, administered, or enforced by the U.S. including the U.S.
+            Department of Treasury&apos;s Office of Foreign Asset Control Designated Nationals and Blocked Persons (&quot;SDN&quot;) List, U.S. Department of
+            State, and U.S. Department of Commerce, the United Nations Security Council, the European Union, or any other applicable national, regional,
+            provincial, state, municipal, or local law or regulation (each as amended from time to time).
+          </li>
+          <li className="mb-2">
+            <strong>&quot;Sanctioned Person&quot;</strong> means, without limitation, any Person or Digital Asset Address that is subject to any Sanctions Law,
+            or directly or indirectly owned fifty percent or more by any Person or group of Persons in the aggregate, or a Digital Asset Wallet associated with
+            such Person or Persons, subject to any Sanctions Law.
+          </li>
+          <li className="mb-2">
+            <strong>&quot;Sanctioned Jurisdiction&quot;</strong> means, without limitation, any jurisdiction comprehensively sanctioned or embargoed by the
+            United States, the United Nations, the United Kingdom, or Panama, which, as of the date that these Terms were last updated: Cuba, certain sanctioned
+            areas of Russia and Ukraine (including without limitation, Crimea, the so-called region of Dontesk, the so-called region of Luhansk, and the
+            so-called region of Zaporizzhia), Democratic People&apos;s Republic of Korea (North Korea), Iran, and Syria.
+          </li>
+        </ul>
+
+        <h2 className="mb-2 text-xl font-bold">1. The Services</h2>
+        <h3 className="mb-2 text-lg font-bold">1.1 The Platform</h3>
+        <p className="mb-4">
+          The Platform publishes information about computing infrastructure resources, such as access to virtual machines, Kubbernetes clusters, GPU/TPU
+          instances, memory, storage, and other compute resources (&quot;Resources&quot;) provided by third-party providers, which may or may not include Akash
+          (&quot;Providers&quot;), and made available through the Protocol (as defined below). Subject to these Terms, users may access and use the Platform to
+          lease Resources from Providers (such users, &quot;Tenants&quot;). Tenants may use the Platform to publish a request for Resources. A Provider that
+          desires to fulfill the Tenant&apos;s request may submit a bid to fulfill such request on the Platform. After some time, the requesting Tenant may
+          select which, if any, Provider bid that satisfies the Tenant&apos;s request. Any terms and provisions about or in connection with the Resources,
+          including without limitation, technical support, are between the Tenant and the Vendor. Akash will not be responsible or liable for any Resources,
+          including without limitation, technical support, security updates, or patches.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">1.2 The Protocol</h3>
+        <p className="mb-4">
+          The Platform provides a web-based means to access the Akash network software protocol that runs on the Akash blockchain, a public blockchain network
+          hosted by a network of unaffiliated third-party node operators whose nodes host the Akash blockchain&apos;s distributed ledger and validate and
+          facilitate Digital Asset transactions performed thereon (the &quot;Protocol&quot;). The Protocol enables users to perform transactions with Digital
+          Assets compatible with the underlying blockchain network. The Platform is distinct from the Protocol. The Platform is one but not the exclusive means
+          of accessing the Protocol. The Protocol itself is comprised of open-source or source-available self-executing smart contracts and hosted by a network
+          of unaffiliated third-party node operators whose nodes run the Protocol&apos;s software and host the Akash blockchain network. You acknowledge and
+          agree that we do not control the Protocol or any Digital Assets compatible with the Protocol and we do not have control over any Digital Asset
+          transactions conducted on the Protocol. You also acknowledge and agree that your interactions, including Digital Asset transactions, are not
+          interactions with us. You further understand and agree that we do not operate, own, or control the Protocol&apos;s staking mechanism or governance
+          mechanism, nor do we control trade execution on the Protocol.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">2. Using the Services</h2>
+        <h3 className="mb-2 text-lg font-bold">2.1 Eligibility</h3>
+        <p className="mb-4">
+          In connection with your access and use of the Services, you represent and warrant that you are at least 18 years old and capable of forming a binding
+          contract with Akash in your respective jurisdiction. If you are accessing or using the Services on behalf of a legal entity or other type of
+          organization, you represent and warrant that you are authorized to agree to these Terms on behalf of that entity or organization and represent to
+          Akash that you have the power and authority to bind your legal entity or organization to these Terms. You further represent and warrant that you are
+          not, and you are not acting on behalf of, a &quot;Prohibited Person,&quot; which means a: (i) Sanctioned Person; or (ii) Person that is a resident of
+          or headquartered in a Sanctioned Jurisdiction or a Prohibited Jurisdiction.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">2.2 Verification and Screening</h3>
+        <p className="mb-4">
+          You may be required to provide us directly, or through a third party, certain information and documentation. You represent and warrant that any
+          information and documentation that you provide to us, whether as part of the Services or otherwise, is complete and accurate. We may employ various
+          measures to comply with our anti-money laundering obligations and otherwise prevent the misuse of the Services. These verification and screening
+          procedures may include, without limitation, checking the information you provide against sanctions lists issued by any governmental authority
+          prohibiting or limiting business activities or transactions with any Person. You hereby authorize us, directly or through a third party, to make
+          inquires that we consider necessary to verify your identity and/or protect against the misuse of the Services. We will have no liability or
+          responsibility for any permanent or temporary inability to access or use the Services as a result of any identity verification or screening procedure.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">2.3 User Accounts</h3>
+        <p className="mb-4">
+          You represent and warrant that all information you submit when you create your account is accurate, current, and complete, and that you will keep your
+          account information accurate, current, and complete. You are solely responsible for any and all activity that occurs on your account, whether
+          authorized by you or not, and you must keep your account information secure. You are responsible for keeping your account information up to date,
+          including the information that allows you to receive any notices or alerts that we may send you. In case of a dispute about account ownership, we
+          reserve the right to determine ownership to an account based on our reasonable judgment and/or our independent investigation. However, if we cannot
+          make such a determination, we reserve the right to avoid doing so and/or suspend a user&apos;s account until the parties disputing such ownership,
+          reach a resolution.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">3. Digital Asset Wallets</h2>
+        <h3 className="mb-2 text-lg font-bold">3.1 In General</h3>
+        <p className="mb-4">
+          To pay for the Services using Digital Assets, you must connect a Digital Asset Wallet. Your relationship with the Digital Asset Wallet provider is
+          governed by the terms and provisions of that provider&apos;s agreement with you. By connecting your Digital Asset Wallet to the Platform, you agree to
+          be bound by this Agreement. We reserve the right, in our sole discretion, to prohibit certain Digital Asset Addresses from being able to connect to
+          the Platform or from accessing or using other aspects of the Services.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">3.2 Non-Custodial</h3>
+        <p className="mb-4">
+          The Services are purely non-custodial applications, we do not have custody, possession, or control of your Digital Assets at any time. You own and
+          control all Digital Assets held in your Digital Asset Wallet. As the owner of the Digital Assets, you bear all risk of loss of the Digital Assets.
+          Akash will not be liable for Digital Asset fluctuations or other loss associated with your use of a Digital Asset Wallet.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">3.3 Security</h3>
+        <p className="mb-4">
+          You are solely responsible for the custody of the cryptographic private keys associated with any Digital Asset Wallet you use or connect to the
+          Services. You should never share your Digital Asset Wallet&apos;s credentials or seed phrase with anyone. We accept no responsibility or liability to
+          you in connection with your use of a Digital Asset Wallet. We make no representations or warranties regarding how any of the Services will interact or
+          operate with any specific Digital Asset Wallet.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">4. Third Party Services, Applications, and Waiver</h2>
+        <h3 className="mb-2 text-lg font-bold">4.1 Third Party Services</h3>
+        <p className="mb-4">
+          The Services may include, without limitation, links to sites, technology, applications, products, services, materials, or resources, provided or made
+          available by, third a third party, including for example, Stripe (collectively, &quot;<strong>Third Party Services</strong>&quot;). Your access and
+          use of any Third Party Service is subject to the terms and policies of the applicable Third Party Service provider, including without limitation,
+          Stripe&apos;s Connected Account Agreement, available at https://stripe.com/legal/connect account the Stripe Terms of Service, available at
+          https://stripe.com/legal/ssa and the Stripe Shop Terms of Use, available at https://stripe.com/legal/stipe-shop.
+        </p>
+        <p className="mb-4">
+          We do not control or operate any Third Party Services. You acknowledge and agree that you are solely responsible for any and all costs and charges
+          associated with your use of any Third Party Service. Our integration or inclusion of any Third Party Service does not imply endorsement or
+          recommendation. You acknowledge and agree that we are not responsible for the availability, reliability, accuracy, or legitimacy of any Third Party
+          Service (including any related websites, resources or links displayed therein). Any dispute you have with a Third Party Service including, without
+          limitation, your intellectual property rights, is between you and the provider of that Third Party Service. Akash will not be responsible or liable
+          for any damage or loss caused or alleged to be caused by, or in connection with, your use of, or reliance on, any Third Party Service.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">4.2 Third Party Applications</h3>
+        <p className="mb-4">
+          If, to the extent permitted by Akash, you grant express permission to a third party to access or connect to the Services, either through a third
+          party&apos;s service or the Platform, you acknowledge that granting permission to such third party to take specific actions on your behalf does not
+          relieve you of any of your responsibilities under these Terms. You are fully responsible for any act or omission of any such third party. You
+          acknowledge and agree that you will not hold Akash responsible for, and will indemnify Akash from, any liability arising out of or related to any act
+          or omission of any third party with access to your Digital Asset Wallet, application, software, or other mechanism that you use to interact with the
+          Services.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">4.3 Waiver of Claims</h3>
+        <p className="mb-4">
+          To the maximum extent permitted by applicable law, you hereby waive any and all claims, demands, and damages of every kind or nature, known or
+          unknown, suspected or unsuspected, disclosed or undisclosed, against Akash and its affiliates, and each of their respective officers, employees,
+          agents, and successors arising out of or in any way related to any of the risks set forth herein. You also waive application of Section 1542 of the
+          Civil Code of the State of California, or any similar stature or law of any other jurisdiction. Section 1542 reads as follows: &quot;a general release
+          does not extend to claims which the creditor does not know or suspect to exist in his or her favor at the time of executing the release, which if
+          known by him or her must have materially affected his or her settlement with the debtor.&quot;
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">5. Risk Disclosures</h2>
+        <p className="mb-4">
+          You understand, accept, and agree to assume all of the various risks involved in using, holding, transacting, and transferring Digital Assets and the
+          use of the Services, including all of the risks set forth in this Section.
+        </p>
+
+        <ul className="mb-4 list-disc pl-8">
+          <li className="mb-2">
+            Digital Assets, the features, functions, characteristics, operations, use, and other properties and/or software, networks, protocols, systems, or
+            other technology that Digital Assets interact with is complex, and Digital Asset terms, features, or risks may not be readily or fully understood
+            due to such complexities.
+          </li>
+          <li className="mb-2">
+            Digital Assets will be irretrievably lost if sent to the wrong Digital Asset Address. For instance, if the Digital Asset Address is improperly
+            formatted, contains an error, or for a type of Digital Asset then is not supported by the Digital Asset Address&apos; underlying blockchain, then
+            any Digital Assets will be irretrievably lost. Neither Akash nor any other third party is capable of reversing erroneous Digital Asset transfers or
+            retrieving any lost Digital Assets transferred in error.
+          </li>
+          <li className="mb-2">
+            The Protocol may be subject to forks or attacks on the security, integrity, and/or operation of the networks, including any network events. These
+            events may affect features, functionality, operations, use, or properties of the Services and/or any Digital Asset or network and/or the value of
+            any Digital Asset.
+          </li>
+          <li className="mb-2">
+            Any Digital Asset, the Protocol, or the Services may be targeted by malicious persons or individuals who may attempt to disrupt the Services or
+            steal Digital Assets. This includes but is not limited to malware, hacking, phishing, double spending, smurfing, spoofing, sybil attacks, social
+            engineering, majority mining, mining attacks, distributed denial of service, and blockchain forks.
+          </li>
+          <li className="mb-2">
+            The public nature of the internet means that parts or the internet may be unreliable or unavailable at any given time. Interruption, delay,
+            corruption, loss of data, the loss of confidentiality or privacy through the course of data transmission, or malware transmission may occur when
+            transmitting data via the internet or other technology. This can result in your transaction(s) not being executed according to your instructions at
+            the requested time or not at all. No technology is completely secure or safe.
+          </li>
+          <li className="mb-2">
+            Digital Assets may decrease in value or lose all value in a short period of time or permanently due to various factors including, without
+            limitation, government or regulatory activity, the discovery of wrongful or illegal conduct, market manipulation, price distortion, insider dealing,
+            market distortion, malicious wrongdoing or behaviors, changes to the Digital Asset&apos;s nature or characteristics, suspension, or cessation of
+            support for a Digital Asset by exchanges, public opinion, technical advancements, macroeconomic and political factors, and other factors outside of
+            our control.
+          </li>
+          <li className="mb-2">
+            Digital Assets held by a decentralized application like the Protocol or Digital Asset Wallets are not protected deposits and/or may not be protected
+            by any deposit protection scheme, such as the Federal Deposit Insurance Company (&quot;FDIC&quot;). Thus, Digital Assets have a reduced level and
+            type of protection compared to fiat currency and other asset classes or types.
+          </li>
+          <li className="mb-2">
+            Digital Assets are generally considered a high-risk asset class. You must exercise prudent judgment when with transacting with Digital Assets.
+          </li>
+          <li className="mb-2">
+            The Services may undergo significant changes over time. We may also limit control over how other participants use the Services and what Services are
+            offered on or through the Platform. This could create the risk of the Services not meeting your expectations, for any number of reasons, including
+            mistaken assumptions or analysis, a change in the design and/or implementation plans, and execution on or through the Services.
+          </li>
+          <li className="mb-2">
+            We currently rely on our service providers for certain aspects of our operations including: cloud computing services and data centers that provide
+            facilities, infrastructure, website functionality and access, components, and services, all of which are critical to our operations. Like most other
+            online companies, because we rely on service providers, we face operational risk. Any interruption in the services provided by our service providers
+            can impair our ability to provide the Services to you.
+          </li>
+          <li className="mb-2">
+            We do not directly manage the operation of the service providers we use including their data center facilities. Such third parties are vulnerable to
+            financial, legal, regulatory, and labor issues, cybersecurity incidents, break-ins, computer viruses, denial-of-service attacks, sabotage, acts of
+            vandalism, privacy breaches, service terminations, disruptions, interruptions, Force Majeure Events (defined below), and other events.
+          </li>
+          <li className="mb-2">
+            You acknowledge and understand that you may be subject to scams and/or other types of fraud perpetrated by parties outside of our control. It is
+            your responsibility to be aware of and protect against such misconduct. In the event that you are subject to such fraud, there is a risk of loss of
+            your Digital Assets.
+          </li>
+          <li className="mb-2">
+            All blockchain transactions include data and, in some circumstances, personal data about you. Many public blockchain networks, including the
+            Protocol, store transaction data publicly and permanently. When you use such public blockchain networks, you intentionally make your transaction
+            data public and acknowledge that this data cannot be deleted, removed, or reversed due to the nature of blockchain technology.
+          </li>
+          <li className="mb-2">
+            We are subject to an extensive and rapidly evolving regulatory landscape, and any changes to any law or regulation could adversely impact our
+            ability to offer the Services and/or your use or access to the Services. Such regulatory change may also impact your legal obligations with respect
+            to your use of the Services.
+          </li>
+          <li className="mb-2">
+            You understand that smart contract transactions automatically execute and settle, and blockchain-based transactions are irreversible when confirmed.
+            You acknowledge and accept that the cost and speed of transacting with cryptographic and blockchain-based systems are variable and may increase
+            dramatically at any time. You further acknowledge and accept the risk of selecting your slippage rate which expose you to additional cost or fees by
+            the underlying blockchain network.
+          </li>
+          <li className="mb-2">
+            You understand that we do not create, own, or operate cross-chain bridges and we do not make any representation or warranty about the safety or
+            soundness of any cross-chain bridge.
+          </li>
+        </ul>
+
+        <h2 className="mb-2 text-xl font-bold">6. Acknowledgements and Covenants</h2>
+        <p className="mb-4">
+          By accessing or using the Services, you acknowledge, represent, and warrant, in each case as applicable, each of the items contained in this Section
+          and all of its subsections.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">6.1 Acknowledgement and Assumption of Risks</h3>
+        <p className="mb-4">
+          You represent and warrant that you have received a copy of, have carefully read, understand, accept, and agree to assume all of the risks involved in
+          using, holding, trading, delivering, transacting, and/or transferring Digital Assets and the use of the Services, including without limitation, the
+          risks specifically set forth in these Terms. You agree that Akash shall not be liable to you for any loss, damage, expense, or liability that are or
+          may relate to any of the risks specifically set forth herein. Further, you represent that you are able to bear any financial or other loss associated
+          with or that may otherwise relate to your access or use of the Services.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">6.2 Non-Reliance</h3>
+        <p className="mb-4">
+          You represent that you are not relying on (and will not at any time rely on) any communication (written or oral) of Akash as advice or as a
+          recommendation to engage in any transaction involving Digital Assets. Further, you confirm that Akash has not: (a) given any guarantee or
+          representation as to the potential success, return, effect, or benefit (either legal, regulatory, tax, financial, accounting, or otherwise) of
+          transacting in Digital Assets; or (b) made any representation to you regarding the legality of transacting in Digital Assets under any applicable law
+          to which you may be subject. In deciding to use the Services to transact in Digital Assets, you are not relying on the advice or recommendations of
+          Akash, and you have made your own independent decision that using the Services and transacting in Digital Assets are suitable and appropriate for you.
+        </p>
+        <p className="mb-4">
+          You acknowledge and agree that we do not provide investment advice, and any content on the Platform, other parts of the Services, or communication
+          channels should not be considered as investment advice. You must seek professional advice regarding your particular financial, legal, technical, and
+          other conditions prior to commencing your use of the Services. You represent and warrant that you fully understand all risks associated with using the
+          Services and you have the necessary experience, understanding, and risk tolerance for using the Services, including the necessary experience and
+          knowledge to enter into any relevant transaction through the Services. You will carefully consider and use clear judgment to evaluate your financial
+          situation and risks before making any decisions to use the Services. You accept the risk of using the Services and are responsible for conducting your
+          own independent analysis of the risks specific to your use of the Services.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">7. Prohibited Use</h2>
+        <p className="mb-4">
+          You may not use the Services to engage in the following categories of activity (each a &quot;Prohibited Use&quot;). The specific types of activities
+          listed below are representative, but not exhaustive.
+        </p>
+
+        <ul className="mb-4 list-disc pl-8">
+          <li className="mb-2">
+            <strong>Unlawful Activity.</strong> Activity which, in any way, would violate, or assist in violation of, any law, statue, ordinance, or regulation,
+            sanctions programs administered in the countries where Akash offers the Services, or which would involve proceeds of any unlawful activity,
+            including without limitation publishing, distributing, or disseminating any unlawful material or information.
+          </li>
+          <li className="mb-2">
+            <strong>Abusive of Others.</strong> Interfere with another individual&apos;s access to or use of the Services including without limitation any
+            activity that may: exploit, harm, or attempt to exploit or harm minors in any way by exposing them to inappropriate content: defame, abuse, extort,
+            harass, stalk, threaten, or otherwise violate or infringe the legal rights of others; ask for personally identifiable information, or otherwise
+            transmit, or procure the sending of, any advertising or promotional material, including any &quot;junk mail,&quot; &quot;chain letter,&quot;
+            &quot;spam,&quot; or any other similar solicitation; impersonate or attempt to impersonate Akash, an employee, another user, or any other person or
+            entity associated with Akash (including, without limitation, by using email addresses, screen names, similarly named or commonly misspelled URLs, or
+            associated blockchain identities); engage in any other conduct that restricts or inhibits anyone&apos;s use or enjoyment of the Services; or incite,
+            threaten, encourage, or promote hate, racial intolerance, or violent acts against others.
+          </li>
+          <li className="mb-2">
+            <strong>Fraud.</strong> Activity which operates to deceive or defraud, or attempt to deceive or defraud, Akash, any users or any other person,
+            including without limitation providing any false, inaccurate, or misleading information whether directly through the Services or through an external
+            means that affects the Services with the intent to unlawfully obtain the property of another or to provide knowingly or recklessly false
+            information, including without limitation in any way that causes inaccuracy among the content on the Services.
+          </li>
+          <li className="mb-2">
+            <strong>Abusive Activity.</strong> Activity that may cause the Services, the Services underlying blockchain networks or technologies, or any other
+            functionality with which the Services interact, to work other than as intended; damage the reputation of Akash or impair any of our legal rights or
+            interests; violate any applicable laws concerning, or otherwise damages, the integrity of the Services, or any other service or software which
+            relies on the Services; disable, overburden, damage, impair, or interfere with the Services, including the ability to engage in real time activities
+            through the Services; involve the use any robot, spider, or other automatic device, process, or means to access the Services for any purpose,
+            including monitoring or copying any of the material on the Services; attempt to gain unauthorized access to, interfere with, damage, or disrupt any
+            parts of the Services, the server on which the Services or information in connection with the Services is stored, or any server, computer, or
+            database connected to the Services, including any underlying blockchain.
+          </li>
+          <li className="mb-2">
+            <strong>Intellectual Property Infringement.</strong> Violate the legal rights (including the rights of publicity and privacy) of others or contain
+            any material that could give rise to any civil or criminal liability under applicable law or regulation or that otherwise may be in conflict with
+            these Terms; engage in transactions involving items that infringe or violate any copyright, trademark, right of publicity or privacy, or any other
+            proprietary right under the law, including but not limited to sales, distribution, or access to counterfeit music, software, or other licensed
+            materials without the appropriate authorization from the rights holder; use of Akash intellectual property, name, or logo, including use of any
+            Akash trade or service mark, without express consent of Akash or in a manner that otherwise harms Akash or the Akash brand; any action that implies
+            an untrue endorsement by or affiliation with Akash.
+          </li>
+        </ul>
+
+        <p className="mb-4">
+          You agree and represent that you will not engage in any Prohibited Use in connection with the Services. You further represent and warrant that you:
+          (a) will abide by any and all applicable laws of the jurisdiction where you are located while using the Platform or the Services; (b) will comply with
+          all local, national, and international practices regarding internet use; (c) have obtained sufficient information about the Services, Digital Assets,
+          and other services or products in connection with the Services to make an informed decisions in regard to your use of the Services; (d) will bear the
+          full responsibility for any and all activities that occurs in connection with your use or access to the Services including without limitation
+          transactions of Digital Assets, interacting with the Services, disclosing, or publishing information, clicking to agree with various agreements, and
+          uploading and submitting various documents or information; and (e) are the legal and rightful owner of the Digital Assets in the Digital Asset Wallet,
+          and Digital Assets you use with the Services.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">8. Sanctions & Export Controls</h2>
+        <p className="mb-4">
+          You may not use the Services or purchase any Resources in or for the benefit of a country, organization, entity, or person embargoed or blocked by any
+          government, including those on sanctions lists identified by OFAC. We do not claim, and we cannot guarantee that the Services or any Resources are or
+          will be appropriate or available for any location or jurisdiction, comply with the laws of any location or jurisdiction, or comply with laws governing
+          export, import, or foreign use.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">9. Changes, Suspension, and Termination</h2>
+        <p className="mb-4">
+          Akash may, at its discretion and without liability to you, with or without prior notice and at any time, modify, discontinue, temporarily, or
+          permanently, all or any portion of the Platform. You acknowledge that our decision to take certain actions, including limiting access to, suspending,
+          or terming your access to the Platform may be based on our confidential criteria that are essential to our risk management and security protocols. You
+          agree that we are under no obligation to disclose the details of our risk management and security procedures to you. Akash will not be liable for any
+          losses suffered by you resulting from any modification of the Services or from any suspension or termination of your access to all or a portion of the
+          Platform (whether pursuant to this Section 9 or for any other reason. You acknowledge that Digital Asset values may fluctuate during any period during
+          which the Services have been suspended and agree that Akash will have no liability for any such fluctuations.
+        </p>
+
+        <p className="mb-4">
+          Without limiting the foregoing, we have the right to cooperate fully with any law enforcement authorities or court order requesting or directing us to
+          disclose the identity or other information of anyone posting any materials on or through the Services. You waive and hold harmless Akash and its
+          affiliates, licensees, and service providers from any claims resulting from any action taken by Akash and/or any of the foregoing parties during, or
+          taken as a consequence of, investigations by us, such parties, or law enforcement authorities.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">10. Intellectual Property Rights</h2>
+        <h3 className="mb-2 text-lg font-bold">10.1 Akash Materials</h3>
+        <p className="mb-4">
+          The Services and its entire contents, features, and functionality including but not limited to all information, software, text, displays, images,
+          video, and audio, the design, selection, and arrangement thereof, and the &quot;look and feel&quot; of the Services, except any open source software,
+          are owned by Akash (&quot;Akash Materials&quot;), its licensors, or other providers of such material and are protected by applicable and/or
+          international copyright, trademark, patent, trade secret, and other intellectual property or proprietary rights laws.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">10.2 Limitations on Use</h3>
+        <p className="mb-4">
+          In connection with your use of the Services, you may use the Akash Materials solely as authorized by us for as long as we permit you to continue
+          accessing the Services. Without limiting the foregoing, you agree not to: (a) resell, lease, lend, share, distribute, or otherwise permit any third
+          party to use the Services, Akash Materials, or use the Services or Akash Materials in any service bureau environment; (b) modify or create derivative
+          works of the Services or Akash Materials, or any portion thereof, or any data or information received by you in connection therewith; (c) frame,
+          display, or incorporate the Services or Akash Materials in any website or any other work of authorship in a manner that implies any affiliation with
+          Akash other than of your use of the Services; (d) decompile, disassemble, reverse engineer, or attempt to discover the source code of the Services or
+          Akash Materials; (e) use the Services or Akash Materials to design, develop, or create any competing product or service; or (f) otherwise use the
+          Services or Akash Materials for any commercial or noncommercial purpose other than their intended purposes determined at Akash&apos;s discretion.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">10.3 Rights We Grant You</h3>
+        <p className="mb-4">
+          We hereby permit you to use and access the Services, provided that you comply with these Terms. If any software, content, or other materials owned or
+          controlled by us are distributed to you as part of your use of the Services, we hereby grant you a non-sublicensable, non-transferable, and
+          non-exclusive right and license to execute, access, and display such software, content, and materials provided to you as part of the Services, in each
+          case for the sole purpose of enabling you to use the Services as permitted by these Terms.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">10.4 Reservation of Rights</h3>
+        <p className="mb-4">
+          If your use or access to the Services is in breach of these Terms, your right to access the Services will stop immediately and you must, at our sole
+          option, return or destroy any copies of the materials that you made directly or indirectly from the Services. No right, title, or interest in or to
+          the Services is transferred to you, and all rights not expressly granted are reserved by Akash. You may freely use any open-sourced materials up to
+          the limits provided, but in accordance with any requirements placed, by those materials&apos; open-source licenses. Any use of the Services not
+          expressly permitted by these Terms is a breach of these Terms and may violate copyright, trademark, and other applicable laws.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">10.5 Trademarks</h3>
+        <p className="mb-4">
+          Akash&apos;s name, the term &quot;Akash Network&quot; and all related names, logos, product and/or service names, designs, and slogans are trademarks
+          of Akash, its affiliates, or licensors. You agree not to use such marks without the prior express written permission of Akash.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">11. Platform Content</h2>
+        <p className="mb-4">
+          We do not warrant the accuracy, completeness, or usefulness of any materials or information that we or a third party present on or through the
+          Services. Such information is made available solely for general information and education purposes. Any information posted to the Services should not
+          be construed as an intention to form a contract, and in no case should any information be construed as our offer to buy, sell, exchange, or otherwise
+          transact Digital Assets. We disclaim all liability and responsibility arising from any reliance placed on such information or materials by you, any
+          other user or person who may be informed of any of the Services contents, or by the actions or omissions of others interacting with the Services.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">12. Interactions with other Users</h2>
+        <p className="mb-4">
+          You are responsible for your interactions with other users, including other Tenants or Providers, as applicable, on or through the Services. While we
+          reserve the right to monitor interactions between users, we are not obligated to do so, and we cannot be held liable for your interactions with other
+          users, or for any user&apos;s actions or inactions. If you have a dispute with one or more users, now or in the future, you agree to release Akash
+          (and our affiliates and subsidiaries, and our and their respective officers, directors, employees, and agents) from claims, demands, and damages
+          (actual and consequential) of every kind and nature, known and unknown, arising out of or in any way connected with such disputes. In entering this
+          release, you expressly waive any protections (whether statutory or otherwise) that would otherwise limit the coverage of this release to include only
+          those claims which you may know or suspect to exist in your favor at the time of agreeing to this release.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">13. Promotions</h2>
+        <p className="mb-4">
+          Akash may make available special offers or conduct promotions for qualifying users. Subject to applicable laws, Akash, or the issuer of a Digital
+          Asset subject to an offer or promotion, may establish qualifying criteria to participate in any special promotions at its sole discretion. Any
+          benefits associated with any promotions are limited to one per user. Akash may revoke any special offer at any time and for any reason without advance
+          notice to you. Akash is under no obligation to make available special offers to all Akash users. Akash makes no recommendation and does not provide
+          any advice about the value or utility of a Digital Asset that is part of a promotion.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">14. Feedback</h2>
+        <p className="mb-4">
+          Any questions, suggestions, ideas, feedback, reviews, or other information or materials regarding the Services provided by you to Akash (collectively,
+          &quot;Feedback&quot;) are non-confidential. Akash will be entitled to the unrestricted use and dissemination of Feedback for any purpose, commercial
+          or otherwise without acknowledgment, attribution, or compensation to you. You hereby assign to Akash all right, title, and interest to Feedback
+          together with all associated intellectual property rights and waive any claim for, acknowledgement or compensation based on any Feedback or any
+          modifications made based on any Feedback.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">15. Relationship of the Parties</h2>
+        <p className="mb-4">
+          Akash is not your broker, intermediary, agent, or advisor and has no fiduciary relationship or obligation to you in your use of the Services. Akash
+          does not provide investment, tax, or legal advice, and you are solely responsible for any transaction, investment, strategy, decision, or other act
+          that you make when using the Services. Akash may provide educational material or information on the Platform, through the Services, social media
+          account, or other channel of communication. No communication or information provided to you by Akash is intended as, or shall be considered or
+          construed as, advice. To the fullest extent permissible by law, you agree that your access or use of the Services causes Akash or any user to owe
+          fiduciary duties or liabilities to you or any third party. Further, you acknowledge and agree to the fullest extent such duties or liabilities are
+          afforded by law or by equity, those duties and liabilities are hereby irrevocably disclaimed, waived, and eliminated, and that Akash shall be held
+          completely harmless in relation thereof.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">16. Charges and Fees</h2>
+        <h3 className="mb-2 text-lg font-bold">16.1 Protocol Fees</h3>
+        <p className="mb-4">
+          You may be charged fees in connection with your access to the Protocol via a third party interface. You are responsible for doing your own diligence
+          on any third party interface to understand any applicable fee or charge that such third party may charge you. Under no circumstances shall Akash incur
+          any liability, of any kind, to you arising from or relating to fees charged to you by your access or use to the Protocol via a third party interface.
+        </p>
+        <p className="mb-4">You may cancel your access to the Services at any time through the Platform.</p>
+
+        <h3 className="mb-2 text-lg font-bold">16.2 Our Charges and Fees</h3>
+        <p className="mb-4">
+          We may, in our sole discretion and at any time, set or modify the fees for the Services. If we decide to set or modify fees for the Services, the fee
+          schedule will be made available on the Platform. Except when required by law, all fees you pay to us are non-refundable.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">16.3 Blockchain Fees</h3>
+        <p className="mb-4">
+          Blockchain transactions require the payment of transaction fees to the appropriate network&apos;s nodes, miners, validators, or operators
+          (&quot;Blockchain Fees&quot;). You will be solely responsible to pay the Blockchain Fees for any transaction that you initiate via the Protocol or the
+          Services. Blockchain Fees are neither levied directly by Akash nor paid to or shared with Akash in any way, but rather are determined by your use of
+          the Protocol and the rules placed by corresponding blockchain communities at large. You acknowledge and agree that Akash has no control over
+          Blockchain Fees (including without limitation their applicability, payment, amounts, transmission, intended operation, and effectiveness) whether
+          related to your use of the Services or otherwise, and in no event will Akash be responsible to you or any other party for the payment, repayment,
+          refund, disbursement, indemnity, or for any other aspect of your use or transmission of Blockchain Fees.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">16.4 Credit Card Payments; Chargebacks</h3>
+        <p className="mb-4">
+          You may purchase access to the Services with Digital Assets via your Digital Asset Wallet, or with an accepted debit or credit card (&quot;Payment
+          Card&quot;) through Stripe&apos;s payment portal. You are responsible for keeping all information for your Payment Card updated and accurate through
+          the term of this Agreement.
+        </p>
+        <p className="mb-4">
+          When you purchase access to the Services with a Payment Card, a Digital Asset Wallet associated with and controlled by your account will be created
+          automatically and the amount of your payment will be converted to Axelar USDC stablecoins, a Digital Asset issued by a third party intended to
+          maintain 1:1 price parity with the U.S. dollar (&quot;axlUSDC&quot;). Prices for Services are determined by Providers. The prices of the available
+          Services are determined by Providers and not by Akash. Applicable Blockchain Fees associated with your use of the Services will be charged
+          automatically against your axlUSDC balance. Delivery of access to the Services is performed solely by the Provider upon your successful payment to
+          such Provider. You are responsible for keeping all information for your Payment Card updated and accurate. The U.S. Dollar equivalent price of axlUSDC
+          is determined by a third party, not us. We make no representations, warranties, or guarantees of any kind regarding the stability or price volatility
+          associated with axlUSDC. Your use of a Payment Card to access the Services is solely at your own risk. YOU AGREE THAT ALL SALES TO YOU OF axlUSDC ARE
+          FINAL. TO THE FULLEST EXTENT PERMITTED UNDER APPLICABLE LAW, NO REFUNDS WILL BE GIVEN.
+        </p>
+        <p className="mb-4">
+          Any and all axlUSDC you convert, use, purchase, and/or transact, which may be held on your account or transmitted to a Digital Asset Wallet address,
+          are not stored or held in an electronic money account and does not qualify as a &quot;deposit&quot;; axlUSDC are not a representation of money or
+          funds. By accepting the terms of this Agreement, you acknowledge and agree that your axlUSDC are not protected by any deposit guarantee scheme and the
+          funds used to increase your axlUSDC will not be safeguarded. Your axlUSDC belong to you and no other person has any rights to your axlUSDC.
+        </p>
+        <p className="mb-4">
+          Notwithstanding the foregoing, we will facilitate &quot;Chargebacks&quot; for any successfully disputed fees paid in connection the Services if
+          directed by Stripe. A &quot;Chargeback&quot; occurs when a credit card payment is reversed by your card issuer or payment provider, typically due to a
+          dispute, fraud claim, or unauthorized transaction. Chargebacks are subject to Stripe&apos;s terms and conditions found here:
+          https://support.stripe.com/topics/cash-titles.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">17. General Service Terms</h2>
+        <h3 className="mb-2 text-lg font-bold">17.1 Blockchain Transactions</h3>
+        <p className="mb-4">
+          In connection with the Services, transactions rely on blockchain software parameters, cryptographic tokens generated by such parameters, and other
+          nascent software, applications and systems that interact with blockchain-based networks. These technologies are experimental, speculative, inherently
+          risky, and subject to change. A defining feature of blockchain technology is that its entries are immutable, which means, as a technical matter, they
+          generally cannot be deleted or modified by anyone. You acknowledge and understand that smart contracts dictate how funds and ownership of Digital
+          Assets are distributed.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">17.2 Taxes</h3>
+        <p className="mb-4">
+          It is your sole responsibility to determine whether and to what extent any taxes apply to activity you conduct through the Services, and to withhold,
+          collect, report, and remit the correct amounts of taxes to the appropriate tax authorities. No communication or information provided to you by Akash
+          is intended as, or considered or construed as, legal or tax advice.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">18. WARRANTY DISCLAIMER</h2>
+        <p className="mb-4 font-bold">
+          Akash has no oversight on or control over any particular Digital Asset or blockchain network, including the Protocol. You are responsible for your use
+          of the Services, the functionalities that you enable, transactions engaged on the Protocol through the Services, and access or use of the information
+          derived thereof. You are solely responsible for complying with all applicable laws related to its transactions and activities that directly or
+          indirectly incorporate our provision of the Services. You acknowledge and understand Akash is not registered nor licensed with, nor have the Services
+          or the software contained therein been reviewed by any securities, commodities, or other financial or banking regulator. You further understand that
+          we cannot and do not guarantee or warrant that files available for download from the Services will be free of viruses or other destructive code. You
+          are responsible for implementing sufficient procedures and checkpoints to satisfy your particular requirements for: (a) an appropriate
+          blockchain-based utility; (b) anti-virus protection and accuracy of data input and output; (c) your participation in and use of the Protocol and
+          related technologies; and (d) maintaining a means external to our site to reconstruct any lost data.
+        </p>
+
+        <p className="mb-4 font-bold">
+          TO THE FULLEST EXTENT PROVIDED BY LAW, IN NO EVENT WILL AKASH, ITS AFFILIATES, SERVICE PROVIDERS, OR ANY OF THEIR RESPECTIVE OFFICERS, DIRECTORS,
+          AGENTS, JOINT VENTURERS, EMPLOYEES, OR REPRESENTATIVES BE LIABLE FOR ANY LOSS OR DAMAGE CAUSED BY A DISTRIBUTED DENIAL-OF-SERVICE ATTACK,
+          MAN-IN-THE-MIDDLE ATTACK, VIRUS, OR OTHER TECHNOLOGICALLY HARMFUL MATERIAL THAT MAY INFECT YOUR COMPUTER EQUIPMENT, COMPUTER PROGRAMS, DATA, OR OTHER
+          PROPRIETARY MATERIAL DUE TO YOUR USE OF THE SERVICES, THE PROTOCOL, THE AKASH MATERIALS, OR ANY PRODUCT, SERVICE OR OTHER ITEM PROVIDED BY OR ON
+          BEHALF OF AKASH THROUGH THE SERVICES, OR YOUR DOWNLOADING OF ANY MATERIAL POSTED ON IT, OR ON ANY THIRD PARTY WEBSITE LINKED TO IT.
+        </p>
+
+        <p className="mb-4 font-bold">
+          YOUR USE OF THE SERVICES AND ANY SERVICES CONTENT IS AT YOUR SOLE RISK. THE SERVICES, THE AKASH MATERIALS, THE PROTOCOL, AND ANY PRODUCT, SERVICE OR
+          OTHER ITEM PROVIDED BY OR ON BEHALF OF AKASH ARE PROVIDED ON AN &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; BASIS. TO THE FULLEST EXTENT LEGALLY
+          PERMISSIBLE, IN NO EVENT WILL AKASH, ITS AFFILIATES, SERVICE PROVIDERS, OR ANY OF THEIR RESPECTIVE OFFICERS, DIRECTORS, AGENTS, JOINT VENTURERS,
+          EMPLOYEES, OR REPRESENTATIVES BE LIABLE FOR, AND EXPLICITLY DISCLAIM, ANY AND ALL REPRESENTATIONS OR WARRANTIES OF ANY KIND RELATED THE SERVICES, THE
+          AKASH MATERIALS, THE PROTOCOL, OR ANY PRODUCT, SERVICE OR OTHER ITEM PROVIDED BY OR ON BEHALF OF AKASH WHETHER EXPRESS, IMPLIED, OR STATUTORY,
+          INCLUDING (WITHOUT LIMITATION) THE WARRANTIES OF MERCHANTABILITY, NON-INFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE. NEITHER AKASH, ITS
+          AFFILIATES, SERVICE PROVIDERS, OR ANY OF THEIR RESPECTIVE OFFICERS, DIRECTORS, AGENTS, JOINT VENTURERS, EMPLOYEES, OR REPRESENTATIVES MAKES ANY
+          WARRANTY OR REPRESENTATION WITH RESPECT TO THE COMPLETENESS, SECURITY, RELIABILITY, QUALITY, ACCURACY, OR AVILABILITY OF THE SERVICES, THE AKASH
+          MATERIALS, THE PROTOCOL, AND/OR ANY PRODUCT, SERVICE OR OTHER ITEM PROVIDED BY OR ON BEHALF OF AKASH.
+        </p>
+
+        <p className="mb-4 font-bold">
+          AKASH, ITS AFFILIATES, SERVICE PROVIDERS, OR ANY OF THEIR RESPECTIVE OFFICERS, DIRECTORS, AGENTS, JOINT VENTURERS, EMPLOYEES, OR REPRESENTATIVES DO
+          NOT REPRESENT OR WARRANT THAT: (A) ACCESS TO THE SERVICES, THE AKASH MATERIALS, THE PROTOCOL, OR ANY PRODUCT, SERVICE OR OTHER ITEM PROVIDED BY OR ON
+          BEHALF OF AKASH WILL BE CONTINUOUS, UNINTERRUPTED, TIMELY, WITHOUT DELAY, ERROR-FREE, SECURE, OR FREE FROM DEFECTS; (B) THE INFORMATION CONTAINED OR
+          PRESENTED ON THE SERVICES, THE AKASH MATERIAL, OR THE PROTOCOL IS ACCURATE, RELIABLE, COMPLETE, CONCISE, CURRENT, OR RELEVANT; (C) THE SERVICES, THE
+          AKASH MATERIALS, THE PROTOCOL, OR ANY PRODUCT, SERVICE OR OTHER ITEM PROVIDED BY OR ON BEHALF OF AKASH OR ANY SOFTWARE CONTAINED THEREIN WILL BE FREE
+          FROM DEFECTS, MALICIOUS SOFTWARE, ERRORS, OR ANY OTHER HARMFUL ELEMENTS, OR THAT ANY OF SUCH WILL BE CORRECTED; OR (D) THE SERVICES, THE AKASH
+          MATERIALS, OR ANY PRODUCT, SERVICE OR OTHER ITEM PROVIDED BY OR ON BEHALF OF AKASH WILL MEET ANY USER&apos;S EXPECTATIONS.
+        </p>
+
+        <p className="mb-4 font-bold">
+          NO INFORMATION OR STATEMENT THAT WE MAKE, INCLUDING DOCUMENTATION OR PRIVATE COMMUNICATION, SHOULD BE TREATED AS OFFERING ANY WARRANTY CONCERNING THE
+          SERVICES, THE AKASH MATERIALS, THE PROTOCOL, OR ANY PRODUCT, SERVICE OR OTHER ITEM PROVIDED BY OR ON BEHALF OF AKASH. WE DO NOT ENDORSE, GUARANTEE, OR
+          ASSUME ANY LIABILITY OR RESPONSIBILITY FOR ANY CONTENT, ADVERTISEMENTS, OFFERS, STATEMENTS, OR ACTIONS BY ANY THIRD PARTY EITHER REGARDING THE
+          SERVICES, THE AKASH MATERIALS, THE PROTOCOL, OR ANY PRODUCT, SERVICE OR OTHER ITEM PROVIDED BY OR ON BEHALF OF AKASH. THE FOREGOING DOES NOT AFFECT
+          ANY WARRANTIES THAT CANNOT BE EXCLUDED OR LIMITED UNDER APPLICABLE LAW.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">19. Indemnification</h2>
+        <p className="mb-4">
+          You agree to defend, indemnify, and hold harmless Akash, its affiliates, licensors, service providers, and their respective officers, directors,
+          employees, contractors, agents, licensors, suppliers, successors, and assigns from and against any claims, liabilities, damages, judgments, awards,
+          losses, costs, expenses, or fees (including reasonable attorneys&apos; fees) arising out of or relating to; (a) your violation of these Terms; (b)
+          your use of Services, including, but not limited to, your interactions with the Platform or other services or features accessible or or through the
+          Services; (c) use of or reliance on the Platform&apos;s content, the Services, and/or services or products other than as expressly authorized in these
+          Terms; (d) your use or reliance on of any information obtained from the Services, and/or (e) any third party&apos;s access or use of the Services with
+          or without your assistance, using any device, account, profile, Digital Asset Wallet, or other mechanism that you own or control.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">20. LIMITATION OF LIABILITY; DISCLAIMER OF DAMAGES</h2>
+        <p className="mb-4 font-bold">
+          TO THE FULLEST EXTENT PROVIDED BY LAW, IN NO EVENT WILL AKASH, ITS AFFILIATES, OR THEIR RESPECTIVE LICENSORS, SERVICE PROVIDERS, EMPLOYEES, AGENTS,
+          OFFICERS, OR DIRECTORS BE LIABLE FOR DAMAGES OF ANY KIND, UNDER ANY LEGAL THEORY, ARISING OUT OF OR IN CONNECTION WITH YOUR USE, OR INABILITY TO USE
+          THE SERVICES, THE AKASH MATERIALS, THE PROTOCOL, OR ANY PRODUCT, SERVICE OR OTHER ITEM PROVIDED BY OR ON BEHALF OF AKASH, INCLUDING ANY DIRECT,
+          INDIRECT, SPECIAL, INCIDENTAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES INCLUDING BUT NOT LIMITED TO, PERSONAL INJURY, PAIN AND SUFFERING, EMOTIONAL
+          DISTRESS, LOSS OF REVENUE, LOSS OF PROFITS, LOSS OF BUSINESS OR ANTICIPATED SAVINGS, LOSS OF USE, LOSS OF GOODWILL, LOSS OF DATA, AND WHETHER CAUSED
+          BY TORT (INCLUDING NEGLIGENCE), BREACH OF CONTRACT, OR OTHERWISE, EVEN IF FORESEEABLE. THIS DISCLAIMER OF LIABILITY EXTENDS TO ANY AND ALL DAMAGES
+          CAUSED BY ANY THIRD PARTY (INCLUDING, WITHOUT LIMITATION, THOSE CAUSED BY FRAUD, DECEIT, OR MANIPULATION), WHETHER OR NOT A USER, OR ANY FAILURE,
+          EXPLOIT, OR VULNERABILITY OF THE SERVICES, THE PLATFORM, THE PROTOCOL, THE AKASH MATERIALS, OR ANY PRODUCT, SERVICE OR OTHER ITEM PROVIDED BY OR ON
+          BEHALF OF AKASH.
+        </p>
+
+        <p className="mb-4 font-bold">
+          TO THE FULLEST EXTENT PROVIDED BY LAW, IN NO EVENT WILL THE COLLECTIVE LIABILITY OF AKASH, ITS SUBSIDIARIES, AFFILIATES, LICENSORS, SERVICE PROVIDERS,
+          AND THEIR RESPECTIVE EMPLOYEES, AGENTS, OFFICERS, AND DIRECTORS, TO ANY PARTY (REGARDLESS OF THE FORM OF ACTION, WHETHER IN CONTRACT, TORT, OR
+          OTHERWISE) EXCEED THE GREATER OF $100 OR THE AMOUNT YOU HAVE PAID DIRECTLY TO AKASH FOR THE APPLICABLE SERVICES IN THE LAST SIX MONTHS OUT OF WHICH
+          LIABILITY AROSE. THE FOREGOING DOES NOT AFFECT ANY LIABILITY THAT CANNOT BE EXCLUDED OR LIMITED UNDER APPLICABLE LAW.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">21. Dispute Resolution, Waiver of Class Action, and Mandatory Arbitration</h2>
+        <p className="mb-4">
+          Please read this section carefully because it waives any right to participate in any class action or other representative action or proceeding. This
+          section requires you to arbitrate certain disputes and limits the ways in which you can seek relief, including by precluding you from suing in court
+          or having a jury trial.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">21.1 Waiver of Class Actions and Right to Jury Trial</h3>
+        <p className="mb-4">
+          To the extent permissible by law, any claim, controversy, or dispute arising out of or related to this Agreement, or any products or services provided
+          in connection with the Services (each a &quot;Dispute&quot;) must be brought in your individual capacity, and not as a plaintiff or class member in
+          any putative class, collective action, or representative proceeding (collectively, a &quot;Class Action Waiver&quot;). The arbitrator may not
+          consolidate more than one person&apos;s claims or engage in any arbitration on behalf of a class. You agree that, by entering into this agreement, you
+          are waiving the right to a trial by jury and the right to participate in a class action.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">21.2 Informal Resolution</h3>
+        <p className="mb-4">
+          Before filing a claim against Akash, you agree to try to resolve the Dispute by first emailing{" "}
+          <Link href="mailto:consolebilling@akash.network" target="_blank" rel="noopener noreferrer">
+            consolebilling@akash.network
+          </Link>{" "}
+          with a description of your claim and proof of your relationship with Akash. If we can&apos;t resolve the Dispute within sixty days of our receipt of
+          your first email, you or Akash may then submit the Dispute to binding arbitration as provided herein.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">21.3 Arbitration Agreement</h3>
+        <p className="mb-4">
+          With only limited exceptions as described in 21.7 below, all Disputes between you and Akash must be resolved by final and binding arbitration. By
+          agreeing to binding arbitration, you and Akash expressly waive the right to formal court proceedings including without limitation trial by jury and
+          class action. This Agreement affects interstate commerce, and the enforceability of this Section will be substantively and procedurally governed by
+          the Federal Arbitration Act 9 U.S.C. § 1, et seq. (&quot;FAA&quot;).
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">21.4 Conducting Arbitration</h3>
+        <p className="mb-4">
+          The arbitration shall be conducted by the International Chamber of Commerce (&quot;ICC&quot;) under its Commercial Arbitration Rules (&quot;ICC
+          Rules&quot;) then in effect. If you are a consumer, the most recent version of the ICC Rules can be accessed{" "}
+          <Link
+            href="https://iccwbo.org/dispute-resolution/dispute-resolution-services/arbitration/rules-procedure/2021-arbitration-rules/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            here
+          </Link>
+          . These Terms shall govern any conflict between the ICC Rules and these Terms. The location and type of hearing shall be determined in accordance with
+          the ICC Rules. Further, a party&apos;s right to request a hearing shall also be determined in accordance with the ICC Rules. Unless otherwise ordered
+          by an arbitrator or pursuant to the ICC Rules, any in-person arbitration shall be in English and administered in New York, New York, or another
+          mutually agreeable location.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">21.5 Confidentiality</h3>
+        <p className="mb-4">
+          Akash, the arbitrator, and you, will each maintain the confidentiality of any arbitration proceedings, judgments, and awards including information
+          gathered and produced during the arbitration.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">21.6 Arbitration Time for Filing</h3>
+        <p className="mb-4">
+          Any arbitration must be commenced by filing a demand for arbitration within one year after the date the party asserting the claim first knows or
+          reasonably should know of the act, omission or default giving rise to the claim. If applicable law prohibits a one year limitation period for
+          asserting claims, any claim must be asserted within the shortest time period permitted by applicable law. If a claim is not filed within such period,
+          the Dispute is permanently barred.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">21.7 Excepted Claims</h3>
+        <p className="mb-4">
+          Notwithstanding this Section 21, you and Akash may bring an individual small claims action in the small claims court in your or Akash&apos;s
+          respective county of residence as provided under the ICC Rules, or seek only a temporary restraining order or injunction for alleged breach of
+          confidentiality obligations or alleged infringement or misappropriation of intellectual property in any court having jurisdiction provided that, in
+          each case, the action is brought as an individual action and not on a class or representative basis.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">21.8 Severability</h3>
+        <p className="mb-4">
+          If any portion of this Section 21 is found to be unenforceable or unlawful for any reason, the unenforceable or unlawful provision shall be severed
+          from these Terms and such severance of the provision(s) shall have no impact whatsoever on the remainder of this Section 21. Further, to the extent
+          that any claims must therefore proceed on a class, collective, consolidated, or representative basis, such claims must be litigated in a civil court
+          of competent jurisdiction and not in arbitration, and the parties agree that litigation of those claims shall be stayed pending the outcome of any
+          individual claims in arbitration. Lastly, if any provision in this Section 21 is found to prohibit an individual claim seeking public injunctive
+          relief, such provision shall have no effect to the extent relief is allowed to be sought outside of arbitration. The remainder of this Section 21
+          shall remain in full force and effect.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">21.9 Modification</h3>
+        <p className="mb-4">
+          Notwithstanding any term or provision in this Agreement to the contrary, you and Akash agree that if Akash makes any future material change to this
+          Section 21, Akash will notify you. Your continued use of the Services including the acceptance of products and services offered on the Platform
+          following the posting of changes to this Section 21 constitutes your acceptance of any such changes.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">22. Governing Law</h2>
+        <p className="mb-4">
+          This Agreement shall be governed by, and construed and enforced in accordance with, the laws of Texas. Without regard to conflict of law rules or
+          principles that would cause the application of the laws of any other jurisdiction. You agree that Akash may initiate a proceeding relating to the
+          enforceability or validity of Akash&apos;s intellectual property rights in any court of competent jurisdiction. With respect to any other proceeding
+          not subject to arbitration under this Agreement, the federal and state courts located in Texas will have exclusive jurisdiction. You waive any
+          objection to venue in any such courts.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">23. Amendments to this Agreement</h2>
+        <p className="mb-4">
+          Akash reserves the right to amend this Agreement and/or policies that govern the Services from time to time and in our sole discretion. Any changes
+          will be effective immediately upon posting of the revisions, and you waive any right you may have to receive specific notices of such changes or
+          modifications. By continuing to use the Services after any changes are posted to the website, you agree to be bound by those changes. If you do not
+          agree to the changes, you may stop using the Services.
+        </p>
+
+        <h2 className="mb-2 text-xl font-bold">24. Miscellaneous Terms</h2>
+        <h3 className="mb-2 text-lg font-bold">24.1 Assignment</h3>
+        <p className="mb-4">
+          These Terms, and any other document, material, or information referenced herein is particular to you and any attempt that you make to assign, novate,
+          or transfer your rights, interests, liabilities, and/or obligations is null and void, unless you have received Akash&apos;s prior written consent.
+          Akash reserves the right to assign our rights without restriction, including without limitation to any of Akash&apos;s affiliates or subsidiaries, or
+          to any successor in interest of any business associated with the Services. Subject to the foregoing, these Terms will bind and inure to the benefit of
+          the parties and their successors and permitted assigns.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">24.2 Termination & Survival</h3>
+        <p className="mb-4">
+          We reserve the right to change, suspend or discontinue, or terminate, restrict, or disable your use of or access to, parts or all of the Services or
+          their functionality at any time at our sole discretion and without notice. All sections of this Agreement that by their nature should survive
+          termination shall survive termination.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">24.3 Nonwaiver of Rights</h3>
+        <p className="mb-4">
+          Akash&apos;s failure or delay in exercising any right, power, or privilege under these Terms shall not operate as a waiver thereof.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">24.4 Severability</h3>
+        <p className="mb-4">
+          If any provision of this Agreement shall be determined to be invalid or unenforceable under any rule, law, or regulation, or any governmental agency
+          whether local, state, or federal, such provision shall be interpreted to accomplish the objectives of the provision to the greatest extent possible
+          under any applicable law, and the validity or enforceability of any other provision of the Terms shall not be affected.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">24.5 Force Majeure</h3>
+        <p className="mb-4">
+          You acknowledge and consent that the Services are provided by us according to our current technological capability and other business conditions.
+          While we have made every effort to ensure continuity and security of the Services, we are unable to completely foresee and hedge against all legal,
+          technological, and other risks.
+        </p>
+        <p className="mb-4">
+          Akash shall not be held liable for delays, failure in performance, or interruption of Services that result directly or indirectly from any cause or
+          condition beyond our reasonable control. Such instances include: (a) acts of God such as earth earthquakes, fires, cyclones, explosions, typhoons,
+          monsoons, landslides, lightning, storms, tempests, pandemics, droughts or meteors; (b) acts of war, whether declared or undeclared, including
+          invasion, act of a foreign enemy, hostilities between nations, civil insurrection, or militarily usurped power; and acts of terrorism; (c) civil
+          disorder, such as acts of a public enemy, malicious damage, terrorism, sabotage, or civil unrest; (d) embargoes or sanctions (such as confiscation,
+          nationalization, requisition, expropriation, prohibition, restraint or damage to property by or under the order of any government or governmental
+          authority; (e) unnatural disasters, such as ionizing radiation or contamination by radioactivity from any nuclear waste or from combustion of nuclear
+          fuel; (f) labor disputes, including strikes, blockades, lock-outs, or other industrial disputes; (g) failure of telecommunication outlets, including
+          the internet, communications networks and facilities, or other infrastructure, systems, operations or of equipment relevant to the provision or use of
+          the Services; (h) data breaches or data-processing failure or incomplete processing; and/or (i) changes in laws or regulations that may materially
+          affect the Digital Assets and/or blockchain industries (collectively, &quot;Force Majeure Events&quot;).
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">24.6 Notice</h3>
+        <p className="mb-4">
+          Any notices or other communications provided by us under these Terms including those regarding modifications to these Terms will be posted online, in
+          the Services, or through other electronic communication. You agree and consent to receive electronically all communications, agreements, documents,
+          notices, and disclosures that we provide in connection with your use of the Services.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">24.7 Privacy</h3>
+        <p className="mb-4">
+          To understand how Akash collects, uses, and shares information about you, please review our{" "}
+          <Link href={UrlService.privacyPolicy()}>Privacy Policy</Link>.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">24.8 Third Party Beneficiaries</h3>
+        <p className="mb-4">
+          Nothing in this Agreement, expressed or implied, is intended to confer upon any person, other than the parties and their successors and permitted
+          assigns, any of the rights hereunder.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">24.9 Entire Agreement</h3>
+        <p className="mb-4">
+          These Terms and every other term or provision applicable to you, including any document incorporated by reference herein, constitute the entire
+          agreement and understanding between you and Akash as to the subject matter hereof, and supersede any and all prior discussions, agreements, and
+          understandings of any kind (including any prior versions of these Terms). Unless otherwise specifically stated, these Terms govern and control any
+          conflict between these Terms and any other agreement you may have with Akash.
+        </p>
+
+        <h3 className="mb-2 text-lg font-bold">24.10 Translation</h3>
+        <p className="mb-4">
+          These Terms are set forth in the English language and all communications including any notices or information being transmitted shall be in English.
+          In the event that these Terms or any part of it is translated (for any proceedings, for your convenience, or otherwise) into any other language, the
+          English language text of these Terms shall prevail.
+        </p>
       </div>
-
-      <p>Effective date: November 16, 2022</p>
-
-      <Title subTitle className="my-4">
-        1. AGREEMENT TO TERMS
-      </Title>
-
-      <p>
-        These Terms of Use constitute a legally binding agreement made between you, whether personally or on behalf of an entity (&ldquo;you&rdquo;) and
-        Overclock Labs Inc. (&quot;Company&quot;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;), concerning your access to and use of the
-        https://console.akash.network/ website as well as any other media form, media channel, mobile website or mobile application related, linked, or
-        otherwise connected thereto (collectively, the &ldquo;Site&rdquo;). P.O. Box 144, 3119 9 Forum Lane, Camana Bay, George Town, Grand Cayman KY1-9006,
-        Cayman Islands. You agree that by accessing the Site, you have read, understood, and agree to be bound by all of these Terms of Use. IF YOU DO NOT AGREE
-        WITH ALL OF THESE TERMS OF USE, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SITE AND YOU MUST DISCONTINUE USE IMMEDIATELY.
-      </p>
-
-      <p>
-        Supplemental terms and conditions or documents that may be posted on the Site from time to time are hereby expressly incorporated herein by reference.
-        We reserve the right, in our sole discretion, to make changes or modifications to these Terms of Use from time to time. We will alert you about any
-        changes by updating the &ldquo;Last updated&rdquo; date of these Terms of Use, and you waive any right to receive specific notice of each such change.
-        Please ensure that you check the applicable Terms every time you use our Site so that you understand which Terms apply. You will be subject to, and will
-        be deemed to have been made aware of and to have accepted, the changes in any revised Terms of Use by your continued use of the Site after the date such
-        revised Terms of Use are posted.
-      </p>
-
-      <p>
-        The information provided on the Site is not intended for distribution to or use by any person or entity in any jurisdiction or country where such
-        distribution or use would be contrary to law or regulation or which would subject us to any registration requirement within such jurisdiction or
-        country. Accordingly, those persons who choose to access the Site from other locations do so on their own initiative and are solely responsible for
-        compliance with local laws, if and to the extent local laws are applicable.
-      </p>
-
-      <p>
-        Any new features or tools which are added to the current site shall also be subject to the Terms of Service. You can review the most current version of
-        the Terms of Service at any time on this page. We reserve the right to update, change or replace any part of these Terms of Service by posting updates
-        and/or changes to our website. Although we may attempt to notify you when major changes are made to these Terms of Service, it remains your
-        responsibility to check this page periodically for changes. Your continued use of or access to the website following the posting of any changes
-        constitutes acceptance of those changes.
-      </p>
-
-      <p>
-        All users who are minors in the jurisdiction in which they reside (generally under the age of 18) must have the permission of, and be directly
-        supervised by, their parent or guardian to use the Site. If you are a minor, you must have your parent or guardian read and agree to these Terms of Use
-        prior to you using the Site.
-      </p>
-
-      <p>A breach or violation of any of the Terms will result in an immediate termination of your Service.</p>
-
-      <Title subTitle className="my-4">
-        2. OUR SERVICES
-      </Title>
-
-      <p>
-        The Website is designed to provide an online resource for reviewing Data and Analytics related to crypto assets. For example, you may use the Website to
-        obtain daily crypto asset data sets of either crypto asset network or market data (&ldquo;Data&rdquo;). You may also obtain correlations and other
-        derived analytics of the various Data that we or our licensors have generated (&ldquo;Analytics&rdquo;). You may also register with the Website to
-        receive customized alert notifications and access to further data. We may also offer paid subscriptions for products from time to time &ndash; if we do
-        so, your use of such products will be subject to a separate license agreement between you and Overclock Labs Inc.
-      </p>
-
-      <p>
-        We may also provide you with features to interact with your wallet through Keplr wallet, like sending tokens from your wallet to another. You are
-        responsible for doing your own due diligence on those interfaces to understand the fees and risks they present and we're not responsible for any funds
-        lost through the usage of those features.
-      </p>
-
-      <Title subTitle className="my-4">
-        3. ACCURACY, COMPLETENESS AND TIMELINESS OF INFORMATION
-      </Title>
-
-      <p>
-        We are not responsible if information made available on this site is not accurate, complete or current. The material on this site is provided for
-        general information only and should not be relied upon or used as the sole basis for making decisions without consulting primary, more accurate, more
-        complete or more timely sources of information. Any reliance on the material on this site is at your own risk.
-      </p>
-
-      <p>
-        This site may contain certain historical information. Historical information, necessarily, is not current and is provided for your reference only. We
-        reserve the right to modify the contents of this site at any time, but we have no obligation to update any information on our site. You agree that it is
-        your responsibility to monitor changes to our site.
-      </p>
-
-      <Title subTitle className="my-4">
-        4. INTELLECTUAL PROPERTY RIGHTS
-      </Title>
-
-      <p>
-        Unless otherwise indicated, the Site is our proprietary property and all source code, databases, functionality, software, website designs, audio, video,
-        text, photographs, and graphics on the Site (collectively, the &ldquo;Content&rdquo;) and the trademarks, service marks, and logos contained therein
-        (the &ldquo;Marks&rdquo;) are owned or controlled by us or licensed to us, and are protected by copyright and trademark laws and various other
-        intellectual property rights and unfair competition laws of the United States, international copyright laws, and international conventions. The Content
-        and the Marks are provided on the Site &ldquo;AS IS&rdquo; for your information and personal use only. Except as expressly provided in these Terms of
-        Use, no part of the Site and no Content or Marks may be copied, reproduced, aggregated, republished, uploaded, posted, publicly displayed, encoded,
-        translated, transmitted, distributed, sold, licensed, or otherwise exploited for any commercial purpose whatsoever, without our express prior written
-        permission.
-      </p>
-
-      <p>
-        Provided that you are eligible to use the Site, you are granted a limited license to access and use the Site and to download or print a copy of any
-        portion of the Content to which you have properly gained access solely for your personal, non-commercial use. We reserve all rights not expressly
-        granted to you in and to the Site, the Content and the Marks.
-      </p>
-
-      <Title subTitle className="my-4">
-        5. USER REPRESENTATIONS
-      </Title>
-
-      <p>
-        By using the Site, you represent and warrant that: (1) all registration information you submit will be true, accurate, current, and complete; (2) you
-        will maintain the accuracy of such information and promptly update such registration information as necessary; (3) you have the legal capacity and you
-        agree to comply with these Terms of Use; (4) you are not a minor in the jurisdiction in which you reside, or if a minor, you have received parental
-        permission to use the Site; (5) you will not access the Site through automated or non-human means, whether through a bot, script or otherwise; (6) you
-        will not use the Site for any illegal or unauthorized purpose; and (7) your use of the Site will not violate any applicable law or regulation.
-      </p>
-
-      <p>
-        If you provide any information that is untrue, inaccurate, not current, or incomplete, we have the right to suspend or terminate your account and refuse
-        any and all current or future use of the Site (or any portion thereof).
-      </p>
-
-      <Title subTitle className="my-4">
-        6. USER REGISTRATION
-      </Title>
-
-      <p>
-        You may be required to register with the Site. You agree to keep your password confidential and will be responsible for all use of your account and
-        password. We reserve the right to remove, reclaim, or change a username you select if we determine, in our sole discretion, that such username is
-        inappropriate, obscene, or otherwise objectionable.
-      </p>
-
-      <Title subTitle className="my-4">
-        7. FEES AND PAYMENT
-      </Title>
-
-      <p>
-        You may be required to purchase or pay a fee to access some of our services. You agree to provide current, complete, and accurate purchase and account
-        information for all purchases made via the Site. You further agree to promptly update account and payment information, including email address, payment
-        method, and payment card expiration date, so that we can complete your transactions and contact you as needed. We bill you through an online billing
-        account for purchases made via the Site. Sales tax will be added to the price of purchases as deemed required by us. We may change prices at any time.
-        All payments shall be in U.S. dollars. Payment must be made through approved payment methods as stated on the website.
-      </p>
-
-      <p>
-        You agree to pay all charges or fees at the prices then in effect for your purchases, and you authorize us to charge your chosen payment provider for
-        any such amounts upon making your purchase. If your purchase is subject to recurring charges, then you consent to our charging your payment method on a
-        recurring basis without requiring your prior approval for each recurring charge, until you notify us of your cancellation.
-      </p>
-
-      <p>
-        We reserve the right to correct any errors or mistakes in pricing, even if we have already requested or received payment. We also reserve the right to
-        refuse any order placed through the Site.
-      </p>
-
-      <Title subTitle className="my-4">
-        8. CANCELLATION
-      </Title>
-
-      <p>
-        All purchases are non-refundable. You can cancel your subscription at any time by logging into your account. Your cancellation will take effect at the
-        end of the current paid term.
-      </p>
-
-      <p>If you are unsatisfied with our services, please email us at support@akash.network.</p>
-
-      <Title subTitle>9. SOFTWARE</Title>
-
-      <p>
-        We may include software for use in connection with our services. If such software is accompanied by an end user license agreement (&ldquo;EULA&rdquo;),
-        the terms of the EULA will govern your use of the software. If such software is not accompanied by a EULA, then we grant to you a non-exclusive,
-        revocable, personal, and non-transferable license to use such software solely in connection with our services and in accordance with these Terms of Use.
-        Any Software and any related documentation is provided &ldquo;as is&rdquo; without warranty of any kind, either express or implied, including, without
-        limitation, the implied warranties of merchantability, fitness for a particular purpose, or non-infringement. You accept any and all risk arising out of
-        use or performance of any Software. You may not reproduce or redistribute any software except in accordance with the EULA or these Terms of Use.
-      </p>
-
-      <Title subTitle className="my-4">
-        10. PROHIBITED ACTIVITIES
-      </Title>
-
-      <p>
-        You may not access or use the Site for any purpose other than that for which we make the Site available. The Site may not be used in connection with any
-        commercial endeavors except those that are specifically endorsed or approved by us.
-      </p>
-
-      <Title subTitle>As a user of the Site, you agree not to:</Title>
-
-      <ul className="list-disc py-4 pl-8">
-        <li>
-          Systematically retrieve data or other content from the Site to create or compile, directly or indirectly, a collection, compilation, database, or
-          directory without written permission from us.
-        </li>
-
-        <li>Trick, defraud, or mislead us and other users, especially in any attempt to learn sensitive account information such as user passwords.</li>
-
-        <li>
-          Circumvent, disable, or otherwise interfere with security-related features of the Site, including features that prevent or restrict the use or copying
-          of any Content or enforce limitations on the use of the Site and/or the Content contained therein.
-        </li>
-
-        <li>Disparage, tarnish, or otherwise harm, in our opinion, us and/or the Site.</li>
-        <li>Use any information obtained from the Site in order to harass, abuse, or harm another person.</li>
-
-        <li>
-          Make improper use of our support services or submit false reports of abuse or misconduct. Use the Site in a manner inconsistent with any applicable
-          laws or regulations.
-        </li>
-
-        <li>Engage in unauthorized framing of or linking to the Site.</li>
-
-        <li>
-          Upload or transmit (or attempt to upload or to transmit) viruses, Trojan horses, or other material, including excessive use of capital letters and
-          spamming (continuous posting of repetitive text), that interferes with any party&rsquo;s uninterrupted use and enjoyment of the Site or modifies,
-          impairs, disrupts, alters, or interferes with the use, features, functions, operation, or maintenance of the Site.
-        </li>
-
-        <li>
-          Engage in any automated use of the system, such as using scripts to send comments or messages, or using any data mining, robots, or similar data
-          gathering and extraction tools.
-        </li>
-
-        <li>Delete the copyright or other proprietary rights notice from any Content.</li>
-
-        <li>Attempt to impersonate another user or person or use the username of another user.</li>
-
-        <li>
-          Upload or transmit (or attempt to upload or to transmit) any material that acts as a passive or active information collection or transmission
-          mechanism, including without limitation, clear graphics interchange formats (&ldquo;gifs&rdquo;), 1&times;1 pixels, web bugs, cookies, or other
-          similar devices (sometimes referred to as &ldquo;spyware&rdquo; or &ldquo;passive collection mechanisms&rdquo; or &ldquo;pcms&rdquo;).
-        </li>
-
-        <li>Interfere with, disrupt, or create an undue burden on the Site or the networks or services connected to the Site.</li>
-
-        <li>Harass, annoy, intimidate, or threaten any of our employees or agents engaged in providing any portion of the Site to you.</li>
-
-        <li>Attempt to bypass any measures of the Site designed to prevent or restrict access to the Site, or any portion of the Site.</li>
-
-        <li>Copy or adapt the Site&rsquo;s software, including but not limited to Flash, PHP, HTML, JavaScript, or other code.</li>
-
-        <li>
-          Except as permitted by applicable law, decipher, decompile, disassemble, or reverse engineer any of the software comprising or in any way making up a
-          part of the Site.
-        </li>
-
-        <li>
-          Except as may be the result of standard search engine or Internet browser usage, use, launch, develop, or distribute any automated system, including
-          without limitation, any spider, robot, cheat utility, scraper, or offline reader that accesses the Site, or using or launching any unauthorized script
-          or other software.
-        </li>
-
-        <li>Use a buying agent or purchasing agent to make purchases on the Site.</li>
-
-        <li>
-          Make any unauthorized use of the Site, including collecting usernames and/or email addresses of users by electronic or other means for the purpose of
-          sending unsolicited email, or creating user accounts by automated means or under false pretenses.
-        </li>
-
-        <li>
-          Use the Site as part of any effort to compete with us or otherwise use the Site and/or the Content for any revenue-generating endeavor or commercial
-          enterprise.
-        </li>
-
-        <li>Sell or otherwise transfer your profile. Use the Site to advertise or offer to sell goods and services.</li>
-
-        <li>
-          You are allowed to use Akash Console data and contents solely for your own account and any resale of the Akash Console contents, data, and analytics
-          is prohibited whether modified or not.
-        </li>
-      </ul>
-
-      <Title subTitle className="my-4">
-        11. USER GENERATED CONTRIBUTIONS
-      </Title>
-
-      <p>
-        The Site may invite you to chat, contribute to, or participate in blogs, message boards, online forums, and other functionality, and may provide you
-        with the opportunity to create, submit, post, display, transmit, perform, publish, distribute, or broadcast content and materials to us or on the Site,
-        including but not limited to text, writings, video, audio, photographs, graphics, comments, suggestions, or personal information or other material
-        (collectively, &quot;Contributions&quot;). Contributions may be viewable by other users of the Site and through third-party websites. As such, any
-        Contributions you transmit may be treated as non-confidential and non-proprietary. When you create or make available any Contributions, you thereby
-        represent and warrant that:
-      </p>
-
-      <ul className="list-disc py-4 pl-8">
-        <li>
-          The creation, distribution, transmission, public display, or performance, and the accessing, downloading, or copying of your Contributions do not and
-          will not infringe the proprietary rights, including but not limited to the copyright, patent, trademark, trade secret, or moral rights of any third
-          party.
-        </li>
-
-        <li>
-          You are the creator and owner of or have the necessary licenses, rights, consents, releases, and permissions to use and to authorize us, the Site, and
-          other users of the Site to use your Contributions in any manner contemplated by the Site and these Terms of Use.
-        </li>
-
-        <li>
-          You have the written consent, release, and/or permission of each and every identifiable individual person in your Contributions to use the name or
-          likeness of each and every such identifiable individual person to enable inclusion and use of your Contributions in any manner contemplated by the
-          Site and these Terms of Use.
-        </li>
-
-        <li>Your Contributions are not false, inaccurate, or misleading.</li>
-
-        <li>
-          Your Contributions are not unsolicited or unauthorized advertising, promotional materials, pyramid schemes, chain letters, spam, mass mailings, or
-          other forms of solicitation.
-        </li>
-
-        <li>
-          Your Contributions are not obscene, lewd, lascivious, filthy, violent, harassing, libelous, slanderous, or otherwise objectionable (as determined by
-          us).
-        </li>
-
-        <li>Your Contributions do not ridicule, mock, disparage, intimidate, or abuse anyone.</li>
-
-        <li>
-          Your Contributions are not used to harass or threaten (in the legal sense of those terms) any other person and to promote violence against a specific
-          person or class of people.
-        </li>
-
-        <li>Your Contributions do not violate any applicable law, regulation, or rule.</li>
-
-        <li>Your Contributions do not violate the privacy or publicity rights of any third party.</li>
-
-        <li>
-          Your Contributions do not violate any applicable law concerning child pornography, or otherwise intended to protect the health or well-being of
-          minors.
-        </li>
-
-        <li>
-          Your Contributions do not include any offensive comments that are connected to race, national origin, gender, sexual preference, or physical handicap.
-        </li>
-
-        <li>
-          Your Contributions do not otherwise violate, or link to material that violates, any provision of these Terms of Use, or any applicable law or
-          regulation.
-        </li>
-      </ul>
-
-      <p>
-        Any use of the Site in violation of the foregoing violates these Terms of Use and may result in, among other things, termination or suspension of your
-        rights to use the Site.
-      </p>
-
-      <Title subTitle className="my-4">
-        12. CONTRIBUTION LICENSE
-      </Title>
-
-      <p>
-        By posting your Contributions to any part of the Site, you automatically grant, and you represent and warrant that you have the right to grant, to us an
-        unrestricted, unlimited, irrevocable, perpetual, non-exclusive, transferable, royalty-free, fully-paid, worldwide right, and license to host, use, copy,
-        reproduce, disclose, sell, resell, publish, broadcast, retitle, archive, store, cache, publicly perform, publicly display, reformat, translate,
-        transmit, excerpt (in whole or in part), and distribute such Contributions (including, without limitation, your image and voice) for any purpose,
-        commercial, advertising, or otherwise, and to prepare derivative works of, or incorporate into other works, such Contributions, and grant and authorize
-        sublicenses of the foregoing. The use and distribution may occur in any media formats and through any media channels.
-      </p>
-
-      <p>
-        This license will apply to any form, media, or technology now known or hereafter developed, and includes our use of your name, company name, and
-        franchise name, as applicable, and any of the trademarks, service marks, trade names, logos, and personal and commercial images you provide. You waive
-        all moral rights in your Contributions, and you warrant that moral rights have not otherwise been asserted in your Contributions.
-      </p>
-
-      <p>
-        We do not assert any ownership over your Contributions. You retain full ownership of all of your Contributions and any intellectual property rights or
-        other proprietary rights associated with your Contributions. We are not liable for any statements or representations in your Contributions provided by
-        you in any area on the Site. You are solely responsible for your Contributions to the Site and you expressly agree to exonerate us from any and all
-        responsibility and to refrain from any legal action against us regarding your Contributions.
-      </p>
-
-      <p>
-        We have the right, in our sole and absolute discretion, (1) to edit, redact, or otherwise change any Contributions; (2) to re-categorize any
-        Contributions to place them in more appropriate locations on the Site; and (3) to pre-screen or delete any Contributions at any time and for any reason,
-        without notice. We have no obligation to monitor your Contributions.
-      </p>
-
-      <Title subTitle className="my-4">
-        13. SUBMISSIONS
-      </Title>
-
-      <p>
-        You acknowledge and agree that any questions, comments, suggestions, ideas, feedback, or other information regarding the Site (&quot;Submissions&quot;)
-        provided by you to us are non-confidential and shall become our sole property. We shall own exclusive rights, including all intellectual property
-        rights, and shall be entitled to the unrestricted use and dissemination of these Submissions for any lawful purpose, commercial or otherwise, without
-        acknowledgment or compensation to you. You hereby waive all moral rights to any such Submissions, and you hereby warrant that any such Submissions are
-        original with you or that you have the right to submit such Submissions. You agree there shall be no recourse against us for any alleged or actual
-        infringement or misappropriation of any proprietary right in your Submissions.
-      </p>
-
-      <Title subTitle className="my-4">
-        14. THIRD-PARTY WEBSITES AND CONTENT
-      </Title>
-
-      <p>
-        The Site may contain (or you may be sent via the Site) links to other websites (&quot;Third-Party Websites&quot;) as well as articles, photographs,
-        text, graphics, pictures, designs, music, sound, video, information, applications, software, and other content or items belonging to or originating from
-        third parties (&quot;Third-Party Content&quot;). Such Third-Party Websites and Third-Party Content are not investigated, monitored, or checked for
-        accuracy, appropriateness, or completeness by us, and we are not responsible for any Third-Party Websites accessed through the Site or any Third-Party
-        Content posted on, available through, or installed from the Site, including the content, accuracy, offensiveness, opinions, reliability, privacy
-        practices, or other policies of or contained in the Third-Party Websites or the Third-Party Content. Inclusion of, linking to, or permitting the use or
-        installation of any Third-Party Websites or any Third-Party Content does not imply approval or endorsement thereof by us. If you decide to leave the
-        Site and access the Third-Party Websites or to use or install any Third-Party Content, you do so at your own risk, and you should be aware these Terms
-        of Use no longer govern. You should review the applicable terms and policies, including privacy and data gathering practices, of any website to which
-        you navigate from the Site or relating to any applications you use or install from the Site. Any purchases you make through Third-Party Websites will be
-        through other websites and from other companies, and we take no responsibility whatsoever in relation to such purchases which are exclusively between
-        you and the applicable third party. You agree and acknowledge that we do not endorse the products or services offered on Third-Party Websites and you
-        shall hold us harmless from any harm caused by your purchase of such products or services. Additionally, you shall hold us harmless from any losses
-        sustained by you or harm caused to you relating to or resulting in any way from any Third-Party Content or any contact with Third-Party Websites.
-      </p>
-
-      <Title subTitle className="my-4">
-        15. SITE MANAGEMENT
-      </Title>
-
-      <p>
-        We reserve the right, but not the obligation, to: (1) monitor the Site for violations of these Terms of Use; (2) take appropriate legal action against
-        anyone who, in our sole discretion, violates the law or these Terms of Use, including without limitation, reporting such user to law enforcement
-        authorities; (3) in our sole discretion and without limitation, refuse, restrict access to, limit the availability of, or disable (to the extent
-        technologically feasible) any of your Contributions or any portion thereof; (4) in our sole discretion and without limitation, notice, or liability, to
-        remove from the Site or otherwise disable all files and content that are excessive in size or are in any way burdensome to our systems; and (5)
-        otherwise manage the Site in a manner designed to protect our rights and property and to facilitate the proper functioning of the Site.
-      </p>
-
-      <Title subTitle className="my-4">
-        16. PRIVACY POLICY
-      </Title>
-
-      <p>
-        Your submission of personal information through the site is governed by our Privacy Policy. Please review our Privacy Policy:
-        https://console.akash.network/privacy-policy. By using the Site, you agree to be bound by our Privacy Policy, which is incorporated into these Terms of
-        Use.
-      </p>
-
-      <Title subTitle className="my-4">
-        17. COPYRIGHT INFRINGEMENTS
-      </Title>
-
-      <p>
-        We respect the intellectual property rights of others. If you believe that any material available on or through the Site infringes upon any copyright
-        you own or control, please immediately notify us using the contact information provided below (a &ldquo;Notification&rdquo;). A copy of your
-        Notification will be sent to the person who posted or stored the material addressed in the Notification. Please be advised that pursuant to applicable
-        law you may be held liable for damages if you make material misrepresentations in a Notification. Thus, if you are not sure that material located on or
-        linked to by the Site infringes your copyright, you should consider first contacting an attorney.
-      </p>
-
-      <Title subTitle className="my-4">
-        18. TERM AND TERMINATION
-      </Title>
-
-      <p>
-        These Terms of Use shall remain in full force and effect while you use the Site. WITHOUT LIMITING ANY OTHER PROVISION OF THESE TERMS OF USE, WE RESERVE
-        THE RIGHT TO, IN OUR SOLE DISCRETION AND WITHOUT NOTICE OR LIABILITY, DENY ACCESS TO AND USE OF THE SITE (INCLUDING BLOCKING CERTAIN IP ADDRESSES), TO
-        ANY PERSON FOR ANY REASON OR FOR NO REASON, INCLUDING WITHOUT LIMITATION FOR BREACH OF ANY REPRESENTATION, WARRANTY, OR COVENANT CONTAINED IN THESE
-        TERMS OF USE OR OF ANY APPLICABLE LAW OR REGULATION. WE MAY TERMINATE YOUR USE OR PARTICIPATION IN THE SITE OR DELETE YOUR ACCOUNT AND ANY CONTENT OR
-        INFORMATION THAT YOU POSTED AT ANY TIME, WITHOUT WARNING, IN OUR SOLE DISCRETION.
-      </p>
-
-      <p>
-        If we terminate or suspend your account for any reason, you are prohibited from registering and creating a new account under your name, a fake or
-        borrowed name, or the name of any third party, even if you may be acting on behalf of the third party. In addition to terminating or suspending your
-        account, we reserve the right to take appropriate legal action, including without limitation pursuing civil, criminal, and injunctive redress.
-      </p>
-
-      <Title subTitle className="my-4">
-        19. MODIFICATIONS AND INTERRUPTIONS
-      </Title>
-
-      <p>
-        We reserve the right to change, modify, or remove the contents of the Site at any time or for any reason at our sole discretion without notice. However,
-        we have no obligation to update any information on our Site. We also reserve the right to modify or discontinue all or part of the Site without notice
-        at any time. We will not be liable to you or any third party for any modification, price change, suspension, or discontinuance of the Site.
-      </p>
-
-      <p>
-        We cannot guarantee the Site will be available at all times. We may experience hardware, software, or other problems or need to perform maintenance
-        related to the Site, resulting in interruptions, delays, or errors. We reserve the right to change, revise, update, suspend, discontinue, or otherwise
-        modify the Site at any time or for any reason without notice to you. You agree that we have no liability whatsoever for any loss, damage, or
-        inconvenience caused by your inability to access or use the Site during any downtime or discontinuance of the Site. Nothing in these Terms of Use will
-        be construed to obligate us to maintain and support the Site or to supply any corrections, updates, or releases in connection therewith.
-      </p>
-
-      <Title subTitle className="my-4">
-        20. GOVERNING LAW
-      </Title>
-
-      <p>
-        These Terms of Service and any separate agreements whereby we provide you Services shall be governed by and construed in accordance with the laws of the
-        Province of Quebec and the laws of Canada, without regard to principles of conflict of laws, will govern these Terms of Service. The courts of the
-        Province of Quebec shall have exclusive jurisdiction over all disputes. You agree that jurisdiction and venue in such courts is appropriate and you
-        agree to submit to the jurisdiction of such courts.
-      </p>
-
-      <Title subTitle className="my-4">
-        21. DISPUTE RESOLUTION
-      </Title>
-
-      <p>
-        You agree to irrevocably submit all disputes related to Terms or the legal relationship established by this Agreement to the jurisdiction of the
-        Province of Quebec courts. Overclock Labs Inc. shall also maintain the right to bring proceedings as to the substance of the matter in the courts of the
-        country where you reside or, if these Terms are entered into in the course of your trade or profession, the state of your principal place of business.
-      </p>
-
-      <Title subTitle className="my-4">
-        22. CORRECTIONS
-      </Title>
-
-      <p>
-        There may be information on the Site that contains typographical errors, inaccuracies, or omissions, including descriptions, pricing, availability, and
-        various other information. We reserve the right to correct any errors, inaccuracies, or omissions and to change or update the information on the Site at
-        any time, without prior notice.
-      </p>
-
-      <Title subTitle className="my-4">
-        23. DISCLAIMER
-      </Title>
-
-      <p>
-        THE SITE IS PROVIDED ON AN AS-IS AND AS-AVAILABLE BASIS. YOU AGREE THAT YOUR USE OF THE SITE AND OUR SERVICES WILL BE AT YOUR SOLE RISK. TO THE FULLEST
-        EXTENT PERMITTED BY LAW, WE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED, IN CONNECTION WITH THE SITE AND YOUR USE THEREOF, INCLUDING, WITHOUT
-        LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. WE MAKE NO WARRANTIES OR REPRESENTATIONS
-        ABOUT THE ACCURACY OR COMPLETENESS OF THE SITE&rsquo;S CONTENT OR THE CONTENT OF ANY WEBSITES LINKED TO THE SITE AND WE WILL ASSUME NO LIABILITY OR
-        RESPONSIBILITY FOR ANY (1) ERRORS, MISTAKES, OR INACCURACIES OF CONTENT AND MATERIALS, (2) PERSONAL INJURY OR PROPERTY DAMAGE, OF ANY NATURE WHATSOEVER,
-        RESULTING FROM YOUR ACCESS TO AND USE OF THE SITE, (3) ANY UNAUTHORIZED ACCESS TO OR USE OF OUR SECURE SERVERS AND/OR ANY AND ALL PERSONAL INFORMATION
-        AND/OR FINANCIAL INFORMATION STORED THEREIN, (4) ANY INTERRUPTION OR CESSATION OF TRANSMISSION TO OR FROM THE SITE, (5) ANY BUGS, VIRUSES, TROJAN
-        HORSES, OR THE LIKE WHICH MAY BE TRANSMITTED TO OR THROUGH THE SITE BY ANY THIRD PARTY, AND/OR (6) ANY ERRORS OR OMISSIONS IN ANY CONTENT AND MATERIALS
-        OR FOR ANY LOSS OR DAMAGE OF ANY KIND INCURRED AS A RESULT OF THE USE OF ANY CONTENT POSTED, TRANSMITTED, OR OTHERWISE MADE AVAILABLE VIA THE SITE. WE
-        DO NOT WARRANT, ENDORSE, GUARANTEE, OR ASSUME RESPONSIBILITY FOR ANY PRODUCT OR SERVICE ADVERTISED OR OFFERED BY A THIRD PARTY THROUGH THE SITE, ANY
-        HYPERLINKED WEBSITE, OR ANY WEBSITE OR MOBILE APPLICATION FEATURED IN ANY BANNER OR OTHER ADVERTISING, AND WE WILL NOT BE A PARTY TO OR IN ANY WAY BE
-        RESPONSIBLE FOR MONITORING ANY TRANSACTION BETWEEN YOU AND ANY THIRD-PARTY PROVIDERS OF PRODUCTS OR SERVICES. AS WITH THE PURCHASE OF A PRODUCT OR
-        SERVICE THROUGH ANY MEDIUM OR IN ANY ENVIRONMENT, YOU SHOULD USE YOUR BEST JUDGMENT AND EXERCISE CAUTION WHERE APPROPRIATE.
-      </p>
-
-      <Title subTitle className="my-4">
-        24. LIMITATIONS OF LIABILITY
-      </Title>
-
-      <p>
-        IN NO EVENT WILL WE OR OUR DIRECTORS, EMPLOYEES, OR AGENTS BE LIABLE TO YOU OR ANY THIRD PARTY FOR ANY DIRECT, INDIRECT, CONSEQUENTIAL, EXEMPLARY,
-        INCIDENTAL, SPECIAL, OR PUNITIVE DAMAGES, INCLUDING LOST PROFIT, LOST REVENUE, LOSS OF DATA, OR OTHER DAMAGES ARISING FROM YOUR USE OF THE SITE, EVEN IF
-        WE HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. NOTWITHSTANDING ANYTHING TO THE CONTRARY CONTAINED HEREIN, OUR LIABILITY TO YOU FOR ANY CAUSE
-        WHATSOEVER AND REGARDLESS OF THE FORM OF THE ACTION, WILL AT ALL TIMES BE LIMITED TO THE AMOUNT PAID, IF ANY, BY YOU TO US DURING THE ONE (1) MONTH
-        PERIOD PRIOR TO ANY CAUSE OF ACTION ARISING. CERTAIN US STATE LAWS AND INTERNATIONAL LAWS DO NOT ALLOW LIMITATIONS ON IMPLIED WARRANTIES OR THE
-        EXCLUSION OR LIMITATION OF CERTAIN DAMAGES. IF THESE LAWS APPLY TO YOU, SOME OR ALL OF THE ABOVE DISCLAIMERS OR LIMITATIONS MAY NOT APPLY TO YOU, AND
-        YOU MAY HAVE ADDITIONAL RIGHTS.
-      </p>
-
-      <Title subTitle className="my-4">
-        25. INDEMNIFICATION
-      </Title>
-
-      <p>
-        You agree to defend, indemnify, and hold us harmless, including our subsidiaries, affiliates, and all of our respective officers, agents, partners, and
-        employees, from and against any loss, damage, liability, claim, or demand, including reasonable attorneys&rsquo; fees and expenses, made by any third
-        party due to or arising out of: (1) your Contributions; (2) use of the Site; (3) breach of these Terms of Use; (4) any breach of your representations
-        and warranties set forth in these Terms of Use; (5) your violation of the rights of a third party, including but not limited to intellectual property
-        rights; or (6) any overt harmful act toward any other user of the Site with whom you connected via the Site. Notwithstanding the foregoing, we reserve
-        the right, at your expense, to assume the exclusive defense and control of any matter for which you are required to indemnify us, and you agree to
-        cooperate, at your expense, with our defense of such claims. We will use reasonable efforts to notify you of any such claim, action, or proceeding which
-        is subject to this indemnification upon becoming aware of it.
-      </p>
-
-      <Title subTitle className="my-4">
-        26. USER DATA
-      </Title>
-
-      <p>
-        We will maintain certain data that you transmit to the Site for the purpose of managing the performance of the Site, as well as data relating to your
-        use of the Site. Although we perform regular routine backups of data, you are solely responsible for all data that you transmit or that relates to any
-        activity you have undertaken using the Site. You agree that we shall have no liability to you for any loss or corruption of any such data, and you
-        hereby waive any right of action against us arising from any such loss or corruption of such data.
-      </p>
-
-      <Title subTitle className="my-4">
-        27. ELECTRONIC COMMUNICATIONS, TRANSACTIONS, AND SIGNATURES
-      </Title>
-
-      <p>
-        Visiting the Site, sending us emails, and completing online forms constitute electronic communications. You consent to receive electronic
-        communications, and you agree that all agreements, notices, disclosures, and other communications we provide to you electronically, via email and on the
-        Site, satisfy any legal requirement that such communication be in writing. YOU HEREBY AGREE TO THE USE OF ELECTRONIC SIGNATURES, CONTRACTS, ORDERS, AND
-        OTHER RECORDS, AND TO ELECTRONIC DELIVERY OF NOTICES, POLICIES, AND RECORDS OF TRANSACTIONS INITIATED OR COMPLETED BY US OR VIA THE SITE. You hereby
-        waive any rights or requirements under any statutes, regulations, rules, ordinances, or other laws in any jurisdiction which require an original
-        signature or delivery or retention of non-electronic records, or to payments or the granting of credits by any means other than electronic means.
-      </p>
-
-      <Title subTitle className="my-4">
-        28. MISCELLANEOUS
-      </Title>
-
-      <p>
-        These Terms of Use and any policies or operating rules posted by us on the Site or in respect to the Site constitute the entire agreement and
-        understanding between you and us. Our failure to exercise or enforce any right or provision of these Terms of Use shall not operate as a waiver of such
-        right or provision. These Terms of Use operate to the fullest extent permissible by law. We may assign any or all of our rights and obligations to
-        others at any time. We shall not be responsible or liable for any loss, damage, delay, or failure to act caused by any cause beyond our reasonable
-        control. If any provision or part of a provision of these Terms of Use is determined to be unlawful, void, or unenforceable, that provision or part of
-        the provision is deemed severable from these Terms of Use and does not affect the validity and enforceability of any remaining provisions. There is no
-        joint venture, partnership, employment or agency relationship created between you and us as a result of these Terms of Use or use of the Site. You agree
-        that these Terms of Use will not be construed against us by virtue of having drafted them. You hereby waive any and all defenses you may have based on
-        the electronic form of these Terms of Use and the lack of signing by the parties hereto to execute these Terms of Use.
-      </p>
-
-      <Title subTitle className="my-4">
-        29. CONTACT US
-      </Title>
-
-      <p>In order to resolve a complaint regarding the Site or to receive further information regarding use of the Site, please contact us at:</p>
-
-      <p>P.O. Box 144, 3119 9 Forum Lane, Camana Bay, George Town, Grand Cayman KY1-9006, Cayman Islands. support@akash.network</p>
     </Layout>
   );
 }

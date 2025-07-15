@@ -12,7 +12,7 @@ import * as schema from "@src/modules/alert/model-schemas";
 import { NotificationChannel } from "@src/modules/notifications/model-schemas";
 
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
-import { generateChainMessageAlert } from "@test/seeders/chain-message-alert.seeder";
+import { generateGeneralAlert } from "@test/seeders/general-alert.seeder";
 import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
 
 describe("chain message alerts", () => {
@@ -32,7 +32,7 @@ describe("chain message alerts", () => {
       .values([generateNotificationChannel({})])
       .returning();
 
-    const matchingAlert = generateChainMessageAlert({
+    const matchingAlert = generateGeneralAlert({
       notificationChannelId: notificationChannel.id,
       conditions: {
         value: [
@@ -53,7 +53,7 @@ describe("chain message alerts", () => {
       description: "deployment {{data.value.id.dseq.low}} is closed"
     });
 
-    const mismatchingAlert = generateChainMessageAlert({
+    const mismatchingAlert = generateGeneralAlert({
       notificationChannelId: notificationChannel.id,
       conditions: {
         value: [

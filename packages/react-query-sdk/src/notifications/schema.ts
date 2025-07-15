@@ -98,11 +98,10 @@ export interface components {
             enabled: boolean;
             summary: string;
             description: string;
-            /** @enum {string} */
-            type: "CHAIN_MESSAGE";
             params?: {
               dseq: string;
               type: string;
+              suppressedBySystem?: boolean;
             };
             conditions:
               | {
@@ -128,6 +127,48 @@ export interface components {
                   field: string;
                   value: string | number | boolean;
                 };
+            /** @enum {string} */
+            type: "CHAIN_MESSAGE";
+          }
+        | {
+            /** Format: uuid */
+            notificationChannelId: string;
+            name: string;
+            /** @default true */
+            enabled: boolean;
+            summary: string;
+            description: string;
+            params?: {
+              dseq: string;
+              type: string;
+              suppressedBySystem?: boolean;
+            };
+            conditions:
+              | {
+                  /** @enum {string} */
+                  operator: "and";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    field: string;
+                    value: string | number | boolean;
+                  }[];
+                }
+              | {
+                  /** @enum {string} */
+                  operator: "or";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    field: string;
+                    value: string | number | boolean;
+                  }[];
+                }
+              | {
+                  operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                  field: string;
+                  value: string | number | boolean;
+                };
+            /** @enum {string} */
+            type: "CHAIN_EVENT";
           }
         | {
             /** Format: uuid */
@@ -169,6 +210,7 @@ export interface components {
             params: {
               dseq: string;
               owner: string;
+              suppressedBySystem?: boolean;
             };
           };
     };
@@ -189,11 +231,10 @@ export interface components {
             status: string;
             createdAt: unknown;
             updatedAt: unknown;
-            /** @enum {string} */
-            type: "CHAIN_MESSAGE";
             params?: {
               dseq: string;
               type: string;
+              suppressedBySystem?: boolean;
             };
             conditions:
               | {
@@ -219,6 +260,8 @@ export interface components {
                   field: string;
                   value: string | number | boolean;
                 };
+            /** @enum {string} */
+            type: "CHAIN_MESSAGE";
           }
         | {
             /** Format: uuid */
@@ -267,7 +310,55 @@ export interface components {
             params: {
               dseq: string;
               owner: string;
+              suppressedBySystem?: boolean;
             };
+          }
+        | {
+            /** Format: uuid */
+            notificationChannelId: string;
+            name: string;
+            enabled: boolean;
+            summary: string;
+            description: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            userId: string;
+            notificationChannelName?: string;
+            status: string;
+            createdAt: unknown;
+            updatedAt: unknown;
+            params?: {
+              dseq: string;
+              type: string;
+              suppressedBySystem?: boolean;
+            };
+            conditions:
+              | {
+                  /** @enum {string} */
+                  operator: "and";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    field: string;
+                    value: string | number | boolean;
+                  }[];
+                }
+              | {
+                  /** @enum {string} */
+                  operator: "or";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    field: string;
+                    value: string | number | boolean;
+                  }[];
+                }
+              | {
+                  operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                  field: string;
+                  value: string | number | boolean;
+                };
+            /** @enum {string} */
+            type: "CHAIN_EVENT";
           };
     };
     ValidationErrorResponse: {
@@ -306,11 +397,10 @@ export interface components {
             status: string;
             createdAt: unknown;
             updatedAt: unknown;
-            /** @enum {string} */
-            type: "CHAIN_MESSAGE";
             params?: {
               dseq: string;
               type: string;
+              suppressedBySystem?: boolean;
             };
             conditions:
               | {
@@ -336,6 +426,8 @@ export interface components {
                   field: string;
                   value: string | number | boolean;
                 };
+            /** @enum {string} */
+            type: "CHAIN_MESSAGE";
           }
         | {
             /** Format: uuid */
@@ -384,7 +476,55 @@ export interface components {
             params: {
               dseq: string;
               owner: string;
+              suppressedBySystem?: boolean;
             };
+          }
+        | {
+            /** Format: uuid */
+            notificationChannelId: string;
+            name: string;
+            enabled: boolean;
+            summary: string;
+            description: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            userId: string;
+            notificationChannelName?: string;
+            status: string;
+            createdAt: unknown;
+            updatedAt: unknown;
+            params?: {
+              dseq: string;
+              type: string;
+              suppressedBySystem?: boolean;
+            };
+            conditions:
+              | {
+                  /** @enum {string} */
+                  operator: "and";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    field: string;
+                    value: string | number | boolean;
+                  }[];
+                }
+              | {
+                  /** @enum {string} */
+                  operator: "or";
+                  value: {
+                    operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                    field: string;
+                    value: string | number | boolean;
+                  }[];
+                }
+              | {
+                  operator: "eq" | "lt" | "gt" | "lte" | "gte";
+                  field: string;
+                  value: string | number | boolean;
+                };
+            /** @enum {string} */
+            type: "CHAIN_EVENT";
           }
       )[];
       pagination: {
@@ -558,6 +698,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             status: string;
+            suppressedBySystem?: boolean;
           };
           deploymentClosed?: {
             /** Format: uuid */
@@ -567,6 +708,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             status: string;
+            suppressedBySystem?: boolean;
           };
         };
       };
