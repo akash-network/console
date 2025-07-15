@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
 import { UrlService } from "@src/utils/urlUtils";
 import { type OnboardingStep, OnboardingStepper } from "../OnboardingStepper/OnboardingStepper";
 import { EmailVerificationStep } from "../steps/EmailVerificationStep/EmailVerificationStep";
@@ -13,8 +14,8 @@ export const OnboardingContainer: React.FunctionComponent = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const router = useRouter();
+  const { data: paymentMethods = [] } = usePaymentMethodsQuery();
 
-  // Initialize step from URL or localStorage
   useEffect(() => {
     const savedStep = localStorage.getItem("onboardingStep");
     if (savedStep) {
@@ -24,16 +25,13 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       }
     }
 
-    // Check if user is returning from Auth0 signup
     const urlParams = new URLSearchParams(window.location.search);
     const fromSignup = urlParams.get("fromSignup");
     if (fromSignup === "true") {
-      // Mark signup step as completed and move to email verification
       setCompletedSteps(prev => new Set([...prev, 1]));
-      setCurrentStep(2); // Email verification step
+      setCurrentStep(2);
       localStorage.setItem("onboardingStep", "2");
 
-      // Clean up URL
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete("fromSignup");
       window.history.replaceState({}, "", newUrl.toString());
@@ -41,6 +39,12 @@ export const OnboardingContainer: React.FunctionComponent = () => {
   }, []);
 
   const handleStepChange = (step: number) => {
+    if (step === 4 && currentStep === 3) {
+      if (paymentMethods.length === 0) {
+        return;
+      }
+    }
+
     setCurrentStep(step);
     localStorage.setItem("onboardingStep", step.toString());
   };
@@ -50,23 +54,33 @@ export const OnboardingContainer: React.FunctionComponent = () => {
   };
 
   const handleNext = () => {
+    if (currentStep === 3) {
+      if (paymentMethods.length === 0) {
+        return;
+      }
+    }
+
     handleStepComplete(currentStep);
   };
 
   const handleComplete = () => {
-    // Clear onboarding state and redirect to dashboard
     localStorage.removeItem("onboardingStep");
     router.push("/");
   };
 
   const handleStartTrial = () => {
-    // Mark free trial step as completed
     handleStepComplete(0);
 
-    // Redirect to Auth0 signup with return URL to onboarding
     const returnUrl = `${window.location.origin}${UrlService.onboarding(true)}`;
     const signupUrl = `${UrlService.signup()}?returnTo=${encodeURIComponent(returnUrl)}`;
     window.location.href = signupUrl;
+  };
+
+  const handlePaymentMethodComplete = () => {
+    if (paymentMethods.length > 0) {
+      handleStepComplete(3);
+      handleStepChange(4);
+    }
   };
 
   const steps: OnboardingStep[] = [
@@ -95,8 +109,9 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       id: "payment-method",
       title: "Payment Method",
       description: "Add payment info",
-      component: <PaymentMethodStep onComplete={() => handleStepChange(4)} />,
-      isCompleted: completedSteps.has(3)
+      component: <PaymentMethodStep onComplete={handlePaymentMethodComplete} />,
+      isCompleted: completedSteps.has(3),
+      isDisabled: paymentMethods.length === 0
     },
     {
       id: "welcome",
