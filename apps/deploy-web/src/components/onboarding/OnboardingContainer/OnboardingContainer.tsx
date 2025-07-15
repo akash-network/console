@@ -10,9 +10,17 @@ import { FreeTrialLandingStep } from "../steps/FreeTrialLandingStep/FreeTrialLan
 import { PaymentMethodStep } from "../steps/PaymentMethodStep/PaymentMethodStep";
 import { WelcomeStep } from "../steps/WelcomeStep/WelcomeStep";
 
+enum OnboardingStepIndex {
+  FREE_TRIAL = 0,
+  SIGNUP = 1,
+  EMAIL_VERIFICATION = 2,
+  PAYMENT_METHOD = 3,
+  WELCOME = 4
+}
+
 export const OnboardingContainer: React.FunctionComponent = () => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [currentStep, setCurrentStep] = useState(OnboardingStepIndex.FREE_TRIAL);
+  const [completedSteps, setCompletedSteps] = useState<Set<OnboardingStepIndex>>(new Set());
   const router = useRouter();
   const { data: paymentMethods = [] } = usePaymentMethodsQuery();
 
@@ -20,7 +28,7 @@ export const OnboardingContainer: React.FunctionComponent = () => {
     const savedStep = localStorage.getItem("onboardingStep");
     if (savedStep) {
       const step = parseInt(savedStep, 10);
-      if (step >= 0 && step < 5) {
+      if (step >= 0 && step < Object.keys(OnboardingStepIndex).length / 2) {
         setCurrentStep(step);
       }
     }
@@ -28,9 +36,9 @@ export const OnboardingContainer: React.FunctionComponent = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const fromSignup = urlParams.get("fromSignup");
     if (fromSignup === "true") {
-      setCompletedSteps(prev => new Set([...prev, 1]));
-      setCurrentStep(2);
-      localStorage.setItem("onboardingStep", "2");
+      setCompletedSteps(prev => new Set([...prev, OnboardingStepIndex.SIGNUP]));
+      setCurrentStep(OnboardingStepIndex.EMAIL_VERIFICATION);
+      localStorage.setItem("onboardingStep", OnboardingStepIndex.EMAIL_VERIFICATION.toString());
 
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete("fromSignup");
@@ -39,7 +47,7 @@ export const OnboardingContainer: React.FunctionComponent = () => {
   }, []);
 
   const handleStepChange = (step: number) => {
-    if (step === 4 && currentStep === 3) {
+    if (step === OnboardingStepIndex.WELCOME && currentStep === OnboardingStepIndex.PAYMENT_METHOD) {
       if (paymentMethods.length === 0) {
         return;
       }
@@ -49,12 +57,12 @@ export const OnboardingContainer: React.FunctionComponent = () => {
     localStorage.setItem("onboardingStep", step.toString());
   };
 
-  const handleStepComplete = (step: number) => {
+  const handleStepComplete = (step: OnboardingStepIndex) => {
     setCompletedSteps(prev => new Set([...prev, step]));
   };
 
   const handleNext = () => {
-    if (currentStep === 3) {
+    if (currentStep === OnboardingStepIndex.PAYMENT_METHOD) {
       if (paymentMethods.length === 0) {
         return;
       }
@@ -69,7 +77,7 @@ export const OnboardingContainer: React.FunctionComponent = () => {
   };
 
   const handleStartTrial = () => {
-    handleStepComplete(0);
+    handleStepComplete(OnboardingStepIndex.FREE_TRIAL);
 
     const returnUrl = `${window.location.origin}${UrlService.onboarding(true)}`;
     const signupUrl = `${UrlService.signup()}?returnTo=${encodeURIComponent(returnUrl)}`;
@@ -78,8 +86,8 @@ export const OnboardingContainer: React.FunctionComponent = () => {
 
   const handlePaymentMethodComplete = () => {
     if (paymentMethods.length > 0) {
-      handleStepComplete(3);
-      handleStepChange(4);
+      handleStepComplete(OnboardingStepIndex.PAYMENT_METHOD);
+      handleStepChange(OnboardingStepIndex.WELCOME);
     }
   };
 
@@ -89,28 +97,28 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       title: "Free Trial",
       description: "Learn about benefits",
       component: <FreeTrialLandingStep onStartTrial={handleStartTrial} />,
-      isCompleted: completedSteps.has(0)
+      isCompleted: completedSteps.has(OnboardingStepIndex.FREE_TRIAL)
     },
     {
       id: "signup",
       title: "Create Account",
       description: "Sign up with Auth0",
       component: null, // No component needed for redirect step
-      isCompleted: completedSteps.has(1)
+      isCompleted: completedSteps.has(OnboardingStepIndex.SIGNUP)
     },
     {
       id: "email-verification",
       title: "Verify Email",
       description: "Confirm your email",
-      component: <EmailVerificationStep onComplete={() => handleStepChange(3)} />,
-      isCompleted: completedSteps.has(2)
+      component: <EmailVerificationStep onComplete={() => handleStepChange(OnboardingStepIndex.PAYMENT_METHOD)} />,
+      isCompleted: completedSteps.has(OnboardingStepIndex.EMAIL_VERIFICATION)
     },
     {
       id: "payment-method",
       title: "Payment Method",
       description: "Add payment info",
       component: <PaymentMethodStep onComplete={handlePaymentMethodComplete} />,
-      isCompleted: completedSteps.has(3),
+      isCompleted: completedSteps.has(OnboardingStepIndex.PAYMENT_METHOD),
       isDisabled: paymentMethods.length === 0
     },
     {
@@ -118,7 +126,7 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       title: "Welcome",
       description: "Get started",
       component: <WelcomeStep onComplete={handleComplete} />,
-      isCompleted: completedSteps.has(4)
+      isCompleted: completedSteps.has(OnboardingStepIndex.WELCOME)
     }
   ];
 
@@ -129,7 +137,7 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       onStepChange={handleStepChange}
       onNext={handleNext}
       onComplete={handleComplete}
-      showNavigation={currentStep > 0} // Hide navigation on first step
+      showNavigation={currentStep > OnboardingStepIndex.FREE_TRIAL} // Hide navigation on first step
     />
   );
 };
