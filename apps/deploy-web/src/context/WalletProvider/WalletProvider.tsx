@@ -250,7 +250,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.error(err);
 
       if (isHttpError(err) && err.response?.status !== 500) {
-        const [title, message] = err.response?.data?.message.split(": ") ?? [];
+        const [title, message] = err.response?.data?.message?.split(": ") ?? [];
         showTransactionSnackbar(title || message || "Error", message, "", "error");
       } else {
         const transactionHash = err.txHash;
