@@ -1,5 +1,18 @@
 
 
+## [2.95.0](https://github.com/akash-network/console/compare/console-web/v2.94.0...console-web/v2.95.0) (2025-07-15)
+
+
+### Features
+
+* **alert:** implements deployment closed alert management based on chain events ([cabd46a](https://github.com/akash-network/console/commit/cabd46ae63221fa219b336448e6e046202a585b5))
+* **billing:** update tos ([#1671](https://github.com/akash-network/console/issues/1671)) ([80d4048](https://github.com/akash-network/console/commit/80d4048f0502a4289d56961b1ac54fb283ec0e84))
+
+
+### Bug Fixes
+
+* do not break on tx error ([#1682](https://github.com/akash-network/console/issues/1682)) ([db1b625](https://github.com/akash-network/console/commit/db1b6254458857153f04999e427daeaa354737ac)), closes [#1675](https://github.com/akash-network/console/issues/1675)
+
 ## [2.94.0](https://github.com/akash-network/console/compare/console-web/v2.93.1...console-web/v2.94.0) (2025-07-14)
 
 
