@@ -1,12 +1,12 @@
 import { Injectable } from "@nestjs/common";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
-import { AlertRepository, ChainMessageAlertOutput, UpdateInput } from "@src/modules/alert/repositories/alert/alert.repository";
+import { AlertRepository, GeneralAlertOutput, UpdateInput } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertMessageService } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { ConditionsMatcherService } from "@src/modules/alert/services/conditions-matcher/conditions-matcher.service";
 import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
 
-type AlertCallback = (alert: ChainMessageAlertOutput) => Promise<void> | void;
+type AlertCallback = (alert: GeneralAlertOutput) => Promise<void> | void;
 
 @Injectable()
 export class ChainMessageAlertService {

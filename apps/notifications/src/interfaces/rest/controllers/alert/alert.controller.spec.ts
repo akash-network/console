@@ -12,7 +12,7 @@ import { chainMessageCreateInputSchema } from "../../http-schemas/alert.http-sch
 import { AlertController } from "./alert.controller";
 
 import { MockProvider } from "@test/mocks/provider.mock";
-import { generateChainMessageAlert } from "@test/seeders/chain-message-alert.seeder";
+import { generateGeneralAlert } from "@test/seeders/general-alert.seeder";
 
 describe(AlertController.name, () => {
   describe("createAlert", () => {
@@ -20,7 +20,7 @@ describe(AlertController.name, () => {
       const { controller, alertRepository, userId } = await setup();
 
       const input = generateMock(chainMessageCreateInputSchema);
-      const output = generateChainMessageAlert({});
+      const output = generateGeneralAlert({});
 
       alertRepository.create.mockResolvedValue(output);
 
@@ -40,7 +40,7 @@ describe(AlertController.name, () => {
 
       const id = faker.string.uuid();
       const input = generateMock(chainMessageCreateInputSchema);
-      const output = generateChainMessageAlert({});
+      const output = generateGeneralAlert({});
 
       alertRepository.updateById.mockResolvedValue(output);
 
@@ -71,7 +71,7 @@ describe(AlertController.name, () => {
       const { controller, alertRepository } = await setup();
 
       const id = faker.string.uuid();
-      const output = generateChainMessageAlert({});
+      const output = generateGeneralAlert({});
 
       alertRepository.findOneById.mockResolvedValue(output);
 
@@ -101,7 +101,7 @@ describe(AlertController.name, () => {
       const { controller, alertRepository } = await setup();
 
       const id = faker.string.uuid();
-      const output = generateChainMessageAlert({});
+      const output = generateGeneralAlert({});
 
       alertRepository.deleteOneById.mockResolvedValue(output);
 

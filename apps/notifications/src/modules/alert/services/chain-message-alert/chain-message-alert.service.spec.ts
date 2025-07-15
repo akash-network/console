@@ -13,7 +13,7 @@ import { ChainMessageAlertService } from "./chain-message-alert.service";
 
 import { MockProvider } from "@test/mocks/provider.mock";
 import { generateAlertMessage } from "@test/seeders/alert-message.seeder";
-import { generateChainMessageAlert } from "@test/seeders/chain-message-alert.seeder";
+import { generateGeneralAlert } from "@test/seeders/general-alert.seeder";
 
 describe(ChainMessageAlertService.name, () => {
   describe("alertFor", () => {
@@ -22,7 +22,7 @@ describe(ChainMessageAlertService.name, () => {
 
       const event = generateMock(MsgCloseDeploymentDto.schema);
 
-      const alert = generateChainMessageAlert({
+      const alert = generateGeneralAlert({
         conditions: {
           field: "type",
           value: "akash.deployment.v1beta3.MsgCloseDeployment",
@@ -70,7 +70,7 @@ describe(ChainMessageAlertService.name, () => {
 
       const event = generateMock(MsgCloseDeploymentDto.schema);
 
-      const alert = generateChainMessageAlert({
+      const alert = generateGeneralAlert({
         conditions: {
           field: "type",
           value: "different.message.type",
@@ -97,7 +97,7 @@ describe(ChainMessageAlertService.name, () => {
 
       const event = generateMock(MsgCloseDeploymentDto.schema);
 
-      const alert = generateChainMessageAlert({
+      const alert = generateGeneralAlert({
         conditions: {
           field: "type",
           value: "akash.deployment.v1beta3.MsgCloseDeployment",
@@ -150,7 +150,7 @@ describe(ChainMessageAlertService.name, () => {
 
       const event = generateMock(MsgCloseDeploymentDto.schema);
 
-      const alert1 = generateChainMessageAlert({
+      const alert1 = generateGeneralAlert({
         conditions: {
           field: "type",
           value: "akash.deployment.v1beta3.MsgCloseDeployment",
@@ -158,7 +158,7 @@ describe(ChainMessageAlertService.name, () => {
         }
       });
 
-      const alert2 = generateChainMessageAlert({
+      const alert2 = generateGeneralAlert({
         conditions: {
           field: "type",
           value: "akash.deployment.v1beta3.MsgCloseDeployment",
@@ -227,7 +227,7 @@ describe(ChainMessageAlertService.name, () => {
       const event = generateMock(MsgCloseDeploymentDto.schema);
       const owner = event.value.id.owner;
 
-      const alert = generateChainMessageAlert({
+      const alert = generateGeneralAlert({
         conditions: {
           operator: "and",
           value: [
