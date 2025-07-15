@@ -27,7 +27,7 @@ async function main() {
     };
 
     if (network === "mainnet") {
-      networkConfig.apiUrls.unshift("https://public-proxy.akt.dev/rest");
+      // networkConfig.apiUrls.unshift("https://public-proxy.akt.dev/rest");
     }
 
     config[network] = networkConfig;
