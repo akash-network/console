@@ -1,19 +1,84 @@
 "use client";
-import React from "react";
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@akashnetwork/ui/components";
-import { Mail } from "iconoir-react";
+import React, { useState } from "react";
+import { Alert, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Snackbar } from "@akashnetwork/ui/components";
+import { Check, Mail, Refresh } from "iconoir-react";
+import { useSnackbar } from "notistack";
 
 import { Title } from "@src/components/shared/Title";
+import { useUser } from "@src/hooks/useUser";
+import { services } from "@src/services/http/http-browser.service";
 
 interface EmailVerificationStepProps {
   onComplete: () => void;
 }
 
 export const EmailVerificationStep: React.FunctionComponent<EmailVerificationStepProps> = ({ onComplete }) => {
+  const user = useUser();
+  const { enqueueSnackbar } = useSnackbar();
+  const [isResending, setIsResending] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+
+  const isEmailVerified = user?.emailVerified;
+
+  const handleResendEmail = async () => {
+    if (!user?.id) return;
+
+    setIsResending(true);
+    try {
+      await services.auth.sendVerificationEmail(user.id);
+      enqueueSnackbar(<Snackbar title="Verification email sent" subTitle="Please check your email and click the verification link" iconVariant="success" />, {
+        variant: "success"
+      });
+    } catch (error) {
+      enqueueSnackbar(<Snackbar title="Failed to send verification email" subTitle="Please try again later or contact support" iconVariant="error" />, {
+        variant: "error"
+      });
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const handleCheckVerification = async () => {
+    setIsChecking(true);
+    try {
+      // Refresh the user session to get the latest email verification status
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay to allow for verification
+      window.location.reload(); // This will refresh the user data
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const handleContinue = () => {
+    if (isEmailVerified) {
+      onComplete();
+    }
+  };
+
   return (
     <div className="space-y-6 text-center">
       <Title>Verify Your Email</Title>
       <p className="text-muted-foreground">Please check your email and click the verification link to continue.</p>
+
+      {isEmailVerified ? (
+        <Alert className="mx-auto flex max-w-md flex-row items-center gap-2" variant="success">
+          <div className="rounded-full bg-card p-3">
+            <Check className="h-6 w-6" />
+          </div>
+          <div>
+            <h4 className="font-medium">Email Verified</h4>
+            <p className="text-sm">Your email has been successfully verified.</p>
+          </div>
+        </Alert>
+      ) : (
+        <Alert className="mx-auto max-w-md" variant="default">
+          <Mail className="h-4 w-4" />
+          <div>
+            <h4 className="font-medium">Email Verification Required</h4>
+            <p className="text-sm">Please verify your email address to continue.</p>
+          </div>
+        </Alert>
+      )}
 
       <Card className="mx-auto max-w-md">
         <CardHeader>
@@ -23,13 +88,29 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
             </div>
           </div>
           <CardTitle>Email Verification</CardTitle>
-          <CardDescription>We&apos;ve sent a verification link to your email address.</CardDescription>
+          <CardDescription>
+            {isEmailVerified ? "Your email has been verified successfully." : "We've sent a verification link to your email address."}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">Didn&apos;t receive the email? Check your spam folder or request a new verification email.</p>
-          <Button onClick={onComplete} className="w-full">
-            I&apos;ve Verified My Email
-          </Button>
+          {!isEmailVerified ? (
+            <>
+              <p className="text-sm text-muted-foreground">Didn't receive the email? Check your spam folder or request a new verification email.</p>
+              <div className="flex gap-2">
+                <Button onClick={handleResendEmail} variant="outline" disabled={isResending} className="flex-1">
+                  <Refresh className="mr-2 h-4 w-4" />
+                  {isResending ? "Sending..." : "Resend Email"}
+                </Button>
+                <Button onClick={handleCheckVerification} disabled={isChecking} className="flex-1">
+                  {isChecking ? "Checking..." : "Check Verification"}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <Button onClick={handleContinue} className="w-full">
+              Continue
+            </Button>
+          )}
         </CardContent>
       </Card>
     </div>
