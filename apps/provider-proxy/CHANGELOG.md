@@ -1,5 +1,12 @@
 
 
+## [1.13.2](https://github.com/akash-network/console/compare/provider-proxy/v1.13.1...provider-proxy/v1.13.2) (2025-07-15)
+
+
+### Bug Fixes
+
+* disable automatic SNI on provider proxy ([#1667](https://github.com/akash-network/console/issues/1667)) ([d9d258e](https://github.com/akash-network/console/commit/d9d258e71c1ae1e1960dc78bae0188c50951f96e))
+
 ## [1.13.1](https://github.com/akash-network/console/compare/provider-proxy/v1.13.0...provider-proxy/v1.13.1) (2025-07-14)
 
 
