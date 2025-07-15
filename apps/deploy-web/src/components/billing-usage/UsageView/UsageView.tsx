@@ -80,7 +80,11 @@ export const UsageView = ({
     const historyCsvContent = [
       "Usage History",
       "Date,Active Deployments,Daily AKT Spent,Total AKT Spent,Daily USDC Spent,Total USDC Spent,Daily USD Spent,Total USD Spent",
-      ...usageHistoryData.map(row => Object.values(row).map(escapeCsvValue).join(","))
+      ...usageHistoryData.map(row =>
+        [row.date, row.activeDeployments, row.dailyAktSpent, row.totalAktSpent, row.dailyUsdcSpent, row.totalUsdcSpent, row.dailyUsdSpent, row.totalUsdSpent]
+          .map(escapeCsvValue)
+          .join(",")
+      )
     ];
 
     const combinedCsvContent = [...statsCsvContent, ...historyCsvContent].join("\n");
