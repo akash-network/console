@@ -1,5 +1,12 @@
 
 
+## [1.17.0](https://github.com/akash-network/console/compare/notifications/v1.16.0...notifications/v1.17.0) (2025-07-15)
+
+
+### Features
+
+* **alert:** implements deployment closed alert management based on chain events ([cabd46a](https://github.com/akash-network/console/commit/cabd46ae63221fa219b336448e6e046202a585b5))
+
 ## [1.16.0](https://github.com/akash-network/console/compare/notifications/v1.15.0...notifications/v1.16.0) (2025-07-14)
 
 
