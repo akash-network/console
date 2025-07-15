@@ -2,19 +2,9 @@ import React, { useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { Popup } from "@akashnetwork/ui/components";
 import { Elements } from "@stripe/react-stripe-js";
-import { loadStripe, type Stripe } from "@stripe/stripe-js";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import { getStripe } from "@src/utils/stripeUtils";
 import { AddPaymentMethodForm } from "./AddPaymentMethodForm";
-
-function getStripe(): Promise<Stripe | null> {
-  const publishableKey = browserEnvConfig.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-  if (!publishableKey) {
-    console.warn("Stripe publishable key is not configured");
-    return Promise.resolve(null);
-  }
-  return loadStripe(publishableKey);
-}
 
 interface AddPaymentMethodPopupProps {
   open: boolean;
