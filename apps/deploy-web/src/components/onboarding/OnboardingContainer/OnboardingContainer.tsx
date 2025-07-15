@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
 import { UrlService } from "@src/utils/urlUtils";
 import { type OnboardingStep, OnboardingStepper } from "../OnboardingStepper/OnboardingStepper";
@@ -23,6 +24,7 @@ export const OnboardingContainer: React.FunctionComponent = () => {
   const [completedSteps, setCompletedSteps] = useState<Set<OnboardingStepIndex>>(new Set());
   const router = useRouter();
   const { data: paymentMethods = [] } = usePaymentMethodsQuery();
+  const user = useUser();
 
   useEffect(() => {
     const savedStep = localStorage.getItem("onboardingStep");
@@ -47,6 +49,12 @@ export const OnboardingContainer: React.FunctionComponent = () => {
   }, []);
 
   const handleStepChange = (step: number) => {
+    if (step === OnboardingStepIndex.PAYMENT_METHOD && currentStep === OnboardingStepIndex.EMAIL_VERIFICATION) {
+      if (!user?.emailVerified) {
+        return;
+      }
+    }
+
     if (step === OnboardingStepIndex.WELCOME && currentStep === OnboardingStepIndex.PAYMENT_METHOD) {
       if (paymentMethods.length === 0) {
         return;
@@ -111,7 +119,8 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       title: "Verify Email",
       description: "Confirm your email",
       component: <EmailVerificationStep onComplete={() => handleStepChange(OnboardingStepIndex.PAYMENT_METHOD)} />,
-      isCompleted: completedSteps.has(OnboardingStepIndex.EMAIL_VERIFICATION)
+      isCompleted: completedSteps.has(OnboardingStepIndex.EMAIL_VERIFICATION),
+      isDisabled: !user?.emailVerified
     },
     {
       id: "payment-method",
