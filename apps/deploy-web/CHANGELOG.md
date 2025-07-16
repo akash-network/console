@@ -1,5 +1,12 @@
 
 
+## [2.96.1](https://github.com/akash-network/console/compare/console-web/v2.96.0...console-web/v2.96.1) (2025-07-16)
+
+
+### Bug Fixes
+
+* **alert:** properly displays deployment closed alert type in a list ([b001d29](https://github.com/akash-network/console/commit/b001d296374e4391701abd8389fdeedb2d94cd07))
+
 ## [2.96.0](https://github.com/akash-network/console/compare/console-web/v2.95.1...console-web/v2.96.0) (2025-07-16)
 
 
