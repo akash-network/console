@@ -11507,8 +11507,8 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 "schema": {
                   "items": {
                     "properties": {
-                      "activeLeases": {
-                        "description": "Number of active leases on this date",
+                      "activeDeployments": {
+                        "description": "Number of active deployments on this date",
                         "example": 3,
                         "type": "number",
                       },
@@ -11550,7 +11550,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                     },
                     "required": [
                       "date",
-                      "activeLeases",
+                      "activeDeployments",
                       "dailyAktSpent",
                       "totalAktSpent",
                       "dailyUsdcSpent",
@@ -11619,18 +11619,18 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
               "application/json": {
                 "schema": {
                   "properties": {
-                    "averageLeasesPerDay": {
-                      "description": "Average number of leases deployed per day",
+                    "averageDeploymentsPerDay": {
+                      "description": "Average number of deployments deployed per day",
                       "example": 1.5,
                       "type": "number",
                     },
-                    "averagePerDay": {
+                    "averageSpentPerDay": {
                       "description": "Average spending per day in USD",
                       "example": 12.34,
                       "type": "number",
                     },
-                    "totalLeases": {
-                      "description": "Total number of leases deployed",
+                    "totalDeployments": {
+                      "description": "Total number of deployments deployed",
                       "example": 15,
                       "type": "number",
                     },
@@ -11642,9 +11642,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                   },
                   "required": [
                     "totalSpent",
-                    "averagePerDay",
-                    "totalLeases",
-                    "averageLeasesPerDay",
+                    "averageSpentPerDay",
+                    "totalDeployments",
+                    "averageDeploymentsPerDay",
                   ],
                   "type": "object",
                 },
