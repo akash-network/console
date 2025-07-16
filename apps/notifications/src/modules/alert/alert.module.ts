@@ -9,7 +9,7 @@ import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config"
 import { register } from "@src/infrastructure/db/db.module";
 import { DbHealthzService } from "@src/infrastructure/db/services/db-healthz/db-healthz.service";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
-import { ChainMessageAlertService } from "@src/modules/alert/services/chain-message-alert/chain-message-alert.service";
+import { ChainAlertService } from "@src/modules/alert/services/chain-alert/chain-alert.service";
 import { DeploymentAlertService } from "@src/modules/alert/services/deployment-alert/deployment-alert.service";
 import { HTTP_SDK_PROVIDERS } from "./providers/http-sdk.provider";
 import { AlertMessageService } from "./services/alert-message/alert-message.service";
@@ -24,7 +24,7 @@ import * as schema from "./model-schemas";
   imports: [CommonModule, ...register(schema), ConfigModule.forFeature(moduleConfig)],
   providers: [
     AlertRepository,
-    ChainMessageAlertService,
+    ChainAlertService,
     DeploymentBalanceAlertsService,
     ConditionsMatcherService,
     AlertMessageService,
@@ -34,7 +34,7 @@ import * as schema from "./model-schemas";
     DbHealthzService,
     ...HTTP_SDK_PROVIDERS
   ],
-  exports: [ChainMessageAlertService, DeploymentBalanceAlertsService, AlertRepository, DeploymentAlertService, DbHealthzService]
+  exports: [ChainAlertService, DeploymentBalanceAlertsService, AlertRepository, DeploymentAlertService, DbHealthzService]
 })
 export class AlertModule implements OnApplicationShutdown {
   constructor(@InjectDrizzle(DRIZZLE_PROVIDER_TOKEN) private readonly db: NodePgDatabase) {}

@@ -187,7 +187,7 @@ export class DeploymentAlertService {
         value: [
           {
             field: "action",
-            value: "d",
+            value: "deployment-closed",
             operator: "eq"
           },
           {

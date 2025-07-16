@@ -23,112 +23,114 @@ import { generateNotificationChannel } from "@test/seeders/notification-channel.
 describe("balance alerts", () => {
   it("should send an alert based on conditions", async () => {
     const { module, chainApi, db, schema } = await setup();
-    const controller = module.get(ChainEventsHandler);
-    const brokerService = module.get(BrokerService);
+    try {
+      const controller = module.get(ChainEventsHandler);
+      const brokerService = module.get(BrokerService);
 
-    const owner = mockAkashAddress();
-    const matchingDseq = faker.number.int({ min: 0, max: 999999 });
-    const throttlingDseq = faker.number.int({ min: 0, max: 999999 });
-    const CURRENT_HEIGHT = 1000;
+      const owner = mockAkashAddress();
+      const matchingDseq = faker.number.int({ min: 0, max: 999999 });
+      const throttlingDseq = faker.number.int({ min: 0, max: 999999 });
+      const CURRENT_HEIGHT = 1000;
 
-    jest.spyOn(brokerService, "publish").mockResolvedValue(undefined);
+      jest.spyOn(brokerService, "publish").mockResolvedValue(undefined);
 
-    const [notificationChannel] = await db
-      .insert(schema.NotificationChannel)
-      .values([generateNotificationChannel({})])
-      .returning();
+      const [notificationChannel] = await db
+        .insert(schema.NotificationChannel)
+        .values([generateNotificationChannel({})])
+        .returning();
 
-    const matchingAlert = generateDeploymentBalanceAlert({
-      notificationChannelId: notificationChannel.id,
-      conditions: {
-        field: "balance",
-        value: 10000000,
-        operator: "lt"
-      },
-      params: {
-        dseq: String(matchingDseq),
-        owner
-      },
-      summary: `deployment low: ${matchingDseq}`,
-      description: `deployment ${matchingDseq} balance is {{data.balance}} < 10000000 uAKT`,
-      minBlockHeight: CURRENT_HEIGHT
-    });
-
-    const throttlingAlert = generateDeploymentBalanceAlert({
-      notificationChannelId: notificationChannel.id,
-      conditions: {
-        field: "balance",
-        value: 10000000,
-        operator: "lt"
-      },
-      params: {
-        dseq: String(throttlingDseq),
-        owner: mockAkashAddress()
-      },
-      summary: `deployment low: ${matchingDseq}`,
-      description: `deployment ${matchingDseq} balance is {{data.balance}} < 10000000 uAKT`,
-      minBlockHeight: CURRENT_HEIGHT + 10
-    });
-
-    await db.insert(schema.Alert).values([matchingAlert, throttlingAlert]);
-
-    const balanceResponse = generateDeploymentBalanceResponse({
-      fundsAmount: 400000,
-      escrowAmount: 400000,
-      state: "active",
-      settledAt: 900
-    });
-
-    const leaseResponse = {
-      leases: [
-        {
-          lease: {
-            price: {
-              amount: "1000"
-            }
-          }
-        }
-      ]
-    };
-
-    let alertsProcessed = 0;
-
-    chainApi
-      .get("/akash/deployment/v1beta3/deployments/info")
-      .query({
-        "id.owner": owner,
-        "id.dseq": String(matchingDseq)
-      })
-      .reply(200, () => {
-        alertsProcessed++;
-        return balanceResponse;
+      const matchingAlert = generateDeploymentBalanceAlert({
+        notificationChannelId: notificationChannel.id,
+        conditions: {
+          field: "balance",
+          value: 10000000,
+          operator: "lt"
+        },
+        params: {
+          dseq: String(matchingDseq),
+          owner
+        },
+        summary: `deployment low: ${matchingDseq}`,
+        description: `deployment ${matchingDseq} balance is {{data.balance}} < 10000000 uAKT`,
+        minBlockHeight: CURRENT_HEIGHT
       });
 
-    chainApi
-      .get("/akash/market/v1beta4/leases/list")
-      .query({
-        "filters.owner": owner,
-        "filters.dseq": String(matchingDseq)
-      })
-      .reply(200, leaseResponse);
-
-    const message = generateMock(ChainBlockCreatedDto.schema);
-    message.height = CURRENT_HEIGHT;
-
-    await controller.processBlock(message);
-    await controller.processBlock(message);
-
-    expect(alertsProcessed).toBe(1);
-    expect(brokerService.publish).toHaveBeenCalledTimes(1);
-    expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, {
-      notificationChannelId: notificationChannel.id,
-      payload: {
+      const throttlingAlert = generateDeploymentBalanceAlert({
+        notificationChannelId: notificationChannel.id,
+        conditions: {
+          field: "balance",
+          value: 10000000,
+          operator: "lt"
+        },
+        params: {
+          dseq: String(throttlingDseq),
+          owner: mockAkashAddress()
+        },
         summary: `deployment low: ${matchingDseq}`,
-        description: `deployment ${matchingDseq} balance is 700000 < 10000000 uAKT`
-      }
-    });
+        description: `deployment ${matchingDseq} balance is {{data.balance}} < 10000000 uAKT`,
+        minBlockHeight: CURRENT_HEIGHT + 10
+      });
 
-    await module.close();
+      await db.insert(schema.Alert).values([matchingAlert, throttlingAlert]);
+
+      const balanceResponse = generateDeploymentBalanceResponse({
+        fundsAmount: 400000,
+        escrowAmount: 400000,
+        state: "active",
+        settledAt: 900
+      });
+
+      const leaseResponse = {
+        leases: [
+          {
+            lease: {
+              price: {
+                amount: "1000"
+              }
+            }
+          }
+        ]
+      };
+
+      let alertsProcessed = 0;
+
+      chainApi
+        .get("/akash/deployment/v1beta3/deployments/info")
+        .query({
+          "id.owner": owner,
+          "id.dseq": String(matchingDseq)
+        })
+        .reply(200, () => {
+          alertsProcessed++;
+          return balanceResponse;
+        });
+
+      chainApi
+        .get("/akash/market/v1beta4/leases/list")
+        .query({
+          "filters.owner": owner,
+          "filters.dseq": String(matchingDseq)
+        })
+        .reply(200, leaseResponse);
+
+      const message = generateMock(ChainBlockCreatedDto.schema);
+      message.height = CURRENT_HEIGHT;
+
+      await controller.processBlock(message);
+      await controller.processBlock(message);
+
+      expect(alertsProcessed).toBe(1);
+      expect(brokerService.publish).toHaveBeenCalledTimes(1);
+      expect(brokerService.publish).toHaveBeenCalledWith(eventKeyRegistry.createNotification, {
+        notificationChannelId: notificationChannel.id,
+        payload: {
+          summary: `deployment low: ${matchingDseq}`,
+          description: `deployment ${matchingDseq} balance is 700000 < 10000000 uAKT`
+        }
+      });
+    } finally {
+      await module.close();
+    }
   });
 
   async function setup() {
