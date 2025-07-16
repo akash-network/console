@@ -1,7 +1,5 @@
-import { MsgCloseDeployment } from "@akashnetwork/akash-api/v1beta3";
-
 export const eventKeyRegistry = Object.freeze({
   blockCreated: "blockchain.v1.block.created",
-  msgCloseDeployment: MsgCloseDeployment["$type"],
+  eventCloseDeployment: "akash.v1.deployment.deployment-closed",
   createNotification: "notifications.v1.notification.create"
 });
