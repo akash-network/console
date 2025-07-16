@@ -10608,8 +10608,40 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "name": "startingAfter",
             "required": false,
             "schema": {
-              "description": "ID of the last transaction from the previous page",
+              "description": "ID of the last transaction from the previous page (if paginating forwards)",
               "example": "ch_1234567890",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "endingBefore",
+            "required": false,
+            "schema": {
+              "description": "ID of the first transaction from the previous page (if paginating backwards)",
+              "example": "ch_0987654321",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": false,
+            "schema": {
+              "description": "Start date for filtering transactions (inclusive)",
+              "example": "2025-01-01T00:00:00Z",
+              "format": "date-time",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": false,
+            "schema": {
+              "description": "End date for filtering transactions (inclusive)",
+              "example": "2025-01-02T00:00:00Z",
+              "format": "date-time",
               "type": "string",
             },
           },
