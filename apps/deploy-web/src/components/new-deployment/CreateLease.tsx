@@ -504,14 +504,10 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
               <AlertDescription className="space-y-1 text-center dark:text-white/90">
                 <p>You are using a free trial and are limited to only a few providers on the network.</p>
                 <p>
-                  <Link href={UrlService.login()} className="font-bold underline">
-                    Sign in
+                  <Link href={UrlService.payment()} className="font-bold underline">
+                    Buy credits
                   </Link>{" "}
-                  or{" "}
-                  <Link href={UrlService.signup()} className="font-bold underline">
-                    Sign up
-                  </Link>{" "}
-                  and buy credits to unlock all providers.
+                  to unlock all providers.
                 </p>
               </AlertDescription>
             </Alert>
