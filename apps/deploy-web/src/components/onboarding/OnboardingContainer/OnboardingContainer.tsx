@@ -120,7 +120,8 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       description: "Confirm your email",
       component: <EmailVerificationStep onComplete={() => handleStepChange(OnboardingStepIndex.PAYMENT_METHOD)} />,
       isCompleted: completedSteps.has(OnboardingStepIndex.EMAIL_VERIFICATION),
-      isDisabled: !user?.emailVerified
+      isDisabled: !user?.emailVerified,
+      hidePreviousButton: true
     },
     {
       id: "payment-method",
@@ -139,7 +140,8 @@ export const OnboardingContainer: React.FunctionComponent = () => {
     }
   ];
 
-  const shouldShowNavigation = currentStep > OnboardingStepIndex.FREE_TRIAL && currentStep !== OnboardingStepIndex.PAYMENT_METHOD;
+  const shouldShowNavigation =
+    currentStep > OnboardingStepIndex.FREE_TRIAL && currentStep !== OnboardingStepIndex.PAYMENT_METHOD && currentStep !== OnboardingStepIndex.WELCOME;
 
   return (
     <OnboardingStepper

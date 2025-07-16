@@ -89,7 +89,6 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
   return (
     <div className="space-y-6 text-center">
       <Title>Add Payment Method</Title>
-      <p className="text-muted-foreground">Add a payment method to verify your identity and continue with your free trial.</p>
 
       {paymentMethods.length === 0 && !showAddForm && (
         <Alert className="mx-auto flex max-w-md flex-row items-center gap-2 text-left" variant="warning">

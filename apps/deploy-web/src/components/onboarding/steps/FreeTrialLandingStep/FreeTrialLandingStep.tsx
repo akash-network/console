@@ -3,6 +3,7 @@ import React from "react";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@akashnetwork/ui/components";
 import { Check, Cloud, Dollar, Rocket, Server, Shield } from "iconoir-react";
 
+import { AkashLogo } from "@src/components/layout/AkashLogo";
 import { Title } from "@src/components/shared/Title";
 
 const benefits = [
@@ -42,8 +43,11 @@ export const FreeTrialLandingStep: React.FunctionComponent<FreeTrialLandingStepP
     <div className="space-y-8">
       {/* Hero Section */}
       <div className="text-center">
+        <div className="mb-8 flex justify-center">
+          <AkashLogo />
+        </div>
         <Title className="mb-6">Start Your Free Trial</Title>
-        <p className="mx-auto mb-8 max-w-3xl text-xl text-muted-foreground">
+        <p className="mx-auto mb-8 max-w-2xl text-xl text-muted-foreground">
           Experience the power of decentralized cloud computing with Akash Network. Deploy your applications on a global network of providers with our free
           trial.
         </p>
@@ -59,6 +63,10 @@ export const FreeTrialLandingStep: React.FunctionComponent<FreeTrialLandingStepP
           <ul className="space-y-2 text-left">
             <li className="flex items-center gap-2">
               <Check className="h-4 w-4 text-green-600" />
+              <span>100$ of free credits</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-green-600" />
               <span>Up to 5 deployments</span>
             </li>
             <li className="flex items-center gap-2">
@@ -67,20 +75,23 @@ export const FreeTrialLandingStep: React.FunctionComponent<FreeTrialLandingStepP
             </li>
             <li className="flex items-center gap-2">
               <Check className="h-4 w-4 text-green-600" />
-              <span>Full SDL Builder access</span>
+              <span>30 days of free credits</span>
             </li>
             <li className="flex items-center gap-2">
               <Check className="h-4 w-4 text-green-600" />
-              <span>Community support</span>
+              <span>Deployments last up to 24 hours</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-green-600" />
+              <span>Keep unused credits if you purchase credits</span>
             </li>
           </ul>
         </div>
       </div>
 
-      {/* Benefits Section */}
-      <div>
+      <div className="mx-auto max-w-2xl">
         <h2 className="mb-12 text-center text-3xl font-bold">Why Choose Akash Console?</h2>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
           {benefits.map((benefit, index) => (
             <Card key={index} className="h-full">
               <CardHeader>

@@ -61,9 +61,8 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
   };
 
   return (
-    <div className="space-y-6 text-center">
+    <div className="mx-auto max-w-md space-y-6 text-center">
       <Title>Verify Your Email</Title>
-      <p className="text-muted-foreground">Please check your email and click the verification link to continue.</p>
 
       {isEmailVerified ? (
         <Alert className="mx-auto flex max-w-md flex-row items-center gap-2 text-left" variant="success">

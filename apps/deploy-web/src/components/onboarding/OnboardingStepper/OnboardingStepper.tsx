@@ -12,6 +12,7 @@ export interface OnboardingStep {
   component: React.ReactNode | null;
   isCompleted?: boolean;
   isDisabled?: boolean;
+  hidePreviousButton?: boolean;
 }
 
 interface OnboardingStepperProps {
@@ -83,11 +84,14 @@ export const OnboardingStepper: React.FunctionComponent<OnboardingStepperProps> 
       {/* Navigation */}
       {showNavigation && (
         <div className="flex items-center justify-between">
-          <Button variant="outline" onClick={handlePrevious} disabled={isFirstStep} className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Previous
-          </Button>
-
+          <div>
+            {!currentStepData?.hidePreviousButton && (
+              <Button variant="outline" onClick={handlePrevious} disabled={isFirstStep} className="flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Previous
+              </Button>
+            )}
+          </div>
           <div className="text-sm text-muted-foreground">
             Step {currentStep + 1} of {steps.length}
           </div>
