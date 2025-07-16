@@ -1,5 +1,12 @@
 
 
+## [2.96.2](https://github.com/akash-network/console/compare/console-web/v2.96.1...console-web/v2.96.2) (2025-07-16)
+
+
+### Bug Fixes
+
+* **template:** removes client side middleware from server side props ([9da8fdc](https://github.com/akash-network/console/commit/9da8fdc313203e6b3f752ced016ce684ed4a6d33))
+
 ## [2.96.1](https://github.com/akash-network/console/compare/console-web/v2.96.0...console-web/v2.96.1) (2025-07-16)
 
 
