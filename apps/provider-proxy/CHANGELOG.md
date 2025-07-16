@@ -1,5 +1,19 @@
 
 
+## [1.13.3](https://github.com/akash-network/console/compare/provider-proxy/v1.13.2...provider-proxy/v1.13.3) (2025-07-15)
+
+
+### Bug Fixes
+
+* blockchain proxy cert expired, so ignoring it ([#1685](https://github.com/akash-network/console/issues/1685)) ([3a2e205](https://github.com/akash-network/console/commit/3a2e20587918b60bb836a83704129dba27df9bae))
+
+## [1.13.2](https://github.com/akash-network/console/compare/provider-proxy/v1.13.1...provider-proxy/v1.13.2) (2025-07-15)
+
+
+### Bug Fixes
+
+* disable automatic SNI on provider proxy ([#1667](https://github.com/akash-network/console/issues/1667)) ([d9d258e](https://github.com/akash-network/console/commit/d9d258e71c1ae1e1960dc78bae0188c50951f96e))
+
 ## [1.13.1](https://github.com/akash-network/console/compare/provider-proxy/v1.13.0...provider-proxy/v1.13.1) (2025-07-14)
 
 
