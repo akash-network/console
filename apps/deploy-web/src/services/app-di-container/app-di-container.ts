@@ -63,10 +63,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(new TxHttpService(customRegistry, apiConfig), {
         request: [container.authService.withAnonymousUserHeader]
       }),
-    template: () =>
-      container.applyAxiosInterceptors(new TemplateHttpService(apiConfig), {
-        request: [container.authService.withAnonymousUserHeader]
-      }),
+    template: () => container.applyAxiosInterceptors(new TemplateHttpService(apiConfig), {}),
     usage: () =>
       withInterceptors(new UsageHttpService(apiConfig), {
         request: [container.authService.withAnonymousUserHeader]
