@@ -7,7 +7,7 @@ import { OnboardingContainer } from "./OnboardingContainer/OnboardingContainer";
 export const OnboardingPage: FC = () => {
   return (
     <div>
-      <CustomNextSeo title="Onboarding - Akash Console" url={`${domainName}${UrlService.signup()}`} />
+      <CustomNextSeo title="Free Trial" url={`${domainName}${UrlService.signup()}`} />
       <div className="container mx-auto px-4 py-12">
         <OnboardingContainer />
       </div>
