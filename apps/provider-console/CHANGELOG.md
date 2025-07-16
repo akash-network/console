@@ -1,5 +1,13 @@
 
 
+## [1.16.0](https://github.com/akash-network/console/compare/provider-console/v1.15.3...provider-console/v1.16.0) (2025-07-16)
+
+
+### Features
+
+* add calendar and date-range-picker ui components ([cc96f0f](https://github.com/akash-network/console/commit/cc96f0f71ea9078f39775623144058785b745e6c))
+* **billing:** add usage ui ([77b5d42](https://github.com/akash-network/console/commit/77b5d42aaf4e153a6fe9f6723567520434f3d25b))
+
 ## [1.15.3](https://github.com/akash-network/console/compare/provider-console/v1.15.2...provider-console/v1.15.3) (2025-07-06)
 
 

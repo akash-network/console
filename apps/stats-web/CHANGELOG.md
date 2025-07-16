@@ -1,5 +1,13 @@
 
 
+## [0.30.0](https://github.com/akash-network/console/compare/stats-web/v0.29.0...stats-web/v0.30.0) (2025-07-16)
+
+
+### Features
+
+* add calendar and date-range-picker ui components ([cc96f0f](https://github.com/akash-network/console/commit/cc96f0f71ea9078f39775623144058785b745e6c))
+* **billing:** add usage ui ([77b5d42](https://github.com/akash-network/console/commit/77b5d42aaf4e153a6fe9f6723567520434f3d25b))
+
 ## [0.29.0](https://github.com/akash-network/console/compare/stats-web/v0.28.6...stats-web/v0.29.0) (2025-07-08)
 
 

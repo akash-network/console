@@ -1,5 +1,15 @@
 
 
+## [2.96.0](https://github.com/akash-network/console/compare/console-web/v2.95.1...console-web/v2.96.0) (2025-07-16)
+
+
+### Features
+
+* add calendar and date-range-picker ui components ([cc96f0f](https://github.com/akash-network/console/commit/cc96f0f71ea9078f39775623144058785b745e6c))
+* **alert:** implements deployment closed alert handler ([#1683](https://github.com/akash-network/console/issues/1683)) ([3253b75](https://github.com/akash-network/console/commit/3253b75cb2d2679996ed9df15265a5fd1a6401fe))
+* allow filtering stripe charges list api by date created and endingBefore cursor  ([fe986bd](https://github.com/akash-network/console/commit/fe986bdd63051c9dfe3751c1c56fab0025205c1c))
+* **billing:** add usage ui ([77b5d42](https://github.com/akash-network/console/commit/77b5d42aaf4e153a6fe9f6723567520434f3d25b))
+
 ## [2.95.1](https://github.com/akash-network/console/compare/console-web/v2.95.0...console-web/v2.95.1) (2025-07-15)
 
 
