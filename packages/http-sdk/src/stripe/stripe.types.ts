@@ -81,3 +81,19 @@ export interface ApplyCouponParams {
   coupon: string;
   userId: string;
 }
+
+export interface CustomerTransactionsParams {
+  limit?: number;
+  startingAfter?: string | null;
+  endingBefore?: string | null;
+  startDate?: Date | null;
+  endDate?: Date | null;
+}
+
+export interface CustomerTransactionsResponse {
+  transactions: Charge[];
+  hasMore: boolean;
+  nextPage: string | null;
+  prevPage: string | null;
+  totalCount: number;
+}
