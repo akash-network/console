@@ -5,7 +5,7 @@ import { Check, Mail, Refresh } from "iconoir-react";
 import { useSnackbar } from "notistack";
 
 import { Title } from "@src/components/shared/Title";
-import { useUser } from "@src/hooks/useUser";
+import { useCustomUser } from "@src/hooks/useCustomUser";
 import { services } from "@src/services/http/http-browser.service";
 
 interface EmailVerificationStepProps {
@@ -13,7 +13,7 @@ interface EmailVerificationStepProps {
 }
 
 export const EmailVerificationStep: React.FunctionComponent<EmailVerificationStepProps> = ({ onComplete }) => {
-  const user = useUser();
+  const { user, checkSession } = useCustomUser();
   const { enqueueSnackbar } = useSnackbar();
   const [isResending, setIsResending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
@@ -41,9 +41,14 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
   const handleCheckVerification = async () => {
     setIsChecking(true);
     try {
-      // Refresh the user session to get the latest email verification status
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay to allow for verification
-      window.location.reload(); // This will refresh the user data
+      await checkSession();
+      enqueueSnackbar(<Snackbar title="Verification status updated" subTitle="Your email verification status has been refreshed" iconVariant="success" />, {
+        variant: "success"
+      });
+    } catch (error) {
+      enqueueSnackbar(<Snackbar title="Failed to check verification" subTitle="Please try again or refresh the page" iconVariant="error" />, {
+        variant: "error"
+      });
     } finally {
       setIsChecking(false);
     }
