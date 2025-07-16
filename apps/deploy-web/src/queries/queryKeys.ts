@@ -73,14 +73,35 @@ export class QueryKeys {
   static getPaymentMethodsKey = () => ["PAYMENT_METHODS"];
   static getPaymentDiscountsKey = () => ["PAYMENT_DISCOUNTS"];
 
-  static getPaymentTransactionsKey = (options?: { limit?: number; startingAfter?: string | null }) => {
+  static getPaymentTransactionsKey = (options?: {
+    limit?: number;
+    startingAfter?: string | null;
+    endingBefore?: string | null;
+    startDate?: Date | null;
+    endDate?: Date | null;
+  }) => {
     const key = ["STRIPE_TRANSACTIONS"];
+
     if (options?.limit) {
       key.push("limit", options.limit.toString());
     }
+
     if (options?.startingAfter) {
       key.push("after", options.startingAfter);
     }
+
+    if (options?.endingBefore) {
+      key.push("before", options.endingBefore);
+    }
+
+    if (options?.startDate) {
+      key.push("start_date", options.startDate.toISOString());
+    }
+
+    if (options?.endDate) {
+      key.push("end_date", options.endDate.toISOString());
+    }
+
     return key;
   };
 }
