@@ -124,7 +124,9 @@ export class StripeController {
   async getCustomerDiscounts(): Promise<{ data: { discounts: Discount[] } }> {
     const { currentUser } = this.authService;
 
-    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
+    if (!currentUser.stripeCustomerId) {
+      return { data: { discounts: [] } };
+    }
 
     const discounts = await this.stripe.getCustomerDiscounts(currentUser.stripeCustomerId);
     return { data: { discounts } };
