@@ -66,7 +66,7 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
       <p className="text-muted-foreground">Please check your email and click the verification link to continue.</p>
 
       {isEmailVerified ? (
-        <Alert className="mx-auto flex max-w-md flex-row items-center gap-2" variant="success">
+        <Alert className="mx-auto flex max-w-md flex-row items-center gap-2 text-left" variant="success">
           <div className="rounded-full bg-card p-3">
             <Check className="h-6 w-6" />
           </div>
@@ -76,8 +76,10 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
           </div>
         </Alert>
       ) : (
-        <Alert className="mx-auto max-w-md" variant="default">
-          <Mail className="h-4 w-4" />
+        <Alert className="mx-auto max-w-md flex-row items-center gap-2 text-left" variant="default">
+          <div className="rounded-full bg-card p-3">
+            <Mail className="h-4 w-4" />
+          </div>
           <div>
             <h4 className="font-medium">Email Verification Required</h4>
             <p className="text-sm">Please verify your email address to continue.</p>

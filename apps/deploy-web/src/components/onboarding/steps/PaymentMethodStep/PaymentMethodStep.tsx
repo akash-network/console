@@ -81,7 +81,7 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
 
       {paymentMethods.length > 0 && !showAddForm && (
         <div className="space-y-4">
-          <Alert className="mx-auto flex max-w-md flex-row items-center gap-2" variant="success">
+          <Alert className="mx-auto flex max-w-md flex-row items-center gap-2 text-left" variant="success">
             <div className="rounded-full bg-card p-3">
               <Check className="h-6 w-6" />
             </div>

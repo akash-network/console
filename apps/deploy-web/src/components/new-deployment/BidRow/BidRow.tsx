@@ -25,7 +25,7 @@ type Props = {
   selectedBid?: BidDto | null;
   handleBidSelected: (bid: BidDto) => void;
   disabled: boolean;
-  provider: ApiProviderList;
+  provider?: ApiProviderList;
   isSendingManifest: boolean;
   components?: typeof COMPONENTS;
 };
@@ -58,7 +58,7 @@ export const BidRow: React.FunctionComponent<Props> = ({
   components: c = COMPONENTS
 }) => {
   const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
-  const isFavorite = favoriteProviders.some(x => provider.owner === x);
+  const isFavorite = provider ? favoriteProviders.some(x => provider.owner === x) : false;
   const isCurrentBid = selectedBid?.id === bid.id;
   const {
     isLoading: isLoadingStatus,
@@ -79,6 +79,8 @@ export const BidRow: React.FunctionComponent<Props> = ({
   const onStarClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
+
+    if (!provider) return;
 
     const newFavorites = isFavorite ? favoriteProviders.filter(x => x !== provider.owner) : favoriteProviders.concat([provider.owner]);
 
@@ -109,7 +111,7 @@ export const BidRow: React.FunctionComponent<Props> = ({
       </c.TableCell>
 
       <c.TableCell align="center">
-        {provider.ipRegion && provider.ipCountry ? (
+        {provider?.ipRegion && provider?.ipCountry ? (
           <c.CustomTooltip
             title={
               <>
@@ -127,17 +129,15 @@ export const BidRow: React.FunctionComponent<Props> = ({
       </c.TableCell>
 
       <c.TableCell align="center" className="font-bold">
-        {provider.uptime7d ? <c.Uptime value={provider.uptime7d} /> : <div>-</div>}
+        {provider?.uptime7d ? <c.Uptime value={provider.uptime7d} /> : <div>-</div>}
       </c.TableCell>
 
       <c.TableCell align="left">
         <div className="flex items-center">
           <c.FavoriteButton isFavorite={isFavorite} onClick={onStarClick} />
-          <div className="ml-2">
-            <c.ProviderName provider={provider} />
-          </div>
+          <div className="ml-2">{provider ? <c.ProviderName provider={provider} /> : <div>-</div>}</div>
           <div className="pl-2">
-            <c.CopyTextToClipboardButton value={provider.name ?? provider.hostUri} />
+            <c.CopyTextToClipboardButton value={provider?.name ?? provider?.hostUri ?? "-"} />
           </div>
         </div>
       </c.TableCell>
@@ -155,7 +155,7 @@ export const BidRow: React.FunctionComponent<Props> = ({
       )}
 
       <c.TableCell align="center">
-        {provider.isAudited ? (
+        {provider?.isAudited ? (
           <div className="flex items-center justify-center">
             <span className="text-sm text-muted-foreground">Yes</span>
             <div className="ml-1">
@@ -203,7 +203,7 @@ export const BidRow: React.FunctionComponent<Props> = ({
                     checked={isCurrentBid}
                     onChange={() => handleBidSelected(bid)}
                     disabled={bid.state !== "open" || disabled}
-                    aria-label={provider.name ?? provider.hostUri}
+                    aria-label={provider?.name ?? provider?.hostUri ?? "Unknown Provider"}
                   />
                 </c.RadioGroup>
               )}
