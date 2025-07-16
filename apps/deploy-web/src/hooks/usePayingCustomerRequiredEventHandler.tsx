@@ -2,14 +2,17 @@ import type { MouseEventHandler } from "react";
 import { useCallback } from "react";
 import { Alert } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
+import { useRouter } from "next/navigation";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
+import { UrlService } from "@src/utils/urlUtils";
 
 export const usePayingCustomerRequiredEventHandler = (): ((messageOtherwise: string) => (callback: MouseEventHandler) => MouseEventHandler) => {
   const { requireAction } = usePopup();
   const user = useUser();
   const { isTrialing, isManaged } = useWallet();
+  const router = useRouter();
 
   return useCallback(
     (messageOtherwise: string) => (handler: MouseEventHandler) => {
@@ -27,7 +30,7 @@ export const usePayingCustomerRequiredEventHandler = (): ((messageOtherwise: str
               side: "right",
               size: "lg",
               onClick: () => {
-                window.location.href = "/api/proxy/v1/checkout";
+                router.push(UrlService.payment());
               }
             }
           ]

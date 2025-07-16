@@ -23,6 +23,7 @@ import {
 } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import compareAsc from "date-fns/compareAsc";
+import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
@@ -38,6 +39,7 @@ import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { ServiceType } from "@src/types";
 import { denomToUdenom, udenomToDenom } from "@src/utils/mathHelpers";
 import { coinToUDenom } from "@src/utils/priceUtils";
+import { UrlService } from "@src/utils/urlUtils";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { LinkTo } from "../shared/LinkTo";
 import { GranteeDepositMenuItem } from "./GranteeDepositMenuItem";
@@ -105,6 +107,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   const { amount, useDepositor, depositorAddress } = watch();
   const validGrants = granteeGrants?.filter(x => compareAsc(new Date(), new Date(x.expiration)) !== 1 && x.authorization.spend_limit.denom === denom) || [];
   const whenLoggedInAndVerified = useAddFundsVerifiedLoginRequiredEventHandler();
+  const router = useRouter();
 
   const closePopupAndGoToCheckoutIfPossible = (event: React.MouseEvent) => {
     analyticsService.track("buy_credits_btn_clk", "Amplitude");
@@ -114,7 +117,7 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   };
 
   const goToCheckout = () => {
-    window.location.href = "/api/proxy/v1/checkout";
+    router.push(UrlService.payment());
   };
 
   useEffect(() => {

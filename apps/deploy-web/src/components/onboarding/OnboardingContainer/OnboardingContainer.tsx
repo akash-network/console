@@ -139,6 +139,8 @@ export const OnboardingContainer: React.FunctionComponent = () => {
     }
   ];
 
+  const shouldShowNavigation = currentStep > OnboardingStepIndex.FREE_TRIAL && currentStep !== OnboardingStepIndex.PAYMENT_METHOD;
+
   return (
     <OnboardingStepper
       steps={steps}
@@ -146,7 +148,7 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       onStepChange={handleStepChange}
       onNext={handleNext}
       onComplete={handleComplete}
-      showNavigation={currentStep > OnboardingStepIndex.FREE_TRIAL} // Hide navigation on first step
+      showNavigation={shouldShowNavigation}
     />
   );
 };

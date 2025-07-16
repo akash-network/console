@@ -7,6 +7,6 @@ export const envSchema = z.object({
   AUTH0_M2M_SECRET: z.string(),
   ALLOW_ANONYMOUS_USER_TRIAL: z
     .enum(["true", "false"])
-    .default("true")
+    .default("false")
     .transform(v => v === "true")
 });

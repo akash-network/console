@@ -1,13 +1,14 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { Alert, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Popup } from "@akashnetwork/ui/components";
+import { Alert, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, LoadingButton, Popup } from "@akashnetwork/ui/components";
 import { Elements } from "@stripe/react-stripe-js";
 import { Check, CreditCard, Trash } from "iconoir-react";
 import { useTheme } from "next-themes";
 
 import { PaymentMethodForm } from "@src/components/shared";
 import { Title } from "@src/components/shared/Title";
+import { useWallet } from "@src/context/WalletProvider";
 import { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries/usePaymentQueries";
 import { getStripe } from "@src/utils/stripeUtils";
 
@@ -22,15 +23,24 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
   const isDarkMode = resolvedTheme === "dark";
   const { data: paymentMethods = [], refetch: refetchPaymentMethods } = usePaymentMethodsQuery();
   const { removePaymentMethod } = usePaymentMutations();
+  const { connectManagedWallet, isWalletLoading, hasManagedWallet } = useWallet();
   const [showAddForm, setShowAddForm] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [cardToDelete, setCardToDelete] = useState<string>();
+  const [isConnectingWallet, setIsConnectingWallet] = useState(false);
 
   useEffect(() => {
     if (!setupIntent) {
       createSetupIntent();
     }
   }, [setupIntent, createSetupIntent]);
+
+  useEffect(() => {
+    if (isConnectingWallet && hasManagedWallet && !isWalletLoading) {
+      setIsConnectingWallet(false);
+      onComplete();
+    }
+  }, [isConnectingWallet, hasManagedWallet, isWalletLoading, onComplete]);
 
   const handleSuccess = () => {
     setShowAddForm(false);
@@ -56,6 +66,16 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
     }
   };
 
+  const handleNext = () => {
+    if (paymentMethods.length === 0) {
+      return;
+    }
+
+    setIsConnectingWallet(true);
+    // Call connectManagedWallet to start the trial
+    connectManagedWallet();
+  };
+
   const formatCardNumber = (last4: string) => `•••• •••• •••• ${last4}`;
 
   const formatExpiry = (expMonth: number, expYear: number) => {
@@ -64,14 +84,18 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
     return `${month}/${year}`;
   };
 
+  const isLoading = isConnectingWallet || isWalletLoading;
+
   return (
     <div className="space-y-6 text-center">
       <Title>Add Payment Method</Title>
       <p className="text-muted-foreground">Add a payment method to verify your identity and continue with your free trial.</p>
 
       {paymentMethods.length === 0 && !showAddForm && (
-        <Alert className="mx-auto max-w-md">
-          <CreditCard className="h-4 w-4" />
+        <Alert className="mx-auto flex max-w-md flex-row items-center gap-2 text-left" variant="warning">
+          <div className="rounded-full bg-card p-3">
+            <CreditCard className="h-4 w-4" />
+          </div>
           <div>
             <h4 className="font-medium">Payment Method Required</h4>
             <p className="text-sm">You must add a payment method to continue to the next step.</p>
@@ -126,6 +150,17 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
               </div>
             </CardContent>
           </Card>
+
+          <div className="mx-auto flex max-w-md justify-center">
+            <LoadingButton
+              onClick={handleNext}
+              disabled={paymentMethods.length === 0 || isLoading}
+              loading={isLoading}
+              className="flex w-full items-center gap-2"
+            >
+              {isLoading ? "Starting Trial..." : "Start Trial"}
+            </LoadingButton>
+          </div>
         </div>
       )}
 

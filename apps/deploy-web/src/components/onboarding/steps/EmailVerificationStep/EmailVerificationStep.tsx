@@ -76,7 +76,7 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
           </div>
         </Alert>
       ) : (
-        <Alert className="mx-auto max-w-md flex-row items-center gap-2 text-left" variant="default">
+        <Alert className="mx-auto flex max-w-md flex-row items-center gap-2 text-left" variant="warning">
           <div className="rounded-full bg-card p-3">
             <Mail className="h-4 w-4" />
           </div>
