@@ -38,10 +38,10 @@ export const GetUsageHistoryQuerySchema = z
 
       const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
 
-      return start <= end && daysDiff <= 365;
+      return start <= end && daysDiff <= 366;
     },
     {
-      message: "Date range cannot exceed 365 days and startDate must be before endDate"
+      message: "Date range cannot exceed 366 days and startDate must be before endDate"
     }
   );
 
@@ -51,8 +51,8 @@ export const UsageHistoryResponseSchema = z.array(
       description: "Date in YYYY-MM-DD format",
       example: "2024-01-15"
     }),
-    activeLeases: z.number().openapi({
-      description: "Number of active leases on this date",
+    activeDeployments: z.number().openapi({
+      description: "Number of active deployments on this date",
       example: 3
     }),
     dailyAktSpent: z.number().openapi({
@@ -87,16 +87,16 @@ export const UsageHistoryStatsResponseSchema = z.object({
     description: "Total amount spent in USD",
     example: 1234.56
   }),
-  averagePerDay: z.number().openapi({
+  averageSpentPerDay: z.number().openapi({
     description: "Average spending per day in USD",
     example: 12.34
   }),
-  totalLeases: z.number().openapi({
-    description: "Total number of leases deployed",
+  totalDeployments: z.number().openapi({
+    description: "Total number of deployments deployed",
     example: 15
   }),
-  averageLeasesPerDay: z.number().openapi({
-    description: "Average number of leases deployed per day",
+  averageDeploymentsPerDay: z.number().openapi({
+    description: "Average number of deployments deployed per day",
     example: 1.5
   })
 });

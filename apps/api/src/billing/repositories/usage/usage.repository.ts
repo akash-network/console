@@ -5,7 +5,7 @@ import { chainDb } from "@src/db/dbConnection";
 
 export interface BillingUsageRawResult {
   date: string;
-  activeLeases: number;
+  activeDeployments: number;
   dailyAktSpent: number;
   totalAktSpent: number;
   dailyUsdcSpent: number;
@@ -74,7 +74,7 @@ export class UsageRepository {
       )
       SELECT
         dr.date::DATE AS "date",
-        COUNT(dl.owner) AS "activeLeases",
+        COUNT(dl.owner) AS "activeDeployments",
         COALESCE(dc.daily_akt_spent, 0) as "dailyAktSpent",
         COALESCE(SUM(dc.daily_akt_spent) OVER (ORDER BY dr.date), 0) as "totalAktSpent",
         COALESCE(dc.daily_usdc_spent, 0) as "dailyUsdcSpent",
@@ -99,7 +99,7 @@ export class UsageRepository {
 
     return results.map(row => ({
       date: row.date,
-      activeLeases: row.activeLeases,
+      activeDeployments: row.activeDeployments,
       dailyAktSpent: parseFloat(String(row.dailyAktSpent)),
       totalAktSpent: parseFloat(String(row.totalAktSpent)),
       dailyUsdcSpent: parseFloat(String(row.dailyUsdcSpent)),
