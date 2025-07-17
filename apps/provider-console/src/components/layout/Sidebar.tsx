@@ -5,7 +5,21 @@ import { Button, buttonVariants, Separator } from "@akashnetwork/ui/components";
 import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { ClipboardCheck, Cloud, DatabaseCheck, Discord, Dollar, Github, ListSelect, Menu, MenuScale, Settings, X as TwitterX, Youtube } from "iconoir-react";
+import {
+  ClipboardCheck,
+  Cloud,
+  DatabaseCheck,
+  Discord,
+  Dollar,
+  Github,
+  Key,
+  ListSelect,
+  Menu,
+  MenuScale,
+  Settings,
+  X as TwitterX,
+  Youtube
+} from "iconoir-react";
 import { Home, OpenInWindow } from "iconoir-react";
 import getConfig from "next/config";
 import Image from "next/image";
@@ -89,6 +103,13 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
           icon: props => <Settings {...props} />,
           url: UrlService.nodes(),
           activeRoutes: [UrlService.nodes()],
+          disabled: false
+        },
+        {
+          title: "API Key",
+          icon: props => <Key {...props} />,
+          url: UrlService.apiKeys(),
+          activeRoutes: [UrlService.apiKeys()],
           disabled: false
         },
         {

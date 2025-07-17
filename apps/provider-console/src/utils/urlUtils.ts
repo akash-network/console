@@ -28,6 +28,7 @@ export class UrlService {
   static pricing = () => "/pricing";
   static persistentStorage = () => "/persistent-storage";
   static nodes = () => "/nodes";
+  static apiKeys = () => "/api-keys";
 }
 
 export const stripProviderPrefixAndPort = (url: string) => {
