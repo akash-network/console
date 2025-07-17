@@ -1,5 +1,12 @@
 
 
+## [2.106.1](https://github.com/akash-network/console/compare/console-api/v2.106.0...console-api/v2.106.1) (2025-07-16)
+
+
+### Bug Fixes
+
+* **billing:** return empty array for discounts when no stripe id ([#1694](https://github.com/akash-network/console/issues/1694)) ([19ec3c2](https://github.com/akash-network/console/commit/19ec3c2681bcb56adf059e7d7506e2bdb103d1ee))
+
 ## [2.106.0](https://github.com/akash-network/console/compare/console-api/v2.105.1...console-api/v2.106.0) (2025-07-16)
 
 
