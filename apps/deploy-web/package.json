@@ -14,7 +14,7 @@
     "lint": "eslint .",
     "release": "release-it",
     "start": "next start",
-    "test:cov": "NODE_ENV=test DEPLOYMENT_ENV=staging jest --coverage",
+    "test:cov": "NODE_ENV=test DEPLOYMENT_ENV=staging jest --coverage --reporters=default --reporters=jest-junit",
     "test:e2e": "playwright test",
     "test:unit": "NODE_ENV=test DEPLOYMENT_ENV=staging jest",
     "type-check": "tsc"
@@ -168,6 +168,7 @@
     "eslint-plugin-simple-import-sort": "^12.1.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
+    "jest-junit": "^16.0.0",
     "jest-mock-extended": "^4.0.0-beta1",
     "nock": "^13.5.0",
     "postcss": "^8.4.31",
