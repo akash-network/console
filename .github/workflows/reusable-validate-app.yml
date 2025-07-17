@@ -39,6 +39,15 @@ jobs:
             npm run --if-present --workspace=apps/${{ inputs.app }} test:ci-teardown
           fi
 
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() && steps.run_tests.outputs.has_tests == 'true' }}
+        uses: codecov/test-results-action@v1
+        with:
+          files: ./junit.xml
+          name: ${{ inputs.app }}-test-results
+          flags: ${{ inputs.app }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Upload Test Coverage
         if: steps.run_tests.outputs.has_tests == 'true'
         uses: codecov/codecov-action@v5
