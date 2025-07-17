@@ -67,14 +67,6 @@ export const FreeTrialLandingStep: React.FunctionComponent<FreeTrialLandingStepP
             </li>
             <li className="flex items-center gap-2">
               <Check className="h-4 w-4 text-green-600" />
-              <span>Up to 5 deployments</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-600" />
-              <span>Access to trial providers</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-600" />
               <span>30 days of free credits</span>
             </li>
             <li className="flex items-center gap-2">
