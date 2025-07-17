@@ -1,6 +1,14 @@
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
-import { ApiKeyHttpService, AuthHttpService, DeploymentSettingHttpService, TemplateHttpService, TxHttpService, UserHttpService } from "@akashnetwork/http-sdk";
+import {
+  ApiKeyHttpService,
+  AuthHttpService,
+  DeploymentSettingHttpService,
+  TemplateHttpService,
+  TxHttpService,
+  UsageHttpService,
+  UserHttpService
+} from "@akashnetwork/http-sdk";
 import { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
 import { LoggerService } from "@akashnetwork/logging";
 import { getTraceData } from "@sentry/nextjs";
@@ -55,20 +63,16 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(new TxHttpService(customRegistry, apiConfig), {
         request: [container.authService.withAnonymousUserHeader]
       }),
-    template: () =>
-      container.applyAxiosInterceptors(new TemplateHttpService(apiConfig), {
+    template: () => container.applyAxiosInterceptors(new TemplateHttpService(apiConfig), {}),
+    usage: () =>
+      withInterceptors(new UsageHttpService(apiConfig), {
         request: [container.authService.withAnonymousUserHeader]
       }),
     auth: () =>
       container.applyAxiosInterceptors(new AuthHttpService(apiConfig), {
         request: [container.authService.withAnonymousUserHeader]
       }),
-    providerProxy: () =>
-      new ProviderProxyService(
-        container.applyAxiosInterceptors(container.createAxios({ baseURL: config.BASE_PROVIDER_PROXY_URL }), {
-          request: [container.authService.withAnonymousUserHeader]
-        })
-      ),
+    providerProxy: () => new ProviderProxyService(container.applyAxiosInterceptors(container.createAxios({ baseURL: config.BASE_PROVIDER_PROXY_URL }), {})),
     deploymentSetting: () =>
       container.applyAxiosInterceptors(new DeploymentSettingHttpService(apiConfig), {
         request: [container.authService.withAnonymousUserHeader]

@@ -32,9 +32,13 @@ export class TestDatabaseService {
   async setup(): Promise<void> {
     console.log(`🧪 Setting up test DBs for ${this.testFileName}: ${this.eventBrokerDbName}, ${this.notificationsDbName}`);
 
-    await Promise.all([this.createDatabase(this.eventBrokerDbName), this.createDatabase(this.notificationsDbName)]);
-
-    await this.runMigrations(`${this.postgresUri}/${this.notificationsDbName}`);
+    try {
+      await Promise.all([this.createDatabase(this.eventBrokerDbName), this.createDatabase(this.notificationsDbName)]);
+      await this.runMigrations(`${this.postgresUri}/${this.notificationsDbName}`);
+    } catch (error) {
+      console.log("❌ Error during setup:", error);
+      throw error;
+    }
   }
 
   async teardown(): Promise<void> {

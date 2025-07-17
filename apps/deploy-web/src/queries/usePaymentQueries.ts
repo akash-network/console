@@ -28,7 +28,10 @@ export const usePaymentDiscountsQuery = () => {
 
 export interface UsePaymentTransactionsOptions {
   limit?: number;
-  startingAfter?: string;
+  startingAfter?: string | null;
+  endingBefore?: string | null;
+  startDate?: Date | null;
+  endDate?: Date | null;
 }
 
 export const usePaymentTransactionsQuery = (options?: UsePaymentTransactionsOptions) => {
@@ -36,8 +39,7 @@ export const usePaymentTransactionsQuery = (options?: UsePaymentTransactionsOpti
   return useQuery({
     queryKey: QueryKeys.getPaymentTransactionsKey(options),
     queryFn: async () => {
-      const response = await stripe.getCustomerTransactions(options);
-      return response.transactions;
+      return await stripe.getCustomerTransactions(options);
     }
   });
 };

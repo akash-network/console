@@ -3,24 +3,24 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
-import { MsgCloseDeploymentDto } from "@src/modules/alert/dto/msg-close-deployment.dto";
+import { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-closed-deployment.dto";
 import { AlertMessageService } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { TemplateService } from "@src/modules/alert/services/template/template.service";
 import type { AlertOutput } from "../../repositories/alert/alert.repository";
 import { AlertRepository } from "../../repositories/alert/alert.repository";
 import { ConditionsMatcherService } from "../conditions-matcher/conditions-matcher.service";
-import { ChainMessageAlertService } from "./chain-message-alert.service";
+import { ChainAlertService } from "./chain-alert.service";
 
 import { MockProvider } from "@test/mocks/provider.mock";
 import { generateAlertMessage } from "@test/seeders/alert-message.seeder";
 import { generateGeneralAlert } from "@test/seeders/general-alert.seeder";
 
-describe(ChainMessageAlertService.name, () => {
+describe(ChainAlertService.name, () => {
   describe("alertFor", () => {
     it("should send notification when event conditions match", async () => {
       const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage } = await setup();
 
-      const event = generateMock(MsgCloseDeploymentDto.schema);
+      const event = generateMock(EventClosedDeploymentDto.schema);
 
       const alert = generateGeneralAlert({
         conditions: {
@@ -48,7 +48,7 @@ describe(ChainMessageAlertService.name, () => {
       });
       alertMessageService.getMessage.mockReturnValue(alertMessage.payload);
 
-      await service.alertFor(event, onMessage);
+      await service.alertFor({ type: "CHAIN_EVENT", payload: event }, onMessage);
 
       expect(conditionsMatcher.isMatching).toHaveBeenCalledWith(alert.conditions, event);
       expect(alertMessageService.getMessage).toHaveBeenCalledWith({
@@ -59,7 +59,7 @@ describe(ChainMessageAlertService.name, () => {
             prev: expect.objectContaining({ id: alert.id }),
             next: expect.objectContaining({ id: alert.id })
           },
-          data: event
+          data: { type: "CHAIN_EVENT", payload: event }
         }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
@@ -68,7 +68,7 @@ describe(ChainMessageAlertService.name, () => {
     it("should not send notification when event conditions do not match", async () => {
       const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage } = await setup();
 
-      const event = generateMock(MsgCloseDeploymentDto.schema);
+      const event = generateMock(EventClosedDeploymentDto.schema);
 
       const alert = generateGeneralAlert({
         conditions: {
@@ -85,7 +85,7 @@ describe(ChainMessageAlertService.name, () => {
 
       conditionsMatcher.isMatching.mockReturnValue(false);
 
-      await service.alertFor(event, onMessage);
+      await service.alertFor({ type: "CHAIN_EVENT", payload: event }, onMessage);
 
       expect(conditionsMatcher.isMatching).toHaveBeenCalledWith(alert.conditions, event);
       expect(alertMessageService.getMessage).not.toHaveBeenCalled();
@@ -95,7 +95,7 @@ describe(ChainMessageAlertService.name, () => {
     it("should log error if alert processing fails", async () => {
       const { service, alertRepository, conditionsMatcher, alertMessageService, loggerService, onMessage } = await setup();
 
-      const event = generateMock(MsgCloseDeploymentDto.schema);
+      const event = generateMock(EventClosedDeploymentDto.schema);
 
       const alert = generateGeneralAlert({
         conditions: {
@@ -115,14 +115,14 @@ describe(ChainMessageAlertService.name, () => {
         throw error;
       });
 
-      await service.alertFor(event, onMessage);
+      await service.alertFor({ type: "CHAIN_EVENT", payload: event }, onMessage);
 
       expect(alertMessageService.getMessage).not.toHaveBeenCalled();
       expect(onMessage).not.toHaveBeenCalled();
       expect(loggerService.error).toHaveBeenCalledWith({
         event: "ALERT_FAILURE",
         alert,
-        triggerEvent: event,
+        triggerEvent: { type: "CHAIN_EVENT", payload: event },
         error
       });
     });
@@ -133,9 +133,9 @@ describe(ChainMessageAlertService.name, () => {
       const error = new Error("test");
       alertRepository.paginateAll.mockRejectedValue(error);
 
-      const event = generateMock(MsgCloseDeploymentDto.schema);
+      const event = generateMock(EventClosedDeploymentDto.schema);
 
-      await expect(service.alertFor(event, onMessage)).rejects.toBe(error);
+      await expect(service.alertFor({ type: "CHAIN_EVENT", payload: event }, onMessage)).rejects.toBe(error);
 
       expect(alertMessageService.getMessage).not.toHaveBeenCalled();
       expect(onMessage).not.toHaveBeenCalled();
@@ -148,7 +148,7 @@ describe(ChainMessageAlertService.name, () => {
     it("should process multiple alerts in parallel", async () => {
       const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage } = await setup();
 
-      const event = generateMock(MsgCloseDeploymentDto.schema);
+      const event = generateMock(EventClosedDeploymentDto.schema);
 
       const alert1 = generateGeneralAlert({
         conditions: {
@@ -192,7 +192,7 @@ describe(ChainMessageAlertService.name, () => {
       });
       alertMessageService.getMessage.mockReturnValueOnce(alertMessage1.payload).mockReturnValueOnce(alertMessage2.payload);
 
-      await service.alertFor(event, onMessage);
+      await service.alertFor({ type: "CHAIN_EVENT", payload: event }, onMessage);
 
       expect(alertMessageService.getMessage).toHaveBeenCalledTimes(2);
       expect(alertMessageService.getMessage).toHaveBeenCalledWith({
@@ -203,7 +203,7 @@ describe(ChainMessageAlertService.name, () => {
             prev: expect.objectContaining({ id: alert1.id }),
             next: expect.objectContaining({ id: alert1.id })
           },
-          data: event
+          data: { type: "CHAIN_EVENT", payload: event }
         }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage1);
@@ -215,7 +215,7 @@ describe(ChainMessageAlertService.name, () => {
             prev: expect.objectContaining({ id: alert2.id }),
             next: expect.objectContaining({ id: alert2.id })
           },
-          data: event
+          data: { type: "CHAIN_EVENT", payload: event }
         }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage2);
@@ -224,20 +224,20 @@ describe(ChainMessageAlertService.name, () => {
     it("should correctly handle complex condition matching", async () => {
       const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage } = await setup();
 
-      const event = generateMock(MsgCloseDeploymentDto.schema);
-      const owner = event.value.id.owner;
+      const event = generateMock(EventClosedDeploymentDto.schema);
+      const owner = event.owner;
 
       const alert = generateGeneralAlert({
         conditions: {
           operator: "and",
           value: [
             {
-              field: "type",
-              value: "akash.deployment.v1beta3.MsgCloseDeployment",
+              field: "action",
+              value: "deployment-closed",
               operator: "eq"
             },
             {
-              field: "value.id.owner",
+              field: "owner",
               value: owner,
               operator: "eq"
             }
@@ -263,7 +263,7 @@ describe(ChainMessageAlertService.name, () => {
       });
       alertMessageService.getMessage.mockReturnValue(alertMessage.payload);
 
-      await service.alertFor(event, onMessage);
+      await service.alertFor({ type: "CHAIN_EVENT", payload: event }, onMessage);
 
       expect(conditionsMatcher.isMatching).toHaveBeenCalledWith(alert.conditions, event);
       expect(alertMessageService.getMessage).toHaveBeenCalledWith({
@@ -274,7 +274,7 @@ describe(ChainMessageAlertService.name, () => {
             prev: expect.objectContaining({ id: alert.id }),
             next: expect.objectContaining({ id: alert.id })
           },
-          data: event
+          data: { type: "CHAIN_EVENT", payload: event }
         }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
@@ -282,7 +282,7 @@ describe(ChainMessageAlertService.name, () => {
   });
 
   async function setup(): Promise<{
-    service: ChainMessageAlertService;
+    service: ChainAlertService;
     loggerService: MockProxy<LoggerService>;
     alertRepository: MockProxy<AlertRepository>;
     conditionsMatcher: MockProxy<ConditionsMatcherService>;
@@ -291,7 +291,7 @@ describe(ChainMessageAlertService.name, () => {
   }> {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ChainMessageAlertService,
+        ChainAlertService,
         TemplateService,
         MockProvider(AlertRepository),
         MockProvider(ConditionsMatcherService),
@@ -302,7 +302,7 @@ describe(ChainMessageAlertService.name, () => {
     const onMessage = jest.fn();
 
     return {
-      service: module.get<ChainMessageAlertService>(ChainMessageAlertService),
+      service: module.get<ChainAlertService>(ChainAlertService),
       loggerService: module.get<MockProxy<LoggerService>>(LoggerService),
       alertRepository: module.get<MockProxy<AlertRepository>>(AlertRepository),
       conditionsMatcher: module.get<MockProxy<ConditionsMatcherService>>(ConditionsMatcherService),
