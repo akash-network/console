@@ -152,7 +152,7 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
 
                 {!showKey && (
                   <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    Click "Show" to reveal your API key. Keep it secure and never share it publicly.
+                    Click &ldquo;Show&rdquo; to reveal your API key. Keep it secure and never share it publicly.
                   </p>
                 )}
               </div>
