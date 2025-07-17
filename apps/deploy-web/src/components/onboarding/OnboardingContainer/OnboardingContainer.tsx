@@ -69,16 +69,6 @@ export const OnboardingContainer: React.FunctionComponent = () => {
     setCompletedSteps(prev => new Set([...prev, step]));
   };
 
-  const handleNext = () => {
-    if (currentStep === OnboardingStepIndex.PAYMENT_METHOD) {
-      if (paymentMethods.length === 0) {
-        return;
-      }
-    }
-
-    handleStepComplete(currentStep);
-  };
-
   const handleComplete = () => {
     localStorage.removeItem("onboardingStep");
     router.push("/");
@@ -140,17 +130,5 @@ export const OnboardingContainer: React.FunctionComponent = () => {
     }
   ];
 
-  const shouldShowNavigation =
-    currentStep > OnboardingStepIndex.FREE_TRIAL && currentStep !== OnboardingStepIndex.PAYMENT_METHOD && currentStep !== OnboardingStepIndex.WELCOME;
-
-  return (
-    <OnboardingStepper
-      steps={steps}
-      currentStep={currentStep}
-      onStepChange={handleStepChange}
-      onNext={handleNext}
-      onComplete={handleComplete}
-      showNavigation={shouldShowNavigation}
-    />
-  );
+  return <OnboardingStepper steps={steps} currentStep={currentStep} />;
 };
