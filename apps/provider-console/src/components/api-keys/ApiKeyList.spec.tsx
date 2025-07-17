@@ -50,17 +50,6 @@ describe("ApiKeyList", () => {
     isCreating: false
   };
 
-  let queryClient: QueryClient;
-
-  beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false }
-      }
-    });
-  });
-
   it("should render empty state when no API key exists", () => {
     setup({});
     expect(screen.queryByText("No API Key Available")).toBeInTheDocument();
@@ -169,6 +158,13 @@ describe("ApiKeyList", () => {
     onCreateApiKey?: () => void;
     updateApiKeyToDelete?: (apiKey: ApiKey) => void;
   }) {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false }
+      }
+    });
+
     return render(
       <IntlProvider locale="en" messages={{}}>
         <QueryClientProvider client={queryClient}>
