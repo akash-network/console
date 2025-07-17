@@ -12,3 +12,4 @@
 **/.next
 *.md
 build.ps1
+**/junit.xml
