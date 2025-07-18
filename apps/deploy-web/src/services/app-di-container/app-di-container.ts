@@ -63,9 +63,9 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(new TxHttpService(customRegistry, apiConfig), {
         request: [container.authService.withAnonymousUserHeader]
       }),
-    template: () => container.applyAxiosInterceptors(new TemplateHttpService(apiConfig), {}),
+    template: () => container.applyAxiosInterceptors(new TemplateHttpService(apiConfig)),
     usage: () =>
-      withInterceptors(new UsageHttpService(apiConfig), {
+      container.applyAxiosInterceptors(new UsageHttpService(apiConfig), {
         request: [container.authService.withAnonymousUserHeader]
       }),
     auth: () =>
@@ -81,7 +81,13 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(new ApiKeyHttpService(), {
         request: [container.authService.withAnonymousUserHeader]
       }),
-    axios: () => container.createAxios(),
+    externalApiHttpClient: () =>
+      container.createAxios({
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        }
+      }),
     createAxios:
       () =>
       (options?: CreateAxiosDefaults): AxiosInstance =>
@@ -136,9 +142,9 @@ export interface ServicesConfig {
   apiUrlService: () => ApiUrlService;
 }
 
-function withInterceptors<T extends Axios | AxiosInstance = AxiosInstance>(axios: T, interceptors: Interceptors) {
-  interceptors.request?.forEach(interceptor => axios.interceptors.request.use(interceptor));
-  interceptors.response?.forEach(interceptor => axios.interceptors.response.use(interceptor));
+function withInterceptors<T extends Axios | AxiosInstance = AxiosInstance>(axios: T, interceptors?: Interceptors) {
+  interceptors?.request?.forEach(interceptor => axios.interceptors.request.use(interceptor));
+  interceptors?.response?.forEach(interceptor => axios.interceptors.response.use(interceptor));
   return axios;
 }
 

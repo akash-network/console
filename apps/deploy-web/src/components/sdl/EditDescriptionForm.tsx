@@ -27,7 +27,7 @@ export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, descri
   const formRef = useRef<HTMLFormElement>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
-  const { axios } = useServices();
+  const { consoleApiHttpClient } = useServices();
   const form = useForm<FormValues>({
     defaultValues: {
       description: description || ""
@@ -38,7 +38,7 @@ export const EditDescriptionForm: React.FunctionComponent<Props> = ({ id, descri
 
   const onSubmit = async (data: FormValues) => {
     setIsSaving(true);
-    await axios.post("/api/proxy/user/saveTemplateDesc", {
+    await consoleApiHttpClient.post("/user/saveTemplateDesc", {
       id: id,
       description: data.description
     });

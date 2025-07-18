@@ -1,5 +1,4 @@
-import type { AxiosResponse } from "axios";
-import axios from "axios";
+import type { AxiosInstance, AxiosResponse } from "axios";
 import { URLSearchParams } from "url";
 
 import type { GitProviderTokens } from "@src/types/remotedeploy";
@@ -13,8 +12,10 @@ class BitbucketAuth {
   private tokenUrl: string;
   private clientId: string;
   private clientSecret: string;
+  private readonly httpClient: AxiosInstance;
 
-  constructor(clientId: string, clientSecret: string) {
+  constructor(clientId: string, clientSecret: string, httpClient: AxiosInstance) {
+    this.httpClient = httpClient;
     this.tokenUrl = "https://bitbucket.org/site/oauth2/access_token";
     this.clientId = clientId;
     this.clientSecret = clientSecret;
@@ -31,14 +32,14 @@ class BitbucketAuth {
     };
 
     try {
-      const response: AxiosResponse = await axios.post(this.tokenUrl, params.toString(), { headers });
+      const response: AxiosResponse = await this.httpClient.post(this.tokenUrl, params.toString(), { headers });
       const { access_token, refresh_token }: Tokens = response.data;
       return {
         accessToken: access_token,
         refreshToken: refresh_token
       };
-    } catch (error: any) {
-      throw new Error(error);
+    } catch (error) {
+      throw new Error("Failed to exchange authorization code for tokens", { cause: error });
     }
   }
 
@@ -53,14 +54,14 @@ class BitbucketAuth {
     };
 
     try {
-      const response: AxiosResponse = await axios.post(this.tokenUrl, params.toString(), { headers });
+      const response: AxiosResponse = await this.httpClient.post(this.tokenUrl, params.toString(), { headers });
       const { access_token, refresh_token }: Tokens = response.data;
       return {
         accessToken: access_token,
         refreshToken: refresh_token
       };
-    } catch (error: any) {
-      throw new Error(error);
+    } catch (error) {
+      throw new Error("Failed to refresh tokens using refresh token", { cause: error });
     }
   }
 }

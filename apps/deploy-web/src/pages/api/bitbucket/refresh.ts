@@ -12,7 +12,7 @@ export default defineApiHandler({
   }),
   async handler({ body, res, services }) {
     const { NEXT_PUBLIC_BITBUCKET_CLIENT_ID, BITBUCKET_CLIENT_SECRET } = services.config;
-    const bitbucketAuth = new BitbucketAuth(NEXT_PUBLIC_BITBUCKET_CLIENT_ID!, BITBUCKET_CLIENT_SECRET);
+    const bitbucketAuth = new BitbucketAuth(NEXT_PUBLIC_BITBUCKET_CLIENT_ID!, BITBUCKET_CLIENT_SECRET, services.externalApiHttpClient);
 
     const tokens = await bitbucketAuth.refreshTokensUsingRefreshToken(body.refreshToken);
     res.status(200).json(tokens);

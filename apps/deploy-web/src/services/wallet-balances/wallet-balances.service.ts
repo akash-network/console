@@ -12,17 +12,16 @@ import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 export class WalletBalancesService {
   constructor(
     private readonly authzHttpService: AuthzHttpService,
-    private readonly axios: AxiosInstance,
-    private readonly masterWalletAddress: string,
-    private readonly apiEndpoint: string
+    private readonly chainApiHttpClient: AxiosInstance,
+    private readonly masterWalletAddress: string
   ) {}
 
   async getBalances(address: string): Promise<Balances> {
     const usdcIbcDenom = getUsdcDenom();
     const [balanceResponse, deploymentGrant, activeDeploymentsResponse] = await Promise.all([
-      this.axios.get<RestApiBalancesResponseType>(ApiUrlService.balance(this.apiEndpoint, address)),
+      this.chainApiHttpClient.get<RestApiBalancesResponseType>(ApiUrlService.balance("", address)),
       this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(this.masterWalletAddress, address),
-      loadWithPagination<RpcDeployment[]>(ApiUrlService.deploymentList(this.apiEndpoint, address, true), "deployments", 1000, this.axios)
+      loadWithPagination<RpcDeployment[]>(ApiUrlService.deploymentList("", address, true), "deployments", 1000, this.chainApiHttpClient)
     ]);
 
     const deploymentGrantsUAKT = parseFloat(

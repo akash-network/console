@@ -17,11 +17,11 @@ describe("Settings management", () => {
         username: "testuser",
         subscribedToNewsletter: true
       };
-      const axios = mock<AxiosInstance>();
+      const consoleApiHttpClient = mock<AxiosInstance>();
       const fetchUser = jest.fn(async () => ({ email: "test@akash.network" }));
       const { result } = setup({
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         },
         fetchUser
       });
@@ -29,7 +29,7 @@ describe("Settings management", () => {
       act(() => result.current.mutate(newSettings));
       await waitFor(async () => !result.current.isPending);
 
-      expect(axios.put).toHaveBeenCalledWith(expect.stringContaining("user/updateSettings"), newSettings);
+      expect(consoleApiHttpClient.put).toHaveBeenCalledWith(expect.stringContaining("user/updateSettings"), newSettings);
       expect(fetchUser).toHaveBeenCalledTimes(2);
       expect(result.current.isSuccess).toBe(true);
       expect(await screen.findByText(/Settings saved/i)).toBeInTheDocument();
@@ -41,12 +41,12 @@ describe("Settings management", () => {
         subscribedToNewsletter: true
       };
 
-      const axios = mock<AxiosInstance>();
-      axios.put.mockRejectedValue(new Error("Network error"));
+      const consoleApiHttpClient = mock<AxiosInstance>();
+      consoleApiHttpClient.put.mockRejectedValue(new Error("Network error"));
       const fetchUser = jest.fn(async () => ({ email: "test@akash.network" }));
       const { result } = setup({
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         },
         fetchUser
       });

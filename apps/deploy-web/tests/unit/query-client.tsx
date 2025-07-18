@@ -1,8 +1,7 @@
-import { QueryClientProvider } from "@tanstack/react-query";
 import { QueryClient } from "@tanstack/react-query";
 
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
-import { ServicesProvider } from "@src/context/ServicesProvider";
+import { TestContainerProvider } from "./TestContainerProvider";
 
 import type { RenderHookResult } from "@testing-library/react";
 import { renderHook } from "@testing-library/react";
@@ -17,7 +16,10 @@ export function setupQuery<T>(hook: () => T, options?: RenderAppHookOptions): Re
       }
     }
   });
-  let wrapper = createWrapper(queryClient, options?.services);
+  let wrapper = createWrapper({
+    queryClient: () => queryClient,
+    ...options?.services
+  });
   const customWrapper = options?.wrapper;
   if (customWrapper) {
     const originalWrapper = wrapper;
@@ -27,12 +29,8 @@ export function setupQuery<T>(hook: () => T, options?: RenderAppHookOptions): Re
   return renderHook(hook, { wrapper });
 }
 
-function createWrapper(queryClient: QueryClient, services?: ServicesProviderProps["services"]) {
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      <ServicesProvider services={services}>{children}</ServicesProvider>
-    </QueryClientProvider>
-  );
+function createWrapper(services?: ServicesProviderProps["services"]) {
+  return ({ children }: { children: React.ReactNode }) => <TestContainerProvider services={services}>{children}</TestContainerProvider>;
 }
 
 export interface RenderAppHookOptions {

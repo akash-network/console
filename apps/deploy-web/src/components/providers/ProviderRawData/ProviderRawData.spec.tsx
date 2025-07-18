@@ -1,15 +1,11 @@
-import { QueryClientProvider } from "@tanstack/react-query";
-import type { AxiosStatic } from "axios";
-
 import { COMPONENTS, ProviderRawData } from "@src/components/providers/ProviderRawData/ProviderRawData";
-import { ServicesProvider } from "@src/context/ServicesProvider";
-import { queryClient } from "@src/queries";
-import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
+import type { AppDIContainer } from "@src/context/ServicesProvider";
 import type { ApiProviderDetail } from "@src/types/provider";
 
 import { act, render, waitFor } from "@testing-library/react";
 import { buildProvider } from "@tests/seeders/provider";
 import { MockComponents } from "@tests/unit/mocks";
+import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(ProviderRawData.name, () => {
   it("renders", async () => {
@@ -24,10 +20,9 @@ describe(ProviderRawData.name, () => {
   });
 
   async function setup(props?: Props) {
-    const axios = () =>
+    const consoleApiHttpClient = () =>
       ({
         get: jest.fn(async url => {
-          if (url.includes("/leases/")) return new Promise(() => {});
           if (url.includes("/providers/"))
             return {
               data: props?.provider || buildProvider()
@@ -35,20 +30,25 @@ describe(ProviderRawData.name, () => {
 
           throw new Error(`unexpected request: ${url}`);
         })
-      }) as unknown as AxiosStatic;
+      }) as unknown as AppDIContainer["consoleApiHttpClient"];
+    const chainApiHttpClient = () =>
+      ({
+        get: jest.fn(async url => {
+          if (url.includes("/leases/")) return { data: [] };
+          throw new Error(`unexpected request: ${url}`);
+        })
+      }) as unknown as AppDIContainer["chainApiHttpClient"];
     const providerProxy = () =>
       ({
         fetchProviderUrl: jest.fn(() => {
           return new Promise(() => {});
         })
-      }) as unknown as ProviderProxyService;
+      }) as unknown as AppDIContainer["providerProxy"];
 
     const result = render(
-      <ServicesProvider services={{ axios, providerProxy }}>
-        <QueryClientProvider client={queryClient}>
-          <ProviderRawData owner={props?.provider?.owner || "test"} components={MockComponents(COMPONENTS, props?.components)} />
-        </QueryClientProvider>
-      </ServicesProvider>
+      <TestContainerProvider services={{ chainApiHttpClient, consoleApiHttpClient, providerProxy }}>
+        <ProviderRawData owner={props?.provider?.owner || "test"} components={MockComponents(COMPONENTS, props?.components)} />
+      </TestContainerProvider>
     );
 
     await act(() => Promise.resolve());
