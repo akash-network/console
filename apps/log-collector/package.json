@@ -1,0 +1,52 @@
+{
+  "name": "@akashnetwork/log-collector",
+  "version": "1.0.0",
+  "description": "A log collector worker to forward logs from provider to logging services for certain deployments ",
+  "keywords": [
+    "logs",
+    "collector",
+    "forwarding",
+    "akash",
+    "provider"
+  ],
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "webpack --env production",
+    "dev": "webpack --env development",
+    "format": "prettier --write ./*.{js,json} **/*.{ts,js,json}",
+    "lint": "eslint .",
+    "migration:gen": "drizzle-kit generate",
+    "prod": "node dist/server.js"
+  },
+  "dependencies": {
+    "@akashnetwork/env-loader": "*",
+    "@akashnetwork/http-sdk": "*",
+    "@akashnetwork/logging": "*",
+    "@datadog/datadog-api-client": "^1.39.0",
+    "@kubernetes/client-node": "^1.3.0",
+    "lodash": "^4.17.21",
+    "reflect-metadata": "^0.2.2",
+    "tsyringe": "^4.10.0",
+    "ws": "^8.18.3",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@akashnetwork/dev-config": "*",
+    "@types/node": "^22.13.11",
+    "@types/webpack-node-externals": "^3.0.4",
+    "alias-hq": "^6.2.4",
+    "nodemon-webpack-plugin": "^4.8.2",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "tsconfig-paths": "^4.2.0",
+    "tsconfig-paths-webpack-plugin": "^4.2.0",
+    "typescript": "~5.8.2",
+    "webpack": "^5.99.9",
+    "webpack-cli": "4.10.0",
+    "webpack-node-externals": "^3.0.0"
+  }
+}
