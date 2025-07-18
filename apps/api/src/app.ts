@@ -14,7 +14,6 @@ import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/h
 import type { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { OpenApiDocsService } from "@src/core/services/openapi-docs/openapi-docs.service";
 import { RequestContextInterceptor } from "@src/core/services/request-context-interceptor/request-context.interceptor";
-import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import { notificationsApiProxy } from "@src/notifications/routes/proxy/proxy.route";
 import packageJson from "../package.json";
 import { apiKeysRouter } from "./auth/routes/api-keys/api-keys.router";
@@ -98,7 +97,7 @@ const scheduler = new Scheduler({
 
 appHono.use(container.resolve(HttpLoggerIntercepter).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
-appHono.use(container.resolve<HonoInterceptor>(AuthInterceptor).intercept());
+appHono.use(container.resolve(AuthInterceptor).intercept());
 appHono.use(clientInfoMiddleware);
 
 appHono.route("/", legacyRouter);
