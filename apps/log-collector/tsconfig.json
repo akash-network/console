@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noImplicitAny": true,
+    "outDir": "./dist",
+    "paths": {
+      "@src/*": ["./src/*"],
+      "@test/*": ["./test/*"]
+    },
+    "strict": true,
+    "target": "es2022",
+    "lib": ["ESNext"],
+    "module": "preserve",
+    "moduleResolution": "bundler"
+  },
+  "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
+}
