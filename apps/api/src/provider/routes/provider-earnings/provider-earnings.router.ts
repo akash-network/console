@@ -1,13 +1,14 @@
-import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { container } from "tsyringe";
 
+import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { ProviderEarningsController } from "@src/provider/controllers/provider-earnings/provider-earnings.controller";
 import { ProviderEarningsParamsSchema, ProviderEarningsQuerySchema, ProviderEarningsResponseSchema } from "@src/provider/http-schemas/provider-earnings.schema";
 
 const providerEarningsRoute = createRoute({
   method: "get",
-  path: "/provider-earnings/{owner}",
+  path: "/v1/provider-earnings/{owner}",
   summary: "Get earnings data for provider console.",
   tags: ["Providers"],
   request: {
@@ -29,7 +30,7 @@ const providerEarningsRoute = createRoute({
   }
 });
 
-export const providerEarningsRouter = new OpenAPIHono();
+export const providerEarningsRouter = new OpenApiHonoHandler();
 
 providerEarningsRouter.openapi(providerEarningsRoute, async function routeProviderEarnings(c: Context) {
   const owner = c.req.param("owner");

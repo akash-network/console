@@ -43,12 +43,12 @@ describe("Provider Earnings API", () => {
     nock.cleanAll();
   });
 
-  describe("GET /internal/provider-earnings/{owner}?from=YYYY-MM-DD&to=YYYY-MM-DD", () => {
+  describe("GET /v1/provider-earnings/{owner}?from=YYYY-MM-DD&to=YYYY-MM-DD", () => {
     it("should return earnings for a valid provider and date range", async () => {
       const from = format(subDays(Date.now(), 2), "yyyy-MM-dd");
       const to = format(subDays(Date.now(), 1), "yyyy-MM-dd");
 
-      const response = await app.request(`/internal/provider-earnings/${provider.owner}?from=${from}&to=${to}`);
+      const response = await app.request(`/v1/provider-earnings/${provider.owner}?from=${from}&to=${to}`);
 
       const data = (await response.json()) as ProviderEarningsResponse;
 
@@ -64,7 +64,7 @@ describe("Provider Earnings API", () => {
       const from = format(subDays(Date.now(), 2), "yyyy-MM-dd");
       const to = format(subDays(Date.now(), 1), "yyyy-MM-dd");
 
-      const res = await app.request(`/internal/provider-earnings/${nonExistentOwner}?from=${from}&to=${to}`);
+      const res = await app.request(`/v1/provider-earnings/${nonExistentOwner}?from=${from}&to=${to}`);
       expect(res.status).toBe(404);
 
       const data = (await res.json()) as any;
@@ -72,12 +72,12 @@ describe("Provider Earnings API", () => {
     });
 
     it("should return 400 for invalid date format", async () => {
-      const res = await app.request(`/internal/provider-earnings/${provider.owner}?from=bad-date&to=bad-date`);
+      const res = await app.request(`/v1/provider-earnings/${provider.owner}?from=bad-date&to=bad-date`);
       expect(res.status).toBe(400);
     });
 
     it("should return 400 if required params are missing", async () => {
-      const res = await app.request(`/internal/provider-earnings/${provider.owner}`);
+      const res = await app.request(`/v1/provider-earnings/${provider.owner}`);
       expect(res.status).toBe(400);
     });
   });
