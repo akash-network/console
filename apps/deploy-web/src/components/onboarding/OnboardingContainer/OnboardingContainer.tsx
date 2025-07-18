@@ -44,6 +44,7 @@ const DEPENDENCIES = {
   useUser,
   usePaymentMethodsQuery,
   useServices,
+  useRouter,
   UrlService
 };
 
@@ -52,7 +53,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const [completedSteps, setCompletedSteps] = useState<Set<OnboardingStepIndex>>(new Set());
   const [isLoading] = useState(false);
 
-  const router = useRouter();
+  const router = d.useRouter();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery();
   const user = d.useUser();
   const { analyticsService } = d.useServices();

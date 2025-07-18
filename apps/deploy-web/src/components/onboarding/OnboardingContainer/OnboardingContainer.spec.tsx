@@ -1,45 +1,12 @@
 import "@testing-library/jest-dom";
 
 import React from "react";
+import { act } from "react-dom/test-utils";
 
+import { UrlService } from "@src/utils/urlUtils";
 import { OnboardingContainer, OnboardingStepIndex } from "./OnboardingContainer";
 
 import { render } from "@testing-library/react";
-
-// Mock dependencies
-const mockUseUser = jest.fn();
-const mockUsePaymentMethodsQuery = jest.fn();
-const mockUseServices = jest.fn();
-const mockUrlService = {
-  onboarding: jest.fn(),
-  signup: jest.fn()
-};
-const mockRouter = {
-  push: jest.fn()
-};
-const mockAnalyticsService = {
-  track: jest.fn()
-};
-
-jest.mock("@src/hooks/useUser", () => ({
-  useUser: () => mockUseUser()
-}));
-
-jest.mock("@src/queries/usePaymentQueries", () => ({
-  usePaymentMethodsQuery: () => mockUsePaymentMethodsQuery()
-}));
-
-jest.mock("@src/context/ServicesProvider", () => ({
-  useServices: () => mockUseServices()
-}));
-
-jest.mock("@src/utils/urlUtils", () => ({
-  UrlService: mockUrlService
-}));
-
-jest.mock("next/navigation", () => ({
-  useRouter: () => mockRouter
-}));
 
 describe("OnboardingContainer", () => {
   it("should initialize with default state", () => {
@@ -63,11 +30,13 @@ describe("OnboardingContainer", () => {
     });
   });
 
-  it("should track analytics when step changes", () => {
-    const { child } = setup();
+  it("should track analytics when step changes", async () => {
+    const { child, mockAnalyticsService } = setup();
 
     const { onStepChange } = child.mock.calls[0][0];
-    onStepChange(OnboardingStepIndex.EMAIL_VERIFICATION);
+    await act(async () => {
+      onStepChange(OnboardingStepIndex.EMAIL_VERIFICATION);
+    });
 
     expect(mockAnalyticsService.track).toHaveBeenCalledWith("onboarding_step_started", {
       category: "onboarding",
@@ -76,11 +45,13 @@ describe("OnboardingContainer", () => {
     });
   });
 
-  it("should track analytics when step completes", () => {
-    const { child } = setup();
+  it("should track analytics when step completes", async () => {
+    const { child, mockAnalyticsService } = setup();
 
     const { onStepComplete } = child.mock.calls[0][0];
-    onStepComplete(OnboardingStepIndex.FREE_TRIAL);
+    await act(async () => {
+      onStepComplete(OnboardingStepIndex.FREE_TRIAL);
+    });
 
     expect(mockAnalyticsService.track).toHaveBeenCalledWith("onboarding_step_completed", {
       category: "onboarding",
@@ -89,14 +60,16 @@ describe("OnboardingContainer", () => {
     });
   });
 
-  it("should track analytics and redirect when starting trial", () => {
-    const { child } = setup();
+  it("should track analytics and redirect when starting trial", async () => {
+    const { child, mockAnalyticsService, mockUrlService } = setup();
 
-    mockUrlService.onboarding.mockReturnValue("/onboarding");
-    mockUrlService.signup.mockReturnValue("/signup");
+    (mockUrlService.onboarding as jest.Mock).mockReturnValue("/onboarding");
+    (mockUrlService.signup as jest.Mock).mockReturnValue("/signup");
 
     const { onStartTrial } = child.mock.calls[0][0];
-    onStartTrial();
+    await act(async () => {
+      onStartTrial();
+    });
 
     expect(mockAnalyticsService.track).toHaveBeenCalledWith("onboarding_free_trial_started", {
       category: "onboarding"
@@ -105,13 +78,15 @@ describe("OnboardingContainer", () => {
     expect(mockUrlService.signup).toHaveBeenCalled();
   });
 
-  it("should track analytics when payment method is completed", () => {
-    const { child } = setup({
+  it("should track analytics when payment method is completed", async () => {
+    const { child, mockAnalyticsService } = setup({
       paymentMethods: [{ id: "1", type: "card" }]
     });
 
     const { onPaymentMethodComplete } = child.mock.calls[0][0];
-    onPaymentMethodComplete();
+    await act(async () => {
+      onPaymentMethodComplete();
+    });
 
     expect(mockAnalyticsService.track).toHaveBeenCalledWith("onboarding_payment_method_added", {
       category: "onboarding"
@@ -119,7 +94,7 @@ describe("OnboardingContainer", () => {
   });
 
   it("should redirect to home when onboarding is completed", () => {
-    const { child } = setup();
+    const { child, mockRouter } = setup();
 
     const { onComplete } = child.mock.calls[0][0];
     onComplete();
@@ -127,7 +102,7 @@ describe("OnboardingContainer", () => {
     expect(mockRouter.push).toHaveBeenCalledWith("/");
   });
 
-  it("should handle fromSignup URL parameter", () => {
+  it("should handle fromSignup URL parameter", async () => {
     // Mock window.location.search
     Object.defineProperty(window, "location", {
       value: {
@@ -146,28 +121,66 @@ describe("OnboardingContainer", () => {
       writable: true
     });
 
-    const { child } = setup();
+    const { child, mockAnalyticsService } = setup();
+
+    // Wait for the useEffect to run
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
     expect(mockAnalyticsService.track).toHaveBeenCalledWith("onboarding_account_created", {
       category: "onboarding"
     });
 
-    expect(child.mock.calls[0][0].currentStep).toBe(OnboardingStepIndex.EMAIL_VERIFICATION);
+    // The component should be on the EMAIL_VERIFICATION step after handling fromSignup
+    expect(child.mock.calls[child.mock.calls.length - 1][0].currentStep).toBe(OnboardingStepIndex.EMAIL_VERIFICATION);
   });
 
   function setup(input: { paymentMethods?: any[]; user?: any } = {}) {
-    // Reset mocks
     jest.clearAllMocks();
 
-    // Setup default mocks
-    mockUseUser.mockReturnValue(input.user || { emailVerified: false });
-    mockUsePaymentMethodsQuery.mockReturnValue({ data: input.paymentMethods || [] });
-    mockUseServices.mockReturnValue({ analyticsService: mockAnalyticsService });
+    // Create mock objects
+    const mockAnalyticsService = {
+      track: jest.fn()
+    };
+    const mockRouter = {
+      push: jest.fn()
+    };
+
+    // Create a mock UrlService with all required methods
+    const mockUrlService = {
+      ...UrlService,
+      onboarding: jest.fn(),
+      signup: jest.fn()
+    } as unknown as typeof UrlService;
+
+    const mockUseUser = jest.fn().mockReturnValue(input.user || { emailVerified: false });
+    const mockUsePaymentMethodsQuery = jest.fn().mockReturnValue({ data: input.paymentMethods || [] });
+    const mockUseServices = jest.fn().mockReturnValue({ analyticsService: mockAnalyticsService });
+    const mockUseRouter = jest.fn().mockReturnValue(mockRouter);
+
+    // Create dependencies object
+    const dependencies = {
+      useUser: mockUseUser,
+      usePaymentMethodsQuery: mockUsePaymentMethodsQuery,
+      useServices: mockUseServices,
+      useRouter: mockUseRouter,
+      UrlService: mockUrlService
+    };
 
     const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);
 
-    render(<OnboardingContainer>{mockChildren}</OnboardingContainer>);
+    render(<OnboardingContainer dependencies={dependencies}>{mockChildren}</OnboardingContainer>);
 
-    return { child: mockChildren };
+    return {
+      child: mockChildren,
+      mockAnalyticsService,
+      mockRouter,
+      mockUrlService,
+      mockUseUser,
+      mockUsePaymentMethodsQuery,
+      mockUseServices,
+      mockUseRouter
+    };
   }
 });

@@ -1,37 +1,11 @@
 import "@testing-library/jest-dom";
 
 import React from "react";
+import { act } from "react-dom/test-utils";
 
 import { EmailVerificationContainer } from "./EmailVerificationContainer";
 
 import { render } from "@testing-library/react";
-
-// Mock dependencies
-const mockUseCustomUser = jest.fn();
-const mockUseServices = jest.fn();
-const mockUseSnackbar = jest.fn();
-const mockSendVerificationEmail = jest.fn();
-const mockCheckSession = jest.fn();
-const mockEnqueueSnackbar = jest.fn();
-
-jest.mock("@src/hooks/useCustomUser", () => ({
-  useCustomUser: () => mockUseCustomUser()
-}));
-
-jest.mock("@src/context/ServicesProvider", () => ({
-  useServices: () => mockUseServices()
-}));
-
-jest.mock("notistack", () => ({
-  useSnackbar: () => mockUseSnackbar()
-}));
-
-jest.mock("@src/services/http/http-browser.service", () => ({
-  services: {
-    sendVerificationEmail: mockSendVerificationEmail,
-    checkSession: mockCheckSession
-  }
-}));
 
 describe("EmailVerificationContainer", () => {
   it("should render children with initial state", () => {
@@ -50,65 +24,97 @@ describe("EmailVerificationContainer", () => {
   });
 
   it("should handle resend email success", async () => {
-    const { child } = setup();
-
+    const { child, mockSendVerificationEmail, mockEnqueueSnackbar } = setup();
     mockSendVerificationEmail.mockResolvedValue(undefined);
 
     const { onResendEmail } = child.mock.calls[0][0];
-    await onResendEmail();
-
-    expect(mockSendVerificationEmail).toHaveBeenCalled();
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith("Verification email sent successfully", {
-      variant: "success"
+    await act(async () => {
+      await onResendEmail();
     });
+
+    expect(mockSendVerificationEmail).toHaveBeenCalledWith("test-user");
+    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({
+          title: "Verification email sent",
+          subTitle: "Please check your email and click the verification link",
+          iconVariant: "success"
+        })
+      }),
+      { variant: "success" }
+    );
   });
 
   it("should handle resend email error", async () => {
-    const { child } = setup();
-
+    const { child, mockSendVerificationEmail, mockEnqueueSnackbar } = setup();
     mockSendVerificationEmail.mockRejectedValue(new Error("Failed"));
 
     const { onResendEmail } = child.mock.calls[0][0];
-    await onResendEmail();
-
-    expect(mockSendVerificationEmail).toHaveBeenCalled();
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith("Failed to send verification email", {
-      variant: "error"
+    await act(async () => {
+      await onResendEmail();
     });
+
+    expect(mockSendVerificationEmail).toHaveBeenCalledWith("test-user");
+    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({
+          title: "Failed to send verification email",
+          subTitle: "Please try again later or contact support",
+          iconVariant: "error"
+        })
+      }),
+      { variant: "error" }
+    );
   });
 
   it("should handle check verification success", async () => {
-    const { child } = setup();
-
+    const { child, mockCheckSession, mockEnqueueSnackbar } = setup();
     mockCheckSession.mockResolvedValue(undefined);
 
     const { onCheckVerification } = child.mock.calls[0][0];
-    await onCheckVerification();
+    await act(async () => {
+      await onCheckVerification();
+    });
 
     expect(mockCheckSession).toHaveBeenCalled();
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith("Email verified successfully", {
-      variant: "success"
-    });
+    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({
+          title: "Verification status updated",
+          subTitle: "Your email verification status has been refreshed",
+          iconVariant: "success"
+        })
+      }),
+      { variant: "success" }
+    );
   });
 
   it("should handle check verification error", async () => {
-    const { child } = setup();
-
+    const { child, mockCheckSession, mockEnqueueSnackbar } = setup();
     mockCheckSession.mockRejectedValue(new Error("Failed"));
 
     const { onCheckVerification } = child.mock.calls[0][0];
-    await onCheckVerification();
+    await act(async () => {
+      await onCheckVerification();
+    });
 
     expect(mockCheckSession).toHaveBeenCalled();
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith("Failed to verify email", {
-      variant: "error"
-    });
+    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({
+          title: "Failed to check verification",
+          subTitle: "Please try again or refresh the page",
+          iconVariant: "error"
+        })
+      }),
+      { variant: "error" }
+    );
   });
 
   it("should call onComplete when email is verified", () => {
     const mockOnComplete = jest.fn();
     const { child } = setup({
-      user: { emailVerified: true },
+      user: { id: "test-user", emailVerified: true },
       onComplete: mockOnComplete
     });
 
@@ -121,7 +127,7 @@ describe("EmailVerificationContainer", () => {
   it("should not call onComplete when email is not verified", () => {
     const mockOnComplete = jest.fn();
     const { child } = setup({
-      user: { emailVerified: false },
+      user: { id: "test-user", emailVerified: false },
       onComplete: mockOnComplete
     });
 
@@ -132,28 +138,62 @@ describe("EmailVerificationContainer", () => {
   });
 
   function setup(input: { user?: any; onComplete?: jest.Mock } = {}) {
-    // Reset mocks
     jest.clearAllMocks();
 
-    // Setup default mocks
-    mockUseCustomUser.mockReturnValue({
-      user: input.user || { emailVerified: false },
+    // Create mock dependencies
+    const mockSendVerificationEmail = jest.fn();
+    const mockCheckSession = jest.fn();
+    const mockEnqueueSnackbar = jest.fn();
+    const mockAnalyticsService = {
+      track: jest.fn()
+    };
+
+    const mockUseCustomUser = jest.fn().mockReturnValue({
+      user: input.user || { id: "test-user", emailVerified: false },
       checkSession: mockCheckSession
     });
 
-    mockUseServices.mockReturnValue({
-      sendVerificationEmail: mockSendVerificationEmail
-    });
-
-    mockUseSnackbar.mockReturnValue({
+    const mockUseSnackbar = jest.fn().mockReturnValue({
       enqueueSnackbar: mockEnqueueSnackbar
     });
+
+    const mockUseServices = jest.fn().mockReturnValue({
+      analyticsService: mockAnalyticsService
+    });
+
+    const mockServices = {
+      auth: {
+        sendVerificationEmail: mockSendVerificationEmail
+      }
+    } as any;
+
+    const mockSnackbar = ({ title, subTitle, iconVariant }: any) => (
+      <div data-testid="snackbar" data-title={title} data-subtitle={subTitle} data-icon-variant={iconVariant} />
+    );
+
+    const dependencies = {
+      useCustomUser: mockUseCustomUser,
+      useSnackbar: mockUseSnackbar,
+      useServices: mockUseServices,
+      services: mockServices,
+      Snackbar: mockSnackbar
+    };
 
     const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);
     const mockOnComplete = input.onComplete || jest.fn();
 
-    render(<EmailVerificationContainer onComplete={mockOnComplete}>{mockChildren}</EmailVerificationContainer>);
+    render(
+      <EmailVerificationContainer onComplete={mockOnComplete} dependencies={dependencies}>
+        {mockChildren}
+      </EmailVerificationContainer>
+    );
 
-    return { child: mockChildren };
+    return {
+      child: mockChildren,
+      mockSendVerificationEmail,
+      mockCheckSession,
+      mockEnqueueSnackbar,
+      mockAnalyticsService
+    };
   }
 });
