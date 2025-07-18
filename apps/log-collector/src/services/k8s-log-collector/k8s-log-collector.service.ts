@@ -1,5 +1,4 @@
-import { CoreV1Api, KubeConfig, Log } from "@kubernetes/client-node";
-import { V1Pod } from "@kubernetes/client-node/dist/gen/models/V1Pod";
+import { CoreV1Api, KubeConfig, Log, V1Pod } from "@kubernetes/client-node";
 import { PassThrough } from "stream";
 import { singleton } from "tsyringe";
 
@@ -25,7 +24,6 @@ interface LogStreamOptions {
 
 @singleton()
 export class K8sLogCollectorService {
-  private readonly DEFAULT_NAMESPACE = "default";
   private readonly DEFAULT_LOG_STREAM_OPTIONS: LogStreamOptions = {
     follow: true,
     tailLines: 10,
@@ -67,40 +65,37 @@ export class K8sLogCollectorService {
   }
 
   private getCurrentPodName(): string {
-    return this.config.get("HOSTNAME");
+    const hostname = this.config.get("HOSTNAME");
+    if (!hostname) {
+      throw new Error("HOSTNAME environment variable is required but not set");
+    }
+    return hostname;
   }
 
   private getCurrentNamespace(): string {
-    try {
-      return this.config.get("KUBERNETES_NAMESPACE_OVERRIDE") || this.getNamespaceFromKubeConfig();
-    } catch (error) {
-      this.loggerService.error({ error, message: "Could not read namespace from kubeconfig, using default" });
-      return this.DEFAULT_NAMESPACE;
+    const overrideNamespace = this.config.get("KUBERNETES_NAMESPACE_OVERRIDE");
+    if (overrideNamespace) {
+      return overrideNamespace;
     }
+
+    return this.getNamespaceFromKubeConfig();
   }
 
   private getNamespaceFromKubeConfig(): string {
     const currentContext = this.kubeConfig.getCurrentContext();
     this.loggerService.debug({ currentContext });
 
-    if (!currentContext) {
-      this.loggerService.warn({ message: "No current context found in kubeconfig" });
-      return this.DEFAULT_NAMESPACE;
-    }
-
     const context = this.kubeConfig.getContextObject(currentContext);
     this.loggerService.debug({ context });
 
     if (!context) {
-      this.loggerService.warn({ message: "No context object found for current context" });
-      return this.DEFAULT_NAMESPACE;
+      throw new Error(`Context object not found for current context: ${currentContext}`);
     }
 
     const namespace = context.namespace;
 
     if (!namespace) {
-      this.loggerService.warn({ message: "No namespace provided in k8s context, using default" });
-      return this.DEFAULT_NAMESPACE;
+      throw new Error(`No namespace provided in k8s context: ${currentContext}. Please set namespace in context or provide KUBERNETES_NAMESPACE_OVERRIDE`);
     }
 
     this.loggerService.info({ namespace, source: "kubeconfig" });
@@ -125,13 +120,7 @@ export class K8sLogCollectorService {
   }
 
   private filterOutCurrentPod(pods: PodInfo[], currentPodName: string): PodInfo[] {
-    const targetPods = pods.filter(pod => pod.podName !== currentPodName);
-
-    if (pods.length !== targetPods.length) {
-      this.loggerService.info({ podName: currentPodName, message: "Skipping current pod" });
-    }
-
-    return targetPods;
+    return pods.filter(pod => pod.podName !== currentPodName);
   }
 
   private logDiscoveredPods(namespace: string, pods: PodInfo[]): void {

@@ -1,6 +1,7 @@
-import process from "node:process";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 import { z } from "zod";
+
+import { PROCESS_ENV } from "@src/providers/process-env.provider";
 
 @singleton()
 export class ConfigService {
@@ -32,8 +33,8 @@ export class ConfigService {
 
   private readonly envConfig: z.infer<typeof this.envSchema>;
 
-  constructor() {
-    this.envConfig = this.envSchema.parse(process.env);
+  constructor(@inject(PROCESS_ENV) private readonly env: NodeJS.ProcessEnv) {
+    this.envConfig = this.envSchema.parse(env);
   }
 
   get<K extends keyof typeof this.envConfig>(key: K): (typeof this.envConfig)[K] {

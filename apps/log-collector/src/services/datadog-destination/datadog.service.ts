@@ -2,9 +2,9 @@ import { v2 } from "@datadog/datadog-api-client";
 import { singleton } from "tsyringe";
 
 import { LoggerService } from "@src/services/logger/logger.service";
-import { LogDestinationService, LogMetadata } from "../../types/log-destination.interface";
+import { LogDestinationService, LogMetadata } from "@src/types/log-destination.interface";
 
-interface DatadogLogEntry {
+export interface DatadogLogEntry {
   ddsource: string;
   ddtags: string;
   hostname: string;

@@ -4,7 +4,8 @@
     "noImplicitAny": true,
     "outDir": "./dist",
     "paths": {
-      "@src/*": ["./src/*"]
+      "@src/*": ["./src/*"],
+      "@test/*": ["./test/*"]
     },
     "strict": true,
     "target": "es2022",
