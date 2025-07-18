@@ -131,8 +131,11 @@ export class ApiUrlService {
   }
 }
 
-// TODO: implement proper pagination on clients
-//   Issue: https://github.com/akash-network/console/milestone/7
+/**
+ * @deprecated use getAllItems utility from @akashnetwork/http-sdk
+ * TODO: implement proper pagination on clients
+ * Issue: https://github.com/akash-network/console/milestone/7
+ */
 export async function loadWithPagination<T>(baseUrl: string, dataKey: string, limit: number, httpClient: AxiosInstance) {
   let items: T[] = [];
   let nextKey: string | null = null;

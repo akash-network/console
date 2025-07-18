@@ -30,7 +30,7 @@ export const getServerSideProps = defineServerSideProps({
   }),
   async handler({ params, query, services }): Promise<GetServerSidePropsResult<Props>> {
     const apiUrl = services.apiUrlService.getBaseApiUrlFor(query.network);
-    const response = await services.axios.get(`${apiUrl}/v1/providers/${params.owner}`);
+    const response = await services.consoleApiHttpClient.get(`${apiUrl}/v1/providers/${params.owner}`);
 
     return {
       props: {

@@ -15,7 +15,6 @@ import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { useServices } from "@src/context/ServicesProvider";
 import useFormPersist from "@src/hooks/useFormPersist";
 import { useGpuModels } from "@src/queries/useGpuQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import type { ITemplate, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
@@ -34,7 +33,7 @@ const DEFAULT_SERVICES = {
 };
 
 export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
-  const { axios } = useServices();
+  const { consoleApiHttpClient, analyticsService } = useServices();
   const [error, setError] = useState(null);
   const [templateMetadata, setTemplateMetadata] = useState<ITemplate | null>(null);
   const [serviceCollapsed, setServiceCollapsed] = useState<number[]>([]);
@@ -98,7 +97,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
   const loadTemplate = async (id: string) => {
     try {
       setIsLoadingTemplate(true);
-      const response = await axios.get(`/api/proxy/user/template/${id}`);
+      const response = await consoleApiHttpClient.get(`/user/template/${id}`);
       const template: ITemplate = response.data;
 
       const services = importSimpleSdl(template.sdl);
