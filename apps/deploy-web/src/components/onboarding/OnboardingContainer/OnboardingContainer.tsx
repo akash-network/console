@@ -1,18 +1,14 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
 import { UrlService } from "@src/utils/urlUtils";
-import { type OnboardingStep, OnboardingStepper } from "../OnboardingStepper/OnboardingStepper";
-import { EmailVerificationStep } from "../steps/EmailVerificationStep/EmailVerificationStep";
-import { FreeTrialLandingStep } from "../steps/FreeTrialLandingStep/FreeTrialLandingStep";
-import { PaymentMethodStep } from "../steps/PaymentMethodStep/PaymentMethodStep";
-import { WelcomeStep } from "../steps/WelcomeStep/WelcomeStep";
 
-enum OnboardingStepIndex {
+export enum OnboardingStepIndex {
   FREE_TRIAL = 0,
   SIGNUP = 1,
   EMAIL_VERIFICATION = 2,
@@ -20,13 +16,46 @@ enum OnboardingStepIndex {
   WELCOME = 4
 }
 
-export const OnboardingContainer: React.FunctionComponent = () => {
+export type OnboardingStep = {
+  id: string;
+  title: string;
+  description?: string;
+  component: ReactNode | null;
+  isCompleted?: boolean;
+  isDisabled?: boolean;
+  hidePreviousButton?: boolean;
+};
+
+export type OnboardingContainerProps = {
+  children: (props: {
+    currentStep: number;
+    steps: OnboardingStep[];
+    onStepChange: (step: number) => void;
+    onStepComplete: (step: OnboardingStepIndex) => void;
+    onStartTrial: () => void;
+    onPaymentMethodComplete: () => void;
+    onComplete: () => void;
+    isLoading: boolean;
+  }) => ReactNode;
+  dependencies?: typeof DEPENDENCIES;
+};
+
+const DEPENDENCIES = {
+  useUser,
+  usePaymentMethodsQuery,
+  useServices,
+  UrlService
+};
+
+export const OnboardingContainer: React.FunctionComponent<OnboardingContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
   const [currentStep, setCurrentStep] = useState(OnboardingStepIndex.FREE_TRIAL);
   const [completedSteps, setCompletedSteps] = useState<Set<OnboardingStepIndex>>(new Set());
+  const [isLoading] = useState(false);
+
   const router = useRouter();
-  const { data: paymentMethods = [] } = usePaymentMethodsQuery();
-  const user = useUser();
-  const { analyticsService } = useServices();
+  const { data: paymentMethods = [] } = d.usePaymentMethodsQuery();
+  const user = d.useUser();
+  const { analyticsService } = d.useServices();
 
   useEffect(() => {
     const savedStep = localStorage.getItem("onboardingStep");
@@ -52,61 +81,67 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       newUrl.searchParams.delete("fromSignup");
       window.history.replaceState({}, "", newUrl.toString());
     }
-  }, []);
+  }, [analyticsService]);
 
-  const handleStepChange = (step: number) => {
-    if (step === OnboardingStepIndex.PAYMENT_METHOD && currentStep === OnboardingStepIndex.EMAIL_VERIFICATION) {
-      if (!user?.emailVerified) {
-        return;
+  const handleStepChange = useCallback(
+    (step: number) => {
+      if (step === OnboardingStepIndex.PAYMENT_METHOD && currentStep === OnboardingStepIndex.EMAIL_VERIFICATION) {
+        if (!user?.emailVerified) {
+          return;
+        }
       }
-    }
 
-    if (step === OnboardingStepIndex.WELCOME && currentStep === OnboardingStepIndex.PAYMENT_METHOD) {
-      if (paymentMethods.length === 0) {
-        return;
+      if (step === OnboardingStepIndex.WELCOME && currentStep === OnboardingStepIndex.PAYMENT_METHOD) {
+        if (paymentMethods.length === 0) {
+          return;
+        }
       }
-    }
 
-    const stepNames = ["free_trial", "signup", "email_verification", "payment_method", "welcome"];
-    analyticsService.track("onboarding_step_started", {
-      category: "onboarding",
-      step: stepNames[step],
-      step_index: step
-    });
+      const stepNames = ["free_trial", "signup", "email_verification", "payment_method", "welcome"];
+      analyticsService.track("onboarding_step_started", {
+        category: "onboarding",
+        step: stepNames[step],
+        step_index: step
+      });
 
-    setCurrentStep(step);
-    localStorage.setItem("onboardingStep", step.toString());
-  };
+      setCurrentStep(step);
+      localStorage.setItem("onboardingStep", step.toString());
+    },
+    [currentStep, user?.emailVerified, paymentMethods.length, analyticsService]
+  );
 
-  const handleStepComplete = (step: OnboardingStepIndex) => {
-    const stepNames = ["free_trial", "signup", "email_verification", "payment_method", "welcome"];
-    analyticsService.track("onboarding_step_completed", {
-      category: "onboarding",
-      step: stepNames[step],
-      step_index: step
-    });
+  const handleStepComplete = useCallback(
+    (step: OnboardingStepIndex) => {
+      const stepNames = ["free_trial", "signup", "email_verification", "payment_method", "welcome"];
+      analyticsService.track("onboarding_step_completed", {
+        category: "onboarding",
+        step: stepNames[step],
+        step_index: step
+      });
 
-    setCompletedSteps(prev => new Set([...prev, step]));
-  };
+      setCompletedSteps(prev => new Set([...prev, step]));
+    },
+    [analyticsService]
+  );
 
-  const handleComplete = () => {
+  const handleComplete = useCallback(() => {
     localStorage.removeItem("onboardingStep");
     router.push("/");
-  };
+  }, [router]);
 
-  const handleStartTrial = () => {
+  const handleStartTrial = useCallback(() => {
     analyticsService.track("onboarding_free_trial_started", {
       category: "onboarding"
     });
 
     handleStepComplete(OnboardingStepIndex.FREE_TRIAL);
 
-    const returnUrl = `${window.location.origin}${UrlService.onboarding(true)}`;
-    const signupUrl = `${UrlService.signup()}?returnTo=${encodeURIComponent(returnUrl)}`;
+    const returnUrl = `${window.location.origin}${d.UrlService.onboarding(true)}`;
+    const signupUrl = `${d.UrlService.signup()}?returnTo=${encodeURIComponent(returnUrl)}`;
     window.location.href = signupUrl;
-  };
+  }, [analyticsService, handleStepComplete, d.UrlService]);
 
-  const handlePaymentMethodComplete = () => {
+  const handlePaymentMethodComplete = useCallback(() => {
     if (paymentMethods.length > 0) {
       analyticsService.track("onboarding_payment_method_added", {
         category: "onboarding"
@@ -115,14 +150,14 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       handleStepComplete(OnboardingStepIndex.PAYMENT_METHOD);
       handleStepChange(OnboardingStepIndex.WELCOME);
     }
-  };
+  }, [paymentMethods.length, analyticsService, handleStepComplete, handleStepChange]);
 
   const steps: OnboardingStep[] = [
     {
       id: "free-trial",
       title: "Free Trial",
       description: "Learn about benefits",
-      component: <FreeTrialLandingStep onStartTrial={handleStartTrial} />,
+      component: null, // Will be provided by the view
       isCompleted: completedSteps.has(OnboardingStepIndex.FREE_TRIAL)
     },
     {
@@ -136,7 +171,7 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       id: "email-verification",
       title: "Verify Email",
       description: "Confirm your email",
-      component: <EmailVerificationStep onComplete={() => handleStepChange(OnboardingStepIndex.PAYMENT_METHOD)} />,
+      component: null, // Will be provided by the view
       isCompleted: completedSteps.has(OnboardingStepIndex.EMAIL_VERIFICATION),
       isDisabled: !user?.emailVerified,
       hidePreviousButton: true
@@ -145,7 +180,7 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       id: "payment-method",
       title: "Payment Method",
       description: "Add payment info",
-      component: <PaymentMethodStep onComplete={handlePaymentMethodComplete} />,
+      component: null, // Will be provided by the view
       isCompleted: completedSteps.has(OnboardingStepIndex.PAYMENT_METHOD),
       isDisabled: paymentMethods.length === 0
     },
@@ -153,10 +188,23 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       id: "welcome",
       title: "Welcome",
       description: "Get started",
-      component: <WelcomeStep onComplete={handleComplete} />,
+      component: null, // Will be provided by the view
       isCompleted: completedSteps.has(OnboardingStepIndex.WELCOME)
     }
   ];
 
-  return <OnboardingStepper steps={steps} currentStep={currentStep} />;
+  return (
+    <>
+      {children({
+        currentStep,
+        steps,
+        onStepChange: handleStepChange,
+        onStepComplete: handleStepComplete,
+        onStartTrial: handleStartTrial,
+        onPaymentMethodComplete: handlePaymentMethodComplete,
+        onComplete: handleComplete,
+        isLoading
+      })}
+    </>
+  );
 };
