@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
 import { UrlService } from "@src/utils/urlUtils";
@@ -25,6 +26,7 @@ export const OnboardingContainer: React.FunctionComponent = () => {
   const router = useRouter();
   const { data: paymentMethods = [] } = usePaymentMethodsQuery();
   const user = useUser();
+  const { analyticsService } = useServices();
 
   useEffect(() => {
     const savedStep = localStorage.getItem("onboardingStep");
@@ -38,6 +40,10 @@ export const OnboardingContainer: React.FunctionComponent = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const fromSignup = urlParams.get("fromSignup");
     if (fromSignup === "true") {
+      analyticsService.track("onboarding_account_created", {
+        category: "onboarding"
+      });
+
       setCompletedSteps(prev => new Set([...prev, OnboardingStepIndex.SIGNUP]));
       setCurrentStep(OnboardingStepIndex.EMAIL_VERIFICATION);
       localStorage.setItem("onboardingStep", OnboardingStepIndex.EMAIL_VERIFICATION.toString());
@@ -61,11 +67,25 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       }
     }
 
+    const stepNames = ["free_trial", "signup", "email_verification", "payment_method", "welcome"];
+    analyticsService.track("onboarding_step_started", {
+      category: "onboarding",
+      step: stepNames[step],
+      step_index: step
+    });
+
     setCurrentStep(step);
     localStorage.setItem("onboardingStep", step.toString());
   };
 
   const handleStepComplete = (step: OnboardingStepIndex) => {
+    const stepNames = ["free_trial", "signup", "email_verification", "payment_method", "welcome"];
+    analyticsService.track("onboarding_step_completed", {
+      category: "onboarding",
+      step: stepNames[step],
+      step_index: step
+    });
+
     setCompletedSteps(prev => new Set([...prev, step]));
   };
 
@@ -75,6 +95,10 @@ export const OnboardingContainer: React.FunctionComponent = () => {
   };
 
   const handleStartTrial = () => {
+    analyticsService.track("onboarding_free_trial_started", {
+      category: "onboarding"
+    });
+
     handleStepComplete(OnboardingStepIndex.FREE_TRIAL);
 
     const returnUrl = `${window.location.origin}${UrlService.onboarding(true)}`;
@@ -84,6 +108,10 @@ export const OnboardingContainer: React.FunctionComponent = () => {
 
   const handlePaymentMethodComplete = () => {
     if (paymentMethods.length > 0) {
+      analyticsService.track("onboarding_payment_method_added", {
+        category: "onboarding"
+      });
+
       handleStepComplete(OnboardingStepIndex.PAYMENT_METHOD);
       handleStepChange(OnboardingStepIndex.WELCOME);
     }
@@ -101,7 +129,7 @@ export const OnboardingContainer: React.FunctionComponent = () => {
       id: "signup",
       title: "Create Account",
       description: "Sign up with Auth0",
-      component: null, // No component needed for redirect step
+      component: null,
       isCompleted: completedSteps.has(OnboardingStepIndex.SIGNUP)
     },
     {

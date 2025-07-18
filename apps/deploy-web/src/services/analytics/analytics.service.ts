@@ -92,9 +92,26 @@ export type AnalyticsEvent =
   | "edit_name_btn_clk"
   | "payment_cancelled"
   | "payment_success"
-  | "create_deployment_btn_clk";
+  | "create_deployment_btn_clk"
+  | "onboarding_step_started"
+  | "onboarding_step_completed"
+  | "onboarding_free_trial_started"
+  | "onboarding_account_created"
+  | "onboarding_email_verified"
+  | "onboarding_payment_method_added"
+  | "onboarding_completed";
 
-export type AnalyticsCategory = "user" | "billing" | "deployments" | "wallet" | "sdl_builder" | "transactions" | "certificates" | "profile" | "settings";
+export type AnalyticsCategory =
+  | "user"
+  | "billing"
+  | "deployments"
+  | "wallet"
+  | "sdl_builder"
+  | "transactions"
+  | "certificates"
+  | "profile"
+  | "settings"
+  | "onboarding";
 
 export type EventProperties = {
   category?: AnalyticsCategory;

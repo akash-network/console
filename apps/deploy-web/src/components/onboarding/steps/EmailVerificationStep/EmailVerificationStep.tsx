@@ -5,6 +5,7 @@ import { Check, Mail, Refresh } from "iconoir-react";
 import { useSnackbar } from "notistack";
 
 import { Title } from "@src/components/shared/Title";
+import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { services } from "@src/services/http/http-browser.service";
 
@@ -17,6 +18,7 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
   const { enqueueSnackbar } = useSnackbar();
   const [isResending, setIsResending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const { analyticsService } = useServices();
 
   const isEmailVerified = user?.emailVerified;
 
@@ -56,6 +58,9 @@ export const EmailVerificationStep: React.FunctionComponent<EmailVerificationSte
 
   const handleContinue = () => {
     if (isEmailVerified) {
+      analyticsService.track("onboarding_email_verified", {
+        category: "onboarding"
+      });
       onComplete();
     }
   };

@@ -4,12 +4,22 @@ import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } fro
 import { CheckCircle, Rocket } from "iconoir-react";
 
 import { Title } from "@src/components/shared/Title";
+import { useServices } from "@src/context/ServicesProvider";
 
 interface WelcomeStepProps {
   onComplete: () => void;
 }
 
 export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onComplete }) => {
+  const { analyticsService } = useServices();
+
+  const handleComplete = () => {
+    analyticsService.track("onboarding_completed", {
+      category: "onboarding"
+    });
+    onComplete();
+  };
+
   return (
     <div className="space-y-6 text-center">
       <Title>Welcome to Akash Console!</Title>
@@ -32,7 +42,7 @@ export const WelcomeStep: React.FunctionComponent<WelcomeStepProps> = ({ onCompl
             <p>✓ Payment method added</p>
             <p>✓ Free trial activated</p>
           </div>
-          <Button onClick={onComplete} className="w-full">
+          <Button onClick={handleComplete} className="w-full">
             <Rocket className="mr-2 h-4 w-4" />
             Start Deploying
           </Button>
