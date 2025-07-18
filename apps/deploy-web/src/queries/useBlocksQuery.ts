@@ -20,10 +20,10 @@ export function useBlock(id: string, options = {}) {
 }
 
 export function useBlocks(limit: number, options?: Omit<UseQueryOptions<Block[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
-  const { axios } = useServices();
+  const { consoleApiHttpClient } = useServices();
   return useQuery<Block[], Error>({
     queryKey: QueryKeys.getBlocksKey(limit),
-    queryFn: () => axios.get(ApiUrlService.blocks(limit)).then(response => response.data),
+    queryFn: () => consoleApiHttpClient.get(ApiUrlService.blocks(limit)).then(response => response.data),
     ...options
   });
 }

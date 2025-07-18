@@ -63,7 +63,7 @@ const authHandler = once((services: AppServices) =>
                 headers.set("x-anonymous-authorization", anonymousAuthorization);
               }
 
-              const userSettings = await services.axios.post(
+              const userSettings = await services.consoleApiHttpClient.post(
                 `${services.config.BASE_API_MAINNET_URL}/user/tokenInfo`,
                 {
                   wantedUsername: session.user.nickname,

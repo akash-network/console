@@ -10,13 +10,13 @@ import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
 export function useSaveSettings() {
-  const { axios } = useServices();
+  const { consoleApiHttpClient } = useServices();
 
   const { enqueueSnackbar } = useSnackbar();
   const { checkSession } = useCustomUser();
 
   return useMutation<AxiosResponse<any, any>, unknown, UserSettings>({
-    mutationFn: newSettings => axios.put("/api/proxy/user/updateSettings", newSettings),
+    mutationFn: newSettings => consoleApiHttpClient.put("/user/updateSettings", newSettings),
     onSuccess: () => {
       enqueueSnackbar("Settings saved", { variant: "success" });
       checkSession();

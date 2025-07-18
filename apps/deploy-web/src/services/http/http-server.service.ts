@@ -27,7 +27,8 @@ export const services = createChildContainer(rootContainer, {
       requestFn,
       baseUrl: serverEnvConfig.BASE_API_MAINNET_URL
     }),
-  config: () => serverEnvConfig
+  config: () => serverEnvConfig,
+  consoleApiHttpClient: () => services.applyAxiosInterceptors(services.createAxios())
 });
 
 export type AppServices = typeof services;

@@ -12,7 +12,6 @@ import type { RequiredUserConsumer } from "@src/components/user/RequiredUserCont
 import { UserProfileLayout } from "@src/components/user/UserProfileLayout";
 import { useServices } from "@src/context/ServicesProvider";
 import { useSaveSettings } from "@src/queries/useSaveSettings";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { UserSettings } from "@src/types/user";
 import Layout from "../layout/Layout";
 
@@ -30,7 +29,7 @@ const formSchema = z.object({
 });
 
 export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
-  const { axios } = useServices();
+  const { consoleApiHttpClient, analyticsService } = useServices();
   const [isCheckingAvailability, setIsCheckingAvailability] = useState<boolean>(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const form = useForm<z.infer<typeof formSchema>>({
@@ -73,7 +72,7 @@ export const UserSettingsForm: RequiredUserConsumer = ({ user }) => {
     if (user && username && username.length >= 3 && username.length <= 40 && username !== user.username) {
       const timeoutId = setTimeout(async () => {
         setIsCheckingAvailability(true);
-        const response = await axios.get("/api/proxy/user/checkUsernameAvailability/" + username);
+        const response = await consoleApiHttpClient.get(`/user/checkUsernameAvailability/${username}`);
 
         setIsCheckingAvailability(false);
         setIsAvailable(response.data.isAvailable);

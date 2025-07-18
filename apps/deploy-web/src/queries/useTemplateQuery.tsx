@@ -11,30 +11,30 @@ import type { ITemplate } from "@src/types";
 import { QueryKeys } from "./queryKeys";
 
 export function useUserTemplates(username: string, options?: Omit<UseQueryOptions<ITemplate[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
-  const { axios } = useServices();
+  const { consoleApiHttpClient } = useServices();
   return useQuery<ITemplate[], Error>({
     queryKey: QueryKeys.getUserTemplatesKey(username),
-    queryFn: () => axios.get<ITemplate[]>(`/api/proxy/user/templates/${username}`).then(response => response.data),
+    queryFn: () => consoleApiHttpClient.get<ITemplate[]>(`/user/templates/${username}`).then(response => response.data),
     ...options
   });
 }
 
 export function useUserFavoriteTemplates(options?: Omit<UseQueryOptions<Partial<ITemplate>[], Error, any, QueryKey>, "queryKey" | "queryFn">) {
   const { user } = useCustomUser();
-  const { axios } = useServices();
+  const { consoleApiHttpClient } = useServices();
   return useQuery<Partial<ITemplate>[], Error>({
     queryKey: QueryKeys.getUserFavoriteTemplatesKey(user?.sub || ""),
-    queryFn: () => axios.get<Partial<ITemplate>[]>(`/api/proxy/user/favoriteTemplates`).then(response => response.data),
+    queryFn: () => consoleApiHttpClient.get<Partial<ITemplate>[]>(`/user/favoriteTemplates`).then(response => response.data),
     ...options
   });
 }
 
 export function useTemplate(id: string, options?: Omit<UseQueryOptions<ITemplate, Error, any, QueryKey>, "queryKey" | "queryFn">) {
-  const { axios } = useServices();
+  const { consoleApiHttpClient } = useServices();
 
   return useQuery<ITemplate, Error>({
     queryKey: QueryKeys.getTemplateKey(id),
-    queryFn: () => axios.get<ITemplate>(`/api/proxy/user/template/${id}`).then(response => response.data),
+    queryFn: () => consoleApiHttpClient.get<ITemplate>(`/user/template/${id}`).then(response => response.data),
     ...options
   });
 }
@@ -45,11 +45,11 @@ export function useSaveUserTemplate(
   } = {}
 ) {
   const queryClient = useQueryClient();
-  const { axios } = useServices();
+  const { consoleApiHttpClient } = useServices();
 
   return useMutation({
     mutationFn: (template: Partial<ITemplate>) =>
-      axios.post("/api/proxy/user/saveTemplate", {
+      consoleApiHttpClient.post("/user/saveTemplate", {
         id: template.id,
         sdl: template.sdl,
         isPublic: template.isPublic,
@@ -71,10 +71,10 @@ export function useSaveUserTemplate(
 export function useDeleteTemplate(id: string) {
   const { user } = useCustomUser();
   const queryClient = useQueryClient();
-  const { axios } = useServices();
+  const { consoleApiHttpClient } = useServices();
 
   return useMutation({
-    mutationFn: () => axios.delete(`/api/proxy/user/deleteTemplate/${id}`),
+    mutationFn: () => consoleApiHttpClient.delete(`/user/deleteTemplate/${id}`),
     onSuccess: () => {
       if (user.username) {
         queryClient.setQueryData(QueryKeys.getUserTemplatesKey(user?.username), (oldData: ITemplate[] = []) => {
@@ -87,10 +87,10 @@ export function useDeleteTemplate(id: string) {
 
 export function useAddFavoriteTemplate(id: string) {
   const { enqueueSnackbar } = useSnackbar();
-  const { axios } = useServices();
+  const { consoleApiHttpClient } = useServices();
 
   return useMutation({
-    mutationFn: () => axios.post(`/api/proxy/user/addFavoriteTemplate/${id}`),
+    mutationFn: () => consoleApiHttpClient.post(`/user/addFavoriteTemplate/${id}`),
     onSuccess: () => {
       enqueueSnackbar(<Snackbar title="Favorite added!" iconVariant="success" />, { variant: "success" });
     }
@@ -99,10 +99,10 @@ export function useAddFavoriteTemplate(id: string) {
 
 export function useRemoveFavoriteTemplate(id: string) {
   const { enqueueSnackbar } = useSnackbar();
-  const { axios } = useServices();
+  const { consoleApiHttpClient } = useServices();
 
   return useMutation({
-    mutationFn: () => axios.delete(`/api/proxy/user/removeFavoriteTemplate/${id}`),
+    mutationFn: () => consoleApiHttpClient.delete(`/user/removeFavoriteTemplate/${id}`),
     onSuccess: () => {
       enqueueSnackbar(<Snackbar title="Favorite removed" iconVariant="success" />, { variant: "success" });
     }

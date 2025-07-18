@@ -1,4 +1,5 @@
-import axios from "axios";
+import type { AxiosInstance } from "axios";
+import type axios from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { REDIRECT_URL } from "@src/config/remote-deploy.config";
@@ -8,13 +9,19 @@ import type { GitHubProfile } from "@src/types/remoteProfile";
 const GITHUB_API_URL = "https://api.github.com";
 
 export class GitHubService {
-  private readonly axiosInstance = axios.create({
-    baseURL: GITHUB_API_URL,
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json"
-    }
-  });
+  private readonly githubApiService: AxiosInstance;
+  private readonly internalApiService: AxiosInstance;
+
+  constructor(internalApiService: AxiosInstance, createHttpClient: typeof axios.create) {
+    this.internalApiService = internalApiService;
+    this.githubApiService = createHttpClient({
+      baseURL: GITHUB_API_URL,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json"
+      }
+    });
+  }
 
   loginWithGithub() {
     window.location.href = browserEnvConfig.NEXT_PUBLIC_GITHUB_APP_INSTALLATION_URL;
@@ -25,7 +32,7 @@ export class GitHubService {
   }
 
   async fetchUserProfile(token?: string | null) {
-    const response = await this.axiosInstance.get<GitHubProfile>("/user", {
+    const response = await this.githubApiService.get<GitHubProfile>("/user", {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -34,7 +41,7 @@ export class GitHubService {
   }
 
   async fetchRepos(token?: string | null) {
-    const response = await this.axiosInstance.get<GithubRepository[]>("/user/repos?per_page=150", {
+    const response = await this.githubApiService.get<GithubRepository[]>("/user/repos?per_page=150", {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -43,7 +50,7 @@ export class GitHubService {
   }
 
   async fetchBranches(repo?: string, token?: string | null) {
-    const response = await this.axiosInstance.get(`/repos/${repo}/branches`, {
+    const response = await this.githubApiService.get(`/repos/${repo}/branches`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -52,7 +59,7 @@ export class GitHubService {
   }
 
   async fetchCommits(repo?: string, branch?: string, token?: string | null) {
-    const response = await this.axiosInstance.get<GitCommit[]>(`/repos/${repo}/commits?sha=${branch}`, {
+    const response = await this.githubApiService.get<GitCommit[]>(`/repos/${repo}/commits?sha=${branch}`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -61,7 +68,7 @@ export class GitHubService {
   }
 
   async fetchPackageJson(repo?: string, subFolder?: string | undefined, token?: string | null) {
-    const response = await this.axiosInstance.get(`/repos/${repo}/contents/${subFolder ? `${subFolder}/` : ""}package.json`, {
+    const response = await this.githubApiService.get(`/repos/${repo}/contents/${subFolder ? `${subFolder}/` : ""}package.json`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -70,7 +77,7 @@ export class GitHubService {
   }
 
   async fetchSrcFolders(repo: string, token?: string | null) {
-    const response = await this.axiosInstance.get(`/repos/${repo}/contents`, {
+    const response = await this.githubApiService.get(`/repos/${repo}/contents`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -79,7 +86,7 @@ export class GitHubService {
   }
 
   async fetchAccessToken(code: string) {
-    const response = await axios.post(`/api/github/authenticate`, { code });
+    const response = await this.internalApiService.post(`/api/github/authenticate`, { code });
     return response.data;
   }
 }

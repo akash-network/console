@@ -22,3 +22,4 @@ export * from "./cosmos";
 export * from "./coin-gecko";
 export * from "./node";
 export * from "./certificates/certificates.service";
+export { getAllItems } from "./utils/pagination.utils";
