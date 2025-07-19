@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@akashnetwork/ui/components";
-import { Check, Cloud, Dollar, Rocket, Server, Shield } from "iconoir-react";
+import { Check, Cloud, Dollar, Rocket, Server } from "iconoir-react";
 
 import { AkashLogo } from "@src/components/layout/AkashLogo";
 import { Title } from "@src/components/shared/Title";
@@ -16,11 +16,6 @@ const benefits = [
     icon: <Cloud className="h-6 w-6" />,
     title: "Access to Global Infrastructure",
     description: "Deploy across a worldwide network of providers with competitive pricing."
-  },
-  {
-    icon: <Shield className="h-6 w-6" />,
-    title: "Secure & Reliable",
-    description: "Enterprise-grade security with built-in redundancy and monitoring."
   },
   {
     icon: <Server className="h-6 w-6" />,
@@ -59,7 +54,6 @@ export const FreeTrialLandingStep: React.FunctionComponent<FreeTrialLandingStepP
         </div>
 
         <div className="mx-auto max-w-2xl rounded-lg bg-muted/50 p-6">
-          <h3 className="mb-2 text-lg font-semibold">What&apos;s Included in Your Free Trial:</h3>
           <ul className="space-y-2 text-left">
             <li className="flex items-center gap-2">
               <Check className="h-4 w-4 text-green-600" />
@@ -75,7 +69,7 @@ export const FreeTrialLandingStep: React.FunctionComponent<FreeTrialLandingStepP
             </li>
             <li className="flex items-center gap-2">
               <Check className="h-4 w-4 text-green-600" />
-              <span>Keep unused credits if you purchase credits</span>
+              <span>Keep unused free credits if you purchase credits</span>
             </li>
           </ul>
         </div>
