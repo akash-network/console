@@ -1,5 +1,8 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  res.status(200).json({ data: { status: "ok" } });
-}
+export default defineApiHandler({
+  route: "/api/healthz",
+  async handler({ res }) {
+    res.status(200).json({ data: { status: "ok" } });
+  }
+});

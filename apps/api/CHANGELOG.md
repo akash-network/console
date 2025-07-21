@@ -1,5 +1,51 @@
 
 
+## [2.106.1](https://github.com/akash-network/console/compare/console-api/v2.106.0...console-api/v2.106.1) (2025-07-16)
+
+
+### Bug Fixes
+
+* **billing:** return empty array for discounts when no stripe id ([#1694](https://github.com/akash-network/console/issues/1694)) ([19ec3c2](https://github.com/akash-network/console/commit/19ec3c2681bcb56adf059e7d7506e2bdb103d1ee))
+
+## [2.106.0](https://github.com/akash-network/console/compare/console-api/v2.105.1...console-api/v2.106.0) (2025-07-16)
+
+
+### Features
+
+* allow filtering stripe charges list api by date created and endingBefore cursor  ([fe986bd](https://github.com/akash-network/console/commit/fe986bdd63051c9dfe3751c1c56fab0025205c1c))
+* **billing:** add usage ui ([77b5d42](https://github.com/akash-network/console/commit/77b5d42aaf4e153a6fe9f6723567520434f3d25b))
+
+## [2.105.1](https://github.com/akash-network/console/compare/console-api/v2.105.0...console-api/v2.105.1) (2025-07-15)
+
+
+### Bug Fixes
+
+* blockchain proxy cert expired, so ignoring it ([#1685](https://github.com/akash-network/console/issues/1685)) ([3a2e205](https://github.com/akash-network/console/commit/3a2e20587918b60bb836a83704129dba27df9bae))
+
+## [2.105.0](https://github.com/akash-network/console/compare/console-api/v2.104.0...console-api/v2.105.0) (2025-07-14)
+
+
+### Features
+
+* **billing:** apply coupon to balance ([#1658](https://github.com/akash-network/console/issues/1658)) ([e5a0420](https://github.com/akash-network/console/commit/e5a04202cdd267aa55e9152a62a0066df45a5471))
+
+## [2.104.0](https://github.com/akash-network/console/compare/console-api/v2.103.2...console-api/v2.104.0) (2025-07-08)
+
+
+### Features
+
+* adds error code to collected error stack ([#1595](https://github.com/akash-network/console/issues/1595)) ([fef764f](https://github.com/akash-network/console/commit/fef764f8de77d501e7d0a136b5a9b5692d71d2ad))
+
+
+### Bug Fixes
+
+* serve Swagger docs from app.ts ([#1618](https://github.com/akash-network/console/issues/1618)) ([fc6bcdf](https://github.com/akash-network/console/commit/fc6bcdf743addaa1f325419af37ab39627dceceb))
+
+
+### Code Refactoring
+
+* move /templates endpoints to a module ([#1498](https://github.com/akash-network/console/issues/1498)) ([7f78555](https://github.com/akash-network/console/commit/7f785556853a038e70b04818e0b0cf8a39c2f8e6)), closes [#1273](https://github.com/akash-network/console/issues/1273)
+
 ## [2.103.2](https://github.com/akash-network/console/compare/console-api/v2.103.1...console-api/v2.103.2) (2025-07-06)
 
 

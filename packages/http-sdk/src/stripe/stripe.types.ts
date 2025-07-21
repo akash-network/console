@@ -19,6 +19,7 @@ export interface Coupon {
 
 export interface CouponResponse {
   coupon: Coupon | null;
+  amountAdded?: number;
   error?: {
     message: string;
     code?: string;
@@ -78,4 +79,21 @@ export interface ConfirmPaymentParams {
 
 export interface ApplyCouponParams {
   coupon: string;
+  userId: string;
+}
+
+export interface CustomerTransactionsParams {
+  limit?: number;
+  startingAfter?: string | null;
+  endingBefore?: string | null;
+  startDate?: Date | null;
+  endDate?: Date | null;
+}
+
+export interface CustomerTransactionsResponse {
+  transactions: Charge[];
+  hasMore: boolean;
+  nextPage: string | null;
+  prevPage: string | null;
+  totalCount: number;
 }

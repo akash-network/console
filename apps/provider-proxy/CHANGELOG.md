@@ -1,5 +1,44 @@
 
 
+## [1.13.3](https://github.com/akash-network/console/compare/provider-proxy/v1.13.2...provider-proxy/v1.13.3) (2025-07-15)
+
+
+### Bug Fixes
+
+* blockchain proxy cert expired, so ignoring it ([#1685](https://github.com/akash-network/console/issues/1685)) ([3a2e205](https://github.com/akash-network/console/commit/3a2e20587918b60bb836a83704129dba27df9bae))
+
+## [1.13.2](https://github.com/akash-network/console/compare/provider-proxy/v1.13.1...provider-proxy/v1.13.2) (2025-07-15)
+
+
+### Bug Fixes
+
+* disable automatic SNI on provider proxy ([#1667](https://github.com/akash-network/console/issues/1667)) ([d9d258e](https://github.com/akash-network/console/commit/d9d258e71c1ae1e1960dc78bae0188c50951f96e))
+
+## [1.13.1](https://github.com/akash-network/console/compare/provider-proxy/v1.13.0...provider-proxy/v1.13.1) (2025-07-14)
+
+
+### Bug Fixes
+
+* ensure tracing context is propagated during proxing ([#1664](https://github.com/akash-network/console/issues/1664)) ([a19a7db](https://github.com/akash-network/console/commit/a19a7dbc878f879f6a14f02b0f114ff6e26204ed))
+* throw 400 on SSL error on invalid cert ([#1678](https://github.com/akash-network/console/issues/1678)) ([6617500](https://github.com/akash-network/console/commit/661750046e91bead6400c8ccdc3b6d6bcaf5cf84)), closes [#1537](https://github.com/akash-network/console/issues/1537)
+
+
+### Code Refactoring
+
+* properly close servers in functional tests ([#1645](https://github.com/akash-network/console/issues/1645)) ([a73a1c9](https://github.com/akash-network/console/commit/a73a1c9bdac917e5f0680c6abd7aead2ec1f9afd))
+
+## [1.13.0](https://github.com/akash-network/console/compare/provider-proxy/v1.12.10...provider-proxy/v1.13.0) (2025-07-08)
+
+
+### Features
+
+* adds error code to collected error stack ([#1595](https://github.com/akash-network/console/issues/1595)) ([fef764f](https://github.com/akash-network/console/commit/fef764f8de77d501e7d0a136b5a9b5692d71d2ad))
+
+
+### Bug Fixes
+
+* transform 500 provider error to actual 400 error ([#1643](https://github.com/akash-network/console/issues/1643)) ([175b31c](https://github.com/akash-network/console/commit/175b31c96632755bc520fc8713c2244ada301a81)), closes [#1574](https://github.com/akash-network/console/issues/1574)
+
 ## [1.12.10](https://github.com/akash-network/console/compare/provider-proxy/v1.12.9...provider-proxy/v1.12.10) (2025-07-06)
 
 

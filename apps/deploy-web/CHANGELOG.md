@@ -1,5 +1,90 @@
 
 
+## [2.96.2](https://github.com/akash-network/console/compare/console-web/v2.96.1...console-web/v2.96.2) (2025-07-16)
+
+
+### Bug Fixes
+
+* **template:** removes client side middleware from server side props ([9da8fdc](https://github.com/akash-network/console/commit/9da8fdc313203e6b3f752ced016ce684ed4a6d33))
+
+## [2.96.1](https://github.com/akash-network/console/compare/console-web/v2.96.0...console-web/v2.96.1) (2025-07-16)
+
+
+### Bug Fixes
+
+* **alert:** properly displays deployment closed alert type in a list ([b001d29](https://github.com/akash-network/console/commit/b001d296374e4391701abd8389fdeedb2d94cd07))
+
+## [2.96.0](https://github.com/akash-network/console/compare/console-web/v2.95.1...console-web/v2.96.0) (2025-07-16)
+
+
+### Features
+
+* add calendar and date-range-picker ui components ([cc96f0f](https://github.com/akash-network/console/commit/cc96f0f71ea9078f39775623144058785b745e6c))
+* **alert:** implements deployment closed alert handler ([#1683](https://github.com/akash-network/console/issues/1683)) ([3253b75](https://github.com/akash-network/console/commit/3253b75cb2d2679996ed9df15265a5fd1a6401fe))
+* allow filtering stripe charges list api by date created and endingBefore cursor  ([fe986bd](https://github.com/akash-network/console/commit/fe986bdd63051c9dfe3751c1c56fab0025205c1c))
+* **billing:** add usage ui ([77b5d42](https://github.com/akash-network/console/commit/77b5d42aaf4e153a6fe9f6723567520434f3d25b))
+
+## [2.95.1](https://github.com/akash-network/console/compare/console-web/v2.95.0...console-web/v2.95.1) (2025-07-15)
+
+
+### Bug Fixes
+
+* blockchain proxy cert expired, so ignoring it ([#1685](https://github.com/akash-network/console/issues/1685)) ([3a2e205](https://github.com/akash-network/console/commit/3a2e20587918b60bb836a83704129dba27df9bae))
+
+## [2.95.0](https://github.com/akash-network/console/compare/console-web/v2.94.0...console-web/v2.95.0) (2025-07-15)
+
+
+### Features
+
+* **alert:** implements deployment closed alert management based on chain events ([cabd46a](https://github.com/akash-network/console/commit/cabd46ae63221fa219b336448e6e046202a585b5))
+* **billing:** update tos ([#1671](https://github.com/akash-network/console/issues/1671)) ([80d4048](https://github.com/akash-network/console/commit/80d4048f0502a4289d56961b1ac54fb283ec0e84))
+
+
+### Bug Fixes
+
+* do not break on tx error ([#1682](https://github.com/akash-network/console/issues/1682)) ([db1b625](https://github.com/akash-network/console/commit/db1b6254458857153f04999e427daeaa354737ac)), closes [#1675](https://github.com/akash-network/console/issues/1675)
+
+## [2.94.0](https://github.com/akash-network/console/compare/console-web/v2.93.1...console-web/v2.94.0) (2025-07-14)
+
+
+### Features
+
+* adds distributed trace propagation for deploy-web ([#1666](https://github.com/akash-network/console/issues/1666)) ([df003dd](https://github.com/akash-network/console/commit/df003ddc01ec3183333323e2c2c75dbc6369e511))
+* **billing:** apply coupon to balance ([#1658](https://github.com/akash-network/console/issues/1658)) ([e5a0420](https://github.com/akash-network/console/commit/e5a04202cdd267aa55e9152a62a0066df45a5471))
+
+
+### Bug Fixes
+
+* prevent request to provider-proxy when deployment is closed ([#1660](https://github.com/akash-network/console/issues/1660)) ([db15052](https://github.com/akash-network/console/commit/db15052f76abc2419a8f87b6375be57b384d61f7))
+
+
+### Code Refactoring
+
+* creates reusable defineApiHandler ([#1656](https://github.com/akash-network/console/issues/1656)) ([768c503](https://github.com/akash-network/console/commit/768c5037a1a7db8be43f30f9fb65be20ca44d218))
+* hides more services inside DI ([#1665](https://github.com/akash-network/console/issues/1665)) ([705bdb6](https://github.com/akash-network/console/commit/705bdb6a5c5c02f2f27dfb29926b39d231230fbc))
+* replaces getServerSideProps with defineServerSideProps factory ([#1649](https://github.com/akash-network/console/issues/1649)) ([873dafb](https://github.com/akash-network/console/commit/873dafb6199ae5714a7b24cc5c26c80a136be379))
+
+## [2.93.1](https://github.com/akash-network/console/compare/console-web/v2.93.0...console-web/v2.93.1) (2025-07-09)
+
+
+### Bug Fixes
+
+* **notification-channel:** goes back after successful form submission without prompt ([ed4b28c](https://github.com/akash-network/console/commit/ed4b28cffcc19849557f229b050be6db63ac73b6))
+
+## [2.93.0](https://github.com/akash-network/console/compare/console-web/v2.92.1...console-web/v2.93.0) (2025-07-08)
+
+
+### Features
+
+* adds error code to collected error stack ([#1595](https://github.com/akash-network/console/issues/1595)) ([fef764f](https://github.com/akash-network/console/commit/fef764f8de77d501e7d0a136b5a9b5692d71d2ad))
+* improves observability of SSR part of deploy-web ([#1642](https://github.com/akash-network/console/issues/1642)) ([ad55727](https://github.com/akash-network/console/commit/ad5572745235ce42691f314cfca61576607fbc1b))
+
+
+### Code Refactoring
+
+* fix hacky ref logic in ImageSelect ([#1624](https://github.com/akash-network/console/issues/1624)) ([e77e2df](https://github.com/akash-network/console/commit/e77e2dff0c198871cf14f98b68d62cf9b2bbc5dc)), closes [#1045](https://github.com/akash-network/console/issues/1045) [#1045](https://github.com/akash-network/console/issues/1045)
+* moves services into DI ([#1636](https://github.com/akash-network/console/issues/1636)) ([d2756f0](https://github.com/akash-network/console/commit/d2756f0383e97578c441faade2ad8a1fe6c66235))
+
 ## [2.92.1](https://github.com/akash-network/console/compare/console-web/v2.92.0...console-web/v2.92.1) (2025-07-06)
 
 

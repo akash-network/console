@@ -10239,9 +10239,13 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                       "couponId": {
                         "type": "string",
                       },
+                      "userId": {
+                        "type": "string",
+                      },
                     },
                     "required": [
                       "couponId",
+                      "userId",
                     ],
                     "type": "object",
                   },
@@ -10262,6 +10266,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
+                        "amountAdded": {
+                          "type": "number",
+                        },
                         "coupon": {
                           "nullable": true,
                           "properties": {
@@ -10682,8 +10689,40 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "name": "startingAfter",
             "required": false,
             "schema": {
-              "description": "ID of the last transaction from the previous page",
+              "description": "ID of the last transaction from the previous page (if paginating forwards)",
               "example": "ch_1234567890",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "endingBefore",
+            "required": false,
+            "schema": {
+              "description": "ID of the first transaction from the previous page (if paginating backwards)",
+              "example": "ch_0987654321",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": false,
+            "schema": {
+              "description": "Start date for filtering transactions (inclusive)",
+              "example": "2025-01-01T00:00:00Z",
+              "format": "date-time",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": false,
+            "schema": {
+              "description": "End date for filtering transactions (inclusive)",
+              "example": "2025-01-02T00:00:00Z",
+              "format": "date-time",
               "type": "string",
             },
           },
@@ -11581,8 +11620,8 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 "schema": {
                   "items": {
                     "properties": {
-                      "activeLeases": {
-                        "description": "Number of active leases on this date",
+                      "activeDeployments": {
+                        "description": "Number of active deployments on this date",
                         "example": 3,
                         "type": "number",
                       },
@@ -11624,7 +11663,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                     },
                     "required": [
                       "date",
-                      "activeLeases",
+                      "activeDeployments",
                       "dailyAktSpent",
                       "totalAktSpent",
                       "dailyUsdcSpent",
@@ -11693,18 +11732,18 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
               "application/json": {
                 "schema": {
                   "properties": {
-                    "averageLeasesPerDay": {
-                      "description": "Average number of leases deployed per day",
+                    "averageDeploymentsPerDay": {
+                      "description": "Average number of deployments deployed per day",
                       "example": 1.5,
                       "type": "number",
                     },
-                    "averagePerDay": {
+                    "averageSpentPerDay": {
                       "description": "Average spending per day in USD",
                       "example": 12.34,
                       "type": "number",
                     },
-                    "totalLeases": {
-                      "description": "Total number of leases deployed",
+                    "totalDeployments": {
+                      "description": "Total number of deployments deployed",
                       "example": 15,
                       "type": "number",
                     },
@@ -11716,9 +11755,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                   },
                   "required": [
                     "totalSpent",
-                    "averagePerDay",
-                    "totalLeases",
-                    "averageLeasesPerDay",
+                    "averageSpentPerDay",
+                    "totalDeployments",
+                    "averageDeploymentsPerDay",
                   ],
                   "type": "object",
                 },

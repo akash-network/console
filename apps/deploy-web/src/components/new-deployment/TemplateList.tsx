@@ -147,6 +147,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
                 <Link
                   href={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: helloWorldTemplate.code })}
                   className="text-inherit underline"
+                  prefetch={false}
                   data-testid="hello-world-card"
                 >
                   Try hello world app!
@@ -155,7 +156,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
             </div>
 
             <div className="my-6">
-              <Link href={UrlService.templates()} className="inline-flex items-center space-x-2 text-xs font-bold text-muted-foreground">
+              <Link href={UrlService.templates()} prefetch={false} className="inline-flex items-center space-x-2 text-xs font-bold text-muted-foreground">
                 <span>View All Templates</span>
                 <ArrowRight className="text-xs" />
               </Link>

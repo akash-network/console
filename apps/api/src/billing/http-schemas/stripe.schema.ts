@@ -1,3 +1,4 @@
+import { differenceInDays } from "date-fns";
 import { z } from "zod";
 
 export const SetupIntentResponseSchema = z.object({
@@ -61,7 +62,8 @@ export const ConfirmPaymentRequestSchema = z.object({
 
 export const ApplyCouponRequestSchema = z.object({
   data: z.object({
-    couponId: z.string()
+    couponId: z.string(),
+    userId: z.string()
   })
 });
 
@@ -77,6 +79,7 @@ export const CouponSchema = z.object({
 export const ApplyCouponResponseSchema = z.object({
   data: z.object({
     coupon: CouponSchema.nullable().optional(),
+    amountAdded: z.number().optional(),
     error: z
       .object({
         message: z.string(),
@@ -125,20 +128,48 @@ export const CustomerTransactionsResponseSchema = z.object({
   })
 });
 
-export const CustomerTransactionsQuerySchema = z.object({
-  limit: z.number().optional().openapi({
-    type: "number",
-    minimum: 1,
-    maximum: 100,
-    description: "Number of transactions to return",
-    example: 100,
-    default: 100
-  }),
-  startingAfter: z.string().optional().openapi({
-    description: "ID of the last transaction from the previous page",
-    example: "ch_1234567890"
+export const CustomerTransactionsQuerySchema = z
+  .object({
+    limit: z.coerce.number().optional().openapi({
+      type: "number",
+      minimum: 1,
+      maximum: 100,
+      description: "Number of transactions to return",
+      example: 100,
+      default: 100
+    }),
+    startingAfter: z.string().optional().openapi({
+      description: "ID of the last transaction from the previous page (if paginating forwards)",
+      example: "ch_1234567890"
+    }),
+    endingBefore: z.string().optional().openapi({
+      description: "ID of the first transaction from the previous page (if paginating backwards)",
+      example: "ch_0987654321"
+    }),
+    startDate: z.string().datetime().optional().openapi({
+      description: "Start date for filtering transactions (inclusive)",
+      example: "2025-01-01T00:00:00Z"
+    }),
+    endDate: z.string().datetime().optional().openapi({
+      description: "End date for filtering transactions (inclusive)",
+      example: "2025-01-02T00:00:00Z"
+    })
   })
-});
+  .refine(
+    data => {
+      if (!data.startDate || !data.endDate) {
+        return true;
+      }
+
+      const start = new Date(data.startDate);
+      const end = new Date(data.endDate);
+
+      return start <= end && differenceInDays(end, start) <= 366;
+    },
+    {
+      message: "Date range cannot exceed 366 days and startDate must be before endDate"
+    }
+  );
 
 export const ErrorResponseSchema = z.object({
   message: z.string(),

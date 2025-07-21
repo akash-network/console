@@ -27,7 +27,8 @@
         "notifications",
         "alert",
         "notification-channel",
-        "jwt"
+        "jwt",
+        "log-collector"
       ]
     ]
   }

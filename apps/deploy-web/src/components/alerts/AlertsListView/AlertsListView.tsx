@@ -86,7 +86,7 @@ export const AlertsListView: FC<Props> = ({
 
         if (type === "DEPLOYMENT_BALANCE") {
           return "Escrow Threshold";
-        } else if (type === "CHAIN_MESSAGE" && params && "type" in params && params.type === "DEPLOYMENT_CLOSED") {
+        } else if (params && "type" in params && params.type === "DEPLOYMENT_CLOSED") {
           return "Deployment Close";
         }
 

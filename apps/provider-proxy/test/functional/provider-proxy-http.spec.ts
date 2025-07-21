@@ -15,13 +15,12 @@ describe("Provider HTTP proxy", () => {
     await startServer();
   });
 
-  afterAll(() => {
-    stopServer();
+  afterAll(async () => {
+    await stopServer();
   });
 
-  afterEach(() => {
-    stopProviderServer();
-    stopChainAPIServer();
+  afterEach(async () => {
+    await Promise.all([stopProviderServer(), stopChainAPIServer()]);
   });
 
   it("proxies request if provider uses self-signed certificate which is available on chain", async () => {
@@ -177,6 +176,40 @@ describe("Provider HTTP proxy", () => {
 
     body = await response.text();
     expect(body).toContain("expired");
+  });
+
+  it("returns 400 if provider returns SSL alert number 42", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+
+    await startChainApiServer([validCertPair.cert]);
+    const providerUrl = await startProviderServer({
+      certPair: validCertPair,
+      handlers: {
+        "/alert42.txt"(_, res) {
+          res.writeHead(500);
+          res.end(
+            "Error: 586231C63A7A0000:error:0A000412:SSL routines:ssl3_read_bytes:sslv3 alert bad certificate:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1605:SSL alert number 42"
+          );
+        }
+      }
+    });
+
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({
+        method: "GET",
+        url: `${providerUrl}/alert42.txt`,
+        providerAddress,
+        network
+      })
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.text();
+    expect(body).toContain(
+      "Error: 586231C63A7A0000:error:0A000412:SSL routines:ssl3_read_bytes:sslv3 alert bad certificate:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1605:SSL alert number 42"
+    );
   });
 
   it("retries fetching chain certificates if chain API is unavailable", async () => {

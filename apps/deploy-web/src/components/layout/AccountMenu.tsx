@@ -11,11 +11,11 @@ import {
   Spinner
 } from "@akashnetwork/ui/components";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
-import { Key, User } from "iconoir-react";
-import { LogOut, MultiplePages, Settings, Star } from "iconoir-react";
+import { GraphUp, Key, LogOut, MultiplePages, Settings, Star, User } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { useFlag } from "@src/hooks/useFlag";
 import { UrlService } from "@src/utils/urlUtils";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 
@@ -24,6 +24,7 @@ export function AccountMenu() {
   const { user, isLoading } = useCustomUser();
   const username = user?.username;
   const router = useRouter();
+  const isBillingUsageEnabled = useFlag("billing_usage");
 
   return (
     <React.Fragment>
@@ -89,6 +90,11 @@ export function AccountMenu() {
                         <CustomDropdownLinkItem onClick={() => router.push(UrlService.userFavorites())} icon={<Star />}>
                           Favorites
                         </CustomDropdownLinkItem>
+                        {isBillingUsageEnabled && (
+                          <CustomDropdownLinkItem onClick={() => router.push(UrlService.usage())} icon={<GraphUp />}>
+                            Usage
+                          </CustomDropdownLinkItem>
+                        )}
                         <DropdownMenuSeparator />
                         <CustomDropdownLinkItem onClick={() => (window.location.href = UrlService.logout())} icon={<LogOut />}>
                           Logout

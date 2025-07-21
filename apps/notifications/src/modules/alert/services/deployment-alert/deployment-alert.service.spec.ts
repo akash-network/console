@@ -13,9 +13,9 @@ import { DeploymentAlertService } from "@src/modules/alert/services/deployment-a
 
 import { MockProvider } from "@test/mocks/provider.mock";
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
-import { generateChainMessageAlert } from "@test/seeders/chain-message-alert.seeder";
 import { generateDeploymentBalanceAlertInput, generateDeploymentBalanceAlertOutput } from "@test/seeders/deployment-alert.seeder";
 import { generateDeploymentBalanceAlert } from "@test/seeders/deployment-balance-alert.seeder";
+import { generateGeneralAlert } from "@test/seeders/general-alert.seeder";
 
 describe(DeploymentAlertService.name, () => {
   describe("upsert", () => {
@@ -59,7 +59,7 @@ describe(DeploymentAlertService.name, () => {
         userId,
         notificationChannelId: input.alerts.deploymentClosed.notificationChannelId,
         enabled: input.alerts.deploymentClosed.enabled,
-        type: "CHAIN_MESSAGE",
+        type: "CHAIN_EVENT",
         params: {
           dseq: input.dseq,
           type: "DEPLOYMENT_CLOSED"
@@ -67,13 +67,18 @@ describe(DeploymentAlertService.name, () => {
         conditions: {
           value: [
             {
-              field: "value.id.owner",
+              field: "action",
+              value: "deployment-closed",
+              operator: "eq"
+            },
+            {
+              field: "owner",
               value: input.owner,
               operator: "eq"
             },
             {
-              field: "type",
-              value: "akash.deployment.v1beta3.MsgCloseDeployment",
+              field: "dseq",
+              value: input.dseq,
               operator: "eq"
             }
           ],
@@ -138,7 +143,8 @@ describe(DeploymentAlertService.name, () => {
           owner
         }
       });
-      const deploymentClosedRawAlert = generateChainMessageAlert({
+      const deploymentClosedRawAlert = generateGeneralAlert({
+        type: "CHAIN_EVENT",
         params: {
           dseq,
           type: "DEPLOYMENT_CLOSED"
@@ -146,13 +152,18 @@ describe(DeploymentAlertService.name, () => {
         conditions: {
           value: [
             {
-              field: "value.id.owner",
+              field: "action",
+              value: "deployment-closed",
+              operator: "eq"
+            },
+            {
+              field: "owner",
               value: owner,
               operator: "eq"
             },
             {
-              field: "type",
-              value: "akash.deployment.v1beta3.MsgCloseDeployment",
+              field: "dseq",
+              value: dseq,
               operator: "eq"
             }
           ],

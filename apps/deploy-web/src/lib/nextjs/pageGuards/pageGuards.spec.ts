@@ -5,10 +5,10 @@ import { mock } from "jest-mock-extended";
 
 import type { FeatureFlagService } from "@src/services/feature-flag/feature-flag.service";
 import type { AppTypedContext } from "../defineServerSideProps/defineServerSideProps";
-import { isFeatureEnabled, isRegisteredUser, redirectIfAccessTokenExpired } from "./pageGuards";
+import { isAuthenticated, isFeatureEnabled, redirectIfAccessTokenExpired } from "./pageGuards";
 
 describe("pageGuards", () => {
-  describe("isRegisteredUser", () => {
+  describe("isAuthenticated", () => {
     it("returns true when user is logged in", async () => {
       const context = setup({
         session: {
@@ -18,7 +18,7 @@ describe("pageGuards", () => {
         }
       });
 
-      const result = await isRegisteredUser(context);
+      const result = await isAuthenticated(context);
 
       expect(result).toBe(true);
     });
@@ -28,7 +28,7 @@ describe("pageGuards", () => {
         session: undefined
       });
 
-      const result = await isRegisteredUser(context);
+      const result = await isAuthenticated(context);
 
       expect(result).toBe(false);
     });

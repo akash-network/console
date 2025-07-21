@@ -5,6 +5,7 @@ import https from "https";
 import { LRUCache } from "lru-cache";
 import { TLSSocket } from "tls";
 
+import { propagateTracingContext } from "../utils/telemetry";
 import type { CertificateValidator, CertValidationResultError } from "./CertificateValidator";
 
 export class ProviderProxy {
@@ -24,7 +25,8 @@ export class ProviderProxy {
       cert: options.cert,
       key: options.key,
       chainNetwork: options.network,
-      providerAddress: options.providerAddress
+      providerAddress: options.providerAddress,
+      servername: ""
     };
     const agent = this.getHttpsAgent(agentOptions);
     return new Promise<ProxyConnectionResult>((resolve, reject) => {
@@ -38,7 +40,7 @@ export class ProviderProxy {
           },
           agent
         },
-        async res => {
+        propagateTracingContext(async res => {
           try {
             const socket = res.socket;
             if (!socket || !(socket instanceof TLSSocket)) {
@@ -75,19 +77,25 @@ export class ProviderProxy {
             res.destroy();
             resolve({ ok: false, code: "connectionError", error });
           }
-        }
+        })
       );
 
       if (!req.reusedSocket) {
-        req.on("error", error => {
-          resolve({ ok: false, code: "connectionError", error });
-        });
-        req.on("timeout", () => {
-          // here we are just notified that response take more than specified in request options timeout
-          // then we manually destroy request and it drops connection and
-          // on('error') handler is called with Error code = ECONNRESET
-          req.destroy();
-        });
+        req.on(
+          "error",
+          propagateTracingContext(error => {
+            resolve({ ok: false, code: "connectionError", error });
+          })
+        );
+        req.on(
+          "timeout",
+          propagateTracingContext(() => {
+            // here we are just notified that response take more than specified in request options timeout
+            // then we manually destroy request and it drops connection and
+            // on('error') handler is called with Error code = ECONNRESET
+            req.destroy();
+          })
+        );
       }
 
       if (options.body && options.method !== "GET") req.write(options.body);

@@ -1,5 +1,36 @@
 
 
+## [1.18.0](https://github.com/akash-network/console/compare/notifications/v1.17.0...notifications/v1.18.0) (2025-07-16)
+
+
+### Features
+
+* **alert:** implements deployment closed alert handler ([#1683](https://github.com/akash-network/console/issues/1683)) ([3253b75](https://github.com/akash-network/console/commit/3253b75cb2d2679996ed9df15265a5fd1a6401fe))
+* allow filtering stripe charges list api by date created and endingBefore cursor  ([fe986bd](https://github.com/akash-network/console/commit/fe986bdd63051c9dfe3751c1c56fab0025205c1c))
+* **billing:** add usage ui ([77b5d42](https://github.com/akash-network/console/commit/77b5d42aaf4e153a6fe9f6723567520434f3d25b))
+
+## [1.17.0](https://github.com/akash-network/console/compare/notifications/v1.16.0...notifications/v1.17.0) (2025-07-15)
+
+
+### Features
+
+* **alert:** implements deployment closed alert management based on chain events ([cabd46a](https://github.com/akash-network/console/commit/cabd46ae63221fa219b336448e6e046202a585b5))
+
+## [1.16.0](https://github.com/akash-network/console/compare/notifications/v1.15.0...notifications/v1.16.0) (2025-07-14)
+
+
+### Features
+
+* **billing:** apply coupon to balance ([#1658](https://github.com/akash-network/console/issues/1658)) ([e5a0420](https://github.com/akash-network/console/commit/e5a04202cdd267aa55e9152a62a0066df45a5471))
+* **notifications:** implement chain events ([c4db374](https://github.com/akash-network/console/commit/c4db3740a208a7b2ca1887df760d1cdf2b72723e))
+
+## [1.15.0](https://github.com/akash-network/console/compare/notifications/v1.14.2...notifications/v1.15.0) (2025-07-08)
+
+
+### Features
+
+* adds error code to collected error stack ([#1595](https://github.com/akash-network/console/issues/1595)) ([fef764f](https://github.com/akash-network/console/commit/fef764f8de77d501e7d0a136b5a9b5692d71d2ad))
+
 ## [1.14.2](https://github.com/akash-network/console/compare/notifications/v1.14.1...notifications/v1.14.2) (2025-07-06)
 
 

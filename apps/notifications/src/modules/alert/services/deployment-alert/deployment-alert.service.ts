@@ -178,7 +178,7 @@ export class DeploymentAlertService {
       userId,
       notificationChannelId,
       enabled,
-      type: "CHAIN_MESSAGE",
+      type: "CHAIN_EVENT",
       params: {
         dseq,
         type: "DEPLOYMENT_CLOSED"
@@ -186,13 +186,18 @@ export class DeploymentAlertService {
       conditions: {
         value: [
           {
-            field: "value.id.owner",
+            field: "action",
+            value: "deployment-closed",
+            operator: "eq"
+          },
+          {
+            field: "owner",
             value: owner,
             operator: "eq"
           },
           {
-            field: "type",
-            value: "akash.deployment.v1beta3.MsgCloseDeployment",
+            field: "dseq",
+            value: dseq,
             operator: "eq"
           }
         ],
@@ -228,7 +233,7 @@ export class DeploymentAlertService {
           status: alert.status,
           suppressedBySystem: !!alert.params.suppressedBySystem
         };
-      } else if (alert.type === "CHAIN_MESSAGE" && alert.params) {
+      } else if (alert.type === "CHAIN_EVENT" && alert.params) {
         const params = alert.params as { dseq?: string; type?: string };
         if (params.type === "DEPLOYMENT_CLOSED") {
           result.alerts.deploymentClosed = {

@@ -1,7 +1,5 @@
 import React, { useContext } from "react";
 import { AuthzHttpService, CertificatesService } from "@akashnetwork/http-sdk";
-import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
-import { requestFn } from "@openapi-qraft/react";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import type { DIContainer, Factories } from "@src/services/container/createContainer";
@@ -33,12 +31,6 @@ export function useServices() {
 
 function createAppContainer<T extends Factories>(settings: Settings, services: T) {
   const di = createChildContainer(rootContainer, {
-    notificationsApi: () =>
-      createAPIClient({
-        requestFn,
-        baseUrl: "/api/proxy",
-        queryClient: di.queryClient
-      }),
     authzHttpService: () => new AuthzHttpService({ baseURL: settings?.apiEndpoint }),
     walletBalancesService: () =>
       new WalletBalancesService(di.authzHttpService, di.axios, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS, settings.apiEndpoint),
