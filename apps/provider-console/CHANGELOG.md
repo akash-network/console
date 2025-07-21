@@ -1,5 +1,12 @@
 
 
+## [1.17.0](https://github.com/akash-network/console/compare/provider-console/v1.16.0...provider-console/v1.17.0) (2025-07-21)
+
+
+### Features
+
+* **provider:** wp: api key page ([#1497](https://github.com/akash-network/console/issues/1497)) ([21c9c9d](https://github.com/akash-network/console/commit/21c9c9d260d665027bb9a19f757fdb474c4f3841))
+
 ## [1.16.0](https://github.com/akash-network/console/compare/provider-console/v1.15.3...provider-console/v1.16.0) (2025-07-16)
 
 
