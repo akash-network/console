@@ -138,6 +138,19 @@ describe("OnboardingContainer", () => {
   function setup(input: { paymentMethods?: any[]; user?: any } = {}) {
     jest.clearAllMocks();
 
+    // Mock window.location to prevent jsdom navigation errors
+    // Only set default values if window.location is not already mocked
+    if (!window.location.search) {
+      Object.defineProperty(window, "location", {
+        value: {
+          href: "http://localhost/onboarding",
+          origin: "http://localhost",
+          search: ""
+        },
+        writable: true
+      });
+    }
+
     // Create mock objects
     const mockAnalyticsService = {
       track: jest.fn()
