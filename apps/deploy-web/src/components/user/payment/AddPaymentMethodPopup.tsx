@@ -3,8 +3,8 @@ import { ErrorBoundary } from "react-error-boundary";
 import { Popup } from "@akashnetwork/ui/components";
 import { Elements } from "@stripe/react-stripe-js";
 
+import { PaymentMethodForm } from "@src/components/shared";
 import { getStripe } from "@src/utils/stripeUtils";
-import { AddPaymentMethodForm } from "./AddPaymentMethodForm";
 
 interface AddPaymentMethodPopupProps {
   open: boolean;
@@ -35,7 +35,7 @@ export const AddPaymentMethodPopup: React.FC<AddPaymentMethodPopupProps> = ({ op
                 }
               }}
             >
-              <AddPaymentMethodForm onSuccess={onSuccess} />
+              <PaymentMethodForm onSuccess={onSuccess} buttonText="Add Card" processingText="Processing..." />
             </Elements>
           ) : (
             <div className="p-4 text-center text-muted-foreground">

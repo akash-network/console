@@ -16,7 +16,6 @@ export function ConfettiAnimation() {
   const [confetti, setConfetti] = useState<ConfettiPiece[]>([]);
 
   useEffect(() => {
-    // Generate confetti pieces
     const pieces: ConfettiPiece[] = [];
     const colors = ["#FF3B4E", "#FFD700", "#7FFF00", "#00BFFF", "#FF69B4", "#9370DB"];
 
@@ -33,7 +32,6 @@ export function ConfettiAnimation() {
 
     setConfetti(pieces);
 
-    // Clean up
     return () => {
       setConfetti([]);
     };
