@@ -2,9 +2,11 @@
 import React from "react";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@akashnetwork/ui/components";
 import { Check, Cloud, Dollar, Rocket, Server } from "iconoir-react";
+import Link from "next/link";
 
 import { AkashLogo } from "@src/components/layout/AkashLogo";
 import { Title } from "@src/components/shared/Title";
+import { UrlService } from "@src/utils/urlUtils";
 
 const benefits = [
   {
@@ -51,6 +53,19 @@ export const FreeTrialLandingStep: React.FunctionComponent<FreeTrialLandingStepP
           <Button size="lg" className="px-8 py-4 text-lg" onClick={onStartTrial}>
             Start Free Trial
           </Button>
+        </div>
+
+        <div className="mb-8 text-center">
+          <p className="text-xs text-muted-foreground">
+            By starting your free trial, you agree to our{" "}
+            <Link href={UrlService.termsOfService()} className="text-primary hover:underline">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href={UrlService.privacyPolicy()} className="text-primary hover:underline">
+              Privacy Policy
+            </Link>
+          </p>
         </div>
 
         <div className="mx-auto max-w-2xl rounded-lg bg-muted/50 p-6">

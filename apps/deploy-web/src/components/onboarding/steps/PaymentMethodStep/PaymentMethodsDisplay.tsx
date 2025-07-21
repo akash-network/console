@@ -1,6 +1,9 @@
 import React from "react";
 import { Alert, Button, Card, CardContent, CardHeader, CardTitle, LoadingButton } from "@akashnetwork/ui/components";
 import { Check, CreditCard, Trash } from "iconoir-react";
+import Link from "next/link";
+
+import { UrlService } from "@src/utils/urlUtils";
 
 interface PaymentMethod {
   id: string;
@@ -92,6 +95,19 @@ export const PaymentMethodsDisplay: React.FunctionComponent<PaymentMethodsDispla
         >
           {isLoading ? "Starting Trial..." : "Start Trial"}
         </LoadingButton>
+      </div>
+
+      <div className="mx-auto max-w-md text-center">
+        <p className="text-xs text-muted-foreground">
+          By starting your trial, you agree to our{" "}
+          <Link href={UrlService.termsOfService()} className="text-primary hover:underline">
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link href={UrlService.privacyPolicy()} className="text-primary hover:underline">
+            Privacy Policy
+          </Link>
+        </p>
       </div>
     </div>
   );
