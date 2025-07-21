@@ -25,7 +25,6 @@ export interface OnboardingViewProps {
   onStartTrial: () => void;
   onPaymentMethodComplete: () => void;
   onComplete: () => void;
-  isLoading: boolean;
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -36,10 +35,8 @@ export const OnboardingView: FC<OnboardingViewProps> = ({
   onStartTrial,
   onPaymentMethodComplete,
   onComplete,
-  isLoading,
   dependencies: d = DEPENDENCIES
 }) => {
-  // Create steps with components
   const stepsWithComponents: OnboardingStep[] = [
     {
       ...steps[0],
@@ -66,17 +63,6 @@ export const OnboardingView: FC<OnboardingViewProps> = ({
       component: <d.WelcomeStep onComplete={onComplete} />
     }
   ];
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
-          <p className="mt-2 text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   return <d.OnboardingStepper steps={stepsWithComponents} currentStep={currentStep} />;
 };

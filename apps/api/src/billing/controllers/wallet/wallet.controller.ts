@@ -37,13 +37,6 @@ export class WalletController {
   @Semaphore()
   @Protected([{ action: "create", subject: "UserWallet" }])
   async create({ data: { userId } }: StartTrialRequestInput): Promise<WalletOutputResponse> {
-    return {
-      data: await this.walletInitializer.initializeAndGrantTrialLimits(userId)
-    };
-  }
-
-  @Protected([{ action: "read", subject: "UserWallet" }])
-  async getWallets(query: GetWalletQuery): Promise<WalletListOutputResponse> {
     const { currentUser } = this.authService;
 
     if (!this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
@@ -53,6 +46,13 @@ export class WalletController {
       assert(paymentMethods.length > 0, 403, "Payment method required. Please add a payment method to your account before starting a trial.");
     }
 
+    return {
+      data: await this.walletInitializer.initializeAndGrantTrialLimits(userId)
+    };
+  }
+
+  @Protected([{ action: "read", subject: "UserWallet" }])
+  async getWallets(query: GetWalletQuery): Promise<WalletListOutputResponse> {
     return {
       data: await this.walletReaderService.getWallets(query as GetWalletOptions)
     };

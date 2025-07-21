@@ -25,8 +25,7 @@ describe("OnboardingContainer", () => {
       onStepComplete: expect.any(Function),
       onStartTrial: expect.any(Function),
       onPaymentMethodComplete: expect.any(Function),
-      onComplete: expect.any(Function),
-      isLoading: false
+      onComplete: expect.any(Function)
     });
   });
 

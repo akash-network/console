@@ -140,7 +140,6 @@ describe("EmailVerificationContainer", () => {
   function setup(input: { user?: any; onComplete?: jest.Mock } = {}) {
     jest.clearAllMocks();
 
-    // Create mock dependencies
     const mockSendVerificationEmail = jest.fn();
     const mockCheckSession = jest.fn();
     const mockEnqueueSnackbar = jest.fn();

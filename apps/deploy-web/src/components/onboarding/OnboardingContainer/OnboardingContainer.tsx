@@ -35,7 +35,6 @@ export type OnboardingContainerProps = {
     onStartTrial: () => void;
     onPaymentMethodComplete: () => void;
     onComplete: () => void;
-    isLoading: boolean;
   }) => ReactNode;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -51,7 +50,6 @@ const DEPENDENCIES = {
 export const OnboardingContainer: React.FunctionComponent<OnboardingContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
   const [currentStep, setCurrentStep] = useState(OnboardingStepIndex.FREE_TRIAL);
   const [completedSteps, setCompletedSteps] = useState<Set<OnboardingStepIndex>>(new Set());
-  const [isLoading] = useState(false);
 
   const router = d.useRouter();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery();
@@ -158,7 +156,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       id: "free-trial",
       title: "Free Trial",
       description: "Learn about benefits",
-      component: null, // Will be provided by the view
+      component: null,
       isCompleted: completedSteps.has(OnboardingStepIndex.FREE_TRIAL)
     },
     {
@@ -172,7 +170,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       id: "email-verification",
       title: "Verify Email",
       description: "Confirm your email",
-      component: null, // Will be provided by the view
+      component: null,
       isCompleted: completedSteps.has(OnboardingStepIndex.EMAIL_VERIFICATION),
       isDisabled: !user?.emailVerified,
       hidePreviousButton: true
@@ -181,7 +179,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       id: "payment-method",
       title: "Payment Method",
       description: "Add payment info",
-      component: null, // Will be provided by the view
+      component: null,
       isCompleted: completedSteps.has(OnboardingStepIndex.PAYMENT_METHOD),
       isDisabled: paymentMethods.length === 0
     },
@@ -189,7 +187,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       id: "welcome",
       title: "Welcome",
       description: "Get started",
-      component: null, // Will be provided by the view
+      component: null,
       isCompleted: completedSteps.has(OnboardingStepIndex.WELCOME)
     }
   ];
@@ -203,8 +201,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
         onStepComplete: handleStepComplete,
         onStartTrial: handleStartTrial,
         onPaymentMethodComplete: handlePaymentMethodComplete,
-        onComplete: handleComplete,
-        isLoading
+        onComplete: handleComplete
       })}
     </>
   );

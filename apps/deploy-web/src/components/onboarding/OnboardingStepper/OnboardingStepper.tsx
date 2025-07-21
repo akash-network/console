@@ -31,7 +31,7 @@ export const OnboardingStepper: React.FunctionComponent<OnboardingStepperProps> 
   return (
     <div className={`mx-auto max-w-4xl ${className}`}>
       <div className="mb-8">
-        <Stepper steps={stepperSteps} activeStep={currentStep} clickable={true} showArrows={false} />
+        <Stepper steps={stepperSteps} activeStep={currentStep} clickable={false} showArrows={false} />
       </div>
 
       {currentStepData?.component && <div className="mb-8">{currentStepData.component}</div>}
