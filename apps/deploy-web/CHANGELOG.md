@@ -1,5 +1,12 @@
 
 
+## [2.96.3](https://github.com/akash-network/console/compare/console-web/v2.96.2...console-web/v2.96.3) (2025-07-21)
+
+
+### Bug Fixes
+
+* exports jwt wallet utils ([#1696](https://github.com/akash-network/console/issues/1696)) ([356813b](https://github.com/akash-network/console/commit/356813ba0fb9b6b8dda9b7d52d777a134477437b))
+
 ## [2.96.2](https://github.com/akash-network/console/compare/console-web/v2.96.1...console-web/v2.96.2) (2025-07-16)
 
 
