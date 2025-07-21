@@ -1,5 +1,12 @@
 
 
+## [2.107.0](https://github.com/akash-network/console/compare/console-api/v2.106.1...console-api/v2.107.0) (2025-07-21)
+
+
+### Features
+
+* **provider:** added provider-earnings api ([#1646](https://github.com/akash-network/console/issues/1646)) ([3376863](https://github.com/akash-network/console/commit/3376863c1f817c73438a917bec6ada5f0031a2b7))
+
 ## [2.106.1](https://github.com/akash-network/console/compare/console-api/v2.106.0...console-api/v2.106.1) (2025-07-16)
 
 
