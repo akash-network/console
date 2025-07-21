@@ -6,6 +6,7 @@ import { type OnboardingStep, OnboardingStepper } from "../OnboardingStepper/Onb
 import { EmailVerificationContainer } from "../steps/EmailVerificationContainer/EmailVerificationContainer";
 import { EmailVerificationStep } from "../steps/EmailVerificationStep/EmailVerificationStep";
 import { FreeTrialLandingStep } from "../steps/FreeTrialLandingStep/FreeTrialLandingStep";
+import { PaymentMethodContainer } from "../steps/PaymentMethodContainer/PaymentMethodContainer";
 import { PaymentMethodStep } from "../steps/PaymentMethodStep/PaymentMethodStep";
 import { WelcomeStep } from "../steps/WelcomeStep/WelcomeStep";
 
@@ -14,6 +15,7 @@ const DEPENDENCIES = {
   FreeTrialLandingStep,
   EmailVerificationContainer,
   EmailVerificationStep,
+  PaymentMethodContainer,
   PaymentMethodStep,
   WelcomeStep
 };
@@ -56,7 +58,7 @@ export const OnboardingView: FC<OnboardingViewProps> = ({
     },
     {
       ...steps[3],
-      component: <d.PaymentMethodStep onComplete={onPaymentMethodComplete} />
+      component: <d.PaymentMethodContainer onComplete={onPaymentMethodComplete}>{props => <d.PaymentMethodStep {...props} />}</d.PaymentMethodContainer>
     },
     {
       ...steps[4],
