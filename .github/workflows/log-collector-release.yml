@@ -1,0 +1,39 @@
+name: Release Log Collector
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/log-collector/package.json"
+
+jobs:
+  release:
+    name: Create Release
+    uses: ./.github/workflows/reusable-create-github-release.yml
+    secrets: inherit
+    with:
+      app: log-collector
+
+  build:
+    runs-on: ubuntu-latest
+    needs: release
+    name: Build Docker image
+    if: needs.release.outputs.git_tag != ''
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        shell: bash
+        run: |
+          image="${{ vars.LOG_COLLECTOR_REGISTRY }}:${{ needs.release.outputs.git_tag }}"
+          docker build -f apps/log-collector/Dockerfile -t $image .
+          docker push $image
