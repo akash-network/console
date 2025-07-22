@@ -34,6 +34,10 @@ jobs:
       - name: Build Docker image
         shell: bash
         run: |
-          image="${{ vars.LOG_COLLECTOR_REGISTRY }}:${{ needs.release.outputs.git_tag }}"
-          docker build -f apps/log-collector/Dockerfile -t $image .
-          docker push $image
+          full_tag="${{ needs.release.outputs.git_tag }}"
+          version="${full_tag#*/}"
+          version="${version#v}"
+          image="${{ vars.LOG_COLLECTOR_REGISTRY }}:$version"
+
+          docker build -f apps/log-collector/Dockerfile -t "$image" .
+          docker push "$image"
