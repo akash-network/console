@@ -20,6 +20,7 @@
     "lint": "eslint .",
     "migration:gen": "drizzle-kit generate",
     "prod": "node dist/server.js",
+    "release": "release-it",
     "test": "jest",
     "test:cov": "jest --coverage",
     "test:watch": "jest --watch"
@@ -38,6 +39,7 @@
   },
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
+    "@akashnetwork/releaser": "*",
     "@faker-js/faker": "^8.4.1",
     "@types/jest": "^29.5.12",
     "@types/node": "^22.13.11",
