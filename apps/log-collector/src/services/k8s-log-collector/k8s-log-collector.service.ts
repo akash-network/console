@@ -1,4 +1,5 @@
 import { CoreV1Api, KubeConfig, Log, V1Pod } from "@kubernetes/client-node";
+import partition from "lodash/partition";
 import { PassThrough } from "stream";
 import { singleton } from "tsyringe";
 
@@ -140,7 +141,28 @@ export class K8sLogCollectorService {
 
     const streamPromises = pods.map(pod => this.streamPodLogs(namespace, pod.podName, logDestination));
 
-    await Promise.all(streamPromises);
+    const results = await Promise.allSettled(streamPromises);
+
+    const [fulfilled, rejected] = partition(results, result => result.status === "fulfilled");
+    const succeeded = fulfilled.length;
+    const failed = rejected.length;
+
+    this.loggerService.info({
+      namespace,
+      totalPods: pods.length,
+      succeeded,
+      failed,
+      message: "Log stream results"
+    });
+
+    if (failed > 0) {
+      const failedPods = rejected.map(result => {
+        const originalIndex = results.indexOf(result);
+        return pods[originalIndex].podName;
+      });
+
+      throw new Error(`Log streams failed for pods: ${failedPods.join(", ")}`);
+    }
   }
 
   private async streamPodLogs(namespace: string, podName: string, logDestination: LogDestinationService): Promise<void> {
