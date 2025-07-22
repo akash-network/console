@@ -1,5 +1,13 @@
 
 
+## [2.107.2](https://github.com/akash-network/console/compare/console-api/v2.107.1...console-api/v2.107.2) (2025-07-22)
+
+
+### Bug Fixes
+
+* fix wallet creation error on stripe webhook ([#1684](https://github.com/akash-network/console/issues/1684)) ([595275e](https://github.com/akash-network/console/commit/595275e2cf8b749d1c404759d397d4d1819eaefd)), closes [#1662](https://github.com/akash-network/console/issues/1662)
+* make userAgent 500 max chars long ([#1677](https://github.com/akash-network/console/issues/1677)) ([b929e99](https://github.com/akash-network/console/commit/b929e99af69d88ba2c1c8cd39c1b19fe1f1334ad)), closes [#1520](https://github.com/akash-network/console/issues/1520)
+
 ## [2.107.1](https://github.com/akash-network/console/compare/console-api/v2.107.0...console-api/v2.107.1) (2025-07-22)
 
 
