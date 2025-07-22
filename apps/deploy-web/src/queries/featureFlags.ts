@@ -11,12 +11,12 @@ import { QueryKeys } from "./queryKeys";
 const REFETCH_INTERVAL = 1000 * 60 * 5;
 /** @deprecated use useFlag instead */
 export function useFeatureFlags(options?: Omit<UseQueryOptions<Features>, "queryKey" | "queryFn">): UseQueryResult<Features> {
-  const { consoleApiHttpClient, apiUrlService } = useServices();
+  const { publicConsoleApiHttpClient, apiUrlService } = useServices();
   const networkId = networkStore.useSelectedNetworkId();
   return useQuery({
     ...options,
     queryKey: QueryKeys.getFeatureFlagsKey(networkId),
-    queryFn: () => getFeatureFlags(networkId, consoleApiHttpClient, apiUrlService),
+    queryFn: () => getFeatureFlags(networkId, publicConsoleApiHttpClient, apiUrlService),
     refetchInterval: REFETCH_INTERVAL
   });
 }
@@ -26,7 +26,8 @@ export interface Features {
 }
 
 export async function getFeatureFlags(networkId: NetworkId, consoleApiHttpClient: AxiosInstance, apiUrlService: ApiUrlService) {
-  const baseApiUrl = apiUrlService.getBaseApiUrlFor(networkId);
-  const response = await consoleApiHttpClient.get<{ data: Features }>(`${baseApiUrl}/v1/features`);
+  const response = await consoleApiHttpClient.get<{ data: Features }>("/v1/features", {
+    baseURL: apiUrlService.getBaseApiUrlFor(networkId)
+  });
   return response.data.data;
 }
