@@ -1,5 +1,12 @@
 
 
+## [2.107.1](https://github.com/akash-network/console/compare/console-api/v2.107.0...console-api/v2.107.1) (2025-07-22)
+
+
+### Code Refactoring
+
+* creates separate axios instance per intent ([#1702](https://github.com/akash-network/console/issues/1702)) ([b15370f](https://github.com/akash-network/console/commit/b15370fccc676982705c41c7b659752a467aef0d)), closes [#1668](https://github.com/akash-network/console/issues/1668)
+
 ## [2.107.0](https://github.com/akash-network/console/compare/console-api/v2.106.1...console-api/v2.107.0) (2025-07-21)
 
 
