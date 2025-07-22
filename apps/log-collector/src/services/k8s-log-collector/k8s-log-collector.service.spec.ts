@@ -124,7 +124,7 @@ describe(K8sLogCollectorService.name, () => {
 
     jest.spyOn(k8sLogCollectorService as any, "createLogStream").mockReturnValue(mockStream);
 
-    await expect(k8sLogCollectorService.collectLogs(logDestination)).rejects.toThrow("Stream error");
+    await expect(k8sLogCollectorService.collectLogs(logDestination)).rejects.toThrow("Log streams failed for pods:");
 
     expect(loggerService.error).toHaveBeenCalledWith({
       error: expect.any(Error),
