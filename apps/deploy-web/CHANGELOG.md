@@ -1,5 +1,12 @@
 
 
+## [2.96.5](https://github.com/akash-network/console/compare/console-web/v2.96.4...console-web/v2.96.5) (2025-07-22)
+
+
+### Bug Fixes
+
+* uses a separate consoleApiHttpClient for public access ([#1719](https://github.com/akash-network/console/issues/1719)) ([f817d47](https://github.com/akash-network/console/commit/f817d47133411a70c47ea9ab3c48b55860801f77))
+
 ## [2.96.4](https://github.com/akash-network/console/compare/console-web/v2.96.3...console-web/v2.96.4) (2025-07-22)
 
 
