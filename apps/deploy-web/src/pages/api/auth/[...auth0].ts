@@ -64,7 +64,7 @@ const authHandler = once((services: AppServices) =>
               }
 
               const userSettings = await services.consoleApiHttpClient.post(
-                `${services.config.BASE_API_MAINNET_URL}/user/tokenInfo`,
+                `${services.apiUrlService.getBaseApiUrlFor("mainnet")}/user/tokenInfo`,
                 {
                   wantedUsername: session.user.nickname,
                   email: session.user.email,

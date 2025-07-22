@@ -33,5 +33,7 @@ export const services = createChildContainer(rootContainer, {
   consoleApiHttpClient: () =>
     services.applyAxiosInterceptors(services.createAxios({ baseURL: browserEnvConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL }), {
       request: [services.authService.withAnonymousUserHeader]
-    })
+    }),
+  /** TODO: https://github.com/akash-network/console/issues/1720 */
+  publicConsoleApiHttpClient: () => services.applyAxiosInterceptors(services.createAxios())
 });
