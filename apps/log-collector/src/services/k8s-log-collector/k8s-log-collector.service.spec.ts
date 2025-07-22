@@ -1,5 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { CoreV1Api, KubeConfig, Log } from "@kubernetes/client-node";
+import { mock } from "jest-mock-extended";
+import type { PassThrough } from "node:stream";
 import { container } from "tsyringe";
 
 import { PROCESS_ENV } from "@src/providers/process-env.provider";
@@ -22,6 +24,16 @@ describe(K8sLogCollectorService.name, () => {
       spec: { containers: [{ name: "main-container" }] }
     });
     k8sLogClient.log.mockResolvedValue(new AbortController());
+
+    const mockStream = mock<PassThrough>();
+    mockStream.on.mockImplementation((event: string, handler: (...args: any[]) => void) => {
+      if (event === "end") {
+        setTimeout(() => handler(), 0);
+      }
+      return mockStream;
+    });
+
+    jest.spyOn(k8sLogCollectorService as any, "createLogStream").mockReturnValue(mockStream);
 
     await k8sLogCollectorService.collectLogs(logDestination);
 
@@ -89,6 +101,35 @@ describe(K8sLogCollectorService.name, () => {
     await expect(k8sLogCollectorService.collectLogs(logDestination)).rejects.toThrow(
       "No namespace provided in k8s context: test-context. Please set namespace in context or provide KUBERNETES_NAMESPACE_OVERRIDE"
     );
+  });
+
+  it("should handle stream errors and propagate them", async () => {
+    const config = seedConfigTestData();
+    const { k8sLogCollectorService, k8sClient, k8sLogClient, loggerService } = setup(config);
+    const { pods, logDestination } = seedK8sTestData();
+
+    k8sClient.listNamespacedPod.mockResolvedValue({ items: pods });
+    k8sClient.readNamespacedPod.mockResolvedValue({
+      spec: { containers: [{ name: "main-container" }] }
+    });
+    k8sLogClient.log.mockResolvedValue(new AbortController());
+
+    const mockStream = mock<PassThrough>();
+    mockStream.on.mockImplementation((event: string, handler: (...args: any[]) => void) => {
+      if (event === "error") {
+        setTimeout(() => handler(new Error("Stream error")), 0);
+      }
+      return mockStream;
+    });
+
+    jest.spyOn(k8sLogCollectorService as any, "createLogStream").mockReturnValue(mockStream);
+
+    await expect(k8sLogCollectorService.collectLogs(logDestination)).rejects.toThrow("Stream error");
+
+    expect(loggerService.error).toHaveBeenCalledWith({
+      error: expect.any(Error),
+      message: "Error collecting logs"
+    });
   });
 
   function setup(config: ConfigTestData) {
