@@ -1,4 +1,5 @@
-import axios from "axios";
+import type { AxiosInstance } from "axios";
+import type axios from "axios";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import type { BitBucketCommit } from "@src/types/remoteCommits";
@@ -8,32 +9,36 @@ import type { BitRepository, BitWorkspace } from "@src/types/remoteRepos";
 const BITBUCKET_API_URL = "https://api.bitbucket.org/2.0";
 
 export class BitbucketService {
-  private axiosInstance = axios.create({
-    baseURL: BITBUCKET_API_URL,
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json"
-    }
-  });
+  private readonly bitbucketApiHttpClient: AxiosInstance;
+  private readonly internalApiService: AxiosInstance;
 
-  constructor() {}
+  constructor(internalApiService: AxiosInstance, createHttpClient: typeof axios.create) {
+    this.internalApiService = internalApiService;
+    this.bitbucketApiHttpClient = createHttpClient({
+      baseURL: BITBUCKET_API_URL,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json"
+      }
+    });
+  }
 
   public loginWithBitBucket() {
     window.location.href = `https://bitbucket.org/site/oauth2/authorize?client_id=${browserEnvConfig.NEXT_PUBLIC_BITBUCKET_CLIENT_ID}&response_type=code`;
   }
 
   async fetchRefreshToken(refreshToken?: string | null) {
-    const response = await axios.post(`/api/bitbucket/refresh`, { refreshToken });
+    const response = await this.internalApiService.post(`/api/bitbucket/refresh`, { refreshToken });
     return response.data;
   }
 
   async fetchAccessToken(code: string) {
-    const response = await axios.post(`/api/bitbucket/authenticate`, { code });
+    const response = await this.internalApiService.post(`/api/bitbucket/authenticate`, { code });
     return response.data;
   }
 
   async fetchUserProfile(accessToken?: string | null) {
-    const response = await this.axiosInstance.get<BitProfile>("/user", {
+    const response = await this.bitbucketApiHttpClient.get<BitProfile>("/user", {
       headers: {
         Authorization: `Bearer ${accessToken}`
       }
@@ -42,7 +47,7 @@ export class BitbucketService {
   }
 
   async fetchCommits(repo?: string, accessToken?: string | null) {
-    const response = await this.axiosInstance.get<BitBucketCommit>(`/repositories/${repo}/commits`, {
+    const response = await this.bitbucketApiHttpClient.get<BitBucketCommit>(`/repositories/${repo}/commits`, {
       headers: {
         Authorization: `Bearer ${accessToken}`
       }
@@ -51,7 +56,7 @@ export class BitbucketService {
   }
 
   async fetchWorkspaces(accessToken?: string | null) {
-    const response = await this.axiosInstance.get<{ values: BitWorkspace[] }>("/workspaces", {
+    const response = await this.bitbucketApiHttpClient.get<{ values: BitWorkspace[] }>("/workspaces", {
       headers: {
         Authorization: `Bearer ${accessToken}`
       }
@@ -60,7 +65,7 @@ export class BitbucketService {
   }
 
   async fetchReposByWorkspace(workspace: string, accessToken?: string | null) {
-    const response = await this.axiosInstance.get<{ values: BitRepository[] }>(`/repositories/${workspace}`, {
+    const response = await this.bitbucketApiHttpClient.get<{ values: BitRepository[] }>(`/repositories/${workspace}`, {
       headers: {
         Authorization: `Bearer ${accessToken}`
       }
@@ -69,7 +74,7 @@ export class BitbucketService {
   }
 
   async fetchBranches(repo?: string, accessToken?: string | null) {
-    const response = await this.axiosInstance.get(`/repositories/${repo}/refs/branches`, {
+    const response = await this.bitbucketApiHttpClient.get(`/repositories/${repo}/refs/branches`, {
       headers: {
         Authorization: `Bearer ${accessToken}`
       }
@@ -78,7 +83,7 @@ export class BitbucketService {
   }
 
   async fetchPackageJson(repo?: string, branch?: string, subFolder?: string | undefined, accessToken?: string | null) {
-    const response = await this.axiosInstance.get(`/repositories/${repo}/src/${branch}/${subFolder ? `${subFolder}/` : ""}package.json`, {
+    const response = await this.bitbucketApiHttpClient.get(`/repositories/${repo}/src/${branch}/${subFolder ? `${subFolder}/` : ""}package.json`, {
       headers: {
         Authorization: `Bearer ${accessToken}`
       }
@@ -87,7 +92,7 @@ export class BitbucketService {
   }
 
   async fetchSrcFolders(repo?: string, branch?: string, accessToken?: string | null) {
-    const response = await this.axiosInstance.get(`/repositories/${repo}/src/${branch}/.`, {
+    const response = await this.bitbucketApiHttpClient.get(`/repositories/${repo}/src/${branch}/.`, {
       headers: {
         Authorization: `Bearer ${accessToken}`
       }

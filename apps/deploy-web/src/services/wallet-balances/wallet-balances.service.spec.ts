@@ -1,6 +1,5 @@
 import type { AuthzHttpService } from "@akashnetwork/http-sdk";
-import type { AxiosInstance } from "axios";
-import { type AxiosResponse } from "axios";
+import type { AxiosInstance, AxiosResponse } from "axios";
 import { mock } from "jest-mock-extended";
 
 import { UAKT_DENOM, USDC_IBC_DENOMS } from "@src/config/denom.config";
@@ -55,7 +54,12 @@ describe(WalletBalancesService.name, () => {
     });
   });
 
-  function setup(input: TestInput) {
+  function setup(input: {
+    getValidDepositDeploymentGrantsForGranterAndGrantee?: AuthzHttpService["getValidDepositDeploymentGrantsForGranterAndGrantee"];
+    getBalances?: () => RestApiBalancesResponseType;
+    getDeploymentList?: () => RpcDeployment[];
+    masterWalletAddress?: string;
+  }) {
     return new WalletBalancesService(
       mock({
         getValidDepositDeploymentGrantsForGranterAndGrantee: input.getValidDepositDeploymentGrantsForGranterAndGrantee
@@ -107,16 +111,7 @@ describe(WalletBalancesService.name, () => {
           return Promise.reject(new Error("Not implemented"));
         }
       }) as unknown as AxiosInstance,
-      input.masterWalletAddress || "akash1234",
-      input.apiEndpoint || "http://test.com"
+      input.masterWalletAddress || "akash1234"
     );
-  }
-
-  interface TestInput {
-    getValidDepositDeploymentGrantsForGranterAndGrantee?: AuthzHttpService["getValidDepositDeploymentGrantsForGranterAndGrantee"];
-    getBalances?: () => RestApiBalancesResponseType;
-    getDeploymentList?: () => RpcDeployment[];
-    masterWalletAddress?: string;
-    apiEndpoint?: string;
   }
 });
