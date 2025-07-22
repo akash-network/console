@@ -162,7 +162,7 @@ docker build -f apps/log-collector/Dockerfile -t log-collector:local .
 docker run -e DESTINATION=DATADOG -e DD_SITE=your-site -e DD_API_KEY=your-key log-collector:local
 
 # or
-docker run -env-file apps/log-collector/.env.local log-collector:local
+docker run --env-file apps/log-collector/env/.env.local log-collector:local
 
 ```
 
