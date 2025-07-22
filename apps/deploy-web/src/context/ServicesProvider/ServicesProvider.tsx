@@ -32,8 +32,7 @@ export function useServices() {
 function createAppContainer<T extends Factories>(settings: Settings, services: T) {
   const di = createChildContainer(rootContainer, {
     authzHttpService: () => new AuthzHttpService({ baseURL: settings?.apiEndpoint }),
-    walletBalancesService: () =>
-      new WalletBalancesService(di.authzHttpService, di.axios, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS, settings.apiEndpoint),
+    walletBalancesService: () => new WalletBalancesService(di.authzHttpService, di.chainApiHttpClient, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS),
     certificatesService: () => new CertificatesService(di.chainApiHttpClient),
     chainApiHttpClient: () => rootContainer.createAxios({ baseURL: settings?.apiEndpoint }),
     ...services

@@ -26,7 +26,12 @@ export const services = createChildContainer(rootContainer, {
       baseUrl: "/api/proxy",
       queryClient: services.queryClient
     }),
-  githubService: () => new GitHubService(),
-  bitbucketService: () => new BitbucketService(),
-  gitlabService: () => new GitLabService()
+  githubService: () => new GitHubService(services.internalApiHttpClient, services.createAxios),
+  bitbucketService: () => new BitbucketService(services.internalApiHttpClient, services.createAxios),
+  gitlabService: () => new GitLabService(services.internalApiHttpClient, services.createAxios),
+  internalApiHttpClient: () => services.createAxios(),
+  consoleApiHttpClient: () =>
+    services.applyAxiosInterceptors(services.createAxios({ baseURL: browserEnvConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL }), {
+      request: [services.authService.withAnonymousUserHeader]
+    })
 });

@@ -1,7 +1,7 @@
 import type { TemplateHttpService } from "@akashnetwork/http-sdk";
 import type { UserProfile } from "@auth0/nextjs-auth0/client";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
-import type { AxiosInstance } from "axios";
+import type { AxiosInstance } from "consoleApiHttpClient";
 import { mock } from "jest-mock-extended";
 
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
@@ -57,29 +57,29 @@ const mockTemplateCategory = {
 describe("useTemplateQuery", () => {
   describe(useUserTemplates.name, () => {
     it("fetches user templates successfully", async () => {
-      const axios = mock<AxiosInstance>();
-      axios.get.mockResolvedValue({ data: [mockTemplate] });
+      const consoleApiHttpClient = mock<AxiosInstance>();
+      consoleApiHttpClient.get.mockResolvedValue({ data: [mockTemplate] });
 
       const { result } = setupQuery(() => useUserTemplates("test-user"), {
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         }
       });
 
       await waitFor(() => {
-        expect(axios.get).toHaveBeenCalledWith("/api/proxy/user/templates/test-user");
+        expect(consoleApiHttpClient.get).toHaveBeenCalledWith("/user/templates/test-user");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual([mockTemplate]);
       });
     });
 
     it("handles error when fetching user templates", async () => {
-      const axios = mock<AxiosInstance>();
-      axios.get.mockRejectedValue(new Error("Failed to fetch templates"));
+      const consoleApiHttpClient = mock<AxiosInstance>();
+      consoleApiHttpClient.get.mockRejectedValue(new Error("Failed to fetch templates"));
 
       const { result } = setupQuery(() => useUserTemplates("test-user"), {
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         }
       });
 
@@ -89,30 +89,30 @@ describe("useTemplateQuery", () => {
 
   describe("useUserFavoriteTemplates", () => {
     it("fetches user favorite templates successfully", async () => {
-      const axios = mock<AxiosInstance>();
+      const consoleApiHttpClient = mock<AxiosInstance>();
       const favoriteTemplates = [{ id: "template-1", title: "Favorite Template" }];
-      axios.get.mockResolvedValue({ data: favoriteTemplates });
+      consoleApiHttpClient.get.mockResolvedValue({ data: favoriteTemplates });
 
       const { result } = setup({
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         }
       });
 
       await waitFor(() => {
-        expect(axios.get).toHaveBeenCalledWith("/api/proxy/user/favoriteTemplates");
+        expect(consoleApiHttpClient.get).toHaveBeenCalledWith("/user/favoriteTemplates");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(favoriteTemplates);
       });
     });
 
     it("handles error when fetching user favorite templates", async () => {
-      const axios = mock<AxiosInstance>();
-      axios.get.mockRejectedValue(new Error("Failed to fetch favorite templates"));
+      const consoleApiHttpClient = mock<AxiosInstance>();
+      consoleApiHttpClient.get.mockRejectedValue(new Error("Failed to fetch favorite templates"));
 
       const { result } = setup({
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         }
       });
 
@@ -131,29 +131,29 @@ describe("useTemplateQuery", () => {
 
   describe(useTemplate.name, () => {
     it("fetches single template successfully", async () => {
-      const axios = mock<AxiosInstance>();
-      axios.get.mockResolvedValue({ data: mockTemplate });
+      const consoleApiHttpClient = mock<AxiosInstance>();
+      consoleApiHttpClient.get.mockResolvedValue({ data: mockTemplate });
 
       const { result } = setup({
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         }
       });
 
       await waitFor(() => {
-        expect(axios.get).toHaveBeenCalledWith("/api/proxy/user/template/template-1");
+        expect(consoleApiHttpClient.get).toHaveBeenCalledWith("/user/template/template-1");
         expect(result.current.isSuccess).toBe(true);
         expect(result.current.data).toEqual(mockTemplate);
       });
     });
 
     it("handles error when fetching single template", async () => {
-      const axios = mock<AxiosInstance>();
-      axios.get.mockRejectedValue(new Error("Template not found"));
+      const consoleApiHttpClient = mock<AxiosInstance>();
+      consoleApiHttpClient.get.mockRejectedValue(new Error("Template not found"));
 
       const { result } = setup({
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         }
       });
 
@@ -171,12 +171,12 @@ describe("useTemplateQuery", () => {
 
   describe(useSaveUserTemplate.name, () => {
     it("saves template successfully", async () => {
-      const axios = mock<AxiosInstance>();
-      axios.post.mockResolvedValue({ data: "saved-template-id" });
+      const consoleApiHttpClient = mock<AxiosInstance>();
+      consoleApiHttpClient.post.mockResolvedValue({ data: "saved-template-id" });
 
       const { result } = setup({
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         }
       });
 
@@ -188,7 +188,7 @@ describe("useTemplateQuery", () => {
 
       act(() => result.current.mutate(templateData));
       await waitFor(() => {
-        expect(axios.post).toHaveBeenCalledWith("/api/proxy/user/saveTemplate", {
+        expect(consoleApiHttpClient.post).toHaveBeenCalledWith("/user/saveTemplate", {
           id: undefined,
           sdl: "version: '2.0'",
           isPublic: true,
@@ -203,12 +203,12 @@ describe("useTemplateQuery", () => {
     });
 
     it("handles error when saving template", async () => {
-      const axios = mock<AxiosInstance>();
-      axios.post.mockRejectedValue(new Error("Failed to save template"));
+      const consoleApiHttpClient = mock<AxiosInstance>();
+      consoleApiHttpClient.post.mockRejectedValue(new Error("Failed to save template"));
 
       const { result } = setup({
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         }
       });
 
@@ -229,29 +229,29 @@ describe("useTemplateQuery", () => {
 
   describe(useDeleteTemplate.name, () => {
     it("deletes template successfully", async () => {
-      const axios = mock<AxiosInstance>();
-      axios.delete.mockResolvedValue({});
+      const consoleApiHttpClient = mock<AxiosInstance>();
+      consoleApiHttpClient.delete.mockResolvedValue({});
 
       const { result } = setup({
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         }
       });
 
       act(() => result.current.mutate());
       await waitFor(() => {
-        expect(axios.delete).toHaveBeenCalledWith("/api/proxy/user/deleteTemplate/template-1");
+        expect(consoleApiHttpClient.delete).toHaveBeenCalledWith("/user/deleteTemplate/template-1");
         expect(result.current.isSuccess).toBe(true);
       });
     });
 
     it("handles error when deleting template", async () => {
-      const axios = mock<AxiosInstance>();
-      axios.delete.mockRejectedValue(new Error("Failed to delete template"));
+      const consoleApiHttpClient = mock<AxiosInstance>();
+      consoleApiHttpClient.delete.mockRejectedValue(new Error("Failed to delete template"));
 
       const { result } = setup({
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         }
       });
 
@@ -271,30 +271,30 @@ describe("useTemplateQuery", () => {
 
   describe("useAddFavoriteTemplate", () => {
     it("adds favorite template successfully and shows snackbar", async () => {
-      const axios = mock<AxiosInstance>();
-      axios.post.mockResolvedValue({});
+      const consoleApiHttpClient = mock<AxiosInstance>();
+      consoleApiHttpClient.post.mockResolvedValue({});
 
       const { result } = setup({
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         }
       });
 
       act(() => result.current.mutate());
       await waitFor(async () => {
-        expect(axios.post).toHaveBeenCalledWith("/api/proxy/user/addFavoriteTemplate/template-1");
+        expect(consoleApiHttpClient.post).toHaveBeenCalledWith("/user/addFavoriteTemplate/template-1");
         expect(result.current.isSuccess).toBe(true);
         expect(await screen.findByText(/Favorite added!/i)).toBeInTheDocument();
       });
     });
 
     it("handles error when adding favorite template", async () => {
-      const axios = mock<AxiosInstance>();
-      axios.post.mockRejectedValue(new Error("Failed to add favorite"));
+      const consoleApiHttpClient = mock<AxiosInstance>();
+      consoleApiHttpClient.post.mockRejectedValue(new Error("Failed to add favorite"));
 
       const { result } = setup({
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         }
       });
 
@@ -314,30 +314,30 @@ describe("useTemplateQuery", () => {
 
   describe("useRemoveFavoriteTemplate", () => {
     it("removes favorite template successfully and shows snackbar", async () => {
-      const axios = mock<AxiosInstance>();
-      axios.delete.mockResolvedValue({});
+      const consoleApiHttpClient = mock<AxiosInstance>();
+      consoleApiHttpClient.delete.mockResolvedValue({});
 
       const { result } = setup({
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         }
       });
 
       act(() => result.current.mutate());
       await waitFor(async () => {
-        expect(axios.delete).toHaveBeenCalledWith("/api/proxy/user/removeFavoriteTemplate/template-1");
+        expect(consoleApiHttpClient.delete).toHaveBeenCalledWith("/user/removeFavoriteTemplate/template-1");
         expect(result.current.isSuccess).toBe(true);
         expect(await screen.findByText(/Favorite removed/i)).toBeInTheDocument();
       });
     });
 
     it("handles error when removing favorite template", async () => {
-      const axios = mock<AxiosInstance>();
-      axios.delete.mockRejectedValue(new Error("Failed to remove favorite"));
+      const consoleApiHttpClient = mock<AxiosInstance>();
+      consoleApiHttpClient.delete.mockRejectedValue(new Error("Failed to remove favorite"));
 
       const { result } = setup({
         services: {
-          axios: () => axios
+          consoleApiHttpClient: () => consoleApiHttpClient
         }
       });
 
