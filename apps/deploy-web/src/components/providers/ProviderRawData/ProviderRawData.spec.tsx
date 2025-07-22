@@ -20,7 +20,7 @@ describe(ProviderRawData.name, () => {
   });
 
   async function setup(props?: Props) {
-    const consoleApiHttpClient = () =>
+    const publicConsoleApiHttpClient = () =>
       ({
         get: jest.fn(async url => {
           if (url.includes("/providers/"))
@@ -30,7 +30,7 @@ describe(ProviderRawData.name, () => {
 
           throw new Error(`unexpected request: ${url}`);
         })
-      }) as unknown as AppDIContainer["consoleApiHttpClient"];
+      }) as unknown as AppDIContainer["publicConsoleApiHttpClient"];
     const chainApiHttpClient = () =>
       ({
         get: jest.fn(async url => {
@@ -46,7 +46,7 @@ describe(ProviderRawData.name, () => {
       }) as unknown as AppDIContainer["providerProxy"];
 
     const result = render(
-      <TestContainerProvider services={{ chainApiHttpClient, consoleApiHttpClient, providerProxy }}>
+      <TestContainerProvider services={{ chainApiHttpClient, publicConsoleApiHttpClient, providerProxy }}>
         <ProviderRawData owner={props?.provider?.owner || "test"} components={MockComponents(COMPONENTS, props?.components)} />
       </TestContainerProvider>
     );

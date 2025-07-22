@@ -23,7 +23,7 @@ describe("useMarketData", () => {
 
     const { result } = setup({
       services: {
-        consoleApiHttpClient: () => consoleApiHttpClient
+        publicConsoleApiHttpClient: () => consoleApiHttpClient
       }
     });
 

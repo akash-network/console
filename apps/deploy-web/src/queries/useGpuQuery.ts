@@ -6,10 +6,10 @@ import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
 export function useGpuModels(options = {}) {
-  const { consoleApiHttpClient } = useServices();
+  const { publicConsoleApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getGpuModelsKey(),
-    queryFn: () => consoleApiHttpClient.get<GpuVendor[]>(ApiUrlService.gpuModels()).then(response => response.data),
+    queryFn: () => publicConsoleApiHttpClient.get<GpuVendor[]>(ApiUrlService.gpuModels()).then(response => response.data),
     ...options,
     refetchInterval: false,
     refetchIntervalInBackground: false,
