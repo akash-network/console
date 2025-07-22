@@ -151,11 +151,21 @@ export class K8sLogCollectorService {
       this.loggerService.info({ podName, containerName: containerName || "default", message: "Using container" });
 
       const logStream = this.createLogStream(podName, namespace, logDestination);
-      await this.startKubernetesLogStream(namespace, podName, containerName, logStream);
 
-      this.loggerService.info({ podName, message: "Log stream started for pod" });
+      this.startKubernetesLogStream(namespace, podName, containerName, logStream);
+
+      return new Promise((resolve, reject) => {
+        logStream.on("error", error => {
+          reject(error);
+        });
+
+        logStream.on("end", () => {
+          resolve();
+        });
+      });
     } catch (error) {
       this.loggerService.error({ error, podName, namespace, message: "Error streaming logs from pod" });
+      throw error;
     }
   }
 
@@ -171,6 +181,18 @@ export class K8sLogCollectorService {
     logStream.on("data", async chunk => {
       this.writeToConsole(podName, chunk);
       await this.sendToDestination(chunk, podName, namespace, logDestination);
+    });
+
+    logStream.on("end", () => {
+      this.loggerService.info({ podName, namespace, message: "Log stream ended normally" });
+    });
+
+    logStream.on("error", error => {
+      this.loggerService.error({ error, podName, namespace, message: "Log stream error" });
+    });
+
+    logStream.on("close", () => {
+      this.loggerService.info({ podName, namespace, message: "Log stream closed" });
     });
 
     return logStream;
