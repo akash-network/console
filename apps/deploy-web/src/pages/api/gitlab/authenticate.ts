@@ -12,7 +12,12 @@ export default defineApiHandler({
   }),
   async handler({ body, res, services }) {
     const { NEXT_PUBLIC_GITLAB_CLIENT_ID, GITLAB_CLIENT_SECRET, NEXT_PUBLIC_REDIRECT_URI } = services.config;
-    const gitlabAuth = new GitlabAuth(NEXT_PUBLIC_GITLAB_CLIENT_ID as string, GITLAB_CLIENT_SECRET as string, NEXT_PUBLIC_REDIRECT_URI as string);
+    const gitlabAuth = new GitlabAuth(
+      NEXT_PUBLIC_GITLAB_CLIENT_ID as string,
+      GITLAB_CLIENT_SECRET as string,
+      NEXT_PUBLIC_REDIRECT_URI,
+      services.externalApiHttpClient
+    );
 
     const tokens = await gitlabAuth.exchangeAuthorizationCodeForTokens(body.code);
     res.status(200).json(tokens);

@@ -9,13 +9,14 @@ import networkStore from "@src/store/networkStore";
 import { QueryKeys } from "./queryKeys";
 
 const REFETCH_INTERVAL = 1000 * 60 * 5;
+/** @deprecated use useFlag instead */
 export function useFeatureFlags(options?: Omit<UseQueryOptions<Features>, "queryKey" | "queryFn">): UseQueryResult<Features> {
-  const { axios, apiUrlService } = useServices();
+  const { consoleApiHttpClient, apiUrlService } = useServices();
   const networkId = networkStore.useSelectedNetworkId();
   return useQuery({
     ...options,
     queryKey: QueryKeys.getFeatureFlagsKey(networkId),
-    queryFn: () => getFeatureFlags(networkId, axios, apiUrlService),
+    queryFn: () => getFeatureFlags(networkId, consoleApiHttpClient, apiUrlService),
     refetchInterval: REFETCH_INTERVAL
   });
 }
@@ -24,8 +25,8 @@ export interface Features {
   allowAnonymousUserTrial?: boolean;
 }
 
-export async function getFeatureFlags(networkId: NetworkId, axios: AxiosInstance, apiUrlService: ApiUrlService) {
+export async function getFeatureFlags(networkId: NetworkId, consoleApiHttpClient: AxiosInstance, apiUrlService: ApiUrlService) {
   const baseApiUrl = apiUrlService.getBaseApiUrlFor(networkId);
-  const response = await axios.get<{ data: Features }>(`${baseApiUrl}/v1/features`);
+  const response = await consoleApiHttpClient.get<{ data: Features }>(`${baseApiUrl}/v1/features`);
   return response.data.data;
 }
