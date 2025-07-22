@@ -1,5 +1,12 @@
 
 
+## [1.18.1](https://github.com/akash-network/console/compare/notifications/v1.18.0...notifications/v1.18.1) (2025-07-22)
+
+
+### Code Refactoring
+
+* creates separate axios instance per intent ([#1702](https://github.com/akash-network/console/issues/1702)) ([b15370f](https://github.com/akash-network/console/commit/b15370fccc676982705c41c7b659752a467aef0d)), closes [#1668](https://github.com/akash-network/console/issues/1668)
+
 ## [1.18.0](https://github.com/akash-network/console/compare/notifications/v1.17.0...notifications/v1.18.0) (2025-07-16)
 
 
