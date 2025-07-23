@@ -1,30 +1,18 @@
-import { loadStripe } from "@stripe/stripe-js";
+import type { Stripe } from "@stripe/stripe-js";
+import { mock } from "jest-mock-extended";
 
+import type { BrowserEnvConfig } from "@src/config/browser-env.config";
+import type { StripeServiceDependencies } from "./stripe.service";
 import { StripeService } from "./stripe.service";
 
-jest.mock("@stripe/stripe-js", () => ({
-  loadStripe: jest.fn()
-}));
-
-jest.mock("@src/config/browser-env.config", () => ({
-  browserEnvConfig: {
-    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_test_mock_key"
-  }
-}));
-
 describe("StripeService", () => {
-  let stripeService: StripeService;
-  const mockLoadStripe = loadStripe as jest.MockedFunction<typeof loadStripe>;
-
-  beforeEach(() => {
-    stripeService = new StripeService();
-    jest.clearAllMocks();
-  });
-
   describe("getStripe", () => {
     it("should load Stripe instance when publishable key is configured", async () => {
-      const mockStripeInstance = { mock: "stripe" };
-      mockLoadStripe.mockResolvedValue(mockStripeInstance as any);
+      const { stripeService, mockLoadStripe, mockStripeInstance } = setup({
+        publishableKey: "pk_test_mock_key"
+      });
+
+      mockLoadStripe.mockResolvedValue(mockStripeInstance);
 
       const result = await stripeService.getStripe();
 
@@ -33,8 +21,11 @@ describe("StripeService", () => {
     });
 
     it("should return cached instance on subsequent calls", async () => {
-      const mockStripeInstance = { mock: "stripe" };
-      mockLoadStripe.mockResolvedValue(mockStripeInstance as any);
+      const { stripeService, mockLoadStripe, mockStripeInstance } = setup({
+        publishableKey: "pk_test_mock_key"
+      });
+
+      mockLoadStripe.mockResolvedValue(mockStripeInstance);
 
       // First call
       await stripeService.getStripe();
@@ -46,6 +37,10 @@ describe("StripeService", () => {
     });
 
     it("should handle loadStripe errors gracefully", async () => {
+      const { stripeService, mockLoadStripe } = setup({
+        publishableKey: "pk_test_mock_key"
+      });
+
       const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
       mockLoadStripe.mockRejectedValue(new Error("Stripe load failed"));
 
@@ -59,8 +54,11 @@ describe("StripeService", () => {
 
   describe("clearStripeInstance", () => {
     it("should clear the cached Stripe instance", async () => {
-      const mockStripeInstance = { mock: "stripe" };
-      mockLoadStripe.mockResolvedValue(mockStripeInstance as any);
+      const { stripeService, mockLoadStripe, mockStripeInstance } = setup({
+        publishableKey: "pk_test_mock_key"
+      });
+
+      mockLoadStripe.mockResolvedValue(mockStripeInstance);
 
       // Load instance
       await stripeService.getStripe();
@@ -74,4 +72,24 @@ describe("StripeService", () => {
       expect(mockLoadStripe).toHaveBeenCalledTimes(2);
     });
   });
+
+  function setup(input: { publishableKey: string }) {
+    const mockLoadStripe = jest.fn() as jest.MockedFunction<StripeServiceDependencies["loadStripe"]>;
+    const mockStripeInstance = mock<Stripe>();
+    const mockBrowserEnvConfig = mock<BrowserEnvConfig>();
+
+    mockBrowserEnvConfig.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = input.publishableKey;
+
+    const stripeService = new StripeService({
+      loadStripe: mockLoadStripe,
+      browserEnvConfig: mockBrowserEnvConfig
+    });
+
+    return {
+      stripeService,
+      mockLoadStripe,
+      mockStripeInstance,
+      mockBrowserEnvConfig
+    };
+  }
 });
