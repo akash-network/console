@@ -6,6 +6,7 @@ import type { ProviderSnapshotNode } from "@akashnetwork/database/dbSchemas/akas
 import type { Day } from "@akashnetwork/database/dbSchemas/base/day";
 import type { Transaction } from "@akashnetwork/database/dbSchemas/base/transaction";
 import { faker } from "@faker-js/faker";
+import { format, setHours, setMinutes, setSeconds } from "date-fns";
 import Long from "long";
 import nock from "nock";
 
@@ -28,8 +29,8 @@ import {
 } from "@test/seeders";
 
 describe("GPU API", () => {
-  const now = new Date("2025-06-21T12:00:00.000Z");
-  const date = "2025-06-21";
+  const now = setSeconds(setMinutes(setHours(new Date(), 12), 0), 0);
+  const date = format(now, "yyyy-MM-dd");
 
   afterAll(async () => {
     await closeConnections();
