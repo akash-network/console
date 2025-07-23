@@ -1,9 +1,9 @@
 import { LoggerService } from "@akashnetwork/logging";
+import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, GasPrice } from "@cosmjs/stargate";
 import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
-import type { BroadcastTxSyncResponse } from "@cosmjs/tendermint-rpc/build/comet38";
 import { Sema } from "async-sema";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import DataLoader from "dataloader";
@@ -120,14 +120,12 @@ export class BatchSigningClientService {
 
   private async executeTxBatch(inputs: ExecuteTxInput[]): Promise<IndexedTx[]> {
     return await withSpan("BatchSigningClientService.executeTxBatch", async () => {
-      const txes: TxRaw[] = [];
-      let txIndex: number = 0;
-
       const client = await this.clientAsPromised;
       const accountInfo = await this.updateAccountInfo();
-
       const address = await this.wallet.getFirstAddress();
 
+      const txes: TxRaw[] = [];
+      let txIndex: number = 0;
       while (txIndex < inputs.length) {
         const { messages, options } = inputs[txIndex];
         const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee.granter);
@@ -138,23 +136,55 @@ export class BatchSigningClientService {
             chainId: this.chainId!
           })
         );
+
         txIndex++;
       }
 
-      const responses: BroadcastTxSyncResponse[] = [];
+      const hashes: string[] = [];
       txIndex = 0;
+      while (txIndex < txes.length) {
+        const txRaw = txes[txIndex];
+        const txBytes = TxRaw.encode(txRaw).finish();
 
-      while (txIndex < txes.length - 1) {
-        const txRaw: TxRaw = txes[txIndex];
-        responses.push(await client.tmBroadcastTxSync(TxRaw.encode(txRaw).finish()));
+        try {
+          if (txIndex < txes.length - 1) {
+            const response = await client.tmBroadcastTxSync(txBytes);
+            hashes.push(toHex(response.hash));
+          } else {
+            const lastDelivery = await client.broadcastTx(txBytes);
+            hashes.push(lastDelivery.transactionHash);
+          }
+        } catch (error: any) {
+          if (error?.message?.toLowerCase().includes("tx already exists in cache")) {
+            const txHash = toHex(sha256(txBytes));
+            hashes.push(txHash);
+          } else {
+            throw error;
+          }
+        }
+
         txIndex++;
       }
-
-      const lastDelivery = await client.broadcastTx(TxRaw.encode(txes[txes.length - 1]).finish());
-      const hashes = [...responses.map(hash => toHex(hash.hash)), lastDelivery.transactionHash];
 
       const txs = await Promise.all(hashes.map(hash => client.getTx(hash)));
-      return txs.filter(tx => tx !== null);
+      return txs.map((tx, index) => {
+        if (tx) {
+          return tx;
+        }
+
+        return {
+          height: 0,
+          txIndex: 0,
+          hash: hashes[index],
+          code: 0,
+          events: [] as IndexedTx["events"],
+          rawLog: "",
+          tx: new Uint8Array(),
+          msgResponses: [] as IndexedTx["msgResponses"],
+          gasUsed: BigInt(0),
+          gasWanted: BigInt(0)
+        };
+      });
     });
   }
 
