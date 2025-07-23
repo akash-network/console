@@ -10,22 +10,22 @@ import { UrlService } from "@src/utils/urlUtils";
 
 const benefits = [
   {
-    icon: <Rocket className="h-6 w-6" />,
+    icon: <Rocket className="h-6 w-6" aria-hidden="true" />,
     title: "Start Deploying in Minutes",
     description: "Get your applications running on Akash Network with our streamlined deployment process."
   },
   {
-    icon: <Cloud className="h-6 w-6" />,
+    icon: <Cloud className="h-6 w-6" aria-hidden="true" />,
     title: "Access to Global Infrastructure",
     description: "Deploy across a worldwide network of providers with competitive pricing."
   },
   {
-    icon: <Server className="h-6 w-6" />,
+    icon: <Server className="h-6 w-6" aria-hidden="true" />,
     title: "Full Control",
     description: "Complete control over your deployments with advanced configuration options."
   },
   {
-    icon: <Dollar className="h-6 w-6" />,
+    icon: <Dollar className="h-6 w-6" aria-hidden="true" />,
     title: "Pay-as-you-go",
     description: "Only pay for what you use with transparent pricing and no hidden fees."
   }
@@ -68,21 +68,21 @@ export const FreeTrialLandingStep: React.FunctionComponent<FreeTrialLandingStepP
         </div>
 
         <div className="mx-auto max-w-2xl rounded-lg bg-muted/50 p-6">
-          <ul className="space-y-2 text-left">
-            <li className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-600" />
+          <ul className="space-y-2 text-left" role="list" aria-label="Free trial benefits">
+            <li className="flex items-center gap-2" role="listitem">
+              <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
               <span>100$ of free credits</span>
             </li>
-            <li className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-600" />
+            <li className="flex items-center gap-2" role="listitem">
+              <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
               <span>30 days of free credits</span>
             </li>
-            <li className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-600" />
+            <li className="flex items-center gap-2" role="listitem">
+              <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
               <span>Deployments last up to 24 hours</span>
             </li>
-            <li className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-600" />
+            <li className="flex items-center gap-2" role="listitem">
+              <Check className="h-4 w-4 text-green-600" aria-hidden="true" />
               <span>Keep unused free credits if you purchase credits</span>
             </li>
           </ul>
@@ -91,13 +91,17 @@ export const FreeTrialLandingStep: React.FunctionComponent<FreeTrialLandingStepP
 
       <div className="mx-auto max-w-2xl">
         <h2 className="mb-12 text-center text-3xl font-bold">Why Choose Akash Console?</h2>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2" role="list" aria-label="Benefits of Akash Console">
           {benefits.map((benefit, index) => (
-            <Card key={index} className="h-full">
+            <Card key={index} className="h-full" role="listitem" aria-labelledby={`benefit-title-${index}`}>
               <CardHeader>
                 <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-primary/10 p-2 text-primary">{benefit.icon}</div>
-                  <CardTitle className="text-lg">{benefit.title}</CardTitle>
+                  <div className="rounded-lg bg-primary/10 p-2 text-primary" aria-hidden="true">
+                    {benefit.icon}
+                  </div>
+                  <CardTitle id={`benefit-title-${index}`} className="text-lg">
+                    {benefit.title}
+                  </CardTitle>
                 </div>
               </CardHeader>
               <CardContent>

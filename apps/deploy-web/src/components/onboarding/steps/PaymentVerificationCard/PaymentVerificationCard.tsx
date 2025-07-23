@@ -7,7 +7,7 @@ import { CreditCard } from "iconoir-react";
 import { useTheme } from "next-themes";
 
 import { PaymentMethodForm } from "@src/components/shared";
-import { getStripe } from "@src/utils/stripeUtils";
+import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 
 interface PaymentVerificationCardProps {
   setupIntent?: { clientSecret: string };
@@ -15,7 +15,8 @@ interface PaymentVerificationCardProps {
 }
 
 export const PaymentVerificationCard: React.FunctionComponent<PaymentVerificationCardProps> = ({ setupIntent, onSuccess }) => {
-  const stripePromise = useMemo(() => getStripe(), []);
+  const { stripeService } = useServices();
+  const stripePromise = useMemo(() => stripeService.getStripe(), [stripeService]);
   const { resolvedTheme } = useTheme();
   const isDarkMode = resolvedTheme === "dark";
 

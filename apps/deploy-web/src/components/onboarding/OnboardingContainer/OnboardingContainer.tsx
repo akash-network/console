@@ -7,6 +7,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
 import { UrlService } from "@src/utils/urlUtils";
+import { type OnboardingStep } from "../OnboardingStepper/OnboardingStepper";
 
 export enum OnboardingStepIndex {
   FREE_TRIAL = 0,
@@ -15,16 +16,6 @@ export enum OnboardingStepIndex {
   PAYMENT_METHOD = 3,
   WELCOME = 4
 }
-
-export type OnboardingStep = {
-  id: string;
-  title: string;
-  description?: string;
-  component: ReactNode | null;
-  isCompleted?: boolean;
-  isDisabled?: boolean;
-  hidePreviousButton?: boolean;
-};
 
 export type OnboardingContainerProps = {
   children: (props: {

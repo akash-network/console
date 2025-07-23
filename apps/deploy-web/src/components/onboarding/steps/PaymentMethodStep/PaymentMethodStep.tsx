@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
-import { Alert, Popup } from "@akashnetwork/ui/components";
+import { Alert, AlertDescription, AlertTitle, Popup } from "@akashnetwork/ui/components";
 import { CreditCard } from "iconoir-react";
 
 import { Title } from "@src/components/shared/Title";
@@ -56,13 +56,15 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
       {(paymentMethods.length === 0 || showAddForm) && <PaymentVerificationCard setupIntent={setupIntent} onSuccess={onSuccess} />}
 
       {paymentMethods.length === 0 && !showAddForm && (
-        <Alert className="mx-auto flex max-w-md flex-row items-center gap-2 text-left" variant="warning">
-          <div className="rounded-full bg-card p-3">
-            <CreditCard className="h-4 w-4" />
-          </div>
-          <div>
-            <h4 className="font-medium">Payment Method Required</h4>
-            <p className="text-sm">You must add a payment method to continue to the next step.</p>
+        <Alert className="mx-auto max-w-md text-left" variant="warning">
+          <div className="flex items-center gap-2">
+            <div className="rounded-full bg-card p-3">
+              <CreditCard className="h-4 w-4" aria-hidden="true" />
+            </div>
+            <div>
+              <AlertTitle>Payment Method Required</AlertTitle>
+              <AlertDescription>You must add a payment method to continue to the next step.</AlertDescription>
+            </div>
           </div>
         </Alert>
       )}

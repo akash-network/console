@@ -1,4 +1,3 @@
-import axios from "axios";
 import type { Hono } from "hono";
 import { decode } from "jsonwebtoken";
 
@@ -53,53 +52,17 @@ export class WalletTestingService {
    * @param userCode - The user code to use for the user.
    * @returns The user and token.
    */
-  async createRegisteredUser(
-    userCode:
-      | "debug"
-      | "debug1"
-      | "debug2"
-      | "debug3"
-      | "debug4"
-      | "debug5"
-      | "debug6"
-      | "debug7"
-      | "debug8"
-      | "debug9"
-      | "debug10"
-      | "debug11"
-      | "debug12"
-      | "debug13"
-      | "debug14"
-      | "debug15"
-      | "debug16"
-      | "debug17"
-      | "debug18"
-      | "debug19"
-      | "debug20" = "debug"
-  ) {
-    const tokenResponse = await axios.post(
-      "http://localhost:8080/default/token",
-      `grant_type=authorization_code&code=${userCode}&client_id=debug-client&code_verifier=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN123456`,
-      {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
-        }
-      }
-    );
+  async createRegisteredUser(userCode: string = "debug") {
+    const tokenResponse = await fetch("http://localhost:8080/default/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: `grant_type=authorization_code&code=${userCode}&client_id=debug-client&code_verifier=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN123456`
+    });
 
-    // {
-    //   "sub": "user123",
-    //   "aud": "my-audience",
-    //   "nbf": 1753100953,
-    //   "iss": "http://localhost:8080/default",
-    //   "nickname": "dev",
-    //   "exp": 1753104553,
-    //   "iat": 1753100953,
-    //   "jti": "dc76d3b9-7d26-4c6e-a190-4ff090bdd61a",
-    //   "email": "dev@example.com"
-    // }
-
-    const { access_token } = tokenResponse.data;
+    const tokenData = await tokenResponse.json();
+    const { access_token } = tokenData;
     const decoded = decode(access_token) as { sub: string; email: string; nickname: string; email_verified: boolean };
 
     const userResponse = await this.app.request(`/user/tokenInfo`, {

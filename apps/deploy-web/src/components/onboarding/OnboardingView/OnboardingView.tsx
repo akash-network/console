@@ -41,15 +41,15 @@ export const OnboardingView: FC<OnboardingViewProps> = ({
 }) => {
   const stepsWithComponents: OnboardingStep[] = [
     {
-      ...steps[0],
+      ...steps[OnboardingStepIndex.FREE_TRIAL],
       component: <d.FreeTrialLandingStep onStartTrial={onStartTrial} />
     },
     {
-      ...steps[1],
+      ...steps[OnboardingStepIndex.SIGNUP],
       component: null // No component needed for redirect step
     },
     {
-      ...steps[2],
+      ...steps[OnboardingStepIndex.EMAIL_VERIFICATION],
       component: (
         <d.EmailVerificationContainer onComplete={() => onStepChange(OnboardingStepIndex.PAYMENT_METHOD)}>
           {props => <d.EmailVerificationStep {...props} />}
@@ -57,11 +57,11 @@ export const OnboardingView: FC<OnboardingViewProps> = ({
       )
     },
     {
-      ...steps[3],
+      ...steps[OnboardingStepIndex.PAYMENT_METHOD],
       component: <d.PaymentMethodContainer onComplete={onPaymentMethodComplete}>{props => <d.PaymentMethodStep {...props} />}</d.PaymentMethodContainer>
     },
     {
-      ...steps[4],
+      ...steps[OnboardingStepIndex.WELCOME],
       component: <d.WelcomeStep onComplete={onComplete} />
     }
   ];

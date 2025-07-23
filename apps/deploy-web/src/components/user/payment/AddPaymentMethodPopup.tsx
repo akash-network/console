@@ -4,7 +4,7 @@ import { Popup } from "@akashnetwork/ui/components";
 import { Elements } from "@stripe/react-stripe-js";
 
 import { PaymentMethodForm } from "@src/components/shared";
-import { getStripe } from "@src/utils/stripeUtils";
+import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 
 interface AddPaymentMethodPopupProps {
   open: boolean;
@@ -15,7 +15,8 @@ interface AddPaymentMethodPopupProps {
 }
 
 export const AddPaymentMethodPopup: React.FC<AddPaymentMethodPopupProps> = ({ open, onClose, clientSecret, isDarkMode, onSuccess }) => {
-  const stripePromise = useMemo(() => getStripe(), []);
+  const { stripeService } = useServices();
+  const stripePromise = useMemo(() => stripeService.getStripe(), [stripeService]);
 
   return (
     <Popup open={open} onClose={onClose} title="Add New Payment Method" variant="custom" actions={[]}>
