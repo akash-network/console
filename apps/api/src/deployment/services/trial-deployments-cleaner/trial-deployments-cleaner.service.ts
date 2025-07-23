@@ -14,6 +14,7 @@ import { averageBlockCountInAnHour } from "@src/utils/constants";
 @singleton()
 export class TrialDeploymentsCleanerService {
   private readonly logger = LoggerService.forContext(TrialDeploymentsCleanerService.name);
+  private readonly MAX_LIVE_BLOCKS = Math.floor(this.config.TRIAL_DEPLOYMENT_CLEANUP_HOURS * averageBlockCountInAnHour);
 
   constructor(
     private readonly userWalletRepository: UserWalletRepository,
@@ -28,15 +29,13 @@ export class TrialDeploymentsCleanerService {
 
   async cleanup(options: CleanUpTrialDeploymentsParams) {
     const currentHeight = await this.blockRepository.getLatestHeight();
-    const blocksToSubtract = Math.floor(this.config.TRIAL_DEPLOYMENT_CLEANUP_HOURS * averageBlockCountInAnHour);
-    const cutoffHeight = currentHeight - blocksToSubtract;
+    const cutoffHeight = currentHeight - this.MAX_LIVE_BLOCKS;
 
     this.logger.info({
       event: "TRIAL_DEPLOYMENT_CLEANUP_START",
       currentHeight,
       cutoffHeight,
-      cleanupHours: this.config.TRIAL_DEPLOYMENT_CLEANUP_HOURS,
-      blocksToSubtract
+      cleanupHours: this.config.TRIAL_DEPLOYMENT_CLEANUP_HOURS
     });
 
     await this.userWalletRepository.paginate(
