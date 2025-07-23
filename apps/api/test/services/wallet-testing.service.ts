@@ -61,7 +61,7 @@ export class WalletTestingService {
       body: `grant_type=authorization_code&code=${userCode}&client_id=debug-client&code_verifier=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN123456`
     });
 
-    const tokenData = await tokenResponse.json();
+    const tokenData = (await tokenResponse.json()) as { access_token: string };
     const { access_token } = tokenData;
     const decoded = decode(access_token) as { sub: string; email: string; nickname: string; email_verified: boolean };
 
