@@ -3,10 +3,9 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
-import networkStore from "@src/store/networkStore";
 import type { FCWithChildren } from "@src/types/component";
 import type { NodeStatus } from "@src/types/node";
-import { initAppTypes } from "@src/utils/init";
+import { initAkashTypes } from "@src/utils/init";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 import { useRootContainer } from "../ServicesProvider/RootContainerProvider";
 
@@ -49,7 +48,7 @@ const defaultSettings: Settings = {
 };
 
 export const SettingsProvider: FCWithChildren = ({ children }) => {
-  const { externalApiHttpClient, queryClient } = useRootContainer();
+  const { externalApiHttpClient, queryClient, networkStore } = useRootContainer();
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSettingsInit, setIsSettingsInit] = useState(false);
@@ -73,8 +72,11 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
       // Apply local storage migrations
       migrateLocalStorage();
 
-      // Init app types based on the selected network id
-      initAppTypes();
+      initAkashTypes({
+        networkApiVersion: selectedNetwork.apiVersion,
+        marketApiVersion: selectedNetwork.marketApiVersion,
+        networkId: selectedNetwork.id
+      });
 
       const settingsStr = getLocalStorageItem("settings");
       const settings = { ...defaultSettings, ...JSON.parse(settingsStr || "{}") } as Settings;

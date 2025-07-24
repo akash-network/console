@@ -42,7 +42,9 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
     data: leaseStatus,
     refetch: getLeaseStatus,
     isFetching: isLoadingStatus
-  } = useLeaseStatus(providerInfo, selectedLease as LeaseDto, {
+  } = useLeaseStatus({
+    provider: providerInfo,
+    lease: selectedLease,
     enabled: false
   });
   const currentUrl = useRef<string | null>(null);
@@ -235,7 +237,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
         <ShellDownloadModal onCloseClick={onCloseDownloadClick} selectedLease={selectedLease} providerInfo={providerInfo} selectedService={selectedService} />
       )}
 
-      {isLocalCertMatching ? (
+      {isLocalCertMatching && localCert ? (
         <>
           {selectedLease && (
             <>
@@ -286,7 +288,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
           )}
         </>
       ) : (
-        <CreateCertificateButton containerClassName="py-4" warningText="You need to create a certificate to access the lease shell." />
+        <CreateCertificateButton containerClassName="py-4" />
       )}
     </div>
   );

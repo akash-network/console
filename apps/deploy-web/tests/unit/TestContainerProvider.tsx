@@ -4,7 +4,15 @@ import type { Props as ServicesProviderProps } from "@src/context/ServicesProvid
 import { ServicesProvider, useServices } from "@src/context/ServicesProvider/ServicesProvider";
 
 export const TestContainerProvider: React.FC<ServicesProviderProps> = ({ children, services }) => {
-  const queryClient = new QueryClient();
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false
+      }
+    }
+  });
   const testServices = {
     queryClient: () => queryClient,
     ...services

@@ -246,12 +246,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
 
               <div>
                 {!localCert || !isLocalCertMatching ? (
-                  <CreateCertificateButton
-                    containerClassName="flex items-center space-x-4 text-sm"
-                    className=""
-                    size="sm"
-                    warningText="You need to create a certificate to update an existing deployment."
-                  />
+                  <CreateCertificateButton containerClassName="flex items-center space-x-4 text-sm" className="" size="sm" />
                 ) : (
                   <Button
                     disabled={!!parsingError || !editedManifest || !providers || isSendingManifest || deployment.state !== "active"}
