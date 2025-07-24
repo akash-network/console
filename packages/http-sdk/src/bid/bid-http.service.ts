@@ -1,5 +1,3 @@
-import type { AxiosRequestConfig } from "axios";
-
 import { HttpService } from "../http/http.service";
 
 type Bid = {
@@ -51,10 +49,6 @@ type RestAkashBidListResponse = {
 };
 
 export class BidHttpService extends HttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
-  }
-
   public async list(owner: string, dseq: string): Promise<Bid[]> {
     const response = this.extractData(await this.get<RestAkashBidListResponse>(`/akash/market/v1beta4/bids/list?filters.owner=${owner}&filters.dseq=${dseq}`));
 

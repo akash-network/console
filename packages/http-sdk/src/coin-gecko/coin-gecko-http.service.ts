@@ -1,4 +1,4 @@
-import type { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
+import type { AxiosError, AxiosInstance } from "axios";
 import axiosRetry from "axios-retry";
 
 import { HttpService } from "../http/http.service";
@@ -8,10 +8,10 @@ const RETRY_COUNT = 3;
 const RETRY_DELAY_MILLISECONDS = 100;
 
 export class CoinGeckoHttpService extends HttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
+  constructor(axios: AxiosInstance) {
+    super(axios);
 
-    axiosRetry(this as unknown as AxiosInstance, {
+    axiosRetry(axios, {
       retries: RETRY_COUNT,
       retryDelay: retryCount => Math.pow(2, retryCount) * RETRY_DELAY_MILLISECONDS,
       retryCondition: (error: AxiosError) => axiosRetry.isNetworkError(error) || (error.response?.status !== undefined && error.response.status >= 500)

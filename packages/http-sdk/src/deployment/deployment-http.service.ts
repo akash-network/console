@@ -1,4 +1,3 @@
-import type { AxiosRequestConfig } from "axios";
 import z from "zod";
 
 import { HttpService } from "../http/http.service";
@@ -132,10 +131,6 @@ interface PaginationParams {
 }
 
 export class DeploymentHttpService extends HttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
-  }
-
   public async findByOwnerAndDseq(owner: string, dseq: string): Promise<RestAkashDeploymentInfoResponse> {
     return this.extractData(
       await this.get<RestAkashDeploymentInfoResponse>("/akash/deployment/v1beta3/deployments/info", {
@@ -156,7 +151,7 @@ export class DeploymentHttpService extends HttpService {
    * @returns Paginated response with deployments
    */
   public async loadDeploymentList(owner: string, state?: "active" | "closed", pagination?: PaginationParams): Promise<DeploymentListResponse> {
-    const baseUrl = this.getUri({
+    const baseUrl = this.axios.getUri({
       url: `/akash/deployment/v1beta3/deployments/list?filters.owner=${owner}${state ? `&filters.state=${state}` : ""}`
     });
     const defaultLimit = 1000;

@@ -1,5 +1,3 @@
-import type { AxiosRequestConfig } from "axios";
-
 import { HttpService } from "../http/http.service";
 
 type ProviderAttributeSchemaDetailValue = { key: string; description: string; value?: string };
@@ -53,10 +51,6 @@ export class GitHubHttpService extends HttpService {
   private readonly organization = "akash-network";
   private readonly repository = "console";
   private readonly branch = "main";
-
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
-  }
 
   async getProviderAttributesSchema() {
     return this.extractData(await this.get<ProviderAttributesSchema>(this.getFullPath("/config/provider-attributes.json")));

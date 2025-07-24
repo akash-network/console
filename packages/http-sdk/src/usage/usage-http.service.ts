@@ -1,4 +1,3 @@
-import type { AxiosRequestConfig } from "axios";
 import { format } from "date-fns";
 
 import { HttpService } from "../http/http.service";
@@ -11,10 +10,6 @@ type UsageParams = {
 };
 
 export class UsageHttpService extends HttpService {
-  constructor(config?: AxiosRequestConfig) {
-    super(config);
-  }
-
   async getUsage(params: UsageParams): Promise<UsageHistory> {
     return this.extractData(
       await this.get("/v1/usage/history", {

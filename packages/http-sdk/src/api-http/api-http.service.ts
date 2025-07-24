@@ -7,10 +7,6 @@ export interface ApiOutput<T> {
 }
 
 export class ApiHttpService extends HttpService {
-  constructor(config?: AxiosRequestConfig) {
-    super(config);
-  }
-
   post<T = any, R = AxiosResponse<ApiOutput<T>>, D = any>(url: string, data?: D, config?: AxiosRequestConfig<D>): Promise<R> {
     return super.post(url, data, config);
   }
