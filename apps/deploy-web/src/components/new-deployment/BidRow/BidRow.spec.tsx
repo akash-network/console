@@ -73,7 +73,7 @@ describe(BidRow.name, () => {
     });
     let bid = buildDeploymentBid({ provider: provider.owner });
     const components = {
-      RadioGroupItem: jest.fn() as typeof RadioGroupItem
+      RadioGroupItem: jest.fn() as unknown as typeof RadioGroupItem
     };
     setup({
       bid,

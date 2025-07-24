@@ -20,6 +20,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useImportSimpleSdl } from "@src/hooks/useImportSimpleSdl";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
+import { useFeatureFlags } from "@src/queries/featureFlags";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useDepositParams } from "@src/queries/useSaveSettings";
 import { analyticsService } from "@src/services/analytics/analytics.service";
@@ -46,7 +47,7 @@ import ViewPanel from "../shared/ViewPanel";
 import type { SdlBuilderRefType } from "./SdlBuilder";
 import { SdlBuilder } from "./SdlBuilder";
 
-const TRIAL_DEPLOYMENT_LIMIT = 50;
+const TRIAL_DEPLOYMENT_LIMIT = 5;
 
 type Props = {
   onTemplateSelected: Dispatch<TemplateCreation | null>;
@@ -71,6 +72,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const [isRepoInputValid, setIsRepoInputValid] = useState(false);
   const [sdlDenom, setSdlDenom] = useState("uakt");
+  const { data: features } = useFeatureFlags();
+  const isAnonymousFreeTrialEnabled = features?.allowAnonymousUserTrial;
 
   const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged, isTrialing, isOnboarding } = useWallet();
@@ -235,10 +238,12 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         return;
       }
 
-      if (isTrialing && !isOnboarding) {
-        sdl = appendTrialAttribute(sdl, TRIAL_ATTRIBUTE);
-      } else if (isOnboarding) {
-        sdl = appendTrialAttribute(sdl, TRIAL_REGISTERED_ATTRIBUTE);
+      if (isAnonymousFreeTrialEnabled) {
+        if (isTrialing && !isOnboarding) {
+          sdl = appendTrialAttribute(sdl, TRIAL_ATTRIBUTE);
+        } else if (isOnboarding) {
+          sdl = appendTrialAttribute(sdl, TRIAL_REGISTERED_ATTRIBUTE);
+        }
       }
 
       const dd = await createAndValidateDeploymentData(sdl, null, deposit, depositorAddress);
@@ -320,8 +325,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
 
   const { data: deployments } = useDeploymentList(address);
   const trialDeploymentLimitReached = useMemo(() => {
-    return isTrialing && (deployments?.length || 0) >= TRIAL_DEPLOYMENT_LIMIT;
-  }, [deployments?.length, isTrialing]);
+    return isAnonymousFreeTrialEnabled && isTrialing && (deployments?.length || 0) >= TRIAL_DEPLOYMENT_LIMIT;
+  }, [deployments?.length, isTrialing, isAnonymousFreeTrialEnabled]);
 
   return (
     <>

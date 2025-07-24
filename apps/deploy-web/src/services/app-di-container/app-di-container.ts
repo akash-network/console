@@ -9,7 +9,7 @@ import {
   UsageHttpService,
   UserHttpService
 } from "@akashnetwork/http-sdk";
-import { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
+import { StripeService as HttpStripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
 import { LoggerService } from "@akashnetwork/logging";
 import { getTraceData } from "@sentry/nextjs";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
@@ -24,6 +24,7 @@ import { createContainer } from "../container/createContainer";
 import { ErrorHandlerService } from "../error-handler/error-handler.service";
 import { ManagedWalletHttpService } from "../managed-wallet-http/managed-wallet-http.service";
 import { ProviderProxyService } from "../provider-proxy/provider-proxy.service";
+import { StripeService } from "../stripe/stripe.service";
 
 export const createAppRootContainer = (config: ServicesConfig) => {
   const apiConfig = { baseURL: config.BASE_API_MAINNET_URL };
@@ -56,9 +57,10 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         ]
       }),
     stripe: () =>
-      container.applyAxiosInterceptors(new StripeService(apiConfig), {
+      container.applyAxiosInterceptors(new HttpStripeService(apiConfig), {
         request: [container.authService.withAnonymousUserHeader]
       }),
+    stripeService: () => new StripeService(),
     tx: () =>
       container.applyAxiosInterceptors(new TxHttpService(customRegistry, apiConfig), {
         request: [container.authService.withAnonymousUserHeader]

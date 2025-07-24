@@ -90,7 +90,7 @@ describe("User Init", () => {
     });
 
     it("should resolve with existing user and transfer anonymous wallet", async () => {
-      const { user: anonymousUser, wallet: anonymousWallet, token: anonymousToken } = await walletService.createUserAndWallet();
+      const { user: anonymousUser, wallet: anonymousWallet, token: anonymousToken } = await walletService.createAnonymousUserAndWallet();
       const existingUser = first(await db.insert(usersTable).values(dbPayload).returning());
 
       const res = await sendTokenInfo(anonymousToken);
@@ -102,7 +102,7 @@ describe("User Init", () => {
     });
 
     it("should resolve with existing user without transferring anonymous wallet", async () => {
-      const { user: anonymousUser, wallet: anonymousWallet, token: anonymousToken } = await walletService.createUserAndWallet();
+      const { user: anonymousUser, wallet: anonymousWallet, token: anonymousToken } = await walletService.createAnonymousUserAndWallet();
       const existingUser = first(await db.insert(usersTable).values(dbPayload).returning());
 
       await userWalletRepository.create({ userId: existingUser.id, address: faker.string.alphanumeric(10) });

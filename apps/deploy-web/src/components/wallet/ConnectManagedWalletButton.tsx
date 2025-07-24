@@ -5,10 +5,12 @@ import type { ButtonProps } from "@akashnetwork/ui/components";
 import { Button, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { Rocket } from "iconoir-react";
+import { useRouter } from "next/navigation";
 
 import { useWallet } from "@src/context/WalletProvider";
 import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
 import { useFeatureFlags } from "@src/queries/featureFlags";
+import { UrlService } from "@src/utils/urlUtils";
 
 interface Props extends ButtonProps {
   children?: ReactNode;
@@ -19,16 +21,15 @@ export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ cla
   const { connectManagedWallet, hasManagedWallet, isWalletLoading } = useWallet();
   const { data: features } = useFeatureFlags();
   const whenLoggedIn = useLoginRequiredEventHandler();
-  const startTrial: React.MouseEventHandler = useCallback(
-    event => {
-      if (features?.allowAnonymousUserTrial) {
-        connectManagedWallet();
-      } else {
-        whenLoggedIn("Sign In or Sign Up to start trial")(connectManagedWallet)(event);
-      }
-    },
-    [connectManagedWallet, features?.allowAnonymousUserTrial, whenLoggedIn]
-  );
+  const router = useRouter();
+
+  const startTrial: React.MouseEventHandler = useCallback(() => {
+    if (features?.allowAnonymousUserTrial) {
+      connectManagedWallet();
+    } else {
+      router.push(UrlService.onboarding());
+    }
+  }, [connectManagedWallet, features?.allowAnonymousUserTrial, whenLoggedIn]);
 
   return (
     <Button

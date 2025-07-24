@@ -1,6 +1,6 @@
 ---
 description: General coding standards and best practices for TypeScript and JavaScript development, including type safety, avoiding deprecated methods, and maintaining clean code without unnecessary comments.
-globs: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
+globs: **/*.ts,**/*.tsx,**/*.js
 alwaysApply: false
 ---
 - Never use type any or cast to type any. Always define the proper typescript types.

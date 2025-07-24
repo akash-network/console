@@ -30,6 +30,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useWhen } from "@src/hooks/useWhen";
+import { useFeatureFlags } from "@src/queries/featureFlags";
 import { useBidList } from "@src/queries/useBidQuery";
 import { useBlock } from "@src/queries/useBlocksQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
@@ -81,6 +82,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
   const router = useRouter();
   const [numberOfRequests, setNumberOfRequests] = useState(0);
   const { data: providers } = useProviderList();
+  const { data: features } = useFeatureFlags();
   const warningRequestsReached = numberOfRequests > WARNING_NUM_OF_BID_REQUESTS;
   const maxRequestsReached = numberOfRequests > MAX_NUM_OF_BID_REQUESTS;
   const { favoriteProviders } = useLocalNotes();
@@ -498,20 +500,16 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq }) => {
             />
           ))}
 
-          {isTrialing && (
+          {isTrialing && features?.allowAnonymousUserTrial && (
             <Alert variant="destructive">
               <AlertTitle className="text-center text-lg dark:text-white/90">Free Trial!</AlertTitle>
               <AlertDescription className="space-y-1 text-center dark:text-white/90">
                 <p>You are using a free trial and are limited to only a few providers on the network.</p>
                 <p>
-                  <Link href={UrlService.login()} className="font-bold underline">
-                    Sign in
+                  <Link href={UrlService.payment()} className="font-bold underline">
+                    Buy credits
                   </Link>{" "}
-                  or{" "}
-                  <Link href={UrlService.signup()} className="font-bold underline">
-                    Sign up
-                  </Link>{" "}
-                  and buy credits to unlock all providers.
+                  to unlock all providers.
                 </p>
               </AlertDescription>
             </Alert>
