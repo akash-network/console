@@ -1,6 +1,6 @@
 export const AkashConsoleLogoDark = ({
   className = "",
-  size = { width: 170, height: 19 }
+  size = { width: 170, height: 20 }
 }: {
   className?: string;
   size?: { width: number; height: number };
@@ -74,7 +74,7 @@ export const AkashConsoleLogoDark = ({
 
 export const AkashConsoleLogoLight = ({
   className = "",
-  size = { width: 170, height: 19 }
+  size = { width: 170, height: 20 }
 }: {
   className?: string;
   size?: { width: number; height: number };

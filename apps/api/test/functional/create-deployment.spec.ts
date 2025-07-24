@@ -32,7 +32,7 @@ describe("Tx Sign", () => {
 
   describe("POST /v1/tx", () => {
     it("should create a deployment for a user", async () => {
-      const { user, token, wallet } = await walletService.createUserAndWallet();
+      const { user, token, wallet } = await walletService.createAnonymousUserAndWallet();
       nock(apiNodeUrl, { allowUnmocked: true })
         .get(
           `/akash/deployment/v1beta3/deployments/list?filters.owner=${wallet.address}&pagination.offset=0&pagination.limit=1&pagination.count_total=true&pagination.reverse=false`

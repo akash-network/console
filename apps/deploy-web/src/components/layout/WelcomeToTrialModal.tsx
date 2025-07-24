@@ -5,11 +5,13 @@ import { Popup } from "@akashnetwork/ui/components";
 import { useWallet } from "@src/context/WalletProvider";
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
+import { useFeatureFlags } from "@src/queries/featureFlags";
 import networkStore from "@src/store/networkStore";
 
 export const WelcomeToTrialModal: React.FunctionComponent = () => {
   const { wallet: managedWallet } = useManagedWallet();
   const { address } = useWallet();
+  const { data: features } = useFeatureFlags();
   const selectedNetworkId = networkStore.useSelectedNetworkId();
 
   const localStorageKey = "welcomeModalSeen";
@@ -29,8 +31,8 @@ export const WelcomeToTrialModal: React.FunctionComponent = () => {
   }, [setLocalStorageItem]);
 
   const isWelcomeModalOpen = useMemo(() => {
-    return managedWallet?.isTrialing === true && shouldModalShow;
-  }, [managedWallet?.isTrialing, shouldModalShow]);
+    return managedWallet?.isTrialing === true && shouldModalShow && features?.allowAnonymousUserTrial;
+  }, [managedWallet?.isTrialing, shouldModalShow, features?.allowAnonymousUserTrial]);
 
   return (
     <>

@@ -123,7 +123,7 @@ export const BidGroup: React.FunctionComponent<Props> = ({
           {fBids.map(bid => {
             const provider = providers && providers.find(x => x.owner === bid.provider);
             const showBid = provider?.isValidVersion && (!isSendingManifest || selectedBid?.id === bid.id);
-            return (showBid || selectedNetworkId !== MAINNET_ID) && provider ? (
+            return (showBid && provider) || selectedNetworkId !== MAINNET_ID ? (
               <BidRow
                 key={bid.id}
                 bid={bid}
