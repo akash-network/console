@@ -353,6 +353,11 @@ export function useWallet() {
   return { ...React.useContext(WalletProviderContext) };
 }
 
+export function useIsManagedWalletUser() {
+  const { isManaged } = useWallet();
+  return isManaged;
+}
+
 const TransactionSnackbarContent: React.FC<{ snackMessage: string; transactionHash: string }> = ({ snackMessage, transactionHash }) => {
   const selectedNetworkId = networkStore.useSelectedNetworkId();
   const txUrl = transactionHash && `${browserEnvConfig.NEXT_PUBLIC_STATS_APP_URL}/transactions/${transactionHash}?network=${selectedNetworkId}`;

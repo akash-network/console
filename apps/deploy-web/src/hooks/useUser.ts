@@ -22,3 +22,8 @@ export const useUser = (): CustomUserProfile => {
 
   return user;
 };
+
+export const useIsRegisteredUser = () => {
+  const user = useUser();
+  return !!user?.userId;
+};
