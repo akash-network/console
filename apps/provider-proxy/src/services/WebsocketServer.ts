@@ -2,13 +2,13 @@ import type { LoggerService } from "@akashnetwork/logging";
 import { netConfig, type SupportedChainNetworks } from "@akashnetwork/net";
 import type { Attributes } from "@opentelemetry/api";
 import { trace } from "@opentelemetry/api";
-import { bech32 } from "bech32";
 import type http from "http";
 import https from "https";
 import { TLSSocket } from "tls";
 import WebSocket from "ws";
 import { z } from "zod";
 
+import { isValidBech32Address } from "../utils/isValidBech32";
 import { propagateTracingContext, traceActiveSpan } from "../utils/telemetry";
 import type { CertificateValidator } from "./CertificateValidator";
 import type { ClientWebSocketStats, WebsocketStats, WebSocketUsage } from "./WebsocketStats";
@@ -23,7 +23,7 @@ const MESSAGE_SCHEMA = z.discriminatedUnion("type", [
     certPem: z.string().optional(),
     keyPem: z.string().optional(),
     chainNetwork: z.enum(netConfig.getSupportedNetworks() as [SupportedChainNetworks]),
-    providerAddress: z.string().refine(v => !!bech32.decodeUnsafe(v), "is not bech32 address"),
+    providerAddress: z.string().refine(isValidBech32Address, "is not bech32 address"),
     data: z
       .string()
       .optional()

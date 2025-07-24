@@ -1,9 +1,9 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import type { SupportedChainNetworks } from "@akashnetwork/net";
-import { bech32 } from "bech32";
 import type { X509Certificate } from "crypto";
 import { LRUCache } from "lru-cache";
 
+import { validateCertificateAttrs } from "../utils/validateCertificateAttrs";
 import type { ProviderService } from "./ProviderService/ProviderService";
 
 export class CertificateValidator {
@@ -79,57 +79,6 @@ export interface CertificateValidatorIntrumentation {
   ): void;
   onUnknownCert?(certificate: X509Certificate, network: SupportedChainNetworks, providerAddress: string): void;
   onInvalidFingerprint?(certificate: X509Certificate, network: SupportedChainNetworks, providerAddress: string, providerCertificate: X509Certificate): void;
-}
-
-function validateCertificateAttrs(cert: X509Certificate, now: number): CertValidationResult {
-  if (new Date(cert.validFrom).getTime() > now) {
-    return {
-      ok: false,
-      code: "validInFuture"
-    };
-  }
-
-  if (new Date(cert.validTo).getTime() < now) {
-    return {
-      ok: false,
-      code: "expired"
-    };
-  }
-
-  if (!cert.serialNumber?.trim()) {
-    return {
-      ok: false,
-      code: "invalidSerialNumber"
-    };
-  }
-
-  if (cert.issuer !== cert.subject) {
-    return {
-      ok: false,
-      code: "notSelfSigned"
-    };
-  }
-
-  const commonName = parseCertSubject(cert.subject, "CN");
-  if (!commonName || !bech32.decodeUnsafe(commonName)) {
-    return {
-      ok: false,
-      code: "CommonNameIsNotBech32"
-    };
-  }
-
-  return { ok: true };
-}
-
-function parseCertSubject(subject: string, attr: string): string | null {
-  const attrPrefix = `${attr}=`;
-  const index = subject.indexOf(attrPrefix);
-  if (index === -1) return null;
-
-  const endIndex = subject.indexOf("\n", index);
-  if (endIndex === -1) return subject.slice(index);
-
-  return subject.slice(index + attrPrefix.length, endIndex);
 }
 
 export const createCertificateValidatorInstrumentation = (logger: LoggerService): CertificateValidatorIntrumentation => ({
