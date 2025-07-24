@@ -64,8 +64,19 @@ export class TrialDeploymentsCleanerService {
   }
 
   private async cleanUpForWallet(wallet: UserWalletOutput, cutoffHeight: number) {
+    if (!wallet.address) {
+      this.logger.warn({
+        event: "TRIAL_DEPLOYMENT_CLEANUP_SKIPPED",
+        walletId: wallet.id,
+        reason: "Wallet address is missing"
+      });
+      return;
+    }
+
+    const walletAddress = wallet.address;
+
     const deployments = await this.deploymentRepository.findDeploymentsBeforeCutoff({
-      owner: wallet.address!,
+      owner: walletAddress,
       cutoffHeight
     });
 
@@ -73,11 +84,11 @@ export class TrialDeploymentsCleanerService {
       return;
     }
 
-    const messages = deployments.map((deployment: StaleDeploymentsOutput) => this.rpcMessageService.getCloseDeploymentMsg(wallet.address!, deployment.dseq));
+    const messages = deployments.map((deployment: StaleDeploymentsOutput) => this.rpcMessageService.getCloseDeploymentMsg(walletAddress, deployment.dseq));
 
     this.logger.info({
       event: "TRIAL_DEPLOYMENT_CLEANUP",
-      owner: wallet.address,
+      owner: walletAddress,
       deploymentCount: deployments.length,
       dseqs: deployments.map((d: StaleDeploymentsOutput) => d.dseq)
     });
@@ -86,13 +97,13 @@ export class TrialDeploymentsCleanerService {
       await this.managedSignerService.executeManagedTx(wallet.id, messages);
       this.logger.info({
         event: "TRIAL_DEPLOYMENT_CLEANUP_SUCCESS",
-        owner: wallet.address,
+        owner: walletAddress,
         deploymentCount: deployments.length
       });
     } catch (error: any) {
       if (error.message.includes("not allowed to pay fees")) {
         await this.managedUserWalletService.authorizeSpending({
-          address: wallet.address!,
+          address: walletAddress,
           limits: {
             fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT
           }
@@ -101,7 +112,7 @@ export class TrialDeploymentsCleanerService {
         await this.managedSignerService.executeManagedTx(wallet.id, messages);
         this.logger.info({
           event: "TRIAL_DEPLOYMENT_CLEANUP_SUCCESS",
-          owner: wallet.address,
+          owner: walletAddress,
           deploymentCount: deployments.length
         });
       } else {
