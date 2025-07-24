@@ -1,5 +1,5 @@
 import { LoggerService } from "@akashnetwork/logging";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
@@ -13,7 +13,6 @@ import { averageBlockCountInAnHour } from "@src/utils/constants";
 
 @singleton()
 export class TrialDeploymentsCleanerService {
-  private readonly logger = LoggerService.forContext(TrialDeploymentsCleanerService.name);
   private readonly MAX_LIVE_BLOCKS = Math.floor(this.config.TRIAL_DEPLOYMENT_CLEANUP_HOURS * averageBlockCountInAnHour);
 
   constructor(
@@ -24,7 +23,9 @@ export class TrialDeploymentsCleanerService {
     private readonly managedSignerService: ManagedSignerService,
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly managedUserWalletService: ManagedUserWalletService,
-    private readonly errorService: ErrorService
+    private readonly errorService: ErrorService,
+    @inject("TrialDeploymentsCleanerServiceLogger", { isOptional: true })
+    private readonly logger = LoggerService.forContext(TrialDeploymentsCleanerService.name)
   ) {}
 
   async cleanup(options: CleanUpTrialDeploymentsParams) {
@@ -63,7 +64,7 @@ export class TrialDeploymentsCleanerService {
   }
 
   private async cleanUpForWallet(wallet: UserWalletOutput, cutoffHeight: number) {
-    const deployments = await this.deploymentRepository.findTrialDeployments({
+    const deployments = await this.deploymentRepository.findDeploymentsBeforeCutoff({
       owner: wallet.address!,
       cutoffHeight
     });

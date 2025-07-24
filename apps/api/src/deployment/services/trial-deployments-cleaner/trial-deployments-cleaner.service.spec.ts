@@ -1,5 +1,7 @@
 import "@test/mocks/logger-service.mock";
 
+import { mock } from "jest-mock-extended";
+
 import type { BillingConfig } from "@src/billing/providers";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { RpcMessageService } from "@src/billing/services";
@@ -7,15 +9,13 @@ import type { ManagedUserWalletService } from "@src/billing/services";
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { BlockRepository } from "@src/chain/repositories/block.repository";
 import type { ErrorService } from "@src/core/services/error/error.service";
-import type { DeploymentRepository, StaleDeploymentsOutput } from "@src/deployment/repositories/deployment/deployment.repository";
+import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { averageBlockCountInAnHour } from "@src/utils/constants";
 import { TrialDeploymentsCleanerService } from "./trial-deployments-cleaner.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { StaleDeploymentSeeder } from "@test/seeders/stale-deployment.seeder";
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
-
-jest.mock("@akashnetwork/logging");
 
 describe(TrialDeploymentsCleanerService.name, () => {
   const CURRENT_BLOCK_HEIGHT = 7481457;
@@ -50,11 +50,13 @@ describe(TrialDeploymentsCleanerService.name, () => {
 
       const { service, userWalletRepository, deploymentRepository, blockRepository, rpcMessageService, managedSignerService } = setup({
         trialWallets,
-        staleDeployments1,
-        staleDeployments2,
-        closeMessages1,
-        closeMessages2,
-        concurrency: CONCURRENCY
+        concurrency: CONCURRENCY,
+        getCloseDeploymentMsgMock: jest
+          .fn()
+          .mockReturnValueOnce(closeMessages1[0])
+          .mockReturnValueOnce(closeMessages1[1])
+          .mockReturnValueOnce(closeMessages2[0]),
+        findDeploymentsBeforeCutoffMock: jest.fn().mockResolvedValueOnce(staleDeployments1).mockResolvedValueOnce(staleDeployments2)
       });
 
       await service.cleanup({ concurrency: CONCURRENCY });
@@ -68,11 +70,11 @@ describe(TrialDeploymentsCleanerService.name, () => {
         expect.any(Function)
       );
 
-      expect(deploymentRepository.findTrialDeployments).toHaveBeenCalledWith({
+      expect(deploymentRepository.findDeploymentsBeforeCutoff).toHaveBeenCalledWith({
         owner: trialWallets[0].address,
         cutoffHeight: CUTOFF_HEIGHT
       });
-      expect(deploymentRepository.findTrialDeployments).toHaveBeenCalledWith({
+      expect(deploymentRepository.findDeploymentsBeforeCutoff).toHaveBeenCalledWith({
         owner: trialWallets[1].address,
         cutoffHeight: CUTOFF_HEIGHT
       });
@@ -95,13 +97,14 @@ describe(TrialDeploymentsCleanerService.name, () => {
 
       const { service, deploymentRepository, rpcMessageService, managedSignerService } = setup({
         trialWallets,
-        staleDeployments: [],
-        concurrency: CONCURRENCY
+        concurrency: CONCURRENCY,
+        getCloseDeploymentMsgMock: jest.fn(),
+        findDeploymentsBeforeCutoffMock: jest.fn().mockResolvedValue([])
       });
 
       await service.cleanup({ concurrency: CONCURRENCY });
 
-      expect(deploymentRepository.findTrialDeployments).toHaveBeenCalledWith({
+      expect(deploymentRepository.findDeploymentsBeforeCutoff).toHaveBeenCalledWith({
         owner: trialWallets[0].address,
         cutoffHeight: CUTOFF_HEIGHT
       });
@@ -123,10 +126,10 @@ describe(TrialDeploymentsCleanerService.name, () => {
 
       const { service, managedSignerService, managedUserWalletService, config } = setup({
         trialWallets: [trialWallet],
-        staleDeployments,
-        closeMessages: [closeMessage],
         concurrency: CONCURRENCY,
-        feeError: true
+        feeError: true,
+        getCloseDeploymentMsgMock: jest.fn().mockReturnValue(closeMessage),
+        findDeploymentsBeforeCutoffMock: jest.fn().mockResolvedValue(staleDeployments)
       });
 
       await service.cleanup({ concurrency: CONCURRENCY });
@@ -150,8 +153,8 @@ describe(TrialDeploymentsCleanerService.name, () => {
 
       const { service, userWalletRepository } = setup({
         trialWallets,
-        staleDeployments: [],
-        concurrency: 10
+        concurrency: 10,
+        findDeploymentsBeforeCutoffMock: jest.fn().mockResolvedValue([])
       });
 
       await service.cleanup({});
@@ -177,10 +180,10 @@ describe(TrialDeploymentsCleanerService.name, () => {
 
       const { service, managedSignerService, managedUserWalletService } = setup({
         trialWallets: [trialWallet],
-        staleDeployments,
-        closeMessages: [closeMessage],
         concurrency: CONCURRENCY,
-        networkError: true
+        networkError: true,
+        getCloseDeploymentMsgMock: jest.fn().mockReturnValue(closeMessage),
+        findDeploymentsBeforeCutoffMock: jest.fn().mockResolvedValue(staleDeployments)
       });
 
       await service.cleanup({ concurrency: CONCURRENCY });
@@ -191,48 +194,44 @@ describe(TrialDeploymentsCleanerService.name, () => {
 
     function setup(input: {
       trialWallets: any[];
-      staleDeployments?: StaleDeploymentsOutput[];
-      staleDeployments1?: StaleDeploymentsOutput[];
-      staleDeployments2?: StaleDeploymentsOutput[];
-      closeMessages?: any[];
-      closeMessages1?: any[];
-      closeMessages2?: any[];
       concurrency?: number;
       feeError?: boolean;
       networkError?: boolean;
+      getCloseDeploymentMsgMock?: jest.Mock;
+      findDeploymentsBeforeCutoffMock?: jest.Mock;
     }) {
-      const userWalletRepository = {
+      const userWalletRepository = mock<UserWalletRepository>({
         paginate: jest.fn()
-      } as Partial<jest.Mocked<UserWalletRepository>> as jest.Mocked<UserWalletRepository>;
+      });
 
-      const deploymentRepository = {
-        findTrialDeployments: jest.fn()
-      } as Partial<jest.Mocked<DeploymentRepository>> as jest.Mocked<DeploymentRepository>;
+      const deploymentRepository = mock<DeploymentRepository>({
+        findDeploymentsBeforeCutoff: input.findDeploymentsBeforeCutoffMock || jest.fn()
+      });
 
-      const blockRepository = {
+      const blockRepository = mock<BlockRepository>({
         getLatestHeight: jest.fn().mockResolvedValue(CURRENT_BLOCK_HEIGHT)
-      } as Partial<jest.Mocked<BlockRepository>> as jest.Mocked<BlockRepository>;
+      });
 
-      const rpcMessageService = {
-        getCloseDeploymentMsg: jest.fn()
-      } as Partial<jest.Mocked<RpcMessageService>> as jest.Mocked<RpcMessageService>;
+      const rpcMessageService = mock<RpcMessageService>({
+        getCloseDeploymentMsg: input.getCloseDeploymentMsgMock || jest.fn()
+      });
 
-      const managedSignerService = {
+      const managedSignerService = mock<ManagedSignerService>({
         executeManagedTx: jest.fn()
-      } as Partial<jest.Mocked<ManagedSignerService>> as jest.Mocked<ManagedSignerService>;
+      });
 
-      const managedUserWalletService = {
+      const managedUserWalletService = mock<ManagedUserWalletService>({
         authorizeSpending: jest.fn()
-      } as Partial<jest.Mocked<ManagedUserWalletService>> as jest.Mocked<ManagedUserWalletService>;
+      });
 
-      const errorService = {
+      const errorService = mock<ErrorService>({
         execWithErrorHandler: jest.fn()
-      } as Partial<jest.Mocked<ErrorService>> as jest.Mocked<ErrorService>;
+      });
 
-      const config = {
+      const config = mock<BillingConfig>({
         TRIAL_DEPLOYMENT_CLEANUP_HOURS,
         FEE_ALLOWANCE_REFILL_AMOUNT: 1000000
-      } as Partial<jest.Mocked<BillingConfig>> as jest.Mocked<BillingConfig>;
+      });
 
       const service = new TrialDeploymentsCleanerService(
         userWalletRepository,
@@ -245,33 +244,12 @@ describe(TrialDeploymentsCleanerService.name, () => {
         errorService
       );
 
-      // Mock user wallet pagination
       (userWalletRepository.paginate as jest.Mock).mockImplementation(async (params, callback) => {
         expect(params.query.isTrialing).toBe(true);
         expect(params.limit).toBe(input.concurrency || 10);
         await callback(input.trialWallets);
       });
 
-      // Mock deployment repository
-      if (input.staleDeployments1 && input.staleDeployments2) {
-        (deploymentRepository.findTrialDeployments as jest.Mock).mockResolvedValueOnce(input.staleDeployments1).mockResolvedValueOnce(input.staleDeployments2);
-      } else if (input.staleDeployments) {
-        (deploymentRepository.findTrialDeployments as jest.Mock).mockResolvedValue(input.staleDeployments);
-      }
-
-      // Mock RPC message service
-      if (input.closeMessages1 && input.closeMessages2) {
-        (rpcMessageService.getCloseDeploymentMsg as jest.Mock)
-          .mockReturnValueOnce(input.closeMessages1[0])
-          .mockReturnValueOnce(input.closeMessages1[1])
-          .mockReturnValueOnce(input.closeMessages2[0]);
-      } else if (input.closeMessages) {
-        input.closeMessages.forEach(message => {
-          (rpcMessageService.getCloseDeploymentMsg as jest.Mock).mockReturnValueOnce(message);
-        });
-      }
-
-      // Mock managed signer service
       if (input.feeError) {
         (managedSignerService.executeManagedTx as jest.Mock).mockRejectedValueOnce(new Error("not allowed to pay fees")).mockResolvedValueOnce(undefined);
       } else if (input.networkError) {
@@ -281,10 +259,8 @@ describe(TrialDeploymentsCleanerService.name, () => {
         (managedSignerService.executeManagedTx as jest.Mock).mockResolvedValue(undefined);
       }
 
-      // Mock managed user wallet service
       (managedUserWalletService.authorizeSpending as jest.Mock).mockResolvedValue(undefined);
 
-      // Mock error service to execute the cleanup function
       (errorService.execWithErrorHandler as jest.Mock).mockImplementation(async (params, cleanupFn) => {
         expect(params.wallet).toBeDefined();
         expect(params.event).toBe("TRIAL_DEPLOYMENT_CLEANUP_ERROR");

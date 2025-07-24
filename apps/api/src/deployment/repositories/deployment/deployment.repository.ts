@@ -14,7 +14,7 @@ export interface ProviderCleanupOptions {
   provider: string;
 }
 
-export interface TrialDeploymentsOptions {
+export interface DeploymentsBeforeCutoffOptions {
   owner: string;
   cutoffHeight: number;
 }
@@ -62,7 +62,7 @@ export class DeploymentRepository {
     return deployments ? (deployments as unknown as StaleDeploymentsOutput[]) : [];
   }
 
-  async findTrialDeployments(options: TrialDeploymentsOptions): Promise<StaleDeploymentsOutput[]> {
+  async findDeploymentsBeforeCutoff(options: DeploymentsBeforeCutoffOptions): Promise<StaleDeploymentsOutput[]> {
     const deployments = await Deployment.findAll({
       attributes: ["dseq"],
       where: {
