@@ -76,7 +76,7 @@ jobs:
 
       - name: Install Dependencies
         if: steps.deps-cache.outputs.cache-hit != 'true'
-        run: npm ci -w packages/releaser
+        run: npm run safe-install -- -w packages/releaser
 
       - name: Generate Release Changes
         run: |

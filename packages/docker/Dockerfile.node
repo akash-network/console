@@ -20,11 +20,13 @@ COPY --parents packages/*/package.json /app
 RUN npm version --allow-same-version 1.0.0 -w $WORKSPACE --no-workspaces-update && \
     npm install --package-lock-only
 
+COPY script/safe-deps-install.sh /app/script/safe-deps-install.sh
+
 FROM base AS development
 
 COPY --from=prepare /app .
 
-RUN npm ci --workspace $WORKSPACE && npm cache clean --force
+RUN npm run safe-install -- --workspace $WORKSPACE && npm cache clean --force
 COPY $WORKSPACE ./$WORKSPACE
 COPY packages ./packages
 
@@ -48,7 +50,7 @@ RUN addgroup --system --gid $APP_GROUP_ID $APP_GROUP \
 
 COPY --from=prepare /app .
 # webpack built apps are not fully bundled, so we need to install dependencies separately
-RUN npm ci --workspace $WORKSPACE --omit=dev && npm cache clean --force
+RUN npm run safe-install -- --workspace $WORKSPACE --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/package*.json /app/
 COPY --from=builder /app/$WORKSPACE/package.json /app/$WORKSPACE/
