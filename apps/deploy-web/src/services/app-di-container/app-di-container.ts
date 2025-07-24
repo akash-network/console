@@ -13,7 +13,7 @@ import { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service"
 import { LoggerService } from "@akashnetwork/logging";
 import { getTraceData } from "@sentry/nextjs";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
-import type { Axios, AxiosInstance, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
+import type { Axios, AxiosInstance, AxiosRequestConfig, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
 
 import { analyticsService } from "@src/services/analytics/analytics.service";
@@ -27,7 +27,30 @@ import { ProviderProxyService } from "../provider-proxy/provider-proxy.service";
 
 export const createAppRootContainer = (config: ServicesConfig) => {
   const apiConfig = { baseURL: config.BASE_API_MAINNET_URL };
+
   const container = createContainer({
+    getAxiosInstance: () => (config?: AxiosRequestConfig) => {
+      const { headers, ...defaults } = axios.defaults;
+
+      return axios.create({
+        ...defaults,
+        ...config
+      });
+    },
+    axiosWithDefaultInterceptors: () => (config?: AxiosRequestConfig) => {
+      return container.applyAxiosInterceptors(container.getAxiosInstance(config), {
+        request: [container.authService.withAnonymousUserHeader]
+      });
+    },
+
+    defaultAxios: () => container.axiosWithDefaultInterceptors(),
+    mainnetAxios: () => container.axiosWithDefaultInterceptors(apiConfig),
+    mainNetAxiosWithNoAnonymousUserHeaderInterceptor: () => container.applyAxiosInterceptors(container.getAxiosInstance(apiConfig)),
+    managedWalletAxios: () =>
+      container.axiosWithDefaultInterceptors({
+        baseURL: container.apiUrlService.getBaseApiUrlFor(config.MANAGED_WALLET_NETWORK_ID)
+      }),
+
     getTraceData: () => getTraceData,
     applyAxiosInterceptors: (): typeof withInterceptors => {
       const otelInterceptor = (config: InternalAxiosRequestConfig) => {
@@ -36,51 +59,37 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         if (traceData?.baggage) config.headers.set("Baggage", traceData.baggage);
         return config;
       };
+
       return (axiosInstance, interceptors?) =>
         withInterceptors(axiosInstance, {
           request: [config.globalRequestMiddleware, otelInterceptor, ...(interceptors?.request || [])],
-          response: [...(interceptors?.response || [])]
+          response: [
+            response => {
+              if (response.config.url?.startsWith("/v1/anonymous-users") && response.config.method === "post" && response.status === 200) {
+                container.analyticsService.track("anonymous_user_created", { category: "user", label: "Anonymous User Created" });
+              }
+              return response;
+            },
+            response => {
+              if (response.config.url === "v1/start-trial" && response.config.method === "post" && response.status === 200) {
+                container.analyticsService.track("trial_started", { category: "billing", label: "Trial Started" });
+              }
+              return response;
+            },
+            ...(interceptors?.response || [])
+          ]
         });
     },
     authService: () => new AuthService(),
-    user: () =>
-      container.applyAxiosInterceptors(new UserHttpService(apiConfig), {
-        request: [container.authService.withAnonymousUserHeader],
-        response: [
-          response => {
-            if (response.config.url?.startsWith("/v1/anonymous-users") && response.config.method === "post" && response.status === 200) {
-              container.analyticsService.track("anonymous_user_created", { category: "user", label: "Anonymous User Created" });
-            }
-            return response;
-          }
-        ]
-      }),
-    stripe: () =>
-      container.applyAxiosInterceptors(new StripeService(apiConfig), {
-        request: [container.authService.withAnonymousUserHeader]
-      }),
-    tx: () =>
-      container.applyAxiosInterceptors(new TxHttpService(customRegistry, apiConfig), {
-        request: [container.authService.withAnonymousUserHeader]
-      }),
-    template: () => container.applyAxiosInterceptors(new TemplateHttpService(apiConfig)),
-    usage: () =>
-      container.applyAxiosInterceptors(new UsageHttpService(apiConfig), {
-        request: [container.authService.withAnonymousUserHeader]
-      }),
-    auth: () =>
-      container.applyAxiosInterceptors(new AuthHttpService(apiConfig), {
-        request: [container.authService.withAnonymousUserHeader]
-      }),
+    user: () => new UserHttpService(container.mainnetAxios),
+    stripe: () => new StripeService(container.mainnetAxios),
+    tx: () => new TxHttpService(container.mainnetAxios, customRegistry),
+    template: () => new TemplateHttpService(container.mainNetAxiosWithNoAnonymousUserHeaderInterceptor),
+    usage: () => new UsageHttpService(container.mainnetAxios),
+    auth: () => new AuthHttpService(container.mainnetAxios),
     providerProxy: () => new ProviderProxyService(container.applyAxiosInterceptors(container.createAxios({ baseURL: config.BASE_PROVIDER_PROXY_URL }), {})),
-    deploymentSetting: () =>
-      container.applyAxiosInterceptors(new DeploymentSettingHttpService(apiConfig), {
-        request: [container.authService.withAnonymousUserHeader]
-      }),
-    apiKey: () =>
-      container.applyAxiosInterceptors(new ApiKeyHttpService(), {
-        request: [container.authService.withAnonymousUserHeader]
-      }),
+    deploymentSetting: () => new DeploymentSettingHttpService(container.mainnetAxios),
+    apiKey: () => new ApiKeyHttpService(container.defaultAxios),
     externalApiHttpClient: () =>
       container.createAxios({
         headers: {
@@ -97,26 +106,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
     certificateManager: () => certificateManager,
     analyticsService: () => analyticsService,
     apiUrlService: config.apiUrlService,
-    managedWalletService: () =>
-      container.applyAxiosInterceptors(
-        new ManagedWalletHttpService(
-          {
-            baseURL: container.apiUrlService.getBaseApiUrlFor(config.MANAGED_WALLET_NETWORK_ID)
-          },
-          container.analyticsService
-        ),
-        {
-          request: [container.authService.withAnonymousUserHeader],
-          response: [
-            response => {
-              if (response.config.url === "v1/start-trial" && response.config.method === "post" && response.status === 200) {
-                container.analyticsService.track("trial_started", { category: "billing", label: "Trial Started" });
-              }
-              return response;
-            }
-          ]
-        }
-      ),
+    managedWalletService: () => new ManagedWalletHttpService(container.managedWalletAxios, container.analyticsService),
     queryClient: () =>
       new QueryClient({
         queryCache: new QueryCache({

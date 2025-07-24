@@ -19,7 +19,7 @@ const rootContainer = createAppRootContainer({
 });
 
 export const services = createChildContainer(rootContainer, {
-  userProviderService: () => new UserProviderService(),
+  userProviderService: () => new UserProviderService(services.defaultAxios),
   notificationsApi: () =>
     createAPIClient({
       requestFn,

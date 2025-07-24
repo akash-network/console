@@ -1,5 +1,3 @@
-import type { AxiosRequestConfig } from "axios";
-
 import { ApiHttpService } from "../api-http/api-http.service";
 
 export interface DeploymentSettingOutput {
@@ -29,10 +27,6 @@ export interface FindDeploymentSettingParams {
 }
 
 export class DeploymentSettingHttpService extends ApiHttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
-  }
-
   async findByUserIdAndDseq(params: FindDeploymentSettingParams): Promise<DeploymentSettingOutput> {
     return this.extractApiData(await this.get<DeploymentSettingOutput>(`/v1/deployment-settings/${params.userId}/${params.dseq}`));
   }

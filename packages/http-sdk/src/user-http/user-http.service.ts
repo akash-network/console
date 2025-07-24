@@ -1,4 +1,4 @@
-import type { AxiosRequestConfig } from "axios";
+import type { AxiosInstance } from "axios";
 import memoize from "lodash/memoize";
 
 import type { ApiOutput } from "../api-http/api-http.service";
@@ -25,8 +25,9 @@ export type UserCreateResponse = {
 };
 
 export class UserHttpService extends HttpService {
-  constructor(config?: AxiosRequestConfig) {
-    super(config);
+  constructor(axios: AxiosInstance) {
+    super(axios);
+
     this.getOrCreateAnonymousUser = memoize(this.getOrCreateAnonymousUser.bind(this));
   }
 

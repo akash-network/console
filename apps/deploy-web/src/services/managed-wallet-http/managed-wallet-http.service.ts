@@ -1,6 +1,6 @@
 import type { ApiManagedWalletOutput, ApiWalletOutput } from "@akashnetwork/http-sdk";
 import { ManagedWalletHttpService as ManagedWalletHttpServiceOriginal } from "@akashnetwork/http-sdk";
-import type { AxiosRequestConfig } from "axios";
+import type { AxiosInstance } from "axios";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 
@@ -8,10 +8,10 @@ export class ManagedWalletHttpService extends ManagedWalletHttpServiceOriginal {
   private checkoutSessionId: string | null = null;
 
   constructor(
-    config: AxiosRequestConfig,
+    axios: AxiosInstance,
     private readonly analyticsService: AnalyticsService
   ) {
-    super(config);
+    super(axios);
 
     this.extractSessionResults();
   }

@@ -1,7 +1,7 @@
 import type { Registry } from "@cosmjs/proto-signing";
 import type { EncodeObject } from "@cosmjs/proto-signing/build/registry";
 import type { DeliverTxResponse } from "@cosmjs/stargate";
-import type { AxiosRequestConfig } from "axios";
+import type { AxiosInstance } from "axios";
 
 import { ApiHttpService } from "../api-http/api-http.service";
 
@@ -14,10 +14,10 @@ export type TxOutput = Pick<DeliverTxResponse, "code" | "transactionHash" | "raw
 
 export class TxHttpService extends ApiHttpService {
   constructor(
-    private readonly registry: Registry,
-    config?: AxiosRequestConfig
+    axios: AxiosInstance,
+    private readonly registry: Registry
   ) {
-    super(config);
+    super(axios);
   }
   async signAndBroadcastTx(input: TxInput) {
     const messages = input.messages.map(m => ({ ...m, value: Buffer.from(this.registry.encode(m)).toString("base64") }));

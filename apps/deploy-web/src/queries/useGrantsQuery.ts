@@ -17,7 +17,7 @@ export function useGranterGrants(
   const { authzHttpService } = useServices();
   const offset = page * limit;
 
-  options.enabled = options.enabled !== false && !!address && !!authzHttpService.defaults.baseURL;
+  options.enabled = options.enabled !== false && !!address && !!authzHttpService.axios.defaults.baseURL;
 
   return useQuery({
     queryKey: QueryKeys.getGranterGrants(address, page, offset),
@@ -29,7 +29,7 @@ export function useGranterGrants(
 export function useGranteeGrants(address: string, options: Omit<UseQueryOptions<DepositDeploymentGrant[]>, "queryKey" | "queryFn"> = {}) {
   const { authzHttpService } = useServices();
 
-  options.enabled = options.enabled !== false && !!address && !!authzHttpService.defaults.baseURL;
+  options.enabled = options.enabled !== false && !!address && !!authzHttpService.axios.defaults.baseURL;
 
   return useQuery({
     queryKey: QueryKeys.getGranteeGrants(address || "UNDEFINED"),
@@ -47,7 +47,7 @@ export function useAllowancesIssued(
   const { authzHttpService } = useServices();
   const offset = page * limit;
 
-  options.enabled = options.enabled !== false && !!address && !!authzHttpService.defaults.baseURL;
+  options.enabled = options.enabled !== false && !!address && !!authzHttpService.axios.defaults.baseURL;
 
   return useQuery({
     queryKey: QueryKeys.getAllowancesIssued(address, page, offset),

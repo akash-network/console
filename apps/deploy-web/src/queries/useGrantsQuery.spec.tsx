@@ -28,7 +28,9 @@ describe("useGrantsQuery", () => {
       };
 
       const authzHttpService = mock<AuthzHttpService>({
-        defaults: { baseURL: "https://api.akash.network" },
+        axios: {
+          defaults: { baseURL: "https://api.akash.network" }
+        } as AxiosInstance,
         getPaginatedDepositDeploymentGrants: jest.fn().mockResolvedValue(mockData)
       });
       const { result } = setupQuery(() => useGranterGrants("test-address", 0, 1000), {
@@ -46,7 +48,9 @@ describe("useGrantsQuery", () => {
 
     it("does not fetch when address is not provided", () => {
       const authzHttpService = mock<AuthzHttpService>({
-        defaults: { baseURL: "https://api.akash.network" },
+        axios: {
+          defaults: { baseURL: "https://api.akash.network" }
+        } as AxiosInstance,
         getPaginatedDepositDeploymentGrants: jest.fn().mockResolvedValue([])
       });
       setupQuery(() => useGranterGrants("", 0, 1000), {
@@ -69,7 +73,9 @@ describe("useGrantsQuery", () => {
         }
       ];
       const authzHttpService = mock<AuthzHttpService>({
-        defaults: { baseURL: "https://api.akash.network" },
+        axios: {
+          defaults: { baseURL: "https://api.akash.network" }
+        } as AxiosInstance,
         getAllDepositDeploymentGrants: jest.fn().mockResolvedValue(mockData)
       });
 
@@ -88,7 +94,9 @@ describe("useGrantsQuery", () => {
 
     it("does not fetch when address is not provided", () => {
       const authzHttpService = mock<AuthzHttpService>({
-        defaults: { baseURL: "https://api.akash.network" },
+        axios: {
+          defaults: { baseURL: "https://api.akash.network" }
+        } as AxiosInstance,
         getAllDepositDeploymentGrants: jest.fn().mockResolvedValue([])
       });
       setupQuery(() => useGranteeGrants(""), {
@@ -108,7 +116,9 @@ describe("useGrantsQuery", () => {
         pagination: { total: 1 }
       };
       const authzHttpService = mock<AuthzHttpService>({
-        defaults: { baseURL: "https://api.akash.network" },
+        axios: {
+          defaults: { baseURL: "https://api.akash.network" }
+        } as AxiosInstance,
         getPaginatedFeeAllowancesForGranter: jest.fn().mockResolvedValue(mockData)
       });
 
@@ -127,7 +137,9 @@ describe("useGrantsQuery", () => {
 
     it("does not fetch when address is not provided", () => {
       const authzHttpService = mock<AuthzHttpService>({
-        defaults: { baseURL: "https://api.akash.network" },
+        axios: {
+          defaults: { baseURL: "https://api.akash.network" }
+        } as AxiosInstance,
         getPaginatedFeeAllowancesForGranter: jest.fn().mockResolvedValue([])
       });
       setupQuery(() => useAllowancesIssued("", 0, 1000), {

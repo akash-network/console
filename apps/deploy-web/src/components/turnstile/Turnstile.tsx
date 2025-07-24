@@ -27,10 +27,10 @@ let originalFetch: typeof fetch | undefined;
 
 const addResponseInterceptor = (intercept: (service: Axios, value: AxiosError) => AxiosResponse | Promise<AxiosResponse>) => {
   const removes = HTTP_SERVICES.map(service => {
-    const interceptorId = service.interceptors.response.use(null, error => intercept(service, error));
+    const interceptorId = service.axios.interceptors.response.use(null, error => intercept(service.axios, error));
 
     return () => {
-      service.interceptors.response.eject(interceptorId);
+      service.axios.interceptors.response.eject(interceptorId);
     };
   });
 

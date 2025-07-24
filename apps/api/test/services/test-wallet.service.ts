@@ -2,6 +2,7 @@ import { BalanceHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { coins } from "@cosmjs/proto-signing";
 import { calculateFee, GasPrice, SigningStargateClient } from "@cosmjs/stargate";
+import axios from "axios";
 import dotenv from "dotenv";
 import dotenvExpand from "dotenv-expand";
 import * as fs from "fs";
@@ -19,9 +20,11 @@ const MIN_AMOUNTS: Record<string, number> = {
 };
 
 export class TestWalletService {
-  private readonly balanceHttpService = new BalanceHttpService({
-    baseURL: config!.API_NODE_ENDPOINT
-  });
+  private readonly balanceHttpService = new BalanceHttpService(
+    axios.create({
+      baseURL: config!.API_NODE_ENDPOINT
+    })
+  );
 
   private mnemonics: Record<string, string> = {};
 

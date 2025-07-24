@@ -1,4 +1,3 @@
-import type { AxiosRequestConfig } from "axios";
 import { isFuture } from "date-fns";
 
 import { HttpService } from "../http/http.service";
@@ -58,10 +57,6 @@ export class AuthzHttpService extends HttpService {
     "/akash.deployment.v1beta3.DepositDeploymentAuthorization";
 
   private readonly FEE_ALLOWANCE_TYPE: FeeAllowance["allowance"]["@type"] = "/cosmos.feegrant.v1beta1.BasicAllowance";
-
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
-  }
 
   async getFeeAllowancesForGrantee(address: string) {
     const allowances = this.extractData(await this.get<FeeAllowanceListResponse>(`cosmos/feegrant/v1beta1/allowances/${address}`));

@@ -13,10 +13,6 @@ import type {
 } from "./stripe.types";
 
 export class StripeService extends ApiHttpService {
-  constructor(config?: AxiosRequestConfig) {
-    super(config);
-  }
-
   // Payment Methods
   async createSetupIntent(config?: AxiosRequestConfig): Promise<SetupIntentResponse> {
     return this.extractApiData(await this.post("/v1/stripe/payment-methods/setup", {}, config));

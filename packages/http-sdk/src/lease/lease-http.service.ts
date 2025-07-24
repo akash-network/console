@@ -1,5 +1,3 @@
-import type { AxiosRequestConfig } from "axios";
-
 import { HttpService } from "../http/http.service";
 
 export type RestAkashLeaseListResponse = {
@@ -55,10 +53,6 @@ type LeaseListParams = {
 };
 
 export class LeaseHttpService extends HttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
-  }
-
   public async list({ owner, dseq, state }: LeaseListParams): Promise<RestAkashLeaseListResponse> {
     return this.extractData(
       await this.get<RestAkashLeaseListResponse>("/akash/market/v1beta4/leases/list", {

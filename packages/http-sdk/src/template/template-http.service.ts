@@ -1,5 +1,3 @@
-import type { AxiosRequestConfig } from "axios";
-
 import type { ApiOutput } from "../api-http/api-http.service";
 import { ApiHttpService } from "../api-http/api-http.service";
 
@@ -33,10 +31,6 @@ export interface TemplateCategory {
 }
 
 export class TemplateHttpService extends ApiHttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
-  }
-
   async findById(id: string): Promise<TemplateOutput> {
     return this.extractApiData(await this.get<TemplateOutput>(`/v1/templates/${id}`));
   }
