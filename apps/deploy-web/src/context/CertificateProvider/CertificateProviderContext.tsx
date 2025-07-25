@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import type { CertificateInfo } from "@akashnetwork/akashjs/build/certificates/certificate-manager/CertificateManager";
+import type { CertificateInfo, CertificatePem } from "@akashnetwork/akashjs/build/certificates/certificate-manager/CertificateManager";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
@@ -50,6 +50,8 @@ export type ContextType = {
   localCerts: Array<LocalCert> | null;
   setLocalCerts: React.Dispatch<React.SetStateAction<LocalCert[] | null>>;
   createCertificate: () => Promise<void>;
+  genNewCertificateIfLocalIsInvalid: () => Promise<CertificatePem | null>;
+  updateSelectedCertificate: (cert: CertificatePem) => Promise<LocalCert>;
   isCreatingCert: boolean;
   regenerateCertificate: () => Promise<void>;
   revokeCertificate: (certificate: ChainCertificate) => Promise<void>;
@@ -318,6 +320,38 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
     }
   };
 
+  const genNewCertificateIfLocalIsInvalid = useCallback(async () => {
+    if (!parsedLocalCert || isExpired(parsedLocalCert)) return certificateManager.generatePEM(address);
+
+    const validCerts = await loadValidCertificates();
+    const currentCert = localCert ? validCerts.find(({ parsed }) => parsed === localCert.certPem) : null;
+    const isLocalCertValid = currentCert?.certificate?.state === "valid" && isLocalCertMatching;
+
+    return isLocalCertValid ? null : certificateManager.generatePEM(address);
+  }, [localCert, loadValidCertificates, isLocalCertMatching, address]);
+
+  const updateSelectedCertificate = useCallback(
+    async (cert: CertificatePem) => {
+      updateWallet(address, wallet => {
+        return {
+          ...wallet,
+          cert: cert.cert,
+          certKey: cert.privateKey
+        };
+      });
+      const validCerts = await loadValidCertificates();
+      loadLocalCert();
+      const currentCert = validCerts.find(x => x.parsed === cert.cert);
+      setSelectedCertificate(currentCert || null);
+      return {
+        certPem: cert.cert,
+        keyPem: cert.privateKey,
+        address
+      };
+    },
+    [address, loadValidCertificates, loadLocalCert, setSelectedCertificate]
+  );
+
   return (
     <CertificateProviderContext.Provider
       value={{
@@ -333,6 +367,8 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
         get isLocalCertExpired() {
           return !!parsedLocalCert && isExpired(parsedLocalCert);
         },
+        genNewCertificateIfLocalIsInvalid,
+        updateSelectedCertificate,
         isLocalCertMatching,
         validCertificates,
         setValidCertificates,
