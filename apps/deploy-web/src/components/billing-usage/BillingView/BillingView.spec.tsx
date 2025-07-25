@@ -2,6 +2,7 @@ import "@testing-library/jest-dom";
 
 import React from "react";
 import type { Charge } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import { TooltipProvider } from "@akashnetwork/ui/components";
 import { mock } from "jest-mock-extended";
 
 import type { BillingViewProps } from "./BillingView";
@@ -114,6 +115,15 @@ describe(BillingView.name, () => {
 
     const defaultComponents: NonNullable<BillingViewProps["components"]> = {
       FormattedNumber: ({ value }: { value: number }) => <span>{value}</span>,
+      PaginationSizeSelector: ({ pageSize, setPageSize }) => (
+        <select value={pageSize} onChange={e => setPageSize?.(parseInt(e.target.value, 10))} role="combobox">
+          {[10, 20, 50].map(size => (
+            <option key={size} value={size}>
+              {size}
+            </option>
+          ))}
+        </select>
+      ),
       DateRangePicker: ({ date = props.dateRange, onChange }) => (
         <div>
           <label>
@@ -152,7 +162,11 @@ describe(BillingView.name, () => {
       ...props
     };
 
-    render(<BillingView {...defaultProps} />);
+    render(
+      <TooltipProvider>
+        <BillingView {...defaultProps} />
+      </TooltipProvider>
+    );
     return defaultProps;
   }
 });

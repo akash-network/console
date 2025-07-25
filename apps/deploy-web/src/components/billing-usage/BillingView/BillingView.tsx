@@ -9,6 +9,7 @@ import {
   CustomTooltip,
   DateRangePicker,
   Label,
+  Pagination,
   PaginationContent,
   PaginationEllipsis,
   PaginationItem,
@@ -37,7 +38,8 @@ import { capitalizeFirstLetter, sanitizeCsvField } from "@src/utils/stringUtils"
 
 export const COMPONENTS = {
   FormattedNumber,
-  DateRangePicker
+  DateRangePicker,
+  PaginationSizeSelector
 };
 
 export type BillingViewProps = {
@@ -66,7 +68,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
   pagination,
   dateRange,
   onDateRangeChange,
-  components: { FormattedNumber, DateRangePicker } = COMPONENTS
+  components: { FormattedNumber, DateRangePicker, PaginationSizeSelector } = COMPONENTS
 }) => {
   const oneYearAgo = startOfDay(subYears(new Date(), 1));
   const columnHelper = createColumnHelper<Charge>();
@@ -231,7 +233,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
             </Table>
           </div>
 
-          <div className="flex flex-col justify-start gap-2 pt-2 sm:flex-row sm:items-center sm:gap-0 sm:pt-6">
+          <Pagination className="flex flex-col justify-start gap-2 pt-2 sm:flex-row sm:items-center sm:gap-0 sm:pt-6">
             <PaginationSizeSelector
               pageSize={pagination.pageSize}
               setPageSize={pageSize => {
@@ -324,7 +326,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
                 />
               </PaginationItem>
             </PaginationContent>
-          </div>
+          </Pagination>
         </div>
       )}
     </div>
