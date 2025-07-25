@@ -16,24 +16,24 @@ type FsGlobal = typeof fsGlobal;
 
 describe(FileDestinationService.name, () => {
   it("should create write stream successfully", async () => {
-    const { fileDestinationService, mockFs, mockPath } = setup();
+    const { fileDestinationService, mockFs, mockPath, expectedPath } = setup();
     const mockWriteStream = mock<WriteStream>();
 
     mockFs.promises.access.mockResolvedValue(undefined);
     mockFs.createWriteStream.mockReturnValue(mockWriteStream);
-    mockPath.join.mockReturnValue("/var/log/mycollector/test-namespace_test-pod");
+    mockPath.join.mockReturnValue(expectedPath);
 
     const result = await fileDestinationService.createWriteStream();
 
     expect(result).toBe(mockWriteStream);
-    expect(mockFs.createWriteStream).toHaveBeenCalledWith("/var/log/mycollector/test-namespace_test-pod", {
+    expect(mockFs.createWriteStream).toHaveBeenCalledWith(expectedPath, {
       flags: "a",
       autoClose: false
     });
   });
 
   it("should create log directory if it doesn't exist", async () => {
-    const { fileDestinationService, loggerService, mockFs, mockPath } = setup();
+    const { fileDestinationService, loggerService, mockFs, mockPath, logDir, expectedPath } = setup();
 
     mockFs.promises.access
       .mockRejectedValueOnce(new Error("File not found"))
@@ -42,70 +42,71 @@ describe(FileDestinationService.name, () => {
     mockFs.promises.mkdir.mockResolvedValue(undefined);
     mockFs.promises.writeFile.mockResolvedValue(undefined);
     mockFs.createWriteStream.mockReturnValue(mock<WriteStream>());
-    mockPath.join.mockReturnValue("/var/log/mycollector/test-namespace_test-pod");
+    mockPath.join.mockReturnValue(expectedPath);
 
     await fileDestinationService.createWriteStream();
 
-    expect(mockFs.promises.mkdir).toHaveBeenCalledWith("/var/log/mycollector", { recursive: true });
+    expect(mockFs.promises.mkdir).toHaveBeenCalledWith(logDir, { recursive: true });
     expect(loggerService.info).toHaveBeenCalledWith({
       message: "Created log directory",
-      path: "/var/log/mycollector"
+      path: logDir
     });
   });
 
   it("should create log file if it doesn't exist", async () => {
-    const { fileDestinationService, loggerService, mockFs, mockPath } = setup();
+    const { fileDestinationService, loggerService, mockFs, mockPath, expectedPath } = setup();
 
     mockFs.promises.access.mockRejectedValueOnce(new Error("File not found")).mockResolvedValue(undefined);
     mockFs.promises.writeFile.mockResolvedValue(undefined);
     mockFs.createWriteStream.mockReturnValue(mock<WriteStream>());
-    mockPath.join.mockReturnValue("/var/log/mycollector/test-namespace_test-pod");
+    mockPath.join.mockReturnValue(expectedPath);
 
     await fileDestinationService.createWriteStream();
 
-    expect(mockFs.promises.writeFile).toHaveBeenCalledWith("/var/log/mycollector/test-namespace_test-pod", "");
+    expect(mockFs.promises.writeFile).toHaveBeenCalledWith(expectedPath, "");
     expect(loggerService.info).toHaveBeenCalledWith({
       message: "Created log file",
-      filePath: "/var/log/mycollector/test-namespace_test-pod",
+      filePath: expectedPath,
       namespace: "test-namespace",
       podName: "test-pod"
     });
   });
 
   it("should cache log path after first access", async () => {
-    const { fileDestinationService, mockFs, mockPath } = setup();
+    const { fileDestinationService, mockFs, mockPath, configService } = setup();
+    const logDir = configService.get("LOG_DIR");
+    const expectedPath = `${logDir}/test-namespace_test-pod.log`;
 
     mockFs.promises.access.mockResolvedValue(undefined);
     mockFs.createWriteStream.mockReturnValue(mock<WriteStream>());
-    mockPath.join.mockReturnValue("/var/log/mycollector/test-namespace_test-pod");
+    mockPath.join.mockReturnValue(expectedPath);
 
     await fileDestinationService.createWriteStream();
     await fileDestinationService.createWriteStream();
 
-    // Since getLogPath is now memoized, path.join should only be called once
     expect(mockPath.join).toHaveBeenCalledTimes(1);
   });
 
   it("should get last log line from file", async () => {
-    const { fileDestinationService, mockFs, mockPath } = setup();
+    const { fileDestinationService, mockFs, mockPath, expectedPath } = setup();
     const logContent = "2024-01-15T10:30:45.123456789Z INFO First line\n2024-01-15T10:30:46.123456789Z INFO Second line\n";
 
     mockFs.promises.access.mockResolvedValue(undefined);
     mockFs.promises.readFile.mockResolvedValue(logContent);
-    mockPath.join.mockReturnValue("/var/log/mycollector/test-namespace_test-pod");
+    mockPath.join.mockReturnValue(expectedPath);
 
     const result = await fileDestinationService.getLastLogLine();
 
     expect(result).toBe("2024-01-15T10:30:46.123456789Z INFO Second line");
-    expect(mockFs.promises.readFile).toHaveBeenCalledWith("/var/log/mycollector/test-namespace_test-pod", "utf8");
+    expect(mockFs.promises.readFile).toHaveBeenCalledWith(expectedPath, "utf8");
   });
 
   it("should return null for empty file", async () => {
-    const { fileDestinationService, mockFs, mockPath } = setup();
+    const { fileDestinationService, mockFs, mockPath, expectedPath } = setup();
 
     mockFs.promises.access.mockResolvedValue(undefined);
     mockFs.promises.readFile.mockResolvedValue("");
-    mockPath.join.mockReturnValue("/var/log/mycollector/test-namespace_test-pod");
+    mockPath.join.mockReturnValue(expectedPath);
 
     const result = await fileDestinationService.getLastLogLine();
 
@@ -113,11 +114,11 @@ describe(FileDestinationService.name, () => {
   });
 
   it("should return null for file with only empty lines", async () => {
-    const { fileDestinationService, mockFs, mockPath } = setup();
+    const { fileDestinationService, mockFs, mockPath, expectedPath } = setup();
 
     mockFs.promises.access.mockResolvedValue(undefined);
     mockFs.promises.readFile.mockResolvedValue("\n\n\n");
-    mockPath.join.mockReturnValue("/var/log/mycollector/test-namespace_test-pod");
+    mockPath.join.mockReturnValue(expectedPath);
 
     const result = await fileDestinationService.getLastLogLine();
 
@@ -125,11 +126,11 @@ describe(FileDestinationService.name, () => {
   });
 
   it("should handle file read errors gracefully", async () => {
-    const { fileDestinationService, mockFs, mockPath } = setup();
+    const { fileDestinationService, mockFs, mockPath, expectedPath } = setup();
 
     mockFs.promises.access.mockResolvedValue(undefined);
     mockFs.promises.readFile.mockRejectedValue(new Error("File read error"));
-    mockPath.join.mockReturnValue("/var/log/mycollector/test-namespace_test-pod");
+    mockPath.join.mockReturnValue(expectedPath);
 
     const result = await fileDestinationService.getLastLogLine();
 
@@ -137,12 +138,12 @@ describe(FileDestinationService.name, () => {
   });
 
   it("should setup file rotation on write stream", async () => {
-    const { fileDestinationService, mockFs, mockPath } = setup();
+    const { fileDestinationService, mockFs, mockPath, expectedPath } = setup();
     const mockWriteStream = mock<WriteStream>();
 
     mockFs.promises.access.mockResolvedValue(undefined);
     mockFs.createWriteStream.mockReturnValue(mockWriteStream);
-    mockPath.join.mockReturnValue("/var/log/mycollector/test-namespace_test-pod");
+    mockPath.join.mockReturnValue(expectedPath);
 
     await fileDestinationService.createWriteStream();
 
@@ -177,7 +178,10 @@ describe(FileDestinationService.name, () => {
 
     const mockPath = mock<typeof pathGlobal>();
 
-    configService.get.mockReturnValue("/var/log/mycollector");
+    const logDir = "/var/log/mycollector";
+    const expectedPath = `${logDir}/test-namespace_test-pod.log`;
+
+    configService.get.mockReturnValue(logDir);
 
     const fileDestinationService = new FileDestinationService(loggerService, configService, podInfo, mockFs, mockPath);
 
@@ -187,7 +191,9 @@ describe(FileDestinationService.name, () => {
       loggerService,
       configService,
       mockFs,
-      mockPath
+      mockPath,
+      logDir,
+      expectedPath
     };
   }
 });
