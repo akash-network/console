@@ -1,20 +1,25 @@
+import type { LoggerService } from "@akashnetwork/logging";
 import { setTimeout } from "timers/promises";
 
 export const httpRetry = <T>(callback: () => Promise<T>, options: HttpRetryOptions<T>): Promise<T> => {
-  return retryWithBackoff(callback, options.retryIf, options.maxRetries || 3, 0);
+  return retryWithBackoff(callback, options.retryIf, options.maxRetries || 3, 0, options.logger);
 };
 
 export interface HttpRetryOptions<T> {
   retryIf: (response: T) => boolean;
   maxRetries?: number;
+  logger?: LoggerService;
 }
 
 async function retryWithBackoff<T>(
   callback: () => Promise<T>,
   shouldRetryOnResponse: HttpRetryOptions<T>["retryIf"],
   maxRetries: number,
-  attempt: number
+  attempt: number,
+  logger?: LoggerService
 ): Promise<T> {
+  const callbackName = callback.name || String(callback);
+
   try {
     if (attempt > 0) {
       // (2 ** 1) * 100 = 200 ms
@@ -24,15 +29,36 @@ async function retryWithBackoff<T>(
       // (2 ** 5) * 100 = 3200 ms
       await setTimeout(2 ** attempt * 100);
     }
+
+    logger?.info({
+      event: "RUN_CALLBACK",
+      attempt: attempt + 1,
+      maxRetries,
+      callback: callbackName
+    });
     const response = await callback();
 
     if (attempt < maxRetries && shouldRetryOnResponse(response)) {
-      return retryWithBackoff(callback, shouldRetryOnResponse, maxRetries, attempt + 1);
+      logger?.warn({
+        event: "RUN_CALLBACK_FAILED",
+        attempt: attempt + 1,
+        maxRetries,
+        callback: callbackName,
+        error: "Callback result requires retry"
+      });
+      return retryWithBackoff(callback, shouldRetryOnResponse, maxRetries, attempt + 1, logger);
     }
     return response;
   } catch (error: unknown) {
     if (attempt < maxRetries && canRetryOnError(error)) {
-      return retryWithBackoff(callback, shouldRetryOnResponse, maxRetries, attempt + 1);
+      logger?.warn({
+        event: "RUN_CALLBACK_FAILED",
+        attempt: attempt + 1,
+        maxRetries,
+        callback: callbackName,
+        error
+      });
+      return retryWithBackoff(callback, shouldRetryOnResponse, maxRetries, attempt + 1, logger);
     }
 
     if (attempt >= maxRetries) {
