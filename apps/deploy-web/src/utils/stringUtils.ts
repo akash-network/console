@@ -42,3 +42,13 @@ export function selectText(node: HTMLElement) {
 export const getShortText = (text: string = "", length: number) => {
   return text.length < length ? text : `${text.substring(0, length - 3)}...`;
 };
+
+export const sanitizeCsvField = (value: string | number): string => {
+  const stringValue = String(value);
+
+  if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+
+  return stringValue;
+};
