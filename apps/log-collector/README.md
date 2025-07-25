@@ -19,8 +19,8 @@ The Log Collector leverages internal Kubernetes access to discover and stream lo
 ## How It Works
 
 1. **Namespace Discovery**: The collector automatically detects the Kubernetes namespace it's deployed in
-2. **Pod Discovery**: Scans the namespace for all running pods
-3. **Log Streaming**: Establishes log streams for each pod (excluding itself)
+2. **Pod Discovery**: Scans the namespace for all running pods (excluding pods from the same deployment)
+3. **Log Streaming**: Establishes log streams for each pod
 4. **File Output**: Writes collected logs to files for external processing
 5. **Log Rotation**: Automatically rotates log files when they reach the configured size limit
 6. **Log Collection**: Fluent Bit monitors the log files and forwards them to configured external services
