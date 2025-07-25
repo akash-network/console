@@ -1,5 +1,5 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import { netConfig, type SupportedChainNetworks } from "@akashnetwork/net";
+import type { SupportedChainNetworks } from "@akashnetwork/net";
 import type { Attributes } from "@opentelemetry/api";
 import { trace } from "@opentelemetry/api";
 import type http from "http";
@@ -8,30 +8,28 @@ import { TLSSocket } from "tls";
 import WebSocket from "ws";
 import { z } from "zod";
 
-import { isValidBech32Address } from "../utils/isValidBech32";
+import { addCertificateValidation, chainNetworkSchema, providerRequestSchema } from "../utils/schema";
 import { propagateTracingContext, traceActiveSpan } from "../utils/telemetry";
 import type { CertificateValidator } from "./CertificateValidator";
 import type { ClientWebSocketStats, WebsocketStats, WebSocketUsage } from "./WebsocketStats";
 
-const MESSAGE_SCHEMA = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("ping")
-  }),
-  z.object({
-    type: z.literal("websocket"),
-    url: z.string().url(),
-    certPem: z.string().optional(),
-    keyPem: z.string().optional(),
-    chainNetwork: z.enum(netConfig.getSupportedNetworks() as [SupportedChainNetworks]),
-    providerAddress: z.string().refine(isValidBech32Address, "is not bech32 address"),
-    data: z
-      .string()
-      .optional()
-      .describe(
-        "Currently it's used only for service shell communication and stores only buffered representation of string in char codes something like this: Array.from(Uint8Array).join(', ')"
-      )
-  })
-]);
+const MESSAGE_SCHEMA = addCertificateValidation(
+  z.discriminatedUnion("type", [
+    z.object({
+      type: z.literal("ping")
+    }),
+    providerRequestSchema.extend({
+      type: z.literal("websocket"),
+      chainNetwork: chainNetworkSchema,
+      data: z
+        .string()
+        .optional()
+        .describe(
+          "Currently it's used only for service shell communication and stores only buffered representation of string in char codes something like this: Array.from(Uint8Array).join(', ')"
+        )
+    })
+  ])
+);
 type WsMessage = z.infer<typeof MESSAGE_SCHEMA> & { id: unknown };
 
 // @see https://www.rfc-editor.org/rfc/rfc6455.html#page-46

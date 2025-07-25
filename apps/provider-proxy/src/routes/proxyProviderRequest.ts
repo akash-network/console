@@ -1,54 +1,20 @@
-import type { SupportedChainNetworks } from "@akashnetwork/net";
-import { netConfig } from "@akashnetwork/net";
 import { createRoute, z } from "@hono/zod-openapi";
-import { X509Certificate } from "crypto";
 import type { TypedResponse } from "hono";
 import type { ClientErrorStatusCode } from "hono/utils/http-status";
 import { Readable } from "stream";
 
 import type { AppContext } from "../types/AppContext";
-import { isValidBech32Address } from "../utils/isValidBech32";
 import { canRetryOnError, httpRetry } from "../utils/retry";
-import { validateCertificateAttrs } from "../utils/validateCertificateAttrs";
+import { addCertificateValidation, chainNetworkSchema, providerRequestSchema } from "../utils/schema";
 
-const RequestPayload = z
-  .object({
-    certPem: z.string().optional(),
-    keyPem: z.string().optional(),
+const RequestPayload = addCertificateValidation(
+  providerRequestSchema.extend({
     method: z.enum(["GET", "POST", "PUT", "DELETE"]),
-    url: z.string().url(),
     body: z.string().optional(),
-    network: z.enum(netConfig.getSupportedNetworks() as [SupportedChainNetworks]).describe("Blockchain network"),
-    providerAddress: z.string().refine(isValidBech32Address, "is not bech32 address").describe("Bech32 representation of provider wallet address"),
-    timeout: z.number().optional()
+    timeout: z.number().optional(),
+    network: chainNetworkSchema
   })
-  .superRefine((data, ctx) => {
-    if ((!data.certPem && data.keyPem) || (data.certPem && !data.keyPem)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "certPem and keyPem either both must be provider or both must be empty",
-        path: ["certPem"],
-        params: {
-          reason: "missingCertPair"
-        }
-      });
-    }
-
-    if (data.certPem && data.keyPem) {
-      const cert = new X509Certificate(data.certPem);
-      const validationResult = validateCertificateAttrs(cert, Date.now());
-      if (!validationResult.ok) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "is not a valid certificate",
-          path: ["certPem"],
-          params: {
-            reason: validationResult.code
-          }
-        });
-      }
-    }
-  });
+);
 
 export const proxyRoute = createRoute({
   method: "post",
@@ -135,6 +101,32 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       providerAddress,
       error: proxyResult.error
     });
+
+    if (
+      proxyResult.error &&
+      typeof proxyResult.error === "object" &&
+      proxyResult.error &&
+      "code" in proxyResult.error &&
+      String(proxyResult.error.code).startsWith("ERR_SSL_")
+    ) {
+      return ctx.json(
+        {
+          error: {
+            code: "custom",
+            issues: [
+              {
+                path: ["certPem"],
+                params: {
+                  reason: "invalid"
+                }
+              }
+            ]
+          }
+        },
+        400
+      );
+    }
+
     return ctx.text(`Provider ${new URL(url).origin} is temporarily unavailable`, 503);
   }
 

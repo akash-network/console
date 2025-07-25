@@ -18,7 +18,7 @@ describe("Provider proxy ws", () => {
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
     await startChainApiServer([certPair.cert]);
-    const providerServerUrl = await startProviderServer({
+    const { providerUrl } = await startProviderServer({
       certPair,
       websocketServer: {
         enable: true,
@@ -38,12 +38,12 @@ describe("Provider proxy ws", () => {
 
     await new Promise(resolve => ws.once("open", resolve));
 
-    ws.send(JSON.stringify(ourMessage("hello", providerServerUrl, { providerAddress })));
-    ws.send(JSON.stringify(ourMessage("test", providerServerUrl, { providerAddress })));
+    ws.send(JSON.stringify(ourMessage("hello", providerUrl, { providerAddress })));
+    ws.send(JSON.stringify(ourMessage("test", providerUrl, { providerAddress })));
 
     expect(await waitForMessage(ws)).toEqual(providerMessage("connected"));
 
-    ws.send(JSON.stringify(ourMessage("flush", providerServerUrl, { providerAddress })));
+    ws.send(JSON.stringify(ourMessage("flush", providerUrl, { providerAddress })));
     expect(await waitForMessage(ws)).toEqual(providerMessage(JSON.stringify(["hello", "test", "flush"])));
   });
 
@@ -78,7 +78,7 @@ describe("Provider proxy ws", () => {
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
     await startChainApiServer([certPair.cert]);
-    const providerServerUrl = await startProviderServer({
+    const { providerUrl } = await startProviderServer({
       certPair,
       websocketServer: {
         enable: true,
@@ -93,7 +93,7 @@ describe("Provider proxy ws", () => {
     ]);
     expect(providerMessageOnConnect).toBe(null);
 
-    ws.send(JSON.stringify(ourMessage("hello", providerServerUrl, { providerAddress })));
+    ws.send(JSON.stringify(ourMessage("hello", providerUrl, { providerAddress })));
 
     expect(await waitForMessage(ws)).toEqual(providerMessage("connected"));
   });
@@ -103,7 +103,7 @@ describe("Provider proxy ws", () => {
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
     await startChainApiServer([certPair.cert]);
-    const providerServerUrl = await startProviderServer({
+    const { providerUrl } = await startProviderServer({
       certPair,
       websocketServer: {
         enable: true,
@@ -116,7 +116,7 @@ describe("Provider proxy ws", () => {
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve));
-    ws.send(JSON.stringify(ourMessage("", providerServerUrl, { providerAddress })));
+    ws.send(JSON.stringify(ourMessage("", providerUrl, { providerAddress })));
 
     const receivedProviderMessage = await Promise.race([waitForMessage(ws), setTimeout(200, null)]);
 
@@ -129,7 +129,7 @@ describe("Provider proxy ws", () => {
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
     await startChainApiServer([certPair.cert]);
-    const providerServerUrl = await startProviderServer({
+    const { providerUrl } = await startProviderServer({
       certPair,
       websocketServer: {
         enable: true,
@@ -139,7 +139,7 @@ describe("Provider proxy ws", () => {
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
     await new Promise(resolve => ws.once("open", resolve));
-    ws.send(JSON.stringify(ourMessage("hello", providerServerUrl, { providerAddress })));
+    ws.send(JSON.stringify(ourMessage("hello", providerUrl, { providerAddress })));
     await setTimeout(100);
     ws.close();
     await setTimeout(100);
@@ -152,7 +152,7 @@ describe("Provider proxy ws", () => {
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
     await startChainApiServer([certPair.cert]);
-    const providerServerUrl = await startProviderServer({
+    const { providerUrl } = await startProviderServer({
       certPair,
       websocketServer: {
         enable: true,
@@ -166,7 +166,7 @@ describe("Provider proxy ws", () => {
     });
     const ws = new WebSocket(`${proxyServerUrl}/ws`);
 
-    await new Promise(resolve => ws.once("open", resolve)), ws.send(JSON.stringify(ourMessage("please_close", providerServerUrl, { providerAddress })));
+    await new Promise(resolve => ws.once("open", resolve)), ws.send(JSON.stringify(ourMessage("please_close", providerUrl, { providerAddress })));
     expect(await waitForMessage(ws)).toEqual(
       providerMessage("", {
         closed: true,
@@ -180,7 +180,7 @@ describe("Provider proxy ws", () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress });
     await startChainApiServer([validCertPair.cert]);
-    const providerServerUrl = await startProviderServer({
+    const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
       websocketServer: {
         enable: true,
@@ -197,7 +197,7 @@ describe("Provider proxy ws", () => {
 
     ws.send(
       JSON.stringify(
-        ourMessage("test1", providerServerUrl, {
+        ourMessage("test1", providerUrl, {
           providerAddress: generateBech32(),
           chainNetwork: "sandbox"
         })
@@ -214,7 +214,7 @@ describe("Provider proxy ws", () => {
 
     ws.send(
       JSON.stringify(
-        ourMessage("test2", providerServerUrl, {
+        ourMessage("test2", providerUrl, {
           providerAddress,
           chainNetwork: "sandbox"
         })

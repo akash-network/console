@@ -28,7 +28,7 @@ describe("Provider HTTP proxy", () => {
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     await startChainApiServer([validCertPair.cert]);
-    const providerUrl = await startProviderServer({ certPair: validCertPair });
+    const { providerUrl } = await startProviderServer({ certPair: validCertPair });
 
     const response = await request("/", {
       method: "POST",
@@ -52,7 +52,7 @@ describe("Provider HTTP proxy", () => {
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     await startChainApiServer([validCertPair.cert]);
-    const providerUrl = await startProviderServer({ certPair: validCertPair });
+    const { providerUrl } = await startProviderServer({ certPair: validCertPair });
 
     const response = await request("/", {
       method: "POST",
@@ -77,7 +77,7 @@ describe("Provider HTTP proxy", () => {
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     const chainServer = await startChainApiServer([validCertPair.cert]);
-    const providerUrl = await startProviderServer({ certPair: validCertPair });
+    const { providerUrl } = await startProviderServer({ certPair: validCertPair });
 
     let response = await request("/", {
       method: "POST",
@@ -117,7 +117,7 @@ describe("Provider HTTP proxy", () => {
         serialNumber: Date.now().toString()
       }).cert
     ]);
-    const providerUrl = await startProviderServer({ certPair: validCertPair });
+    const { providerUrl } = await startProviderServer({ certPair: validCertPair });
     const requestProvider = () =>
       request("/", {
         method: "POST",
@@ -151,7 +151,7 @@ describe("Provider HTTP proxy", () => {
     });
 
     await startChainApiServer([createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() + ONE_HOUR) }).cert, validCertPair.cert]);
-    const providerUrl = await startProviderServer({ certPair: validCertPair });
+    const { providerUrl } = await startProviderServer({ certPair: validCertPair });
 
     const requestProvider = () =>
       request("/", {
@@ -178,36 +178,44 @@ describe("Provider HTTP proxy", () => {
     expect(body).toContain("expired");
   });
 
-  it("returns 400 if provider returns SSL alert number 42", async () => {
+  it("returns 400 for invalid client certificate", async () => {
     const providerAddress = generateBech32();
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     await startChainApiServer([validCertPair.cert]);
-    const invalidClientCertError =
-      "Error: 586231C63A7A0000:error:0A000412:SSL routines:ssl3_read_bytes:sslv3 alert bad certificate:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1605:SSL alert number 42";
-    const providerUrl = await startProviderServer({
-      certPair: validCertPair,
-      handlers: {
-        "/alert42.txt"(_, res) {
-          res.writeHead(500);
-          res.end(invalidClientCertError);
-        }
-      }
+    const { providerUrl } = await startProviderServer({
+      certPair: validCertPair
     });
 
     const response = await request("/", {
       method: "POST",
       body: JSON.stringify({
         method: "GET",
-        url: `${providerUrl}/alert42.txt`,
+        url: `${providerUrl}/200.txt`,
         providerAddress,
-        network
+        network,
+        certPem: "-----BEGIN CERTIFICATE-----\r\ninvalid  certificate\r\n-----END CERTIFICATE-----\r\n",
+        keyPem: "-----BEGIN PRIVATE KEY-----\r\ninvalid private key\r\n-----END PRIVATE KEY-----\r\n"
       })
     });
 
     expect(response.status).toBe(400);
-    const body = await response.text();
-    expect(body).toContain(invalidClientCertError);
+    const body = await response.json();
+    expect(body).toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          issues: expect.arrayContaining([
+            expect.objectContaining({
+              code: "custom",
+              path: ["certPem"],
+              params: {
+                reason: "invalid"
+              }
+            })
+          ])
+        })
+      })
+    );
   });
 
   it("retries fetching chain certificates if chain API is unavailable", async () => {
@@ -216,7 +224,7 @@ describe("Provider HTTP proxy", () => {
       commonName: providerAddress
     });
 
-    const providerUrl = await startProviderServer({ certPair: validCertPair });
+    const { providerUrl } = await startProviderServer({ certPair: validCertPair });
 
     process.env.TEST_CHAIN_NETWORK_URL = "http://localhost:31234";
     const responsePromise = request("/", {
@@ -243,7 +251,7 @@ describe("Provider HTTP proxy", () => {
       commonName: providerAddress
     });
 
-    const providerUrl = await startProviderServer({ certPair: validCertPair });
+    const { providerUrl } = await startProviderServer({ certPair: validCertPair });
     let isRespondedWith502 = false;
     await startChainApiServer([validCertPair.cert], {
       interceptRequest(_, res) {
@@ -277,7 +285,7 @@ describe("Provider HTTP proxy", () => {
     });
 
     let returned5xx = false;
-    const providerUrl = await startProviderServer({
+    const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
       handlers: {
         "/5xx-once"(_, res) {
@@ -317,7 +325,7 @@ describe("Provider HTTP proxy", () => {
     });
 
     let wasSlow = false;
-    const providerUrl = await startProviderServer({
+    const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
       handlers: {
         "/slow-once"(_, res) {
@@ -361,7 +369,7 @@ describe("Provider HTTP proxy", () => {
       commonName: providerAddress
     });
 
-    const providerUrl = await startProviderServer({
+    const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
       handlers: {
         "/500"(_, res) {
@@ -402,7 +410,8 @@ describe("Provider HTTP proxy", () => {
         method: "GET",
         url: providerUrl,
         providerAddress,
-        network
+        network,
+        timeout: 100
       })
     });
 
@@ -417,7 +426,7 @@ describe("Provider HTTP proxy", () => {
       commonName: providerAddress
     });
 
-    const providerUrl = await startProviderServer({
+    const { providerUrl } = await startProviderServer({
       certPair: validCertPair,
       handlers: {
         "/hangs-up"(req) {
@@ -453,7 +462,7 @@ describe("Provider HTTP proxy", () => {
       validTo: new Date(Date.now() - ONE_HOUR)
     });
 
-    const providerUrl = await startProviderServer({
+    const { providerUrl } = await startProviderServer({
       certPair: validCertPair
     });
     await startChainApiServer([invalidClientCertPair.cert]);
