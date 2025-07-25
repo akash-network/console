@@ -13,6 +13,7 @@ import { z } from "zod";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import { chainDb } from "@src/db/dbConnection";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
+import { TrialController } from "@src/deployment/controllers/deployment/trial.controller";
 import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
 import { UserController } from "@src/user/controllers/user/user.controller";
@@ -50,6 +51,16 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       await container.resolve(TopUpDeploymentsController).cleanUpStaleDeployment(options);
+    });
+  });
+
+program
+  .command("cleanup-trial-deployments")
+  .description("Close trial deployments that have been active for more than the configured time (default: 24h)")
+  .option("-c, --concurrency <number>", "How many wallets are processed concurrently", value => z.number({ coerce: true }).optional().default(10).parse(value))
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      await container.resolve(TrialController).cleanUpTrialDeployments(options);
     });
   });
 

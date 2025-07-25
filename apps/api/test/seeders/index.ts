@@ -10,5 +10,6 @@ export * from "./deployment-group-resource.seeder";
 export * from "./akash-message.seeder";
 export * from "./akash-address.seeder";
 export * from "./lease.seeder";
+export * from "./stale-deployment.seeder";
 export * from "./transaction.seeder";
 export * from "./validator.seeder";

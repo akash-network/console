@@ -8,4 +8,10 @@ export class BlockRepository {
 
     return (height as number) ?? 0;
   }
+
+  async getLatestHeight(): Promise<number> {
+    const height = await Block.max("height");
+
+    return (height as number) ?? 0;
+  }
 }
