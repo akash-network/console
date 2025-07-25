@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     gnupg \
     libyaml-0-2 \
+    tini \
     && curl https://packages.fluentbit.io/fluentbit.key | gpg --dearmor > /usr/share/keyrings/fluentbit-keyring.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/fluentbit-keyring.gpg] https://packages.fluentbit.io/debian/bookworm bookworm main" > /etc/apt/sources.list.d/fluent-bit.list \
     && apt-get update \
@@ -42,4 +43,5 @@ COPY apps/log-collector/fluent-bit/scripts/extract_service.lua /etc/fluent-bit/e
 
 ENV NODE_ENV=production
 
-CMD /bin/bash -c "fluent-bit -c /etc/fluent-bit/fluent-bit.conf & node /app/apps/log-collector/dist/server.js"
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/bin/bash", "-c", "fluent-bit -c /etc/fluent-bit/fluent-bit.conf & node /app/apps/log-collector/dist/server.js"]
