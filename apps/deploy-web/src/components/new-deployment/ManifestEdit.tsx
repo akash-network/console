@@ -1,7 +1,6 @@
 "use client";
 import type { Dispatch, SetStateAction } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { Alert, AlertDescription, Button, CustomTooltip, FileButton, Input, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { EncodeObject } from "@cosmjs/proto-signing";
@@ -16,6 +15,7 @@ import { useSnackbar } from "notistack";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useImportSimpleSdl } from "@src/hooks/useImportSimpleSdl";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
@@ -23,7 +23,6 @@ import { useWhen } from "@src/hooks/useWhen";
 import { useFeatureFlags } from "@src/queries/featureFlags";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useDepositParams } from "@src/queries/useSaveSettings";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
 import type { DepositParams } from "@src/types/deployment";
@@ -35,7 +34,6 @@ import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { Timer } from "@src/utils/timer";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, handleDocClick, UrlService } from "@src/utils/urlUtils";
-import { updateWallet } from "@src/utils/walletUtils";
 import { useSettings } from "../../context/SettingsProvider";
 import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { DeploymentMinimumEscrowAlertText } from "../sdl/DeploymentMinimumEscrowAlertText";
@@ -75,10 +73,11 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const { data: features } = useFeatureFlags();
   const isAnonymousFreeTrialEnabled = features?.allowAnonymousUserTrial;
 
+  const { analyticsService } = useServices();
   const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged, isTrialing, isOnboarding } = useWallet();
   const router = useRouter();
-  const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
+  const { updateSelectedCertificate, genNewCertificateIfLocalIsInvalid } = useCertificate();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
@@ -246,26 +245,15 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         }
       }
 
-      const dd = await createAndValidateDeploymentData(sdl, null, deposit, depositorAddress);
-
-      const validCertificates = await loadValidCertificates();
-      const currentCert = validCertificates.find(x => x.parsed === localCert?.certPem);
-      const isCertificateValidated = currentCert?.certificate?.state === "valid";
-      const isLocalCertificateValidated = !!localCert && isLocalCertMatching;
+      const [dd, newCert] = await Promise.all([createAndValidateDeploymentData(sdl, null, deposit, depositorAddress), genNewCertificateIfLocalIsInvalid()]);
 
       if (!dd) return;
 
       const messages: EncodeObject[] = [];
-      const hasValidCert = isCertificateValidated && isLocalCertificateValidated;
-      let _crtpem: string;
-      let _encryptedKey: string;
 
       // Create a cert if the user doesn't have one
-      if (!hasValidCert) {
-        const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = certificateManager.generatePEM(address);
-        _crtpem = crtpem;
-        _encryptedKey = encryptedKey;
-        messages.push(TransactionMessageData.getCreateCertificateMsg(address, crtpem, pubpem));
+      if (newCert) {
+        messages.push(TransactionMessageData.getCreateCertificateMsg(address, newCert.cert, newCert.publicKey));
       }
 
       messages.push(TransactionMessageData.getCreateDeploymentMsg(dd));
@@ -273,18 +261,8 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
 
       if (response) {
         // Set the new cert in storage
-        if (!hasValidCert) {
-          updateWallet(address, wallet => {
-            return {
-              ...wallet,
-              cert: _crtpem,
-              certKey: _encryptedKey
-            };
-          });
-          const validCerts = await loadValidCertificates();
-          loadLocalCert();
-          const currentCert = validCerts.find(x => x.parsed === _crtpem) || null;
-          setSelectedCertificate(currentCert);
+        if (newCert) {
+          await updateSelectedCertificate(newCert);
         }
 
         setDeploySdl(null);
