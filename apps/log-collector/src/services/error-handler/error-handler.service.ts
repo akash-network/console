@@ -20,7 +20,7 @@ export class ErrorHandlerService {
    * @returns Promise that resolves when all operations have completed successfully
    * @throws AggregateError if any operations failed
    */
-  async aggregateConcurrentResults<T>(promises: Promise<T>[], context: Record<string, any>, operationName: string): Promise<T[]> {
+  async aggregateConcurrentResults<T>(promises: Promise<T>[], operationName: string): Promise<T[]> {
     const results = await Promise.allSettled(promises);
 
     const errors: Error[] = [];

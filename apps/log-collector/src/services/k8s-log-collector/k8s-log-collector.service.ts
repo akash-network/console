@@ -66,6 +66,6 @@ export class K8sLogCollectorService {
       return podLogsCollector.collectPodLogs();
     });
 
-    await this.errorHandlerService.aggregateConcurrentResults(collectionPromises, { totalPods: pods.length }, "pod log collection");
+    await this.errorHandlerService.aggregateConcurrentResults(collectionPromises, "pod log collection");
   }
 }

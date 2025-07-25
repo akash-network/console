@@ -42,11 +42,7 @@ describe(K8sLogCollectorService.name, () => {
     expect(podLogsCollectorFactory.create).toHaveBeenNthCalledWith(2, pods[1], mockFileDestination2);
 
     expect(mockPodLogsCollector.collectPodLogs).toHaveBeenCalledTimes(2);
-    expect(errorHandlerService.aggregateConcurrentResults).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.any(Promise)]),
-      { totalPods: 2 },
-      "pod log collection"
-    );
+    expect(errorHandlerService.aggregateConcurrentResults).toHaveBeenCalledWith(expect.arrayContaining([expect.any(Promise)]), "pod log collection");
   });
 
   it("should handle empty namespace gracefully", async () => {
