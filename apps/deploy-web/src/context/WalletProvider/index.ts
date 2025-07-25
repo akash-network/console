@@ -1,1 +1,1 @@
-export { useWallet, WalletProvider } from "./WalletProvider";
+export { useWallet, useIsManagedWalletUser, WalletProvider } from "./WalletProvider";
