@@ -1,5 +1,15 @@
 
 
+## [2.97.0](https://github.com/akash-network/console/compare/console-web/v2.96.5...console-web/v2.97.0) (2025-07-25)
+
+
+### Features
+
+* adds handling of expired certificate in lease flow ([#1738](https://github.com/akash-network/console/issues/1738)) ([d4881a1](https://github.com/akash-network/console/commit/d4881a1f21675a2320a02f2607e5b437b611f545))
+* adds safe node packages installation ([#1726](https://github.com/akash-network/console/issues/1726)) ([37acfee](https://github.com/akash-network/console/commit/37acfee5c1d053cec2316560ad220992d70b7cbf)), closes [#1549](https://github.com/akash-network/console/issues/1549)
+* **billing:** new onboarding flow ([#1711](https://github.com/akash-network/console/issues/1711)) ([e05506c](https://github.com/akash-network/console/commit/e05506c89a762e8fa9111649357aa80c06e26fbe))
+* displays information about expired cert ([#1730](https://github.com/akash-network/console/issues/1730)) ([971eec9](https://github.com/akash-network/console/commit/971eec9659d1510a6555d4bc54bfa0015b2b67aa))
+
 ## [2.96.5](https://github.com/akash-network/console/compare/console-web/v2.96.4...console-web/v2.96.5) (2025-07-22)
 
 
