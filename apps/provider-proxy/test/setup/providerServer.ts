@@ -11,8 +11,8 @@ import { generateBech32 } from "./chainApiServer";
 
 let runningServer: https.Server | undefined;
 
-export function startProviderServer(options: ProviderServerOptions): Promise<string> {
-  return new Promise<string>(resolve => {
+export function startProviderServer(options: ProviderServerOptions): Promise<ProviderServerResult> {
+  return new Promise<ProviderServerResult>(resolve => {
     const certPair = options.certPair || createX509CertPair({ commonName: generateBech32() });
     const httpServerOptions: ServerOptions = {
       key: certPair.key,
@@ -52,7 +52,7 @@ export function startProviderServer(options: ProviderServerOptions): Promise<str
 
     server.listen(0, () => {
       runningServer = server;
-      resolve(`https://localhost:${(server.address() as AddressInfo).port}`);
+      resolve({ providerUrl: `https://localhost:${(server.address() as AddressInfo).port}` });
     });
 
     if (options.websocketServer?.enable) {
@@ -77,4 +77,8 @@ export interface ProviderServerOptions {
     enable: boolean;
     onConnection?(ws: WebSocket): void;
   };
+}
+
+interface ProviderServerResult {
+  providerUrl: string;
 }

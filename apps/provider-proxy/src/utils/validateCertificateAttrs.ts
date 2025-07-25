@@ -9,14 +9,14 @@ export type CertValidationResultError = {
 };
 
 export function validateCertificateAttrs(cert: X509Certificate, now: number): CertValidationResult {
-  if (new Date(cert.validFrom).getTime() > now) {
+  if (cert.validFromDate.getTime() > now) {
     return {
       ok: false,
       code: "validInFuture"
     };
   }
 
-  if (new Date(cert.validTo).getTime() < now) {
+  if (cert.validToDate.getTime() < now) {
     return {
       ok: false,
       code: "expired"
