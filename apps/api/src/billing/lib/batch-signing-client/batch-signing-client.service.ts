@@ -10,7 +10,7 @@ import DataLoader from "dataloader";
 import { backOff } from "exponential-backoff";
 import assert from "http-assert";
 
-import { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargate-client/sync-signing-stargate-client";
+import type { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargate-client/sync-signing-stargate-client";
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { withSpan } from "@src/core/services/tracing/tracing.service";
@@ -30,6 +30,8 @@ interface ExecuteTxInput {
   messages: readonly EncodeObject[];
   options?: ExecuteTxOptions;
 }
+
+type ConnectWithSignerFn = (endpoint: string, wallet: Wallet, options: { registry: Registry }) => Promise<SyncSigningStargateClient>;
 
 export class BatchSigningClientService {
   private readonly FEES_DENOM = "uakt";
@@ -59,6 +61,7 @@ export class BatchSigningClientService {
     private readonly config: BillingConfigService,
     private readonly wallet: Wallet,
     private readonly registry: Registry,
+    private readonly connectWithSigner: ConnectWithSignerFn,
     private readonly loggerContext = BatchSigningClientService.name
   ) {
     this.clientAsPromised = this.initClient();
@@ -67,7 +70,7 @@ export class BatchSigningClientService {
   private async initClient() {
     return await backOff(
       () =>
-        SyncSigningStargateClient.connectWithSigner(this.config.get("RPC_NODE_ENDPOINT"), this.wallet, {
+        this.connectWithSigner(this.config.get("RPC_NODE_ENDPOINT"), this.wallet, {
           registry: this.registry
         }).then(async client => {
           this.chainId = await client.getChainId();

@@ -5,13 +5,21 @@ import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { mock } from "jest-mock-extended";
 
 import type { BillingConfigService } from "../../services/billing-config/billing-config.service";
-import { SyncSigningStargateClient } from "../sync-signing-stargate-client/sync-signing-stargate-client";
+import type { SyncSigningStargateClient } from "../sync-signing-stargate-client/sync-signing-stargate-client";
 import type { Wallet } from "../wallet/wallet";
 import { BatchSigningClientService } from "./batch-signing-client.service";
 
 describe("BatchSigningClientService", () => {
   it("should handle duplicate tx error gracefully and proceed with hash", async () => {
-    const { service, expectedHash } = setup();
+    const { service, expectedHash, mockClient } = setup();
+    mockClient.tmBroadcastTxSync.mockImplementation(async () => {
+      const error = new Error("tx already exists in cache");
+      throw error;
+    });
+    mockClient.broadcastTx.mockImplementation(async () => {
+      const error = new Error("tx already exists in cache");
+      throw error;
+    });
     const messages = [{ typeUrl: "/akash.test.MsgTest", value: {} }];
 
     const result = await service["executeTxBatch"]([{ messages }]);
@@ -33,14 +41,16 @@ describe("BatchSigningClientService", () => {
     mockWallet.getFirstAddress.mockResolvedValue("akash1testaddress");
 
     const mockConfig = mock<BillingConfigService>();
-    (mockConfig.get as jest.Mock).mockImplementation((key: string) => {
-      if (key === "MASTER_WALLET_MNEMONIC") return "test mnemonic";
-      if (key === "RPC_NODE_ENDPOINT") return "http://localhost:26657";
-      if (key === "WALLET_BATCHING_INTERVAL_MS") return "0";
-      if (key === "GAS_SAFETY_MULTIPLIER") return "1.2";
-      if (key === "AVERAGE_GAS_PRICE") return 0.025;
-      return undefined;
-    });
+    (mockConfig.get as jest.Mock).mockImplementation(
+      (key: string) =>
+        ({
+          MASTER_WALLET_MNEMONIC: "test mnemonic",
+          RPC_NODE_ENDPOINT: "http://localhost:26657",
+          WALLET_BATCHING_INTERVAL_MS: "0",
+          GAS_SAFETY_MULTIPLIER: "1.2",
+          AVERAGE_GAS_PRICE: 0.025
+        })[key]
+    );
 
     const mockRegistry = new Registry();
 
@@ -67,20 +77,9 @@ describe("BatchSigningClientService", () => {
       gasWanted: BigInt(100000)
     });
 
-    mockClient.tmBroadcastTxSync.mockImplementation(async () => {
-      const error = new Error("tx already exists in cache");
-      throw error;
-    });
-    mockClient.broadcastTx.mockImplementation(async () => {
-      const error = new Error("tx already exists in cache");
-      throw error;
-    });
+    const connectWithSigner = jest.fn().mockResolvedValue(mockClient);
 
-    Object.defineProperty(SyncSigningStargateClient, "connectWithSigner", {
-      value: jest.fn().mockResolvedValue(mockClient)
-    });
-
-    const service = new BatchSigningClientService(mockConfig, mockWallet, mockRegistry);
+    const service = new BatchSigningClientService(mockConfig, mockWallet, mockRegistry, connectWithSigner);
 
     return { service, expectedHash, mockWallet, mockConfig, mockRegistry, mockClient };
   }
