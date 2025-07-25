@@ -56,6 +56,13 @@ describe(UsageContainer.name, () => {
     });
   });
 
+  it("calls onDateRangeChange", async () => {
+    const { child, onDateRangeChange } = await setup();
+    const newRange = { from: new Date(2024, 0, 1), to: new Date(2024, 0, 2) };
+    child.onDateRangeChange(newRange);
+    expect(onDateRangeChange).toHaveBeenCalledWith(newRange);
+  });
+
   async function setup(
     overrides: Partial<{
       usageHistoryData: UsageHistory;
@@ -72,6 +79,8 @@ describe(UsageContainer.name, () => {
     const isUsageHistoryError = overrides.isUsageHistoryError ?? false;
     const isFetchingUsageHistoryStats = overrides.isFetchingUsageHistoryStats ?? false;
     const isUsageHistoryStatsError = overrides.isUsageHistoryStatsError ?? false;
+
+    const onDateRangeChange = jest.fn();
 
     const mockedUseWallet = jest.fn(() => ({ address: "0xABCDEF" })) as unknown as jest.MockedFunction<typeof useWallet>;
 
@@ -95,10 +104,22 @@ describe(UsageContainer.name, () => {
 
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
 
-    render(<UsageContainer dependencies={dependencies}>{childCapturer.renderChild}</UsageContainer>);
+    render(
+      <UsageContainer dependencies={dependencies}>
+        {props =>
+          childCapturer.renderChild({
+            ...props,
+            onDateRangeChange: (range?: { from?: Date; to?: Date }) => {
+              onDateRangeChange(range);
+              props.onDateRangeChange(range);
+            }
+          })
+        }
+      </UsageContainer>
+    );
 
     const child = await childCapturer.awaitChild(() => true);
 
-    return { usageHistoryData, usageHistoryStatsData, child };
+    return { usageHistoryData, usageHistoryStatsData, onDateRangeChange, child };
   }
 });

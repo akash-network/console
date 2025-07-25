@@ -7,7 +7,7 @@ import type { CumulativeSpendingLineChartProps } from "@src/components/billing-u
 import type { DailyUsageBarChartProps } from "@src/components/billing-usage/DailyUsageBarChart/DailyUsageBarChart";
 import { COMPONENTS, UsageView, type UsageViewProps } from "@src/components/billing-usage/UsageView/UsageView";
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { buildUsageHistory, buildUsageHistoryStats } from "@tests/seeders/usage";
 import { MockComponents } from "@tests/unit/mocks";
 
@@ -69,6 +69,41 @@ describe(UsageView.name, () => {
     expect(screen.getByTestId("cumulative-chart")).toHaveAttribute("data-fetching", "false");
   });
 
+  it("calls onDateRangeChange when date range start changes", () => {
+    const onDateRangeChange = jest.fn();
+    setup({
+      onDateRangeChange,
+      dateRange: {
+        from: new Date(),
+        to: new Date("2030-01-01")
+      }
+    });
+    fireEvent.change(screen.getByLabelText("Filter by start date"), {
+      target: { value: "2025-01-01" }
+    });
+    expect(onDateRangeChange).toHaveBeenCalledWith({
+      from: new Date("2025-01-01"),
+      to: new Date("2030-01-01")
+    });
+  });
+
+  it("calls onDateRangeChange when date range end changes", () => {
+    const onDateRangeChange = jest.fn();
+    setup({
+      onDateRangeChange,
+      dateRange: {
+        from: new Date("2020-01-01")
+      }
+    });
+    fireEvent.change(screen.getByLabelText("Filter by end date"), {
+      target: { value: "2025-01-01" }
+    });
+    expect(onDateRangeChange).toHaveBeenCalledWith({
+      from: new Date("2020-01-01"),
+      to: new Date("2025-01-01")
+    });
+  });
+
   function setup(props: Partial<UsageViewProps> = {}) {
     const defaultComponents: NonNullable<UsageViewProps["components"]> = {
       FormattedNumber: ({ value }: { value: number }) => <span>{value}</span>,
@@ -83,7 +118,27 @@ describe(UsageView.name, () => {
           {JSON.stringify(data)}
         </div>
       ),
-      LinearProgress: (props: Omit<LinearProgressProps, "ref">) => <div role="progressbar" {...props} />
+      LinearProgress: (props: Omit<LinearProgressProps, "ref">) => <div role="progressbar" {...props} />,
+      DateRangePicker: ({ date = props.dateRange, onChange }) => (
+        <div>
+          <label>
+            <span>Filter by start date</span>
+            <input
+              type="date"
+              value={date?.from ? date.from.toISOString().split("T")[0] : ""}
+              onChange={e => onChange?.({ from: new Date(e.target.value), to: date?.to })}
+            />
+          </label>
+          <label>
+            <span>Filter by end date</span>
+            <input
+              type="date"
+              value={date?.to ? date.to.toISOString().split("T")[0] : ""}
+              onChange={e => onChange?.({ from: date?.from, to: new Date(e.target.value) })}
+            />
+          </label>
+        </div>
+      )
     };
 
     const defaultProps: UsageViewProps = {
@@ -93,6 +148,8 @@ describe(UsageView.name, () => {
       isUsageHistoryError: false,
       isFetchingUsageHistoryStats: false,
       isUsageHistoryStatsError: false,
+      dateRange: { from: new Date(), to: new Date() },
+      onDateRangeChange: props.onDateRangeChange ?? jest.fn(),
       components: MockComponents(COMPONENTS, { ...defaultComponents, ...props.components }),
       ...props
     };
