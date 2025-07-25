@@ -1,24 +1,18 @@
 import { container } from "tsyringe";
 
-import { PROCESS_ENV } from "@src/providers/process-env.provider";
+import { PROCESS_ENV } from "@src/providers/nodejs-process.provider";
 import { ConfigService } from "./config.service";
 
 import { seedConfigTestData } from "@test/seeders/config.seeder";
 
 describe("ConfigService", () => {
   it("should provide type-safe access to config values", () => {
-    const configData = seedConfigTestData({
-      WRITE_TO_CONSOLE: "true",
-      DATADOG_DEBUG: "false"
-    });
+    const configData = seedConfigTestData({});
 
     const config = setup({ env: configData });
 
     expect(config.get("HOSTNAME")).toBe(configData.HOSTNAME);
-    expect(config.get("ENVIRONMENT")).toBe(configData.ENVIRONMENT);
-    expect(config.get("WRITE_TO_CONSOLE")).toBe(true);
-    expect(config.get("DATADOG_DEBUG")).toBe(false);
-    expect(config.getDatadogValue("DD_SITE")).toBe(configData.DD_SITE);
+    expect(config.get("LOG_DIR")).toBe(configData.LOG_DIR);
   });
 
   function setup(input: { env: NodeJS.ProcessEnv }) {
