@@ -9,8 +9,8 @@ import Layout from "@src/components/layout/Layout";
 export const UsagePage: FC = () => {
   return (
     <Layout containerClassName="flex h-full flex-col justify-between">
-      <NextSeo title="Billing" />
-      <BillingUsageLayout page={BillingUsageTabs.BILLING}>
+      <NextSeo title="Usage" />
+      <BillingUsageLayout page={BillingUsageTabs.USAGE}>
         <UsageContainer>{props => <UsageView {...props} />}</UsageContainer>
       </BillingUsageLayout>
     </Layout>

@@ -86,7 +86,7 @@ describe(BillingView.name, () => {
     });
   });
 
-  it("calls onDateRangeChange when date range start changes", () => {
+  it("calls onDateRangeChange when date range end changes", () => {
     const onDateRangeChange = jest.fn();
     setup({
       onDateRangeChange,

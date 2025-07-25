@@ -104,7 +104,12 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
     } else if (state.pageSize !== pagination.pageSize) {
       setCurrentCursors({});
       setCursorHistory([{ pageIndex: 0 }]);
-      state.pageIndex = 0;
+      setPagination(prev => ({
+        ...prev,
+        pageIndex: 0,
+        pageSize: state.pageSize
+      }));
+      return;
     }
 
     setPagination(state);

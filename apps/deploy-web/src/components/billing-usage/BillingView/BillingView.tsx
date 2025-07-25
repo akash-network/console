@@ -6,29 +6,34 @@ import {
   AlertDescription,
   AlertTitle,
   Button,
+  CustomTooltip,
   DateRangePicker,
   Label,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationSizeSelector,
   Spinner,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
+  TableRow
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { PaginationState } from "@tanstack/react-table";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { endOfToday, startOfDay, subYears } from "date-fns";
-import { Download, NavArrowLeft, NavArrowRight, Page } from "iconoir-react";
+import { Download, Page } from "iconoir-react";
 import Link from "next/link";
 
 import { Title } from "@src/components/shared/Title";
-import { capitalizeFirstLetter } from "@src/utils/stringUtils";
+import { downloadCsv } from "@src/utils/domUtils";
+import { capitalizeFirstLetter, sanitizeCsvField } from "@src/utils/stringUtils";
 
 export const COMPONENTS = {
   FormattedNumber,
@@ -77,7 +82,11 @@ export const BillingView: React.FC<BillingViewProps> = ({
     }),
     columnHelper.accessor("paymentMethod.card.brand", {
       header: "Account source",
-      cell: info => `${capitalizeFirstLetter(info.getValue())} **** ${info.row.original.paymentMethod.card?.last4}`
+      cell: info => {
+        const { card } = info.row.original.paymentMethod;
+        if (!card) return "N/A";
+        return `${capitalizeFirstLetter(card.brand)} **** ${card.last4}`;
+      }
     }),
     columnHelper.accessor("status", {
       header: "Status",
@@ -102,20 +111,13 @@ export const BillingView: React.FC<BillingViewProps> = ({
       id: "receipt",
       header: "Receipt",
       cell: info => (
-        <TooltipProvider>
-          <Tooltip delayDuration={500}>
-            <TooltipTrigger asChild>
-              <Link href={info.row.original.receiptUrl || "#"} target="_blank" rel="noopener noreferrer">
-                <Button size="icon" variant="ghost" className="text-black hover:bg-primary hover:text-white dark:text-white">
-                  <Page width={16} />
-                </Button>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent sideOffset={20}>
-              <p className="text-sm">View Receipt on Stripe</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <CustomTooltip title={<p className="text-sm">View Receipt on Stripe</p>}>
+          <Link href={info.row.original.receiptUrl || "#"} target="_blank" rel="noopener noreferrer">
+            <Button size="icon" variant="ghost" className="text-black hover:bg-primary hover:text-white dark:text-white">
+              <Page width={16} />
+            </Button>
+          </Link>
+        </CustomTooltip>
       )
     })
   ];
@@ -154,31 +156,25 @@ export const BillingView: React.FC<BillingViewProps> = ({
     );
   }
 
-  const columnClasses = ["w-32 px-4 py-2", "w-32 px-4 py-2", "w-32 px-4 py-2", "w-32 px-4 py-2", "w-4 px-4 py-2", "w-4 px-4 py-2"];
+  const columnClasses = ["w-32 px-4 py-2", "w-32 px-4 py-2", "w-32 px-4 py-2", "w-32 px-4 py-2", "w-4 px-4 py-2"];
 
-  const downloadCsv = () => {
+  const exportCsv = () => {
     const csvContent = [
       ["Date", "Amount", "Account Source", "Status", "Receipt URL"],
       ...data.map(charge => [
-        new Date(charge.created * 1000).toLocaleDateString(),
-        `${(charge.amount / 100).toFixed(2)} ${charge.currency}`,
-        charge.paymentMethod.card ? `${capitalizeFirstLetter(charge.paymentMethod.card.brand)} **** ${charge.paymentMethod.card.last4}` : "N/A",
-        capitalizeFirstLetter(charge.status),
-        charge.receiptUrl || ""
+        sanitizeCsvField(new Date(charge.created * 1000).toLocaleDateString()),
+        sanitizeCsvField(`${(charge.amount / 100).toFixed(2)} ${charge.currency}`),
+        sanitizeCsvField(
+          charge.paymentMethod.card ? `${capitalizeFirstLetter(charge.paymentMethod.card.brand)} **** ${charge.paymentMethod.card.last4}` : "N/A"
+        ),
+        sanitizeCsvField(capitalizeFirstLetter(charge.status)),
+        sanitizeCsvField(charge.receiptUrl || "")
       ])
     ]
       .map(row => row.join(","))
       .join("\n");
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "billing_history.csv");
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv(csvContent, "akash_billing_transactions");
   };
 
   return (
@@ -191,7 +187,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
           <DateRangePicker date={dateRange} onChange={onDateRangeChange} className="w-full" minDate={oneYearAgo} maxDate={endOfToday()} maxRangeInDays={366} />
         </div>
 
-        <Button variant="secondary" onClick={downloadCsv} className="h-12 gap-4" disabled={!data.length}>
+        <Button variant="secondary" onClick={exportCsv} className="h-12 gap-4" disabled={!data.length}>
           <Download width={16} />
           Export as CSV
         </Button>
@@ -236,117 +232,98 @@ export const BillingView: React.FC<BillingViewProps> = ({
           </div>
 
           <div className="flex flex-col justify-start gap-2 pt-2 sm:flex-row sm:items-center sm:gap-0 sm:pt-6">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-muted-foreground">Rows per page</span>
-              <select
-                value={pagination.pageSize}
-                onChange={e =>
-                  onPaginationChange({
-                    pageIndex: 0,
-                    pageSize: Number(e.target.value)
-                  })
-                }
-                className="h-8 w-16 rounded border border-input bg-background px-2 text-sm"
-              >
-                {[10, 20, 30, 40, 50].map(pageSize => (
-                  <option key={pageSize} value={pageSize}>
-                    {pageSize}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <PaginationSizeSelector
+              pageSize={pagination.pageSize}
+              setPageSize={pageSize => {
+                onPaginationChange({
+                  pageIndex: 0,
+                  pageSize
+                });
+              }}
+            />
 
-            <div className="flex items-center space-x-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  onPaginationChange({
-                    pageIndex: Math.max(0, pagination.pageIndex - 1),
-                    pageSize: pagination.pageSize
-                  })
-                }
-                disabled={!hasPrevious || isFetching}
-                className="h-8 px-2 text-sm [&_span]:hidden sm:[&_span]:inline-block"
-              >
-                <NavArrowLeft className="mr-1 h-4 w-4" />
-                <span>Previous</span>
-              </Button>
+            <PaginationContent className="flex items-center space-x-1">
+              <PaginationItem className="hidden sm:list-item">
+                <PaginationPrevious
+                  onClick={() =>
+                    onPaginationChange({
+                      pageIndex: Math.max(0, pagination.pageIndex - 1),
+                      pageSize: pagination.pageSize
+                    })
+                  }
+                  disabled={!hasPrevious || isFetching}
+                  className="h-8 px-2 text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300 [&_span]:hidden sm:[&_span]:inline-block"
+                />
+              </PaginationItem>
 
               {hasPrevious && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    onPaginationChange({
-                      pageIndex: pagination.pageIndex - 1,
-                      pageSize: pagination.pageSize
-                    })
-                  }
-                  disabled={isFetching}
-                  className="h-8 min-w-8 px-2 text-sm"
-                >
-                  {pagination.pageIndex}
-                </Button>
+                <PaginationItem>
+                  <PaginationLink
+                    className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
+                    disabled={isFetching}
+                    onClick={() =>
+                      onPaginationChange({
+                        pageIndex: pagination.pageIndex - 1,
+                        pageSize: pagination.pageSize
+                      })
+                    }
+                  >
+                    {pagination.pageIndex}
+                  </PaginationLink>
+                </PaginationItem>
               )}
 
-              <Button variant="outline" size="sm" className="h-8 min-w-8 bg-background px-2 text-sm" disabled>
-                {pagination.pageIndex + 1}
-              </Button>
+              <PaginationItem>
+                <PaginationLink disabled className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300">
+                  {pagination.pageIndex + 1}
+                </PaginationLink>
+              </PaginationItem>
 
               {hasMore && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    onPaginationChange({
-                      pageIndex: pagination.pageIndex + 1,
-                      pageSize: pagination.pageSize
-                    })
-                  }
-                  disabled={isFetching}
-                  className="h-8 min-w-8 px-2 text-sm"
-                >
-                  {pagination.pageIndex + 2}
-                </Button>
+                <PaginationItem>
+                  <PaginationLink
+                    className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
+                    disabled={isFetching}
+                    onClick={() =>
+                      onPaginationChange({
+                        pageIndex: pagination.pageIndex + 1,
+                        pageSize: pagination.pageSize
+                      })
+                    }
+                  >
+                    {pagination.pageIndex + 2}
+                  </PaginationLink>
+                </PaginationItem>
               )}
 
               {pagination.pageIndex === 0 && hasMore && (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      onPaginationChange({
-                        pageIndex: 2,
-                        pageSize: pagination.pageSize
-                      })
-                    }
-                    disabled={isFetching}
-                    className="h-8 min-w-8 px-2 text-sm"
-                  >
-                    3
-                  </Button>
-                  <span className="px-1 text-sm text-muted-foreground">...</span>
+                  <PaginationItem>
+                    <PaginationLink
+                      className="text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
+                      disabled={isFetching}
+                      onClick={() =>
+                        onPaginationChange({
+                          pageIndex: 2,
+                          pageSize: pagination.pageSize
+                        })
+                      }
+                    >
+                      3
+                    </PaginationLink>
+                  </PaginationItem>
+                  <PaginationEllipsis className="text-neutral-500 dark:text-neutral-400" />
                 </>
               )}
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  onPaginationChange({
-                    pageIndex: pagination.pageIndex + 1,
-                    pageSize: pagination.pageSize
-                  })
-                }
-                disabled={!hasMore || isFetching}
-                className="h-8 px-2 text-sm [&_span]:hidden sm:[&_span]:inline-block"
-              >
-                <span>Next</span>
-                <NavArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-            </div>
+              <PaginationItem className="hidden sm:list-item">
+                <PaginationNext
+                  onClick={() => onPaginationChange({ pageIndex: pagination.pageIndex + 1, pageSize: pagination.pageSize })}
+                  disabled={!hasMore || isFetching}
+                  className="h-8 px-2 text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300 [&_span]:hidden sm:[&_span]:inline-block"
+                />
+              </PaginationItem>
+            </PaginationContent>
           </div>
         </div>
       )}
