@@ -1,27 +1,20 @@
-import type { SupportedChainNetworks } from "@akashnetwork/net";
-import { netConfig } from "@akashnetwork/net";
 import { createRoute, z } from "@hono/zod-openapi";
-import { bech32 } from "bech32";
 import type { TypedResponse } from "hono";
 import type { ClientErrorStatusCode } from "hono/utils/http-status";
 import { Readable } from "stream";
 
 import type { AppContext } from "../types/AppContext";
 import { canRetryOnError, httpRetry } from "../utils/retry";
+import { addCertificateValidation, chainNetworkSchema, providerRequestSchema } from "../utils/schema";
 
-const RequestPayload = z.object({
-  certPem: z.string().optional(),
-  keyPem: z.string().optional(),
-  method: z.enum(["GET", "POST", "PUT", "DELETE"]),
-  url: z.string().url(),
-  body: z.string().optional(),
-  network: z.enum(netConfig.getSupportedNetworks() as [SupportedChainNetworks]).describe("Blockchain network"),
-  providerAddress: z
-    .string()
-    .refine(v => !!bech32.decodeUnsafe(v), "is not bech32 address")
-    .describe("Bech32 representation of provider wallet address"),
-  timeout: z.number().optional()
-});
+const RequestPayload = addCertificateValidation(
+  providerRequestSchema.extend({
+    method: z.enum(["GET", "POST", "PUT", "DELETE"]),
+    body: z.string().optional(),
+    timeout: z.number().optional(),
+    network: chainNetworkSchema
+  })
+);
 
 export const proxyRoute = createRoute({
   method: "post",
@@ -108,6 +101,32 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       providerAddress,
       error: proxyResult.error
     });
+
+    if (
+      proxyResult.error &&
+      typeof proxyResult.error === "object" &&
+      proxyResult.error &&
+      "code" in proxyResult.error &&
+      String(proxyResult.error.code).startsWith("ERR_SSL_")
+    ) {
+      return ctx.json(
+        {
+          error: {
+            code: "custom",
+            issues: [
+              {
+                path: ["certPem"],
+                params: {
+                  reason: "invalid"
+                }
+              }
+            ]
+          }
+        },
+        400
+      );
+    }
+
     return ctx.text(`Provider ${new URL(url).origin} is temporarily unavailable`, 503);
   }
 

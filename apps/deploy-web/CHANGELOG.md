@@ -1,5 +1,26 @@
 
 
+## [2.96.5](https://github.com/akash-network/console/compare/console-web/v2.96.4...console-web/v2.96.5) (2025-07-22)
+
+
+### Bug Fixes
+
+* uses a separate consoleApiHttpClient for public access ([#1719](https://github.com/akash-network/console/issues/1719)) ([f817d47](https://github.com/akash-network/console/commit/f817d47133411a70c47ea9ab3c48b55860801f77))
+
+## [2.96.4](https://github.com/akash-network/console/compare/console-web/v2.96.3...console-web/v2.96.4) (2025-07-22)
+
+
+### Code Refactoring
+
+* creates separate axios instance per intent ([#1702](https://github.com/akash-network/console/issues/1702)) ([b15370f](https://github.com/akash-network/console/commit/b15370fccc676982705c41c7b659752a467aef0d)), closes [#1668](https://github.com/akash-network/console/issues/1668)
+
+## [2.96.3](https://github.com/akash-network/console/compare/console-web/v2.96.2...console-web/v2.96.3) (2025-07-21)
+
+
+### Bug Fixes
+
+* exports jwt wallet utils ([#1696](https://github.com/akash-network/console/issues/1696)) ([356813b](https://github.com/akash-network/console/commit/356813ba0fb9b6b8dda9b7d52d777a134477437b))
+
 ## [2.96.2](https://github.com/akash-network/console/compare/console-web/v2.96.1...console-web/v2.96.2) (2025-07-16)
 
 

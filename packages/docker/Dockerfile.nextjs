@@ -27,6 +27,8 @@ COPY --parents /packages/*/package.json /app
 RUN npm version --allow-same-version 1.0.0 -w $WORKSPACE --no-workspaces-update && \
     npm install --package-lock-only
 
+COPY script/safe-deps-install.sh /app/script/safe-deps-install.sh
+
 FROM base AS development
 
 ENV NODE_ENV development
@@ -35,7 +37,7 @@ RUN apk add --no-cache libc6-compat
 
 COPY --from=prepare /app .
 
-RUN npm ci && npm cache clean --force
+RUN npm run safe-install && npm cache clean --force
 
 COPY $WORKSPACE ./$WORKSPACE
 COPY /packages /app/packages

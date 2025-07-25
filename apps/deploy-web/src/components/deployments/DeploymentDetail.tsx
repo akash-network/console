@@ -283,13 +283,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
             )}
             {activeTab === "LEASES" && (
               <div className="py-4">
-                {leases && (!localCert || !isLocalCertMatching) && (
-                  <CreateCertificateButton
-                    containerClassName="mb-4"
-                    warningText="You need to create a certificate to view lease status and details."
-                    afterCreate={loadDeploymentDetail}
-                  />
-                )}
+                {leases && (!localCert || !isLocalCertMatching) && <CreateCertificateButton containerClassName="mb-4" afterCreate={loadDeploymentDetail} />}
 
                 {leases &&
                   leases.map((lease, i) => (

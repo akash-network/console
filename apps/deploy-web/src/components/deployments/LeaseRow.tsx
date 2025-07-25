@@ -64,7 +64,9 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
       error,
       refetch: getLeaseStatus,
       isLoading: isLoadingLeaseStatus
-    } = useLeaseStatus(provider, lease, {
+    } = useLeaseStatus({
+      provider,
+      lease,
       enabled: isLeaseActive && !isServicesAvailable && !!provider?.hostUri && !!localCert,
       refetchInterval: 10_000
     });

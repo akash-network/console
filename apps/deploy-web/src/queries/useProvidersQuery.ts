@@ -13,12 +13,12 @@ export function useProviderDetail(
   owner: string,
   options: Omit<UseQueryOptions<ApiProviderDetail | null>, "queryKey" | "queryFn">
 ): UseQueryResult<ApiProviderDetail | null> {
-  const { axios } = useServices();
+  const { publicConsoleApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getProviderDetailKey(owner) as QueryKey,
     queryFn: async () => {
       if (!owner) return null;
-      const response = await axios.get(ApiUrlService.providerDetail(owner));
+      const response = await publicConsoleApiHttpClient.get(ApiUrlService.providerDetail(owner));
       return response.data;
     },
     ...options
@@ -49,19 +49,19 @@ export function useProviderStatus(
 }
 
 export function useNetworkCapacity(options = {}) {
-  const { axios } = useServices();
+  const { publicConsoleApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getNetworkCapacity(),
-    queryFn: () => axios.get(ApiUrlService.networkCapacity()).then(response => getNetworkCapacityDto(response.data)),
+    queryFn: () => publicConsoleApiHttpClient.get(ApiUrlService.networkCapacity()).then(response => getNetworkCapacityDto(response.data)),
     ...options
   });
 }
 
 export function useAuditors(options = {}) {
-  const { axios } = useServices();
+  const { publicConsoleApiHttpClient } = useServices();
   return useQuery<Array<Auditor>>({
     queryKey: QueryKeys.getAuditorsKey(),
-    queryFn: () => axios.get(ApiUrlService.auditors()).then(response => response.data),
+    queryFn: () => publicConsoleApiHttpClient.get(ApiUrlService.auditors()).then(response => response.data),
     ...options,
     refetchInterval: false,
     refetchIntervalInBackground: false,
@@ -71,19 +71,19 @@ export function useAuditors(options = {}) {
 }
 
 export function useProviderActiveLeasesGraph(providerAddress: string, options = {}) {
-  const { axios } = useServices();
+  const { publicConsoleApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getProviderActiveLeasesGraph(providerAddress),
-    queryFn: () => axios.get(ApiUrlService.providerActiveLeasesGraph(providerAddress)).then(response => response.data),
+    queryFn: () => publicConsoleApiHttpClient.get(ApiUrlService.providerActiveLeasesGraph(providerAddress)).then(response => response.data),
     ...options
   });
 }
 
 export function useProviderAttributesSchema(options = {}) {
-  const { axios } = useServices();
+  const { publicConsoleApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getProviderAttributesSchema(),
-    queryFn: () => axios.get<ProviderAttributesSchema>(ApiUrlService.providerAttributesSchema()).then(response => response.data),
+    queryFn: () => publicConsoleApiHttpClient.get<ProviderAttributesSchema>(ApiUrlService.providerAttributesSchema()).then(response => response.data),
     ...options,
     refetchInterval: false,
     refetchIntervalInBackground: false,
@@ -93,19 +93,19 @@ export function useProviderAttributesSchema(options = {}) {
 }
 
 export function useProviderList(options = {}) {
-  const { axios } = useServices();
+  const { publicConsoleApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getProviderListKey(),
-    queryFn: () => axios.get<ApiProviderList[]>(ApiUrlService.providerList()).then(response => response.data),
+    queryFn: () => publicConsoleApiHttpClient.get<ApiProviderList[]>(ApiUrlService.providerList()).then(response => response.data),
     ...options
   });
 }
 
 export function useProviderRegions(options = {}) {
-  const { axios } = useServices();
+  const { publicConsoleApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getProviderRegionsKey(),
-    queryFn: () => axios.get<ApiProviderRegion[]>(ApiUrlService.providerRegions()).then(response => response.data),
+    queryFn: () => publicConsoleApiHttpClient.get<ApiProviderRegion[]>(ApiUrlService.providerRegions()).then(response => response.data),
     ...options
   });
 }

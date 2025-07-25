@@ -53,7 +53,9 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
     data: leaseStatus,
     refetch: getLeaseStatus,
     isFetching: isLoadingStatus
-  } = useLeaseStatus(providerInfo, selectedLease as LeaseDto, {
+  } = useLeaseStatus({
+    provider: providerInfo,
+    lease: selectedLease,
     enabled: false
   });
   const { sendJsonMessage } = useProviderWebsocket(providerInfo, {
@@ -233,7 +235,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
 
   return (
     <div>
-      {isLocalCertMatching ? (
+      {isLocalCertMatching && localCert ? (
         <>
           {selectedLease && (
             <>
@@ -327,7 +329,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
           )}
         </>
       ) : (
-        <CreateCertificateButton containerClassName="py-4" warningText="You need to create a certificate to view deployment logs." />
+        <CreateCertificateButton containerClassName="py-4" />
       )}
     </div>
   );

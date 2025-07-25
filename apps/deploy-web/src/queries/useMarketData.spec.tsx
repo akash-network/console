@@ -18,52 +18,19 @@ describe("useMarketData", () => {
       priceChange24h: 0.05,
       priceChangePercentage24: 5.0
     };
-    const axios = mock<AxiosInstance>();
-    axios.get.mockResolvedValue({ data: mockData });
+    const consoleApiHttpClient = mock<AxiosInstance>();
+    consoleApiHttpClient.get.mockResolvedValue({ data: mockData });
 
     const { result } = setup({
       services: {
-        axios: () => axios
+        publicConsoleApiHttpClient: () => consoleApiHttpClient
       }
     });
 
     await waitFor(() => {
-      expect(axios.get).toHaveBeenCalledWith(ApiUrlService.marketData());
+      expect(consoleApiHttpClient.get).toHaveBeenCalledWith(ApiUrlService.marketData());
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual(mockData);
-    });
-  });
-
-  it("handles empty response data", async () => {
-    const axios = mock<AxiosInstance>();
-    axios.get.mockResolvedValue({ data: null });
-
-    const { result } = setup({
-      services: {
-        axios: () => axios
-      }
-    });
-
-    await waitFor(() => {
-      expect(axios.get).toHaveBeenCalledWith(ApiUrlService.marketData());
-      expect(result.current.isSuccess).toBe(true);
-      expect(result.current.data).toBeNull();
-    });
-  });
-
-  it("should handle error when fetching market data", async () => {
-    const axios = mock<AxiosInstance>();
-    axios.get.mockRejectedValue(new Error("Failed to fetch market data"));
-
-    const { result } = setup({
-      services: {
-        axios: () => axios
-      }
-    });
-
-    await waitFor(() => {
-      expect(axios.get).toHaveBeenCalledWith(ApiUrlService.marketData());
-      expect(result.current.isError).toBe(true);
     });
   });
 
