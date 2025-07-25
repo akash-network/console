@@ -83,7 +83,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const lease = filteredLeases?.find(lease => !!(lease?.provider && providersByOwner[lease.provider]));
   const provider = providersByOwner[lease?.provider || ""];
   const { localCert } = useCertificate();
-  const { data: leaseStatus } = useLeaseStatus(provider, lease, { enabled: !!(provider && lease && localCert) });
+  const { data: leaseStatus } = useLeaseStatus({ provider, lease, enabled: !!(provider && lease && localCert) });
 
   const viewDeployment = useCallback(
     (event: React.MouseEvent) => {

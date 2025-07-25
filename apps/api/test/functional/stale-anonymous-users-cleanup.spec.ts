@@ -29,12 +29,12 @@ describe("Users", () => {
   describe("stale anonymous users cleanup", () => {
     it("should remove anonymous users inactive for defined period", async () => {
       const [reactivated, recent, invalidAddress, staleNoWallet, recentNoWallet, ...staleUsers] = await Promise.all([
-        walletService.createUserAndWallet(),
-        walletService.createUserAndWallet(),
-        walletService.createUserAndWallet(),
+        walletService.createAnonymousUserAndWallet(),
+        walletService.createAnonymousUserAndWallet(),
+        walletService.createAnonymousUserAndWallet(),
         walletService.createUser(),
         walletService.createUser(),
-        ...Array.from({ length: 10 }).map(() => walletService.createUserAndWallet())
+        ...Array.from({ length: 10 }).map(() => walletService.createAnonymousUserAndWallet())
       ]);
 
       const staleParams = { lastActiveAt: subDays(new Date(), 91) };

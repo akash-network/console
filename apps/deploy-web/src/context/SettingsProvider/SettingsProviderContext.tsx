@@ -3,10 +3,9 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
-import networkStore from "@src/store/networkStore";
 import type { FCWithChildren } from "@src/types/component";
 import type { NodeStatus } from "@src/types/node";
-import { initAppTypes } from "@src/utils/init";
+import { initAkashTypes } from "@src/utils/init";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 import { useRootContainer } from "../ServicesProvider/RootContainerProvider";
 
@@ -49,7 +48,7 @@ const defaultSettings: Settings = {
 };
 
 export const SettingsProvider: FCWithChildren = ({ children }) => {
-  const { axios, queryClient } = useRootContainer();
+  const { externalApiHttpClient, queryClient, networkStore } = useRootContainer();
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isSettingsInit, setIsSettingsInit] = useState(false);
@@ -73,13 +72,16 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
       // Apply local storage migrations
       migrateLocalStorage();
 
-      // Init app types based on the selected network id
-      initAppTypes();
+      initAkashTypes({
+        networkApiVersion: selectedNetwork.apiVersion,
+        marketApiVersion: selectedNetwork.marketApiVersion,
+        networkId: selectedNetwork.id
+      });
 
       const settingsStr = getLocalStorageItem("settings");
       const settings = { ...defaultSettings, ...JSON.parse(settingsStr || "{}") } as Settings;
 
-      const { data: nodes } = await axios.get<Array<{ id: string; api: string; rpc: string }>>(selectedNetwork.nodesUrl);
+      const { data: nodes } = await externalApiHttpClient.get<Array<{ id: string; api: string; rpc: string }>>(selectedNetwork.nodesUrl);
       const nodesWithStatuses: Array<BlockchainNode> = await Promise.all(
         nodes.map(async node => {
           const nodeStatus = await loadNodeStatus(node.rpc);
@@ -155,7 +157,7 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
     let nodeStatus: NodeStatus | null = null;
 
     try {
-      const response = await axios.get(`${rpcUrl}/status`, { timeout: 10000 });
+      const response = await externalApiHttpClient.get(`${rpcUrl}/status`, { timeout: 10000 });
       nodeStatus = response.data.result as NodeStatus;
       status = "active";
     } catch (error) {

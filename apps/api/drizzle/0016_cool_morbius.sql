@@ -1,0 +1,1 @@
+ALTER TABLE "userSetting" ALTER COLUMN "last_user_agent" SET DATA TYPE varchar(500);

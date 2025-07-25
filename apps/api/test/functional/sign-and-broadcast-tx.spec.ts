@@ -15,7 +15,7 @@ describe("Tx Sign", () => {
 
   describe("POST /v1/tx", () => {
     it("should create a wallet for a user", async () => {
-      const { user, token, wallet } = await walletService.createUserAndWallet();
+      const { user, token, wallet } = await walletService.createAnonymousUserAndWallet();
       const res = await app.request("/v1/tx", {
         method: "POST",
         body: await createMessagePayload(user.id, wallet.address),
@@ -27,7 +27,7 @@ describe("Tx Sign", () => {
     });
 
     it("should throw 401 provided no auth header", async () => {
-      const { user, wallet } = await walletService.createUserAndWallet();
+      const { user, wallet } = await walletService.createAnonymousUserAndWallet();
       const res = await app.request("/v1/tx", {
         method: "POST",
         body: await createMessagePayload(user.id, wallet.address),
@@ -39,7 +39,7 @@ describe("Tx Sign", () => {
     });
 
     it("should throw 404 provided a different user auth header", async () => {
-      const { user, wallet } = await walletService.createUserAndWallet();
+      const { user, wallet } = await walletService.createAnonymousUserAndWallet();
       const differentUserResponse = await app.request("/v1/anonymous-users", {
         method: "POST",
         headers: new Headers({ "Content-Type": "application/json" })

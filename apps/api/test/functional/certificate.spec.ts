@@ -24,7 +24,7 @@ describe("Certificate API", () => {
   let config: jest.Mocked<CoreConfigService>;
 
   async function createTestUser() {
-    const { user, token, wallet } = await walletService.createUserAndWallet();
+    const { user, token, wallet } = await walletService.createAnonymousUserAndWallet();
     const userWithId = { ...user, userId: faker.string.uuid() };
     config = stub<CoreConfigService>({ get: jest.fn() });
     config.get.mockReturnValue("test");

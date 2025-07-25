@@ -1,21 +1,21 @@
 import Long from "long";
 
-import networkStore from "@src/store/networkStore";
 import type { BidDto } from "@src/types/deployment";
 import { BasicAllowance, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "./proto/grant";
+import type { AppConfig } from "./init";
 import { protoTypes } from "./proto";
 
-export function setMessageTypes() {
-  TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT = `/akash.deployment.${networkStore.apiVersion}.MsgCloseDeployment`;
-  TransactionMessageData.Types.MSG_CREATE_DEPLOYMENT = `/akash.deployment.${networkStore.apiVersion}.MsgCreateDeployment`;
-  TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT = `/akash.deployment.${networkStore.apiVersion}.MsgDepositDeployment`;
-  TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT_AUTHZ = `/akash.deployment.${networkStore.apiVersion}.DepositDeploymentAuthorization`;
-  TransactionMessageData.Types.MSG_UPDATE_DEPLOYMENT = `/akash.deployment.${networkStore.apiVersion}.MsgUpdateDeployment`;
-  TransactionMessageData.Types.MSG_CREATE_LEASE = `/akash.market.${networkStore.marketApiVersion}.MsgCreateLease`;
-  TransactionMessageData.Types.MSG_REVOKE_CERTIFICATE = `/akash.cert.${networkStore.apiVersion}.MsgRevokeCertificate`;
-  TransactionMessageData.Types.MSG_CREATE_CERTIFICATE = `/akash.cert.${networkStore.apiVersion}.MsgCreateCertificate`;
+export function setMessageTypes(config: AppConfig) {
+  TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT = `/akash.deployment.${config.networkApiVersion}.MsgCloseDeployment`;
+  TransactionMessageData.Types.MSG_CREATE_DEPLOYMENT = `/akash.deployment.${config.networkApiVersion}.MsgCreateDeployment`;
+  TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT = `/akash.deployment.${config.networkApiVersion}.MsgDepositDeployment`;
+  TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT_AUTHZ = `/akash.deployment.${config.networkApiVersion}.DepositDeploymentAuthorization`;
+  TransactionMessageData.Types.MSG_UPDATE_DEPLOYMENT = `/akash.deployment.${config.networkApiVersion}.MsgUpdateDeployment`;
+  TransactionMessageData.Types.MSG_CREATE_LEASE = `/akash.market.${config.marketApiVersion}.MsgCreateLease`;
+  TransactionMessageData.Types.MSG_REVOKE_CERTIFICATE = `/akash.cert.${config.networkApiVersion}.MsgRevokeCertificate`;
+  TransactionMessageData.Types.MSG_CREATE_CERTIFICATE = `/akash.cert.${config.networkApiVersion}.MsgCreateCertificate`;
 
-  TransactionMessageData.Types.MSG_UPDATE_PROVIDER = `/akash.provider.${networkStore.apiVersion}.MsgUpdateProvider`;
+  TransactionMessageData.Types.MSG_UPDATE_PROVIDER = `/akash.provider.${config.networkApiVersion}.MsgUpdateProvider`;
 }
 
 export class TransactionMessageData {

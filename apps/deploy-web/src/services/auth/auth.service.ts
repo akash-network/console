@@ -8,7 +8,7 @@ export class AuthService {
   }
 
   withAnonymousUserHeader(config: InternalAxiosRequestConfig) {
-    const token = localStorage.getItem(ANONYMOUS_USER_TOKEN_KEY);
+    const token = typeof localStorage !== "undefined" ? localStorage.getItem(ANONYMOUS_USER_TOKEN_KEY) : null;
 
     if (token) {
       config.headers.set("authorization", `Bearer ${token}`);
