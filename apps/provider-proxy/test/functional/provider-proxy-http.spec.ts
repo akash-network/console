@@ -183,14 +183,14 @@ describe("Provider HTTP proxy", () => {
     const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
 
     await startChainApiServer([validCertPair.cert]);
+    const invalidClientCertError =
+      "Error: 586231C63A7A0000:error:0A000412:SSL routines:ssl3_read_bytes:sslv3 alert bad certificate:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1605:SSL alert number 42";
     const providerUrl = await startProviderServer({
       certPair: validCertPair,
       handlers: {
         "/alert42.txt"(_, res) {
           res.writeHead(500);
-          res.end(
-            "Error: 586231C63A7A0000:error:0A000412:SSL routines:ssl3_read_bytes:sslv3 alert bad certificate:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1605:SSL alert number 42"
-          );
+          res.end(invalidClientCertError);
         }
       }
     });
@@ -207,9 +207,7 @@ describe("Provider HTTP proxy", () => {
 
     expect(response.status).toBe(400);
     const body = await response.text();
-    expect(body).toContain(
-      "Error: 586231C63A7A0000:error:0A000412:SSL routines:ssl3_read_bytes:sslv3 alert bad certificate:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1605:SSL alert number 42"
-    );
+    expect(body).toContain(invalidClientCertError);
   });
 
   it("retries fetching chain certificates if chain API is unavailable", async () => {
@@ -386,7 +384,7 @@ describe("Provider HTTP proxy", () => {
 
     expect(response.status).toBe(503);
     const body = await response.text();
-    expect(body).toBe(`Provider ${providerUrl} is temporarily unavailable`);
+    expect(body).toEqual(`Provider ${providerUrl} is temporarily unavailable`);
   });
 
   it("responds with 503 if provider host is not reachable", async () => {
@@ -442,5 +440,52 @@ describe("Provider HTTP proxy", () => {
     expect(response.status).toBe(503);
     const body = await response.text();
     expect(body).toBe(`Provider ${providerUrl} is temporarily unavailable`);
+  });
+
+  it("responds with 400 if client certificate is expired", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = createX509CertPair({
+      commonName: providerAddress
+    });
+    const invalidClientCertPair = createX509CertPair({
+      commonName: generateBech32(),
+      validFrom: new Date(Date.now() - 2 * ONE_HOUR),
+      validTo: new Date(Date.now() - ONE_HOUR)
+    });
+
+    const providerUrl = await startProviderServer({
+      certPair: validCertPair
+    });
+    await startChainApiServer([invalidClientCertPair.cert]);
+
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({
+        method: "GET",
+        url: `${providerUrl}/200.txt`,
+        providerAddress,
+        network,
+        certPem: invalidClientCertPair.cert.toString(),
+        keyPem: invalidClientCertPair.key
+      })
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body).toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          issues: expect.arrayContaining([
+            expect.objectContaining({
+              code: "custom",
+              path: ["certPem"],
+              params: {
+                reason: "expired"
+              }
+            })
+          ])
+        })
+      })
+    );
   });
 });
