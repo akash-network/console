@@ -4,6 +4,7 @@ import { requestFn } from "@openapi-qraft/react";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { ApiUrlService } from "@src/services/api-url/api-url.service";
 import { createAppRootContainer } from "@src/services/app-di-container/app-di-container";
+import networkStore from "@src/store/networkStore";
 import { createChildContainer } from "../container/createContainer";
 import { BitbucketService } from "../remote-deploy/bitbucket-http.service";
 import { GitHubService } from "../remote-deploy/github-http.service";
@@ -35,5 +36,6 @@ export const services = createChildContainer(rootContainer, {
       request: [services.authService.withAnonymousUserHeader]
     }),
   /** TODO: https://github.com/akash-network/console/issues/1720 */
-  publicConsoleApiHttpClient: () => services.applyAxiosInterceptors(services.createAxios())
+  publicConsoleApiHttpClient: () => services.applyAxiosInterceptors(services.createAxios()),
+  networkStore: () => networkStore
 });
