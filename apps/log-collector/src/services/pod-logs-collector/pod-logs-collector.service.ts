@@ -138,15 +138,7 @@ export class PodLogsCollectorService {
       return this.startKubernetesLogStream(containerName, logStream, lastTimestamp);
     });
 
-    await this.errorHandlerService.aggregateConcurrentResults(
-      collectionPromises,
-      {
-        podName: this.podInfo.podName,
-        namespace: this.podInfo.namespace,
-        containerNames
-      },
-      "container log collection"
-    );
+    await this.errorHandlerService.aggregateConcurrentResults(collectionPromises, "container log collection");
   }
 
   /**

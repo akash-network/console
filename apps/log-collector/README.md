@@ -51,7 +51,7 @@ To forward logs to Datadog, configure these environment variables:
 
 ### Image Location
 
-```
+```text
 ghcr.io/akash-network/log-collector
 ```
 
