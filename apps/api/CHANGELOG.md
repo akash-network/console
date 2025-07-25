@@ -1,5 +1,18 @@
 
 
+## [2.108.0](https://github.com/akash-network/console/compare/console-api/v2.107.2...console-api/v2.108.0) (2025-07-25)
+
+
+### Features
+
+* adds safe node packages installation ([#1726](https://github.com/akash-network/console/issues/1726)) ([37acfee](https://github.com/akash-network/console/commit/37acfee5c1d053cec2316560ad220992d70b7cbf)), closes [#1549](https://github.com/akash-network/console/issues/1549)
+* **billing:** new onboarding flow ([#1711](https://github.com/akash-network/console/issues/1711)) ([e05506c](https://github.com/akash-network/console/commit/e05506c89a762e8fa9111649357aa80c06e26fbe))
+
+
+### Bug Fixes
+
+* set a better date to work with ([#1729](https://github.com/akash-network/console/issues/1729)) ([218cdc4](https://github.com/akash-network/console/commit/218cdc4578d847338dd41945beb2fd29c19b0466))
+
 ## [2.107.2](https://github.com/akash-network/console/compare/console-api/v2.107.1...console-api/v2.107.2) (2025-07-22)
 
 
