@@ -1,4 +1,4 @@
-import { bech32 } from "bech32";
+import { toBech32 } from "@cosmjs/encoding";
 import type { X509Certificate } from "crypto";
 import http from "http";
 import type { AddressInfo } from "net";
@@ -59,6 +59,5 @@ export interface ChainApiOptions {
 
 let index = 0;
 export function generateBech32() {
-  const words = bech32.toWords(Buffer.from("foobar2", "utf8"));
-  return bech32.encode(`test${++index}`, words);
+  return toBech32("akash", Buffer.from(`test${++index}`, "utf8"));
 }
