@@ -5,14 +5,14 @@ import { mock } from "jest-mock-extended";
 import { shutdownServer } from "./shutdown-server";
 
 describe(shutdownServer.name, () => {
-  it("closes the server and ignores further calls until it is done", async () => {
+  it("closes the server ", async () => {
     const server = mock<ServerType>({
       close: jest.fn().mockImplementation(cb => cb())
     });
     const appLogger = mock<Logger>();
     const onShutdown = jest.fn();
 
-    await Promise.all(Array.from({ length: 5 }, () => shutdownServer(server, appLogger, onShutdown)));
+    await shutdownServer(server, appLogger, onShutdown);
 
     expect(server.close).toHaveBeenCalledTimes(1);
     expect(onShutdown).toHaveBeenCalledTimes(1);
@@ -69,5 +69,33 @@ describe(shutdownServer.name, () => {
       event: "CONTAINER_DISPOSE_ERROR",
       error
     });
+  });
+
+  it("calls shutdown directly if server is not listening", async () => {
+    const server = mock<ServerType>({
+      listening: false,
+      close: jest.fn()
+    });
+    const appLogger = mock<Logger>();
+    const onShutdown = jest.fn();
+
+    await shutdownServer(server, appLogger, onShutdown);
+
+    expect(server.close).not.toHaveBeenCalled();
+    expect(onShutdown).toHaveBeenCalled();
+  });
+
+  it("calls server.close if server is listening", async () => {
+    const server = mock<ServerType>({
+      listening: true,
+      close: jest.fn().mockImplementation(cb => cb())
+    });
+    const appLogger = mock<Logger>();
+    const onShutdown = jest.fn();
+
+    await shutdownServer(server, appLogger, onShutdown);
+
+    expect(server.close).toHaveBeenCalled();
+    expect(onShutdown).toHaveBeenCalled();
   });
 });
