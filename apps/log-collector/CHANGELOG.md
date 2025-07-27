@@ -1,5 +1,18 @@
 
 
+## [1.2.0](https://github.com/akash-network/console/compare/log-collector/v1.1.0...log-collector/v1.2.0) (2025-07-27)
+
+
+### Features
+
+* adds safe node packages installation ([#1726](https://github.com/akash-network/console/issues/1726)) ([37acfee](https://github.com/akash-network/console/commit/37acfee5c1d053cec2316560ad220992d70b7cbf)), closes [#1549](https://github.com/akash-network/console/issues/1549)
+* **log-collector:** improve stream resilience with Promise.allSettled ([072ec4d](https://github.com/akash-network/console/commit/072ec4d42102430a5c39b3e3051d500870565219))
+
+
+### Bug Fixes
+
+* **auth:** fetching api keys ([#1743](https://github.com/akash-network/console/issues/1743)) ([cda80ce](https://github.com/akash-network/console/commit/cda80cefacff2d677fdd4e334b9d1997b6b9bd95))
+
 ## 1.1.0 (2025-07-22)
 
 
