@@ -1,5 +1,17 @@
 
 
+## [1.19.0](https://github.com/akash-network/console/compare/notifications/v1.18.1...notifications/v1.19.0) (2025-07-27)
+
+
+### Features
+
+* adds safe node packages installation ([#1726](https://github.com/akash-network/console/issues/1726)) ([37acfee](https://github.com/akash-network/console/commit/37acfee5c1d053cec2316560ad220992d70b7cbf)), closes [#1549](https://github.com/akash-network/console/issues/1549)
+
+
+### Bug Fixes
+
+* **auth:** fetching api keys ([#1743](https://github.com/akash-network/console/issues/1743)) ([cda80ce](https://github.com/akash-network/console/commit/cda80cefacff2d677fdd4e334b9d1997b6b9bd95))
+
 ## [1.18.1](https://github.com/akash-network/console/compare/notifications/v1.18.0...notifications/v1.18.1) (2025-07-22)
 
 
