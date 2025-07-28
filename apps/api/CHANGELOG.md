@@ -1,5 +1,20 @@
 
 
+## [2.108.0](https://github.com/akash-network/console/compare/console-api/v2.107.2...console-api/v2.108.0) (2025-07-27)
+
+
+### Features
+
+* adds safe node packages installation ([#1726](https://github.com/akash-network/console/issues/1726)) ([37acfee](https://github.com/akash-network/console/commit/37acfee5c1d053cec2316560ad220992d70b7cbf)), closes [#1549](https://github.com/akash-network/console/issues/1549)
+* **billing:** new onboarding flow ([#1711](https://github.com/akash-network/console/issues/1711)) ([e05506c](https://github.com/akash-network/console/commit/e05506c89a762e8fa9111649357aa80c06e26fbe))
+* **deployment:** close trial deployments after 24h ([#1725](https://github.com/akash-network/console/issues/1725)) ([05017ac](https://github.com/akash-network/console/commit/05017acb217be1efdfbe545f868f9c8f816e718d))
+
+
+### Bug Fixes
+
+* **auth:** fetching api keys ([#1743](https://github.com/akash-network/console/issues/1743)) ([cda80ce](https://github.com/akash-network/console/commit/cda80cefacff2d677fdd4e334b9d1997b6b9bd95))
+* set a better date to work with ([#1729](https://github.com/akash-network/console/issues/1729)) ([218cdc4](https://github.com/akash-network/console/commit/218cdc4578d847338dd41945beb2fd29c19b0466))
+
 ## [2.107.2](https://github.com/akash-network/console/compare/console-api/v2.107.1...console-api/v2.107.2) (2025-07-22)
 
 

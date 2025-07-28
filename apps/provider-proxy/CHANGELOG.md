@@ -1,5 +1,19 @@
 
 
+## [1.14.0](https://github.com/akash-network/console/compare/provider-proxy/v1.13.3...provider-proxy/v1.14.0) (2025-07-27)
+
+
+### Features
+
+* adds logging to retry logic in provider-proxy ([#1741](https://github.com/akash-network/console/issues/1741)) ([e604524](https://github.com/akash-network/console/commit/e6045247ab42049b05b6e975be3a00ade1662bbb))
+* adds safe node packages installation ([#1726](https://github.com/akash-network/console/issues/1726)) ([37acfee](https://github.com/akash-network/console/commit/37acfee5c1d053cec2316560ad220992d70b7cbf)), closes [#1549](https://github.com/akash-network/console/issues/1549)
+* adds validation for client cert on provider-proxy ([#1731](https://github.com/akash-network/console/issues/1731)) ([9aeb51f](https://github.com/akash-network/console/commit/9aeb51f8c6532e4c87d4e8a121909a771bd2a120))
+
+
+### Code Refactoring
+
+* improves certificate validation on provider-proxy ([#1739](https://github.com/akash-network/console/issues/1739)) ([2c9ee16](https://github.com/akash-network/console/commit/2c9ee160c2c6d984c4c825c723d74da6c6e2dd54))
+
 ## [1.13.3](https://github.com/akash-network/console/compare/provider-proxy/v1.13.2...provider-proxy/v1.13.3) (2025-07-15)
 
 
