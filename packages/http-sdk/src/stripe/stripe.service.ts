@@ -55,8 +55,8 @@ export class StripeService extends ApiHttpService {
       ...(limit && { limit: limit.toString() }),
       ...(startingAfter && { startingAfter }),
       ...(endingBefore && { endingBefore }),
-      ...(startDate && { startDate: startDate.toString() }),
-      ...(endDate && { endDate: endDate.toString() })
+      ...(startDate && { startDate: startDate.toISOString() }),
+      ...(endDate && { endDate: endDate.toISOString() })
     });
 
     const url = `/v1/stripe/transactions${params.toString() ? `?${params}` : ""}`;

@@ -9,27 +9,8 @@ import { CumulativeSpendingLineChart } from "@src/components/billing-usage/Cumul
 import { DailyUsageBarChart } from "@src/components/billing-usage/DailyUsageBarChart/DailyUsageBarChart";
 import { Title } from "@src/components/shared/Title";
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
-
-const escapeCsvValue = (value: string | number): string => {
-  const stringValue = String(value);
-  if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
-    return `"${stringValue.replace(/"/g, '""')}"`;
-  }
-  return stringValue;
-};
-
-const downloadCsv = (content: string, filename: string) => {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", filename);
-  link.style.visibility = "hidden";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
+import { downloadCsv } from "@src/utils/domUtils";
+import { sanitizeCsvField } from "@src/utils/stringUtils";
 
 const isValidNumber = (value: number | null | undefined): boolean => {
   return value !== null && value !== undefined && !Number.isNaN(value) && Number.isFinite(value);
@@ -81,7 +62,7 @@ export const UsageView = ({
         usageHistoryStatsData.totalDeployments,
         usageHistoryStatsData.averageDeploymentsPerDay
       ]
-        .map(escapeCsvValue)
+        .map(sanitizeCsvField)
         .join(",")
     ];
 
@@ -90,14 +71,14 @@ export const UsageView = ({
       "Date,Active Deployments,Daily AKT Spent,Total AKT Spent,Daily USDC Spent,Total USDC Spent,Daily USD Spent,Total USD Spent",
       ...usageHistoryData.map(row =>
         [row.date, row.activeDeployments, row.dailyAktSpent, row.totalAktSpent, row.dailyUsdcSpent, row.totalUsdcSpent, row.dailyUsdSpent, row.totalUsdSpent]
-          .map(escapeCsvValue)
+          .map(sanitizeCsvField)
           .join(",")
       )
     ];
 
     const combinedCsvContent = [...statsCsvContent, ...historyCsvContent].join("\n");
 
-    downloadCsv(combinedCsvContent, "usage.csv");
+    downloadCsv(combinedCsvContent, "akash_billing_usage");
   }, [usageHistoryData, usageHistoryStatsData]);
 
   return (
