@@ -1,7 +1,8 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/components";
+import { Button, Card, CardContent, CardHeader, CardTitle, DateRangePicker, Label } from "@akashnetwork/ui/components";
 import LinearProgress from "@mui/material/LinearProgress";
+import { endOfToday, startOfDay, subYears } from "date-fns";
 import { Cloud, Dollar, Download } from "iconoir-react";
 
 import { CumulativeSpendingLineChart } from "@src/components/billing-usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
@@ -39,7 +40,8 @@ export const COMPONENTS = {
   Title,
   DailyUsageBarChart,
   CumulativeSpendingLineChart,
-  LinearProgress
+  LinearProgress,
+  DateRangePicker
 };
 
 export type UsageViewProps = {
@@ -49,6 +51,8 @@ export type UsageViewProps = {
   isUsageHistoryError: boolean;
   isFetchingUsageHistoryStats: boolean;
   isUsageHistoryStatsError: boolean;
+  dateRange: { from: Date | undefined; to?: Date };
+  onDateRangeChange: (range?: { from?: Date; to?: Date }) => void;
   components?: typeof COMPONENTS;
 };
 
@@ -59,9 +63,13 @@ export const UsageView = ({
   isUsageHistoryError,
   isFetchingUsageHistoryStats,
   isUsageHistoryStatsError,
+  dateRange,
+  onDateRangeChange,
   components = COMPONENTS
 }: UsageViewProps) => {
-  const { FormattedNumber, Title, DailyUsageBarChart, CumulativeSpendingLineChart, LinearProgress } = components;
+  const oneYearAgo = startOfDay(subYears(new Date(), 1));
+
+  const { FormattedNumber, Title, DailyUsageBarChart, CumulativeSpendingLineChart, LinearProgress, DateRangePicker } = components;
 
   const exportCsv = React.useCallback(() => {
     const statsCsvContent = [
@@ -94,9 +102,13 @@ export const UsageView = ({
 
   return (
     <div className="h-full space-y-4">
-      <div className="flex items-center justify-between">
-        <Title subTitle>Overview</Title>
+      <Title subTitle>Overview</Title>
 
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <Label>Filter by Date:</Label>
+          <DateRangePicker date={dateRange} onChange={onDateRangeChange} className="w-full" minDate={oneYearAgo} maxDate={endOfToday()} maxRangeInDays={366} />
+        </div>
         <Button variant="secondary" onClick={exportCsv} size="sm">
           <Download width={16} className="mr-2" />
           Export CSV
@@ -104,7 +116,7 @@ export const UsageView = ({
       </div>
 
       {isUsageHistoryStatsError && (
-        <div className="mt-4 flex h-full items-center justify-center">
+        <div className="flex h-full items-center justify-center">
           <p className="text-red-500">Error loading usage stats</p>
         </div>
       )}
@@ -170,7 +182,7 @@ export const UsageView = ({
       <Title subTitle>Historical</Title>
 
       {isUsageHistoryError && (
-        <div className="mt-4 flex h-full items-center justify-center">
+        <div className="flex h-full items-center justify-center">
           <p className="text-red-500">Error loading usage data</p>
         </div>
       )}
