@@ -1,5 +1,12 @@
 
 
+## [2.97.1](https://github.com/akash-network/console/compare/console-web/v2.97.0...console-web/v2.97.1) (2025-07-28)
+
+
+### Code Refactoring
+
+* removes old implementation of feature flags based on env variables ([#1480](https://github.com/akash-network/console/issues/1480)) ([fa722aa](https://github.com/akash-network/console/commit/fa722aae1baf9e5dbd034381a2b641cfd7a5bf8d))
+
 ## [2.97.0](https://github.com/akash-network/console/compare/console-web/v2.96.5...console-web/v2.97.0) (2025-07-27)
 
 
