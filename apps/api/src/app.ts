@@ -22,6 +22,7 @@ import { bidsRouter } from "./bid/routes/bids/bids.router";
 import { certificateRouter } from "./certificate/routes/certificate.router";
 import { FeatureFlagsService } from "./core/services/feature-flags/feature-flags.service";
 import { shutdownServer } from "./core/services/shutdown-server/shutdown-server";
+import type { AppEnv } from "./core/types/app-context";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
@@ -75,7 +76,7 @@ import { transactionsRouter } from "./transaction";
 import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
 import { validatorsRouter } from "./validator";
 
-const appHono = new Hono();
+const appHono = new Hono<AppEnv>();
 appHono.use(
   "/*",
   cors({

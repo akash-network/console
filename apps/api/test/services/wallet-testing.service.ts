@@ -1,8 +1,8 @@
 import type { Hono } from "hono";
 import { decode } from "jsonwebtoken";
 
-export class WalletTestingService {
-  constructor(private readonly app: Hono) {}
+export class WalletTestingService<T extends Hono<any>> {
+  constructor(private readonly app: T) {}
 
   async createUserAndWallet() {
     const { user, token } = await this.createRegisteredUser();
