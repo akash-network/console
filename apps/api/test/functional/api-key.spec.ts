@@ -251,8 +251,8 @@ describe("API Keys", () => {
 
       const storedKey = await apiKeyRepository.findOneBy({ id: result.data.id });
       expect(storedKey).toBeDefined();
-      expect(storedKey.keyFormat).toMatch(OBFUSCATED_API_KEY_PATTERN);
-      expect(storedKey.hashedKey).not.toMatch(FULL_API_KEY_PATTERN);
+      expect(storedKey?.keyFormat).toMatch(OBFUSCATED_API_KEY_PATTERN);
+      expect(storedKey?.hashedKey).not.toMatch(FULL_API_KEY_PATTERN);
     });
 
     it("should reject API key creation with past expiration date", async () => {

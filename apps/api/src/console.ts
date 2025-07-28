@@ -118,7 +118,7 @@ async function executeCliHandler(name: string, handler: () => Promise<unknown>) 
         logger.info({ event: "COMMAND_END", name });
       }
     } catch (error) {
-      logger.error({ event: "COMMAND_ERROR", name, message: error.message, stack: error.stack });
+      logger.error({ event: "COMMAND_ERROR", name, error });
       process.exitCode = 1;
     } finally {
       await closeConnections();

@@ -33,7 +33,7 @@ describe("ProviderRegions", () => {
   const expectRegion = (data: ProviderRegionsResponse, key: string, providers: string[]) => {
     const region = data.find(item => item.key === key);
     expect(region).toBeDefined();
-    expect([...region.providers].sort()).toEqual([...providers].sort());
+    expect([...(region?.providers || [])].sort()).toEqual([...providers].sort());
   };
 
   describe("GET /v1/provider-regions", () => {

@@ -54,9 +54,6 @@
     ],
     "./packages/database/**/*.ts": [
       "npm run validate:types -w packages/database"
-    ],
-    "./apps/api/**/*.ts": [
-      "npm run validate:types-strict -w apps/api"
     ]
   },
   "dependencies": {

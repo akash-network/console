@@ -43,8 +43,8 @@ describe("Templates API", () => {
 
   const expectCategory = (result: GetTemplatesFullResponse, expectedCategory: string, expectedTemplateIds: string[]) => {
     const category = result.find((c: { title: string }) => c.title === expectedCategory);
-    expect(category.templates).toHaveLength(expectedTemplateIds.length);
-    const templateIds = category.templates.map(({ id }) => id);
+    expect(category?.templates).toHaveLength(expectedTemplateIds.length);
+    const templateIds = category?.templates.map(({ id }) => id) || [];
     templateIds.forEach(templateId => {
       expect(expectedTemplateIds).toContain(templateId);
     });
