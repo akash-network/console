@@ -10,6 +10,8 @@ import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { InjectSigningClient } from "@src/billing/providers/signing-client.provider";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { UserRepository } from "@src/user/repositories";
 import { BalancesService } from "../balances/balances.service";
 import { BillingConfigService } from "../billing-config/billing-config.service";
@@ -32,6 +34,7 @@ export class ManagedSignerService {
     private readonly authService: AuthService,
     private readonly chainErrorService: ChainErrorService,
     private readonly anonymousValidateService: TrialValidationService,
+    private readonly featureFlagsService: FeatureFlagsService,
     @InjectSigningClient("MANAGED") private readonly masterSigningClientService: BatchSigningClientService,
     private readonly dedupeSigningClientService: DedupeSigningClientService
   ) {}
@@ -67,14 +70,16 @@ export class ManagedSignerService {
     const user = this.authService.currentUser.userId === userId ? this.authService.currentUser : await this.userRepository.findById(userId);
     assert(user, 404, "User Not Found");
 
-    await Promise.all(
-      messages.map(message =>
-        Promise.all([
-          this.anonymousValidateService.validateLeaseProviders(message, userWallet, user),
-          this.anonymousValidateService.validateTrialLimit(message, userWallet)
-        ])
-      )
-    );
+    if (this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
+      await Promise.all(
+        messages.map(message =>
+          Promise.all([
+            this.anonymousValidateService.validateLeaseProviders(message, userWallet, user),
+            this.anonymousValidateService.validateTrialLimit(message, userWallet)
+          ])
+        )
+      );
+    }
 
     try {
       const tx = await this.executeManagedTx(userWallet.id, messages);

@@ -48,7 +48,8 @@ export class UrlService {
     return `/api/auth/login${appendSearchParams({ from: from })}`;
   };
   static logout = () => "/api/auth/logout";
-  static signup = () => "/api/auth/signup";
+  static signup = (returnTo?: string) => `/api/auth/signup${appendSearchParams({ returnTo })}`;
+  static onboarding = (fromSignup?: boolean) => `/signup${appendSearchParams({ fromSignup })}`;
   static template = (id: string) => `/template/${id}`;
   static payment = () => "/payment";
 

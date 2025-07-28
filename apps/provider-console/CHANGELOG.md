@@ -1,5 +1,19 @@
 
 
+## [1.18.0](https://github.com/akash-network/console/compare/provider-console/v1.17.0...provider-console/v1.18.0) (2025-07-27)
+
+
+### Features
+
+* adds safe node packages installation ([#1726](https://github.com/akash-network/console/issues/1726)) ([37acfee](https://github.com/akash-network/console/commit/37acfee5c1d053cec2316560ad220992d70b7cbf)), closes [#1549](https://github.com/akash-network/console/issues/1549)
+
+## [1.17.0](https://github.com/akash-network/console/compare/provider-console/v1.16.0...provider-console/v1.17.0) (2025-07-21)
+
+
+### Features
+
+* **provider:** wp: api key page ([#1497](https://github.com/akash-network/console/issues/1497)) ([21c9c9d](https://github.com/akash-network/console/commit/21c9c9d260d665027bb9a19f757fdb474c4f3841))
+
 ## [1.16.0](https://github.com/akash-network/console/compare/provider-console/v1.15.3...provider-console/v1.16.0) (2025-07-16)
 
 

@@ -12,14 +12,19 @@ export function createContainer() {
   const isLoggingDisabled = process.env.NODE_ENV === "test";
 
   const wsStats = new WebsocketStats();
-  const providerService = new ProviderService((network: SupportedChainNetworks) => {
-    // TEST_CHAIN_NETWORK_URL is hack for functional tests
-    // there is no good way to mock external server in nodejs
-    // both nock and msw do not work well when I need to use low level API like X509 certificate validation
-    // for some reason when those libraries are used I receive MockSocket instead of TLSSocket
-    // @see https://github.com/mswjs/msw/discussions/2416
-    return process.env.TEST_CHAIN_NETWORK_URL || netConfig.getBaseAPIUrl(network);
-  }, fetch);
+  const appLogger = isLoggingDisabled ? undefined : new LoggerService({ name: "app" });
+  const providerService = new ProviderService(
+    (network: SupportedChainNetworks) => {
+      // TEST_CHAIN_NETWORK_URL is hack for functional tests
+      // there is no good way to mock external server in nodejs
+      // both nock and msw do not work well when I need to use low level API like X509 certificate validation
+      // for some reason when those libraries are used I receive MockSocket instead of TLSSocket
+      // @see https://github.com/mswjs/msw/discussions/2416
+      return process.env.TEST_CHAIN_NETWORK_URL || netConfig.getBaseAPIUrl(network);
+    },
+    fetch,
+    appLogger
+  );
   const certificateValidator = new CertificateValidator(
     Date.now,
     providerService,
@@ -29,7 +34,6 @@ export function createContainer() {
   const wsLogger = isLoggingDisabled ? undefined : new LoggerService({ name: "ws" });
   const httpLogger = isLoggingDisabled ? undefined : new LoggerService({ name: "http" });
   const httpLoggerInterceptor = new HttpLoggerIntercepter(httpLogger);
-  const appLogger = isLoggingDisabled ? undefined : new LoggerService({ name: "app" });
 
   return {
     wsStats,

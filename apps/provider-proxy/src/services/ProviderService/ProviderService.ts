@@ -1,3 +1,4 @@
+import type { LoggerService } from "@akashnetwork/logging";
 import type { SupportedChainNetworks } from "@akashnetwork/net";
 import { X509Certificate } from "crypto";
 
@@ -6,7 +7,8 @@ import { httpRetry } from "../../utils/retry";
 export class ProviderService {
   constructor(
     private readonly getChainBaseUrl: (network: SupportedChainNetworks) => string,
-    private readonly fetch: typeof global.fetch
+    private readonly fetch: typeof global.fetch,
+    private readonly logger?: LoggerService
   ) {}
 
   async getCertificate(network: SupportedChainNetworks, providerAddress: string, serialNumber: string): Promise<X509Certificate | null> {
@@ -23,7 +25,8 @@ export class ProviderService {
     }
 
     const response = await httpRetry(() => this.fetch(`${baseUrl}/akash/cert/v1beta3/certificates/list?${queryParams}`), {
-      retryIf: response => response.status > 500
+      retryIf: response => response.status > 500,
+      logger: this.logger
     });
 
     if (response.status >= 200 && response.status < 300) {
@@ -37,12 +40,7 @@ export class ProviderService {
   isValidationServerError(rawBody: unknown): boolean {
     if (typeof rawBody !== "string") return false;
     const body = rawBody.trim();
-    return (
-      body.startsWith("manifest cross-validation error: ") ||
-      body.startsWith("hostname not allowed:") ||
-      body.includes("SSL alert number 42") ||
-      body.includes("sslv3 alert bad certificate")
-    );
+    return body.startsWith("manifest cross-validation error: ") || body.startsWith("hostname not allowed:");
   }
 }
 

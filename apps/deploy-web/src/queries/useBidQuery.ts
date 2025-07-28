@@ -7,13 +7,17 @@ import type { BidDto, RpcBid } from "@src/types/deployment";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
-async function getBidList(apiClient: AxiosInstance, address: string, dseq: string): Promise<Array<BidDto> | null> {
+async function getBidList(apiClient: AxiosInstance, address: string, dseq: string): Promise<BidDto[] | null> {
   if (!address || !dseq) return null;
 
   const response = await apiClient.get<{ bids: RpcBid[] }>(ApiUrlService.bidList("", address, dseq));
   const { bids } = response.data;
 
-  return bids.map((b: RpcBid) => ({
+  return bids.map(mapToBidDto);
+}
+
+export function mapToBidDto(b: RpcBid): BidDto {
+  return {
     id: b.bid.bid_id.provider + b.bid.bid_id.dseq + b.bid.bid_id.gseq + b.bid.bid_id.oseq,
     owner: b.bid.bid_id.owner,
     provider: b.bid.bid_id.provider,
@@ -23,7 +27,7 @@ async function getBidList(apiClient: AxiosInstance, address: string, dseq: strin
     price: b.bid.price,
     state: b.bid.state,
     resourcesOffer: b.bid.resources_offer
-  }));
+  };
 }
 
 export function useBidList(address: string, dseq: string, options?: Omit<UseQueryOptions<BidDto[] | null>, "queryKey" | "queryFn">) {

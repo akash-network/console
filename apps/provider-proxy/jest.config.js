@@ -5,6 +5,7 @@ const common = {
   rootDir: "."
 };
 
+/** @type {import('jest').Config} */
 module.exports = {
   collectCoverageFrom: [
     // keep new line
@@ -13,6 +14,7 @@ module.exports = {
     "!src/**/*.d.ts",
     "!src/server.ts"
   ],
+  testTimeout: 10_000,
   projects: [
     {
       displayName: "unit",

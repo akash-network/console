@@ -37,7 +37,7 @@ runs:
         APP_UNDER_TEST: ${{ inputs.app }}
       run: |
         if [[ "$APP_UNDER_TEST" == "all" ]]; then
-          npm ci
+          npm run safe-install
         else
-          npm ci -w "apps/$APP_UNDER_TEST"
+          npm run safe-install -- -w "apps/$APP_UNDER_TEST"
         fi

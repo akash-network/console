@@ -34,7 +34,7 @@ export const getServerSideProps = defineServerSideProps({
         }
       };
     }
-    const response = await services.axios.get(`${services.apiUrlService.getBaseApiUrlFor("mainnet")}/user/template/${params.id}`, config);
+    const response = await services.consoleApiHttpClient.get(`${services.apiUrlService.getBaseApiUrlFor("mainnet")}/user/template/${params.id}`, config);
 
     return {
       props: {

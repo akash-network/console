@@ -26,3 +26,9 @@ jobs:
       - node
       - dist/console.js
       - cleanup-stale-anonymous-users
+  - name: cleanup-trial-deployments
+    schedule: "*/30 * * * *" # Every 30 minutes
+    command:
+      - node
+      - dist/console.js
+      - cleanup-trial-deployments

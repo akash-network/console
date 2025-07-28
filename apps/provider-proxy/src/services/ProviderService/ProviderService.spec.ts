@@ -75,21 +75,6 @@ describe(ProviderService.name, () => {
         expected: true
       },
       {
-        name: "includes SSL alert number 42",
-        body: "SSL alert number 42",
-        expected: true
-      },
-      {
-        name: "includes sslv3 alert bad certificate",
-        body: "sslv3 alert bad certificate",
-        expected: true
-      },
-      {
-        name: "includes other string",
-        body: "bad certificate",
-        expected: false
-      },
-      {
         name: "is empty",
         body: "",
         expected: false

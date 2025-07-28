@@ -2,19 +2,9 @@ import React, { useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { Popup } from "@akashnetwork/ui/components";
 import { Elements } from "@stripe/react-stripe-js";
-import { loadStripe, type Stripe } from "@stripe/stripe-js";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
-import { AddPaymentMethodForm } from "./AddPaymentMethodForm";
-
-function getStripe(): Promise<Stripe | null> {
-  const publishableKey = browserEnvConfig.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-  if (!publishableKey) {
-    console.warn("Stripe publishable key is not configured");
-    return Promise.resolve(null);
-  }
-  return loadStripe(publishableKey);
-}
+import { PaymentMethodForm } from "@src/components/shared";
+import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 
 interface AddPaymentMethodPopupProps {
   open: boolean;
@@ -25,7 +15,8 @@ interface AddPaymentMethodPopupProps {
 }
 
 export const AddPaymentMethodPopup: React.FC<AddPaymentMethodPopupProps> = ({ open, onClose, clientSecret, isDarkMode, onSuccess }) => {
-  const stripePromise = useMemo(() => getStripe(), []);
+  const { stripeService } = useServices();
+  const stripePromise = useMemo(() => stripeService.getStripe(), [stripeService]);
 
   return (
     <Popup open={open} onClose={onClose} title="Add New Payment Method" variant="custom" actions={[]}>
@@ -45,7 +36,7 @@ export const AddPaymentMethodPopup: React.FC<AddPaymentMethodPopupProps> = ({ op
                 }
               }}
             >
-              <AddPaymentMethodForm onSuccess={onSuccess} />
+              <PaymentMethodForm onSuccess={onSuccess} buttonText="Add Card" processingText="Processing..." />
             </Elements>
           ) : (
             <div className="p-4 text-center text-muted-foreground">

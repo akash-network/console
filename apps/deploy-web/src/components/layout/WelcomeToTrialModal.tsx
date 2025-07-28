@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Popup } from "@akashnetwork/ui/components";
 
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import networkStore from "@src/store/networkStore";
@@ -10,6 +11,7 @@ import networkStore from "@src/store/networkStore";
 export const WelcomeToTrialModal: React.FunctionComponent = () => {
   const { wallet: managedWallet } = useManagedWallet();
   const { address } = useWallet();
+  const allowAnonymousUserTrial = useFlag("anonymous_free_trial");
   const selectedNetworkId = networkStore.useSelectedNetworkId();
 
   const localStorageKey = "welcomeModalSeen";
@@ -29,8 +31,8 @@ export const WelcomeToTrialModal: React.FunctionComponent = () => {
   }, [setLocalStorageItem]);
 
   const isWelcomeModalOpen = useMemo(() => {
-    return managedWallet?.isTrialing === true && shouldModalShow;
-  }, [managedWallet?.isTrialing, shouldModalShow]);
+    return managedWallet?.isTrialing === true && shouldModalShow && allowAnonymousUserTrial;
+  }, [managedWallet?.isTrialing, shouldModalShow, allowAnonymousUserTrial]);
 
   return (
     <>

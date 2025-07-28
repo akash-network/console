@@ -6,6 +6,7 @@ import type { ProviderSnapshotNode } from "@akashnetwork/database/dbSchemas/akas
 import type { Day } from "@akashnetwork/database/dbSchemas/base/day";
 import type { Transaction } from "@akashnetwork/database/dbSchemas/base/transaction";
 import { faker } from "@faker-js/faker";
+import { format, setHours, setMinutes, setSeconds } from "date-fns";
 import Long from "long";
 import nock from "nock";
 
@@ -28,8 +29,8 @@ import {
 } from "@test/seeders";
 
 describe("GPU API", () => {
-  const now = new Date("2025-06-21T12:00:00.000Z");
-  const date = "2025-06-21";
+  const now = setSeconds(setMinutes(setHours(new Date(), 12), 0), 0);
+  const date = format(now, "yyyy-MM-dd");
 
   afterAll(async () => {
     await closeConnections();
@@ -264,6 +265,8 @@ describe("GPU API", () => {
 
   describe("GET /v1/gpu-prices", () => {
     it("returns GPU pricing information", async () => {
+      await setup();
+
       const response = await app.request(`/v1/gpu-prices`);
 
       expect(response.status).toBe(200);
@@ -305,11 +308,11 @@ describe("GPU API", () => {
             },
             price: {
               currency: "USD",
-              min: 1.17,
-              max: 1.17,
-              avg: 1.17,
-              weightedAverage: 1.17,
-              med: 1.17
+              min: 1.2,
+              max: 1.2,
+              avg: 1.2,
+              weightedAverage: 1.2,
+              med: 1.2
             }
           },
           {
@@ -327,11 +330,11 @@ describe("GPU API", () => {
             },
             price: {
               currency: "USD",
-              min: 0.58,
-              max: 0.58,
-              avg: 0.58,
-              weightedAverage: 0.58,
-              med: 0.58
+              min: 0.6,
+              max: 0.6,
+              avg: 0.6,
+              weightedAverage: 0.6,
+              med: 0.6
             }
           },
           {

@@ -1,5 +1,48 @@
 
 
+## [2.97.1](https://github.com/akash-network/console/compare/console-web/v2.97.0...console-web/v2.97.1) (2025-07-28)
+
+
+### Code Refactoring
+
+* removes old implementation of feature flags based on env variables ([#1480](https://github.com/akash-network/console/issues/1480)) ([fa722aa](https://github.com/akash-network/console/commit/fa722aae1baf9e5dbd034381a2b641cfd7a5bf8d))
+
+## [2.97.0](https://github.com/akash-network/console/compare/console-web/v2.96.5...console-web/v2.97.0) (2025-07-27)
+
+
+### Features
+
+* adds handling of expired certificate in lease flow ([#1738](https://github.com/akash-network/console/issues/1738)) ([d4881a1](https://github.com/akash-network/console/commit/d4881a1f21675a2320a02f2607e5b437b611f545))
+* adds safe node packages installation ([#1726](https://github.com/akash-network/console/issues/1726)) ([37acfee](https://github.com/akash-network/console/commit/37acfee5c1d053cec2316560ad220992d70b7cbf)), closes [#1549](https://github.com/akash-network/console/issues/1549)
+* **billing:** new onboarding flow ([#1711](https://github.com/akash-network/console/issues/1711)) ([e05506c](https://github.com/akash-network/console/commit/e05506c89a762e8fa9111649357aa80c06e26fbe))
+* displays information about expired cert ([#1730](https://github.com/akash-network/console/issues/1730)) ([971eec9](https://github.com/akash-network/console/commit/971eec9659d1510a6555d4bc54bfa0015b2b67aa))
+
+
+### Bug Fixes
+
+* **auth:** fetching api keys ([#1743](https://github.com/akash-network/console/issues/1743)) ([cda80ce](https://github.com/akash-network/console/commit/cda80cefacff2d677fdd4e334b9d1997b6b9bd95))
+
+## [2.96.5](https://github.com/akash-network/console/compare/console-web/v2.96.4...console-web/v2.96.5) (2025-07-22)
+
+
+### Bug Fixes
+
+* uses a separate consoleApiHttpClient for public access ([#1719](https://github.com/akash-network/console/issues/1719)) ([f817d47](https://github.com/akash-network/console/commit/f817d47133411a70c47ea9ab3c48b55860801f77))
+
+## [2.96.4](https://github.com/akash-network/console/compare/console-web/v2.96.3...console-web/v2.96.4) (2025-07-22)
+
+
+### Code Refactoring
+
+* creates separate axios instance per intent ([#1702](https://github.com/akash-network/console/issues/1702)) ([b15370f](https://github.com/akash-network/console/commit/b15370fccc676982705c41c7b659752a467aef0d)), closes [#1668](https://github.com/akash-network/console/issues/1668)
+
+## [2.96.3](https://github.com/akash-network/console/compare/console-web/v2.96.2...console-web/v2.96.3) (2025-07-21)
+
+
+### Bug Fixes
+
+* exports jwt wallet utils ([#1696](https://github.com/akash-network/console/issues/1696)) ([356813b](https://github.com/akash-network/console/commit/356813ba0fb9b6b8dda9b7d52d777a134477437b))
+
 ## [2.96.2](https://github.com/akash-network/console/compare/console-web/v2.96.1...console-web/v2.96.2) (2025-07-16)
 
 

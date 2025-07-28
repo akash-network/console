@@ -12,9 +12,12 @@ import { WalletInitializerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
+import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { Memoize } from "@src/caching/helpers";
 import { Semaphore } from "@src/core/lib/semaphore.decorator";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { averageBlockTime } from "@src/utils/constants";
 
 @scoped(Lifecycle.ResolutionScoped)
@@ -26,12 +29,23 @@ export class WalletController {
     private readonly walletReaderService: WalletReaderService,
     private readonly balancesService: BalancesService,
     private readonly authService: AuthService,
-    private readonly userWalletRepository: UserWalletRepository
+    private readonly userWalletRepository: UserWalletRepository,
+    private readonly stripeService: StripeService,
+    private readonly featureFlagsService: FeatureFlagsService
   ) {}
 
   @Semaphore()
   @Protected([{ action: "create", subject: "UserWallet" }])
   async create({ data: { userId } }: StartTrialRequestInput): Promise<WalletOutputResponse> {
+    const { currentUser } = this.authService;
+
+    if (!this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
+      assert(currentUser.emailVerified, 403, "Email not verified");
+      assert(currentUser.stripeCustomerId, 403, "Stripe customer ID not found");
+      const paymentMethods = await this.stripeService.getPaymentMethods(currentUser.stripeCustomerId);
+      assert(paymentMethods.length > 0, 403, "Payment method required. Please add a payment method to your account before starting a trial.");
+    }
+
     return {
       data: await this.walletInitializer.initializeAndGrantTrialLimits(userId)
     };

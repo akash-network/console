@@ -5064,37 +5064,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
-    "/v1/features": {
-      "get": {
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "additionalProperties": {
-                        "type": "boolean",
-                      },
-                      "type": "object",
-                    },
-                  },
-                  "required": [
-                    "data",
-                  ],
-                  "type": "object",
-                },
-              },
-            },
-            "description": "List of enabled feature flags",
-          },
-        },
-        "summary": "Returns enabled feature flags",
-        "tags": [
-          "Feature flags",
-        ],
-      },
-    },
     "/v1/gpu": {
       "get": {
         "parameters": [
@@ -8479,6 +8448,87 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
           },
         },
         "summary": "Get dashboard data for provider console.",
+        "tags": [
+          "Providers",
+        ],
+      },
+    },
+    "/v1/provider-earnings/{owner}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "owner",
+            "required": true,
+            "schema": {
+              "description": "Provider Address",
+              "example": "akash18ga02jzaq8cw52anyhzkwta5wygufgu6zsz6xc",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "description": "Start date in YYYY-MM-DD format",
+              "example": "2023-01-01",
+              "format": "YYYY-MM-DD",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "description": "End date in YYYY-MM-DD format",
+              "example": "2023-02-01",
+              "format": "YYYY-MM-DD",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "earnings": {
+                      "properties": {
+                        "totalUAktEarned": {
+                          "type": "number",
+                        },
+                        "totalUUsdEarned": {
+                          "type": "number",
+                        },
+                        "totalUUsdcEarned": {
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "totalUAktEarned",
+                        "totalUUsdcEarned",
+                        "totalUUsdEarned",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "earnings",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Earnings data",
+          },
+          "404": {
+            "description": "Provider not found",
+          },
+        },
+        "summary": "Get earnings data for provider console.",
         "tags": [
           "Providers",
         ],
