@@ -7,6 +7,7 @@ import { otel } from "@hono/otel";
 import { swaggerUI } from "@hono/swagger-ui";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import once from "lodash/once";
 import { container } from "tsyringe";
 
 import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
@@ -196,17 +197,15 @@ const appLogger = LoggerService.forContext("APP");
  */
 export async function initApp() {
   try {
-    await initDb();
+    await Promise.all([initDb(), container.resolve(FeatureFlagsService).initialize()]);
     startScheduler();
-
-    await container.resolve(FeatureFlagsService).initialize();
 
     appLogger.info({ event: "SERVER_STARTING", url: `http://localhost:${PORT}`, NODE_OPTIONS: process.env.NODE_OPTIONS });
     const server = serve({
       fetch: appHono.fetch,
       port: typeof PORT === "string" ? parseInt(PORT, 10) : PORT
     });
-    const shutdown = () => shutdownServer(server, appLogger, container.dispose.bind(container));
+    const shutdown = once(() => shutdownServer(server, appLogger, container.dispose.bind(container)));
 
     process.on("SIGTERM", shutdown);
     process.on("SIGINT", shutdown);
