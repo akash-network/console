@@ -1,5 +1,12 @@
 
 
+## [2.108.1](https://github.com/akash-network/console/compare/console-api/v2.108.0...console-api/v2.108.1) (2025-07-28)
+
+
+### Code Refactoring
+
+* removes old implementation of feature flags based on env variables ([#1480](https://github.com/akash-network/console/issues/1480)) ([fa722aa](https://github.com/akash-network/console/commit/fa722aae1baf9e5dbd034381a2b641cfd7a5bf8d))
+
 ## [2.108.0](https://github.com/akash-network/console/compare/console-api/v2.107.2...console-api/v2.108.0) (2025-07-27)
 
 
