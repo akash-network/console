@@ -31,6 +31,8 @@ describe("Stripe webhook", () => {
 
   const getWebhookResponse = async (sessionId: string, eventType: string) => {
     const payload = generatePayload(sessionId, eventType);
+    const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!stripeWebhookSecret) throw new Error("STRIPE_WEBHOOK_SECRET env variable is not set");
 
     return await app.request("/v1/stripe-webhook", {
       method: "POST",
@@ -39,7 +41,7 @@ describe("Stripe webhook", () => {
         "Content-Type": "text/plain",
         "Stripe-Signature": stripe.webhooks.generateTestHeaderString({
           payload,
-          secret: process.env.STRIPE_WEBHOOK_SECRET
+          secret: stripeWebhookSecret
         })
       })
     });

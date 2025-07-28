@@ -62,7 +62,7 @@ describe("GPU API", () => {
       expect(data.gpus.total.allocatable).toBe(6);
       expect(data.gpus.total.allocated).toBe(3);
       expect(data.gpus.details).toEqual({
-        nvidia: expectedVendors.nvidia
+        nvidia: expectedVendors?.nvidia
       });
     });
 
@@ -77,7 +77,7 @@ describe("GPU API", () => {
       expect(data.gpus.total.allocatable).toBe(2);
       expect(data.gpus.total.allocated).toBe(1);
       expect(data.gpus.details).toEqual({
-        nvidia: [expectedVendors.nvidia[0]]
+        nvidia: [expectedVendors?.nvidia[0]]
       });
     });
 
@@ -92,14 +92,14 @@ describe("GPU API", () => {
       expect(data.gpus.total.allocatable).toBe(4);
       expect(data.gpus.total.allocated).toBe(2);
       expect(data.gpus.details).toEqual({
-        nvidia: [expectedVendors.nvidia[1]]
+        nvidia: [expectedVendors?.nvidia[1]]
       });
     });
 
     it(`returns GPU data when filtering by provider address`, async () => {
       const { providers, expectedVendors } = await setup();
 
-      const response = await app.request(`/v1/gpu?provider=${providers[0].owner}`);
+      const response = await app.request(`/v1/gpu?provider=${providers?.[0].owner}`);
 
       expect(response.status).toBe(200);
       const data = (await response.json()) as ListGpuResponse;
@@ -107,14 +107,14 @@ describe("GPU API", () => {
       expect(data.gpus.total.allocatable).toBe(6);
       expect(data.gpus.total.allocated).toBe(3);
       expect(data.gpus.details).toEqual({
-        nvidia: expectedVendors.nvidia
+        nvidia: expectedVendors?.nvidia
       });
     });
 
     it(`returns GPU data when filtering by provider hostURI`, async () => {
       const { providers, expectedVendors } = await setup();
 
-      const response = await app.request(`/v1/gpu?provider=${providers[1].hostUri}`);
+      const response = await app.request(`/v1/gpu?provider=${providers?.[1].hostUri}`);
 
       expect(response.status).toBe(200);
       const data = (await response.json()) as ListGpuResponse;
@@ -122,7 +122,7 @@ describe("GPU API", () => {
       expect(data.gpus.total.allocatable).toBe(24);
       expect(data.gpus.total.allocated).toBe(12);
       expect(data.gpus.details).toEqual({
-        amd: expectedVendors.amd
+        amd: expectedVendors?.amd
       });
     });
   });

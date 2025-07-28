@@ -1,6 +1,5 @@
 import type { AkashBlock } from "@akashnetwork/database/dbSchemas/akash";
 import { addMinutes, addSeconds, getUnixTime, subSeconds } from "date-fns";
-import { map } from "lodash";
 
 import { app } from "@src/app";
 
@@ -35,11 +34,11 @@ describe("Blocks", () => {
     return testData;
   };
 
-  const expectBlocks = (blocksFound: AkashBlock[], blocksExpected: AkashBlock[]) => {
-    expect(blocksFound.length).toBe(blocksExpected.length);
+  const expectBlocks = (blocksFound?: AkashBlock[], blocksExpected?: AkashBlock[]) => {
+    expect(blocksFound?.length).toBe(blocksExpected?.length);
 
-    const heightsFound = map(blocksFound, "height");
-    blocksExpected.forEach(blockExpected => {
+    const heightsFound = blocksFound?.map(block => block.height) || [];
+    blocksExpected?.forEach(blockExpected => {
       expect(heightsFound).toContain(blockExpected.height);
     });
   };
@@ -52,7 +51,7 @@ describe("Blocks", () => {
       const blocksFound = (await response.json()) as AkashBlock[];
 
       expect(response.status).toBe(200);
-      expectBlocks(blocksFound, blocks.slice(81, 101).reverse());
+      expectBlocks(blocksFound, blocks?.slice(81, 101).reverse());
     });
 
     it("resolves list of most recent blocks", async () => {
@@ -62,7 +61,7 @@ describe("Blocks", () => {
       const blocksFound = (await response.json()) as AkashBlock[];
 
       expect(response.status).toBe(200);
-      expectBlocks(blocksFound, blocks.slice(99, 101).reverse());
+      expectBlocks(blocksFound, blocks?.slice(99, 101).reverse());
     });
 
     it("will not resolve more than 100 blocks", async () => {
@@ -81,14 +80,14 @@ describe("Blocks", () => {
     it("resolves block by height", async () => {
       const { blocks } = await setup();
 
-      const response = await app.request(`/v1/blocks/${blocks[0].height}`, {
+      const response = await app.request(`/v1/blocks/${blocks?.[0].height}`, {
         method: "GET",
         headers: new Headers({ "Content-Type": "application/json" })
       });
-      const blockFound = (await response.json()) as any;
+      const blockFound = (await response.json()) as AkashBlock;
 
       expect(response.status).toBe(200);
-      expectBlocks([blocks[0]], [blockFound]);
+      expectBlocks(blocks?.slice(0, 1), [blockFound]);
     });
 
     it("responds 400 for invalid height", async () => {
