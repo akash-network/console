@@ -17,10 +17,10 @@ import { useCertificate } from "@src/context/CertificateProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useImportSimpleSdl } from "@src/hooks/useImportSimpleSdl";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
-import { useFeatureFlags } from "@src/queries/featureFlags";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useDepositParams } from "@src/queries/useSaveSettings";
 import sdlStore from "@src/store/sdlStore";
@@ -70,8 +70,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [selectedSdlEditMode, setSelectedSdlEditMode] = useAtom(sdlStore.selectedSdlEditMode);
   const [isRepoInputValid, setIsRepoInputValid] = useState(false);
   const [sdlDenom, setSdlDenom] = useState("uakt");
-  const { data: features } = useFeatureFlags();
-  const isAnonymousFreeTrialEnabled = features?.allowAnonymousUserTrial;
+  const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
 
   const { analyticsService } = useServices();
   const { settings } = useSettings();
