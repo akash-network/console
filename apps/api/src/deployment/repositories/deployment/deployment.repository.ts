@@ -14,6 +14,11 @@ export interface ProviderCleanupOptions {
   provider: string;
 }
 
+export interface DeploymentsBeforeCutoffOptions {
+  owner: string;
+  cutoffHeight: number;
+}
+
 export interface StaleDeploymentsOutput {
   dseq: number;
 }
@@ -51,6 +56,22 @@ export class DeploymentRepository {
       },
       group: ["deployment.dseq"],
       having: literal(`COUNT("leases"."deploymentId") = 0`),
+      raw: true
+    });
+
+    return deployments ? (deployments as unknown as StaleDeploymentsOutput[]) : [];
+  }
+
+  async findDeploymentsBeforeCutoff(options: DeploymentsBeforeCutoffOptions): Promise<StaleDeploymentsOutput[]> {
+    const deployments = await Deployment.findAll({
+      attributes: ["dseq"],
+      where: {
+        owner: options.owner,
+        createdHeight: {
+          [Op.lt]: options.cutoffHeight
+        },
+        closedHeight: null
+      },
       raw: true
     });
 

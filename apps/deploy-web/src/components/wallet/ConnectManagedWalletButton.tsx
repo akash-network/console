@@ -8,8 +8,7 @@ import { Rocket } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
 import { useWallet } from "@src/context/WalletProvider";
-import { useLoginRequiredEventHandler } from "@src/hooks/useLoginRequiredEventHandler";
-import { useFeatureFlags } from "@src/queries/featureFlags";
+import { useFlag } from "@src/hooks/useFlag";
 import { UrlService } from "@src/utils/urlUtils";
 
 interface Props extends ButtonProps {
@@ -19,17 +18,16 @@ interface Props extends ButtonProps {
 
 export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ className = "", ...rest }) => {
   const { connectManagedWallet, hasManagedWallet, isWalletLoading } = useWallet();
-  const { data: features } = useFeatureFlags();
-  const whenLoggedIn = useLoginRequiredEventHandler();
+  const allowAnonymousUserTrial = useFlag("anonymous_free_trial");
   const router = useRouter();
 
   const startTrial: React.MouseEventHandler = useCallback(() => {
-    if (features?.allowAnonymousUserTrial) {
+    if (allowAnonymousUserTrial) {
       connectManagedWallet();
     } else {
       router.push(UrlService.onboarding());
     }
-  }, [connectManagedWallet, features?.allowAnonymousUserTrial, whenLoggedIn]);
+  }, [connectManagedWallet, allowAnonymousUserTrial, router]);
 
   return (
     <Button

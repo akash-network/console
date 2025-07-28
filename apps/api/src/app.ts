@@ -25,7 +25,6 @@ import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
 import { leasesRouter } from "./deployment/routes/leases/leases.router";
-import { featuresRouter } from "./features/routes/features/features.router";
 import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
 import { apiRouter } from "./routers/apiRouter";
@@ -129,7 +128,6 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   apiKeysRouter,
   bidsRouter,
   certificateRouter,
-  featuresRouter,
   getBalancesRouter,
   providersRouter,
   auditorsRouter,
