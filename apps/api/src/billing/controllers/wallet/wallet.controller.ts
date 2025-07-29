@@ -39,11 +39,14 @@ export class WalletController {
   async create({ data: { userId } }: StartTrialRequestInput): Promise<WalletOutputResponse> {
     const { currentUser } = this.authService;
 
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
+    if (1 === 1 || !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
       assert(currentUser.emailVerified, 403, "Email not verified");
       assert(currentUser.stripeCustomerId, 403, "Stripe customer ID not found");
       const paymentMethods = await this.stripeService.getPaymentMethods(currentUser.stripeCustomerId);
       assert(paymentMethods.length > 0, 403, "Payment method required. Please add a payment method to your account before starting a trial.");
+
+      const hasDuplicateTrialAccount = await this.stripeService.hasDuplicateTrialAccount(paymentMethods, currentUser.id);
+      assert(!hasDuplicateTrialAccount, 403, "This payment method is already associated with another trial account. Please use a different payment method.");
     }
 
     return {

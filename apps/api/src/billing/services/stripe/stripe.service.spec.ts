@@ -1,6 +1,7 @@
 import { mock } from "jest-mock-extended";
 import type Stripe from "stripe";
 
+import type { PaymentMethodRepository, UserWalletRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
 import type { UserRepository } from "@src/user/repositories";
@@ -703,8 +704,10 @@ function setup() {
   const billingConfig = mock<BillingConfigService>({ get: jest.fn().mockReturnValue("test_key") });
   const userRepository = mock<UserRepository>();
   const refillService = mock<RefillService>();
+  const paymentMethodRepository = mock<PaymentMethodRepository>();
+  const userWalletRepository = mock<UserWalletRepository>();
 
-  const service = new StripeService(billingConfig, userRepository, refillService);
+  const service = new StripeService(billingConfig, userRepository, refillService, paymentMethodRepository, userWalletRepository);
   const stripeData = StripeSeederCreate();
 
   // Store the last user for correct mocking
