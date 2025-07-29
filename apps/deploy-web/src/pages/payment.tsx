@@ -8,6 +8,7 @@ import Layout from "@src/components/layout/Layout";
 import { Title } from "@src/components/shared/Title";
 import { AddPaymentMethodPopup, DeletePaymentMethodPopup, PaymentForm, PaymentMethodsList } from "@src/components/user/payment";
 import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuccessAnimation";
+import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import { usePaymentDiscountsQuery, usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
@@ -38,6 +39,7 @@ const PayPage: React.FunctionComponent = () => {
     removePaymentMethod
   } = usePaymentMutations();
   const isLoading = isLoadingPaymentMethods || isLoadingDiscounts;
+  const { isTrialing } = useWallet();
 
   useEffect(() => {
     if (paymentMethods.length > 0) {
@@ -253,6 +255,7 @@ const PayPage: React.FunctionComponent = () => {
               onPaymentMethodSelect={setSelectedPaymentMethodId}
               onRemovePaymentMethod={handleRemovePaymentMethod}
               isRemovingPaymentMethod={removePaymentMethod.isPending}
+              isTrialing={isTrialing}
             />
             <Button onClick={handleShowAddPaymentMethod} className="mt-4 w-full">
               Add New Payment Method
