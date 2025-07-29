@@ -698,6 +698,100 @@ describe(StripeService.name, () => {
       expect(service.customers.update).not.toHaveBeenCalled();
     });
   });
+
+  describe("hasDuplicateTrialAccount", () => {
+    it("should return true when duplicate payment method fingerprints are found", async () => {
+      const { service, paymentMethodRepository } = setup();
+      const currentUserId = "user_123";
+      const paymentMethods = [
+        {
+          id: "pm_1",
+          type: "card",
+          card: { fingerprint: "fp_123" }
+        },
+        {
+          id: "pm_2",
+          type: "card",
+          card: { fingerprint: "fp_456" }
+        }
+      ] as Stripe.PaymentMethod[];
+
+      paymentMethodRepository.findOtherByFingerprint.mockResolvedValue({
+        id: "existing_pm",
+        userId: "other_user",
+        fingerprint: "fp_123",
+        paymentMethodId: "pm_existing",
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
+
+      expect(result).toBe(true);
+      expect(paymentMethodRepository.findOtherByFingerprint).toHaveBeenCalledWith(["fp_123", "fp_456"], currentUserId);
+    });
+
+    it("should return false when no duplicate payment method fingerprints are found", async () => {
+      const { service, paymentMethodRepository } = setup();
+      const currentUserId = "user_123";
+      const paymentMethods = [
+        {
+          id: "pm_1",
+          type: "card",
+          card: { fingerprint: "fp_123" }
+        }
+      ] as Stripe.PaymentMethod[];
+
+      paymentMethodRepository.findOtherByFingerprint.mockResolvedValue(undefined);
+
+      const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
+
+      expect(result).toBe(false);
+      expect(paymentMethodRepository.findOtherByFingerprint).toHaveBeenCalledWith(["fp_123"], currentUserId);
+    });
+
+    it("should filter out payment methods without fingerprints", async () => {
+      const { service, paymentMethodRepository } = setup();
+      const currentUserId = "user_123";
+      const paymentMethods = [
+        {
+          id: "pm_1",
+          type: "card",
+          card: { fingerprint: "fp_123" }
+        },
+        {
+          id: "pm_2",
+          type: "card",
+          card: null
+        },
+        {
+          id: "pm_3",
+          type: "card",
+          card: { fingerprint: undefined }
+        }
+      ] as Stripe.PaymentMethod[];
+
+      paymentMethodRepository.findOtherByFingerprint.mockResolvedValue(undefined);
+
+      const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
+
+      expect(result).toBe(false);
+      expect(paymentMethodRepository.findOtherByFingerprint).toHaveBeenCalledWith(["fp_123"], currentUserId);
+    });
+
+    it("should handle empty payment methods array", async () => {
+      const { service, paymentMethodRepository } = setup();
+      const currentUserId = "user_123";
+      const paymentMethods: Stripe.PaymentMethod[] = [];
+
+      paymentMethodRepository.findOtherByFingerprint.mockResolvedValue(undefined);
+
+      const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
+
+      expect(result).toBe(false);
+      expect(paymentMethodRepository.findOtherByFingerprint).toHaveBeenCalledWith([], currentUserId);
+    });
+  });
 });
 
 function setup() {
@@ -755,6 +849,7 @@ function setup() {
     service,
     userRepository,
     refillService,
-    billingConfig
+    billingConfig,
+    paymentMethodRepository
   };
 }

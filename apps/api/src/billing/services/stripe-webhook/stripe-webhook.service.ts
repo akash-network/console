@@ -32,20 +32,20 @@ export class StripeWebhookService {
     });
 
     try {
-      if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
-        await this.tryToTopUpWalletForCheckout(event);
-      } else if (event.type === "payment_intent.succeeded") {
-        await this.tryToTopUpWalletFromPaymentIntent(event);
-      } else if (event.type === "payment_method.attached") {
-        await this.handlePaymentMethodAttached(event);
-      } else if (event.type === "payment_method.detached") {
-        await this.handlePaymentMethodDetached(event);
-      } else {
-        this.logger.info({
-          event: "STRIPE_EVENT_UNHANDLED",
-          type: event.type,
-          id: event.id
-        });
+      switch (event.type) {
+        case "checkout.session.completed":
+        case "checkout.session.async_payment_succeeded":
+          await this.tryToTopUpWalletForCheckout(event);
+          break;
+        case "payment_intent.succeeded":
+          await this.tryToTopUpWalletFromPaymentIntent(event);
+          break;
+        case "payment_method.attached":
+          await this.handlePaymentMethodAttached(event);
+          break;
+        case "payment_method.detached":
+          await this.handlePaymentMethodDetached(event);
+          break;
       }
     } catch (error) {
       this.logger.error({
@@ -216,32 +216,22 @@ export class StripeWebhookService {
       return;
     }
 
-    try {
-      const currentUser = await this.userRepository.findOneBy({ stripeCustomerId: customerId as string });
-      if (!currentUser) {
-        this.logger.warn({
-          event: "PAYMENT_METHOD_DETACHED_NO_USER",
-          paymentMethodId: paymentMethod.id
-        });
-        return;
-      }
-
-      const deletedPaymentMethod = await this.paymentMethodRepository.deleteByFingerprint(fingerprint, paymentMethod.id, currentUser.id);
-
-      this.logger.info({
-        event: "PAYMENT_METHOD_DETACHED",
-        paymentMethodId: paymentMethod.id,
-        fingerprint,
-        deleted: !!deletedPaymentMethod
+    const currentUser = await this.userRepository.findOneBy({ stripeCustomerId: customerId as string });
+    if (!currentUser) {
+      this.logger.warn({
+        event: "PAYMENT_METHOD_DETACHED_NO_USER",
+        paymentMethodId: paymentMethod.id
       });
-    } catch (error) {
-      this.logger.error({
-        event: "PAYMENT_METHOD_DETACHED_ERROR",
-        paymentMethodId: paymentMethod.id,
-        fingerprint,
-        error: error instanceof Error ? error.message : String(error)
-      });
-      throw error;
+      return;
     }
+
+    const deletedPaymentMethod = await this.paymentMethodRepository.deleteByFingerprint(fingerprint, paymentMethod.id, currentUser.id);
+
+    this.logger.info({
+      event: "PAYMENT_METHOD_DETACHED",
+      paymentMethodId: paymentMethod.id,
+      fingerprint,
+      deleted: !!deletedPaymentMethod
+    });
   }
 }

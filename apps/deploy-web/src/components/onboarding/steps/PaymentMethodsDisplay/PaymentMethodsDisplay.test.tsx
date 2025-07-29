@@ -5,51 +5,10 @@ import { PaymentMethodsDisplay } from "./PaymentMethodsDisplay";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 
-// Mock the UrlService
-jest.mock("@src/utils/urlUtils", () => ({
-  UrlService: {
-    termsOfService: () => "/terms",
-    privacyPolicy: () => "/privacy"
-  }
-}));
-
 describe("PaymentMethodsDisplay", () => {
-  const mockPaymentMethods = [
-    {
-      id: "pm_123",
-      card: {
-        last4: "4242",
-        brand: "visa",
-        exp_month: 12,
-        exp_year: 2025
-      }
-    },
-    {
-      id: "pm_456",
-      card: {
-        last4: "5555",
-        brand: "mastercard",
-        exp_month: 3,
-        exp_year: 2026
-      }
-    }
-  ];
-
-  const defaultProps = {
-    paymentMethods: mockPaymentMethods,
-    onRemovePaymentMethod: jest.fn(),
-    onStartTrial: jest.fn(),
-    isLoading: false,
-    isRemoving: false
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe("Basic Rendering", () => {
     it("renders payment methods correctly", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} />);
+      setup();
 
       expect(screen.getByText("Payment Method Added")).toBeInTheDocument();
       expect(screen.getByText("Payment Methods")).toBeInTheDocument();
@@ -60,7 +19,7 @@ describe("PaymentMethodsDisplay", () => {
     });
 
     it("renders success alert when payment method is added", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} />);
+      setup();
 
       const successAlert = screen.getByText("Payment Method Added");
       expect(successAlert).toBeInTheDocument();
@@ -68,13 +27,13 @@ describe("PaymentMethodsDisplay", () => {
     });
 
     it("renders start trial button", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} />);
+      setup();
 
       expect(screen.getByRole("button", { name: "Start Trial" })).toBeInTheDocument();
     });
 
     it("renders terms and privacy links", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} />);
+      setup();
 
       expect(screen.getByText("Terms of Service")).toBeInTheDocument();
       expect(screen.getByText("Privacy Policy")).toBeInTheDocument();
@@ -83,39 +42,39 @@ describe("PaymentMethodsDisplay", () => {
 
   describe("Payment Method Interactions", () => {
     it("calls onRemovePaymentMethod when trash button is clicked", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} />);
+      const { mockOnRemovePaymentMethod } = setup();
 
       const trashButtons = screen.getAllByRole("button", { name: "" });
       fireEvent.click(trashButtons[0]);
 
-      expect(defaultProps.onRemovePaymentMethod).toHaveBeenCalledWith("pm_123");
+      expect(mockOnRemovePaymentMethod).toHaveBeenCalledWith("pm_123");
     });
 
     it("calls onStartTrial when start trial button is clicked", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} />);
+      const { mockOnStartTrial } = setup();
 
       const startTrialButton = screen.getByRole("button", { name: "Start Trial" });
       fireEvent.click(startTrialButton);
 
-      expect(defaultProps.onStartTrial).toHaveBeenCalled();
+      expect(mockOnStartTrial).toHaveBeenCalled();
     });
 
     it("disables start trial button when no payment methods", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} paymentMethods={[]} />);
+      setup({ paymentMethods: [] });
 
       const startTrialButton = screen.getByRole("button", { name: "Start Trial" });
       expect(startTrialButton).toBeDisabled();
     });
 
     it("disables start trial button when loading", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} isLoading={true} />);
+      setup({ isLoading: true });
 
       const startTrialButton = screen.getByRole("button", { name: "Starting Trial..." });
       expect(startTrialButton).toBeDisabled();
     });
 
     it("disables remove buttons when isRemoving is true", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} isRemoving={true} />);
+      setup({ isRemoving: true });
 
       const trashButtons = screen.getAllByRole("button", { name: "" });
       trashButtons.forEach(button => {
@@ -126,7 +85,7 @@ describe("PaymentMethodsDisplay", () => {
 
   describe("Error Handling", () => {
     it("does not render error alert when no error", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} />);
+      setup();
 
       expect(screen.queryByText("Failed to Start Trial")).not.toBeInTheDocument();
     });
@@ -144,7 +103,7 @@ describe("PaymentMethodsDisplay", () => {
         }
       };
 
-      render(<PaymentMethodsDisplay {...defaultProps} managedWalletError={httpError} />);
+      setup({ managedWalletError: httpError });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("Your payment was declined")).toBeInTheDocument();
@@ -153,7 +112,7 @@ describe("PaymentMethodsDisplay", () => {
     it("renders error alert with Error object", () => {
       const errorObject = new Error("Network connection failed");
 
-      render(<PaymentMethodsDisplay {...defaultProps} managedWalletError={errorObject} />);
+      setup({ managedWalletError: errorObject });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("Network connection failed")).toBeInTheDocument();
@@ -166,7 +125,7 @@ describe("PaymentMethodsDisplay", () => {
         code: "invalid_card"
       };
 
-      render(<PaymentMethodsDisplay {...defaultProps} managedWalletError={structuredError} />);
+      setup({ managedWalletError: structuredError });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("Invalid payment method")).toBeInTheDocument();
@@ -175,21 +134,21 @@ describe("PaymentMethodsDisplay", () => {
     it("renders error alert with string error", () => {
       const stringError = "Something went wrong" as unknown as AppError;
 
-      render(<PaymentMethodsDisplay {...defaultProps} managedWalletError={stringError} />);
+      setup({ managedWalletError: stringError });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("Something went wrong")).toBeInTheDocument();
     });
 
     it("renders fallback error message for null error", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} managedWalletError={null} />);
+      setup({ managedWalletError: null });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("An error occurred while starting your trial. Please try again.")).toBeInTheDocument();
     });
 
     it("renders fallback error message for undefined error", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} managedWalletError={undefined} />);
+      setup({ managedWalletError: undefined });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("An error occurred while starting your trial. Please try again.")).toBeInTheDocument();
@@ -198,7 +157,7 @@ describe("PaymentMethodsDisplay", () => {
     it("renders fallback error message for empty object error", () => {
       const emptyError = {} as unknown as AppError;
 
-      render(<PaymentMethodsDisplay {...defaultProps} managedWalletError={emptyError} />);
+      setup({ managedWalletError: emptyError });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("An error occurred while starting your trial. Please try again.")).toBeInTheDocument();
@@ -222,7 +181,7 @@ describe("PaymentMethodsDisplay", () => {
         }
       };
 
-      render(<PaymentMethodsDisplay {...defaultProps} managedWalletError={complexError} />);
+      setup({ managedWalletError: complexError });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("Your card has insufficient funds")).toBeInTheDocument();
@@ -231,7 +190,7 @@ describe("PaymentMethodsDisplay", () => {
     it("renders error alert with error object without message", () => {
       const errorWithoutMessage = new Error();
 
-      render(<PaymentMethodsDisplay {...defaultProps} managedWalletError={errorWithoutMessage} />);
+      setup({ managedWalletError: errorWithoutMessage });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("An error occurred. Please try again.")).toBeInTheDocument();
@@ -244,7 +203,7 @@ describe("PaymentMethodsDisplay", () => {
         code: "unknown"
       };
 
-      render(<PaymentMethodsDisplay {...defaultProps} managedWalletError={structuredErrorWithoutMessage} />);
+      setup({ managedWalletError: structuredErrorWithoutMessage });
 
       expect(screen.getByText("Failed to Start Trial")).toBeInTheDocument();
       expect(screen.getByText("An error occurred. Please try again.")).toBeInTheDocument();
@@ -259,7 +218,7 @@ describe("PaymentMethodsDisplay", () => {
         }
       ];
 
-      render(<PaymentMethodsDisplay {...defaultProps} paymentMethods={paymentMethodsWithoutCard} />);
+      setup({ paymentMethods: paymentMethodsWithoutCard });
 
       expect(screen.getByText("Payment Method")).toBeInTheDocument();
       expect(screen.getByText("N/A")).toBeInTheDocument();
@@ -281,7 +240,7 @@ describe("PaymentMethodsDisplay", () => {
         }
       ];
 
-      render(<PaymentMethodsDisplay {...defaultProps} paymentMethods={mixedPaymentMethods} />);
+      setup({ paymentMethods: mixedPaymentMethods });
 
       expect(screen.getByText("•••• •••• •••• 4242")).toBeInTheDocument();
       expect(screen.getByText("visa • Expires 12/25")).toBeInTheDocument();
@@ -302,7 +261,7 @@ describe("PaymentMethodsDisplay", () => {
         }
       ];
 
-      render(<PaymentMethodsDisplay {...defaultProps} paymentMethods={paymentMethodWithSingleDigitMonth} />);
+      setup({ paymentMethods: paymentMethodWithSingleDigitMonth });
 
       expect(screen.getByText("visa • Expires 03/25")).toBeInTheDocument();
     });
@@ -320,7 +279,7 @@ describe("PaymentMethodsDisplay", () => {
         }
       ];
 
-      render(<PaymentMethodsDisplay {...defaultProps} paymentMethods={paymentMethodWithDoubleDigitMonth} />);
+      setup({ paymentMethods: paymentMethodWithDoubleDigitMonth });
 
       expect(screen.getByText("visa • Expires 12/25")).toBeInTheDocument();
     });
@@ -328,21 +287,21 @@ describe("PaymentMethodsDisplay", () => {
 
   describe("Loading States", () => {
     it("shows loading state on start trial button", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} isLoading={true} />);
+      setup({ isLoading: true });
 
       expect(screen.getByRole("button", { name: "Starting Trial..." })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Start Trial" })).not.toBeInTheDocument();
     });
 
     it("disables interactions during loading", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} isLoading={true} />);
+      setup({ isLoading: true });
 
       const startTrialButton = screen.getByRole("button", { name: "Starting Trial..." });
       expect(startTrialButton).toBeDisabled();
     });
 
     it("disables remove buttons during removal", () => {
-      render(<PaymentMethodsDisplay {...defaultProps} isRemoving={true} />);
+      setup({ isRemoving: true });
 
       const trashButtons = screen.getAllByRole("button", { name: "" });
       trashButtons.forEach(button => {
@@ -350,4 +309,72 @@ describe("PaymentMethodsDisplay", () => {
       });
     });
   });
+
+  function setup(
+    input: {
+      paymentMethods?: any[];
+      onRemovePaymentMethod?: jest.Mock;
+      onStartTrial?: jest.Mock;
+      isLoading?: boolean;
+      isRemoving?: boolean;
+      managedWalletError?: AppError;
+    } = {}
+  ) {
+    const mockPaymentMethods = [
+      {
+        id: "pm_123",
+        card: {
+          last4: "4242",
+          brand: "visa",
+          exp_month: 12,
+          exp_year: 2025
+        }
+      },
+      {
+        id: "pm_456",
+        card: {
+          last4: "5555",
+          brand: "mastercard",
+          exp_month: 3,
+          exp_year: 2026
+        }
+      }
+    ];
+
+    const defaultProps = {
+      paymentMethods: mockPaymentMethods,
+      onRemovePaymentMethod: jest.fn(),
+      onStartTrial: jest.fn(),
+      isLoading: false,
+      isRemoving: false
+    };
+
+    jest.clearAllMocks();
+
+    const mockOnRemovePaymentMethod = input.onRemovePaymentMethod || jest.fn();
+    const mockOnStartTrial = input.onStartTrial || jest.fn();
+
+    const mockUrlService = {
+      termsOfService: jest.fn().mockReturnValue("/terms"),
+      privacyPolicy: jest.fn().mockReturnValue("/privacy")
+    } as any;
+
+    const props = {
+      ...defaultProps,
+      ...input,
+      onRemovePaymentMethod: mockOnRemovePaymentMethod,
+      onStartTrial: mockOnStartTrial,
+      dependencies: {
+        UrlService: mockUrlService
+      }
+    };
+
+    render(<PaymentMethodsDisplay {...props} />);
+
+    return {
+      mockOnRemovePaymentMethod,
+      mockOnStartTrial,
+      mockUrlService
+    };
+  }
 });

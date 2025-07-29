@@ -39,7 +39,7 @@ export class WalletController {
   async create({ data: { userId } }: StartTrialRequestInput): Promise<WalletOutputResponse> {
     const { currentUser } = this.authService;
 
-    if (1 === 1 || !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
+    if (!this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
       assert(currentUser.emailVerified, 403, "Email not verified");
       assert(currentUser.stripeCustomerId, 403, "Stripe customer ID not found");
       const paymentMethods = await this.stripeService.getPaymentMethods(currentUser.stripeCustomerId);

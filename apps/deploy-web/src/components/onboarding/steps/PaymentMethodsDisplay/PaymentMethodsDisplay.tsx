@@ -24,6 +24,9 @@ interface PaymentMethodsDisplayProps {
   isLoading: boolean;
   isRemoving: boolean;
   managedWalletError?: AppError;
+  dependencies?: {
+    UrlService: typeof UrlService;
+  };
 }
 
 export const PaymentMethodsDisplay: React.FunctionComponent<PaymentMethodsDisplayProps> = ({
@@ -32,8 +35,10 @@ export const PaymentMethodsDisplay: React.FunctionComponent<PaymentMethodsDispla
   onStartTrial,
   isLoading,
   isRemoving,
-  managedWalletError
+  managedWalletError,
+  dependencies
 }) => {
+  const urlService = dependencies?.UrlService || UrlService;
   const formatCardNumber = (last4: string) => `•••• •••• •••• ${last4}`;
 
   const formatExpiry = (expMonth: number, expYear: number) => {
@@ -121,11 +126,11 @@ export const PaymentMethodsDisplay: React.FunctionComponent<PaymentMethodsDispla
       <div className="mx-auto max-w-md text-center">
         <p className="text-xs text-muted-foreground">
           By starting your trial, you agree to our{" "}
-          <Link href={UrlService.termsOfService()} className="text-primary hover:underline">
+          <Link href={urlService.termsOfService()} className="text-primary hover:underline">
             Terms of Service
           </Link>{" "}
           and{" "}
-          <Link href={UrlService.privacyPolicy()} className="text-primary hover:underline">
+          <Link href={urlService.privacyPolicy()} className="text-primary hover:underline">
             Privacy Policy
           </Link>
         </p>
