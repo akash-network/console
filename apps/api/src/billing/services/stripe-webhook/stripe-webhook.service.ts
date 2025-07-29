@@ -52,7 +52,7 @@ export class StripeWebhookService {
         event: "STRIPE_EVENT_PROCESSING_ERROR",
         type: event.type,
         id: event.id,
-        error: error instanceof Error ? error.message : String(error)
+        error
       });
       throw error;
     }

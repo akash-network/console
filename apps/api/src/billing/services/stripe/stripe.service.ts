@@ -442,7 +442,8 @@ export class StripeService extends Stripe {
   async hasDuplicateTrialAccount(paymentMethods: Stripe.PaymentMethod[], currentUserId: string): Promise<boolean> {
     logger.info({
       event: "VALIDATING_PAYMENT_METHODS_FOR_TRIAL",
-      paymentMethods,
+      paymentMethodCount: paymentMethods.length,
+      paymentMethodIds: paymentMethods.map(pm => pm.id),
       currentUserId
     });
 
