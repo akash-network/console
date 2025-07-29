@@ -21,6 +21,7 @@ import { useWhen } from "@src/hooks/useWhen";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
+import type { AppError } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import { getStorageWallets, updateStorageManagedWallet, updateStorageWallets } from "@src/utils/walletUtils";
 import { useSelectedChain } from "../CustomChainProvider";
@@ -54,6 +55,7 @@ export type ContextType = {
   creditAmount?: number;
   switchWalletType: () => void;
   hasManagedWallet: boolean;
+  managedWalletError?: AppError;
 };
 
 /**
@@ -83,7 +85,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { settings } = useSettings();
   const user = useUser();
   const userWallet = useSelectedChain();
-  const { wallet: managedWallet, isLoading: isManagedWalletLoading, create: createManagedWallet } = useManagedWallet();
+  const { wallet: managedWallet, isLoading: isManagedWalletLoading, create: createManagedWallet, createError: managedWalletError } = useManagedWallet();
   const [, setIsWalletModelOpen] = useAtom(walletStore.isWalletModalOpen);
   const [selectedWalletType, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
   const {
@@ -338,6 +340,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isOnboarding: !!user?.userId && isManaged && !!managedWallet?.isTrialing,
         creditAmount: isManaged ? managedWallet?.creditAmount : 0,
         hasManagedWallet: !!managedWallet,
+        managedWalletError,
         switchWalletType
       }}
     >

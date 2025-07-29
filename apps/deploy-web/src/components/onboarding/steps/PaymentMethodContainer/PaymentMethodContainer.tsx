@@ -5,6 +5,7 @@ import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/
 
 import { useWallet } from "@src/context/WalletProvider";
 import { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries/usePaymentQueries";
+import type { AppError } from "@src/types";
 
 const DEPENDENCIES = {
   useWallet,
@@ -23,6 +24,7 @@ export type PaymentMethodContainerProps = {
     isConnectingWallet: boolean;
     isLoading: boolean;
     isRemoving: boolean;
+    managedWalletError?: AppError;
     onSuccess: () => void;
     onRemovePaymentMethod: (paymentMethodId: string) => void;
     onConfirmRemovePaymentMethod: () => Promise<void>;
@@ -40,7 +42,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
   const { data: setupIntent, mutate: createSetupIntent } = d.useSetupIntentMutation();
   const { data: paymentMethods = [], refetch: refetchPaymentMethods } = d.usePaymentMethodsQuery();
   const { removePaymentMethod } = d.usePaymentMutations();
-  const { connectManagedWallet, isWalletLoading, hasManagedWallet } = d.useWallet();
+  const { connectManagedWallet, isWalletLoading, hasManagedWallet, managedWalletError } = d.useWallet();
   const [showAddForm, setShowAddForm] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [cardToDelete, setCardToDelete] = useState<string>();
@@ -58,6 +60,12 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       onComplete();
     }
   }, [isConnectingWallet, hasManagedWallet, isWalletLoading, onComplete]);
+
+  useEffect(() => {
+    if (isConnectingWallet && managedWalletError) {
+      setIsConnectingWallet(false);
+    }
+  }, [isConnectingWallet, managedWalletError]);
 
   const handleSuccess = () => {
     setShowAddForm(false);
@@ -106,6 +114,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
         isConnectingWallet,
         isLoading,
         isRemoving: removePaymentMethod.isPending,
+        managedWalletError,
         onSuccess: handleSuccess,
         onRemovePaymentMethod: handleRemovePaymentMethod,
         onConfirmRemovePaymentMethod: confirmRemovePaymentMethod,

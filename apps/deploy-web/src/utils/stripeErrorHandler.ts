@@ -1,14 +1,8 @@
+import type { ErrorResponse } from "@src/types";
+
 export interface StripeErrorInfo {
   message: string;
   userAction?: string;
-}
-
-export interface ErrorResponse {
-  error: string;
-  message: string;
-  code?: string;
-  type?: string;
-  data?: Record<string, unknown>;
 }
 
 /**
