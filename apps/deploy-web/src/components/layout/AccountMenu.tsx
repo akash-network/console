@@ -14,6 +14,7 @@ import ClickAwayListener from "@mui/material/ClickAwayListener";
 import { GraphUp, Key, LogOut, MultiplePages, Settings, Star, User } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
+import { useWallet } from "@src/context/WalletProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useFlag } from "@src/hooks/useFlag";
 import { UrlService } from "@src/utils/urlUtils";
@@ -25,6 +26,7 @@ export function AccountMenu() {
   const username = user?.username;
   const router = useRouter();
   const isBillingUsageEnabled = useFlag("billing_usage");
+  const wallet = useWallet();
 
   return (
     <React.Fragment>
@@ -90,7 +92,7 @@ export function AccountMenu() {
                         <CustomDropdownLinkItem onClick={() => router.push(UrlService.userFavorites())} icon={<Star />}>
                           Favorites
                         </CustomDropdownLinkItem>
-                        {isBillingUsageEnabled && (
+                        {isBillingUsageEnabled && user?.userId && wallet.isManaged && (
                           <CustomDropdownLinkItem onClick={() => router.push(UrlService.billing())} icon={<GraphUp />}>
                             Billing & Usage
                           </CustomDropdownLinkItem>
