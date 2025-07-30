@@ -12,7 +12,23 @@ import { buildAnonymousUser, buildUser } from "@tests/seeders/user";
 import { setupQuery } from "@tests/unit/query-client";
 
 describe("useIsRegisteredUser", () => {
-  function setupIsRegisteredUser({
+  it("returns true when user has userId", () => {
+    const { result } = setup({
+      customUser: buildUser({ userId: "12345" })
+    });
+
+    expect(result.current).toBe(true);
+  });
+
+  it("returns false when userId is falsy", () => {
+    const { result } = setup({
+      customUser: buildUser({ userId: "" })
+    });
+
+    expect(result.current).toBe(false);
+  });
+
+  function setup({
     customUser,
     anonymousUser
   }: {
@@ -51,20 +67,4 @@ describe("useIsRegisteredUser", () => {
       )
     });
   }
-
-  it("returns true when user has userId", () => {
-    const { result } = setupIsRegisteredUser({
-      customUser: buildUser({ userId: "12345" })
-    });
-
-    expect(result.current).toBe(true);
-  });
-
-  it("returns false when userId is falsy", () => {
-    const { result } = setupIsRegisteredUser({
-      customUser: buildUser({ userId: "" })
-    });
-
-    expect(result.current).toBe(false);
-  });
 });
