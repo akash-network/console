@@ -27,42 +27,10 @@ describe("User Init", () => {
   const userWalletRepository = container.resolve(UserWalletRepository);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const walletService = new WalletTestingService(app);
-  let auth0Payload: {
-    userId: string;
-    wantedUsername: string;
-    email: string;
-    emailVerified: boolean;
-    subscribedToNewsletter: boolean;
-  };
-  let dbPayload: {
-    userId: string;
-    emailVerified: boolean;
-    email: string;
-    username: string;
-    subscribedToNewsletter: boolean;
-  };
-
-  beforeEach(async () => {
-    auth0Payload = {
-      userId: faker.string.alphanumeric(10),
-      wantedUsername: faker.internet.userName(),
-      email: faker.internet.email(),
-      emailVerified: true,
-      subscribedToNewsletter: false
-    };
-    dbPayload = {
-      userId: auth0Payload.userId,
-      emailVerified: auth0Payload.emailVerified,
-      email: auth0Payload.email,
-      username: auth0Payload.wantedUsername,
-      subscribedToNewsletter: auth0Payload.subscribedToNewsletter
-    };
-
-    (getCurrentUserId as jest.Mock).mockReturnValue(auth0Payload.userId);
-  });
 
   describe("POST /user/tokenInfo", () => {
     it("should create a new user", async () => {
+      const { sendTokenInfo, auth0Payload } = setup();
       const res = await sendTokenInfo();
 
       expect(res.status).toBe(200);
@@ -70,6 +38,7 @@ describe("User Init", () => {
     });
 
     it("should resolve with existing user", async () => {
+      const { sendTokenInfo, dbPayload } = setup();
       const existingUser = first(await db.insert(usersTable).values(dbPayload).returning());
       const res = await sendTokenInfo();
 
@@ -78,6 +47,7 @@ describe("User Init", () => {
     });
 
     it("should register an anonymous user", async () => {
+      const { sendTokenInfo, auth0Payload } = setup();
       const { user: anonymousUser, token: anonymousToken } = await walletService.createUser();
       const res = await sendTokenInfo(anonymousToken);
 
@@ -90,8 +60,9 @@ describe("User Init", () => {
     });
 
     it("should resolve with existing user and transfer anonymous wallet", async () => {
+      const { sendTokenInfo, dbPayload } = setup();
       const { user: anonymousUser, wallet: anonymousWallet, token: anonymousToken } = await walletService.createAnonymousUserAndWallet();
-      const existingUser = first(await db.insert(usersTable).values(dbPayload).returning());
+      const [existingUser] = await db.insert(usersTable).values(dbPayload).returning();
 
       const res = await sendTokenInfo(anonymousToken);
       const wallet = await userWalletRepository.findById(anonymousWallet.id);
@@ -102,8 +73,9 @@ describe("User Init", () => {
     });
 
     it("should resolve with existing user without transferring anonymous wallet", async () => {
+      const { sendTokenInfo, dbPayload } = setup();
       const { user: anonymousUser, wallet: anonymousWallet, token: anonymousToken } = await walletService.createAnonymousUserAndWallet();
-      const existingUser = first(await db.insert(usersTable).values(dbPayload).returning());
+      const [existingUser] = await db.insert(usersTable).values(dbPayload).returning();
 
       await userWalletRepository.create({ userId: existingUser?.id, address: faker.string.alphanumeric(10) });
       const res = await sendTokenInfo(anonymousToken);
@@ -114,23 +86,44 @@ describe("User Init", () => {
       expect(anonymousWalletAfterResponse?.userId).toEqual(anonymousUser.id);
     });
 
-    async function sendTokenInfo(token?: string) {
-      const headers = new Headers({ "Content-Type": "application/json" });
+    function setup() {
+      const auth0Payload = {
+        userId: faker.string.alphanumeric(10),
+        wantedUsername: faker.internet.userName(),
+        email: faker.internet.email(),
+        emailVerified: true,
+        subscribedToNewsletter: false
+      };
+      const dbPayload = {
+        userId: auth0Payload.userId,
+        emailVerified: auth0Payload.emailVerified,
+        email: auth0Payload.email,
+        username: auth0Payload.wantedUsername,
+        subscribedToNewsletter: auth0Payload.subscribedToNewsletter
+      };
 
-      if (token) {
-        headers.set("x-anonymous-authorization", `Bearer ${token}`);
+      (getCurrentUserId as jest.Mock).mockReturnValue(auth0Payload.userId);
+
+      async function sendTokenInfo(token?: string) {
+        const headers = new Headers({ "Content-Type": "application/json" });
+
+        if (token) {
+          headers.set("x-anonymous-authorization", `Bearer ${token}`);
+        }
+
+        const res = await app.request("/user/tokenInfo", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(auth0Payload)
+        });
+
+        return {
+          body: await res.json(),
+          status: res.status
+        };
       }
 
-      const res = await app.request("/user/tokenInfo", {
-        method: "POST",
-        headers,
-        body: JSON.stringify(auth0Payload)
-      });
-
-      return {
-        body: await res.json(),
-        status: res.status
-      };
+      return { sendTokenInfo, auth0Payload, dbPayload };
     }
   });
 });
