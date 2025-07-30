@@ -3,12 +3,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
 import { mock } from "jest-mock-extended";
 
+import type { ContextType as CertificateProviderContextType } from "@src/context/CertificateProvider/CertificateProviderContext";
+import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
+import type { ApiProviderList } from "@src/types/provider";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { setupQuery } from "../../tests/unit/query-client";
 import { QueryKeys } from "./queryKeys";
-import { useAllLeases, useDeploymentLeaseList, useLeaseStatus } from "./useLeaseQuery";
+import { USE_LEASE_STATUS_DEPENDENCIES, useAllLeases, useDeploymentLeaseList, useLeaseStatus } from "./useLeaseQuery";
 
 import { act, waitFor } from "@testing-library/react";
 import { buildProvider } from "@tests/seeders/provider";
@@ -253,11 +256,20 @@ describe("useLeaseQuery", () => {
   });
 
   describe("useLeaseStatus", () => {
-    it("should return null when lease is not provided", async () => {
-      const { result } = setupQuery(() => useLeaseStatus(buildProvider(), undefined), {
+    it("returns null when lease is not provided", async () => {
+      const { result } = setupLeaseStatus();
+
+      await waitFor(() => {
+        expect(result.current.data).toBeNull();
+      });
+    });
+
+    it("returns null when local cert is not provided", async () => {
+      const { result } = setupLeaseStatus({
+        lease: mockLease,
+        localCert: undefined,
         services: {
-          providerProxy: () => mock<ProviderProxyService>(),
-          certificatesService: () => mock<CertificatesService>()
+          providerProxy: () => mock<ProviderProxyService>()
         }
       });
 
@@ -266,15 +278,21 @@ describe("useLeaseQuery", () => {
       });
     });
 
-    it("should fetch lease status when lease is provided", async () => {
+    it("fetches lease status when lease is provided", async () => {
       const provider = buildProvider();
       const providerProxy = mock<ProviderProxyService>({
         fetchProviderUrl: jest.fn().mockResolvedValue({ data: mockLeaseStatus })
       });
-      const { result } = setupQuery(() => useLeaseStatus(provider, mockLease), {
+      const { result } = setupLeaseStatus({
+        provider,
+        lease: mockLease,
+        localCert: {
+          certPem: "certPem",
+          keyPem: "keyPem",
+          address: "address"
+        },
         services: {
-          providerProxy: () => providerProxy,
-          certificatesService: () => mock<CertificatesService>()
+          providerProxy: () => providerProxy
         }
       });
 
@@ -291,5 +309,34 @@ describe("useLeaseQuery", () => {
       );
       expect(result.current.data).toEqual(mockLeaseStatus);
     });
+
+    function setupLeaseStatus(input?: {
+      provider?: ApiProviderList;
+      lease?: LeaseDto;
+      localCert?: CertificateProviderContextType["localCert"];
+      services?: ServicesProviderProps["services"];
+    }) {
+      const dependencies: typeof USE_LEASE_STATUS_DEPENDENCIES = {
+        ...USE_LEASE_STATUS_DEPENDENCIES,
+        useCertificate: () =>
+          mock<CertificateProviderContextType>({
+            localCert:
+              input && "localCert" in input
+                ? input.localCert
+                : {
+                    certPem: "certPem",
+                    keyPem: "keyPem",
+                    address: "address"
+                  }
+          })
+      };
+      return setupQuery(() => useLeaseStatus({ provider: input?.provider || buildProvider(), lease: input?.lease, dependencies }), {
+        services: {
+          providerProxy: () => mock<ProviderProxyService>(),
+          certificatesService: () => mock<CertificatesService>(),
+          ...input?.services
+        }
+      });
+    }
   });
 });

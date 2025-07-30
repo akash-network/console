@@ -1,12 +1,6 @@
-import type { CertificatesService } from "@akashnetwork/http-sdk";
-import { mock } from "jest-mock-extended";
-
-import { CertificateProvider } from "@src/context/CertificateProvider";
-import { ServicesProvider } from "@src/context/ServicesProvider";
-import type { ContextType as WalletContextType } from "@src/context/WalletProvider/WalletProvider";
-import { WalletProviderContext } from "@src/context/WalletProvider/WalletProvider";
+import type { LocalCert } from "@src/context/CertificateProvider";
 import type { Props as CreateCertificateButtonProps } from "./CreateCertificateButton";
-import { CreateCertificateButton } from "./CreateCertificateButton";
+import { CreateCertificateButton, DEPENDENCIES as CREATE_CERTIFICATE_BUTTON_DEPENDENCIES } from "./CreateCertificateButton";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 
@@ -14,72 +8,54 @@ describe(CreateCertificateButton.name, () => {
   it("renders create certificate button", () => {
     setup();
     expect(screen.getByRole("button", { name: /create certificate/i })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toHaveTextContent(/You need to create a certificate to view deployment details./);
   });
 
   it("calls createCertificate when clicked", async () => {
-    const createCertificateController = Promise.withResolvers<boolean>();
-    const signAndBroadcastTx = jest.fn(() => createCertificateController.promise);
-    const walletAddress = "akash1234567890";
-    setup({ walletAddress, signAndBroadcastTx });
+    const createCertificate = jest.fn(async () => {});
+    setup({ createCertificate });
 
     const button = screen.getByRole("button", { name: /create certificate/i });
     fireEvent.click(button);
 
-    expect(signAndBroadcastTx).toHaveBeenCalledWith([
-      {
-        typeUrl: "",
-        value: {
-          owner: walletAddress,
-          cert: expect.any(String),
-          pubkey: expect.any(String)
-        }
-      }
-    ]);
+    expect(createCertificate).toHaveBeenCalled();
   });
 
-  it("does not display warning text if no warning text is provided", () => {
-    setup();
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
-
-  it("displays warning text if warning text is provided", () => {
-    setup({ warningText: "You do not have a valid local certificate" });
-    expect(screen.getByRole("alert")).toHaveTextContent(/You do not have a valid local certificate/);
+  it("displays warning text if certificate is expired", () => {
+    setup({
+      localCert: {
+        certPem: "expired",
+        keyPem: "expired",
+        address: "akash1234567890"
+      },
+      isLocalCertExpired: true
+    });
+    expect(screen.queryByRole("alert")).toHaveTextContent(/Your certificate has expired. Please create a new one./);
   });
 
   function setup(
     input?: CreateCertificateButtonProps & {
-      walletAddress?: string;
-      signAndBroadcastTx?: WalletContextType["signAndBroadcastTx"];
+      createCertificate?: () => Promise<void>;
+      isCreatingCert?: boolean;
+      isLocalCertExpired?: boolean;
+      localCert?: LocalCert;
     }
   ) {
-    const { walletAddress, signAndBroadcastTx, ...props } = input ?? {};
+    const { createCertificate, isCreatingCert, isLocalCertExpired, localCert, ...props } = input ?? {};
+
     return render(
-      <ServicesProvider
-        services={{
-          certificatesService: () =>
-            mock<CertificatesService>({
-              getCertificates: jest.fn(async () => ({
-                certificates: [],
-                pagination: { next_key: "", total: "0" }
-              }))
-            })
+      <CreateCertificateButton
+        {...props}
+        dependencies={{
+          ...CREATE_CERTIFICATE_BUTTON_DEPENDENCIES,
+          useCertificate: (() => ({
+            createCertificate: createCertificate ?? jest.fn(() => Promise.resolve()),
+            isCreatingCert: isCreatingCert ?? false,
+            isLocalCertExpired: isLocalCertExpired ?? false,
+            localCert: localCert ?? null
+          })) as (typeof CREATE_CERTIFICATE_BUTTON_DEPENDENCIES)["useCertificate"]
         }}
-      >
-        <WalletProviderContext.Provider
-          value={mock<WalletContextType>({
-            address: walletAddress ?? "akash1234567890",
-            walletName: "test",
-            isWalletConnected: true,
-            isWalletLoaded: true,
-            signAndBroadcastTx: signAndBroadcastTx ?? jest.fn(async () => true)
-          })}
-        >
-          <CertificateProvider>
-            <CreateCertificateButton {...props} />
-          </CertificateProvider>
-        </WalletProviderContext.Provider>
-      </ServicesProvider>
+      />
     );
   }
 });

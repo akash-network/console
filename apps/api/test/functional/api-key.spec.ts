@@ -31,7 +31,7 @@ describe("API Keys", () => {
   // Refactor once the proper auth0 mocking is implemented
   // https://github.com/akash-network/console/issues/552
   async function createTestUser(trial = false) {
-    const { user, token } = await walletService.createUserAndWallet();
+    const { user, token } = await walletService.createAnonymousUserAndWallet();
     const userWithId = { ...user, userId: faker.string.uuid() };
 
     jest.spyOn(userRepository, "findByUserId").mockImplementation(async id => {
@@ -251,8 +251,8 @@ describe("API Keys", () => {
 
       const storedKey = await apiKeyRepository.findOneBy({ id: result.data.id });
       expect(storedKey).toBeDefined();
-      expect(storedKey.keyFormat).toMatch(OBFUSCATED_API_KEY_PATTERN);
-      expect(storedKey.hashedKey).not.toMatch(FULL_API_KEY_PATTERN);
+      expect(storedKey?.keyFormat).toMatch(OBFUSCATED_API_KEY_PATTERN);
+      expect(storedKey?.hashedKey).not.toMatch(FULL_API_KEY_PATTERN);
     });
 
     it("should reject API key creation with past expiration date", async () => {

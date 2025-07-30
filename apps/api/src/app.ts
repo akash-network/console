@@ -7,6 +7,7 @@ import { otel } from "@hono/otel";
 import { swaggerUI } from "@hono/swagger-ui";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import once from "lodash/once";
 import { container } from "tsyringe";
 
 import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
@@ -14,7 +15,6 @@ import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/h
 import type { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { OpenApiDocsService } from "@src/core/services/openapi-docs/openapi-docs.service";
 import { RequestContextInterceptor } from "@src/core/services/request-context-interceptor/request-context.interceptor";
-import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import { notificationsApiProxy } from "@src/notifications/routes/proxy/proxy.route";
 import packageJson from "../package.json";
 import { apiKeysRouter } from "./auth/routes/api-keys/api-keys.router";
@@ -22,11 +22,11 @@ import { bidsRouter } from "./bid/routes/bids/bids.router";
 import { certificateRouter } from "./certificate/routes/certificate.router";
 import { FeatureFlagsService } from "./core/services/feature-flags/feature-flags.service";
 import { shutdownServer } from "./core/services/shutdown-server/shutdown-server";
+import type { AppEnv } from "./core/types/app-context";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
 import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
 import { leasesRouter } from "./deployment/routes/leases/leases.router";
-import { featuresRouter } from "./features/routes/features/features.router";
 import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
 import { apiRouter } from "./routers/apiRouter";
@@ -64,6 +64,7 @@ import {
   providerAttributesSchemaRouter,
   providerDashboardRouter,
   providerDeploymentsRouter,
+  providerEarningsRouter,
   providerGraphDataRouter,
   providerRegionsRouter,
   providersRouter,
@@ -75,7 +76,7 @@ import { transactionsRouter } from "./transaction";
 import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
 import { validatorsRouter } from "./validator";
 
-const appHono = new Hono();
+const appHono = new Hono<AppEnv>();
 appHono.use(
   "/*",
   cors({
@@ -98,7 +99,7 @@ const scheduler = new Scheduler({
 
 appHono.use(container.resolve(HttpLoggerIntercepter).intercept());
 appHono.use(container.resolve(RequestContextInterceptor).intercept());
-appHono.use(container.resolve<HonoInterceptor>(AuthInterceptor).intercept());
+appHono.use(container.resolve(AuthInterceptor).intercept());
 appHono.use(clientInfoMiddleware);
 
 appHono.route("/", legacyRouter);
@@ -129,13 +130,13 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   apiKeysRouter,
   bidsRouter,
   certificateRouter,
-  featuresRouter,
   getBalancesRouter,
   providersRouter,
   auditorsRouter,
   providerAttributesSchemaRouter,
   providerRegionsRouter,
   providerDashboardRouter,
+  providerEarningsRouter,
   providerVersionsRouter,
   providerGraphDataRouter,
   providerDeploymentsRouter,
@@ -197,17 +198,15 @@ const appLogger = LoggerService.forContext("APP");
  */
 export async function initApp() {
   try {
-    await initDb();
+    await Promise.all([initDb(), container.resolve(FeatureFlagsService).initialize()]);
     startScheduler();
-
-    await container.resolve(FeatureFlagsService).initialize();
 
     appLogger.info({ event: "SERVER_STARTING", url: `http://localhost:${PORT}`, NODE_OPTIONS: process.env.NODE_OPTIONS });
     const server = serve({
       fetch: appHono.fetch,
       port: typeof PORT === "string" ? parseInt(PORT, 10) : PORT
     });
-    const shutdown = () => shutdownServer(server, appLogger, container.dispose.bind(container));
+    const shutdown = once(() => shutdownServer(server, appLogger, container.dispose.bind(container)));
 
     process.on("SIGTERM", shutdown);
     process.on("SIGINT", shutdown);

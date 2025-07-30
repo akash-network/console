@@ -1,0 +1,4 @@
+CREATE UNIQUE INDEX IF NOT EXISTS "payment_methods_fingerprint_payment_method_id_unique" ON "payment_methods" USING btree ("fingerprint","payment_method_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "payment_methods_fingerprint_idx" ON "payment_methods" USING btree ("fingerprint");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "payment_methods_user_id_idx" ON "payment_methods" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "payment_methods_user_id_fingerprint_payment_method_id_idx" ON "payment_methods" USING btree ("user_id","fingerprint","payment_method_id");

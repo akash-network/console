@@ -76,7 +76,7 @@ jobs:
 
       - name: Install Dependencies
         if: steps.deps-cache.outputs.cache-hit != 'true'
-        run: npm ci -w packages/releaser
+        run: npm run safe-install -- -w packages/releaser
 
       - name: Generate Release Changes
         run: |
@@ -87,6 +87,7 @@ jobs:
           npm run release -w apps/stats-web -- --verbose --ci
           npm run release -w apps/notifications -- --verbose --ci
           npm run release -w apps/indexer -- --verbose --ci
+          npm run release -w apps/log-collector -- --verbose --ci
 
           # update package-lock.json with new versions
           npm install --package-lock-only

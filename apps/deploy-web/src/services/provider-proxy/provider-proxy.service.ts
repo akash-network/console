@@ -37,7 +37,7 @@ export class ProviderProxyService {
     let response: AxiosResponse | undefined;
 
     for (let i = 1; i <= 3 && !response; i++) {
-      this.logger.info(`Attempt #${i}`);
+      this.logger.info(`Attempt #${i}/3 to send manifest to ${providerInfo?.owner}: PUT /deployment/${options.dseq}/manifest`);
       try {
         if (!response) {
           response = await this.fetchProviderUrl(`/deployment/${options.dseq}/manifest`, {
@@ -55,7 +55,7 @@ export class ProviderProxyService {
           this.logger.info("Lease not found, retrying...");
           await wait(6000);
         } else {
-          throw new Error((err as any)?.response?.data || err);
+          throw err;
         }
       }
     }

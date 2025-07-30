@@ -30,7 +30,7 @@ describe("Deployment Settings", () => {
     });
 
     it("should return a new deployment setting if not found", async () => {
-      const { token, user } = await walletService.createUserAndWallet();
+      const { token, user } = await walletService.createAnonymousUserAndWallet();
       const dseq = faker.string.numeric();
 
       const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
@@ -56,7 +56,10 @@ describe("Deployment Settings", () => {
     });
 
     it("should return 404 when accessing other user's deployment settings", async () => {
-      const [{ user: user1 }, { token: token2 }] = await Promise.all([walletService.createUserAndWallet(), walletService.createUserAndWallet()]);
+      const [{ user: user1 }, { token: token2 }] = await Promise.all([
+        walletService.createAnonymousUserAndWallet(),
+        walletService.createAnonymousUserAndWallet()
+      ]);
 
       const dseq = faker.string.numeric();
       await deploymentSettingRepository.create({
@@ -81,7 +84,7 @@ describe("Deployment Settings", () => {
     });
 
     it("should return deployment settings if found", async () => {
-      const { token, user, wallet } = await walletService.createUserAndWallet();
+      const { token, user, wallet } = await walletService.createAnonymousUserAndWallet();
       const dseq = faker.string.numeric();
 
       const settings = await deploymentSettingRepository.create({
@@ -134,7 +137,10 @@ describe("Deployment Settings", () => {
     });
 
     it("should return 403 when creating deployment settings for another user", async () => {
-      const [{ user: user1 }, { token: token2 }] = await Promise.all([walletService.createUserAndWallet(), walletService.createUserAndWallet()]);
+      const [{ user: user1 }, { token: token2 }] = await Promise.all([
+        walletService.createAnonymousUserAndWallet(),
+        walletService.createAnonymousUserAndWallet()
+      ]);
 
       const dseq = faker.string.numeric();
 
@@ -163,7 +169,7 @@ describe("Deployment Settings", () => {
     });
 
     it("should create deployment settings", async () => {
-      const { token, user, wallet } = await walletService.createUserAndWallet();
+      const { token, user, wallet } = await walletService.createAnonymousUserAndWallet();
       const dseq = faker.string.numeric();
 
       const response = await app.request("/v1/deployment-settings", {
@@ -218,7 +224,7 @@ describe("Deployment Settings", () => {
     });
 
     it("should create and return new setting if not found", async () => {
-      const { token, user, wallet } = await walletService.createUserAndWallet();
+      const { token, user, wallet } = await walletService.createAnonymousUserAndWallet();
       const dseq = faker.string.numeric();
 
       const response = await app.request(`/v1/deployment-settings/${user.id}/${dseq}`, {
@@ -253,7 +259,10 @@ describe("Deployment Settings", () => {
     });
 
     it("should return 404 when updating other user's deployment settings", async () => {
-      const [{ user: user1 }, { token: token2 }] = await Promise.all([walletService.createUserAndWallet(), walletService.createUserAndWallet()]);
+      const [{ user: user1 }, { token: token2 }] = await Promise.all([
+        walletService.createAnonymousUserAndWallet(),
+        walletService.createAnonymousUserAndWallet()
+      ]);
 
       const dseq = faker.string.numeric();
       await deploymentSettingRepository.create({
@@ -285,7 +294,7 @@ describe("Deployment Settings", () => {
     });
 
     it("should update deployment settings", async () => {
-      const { token, user, wallet } = await walletService.createUserAndWallet();
+      const { token, user, wallet } = await walletService.createAnonymousUserAndWallet();
       const dseq = faker.string.numeric();
 
       const settings = await deploymentSettingRepository.create({

@@ -23,13 +23,13 @@ describe("Wallets Refill", () => {
       config.FEE_ALLOWANCE_REFILL_THRESHOLD = 2;
       const NUMBER_OF_WALLETS = 5;
       const prepareRecords = Array.from({ length: NUMBER_OF_WALLETS }).map(async (_, index) => {
-        const records = await walletService.createUserAndWallet();
+        const records = await walletService.createAnonymousUserAndWallet();
         const { user, token } = records;
         const { wallet } = records;
         let walletRecord = await userWalletRepository.findById(wallet.id);
 
         expect(wallet.creditAmount).toBe(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT);
-        expect(walletRecord.feeAllowance).toBe(config.TRIAL_FEES_ALLOWANCE_AMOUNT);
+        expect(walletRecord?.feeAllowance).toBe(config.TRIAL_FEES_ALLOWANCE_AMOUNT);
 
         const limits = {
           fees: config.FEE_ALLOWANCE_REFILL_THRESHOLD
@@ -61,10 +61,10 @@ describe("Wallets Refill", () => {
         ...records.map(async ({ wallet }) => {
           const walletRecord = await userWalletRepository.findById(wallet.id);
 
-          expect(walletRecord.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_AMOUNT);
+          expect(walletRecord?.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_AMOUNT);
         }),
-        userWalletRepository.findById(trialingWallet.wallet.id).then(walletRecord => {
-          expect(walletRecord.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_THRESHOLD);
+        userWalletRepository.findById(trialingWallet?.wallet.id).then(walletRecord => {
+          expect(walletRecord?.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_THRESHOLD);
         })
       ]);
     });

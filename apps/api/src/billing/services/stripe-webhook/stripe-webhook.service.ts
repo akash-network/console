@@ -2,7 +2,7 @@ import { LoggerService } from "@akashnetwork/logging";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
-import { CheckoutSessionRepository } from "@src/billing/repositories";
+import { CheckoutSessionRepository, PaymentMethodRepository } from "@src/billing/repositories";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { WithTransaction } from "@src/core";
@@ -18,7 +18,8 @@ export class StripeWebhookService {
     private readonly checkoutSessionRepository: CheckoutSessionRepository,
     private readonly refillService: RefillService,
     private readonly billingConfig: BillingConfigService,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly paymentMethodRepository: PaymentMethodRepository
   ) {}
 
   async routeStripeEvent(signature: string, rawEvent: string) {
@@ -30,10 +31,30 @@ export class StripeWebhookService {
       objectId: event.data.object.object
     });
 
-    if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
-      await this.tryToTopUpWalletForCheckout(event);
-    } else if (event.type === "payment_intent.succeeded") {
-      await this.tryToTopUpWalletFromPaymentIntent(event);
+    try {
+      switch (event.type) {
+        case "checkout.session.completed":
+        case "checkout.session.async_payment_succeeded":
+          await this.tryToTopUpWalletForCheckout(event);
+          break;
+        case "payment_intent.succeeded":
+          await this.tryToTopUpWalletFromPaymentIntent(event);
+          break;
+        case "payment_method.attached":
+          await this.handlePaymentMethodAttached(event);
+          break;
+        case "payment_method.detached":
+          await this.handlePaymentMethodDetached(event);
+          break;
+      }
+    } catch (error) {
+      this.logger.error({
+        event: "STRIPE_EVENT_PROCESSING_ERROR",
+        type: event.type,
+        id: event.id,
+        error
+      });
+      throw error;
     }
   }
 
@@ -118,5 +139,99 @@ export class StripeWebhookService {
 
     // Use the original amount for the wallet top-up
     await this.refillService.topUpWallet(originalAmount, user.id);
+  }
+
+  @WithTransaction()
+  async handlePaymentMethodAttached(event: Stripe.PaymentMethodAttachedEvent) {
+    const paymentMethod = event.data.object;
+    const customerId = paymentMethod.customer as string;
+
+    if (!customerId) {
+      this.logger.error({
+        event: "PAYMENT_METHOD_MISSING_CUSTOMER_ID",
+        paymentMethodId: paymentMethod.id
+      });
+      return;
+    }
+
+    const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
+    if (!user) {
+      this.logger.error({
+        event: "USER_NOT_FOUND_FOR_PAYMENT_METHOD",
+        customerId,
+        paymentMethodId: paymentMethod.id
+      });
+      return;
+    }
+
+    const fingerprint = paymentMethod.card?.fingerprint;
+    if (!fingerprint) {
+      this.logger.error({
+        event: "PAYMENT_METHOD_MISSING_FINGERPRINT",
+        paymentMethodId: paymentMethod.id
+      });
+      return;
+    }
+
+    await this.paymentMethodRepository.create({
+      userId: user.id,
+      fingerprint,
+      paymentMethodId: paymentMethod.id
+    });
+
+    this.logger.info({
+      event: "PAYMENT_METHOD_ATTACHED",
+      paymentMethodId: paymentMethod.id,
+      userId: user.id,
+      fingerprint
+    });
+  }
+
+  @WithTransaction()
+  async handlePaymentMethodDetached(event: Stripe.PaymentMethodDetachedEvent) {
+    const paymentMethod = event.data.object;
+    const customerId = paymentMethod.customer || event.data.previous_attributes?.customer;
+    const fingerprint = paymentMethod.card?.fingerprint;
+
+    this.logger.info({
+      event: "PAYMENT_METHOD_DETACHED",
+      paymentMethodId: paymentMethod.id,
+      customerId,
+      fingerprint
+    });
+
+    if (!fingerprint) {
+      this.logger.warn({
+        event: "PAYMENT_METHOD_DETACHED_NO_FINGERPRINT",
+        paymentMethodId: paymentMethod.id
+      });
+      return;
+    }
+
+    if (!customerId) {
+      this.logger.warn({
+        event: "PAYMENT_METHOD_DETACHED_NO_CUSTOMER_ID",
+        paymentMethodId: paymentMethod.id
+      });
+      return;
+    }
+
+    const currentUser = await this.userRepository.findOneBy({ stripeCustomerId: customerId as string });
+    if (!currentUser) {
+      this.logger.warn({
+        event: "PAYMENT_METHOD_DETACHED_NO_USER",
+        paymentMethodId: paymentMethod.id
+      });
+      return;
+    }
+
+    const deletedPaymentMethod = await this.paymentMethodRepository.deleteByFingerprint(fingerprint, paymentMethod.id, currentUser.id);
+
+    this.logger.info({
+      event: "PAYMENT_METHOD_DETACHED",
+      paymentMethodId: paymentMethod.id,
+      fingerprint,
+      deleted: !!deletedPaymentMethod
+    });
   }
 }

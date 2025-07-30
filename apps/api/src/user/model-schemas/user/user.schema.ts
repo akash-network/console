@@ -3,6 +3,8 @@ import { boolean, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg
 
 import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema"; // eslint-disable-line import-x/no-cycle
 
+export const userAgentMaxLength = 500;
+
 export const Users = pgTable("userSetting", {
   id: uuid("id")
     .primaryKey()
@@ -20,7 +22,7 @@ export const Users = pgTable("userSetting", {
   githubUsername: varchar("githubUsername", { length: 255 }),
   lastActiveAt: timestamp("last_active_at").defaultNow(),
   lastIp: varchar("last_ip", { length: 255 }),
-  lastUserAgent: varchar("last_user_agent", { length: 255 }),
+  lastUserAgent: varchar("last_user_agent", { length: userAgentMaxLength }),
   lastFingerprint: varchar("last_fingerprint", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow()
 });

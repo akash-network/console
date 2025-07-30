@@ -1,5 +1,12 @@
 
 
+## [0.31.0](https://github.com/akash-network/console/compare/stats-web/v0.30.0...stats-web/v0.31.0) (2025-07-27)
+
+
+### Features
+
+* adds safe node packages installation ([#1726](https://github.com/akash-network/console/issues/1726)) ([37acfee](https://github.com/akash-network/console/commit/37acfee5c1d053cec2316560ad220992d70b7cbf)), closes [#1549](https://github.com/akash-network/console/issues/1549)
+
 ## [0.30.0](https://github.com/akash-network/console/compare/stats-web/v0.29.0...stats-web/v0.30.0) (2025-07-16)
 
 

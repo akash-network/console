@@ -69,28 +69,36 @@ export function useAllLeases(address: string, options = {}) {
 }
 
 export function useLeaseStatus(
-  provider: ApiProviderList | undefined,
-  lease: LeaseDto | undefined,
-  options: Omit<UseQueryOptions<LeaseStatusDto | null>, "queryKey" | "queryFn"> = {}
+  params: {
+    provider?: ApiProviderList | null;
+    lease?: LeaseDto | null;
+    dependencies?: typeof USE_LEASE_STATUS_DEPENDENCIES;
+  } & Omit<UseQueryOptions<LeaseStatusDto | null>, "queryKey" | "queryFn"> = {}
 ) {
-  const { localCert } = useCertificate();
-  const fetchProviderUrl = useScopedFetchProviderUrl(provider);
+  const { provider, lease, dependencies: d = USE_LEASE_STATUS_DEPENDENCIES, ...options } = params;
+  const { localCert } = d.useCertificate();
+  const fetchProviderUrl = d.useScopedFetchProviderUrl(provider);
 
   return useQuery({
     queryKey: QueryKeys.getLeaseStatusKey(lease?.dseq || "", lease?.gseq || NaN, lease?.oseq || NaN),
     queryFn: async () => {
-      if (!lease) return null;
+      if (!lease || !localCert) return null;
 
       const response = await fetchProviderUrl<LeaseStatusDto>(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, {
         method: "GET",
         certPem: localCert?.certPem,
         keyPem: localCert?.keyPem
       });
+
       return response.data;
     },
     ...options
   });
 }
+export const USE_LEASE_STATUS_DEPENDENCIES = {
+  useScopedFetchProviderUrl,
+  useCertificate
+};
 
 export interface LeaseStatusDto {
   forwarded_ports: Record<

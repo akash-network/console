@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/console-api",
-  "version": "2.106.1",
+  "version": "2.108.1",
   "description": "Api providing data to the deploy tool",
   "repository": {
     "type": "git",
@@ -34,8 +34,7 @@
     "test:unit": "jest --selectProjects unit",
     "test:unit:cov": "jest --selectProjects unit --coverage",
     "test:unit:watch": "jest --selectProjects unit --watch",
-    "test:watch": "jest --selectProjects unit functional --watch",
-    "validate:types-strict": "tsc -p tsconfig.strict.json && echo"
+    "test:watch": "jest --selectProjects unit functional --watch"
   },
   "dependencies": {
     "@akashnetwork/akash-api": "^1.3.0",

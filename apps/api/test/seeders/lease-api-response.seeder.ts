@@ -33,7 +33,7 @@ export interface LeaseOutput {
       amount: string;
     };
     created_at: string;
-    closed_on: string;
+    closed_on?: string;
   };
   escrow_payment: {
     account_id: {

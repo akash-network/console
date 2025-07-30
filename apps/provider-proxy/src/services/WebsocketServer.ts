@@ -1,37 +1,35 @@
 import type { LoggerService } from "@akashnetwork/logging";
-import { netConfig, type SupportedChainNetworks } from "@akashnetwork/net";
+import type { SupportedChainNetworks } from "@akashnetwork/net";
 import type { Attributes } from "@opentelemetry/api";
 import { trace } from "@opentelemetry/api";
-import { bech32 } from "bech32";
 import type http from "http";
 import https from "https";
 import { TLSSocket } from "tls";
 import WebSocket from "ws";
 import { z } from "zod";
 
+import { addCertificateValidation, chainNetworkSchema, providerRequestSchema } from "../utils/schema";
 import { propagateTracingContext, traceActiveSpan } from "../utils/telemetry";
 import type { CertificateValidator } from "./CertificateValidator";
 import type { ClientWebSocketStats, WebsocketStats, WebSocketUsage } from "./WebsocketStats";
 
-const MESSAGE_SCHEMA = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("ping")
-  }),
-  z.object({
-    type: z.literal("websocket"),
-    url: z.string().url(),
-    certPem: z.string().optional(),
-    keyPem: z.string().optional(),
-    chainNetwork: z.enum(netConfig.getSupportedNetworks() as [SupportedChainNetworks]),
-    providerAddress: z.string().refine(v => !!bech32.decodeUnsafe(v), "is not bech32 address"),
-    data: z
-      .string()
-      .optional()
-      .describe(
-        "Currently it's used only for service shell communication and stores only buffered representation of string in char codes something like this: Array.from(Uint8Array).join(', ')"
-      )
-  })
-]);
+const MESSAGE_SCHEMA = addCertificateValidation(
+  z.discriminatedUnion("type", [
+    z.object({
+      type: z.literal("ping")
+    }),
+    providerRequestSchema.extend({
+      type: z.literal("websocket"),
+      chainNetwork: chainNetworkSchema,
+      data: z
+        .string()
+        .optional()
+        .describe(
+          "Currently it's used only for service shell communication and stores only buffered representation of string in char codes something like this: Array.from(Uint8Array).join(', ')"
+        )
+    })
+  ])
+);
 type WsMessage = z.infer<typeof MESSAGE_SCHEMA> & { id: unknown };
 
 // @see https://www.rfc-editor.org/rfc/rfc6455.html#page-46
@@ -243,18 +241,18 @@ export class WebsocketServer {
     }
 
     const data = Buffer.from(message.data.split(",") as any);
-    const callback = (error?: Error) => {
+    const callback = propagateTracingContext((error?: Error) => {
       if (error) {
         this.logger?.error({
           event: "CLIENT_MESSAGE_SEND_ERROR",
           error
         });
       }
-    };
-    const proxyMessage = () => {
+    });
+    const proxyMessage = propagateTracingContext(() => {
       this.logger?.debug(`Provider is verified, proxying "${message.type}" message`);
       socketDetails.ws.send(data, callback);
-    };
+    });
 
     if (socketDetails.ws.readyState === WebSocket.OPEN && socketDetails.isVerified) {
       proxyMessage();
@@ -317,11 +315,31 @@ export class WebsocketServer {
               pws.removeAllListeners("verified");
 
               pws.close(WS_ERRORS.VIOLATED_POLICY, `invalidCertificate.${result.code}`);
+              this.logger?.warn({
+                event: "PROVIDER_INVALID_CERTIFICATE",
+                connectionType: "websocket",
+                code: result.code,
+                chainNetwork: options.chainNetwork,
+                providerAddress: options.providerAddress
+              });
             } else {
               // ensure that socket was not closed while its certificate was validating
               if (pws.readyState === WebSocket.OPEN && this.openProviderSockets[options.wsId]) {
                 this.openProviderSockets[options.wsId].isVerified = true;
                 pws.emit("verified");
+                this.logger?.debug({
+                  event: "PROVIDER_CERTIFICATE_VERIFIED",
+                  connectionType: "websocket",
+                  chainNetwork: options.chainNetwork,
+                  providerAddress: options.providerAddress
+                });
+              } else {
+                this.logger?.warn({
+                  event: "PROVIDER_WEBSOCKET_CLOSED",
+                  chainNetwork: options.chainNetwork,
+                  providerAddress: options.providerAddress,
+                  message: "Provider websocket was closed while its certificate was validating"
+                });
               }
             }
 

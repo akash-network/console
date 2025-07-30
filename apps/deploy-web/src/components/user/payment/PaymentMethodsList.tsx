@@ -8,6 +8,7 @@ interface PaymentMethodsListProps {
   onPaymentMethodSelect: (id: string) => void;
   onRemovePaymentMethod: (id: string) => void;
   isRemovingPaymentMethod: boolean;
+  isTrialing: boolean;
 }
 
 export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
@@ -15,7 +16,8 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
   selectedPaymentMethodId,
   onPaymentMethodSelect,
   onRemovePaymentMethod,
-  isRemovingPaymentMethod
+  isRemovingPaymentMethod,
+  isTrialing
 }) => {
   if (paymentMethods.length === 0) {
     return <p className="text-gray-500">No payment methods added yet.</p>;
@@ -50,17 +52,19 @@ export const PaymentMethodsList: React.FC<PaymentMethodsListProps> = ({
                     </div>
                   )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={e => {
-                    e.stopPropagation();
-                    onRemovePaymentMethod(method.id);
-                  }}
-                  disabled={isRemovingPaymentMethod}
-                >
-                  Remove
-                </Button>
+                {!isTrialing && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={e => {
+                      e.stopPropagation();
+                      onRemovePaymentMethod(method.id);
+                    }}
+                    disabled={isRemovingPaymentMethod}
+                  >
+                    Remove
+                  </Button>
+                )}
               </div>
             ))}
           </RadioGroup>

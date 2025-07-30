@@ -90,7 +90,7 @@ describe("User Init", () => {
     });
 
     it("should resolve with existing user and transfer anonymous wallet", async () => {
-      const { user: anonymousUser, wallet: anonymousWallet, token: anonymousToken } = await walletService.createUserAndWallet();
+      const { user: anonymousUser, wallet: anonymousWallet, token: anonymousToken } = await walletService.createAnonymousUserAndWallet();
       const existingUser = first(await db.insert(usersTable).values(dbPayload).returning());
 
       const res = await sendTokenInfo(anonymousToken);
@@ -98,20 +98,20 @@ describe("User Init", () => {
 
       expect(res.status).toBe(200);
       expect(anonymousWallet.userId).toEqual(anonymousUser.id);
-      expect(wallet.userId).toEqual(existingUser.id);
+      expect(wallet?.userId).toEqual(existingUser?.id);
     });
 
     it("should resolve with existing user without transferring anonymous wallet", async () => {
-      const { user: anonymousUser, wallet: anonymousWallet, token: anonymousToken } = await walletService.createUserAndWallet();
+      const { user: anonymousUser, wallet: anonymousWallet, token: anonymousToken } = await walletService.createAnonymousUserAndWallet();
       const existingUser = first(await db.insert(usersTable).values(dbPayload).returning());
 
-      await userWalletRepository.create({ userId: existingUser.id, address: faker.string.alphanumeric(10) });
+      await userWalletRepository.create({ userId: existingUser?.id, address: faker.string.alphanumeric(10) });
       const res = await sendTokenInfo(anonymousToken);
       const anonymousWalletAfterResponse = await userWalletRepository.findById(anonymousWallet.id);
 
       expect(res.status).toBe(200);
       expect(anonymousWallet.userId).toEqual(anonymousUser.id);
-      expect(anonymousWalletAfterResponse.userId).toEqual(anonymousUser.id);
+      expect(anonymousWalletAfterResponse?.userId).toEqual(anonymousUser.id);
     });
 
     async function sendTokenInfo(token?: string) {

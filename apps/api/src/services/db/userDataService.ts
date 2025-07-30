@@ -6,6 +6,7 @@ import { container } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { userAgentMaxLength } from "@src/user/model-schemas/user/user.schema";
 
 const logger = LoggerService.forContext("UserDataService");
 
@@ -91,6 +92,7 @@ export async function getSettingsOrInit({
   fingerprint
 }: UserInput) {
   let userSettings: UserSetting | null = null;
+  const truncatedUserAgent = userAgent?.substring(0, userAgentMaxLength);
   let isAnonymous = false;
 
   if (anonymousUserId) {
@@ -104,7 +106,7 @@ export async function getSettingsOrInit({
           stripeCustomerId: null,
           subscribedToNewsletter,
           lastIp: ip,
-          lastUserAgent: userAgent,
+          lastUserAgent: truncatedUserAgent,
           lastFingerprint: fingerprint
         },
         { where: { id: anonymousUserId, userId: null }, returning: ["*"] }
@@ -147,7 +149,7 @@ export async function getSettingsOrInit({
       stripeCustomerId: null,
       subscribedToNewsletter,
       lastIp: ip,
-      lastUserAgent: userAgent,
+      lastUserAgent: truncatedUserAgent,
       lastFingerprint: fingerprint
     });
     analyticsService.track(userSettings.id, "user_registered");
@@ -158,13 +160,13 @@ export async function getSettingsOrInit({
     userSettings.email !== email ||
     userSettings.emailVerified !== emailVerified ||
     userSettings.lastIp !== ip ||
-    userSettings.lastUserAgent !== userAgent ||
+    userSettings.lastUserAgent !== truncatedUserAgent ||
     userSettings.lastFingerprint !== fingerprint
   ) {
     userSettings.email = email;
     userSettings.emailVerified = emailVerified;
     userSettings.lastIp = ip || userSettings.lastIp;
-    userSettings.lastUserAgent = userAgent || userSettings.lastUserAgent;
+    userSettings.lastUserAgent = truncatedUserAgent || userSettings.lastUserAgent;
     userSettings.lastFingerprint = fingerprint || userSettings.lastFingerprint;
     await userSettings.save();
   }
