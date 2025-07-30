@@ -103,6 +103,7 @@ export class StripeController {
     const { currentUser } = this.authService;
 
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
+    assert(!currentUser.trial, 403, "Cannot remove payment method during trial. Please contact support.");
 
     try {
       // Verify payment method ownership
