@@ -3,7 +3,8 @@ import type { TemplateExecutor } from "lodash";
 import template from "lodash/template";
 import { singleton } from "tsyringe";
 
-import { AuthConfigService } from "../auth-config/auth-config.service";
+import { FeatureFlags, FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 
 type Role = "REGULAR_USER" | "REGULAR_ANONYMOUS_USER" | "REGULAR_PAYING_USER" | "SUPER_USER";
 
@@ -11,13 +12,10 @@ type Role = "REGULAR_USER" | "REGULAR_ANONYMOUS_USER" | "REGULAR_PAYING_USER" | 
 export class AbilityService {
   readonly EMPTY_ABILITY = createMongoAbility([]);
 
-  private readonly RULES: Record<Role, RawRule[]> = {
+  private readonly RULES: Record<Role, Array<RawRule & { enabledIf?: FeatureFlagValue }>> = {
     REGULAR_ANONYMOUS_USER: [
-      {
-        action: ["read", "sign"].concat(this.configService.get("ALLOW_ANONYMOUS_USER_TRIAL") ? "create" : []),
-        subject: "UserWallet",
-        conditions: { userId: "${user.id}" }
-      },
+      { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
+      { action: "create", subject: "UserWallet", conditions: { userId: "${user.id}" }, enabledIf: FeatureFlags.ANONYMOUS_FREE_TRIAL },
       { action: "read", subject: "User", conditions: { id: "${user.id}" } },
       { action: "manage", subject: "DeploymentSetting", conditions: { userId: "${user.id}" } }
     ],
@@ -43,18 +41,36 @@ export class AbilityService {
     SUPER_USER: [{ action: "manage", subject: "all" }]
   };
 
-  private readonly templates = (Object.keys(this.RULES) as Role[]).reduce(
-    (acc, role) => {
-      acc[role] = template(JSON.stringify(this.RULES[role]));
-      return acc;
-    },
-    {} as Record<Role, TemplateExecutor>
-  );
+  private compiledRules?: Record<Role, TemplateExecutor>;
 
-  constructor(private readonly configService: AuthConfigService) {}
+  constructor(private readonly featureFlagsService: FeatureFlagsService) {
+    this.featureFlagsService.onChanged(() => {
+      this.compiledRules = undefined;
+    });
+  }
 
   getAbilityFor(role: Role, user: { userId: string | null }) {
-    return this.toAbility(this.templates[role]({ user }));
+    const compiledRules = this.compileRules();
+    return this.toAbility(compiledRules[role]({ user }));
+  }
+
+  private compileRules() {
+    this.compiledRules ??= (Object.keys(this.RULES) as Role[]).reduce(
+      (acc, role) => {
+        const rules = this.RULES[role].reduce<RawRule[]>((acc, { enabledIf, ...rule }) => {
+          if (!enabledIf || this.featureFlagsService.isEnabled(enabledIf)) {
+            acc.push(rule);
+          }
+          return acc;
+        }, []);
+
+        acc[role] = template(JSON.stringify(rules));
+        return acc;
+      },
+      {} as Record<Role, TemplateExecutor>
+    );
+
+    return this.compiledRules;
   }
 
   private toAbility(raw: string) {

@@ -62,7 +62,7 @@ describe("GPU API", () => {
       expect(data.gpus.total.allocatable).toBe(6);
       expect(data.gpus.total.allocated).toBe(3);
       expect(data.gpus.details).toEqual({
-        nvidia: expectedVendors.nvidia
+        nvidia: expectedVendors?.nvidia
       });
     });
 
@@ -77,7 +77,7 @@ describe("GPU API", () => {
       expect(data.gpus.total.allocatable).toBe(2);
       expect(data.gpus.total.allocated).toBe(1);
       expect(data.gpus.details).toEqual({
-        nvidia: [expectedVendors.nvidia[0]]
+        nvidia: [expectedVendors?.nvidia[0]]
       });
     });
 
@@ -92,14 +92,14 @@ describe("GPU API", () => {
       expect(data.gpus.total.allocatable).toBe(4);
       expect(data.gpus.total.allocated).toBe(2);
       expect(data.gpus.details).toEqual({
-        nvidia: [expectedVendors.nvidia[1]]
+        nvidia: [expectedVendors?.nvidia[1]]
       });
     });
 
     it(`returns GPU data when filtering by provider address`, async () => {
       const { providers, expectedVendors } = await setup();
 
-      const response = await app.request(`/v1/gpu?provider=${providers[0].owner}`);
+      const response = await app.request(`/v1/gpu?provider=${providers?.[0].owner}`);
 
       expect(response.status).toBe(200);
       const data = (await response.json()) as ListGpuResponse;
@@ -107,14 +107,14 @@ describe("GPU API", () => {
       expect(data.gpus.total.allocatable).toBe(6);
       expect(data.gpus.total.allocated).toBe(3);
       expect(data.gpus.details).toEqual({
-        nvidia: expectedVendors.nvidia
+        nvidia: expectedVendors?.nvidia
       });
     });
 
     it(`returns GPU data when filtering by provider hostURI`, async () => {
       const { providers, expectedVendors } = await setup();
 
-      const response = await app.request(`/v1/gpu?provider=${providers[1].hostUri}`);
+      const response = await app.request(`/v1/gpu?provider=${providers?.[1].hostUri}`);
 
       expect(response.status).toBe(200);
       const data = (await response.json()) as ListGpuResponse;
@@ -122,7 +122,7 @@ describe("GPU API", () => {
       expect(data.gpus.total.allocatable).toBe(24);
       expect(data.gpus.total.allocated).toBe(12);
       expect(data.gpus.details).toEqual({
-        amd: expectedVendors.amd
+        amd: expectedVendors?.amd
       });
     });
   });
@@ -265,6 +265,8 @@ describe("GPU API", () => {
 
   describe("GET /v1/gpu-prices", () => {
     it("returns GPU pricing information", async () => {
+      await setup();
+
       const response = await app.request(`/v1/gpu-prices`);
 
       expect(response.status).toBe(200);
@@ -306,11 +308,11 @@ describe("GPU API", () => {
             },
             price: {
               currency: "USD",
-              min: 1.17,
-              max: 1.17,
-              avg: 1.17,
-              weightedAverage: 1.17,
-              med: 1.17
+              min: 1.2,
+              max: 1.2,
+              avg: 1.2,
+              weightedAverage: 1.2,
+              med: 1.2
             }
           },
           {
@@ -328,11 +330,11 @@ describe("GPU API", () => {
             },
             price: {
               currency: "USD",
-              min: 0.58,
-              max: 0.58,
-              avg: 0.58,
-              weightedAverage: 0.58,
-              med: 0.58
+              min: 0.6,
+              max: 0.6,
+              avg: 0.6,
+              weightedAverage: 0.6,
+              med: 0.6
             }
           },
           {

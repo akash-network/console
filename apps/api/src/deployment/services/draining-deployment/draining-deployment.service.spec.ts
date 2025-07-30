@@ -166,12 +166,12 @@ describe(DrainingDeploymentService.name, () => {
       {
         name: "should calculate amount for integer block rate",
         input: { blockRate: 50 },
-        expected: 87463
+        expected: 90000
       },
       {
         name: "should floor decimal block rate",
         input: { blockRate: 10.7 },
-        expected: 18717
+        expected: 19260
       }
     ];
 

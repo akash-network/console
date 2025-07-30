@@ -5064,37 +5064,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
-    "/v1/features": {
-      "get": {
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "additionalProperties": {
-                        "type": "boolean",
-                      },
-                      "type": "object",
-                    },
-                  },
-                  "required": [
-                    "data",
-                  ],
-                  "type": "object",
-                },
-              },
-            },
-            "description": "List of enabled feature flags",
-          },
-        },
-        "summary": "Returns enabled feature flags",
-        "tags": [
-          "Feature flags",
-        ],
-      },
-    },
     "/v1/gpu": {
       "get": {
         "parameters": [

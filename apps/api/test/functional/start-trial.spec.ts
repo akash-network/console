@@ -38,6 +38,8 @@ describe("start trial", () => {
       const getWalletsResponse = await app.request(`/v1/wallets?userId=${userId}`, { headers });
       const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
       const masterWalletAddress = await resolveWallet("MANAGED").getFirstAddress();
+      if (!userWallet?.address) throw new Error("User wallet address is null-ish");
+
       const allowances = await Promise.all([
         authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(masterWalletAddress, userWallet.address),
         authzHttpService.getValidFeeAllowancesForGrantee(userWallet.address)

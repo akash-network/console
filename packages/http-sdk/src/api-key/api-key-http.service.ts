@@ -3,14 +3,14 @@ import type { ApiKeyResponse, CreateApiKeyRequest, ListApiKeys } from "./api-key
 
 export class ApiKeyHttpService extends ApiHttpService {
   async createApiKey(data: CreateApiKeyRequest) {
-    return this.extractApiData(await this.post<ApiKeyResponse>("/api/proxy/v1/api-keys", data, { withCredentials: true }));
+    return this.extractApiData(await this.post<ApiKeyResponse>("/v1/api-keys", data, { withCredentials: true }));
   }
 
   async getApiKeys() {
-    return this.extractApiData(await this.get<ListApiKeys>("/api/proxy/v1/api-keys"));
+    return this.extractApiData(await this.get<ListApiKeys>("/v1/api-keys"));
   }
 
   async deleteApiKey(id: string) {
-    return await this.delete(`/api/proxy/v1/api-keys/${id}`, { withCredentials: true });
+    return await this.delete(`/v1/api-keys/${id}`, { withCredentials: true });
   }
 }

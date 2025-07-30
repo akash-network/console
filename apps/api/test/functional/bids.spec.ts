@@ -45,8 +45,9 @@ describe("Bids API", () => {
       );
     });
 
-    jest.spyOn(apiKeyAuthService, "getAndValidateApiKeyFromHeader").mockImplementation(async (key: string) => {
-      return Promise.resolve(knownApiKeys[key]);
+    jest.spyOn(apiKeyAuthService, "getAndValidateApiKeyFromHeader").mockImplementation(async (key: string | undefined) => {
+      if (!key || !knownApiKeys[key]) throw new Error(`Unknown API key ${key}`);
+      return knownApiKeys[key];
     });
 
     const fakeWalletRepository = {

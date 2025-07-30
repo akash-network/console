@@ -1,34 +1,16 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/components";
+import { Button, Card, CardContent, CardHeader, CardTitle, DateRangePicker, Label } from "@akashnetwork/ui/components";
 import LinearProgress from "@mui/material/LinearProgress";
+import { endOfToday, startOfDay, subYears } from "date-fns";
 import { Cloud, Dollar, Download } from "iconoir-react";
 
 import { CumulativeSpendingLineChart } from "@src/components/billing-usage/CumulativeSpendingLineChart/CumulativeSpendingLineChart";
 import { DailyUsageBarChart } from "@src/components/billing-usage/DailyUsageBarChart/DailyUsageBarChart";
 import { Title } from "@src/components/shared/Title";
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
-
-const escapeCsvValue = (value: string | number): string => {
-  const stringValue = String(value);
-  if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
-    return `"${stringValue.replace(/"/g, '""')}"`;
-  }
-  return stringValue;
-};
-
-const downloadCsv = (content: string, filename: string) => {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", filename);
-  link.style.visibility = "hidden";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
+import { downloadCsv } from "@src/utils/domUtils";
+import { sanitizeCsvField } from "@src/utils/stringUtils";
 
 const isValidNumber = (value: number | null | undefined): boolean => {
   return value !== null && value !== undefined && !Number.isNaN(value) && Number.isFinite(value);
@@ -39,7 +21,8 @@ export const COMPONENTS = {
   Title,
   DailyUsageBarChart,
   CumulativeSpendingLineChart,
-  LinearProgress
+  LinearProgress,
+  DateRangePicker
 };
 
 export type UsageViewProps = {
@@ -49,6 +32,8 @@ export type UsageViewProps = {
   isUsageHistoryError: boolean;
   isFetchingUsageHistoryStats: boolean;
   isUsageHistoryStatsError: boolean;
+  dateRange: { from: Date | undefined; to?: Date };
+  onDateRangeChange: (range?: { from?: Date; to?: Date }) => void;
   components?: typeof COMPONENTS;
 };
 
@@ -59,9 +44,13 @@ export const UsageView = ({
   isUsageHistoryError,
   isFetchingUsageHistoryStats,
   isUsageHistoryStatsError,
+  dateRange,
+  onDateRangeChange,
   components = COMPONENTS
 }: UsageViewProps) => {
-  const { FormattedNumber, Title, DailyUsageBarChart, CumulativeSpendingLineChart, LinearProgress } = components;
+  const oneYearAgo = startOfDay(subYears(new Date(), 1));
+
+  const { FormattedNumber, Title, DailyUsageBarChart, CumulativeSpendingLineChart, LinearProgress, DateRangePicker } = components;
 
   const exportCsv = React.useCallback(() => {
     const statsCsvContent = [
@@ -73,7 +62,7 @@ export const UsageView = ({
         usageHistoryStatsData.totalDeployments,
         usageHistoryStatsData.averageDeploymentsPerDay
       ]
-        .map(escapeCsvValue)
+        .map(sanitizeCsvField)
         .join(",")
     ];
 
@@ -82,21 +71,25 @@ export const UsageView = ({
       "Date,Active Deployments,Daily AKT Spent,Total AKT Spent,Daily USDC Spent,Total USDC Spent,Daily USD Spent,Total USD Spent",
       ...usageHistoryData.map(row =>
         [row.date, row.activeDeployments, row.dailyAktSpent, row.totalAktSpent, row.dailyUsdcSpent, row.totalUsdcSpent, row.dailyUsdSpent, row.totalUsdSpent]
-          .map(escapeCsvValue)
+          .map(sanitizeCsvField)
           .join(",")
       )
     ];
 
     const combinedCsvContent = [...statsCsvContent, ...historyCsvContent].join("\n");
 
-    downloadCsv(combinedCsvContent, "usage.csv");
+    downloadCsv(combinedCsvContent, "akash_billing_usage");
   }, [usageHistoryData, usageHistoryStatsData]);
 
   return (
     <div className="h-full space-y-4">
-      <div className="flex items-center justify-between">
-        <Title subTitle>Overview</Title>
+      <Title subTitle>Overview</Title>
 
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <Label>Filter by Date:</Label>
+          <DateRangePicker date={dateRange} onChange={onDateRangeChange} className="w-full" minDate={oneYearAgo} maxDate={endOfToday()} maxRangeInDays={366} />
+        </div>
         <Button variant="secondary" onClick={exportCsv} size="sm">
           <Download width={16} className="mr-2" />
           Export CSV
@@ -104,7 +97,7 @@ export const UsageView = ({
       </div>
 
       {isUsageHistoryStatsError && (
-        <div className="mt-4 flex h-full items-center justify-center">
+        <div className="flex h-full items-center justify-center">
           <p className="text-red-500">Error loading usage stats</p>
         </div>
       )}
@@ -170,7 +163,7 @@ export const UsageView = ({
       <Title subTitle>Historical</Title>
 
       {isUsageHistoryError && (
-        <div className="mt-4 flex h-full items-center justify-center">
+        <div className="flex h-full items-center justify-center">
           <p className="text-red-500">Error loading usage data</p>
         </div>
       )}

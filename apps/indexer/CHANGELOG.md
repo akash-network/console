@@ -1,5 +1,12 @@
 
 
+## [1.14.0](https://github.com/akash-network/console/compare/indexer/v1.13.4...indexer/v1.14.0) (2025-07-27)
+
+
+### Features
+
+* adds safe node packages installation ([#1726](https://github.com/akash-network/console/issues/1726)) ([37acfee](https://github.com/akash-network/console/commit/37acfee5c1d053cec2316560ad220992d70b7cbf)), closes [#1549](https://github.com/akash-network/console/issues/1549)
+
 ## [1.13.4](https://github.com/akash-network/console/compare/indexer/v1.13.3...indexer/v1.13.4) (2025-07-06)
 
 
