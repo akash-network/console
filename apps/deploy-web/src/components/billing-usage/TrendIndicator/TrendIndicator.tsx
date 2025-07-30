@@ -27,9 +27,7 @@ export const TrendIndicator = <Field extends string & Keys<Data>, Data extends H
   const trendData = React.useMemo(() => {
     if (data.length < 2) return null;
 
-    const sortedData = data
-      .filter(item => item[field] !== undefined && item[field] !== null)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sortedData = data.filter(item => typeof item[field] === "number");
 
     if (sortedData.length < 2) return null;
 
@@ -39,7 +37,6 @@ export const TrendIndicator = <Field extends string & Keys<Data>, Data extends H
     const firstValue = firstItem[field];
     const lastValue = lastItem[field];
 
-    if (typeof firstValue !== "number" || typeof lastValue !== "number") return null;
     if (firstValue === 0) return null;
 
     const percentageChange = ((lastValue - firstValue) / firstValue) * 100;
