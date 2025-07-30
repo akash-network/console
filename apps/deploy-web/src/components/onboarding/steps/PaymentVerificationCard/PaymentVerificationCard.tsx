@@ -30,11 +30,11 @@ export const PaymentVerificationCard: React.FunctionComponent<PaymentVerificatio
           <CardTitle>Payment Verification</CardTitle>
         </div>
         <CardDescription className="space-y-2">
-          <p>We need to verify your identity to provide you with the best service.</p>
-          <p className="text-sm text-muted-foreground">
+          <div>We need to verify your identity to provide you with the best service.</div>
+          <div className="text-sm text-muted-foreground">
             Your payment method will be used for identity verification.{" "}
             <span className="font-bold text-primary-foreground">No charges will be made during your free trial.</span>
-          </p>
+          </div>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

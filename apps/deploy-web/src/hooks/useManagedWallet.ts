@@ -18,7 +18,7 @@ export const useManagedWallet = () => {
   const userWallet = useSelectedChain();
   const [selectedWalletType, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
   const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined);
-  const { mutate: create, data: created, isPending: isCreating, isSuccess: isCreated } = useCreateManagedWalletMutation();
+  const { mutate: create, data: created, isPending: isCreating, isSuccess: isCreated, error: createError } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => queried || created, [queried, created]);
   const isLoading = isFetching || isCreating;
   const [, setIsSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
@@ -80,7 +80,8 @@ export const useManagedWallet = () => {
           }
         : undefined,
       isLoading,
+      createError,
       refetch
     };
-  }, [create, isLoading, user?.id, wallet, refetch]);
+  }, [wallet, selected?.address, isLoading, createError, refetch, user?.id, create]);
 };

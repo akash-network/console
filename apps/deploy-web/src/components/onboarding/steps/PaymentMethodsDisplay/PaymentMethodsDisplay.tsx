@@ -1,9 +1,11 @@
 import React from "react";
 import { Alert, Button, Card, CardContent, CardHeader, CardTitle, LoadingButton } from "@akashnetwork/ui/components";
-import { Check, CreditCard, Trash } from "iconoir-react";
+import { Check, CreditCard, Trash, WarningTriangle } from "iconoir-react";
 import Link from "next/link";
 
-import { UrlService } from "@src/utils/urlUtils";
+import { useServices } from "@src/context/ServicesProvider";
+import type { AppError } from "@src/types";
+import { extractErrorMessage } from "@src/utils/errorUtils";
 
 interface PaymentMethod {
   id: string;
@@ -21,6 +23,7 @@ interface PaymentMethodsDisplayProps {
   onStartTrial: () => void;
   isLoading: boolean;
   isRemoving: boolean;
+  managedWalletError?: AppError;
 }
 
 export const PaymentMethodsDisplay: React.FunctionComponent<PaymentMethodsDisplayProps> = ({
@@ -28,8 +31,10 @@ export const PaymentMethodsDisplay: React.FunctionComponent<PaymentMethodsDispla
   onRemovePaymentMethod,
   onStartTrial,
   isLoading,
-  isRemoving
+  isRemoving,
+  managedWalletError
 }) => {
+  const { urlService } = useServices();
   const formatCardNumber = (last4: string) => `•••• •••• •••• ${last4}`;
 
   const formatExpiry = (expMonth: number, expYear: number) => {
@@ -38,10 +43,15 @@ export const PaymentMethodsDisplay: React.FunctionComponent<PaymentMethodsDispla
     return `${month}/${year}`;
   };
 
+  const getErrorMessage = (error: AppError): string => {
+    if (!error) return "An error occurred while starting your trial. Please try again.";
+    return extractErrorMessage(error);
+  };
+
   return (
     <div className="space-y-4">
       <Alert className="mx-auto flex max-w-md flex-row items-center gap-2 text-left" variant="success">
-        <div className="rounded-full bg-card p-3">
+        <div className="flex-shrink-0 rounded-full bg-card p-3">
           <Check className="h-6 w-6" />
         </div>
         <div>
@@ -86,6 +96,18 @@ export const PaymentMethodsDisplay: React.FunctionComponent<PaymentMethodsDispla
         </CardContent>
       </Card>
 
+      {managedWalletError && (
+        <Alert className="mx-auto flex max-w-md flex-row items-center gap-2 text-left" variant="destructive">
+          <div className="flex-shrink-0 rounded-full bg-card p-3">
+            <WarningTriangle className="h-6 w-6" />
+          </div>
+          <div>
+            <h4 className="font-medium">Failed to Start Trial</h4>
+            <p className="text-sm">{getErrorMessage(managedWalletError)}</p>
+          </div>
+        </Alert>
+      )}
+
       <div className="mx-auto flex max-w-md justify-center">
         <LoadingButton
           onClick={onStartTrial}
@@ -100,11 +122,11 @@ export const PaymentMethodsDisplay: React.FunctionComponent<PaymentMethodsDispla
       <div className="mx-auto max-w-md text-center">
         <p className="text-xs text-muted-foreground">
           By starting your trial, you agree to our{" "}
-          <Link href={UrlService.termsOfService()} className="text-primary hover:underline">
+          <Link href={urlService.termsOfService()} className="text-primary hover:underline">
             Terms of Service
           </Link>{" "}
           and{" "}
-          <Link href={UrlService.privacyPolicy()} className="text-primary hover:underline">
+          <Link href={urlService.privacyPolicy()} className="text-primary hover:underline">
             Privacy Policy
           </Link>
         </p>

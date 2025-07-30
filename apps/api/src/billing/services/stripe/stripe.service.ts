@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
 import { Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
+import { PaymentMethodRepository, UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { LoggerService } from "@src/core/providers/logging.provider";
@@ -28,7 +29,9 @@ export class StripeService extends Stripe {
   constructor(
     private readonly billingConfig: BillingConfigService,
     private readonly userRepository: UserRepository,
-    private readonly refillService: RefillService
+    private readonly refillService: RefillService,
+    private readonly paymentMethodRepository: PaymentMethodRepository,
+    private readonly userWalletRepository: UserWalletRepository
   ) {
     super(billingConfig.get("STRIPE_SECRET_KEY"), {
       apiVersion: "2024-06-20"
@@ -434,5 +437,19 @@ export class StripeService extends Stripe {
     const reloaded = await this.userRepository.findOneBy({ id: user.id });
     assert(reloaded?.stripeCustomerId, 500, "Failed to retrieve stripeCustomerId");
     return reloaded.stripeCustomerId;
+  }
+
+  async hasDuplicateTrialAccount(paymentMethods: Stripe.PaymentMethod[], currentUserId: string): Promise<boolean> {
+    logger.info({
+      event: "VALIDATING_PAYMENT_METHODS_FOR_TRIAL",
+      paymentMethodCount: paymentMethods.length,
+      paymentMethodIds: paymentMethods.map(pm => pm.id),
+      currentUserId
+    });
+
+    const fingerprints = paymentMethods.map(paymentMethod => paymentMethod.card?.fingerprint).filter(Boolean) as string[];
+    const otherPaymentMethods = await this.paymentMethodRepository.findOtherByFingerprint(fingerprints, currentUserId);
+
+    return !!otherPaymentMethods;
   }
 }

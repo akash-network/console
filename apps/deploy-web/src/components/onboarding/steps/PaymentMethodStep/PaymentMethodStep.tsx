@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle, Popup } from "@akashnetwork/ui/com
 import { CreditCard } from "iconoir-react";
 
 import { Title } from "@src/components/shared/Title";
+import type { AppError } from "@src/types";
 import { PaymentMethodsDisplay } from "../PaymentMethodsDisplay/PaymentMethodsDisplay";
 import { PaymentVerificationCard } from "../PaymentVerificationCard/PaymentVerificationCard";
 
@@ -16,6 +17,7 @@ interface PaymentMethodStepProps {
   cardToDelete?: string;
   isLoading: boolean;
   isRemoving: boolean;
+  managedWalletError?: AppError;
   onSuccess: () => void;
   onRemovePaymentMethod: (paymentMethodId: string) => void;
   onConfirmRemovePaymentMethod: () => Promise<void>;
@@ -32,6 +34,7 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
   cardToDelete: _cardToDelete,
   isLoading,
   isRemoving,
+  managedWalletError,
   onSuccess,
   onRemovePaymentMethod,
   onConfirmRemovePaymentMethod,
@@ -50,6 +53,7 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
           onStartTrial={onNext}
           isLoading={isLoading}
           isRemoving={isRemoving}
+          managedWalletError={managedWalletError}
         />
       )}
 
