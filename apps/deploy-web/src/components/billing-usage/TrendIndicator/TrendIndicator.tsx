@@ -37,6 +37,7 @@ export const TrendIndicator = <Field extends string & Keys<Data>, Data extends H
     const firstValue = firstItem[field];
     const lastValue = lastItem[field];
 
+    if (typeof firstValue !== "number" || typeof lastValue !== "number") return null;
     if (firstValue === 0) return null;
 
     const percentageChange = ((lastValue - firstValue) / firstValue) * 100;
