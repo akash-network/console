@@ -18,6 +18,7 @@ import axios from "axios";
 
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import { customRegistry } from "@src/utils/customRegistry";
+import { UrlService } from "@src/utils/urlUtils";
 import type { ApiUrlService } from "../api-url/api-url.service";
 import { AuthService } from "../auth/auth.service";
 import { createContainer } from "../container/createContainer";
@@ -129,7 +130,8 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         })
       }),
     errorHandler: () => new ErrorHandlerService(container.logger),
-    logger: () => new LoggerService({ name: `app-${config.runtimeEnv}` })
+    logger: () => new LoggerService({ name: `app-${config.runtimeEnv}` }),
+    urlService: () => UrlService
   });
 
   return container;

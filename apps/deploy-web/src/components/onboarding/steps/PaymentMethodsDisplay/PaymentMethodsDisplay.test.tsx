@@ -1,5 +1,6 @@
 import React from "react";
 
+import { ServicesProvider } from "@src/context/ServicesProvider/ServicesProvider";
 import type { AppError } from "@src/types";
 import { PaymentMethodsDisplay } from "./PaymentMethodsDisplay";
 
@@ -354,22 +355,24 @@ describe("PaymentMethodsDisplay", () => {
     const mockOnRemovePaymentMethod = input.onRemovePaymentMethod || jest.fn();
     const mockOnStartTrial = input.onStartTrial || jest.fn();
 
-    const mockUrlService = {
-      termsOfService: jest.fn().mockReturnValue("/terms"),
-      privacyPolicy: jest.fn().mockReturnValue("/privacy")
-    } as any;
+    const mockUrlService = () =>
+      ({
+        termsOfService: jest.fn().mockReturnValue("/terms"),
+        privacyPolicy: jest.fn().mockReturnValue("/privacy")
+      }) as any;
 
     const props = {
       ...defaultProps,
       ...input,
       onRemovePaymentMethod: mockOnRemovePaymentMethod,
-      onStartTrial: mockOnStartTrial,
-      dependencies: {
-        UrlService: mockUrlService
-      }
+      onStartTrial: mockOnStartTrial
     };
 
-    render(<PaymentMethodsDisplay {...props} />);
+    render(
+      <ServicesProvider services={{ urlService: mockUrlService }}>
+        <PaymentMethodsDisplay {...props} />
+      </ServicesProvider>
+    );
 
     return {
       mockOnRemovePaymentMethod,

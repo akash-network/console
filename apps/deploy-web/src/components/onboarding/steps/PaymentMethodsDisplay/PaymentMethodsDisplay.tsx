@@ -3,9 +3,9 @@ import { Alert, Button, Card, CardContent, CardHeader, CardTitle, LoadingButton 
 import { Check, CreditCard, Trash, WarningTriangle } from "iconoir-react";
 import Link from "next/link";
 
+import { useServices } from "@src/context/ServicesProvider";
 import type { AppError } from "@src/types";
 import { extractErrorMessage } from "@src/utils/errorUtils";
-import { UrlService } from "@src/utils/urlUtils";
 
 interface PaymentMethod {
   id: string;
@@ -24,9 +24,6 @@ interface PaymentMethodsDisplayProps {
   isLoading: boolean;
   isRemoving: boolean;
   managedWalletError?: AppError;
-  dependencies?: {
-    UrlService: typeof UrlService;
-  };
 }
 
 export const PaymentMethodsDisplay: React.FunctionComponent<PaymentMethodsDisplayProps> = ({
@@ -35,10 +32,9 @@ export const PaymentMethodsDisplay: React.FunctionComponent<PaymentMethodsDispla
   onStartTrial,
   isLoading,
   isRemoving,
-  managedWalletError,
-  dependencies
+  managedWalletError
 }) => {
-  const urlService = dependencies?.UrlService || UrlService;
+  const { urlService } = useServices();
   const formatCardNumber = (last4: string) => `•••• •••• •••• ${last4}`;
 
   const formatExpiry = (expMonth: number, expYear: number) => {
