@@ -241,18 +241,18 @@ export class WebsocketServer {
     }
 
     const data = Buffer.from(message.data.split(",") as any);
-    const callback = (error?: Error) => {
+    const callback = propagateTracingContext((error?: Error) => {
       if (error) {
         this.logger?.error({
           event: "CLIENT_MESSAGE_SEND_ERROR",
           error
         });
       }
-    };
-    const proxyMessage = () => {
+    });
+    const proxyMessage = propagateTracingContext(() => {
       this.logger?.debug(`Provider is verified, proxying "${message.type}" message`);
       socketDetails.ws.send(data, callback);
-    };
+    });
 
     if (socketDetails.ws.readyState === WebSocket.OPEN && socketDetails.isVerified) {
       proxyMessage();
@@ -315,11 +315,31 @@ export class WebsocketServer {
               pws.removeAllListeners("verified");
 
               pws.close(WS_ERRORS.VIOLATED_POLICY, `invalidCertificate.${result.code}`);
+              this.logger?.warn({
+                event: "PROVIDER_INVALID_CERTIFICATE",
+                connectionType: "websocket",
+                code: result.code,
+                chainNetwork: options.chainNetwork,
+                providerAddress: options.providerAddress
+              });
             } else {
               // ensure that socket was not closed while its certificate was validating
               if (pws.readyState === WebSocket.OPEN && this.openProviderSockets[options.wsId]) {
                 this.openProviderSockets[options.wsId].isVerified = true;
                 pws.emit("verified");
+                this.logger?.debug({
+                  event: "PROVIDER_CERTIFICATE_VERIFIED",
+                  connectionType: "websocket",
+                  chainNetwork: options.chainNetwork,
+                  providerAddress: options.providerAddress
+                });
+              } else {
+                this.logger?.warn({
+                  event: "PROVIDER_WEBSOCKET_CLOSED",
+                  chainNetwork: options.chainNetwork,
+                  providerAddress: options.providerAddress,
+                  message: "Provider websocket was closed while its certificate was validating"
+                });
               }
             }
 
