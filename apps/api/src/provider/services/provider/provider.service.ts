@@ -17,6 +17,7 @@ import { ProviderList } from "@src/types/provider";
 import { toUTC } from "@src/utils";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { AuditorService } from "../auditors/auditors.service";
+import { JwtTokenService } from "../jwt-token/jwt-token.service";
 import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
 
 @singleton()
@@ -30,12 +31,13 @@ export class ProviderService {
     private readonly providerHttpService: ProviderHttpService,
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
-    @InjectBillingConfig() private readonly config: BillingConfig
+    @InjectBillingConfig() private readonly config: BillingConfig,
+    private readonly jwtTokenService: JwtTokenService
   ) {
     this.chainNetwork = this.config.NETWORK as SupportedChainNetworks;
   }
 
-  async sendManifest(provider: string, dseq: string, manifest: string, options: { certPem: string; keyPem: string }) {
+  async sendManifest(provider: string, dseq: string, manifest: string, walletId: number) {
     const jsonStr = manifest.replace(/"quantity":{"val/g, '"size":{"val');
 
     const providerResponse = await this.providerHttpService.getProvider(provider);
@@ -47,17 +49,19 @@ export class ProviderService {
       hostUri: providerResponse.provider.host_uri
     };
 
-    return await this.sendManifestToProvider(dseq, jsonStr, options, providerIdentity);
+    return await this.sendManifestToProvider(walletId, dseq, jsonStr, providerIdentity);
   }
 
-  private async sendManifestToProvider(dseq: string, jsonStr: string, options: { certPem: string; keyPem: string }, providerIdentity: ProviderIdentity) {
+  private async sendManifestToProvider(walletId: number, dseq: string, jsonStr: string, providerIdentity: ProviderIdentity) {
     for (let i = 1; i <= this.MANIFEST_SEND_MAX_RETRIES; i++) {
       try {
         const result = await this.providerProxy.fetchProviderUrl(`/deployment/${dseq}/manifest`, {
           method: "PUT",
           body: jsonStr,
-          certPem: options.certPem,
-          keyPem: options.keyPem,
+          headers: {
+            Authorization: `Bearer ${await this.jwtTokenService.generateJwtToken(walletId)}`,
+            "Content-Type": "application/json"
+          },
           chainNetwork: this.chainNetwork,
           providerIdentity,
           timeout: 60000
@@ -77,7 +81,7 @@ export class ProviderService {
     }
   }
 
-  async getLeaseStatus(provider: string, dseq: string, gseq: number, oseq: number, options: { certPem: string; keyPem: string }): Promise<LeaseStatusResponse> {
+  async getLeaseStatus(provider: string, dseq: string, gseq: number, oseq: number, walletId: number): Promise<LeaseStatusResponse> {
     const providerResponse = await this.providerHttpService.getProvider(provider);
     if (!providerResponse) {
       throw new Error(`Provider ${provider} not found`);
@@ -90,8 +94,10 @@ export class ProviderService {
 
     return await this.providerProxy.fetchProviderUrl<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
       method: "GET",
-      certPem: options.certPem,
-      keyPem: options.keyPem,
+      headers: {
+        Authorization: `Bearer ${await this.jwtTokenService.generateJwtToken(walletId)}`,
+        "Content-Type": "application/json"
+      },
       chainNetwork: this.chainNetwork,
       providerIdentity,
       timeout: 30000

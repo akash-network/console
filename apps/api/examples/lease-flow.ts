@@ -2,7 +2,7 @@
  * This script demonstrates how to create a deployment with a lease using the API and an API key.
  *
  * The script follows these steps:
- * 1. Creates a certificate for secure communication
+ * 1. Checks if API key env var is set
  * 2. Creates a deployment using the provided SDL file
  * 3. Waits for and collects bids from providers
  * 4. Creates a lease using the first received bid
@@ -68,7 +68,7 @@ async function waitForBids(dseq: string, apiKey: string, maxAttempts = 10): Prom
 
 /**
  * This script is used to create a lease for a deployment using an api key.
- * It creates a certificate, creates a deployment, waits for bids, creates a lease, and then closes the deployment.
+ * It creates a deployment, waits for bids, creates a lease, and then closes the deployment.
  */
 async function main() {
   try {
@@ -78,22 +78,7 @@ async function main() {
       throw new Error("API_KEY environment variable is required");
     }
 
-    // 2. Create certificate
-    console.log("Creating certificate...");
-    const certResponse = await api.post(
-      "/v1/certificates",
-      {},
-      {
-        headers: {
-          "x-api-key": apiKey
-        }
-      }
-    );
-
-    const { certPem, encryptedKey } = certResponse.data.data;
-    console.log("Certificate created successfully");
-
-    // 3. Create deployment
+    // 2. Create deployment
     console.log("Creating deployment...");
     const deployResponse = await api.post(
       "/v1/deployments",
@@ -113,7 +98,7 @@ async function main() {
     const { dseq, manifest } = deployResponse.data.data;
     console.log(`Deployment created with dseq: ${dseq}`);
 
-    // 4. Wait for and get bids
+    // 3. Wait for and get bids
     console.log("Waiting for bids...");
     const bids = await waitForBids(dseq, apiKey);
     console.log(`Received ${bids.length} bids`);
@@ -128,10 +113,6 @@ async function main() {
 
     const body = {
       manifest,
-      certificate: {
-        certPem,
-        keyPem: encryptedKey
-      },
       leases: [
         {
           dseq,
@@ -142,7 +123,7 @@ async function main() {
       ]
     };
 
-    // 5. Create lease and send manifest
+    // 4. Create lease and send manifest
     console.log("Creating lease and sending manifest...");
     const leaseResponse = await api.post("/v1/leases", body, {
       headers: {
@@ -155,7 +136,7 @@ async function main() {
     }
     console.log("Lease created successfully", JSON.stringify(leaseResponse.data.data, null, 2));
 
-    // 6. Deposit into deployment
+    // 5. Deposit into deployment
     console.log("Depositing into deployment...");
     const depositResponse = await api.post(
       `/v1/deposit-deployment`,
@@ -182,11 +163,7 @@ async function main() {
       `/v1/deployments/${dseq}`,
       {
         data: {
-          sdl: updatedYml,
-          certificate: {
-            certPem,
-            keyPem: encryptedKey
-          }
+          sdl: updatedYml
         }
       },
       {
@@ -201,7 +178,7 @@ async function main() {
     }
     console.log("Deployment updated successfully");
 
-    // 7. Get the deployment details
+    // 6. Get the deployment details
     console.log("Getting deployment details...");
     const deploymentResponse = await api.get(`/v1/deployments/${dseq}`, {
       headers: {
@@ -211,7 +188,7 @@ async function main() {
 
     console.log("Deployment details:", JSON.stringify(deploymentResponse.data.data, null, 2));
 
-    // 8. Close deployment
+    // 7. Close deployment
     console.log("Closing deployment...");
     const closeResponse = await api.delete(`/v1/deployments/${dseq}`, {
       headers: {
