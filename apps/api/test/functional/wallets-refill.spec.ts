@@ -23,7 +23,7 @@ describe("Wallets Refill", () => {
       config.FEE_ALLOWANCE_REFILL_THRESHOLD = 2;
       const NUMBER_OF_WALLETS = 5;
       const prepareRecords = Array.from({ length: NUMBER_OF_WALLETS }).map(async (_, index) => {
-        const records = await walletService.createAnonymousUserAndWallet();
+        const records = await walletService.createUserAndWallet();
         const { user, token } = records;
         const { wallet } = records;
         let walletRecord = await userWalletRepository.findById(wallet.id);
