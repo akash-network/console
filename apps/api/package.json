@@ -43,6 +43,7 @@
     "@akashnetwork/database": "*",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/http-sdk": "*",
+    "@akashnetwork/jwt": "*",
     "@akashnetwork/logging": "*",
     "@akashnetwork/net": "*",
     "@akashnetwork/react-query-sdk": "*",

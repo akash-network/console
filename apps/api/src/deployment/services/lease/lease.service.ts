@@ -36,15 +36,10 @@ export class LeaseService {
     await this.signerService.executeDecodedTxByUserId(wallet.userId, leaseMessages);
 
     for (const lease of input.leases) {
-      await this.providerService.sendManifest(lease.provider, lease.dseq, input.manifest, {
-        certPem: input.certificate.certPem,
-        keyPem: input.certificate.keyPem
-      });
+      await this.providerService.sendManifest(lease.provider, lease.dseq, input.manifest, wallet.id);
     }
 
-    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address!, input.leases[0].dseq, {
-      certificate: { certPem: input.certificate.certPem, keyPem: input.certificate.keyPem }
-    });
+    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address!, input.leases[0].dseq);
   }
 
   public async listLeasesFallback(params: DatabaseLeaseListParams): Promise<FallbackLeaseListResponse> {

@@ -6100,28 +6100,12 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 "properties": {
                   "data": {
                     "properties": {
-                      "certificate": {
-                        "properties": {
-                          "certPem": {
-                            "type": "string",
-                          },
-                          "keyPem": {
-                            "type": "string",
-                          },
-                        },
-                        "required": [
-                          "certPem",
-                          "keyPem",
-                        ],
-                        "type": "object",
-                      },
                       "sdl": {
                         "type": "string",
                       },
                     },
                     "required": [
                       "sdl",
-                      "certificate",
                     ],
                     "type": "object",
                   },
@@ -7321,21 +7305,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "application/json": {
               "schema": {
                 "properties": {
-                  "certificate": {
-                    "properties": {
-                      "certPem": {
-                        "type": "string",
-                      },
-                      "keyPem": {
-                        "type": "string",
-                      },
-                    },
-                    "required": [
-                      "certPem",
-                      "keyPem",
-                    ],
-                    "type": "object",
-                  },
                   "leases": {
                     "items": {
                       "properties": {
@@ -7368,7 +7337,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 },
                 "required": [
                   "manifest",
-                  "certificate",
                   "leases",
                 ],
                 "type": "object",
