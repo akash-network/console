@@ -1,4 +1,5 @@
 import type { UseQueryResult } from "@tanstack/react-query";
+import { mockFn } from "jest-mock-extended";
 
 import { useTrialDeploymentTimeRemaining } from "./useTrialDeploymentTimeRemaining";
 
@@ -14,16 +15,6 @@ interface BlockResponse {
 
 describe("useTrialTimeRemaining", () => {
   const mockDate = new Date("2024-01-01T12:00:00Z");
-
-  beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(mockDate);
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-    jest.clearAllMocks();
-  });
 
   it("should return default values when no data is available", () => {
     const { result } = setup({
@@ -234,25 +225,40 @@ describe("useTrialTimeRemaining", () => {
     expect(result.current.timeRemainingText).toBe("Calculating...");
   });
 
+  function withTimers<T>(testFn: () => T): T {
+    jest.useFakeTimers();
+    jest.setSystemTime(mockDate);
+
+    try {
+      return testFn();
+    } finally {
+      jest.useRealTimers();
+      jest.clearAllMocks();
+    }
+  }
+
   function setup(input: {
     useBlockReturn: Partial<UseQueryResult<BlockResponse, Error>>;
     createdHeight?: number;
     trialDurationHours?: number;
     averageBlockTime?: number;
   }) {
-    const mockUseBlock = jest.fn().mockImplementation(() => input.useBlockReturn as UseQueryResult<BlockResponse, Error>);
+    return withTimers(() => {
+      const mockUseBlock = mockFn<() => UseQueryResult<BlockResponse, Error>>();
+      mockUseBlock.mockImplementation(() => input.useBlockReturn as UseQueryResult<BlockResponse, Error>);
 
-    const { result } = renderHook(() =>
-      useTrialDeploymentTimeRemaining({
-        createdHeight: input.createdHeight,
-        trialDurationHours: input.trialDurationHours,
-        averageBlockTime: input.averageBlockTime,
-        dependencies: {
-          useBlock: mockUseBlock
-        }
-      })
-    );
+      const { result } = renderHook(() =>
+        useTrialDeploymentTimeRemaining({
+          createdHeight: input.createdHeight,
+          trialDurationHours: input.trialDurationHours,
+          averageBlockTime: input.averageBlockTime,
+          dependencies: {
+            useBlock: mockUseBlock
+          }
+        })
+      );
 
-    return { result, mockUseBlock };
+      return { result, mockUseBlock };
+    });
   }
 });

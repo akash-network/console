@@ -1,9 +1,18 @@
 import React from "react";
+import { mockFn } from "jest-mock-extended";
 
 import { DEPENDENCIES as TRIAL_BADGE_DEPENDENCIES, TrialDeploymentBadge } from "./TrialDeploymentBadge";
 
 import { render, screen } from "@testing-library/react";
 import { ComponentMock } from "@tests/unit/mocks";
+
+interface BlockResponse {
+  block: {
+    header: {
+      height: string;
+    };
+  };
+}
 
 describe("TrialDeploymentBadge", () => {
   it("renders trial badge with correct text", () => {
@@ -115,14 +124,23 @@ describe("TrialDeploymentBadge", () => {
   });
 
   function setup(input: { blockHeight: number; trialDurationHours?: number; averageBlockTime?: number; className?: string; createdHeight?: number }) {
-    const mockUseTrialTimeRemaining = jest.fn().mockReturnValue({
+    const mockUseTrialTimeRemaining = mockFn<
+      () => {
+        isExpired: boolean;
+        timeRemainingText: string | null;
+        timeLeft: Date | null;
+        latestBlock: BlockResponse;
+      }
+    >();
+
+    mockUseTrialTimeRemaining.mockReturnValue({
       isExpired: input.blockHeight > 10001440, // Simple logic for expired state
       timeRemainingText: input.blockHeight > 10001440 ? "Trial expired" : "in 24 hours",
       timeLeft: input.blockHeight > 10001440 ? null : new Date(Date.now() + 24 * 60 * 60 * 1000),
       latestBlock: {
         block: {
           header: {
-            height: input.blockHeight
+            height: input.blockHeight.toString()
           }
         }
       }
