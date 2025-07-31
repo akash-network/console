@@ -2,8 +2,10 @@ import { faker } from "@faker-js/faker";
 
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
 
+type UsageHistoryOverride = Partial<Omit<UsageHistory[number], "date"> & { date: Date | string }>;
+
 export const buildUsageHistoryItem = ({
-  date = faker.date.past().toISOString().split("T")[0],
+  date = faker.date.past(),
   activeDeployments = faker.number.int({ min: 0, max: 10 }),
   dailyAktSpent = faker.number.int({ min: 0, max: 100 }),
   totalAktSpent = faker.number.int({ min: 0, max: 1000 }),
@@ -11,9 +13,9 @@ export const buildUsageHistoryItem = ({
   totalUsdcSpent = faker.number.int({ min: 0, max: 1000 }),
   dailyUsdSpent = faker.number.int({ min: 0, max: 100 }),
   totalUsdSpent = faker.number.int({ min: 0, max: 1000 })
-}: Partial<UsageHistory[number]> = {}): UsageHistory[number] => {
+}: UsageHistoryOverride = {}): UsageHistory[number] => {
   return {
-    date,
+    date: date instanceof Date ? date.toISOString().split("T")[0] : date,
     activeDeployments,
     dailyAktSpent,
     totalAktSpent,
@@ -24,7 +26,7 @@ export const buildUsageHistoryItem = ({
   };
 };
 
-export const buildUsageHistory = (overrides: Partial<UsageHistory[number]>[] = [], count?: number): UsageHistory => {
+export const buildUsageHistory = (overrides: UsageHistoryOverride[] = [], count?: number): UsageHistory => {
   const numberOfItems = count ?? faker.number.int({ min: 1, max: 10 });
 
   return Array.from({ length: numberOfItems }, () => {
