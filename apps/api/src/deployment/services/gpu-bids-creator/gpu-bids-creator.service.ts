@@ -8,12 +8,12 @@ import { calculateFee, SigningStargateClient } from "@cosmjs/stargate";
 import axios from "axios";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import pick from "lodash/pick";
+import { setTimeout as sleep } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { GpuService } from "@src/gpu/services/gpu.service";
 import { apiNodeUrl } from "@src/utils/constants";
-import { sleep } from "@src/utils/delay";
 import { env } from "@src/utils/env";
 import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templates";
 
