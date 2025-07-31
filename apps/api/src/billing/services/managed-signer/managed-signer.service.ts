@@ -70,7 +70,7 @@ export class ManagedSignerService {
     const user = this.authService.currentUser.userId === userId ? this.authService.currentUser : await this.userRepository.findById(userId);
     assert(user, 404, "User Not Found");
 
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
+    if (this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
       await Promise.all(
         messages.map(message =>
           Promise.all([
