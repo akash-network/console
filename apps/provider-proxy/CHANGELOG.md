@@ -1,5 +1,12 @@
 
 
+## [1.14.1](https://github.com/akash-network/console/compare/provider-proxy/v1.14.0...provider-proxy/v1.14.1) (2025-07-31)
+
+
+### Bug Fixes
+
+* improves observability of provider websocket ([#1751](https://github.com/akash-network/console/issues/1751)) ([54cf2cf](https://github.com/akash-network/console/commit/54cf2cfdbf5c97e57e8a15338a9ed6e8a3e48047))
+
 ## [1.14.0](https://github.com/akash-network/console/compare/provider-proxy/v1.13.3...provider-proxy/v1.14.0) (2025-07-27)
 
 

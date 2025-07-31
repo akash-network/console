@@ -1,5 +1,20 @@
 
 
+## [2.109.0](https://github.com/akash-network/console/compare/console-api/v2.108.1...console-api/v2.109.0) (2025-07-31)
+
+
+### Features
+
+* **billing:** add stripe charges table list to usage ui  ([81e9d42](https://github.com/akash-network/console/commit/81e9d42d254bee6248451aecde8868ccbf018d89))
+* **billing:** validate payment methods trial ([#1750](https://github.com/akash-network/console/issues/1750)) ([1776442](https://github.com/akash-network/console/commit/17764422232ac089fd4b48225d3b148e077947b6))
+* **deployment:** implement trial deployment badge ([#1764](https://github.com/akash-network/console/issues/1764)) ([3e2fdae](https://github.com/akash-network/console/commit/3e2fdaee9f03bb95235f1f3171665111004807f8))
+
+
+### Code Refactoring
+
+* finalizes strict types migration for console-api ([#1745](https://github.com/akash-network/console/issues/1745)) ([746028c](https://github.com/akash-network/console/commit/746028c0a4b7c549128cf309d0c1171b6bc9f932))
+* speed up startup and fixes concurrency in shutdown ([#1742](https://github.com/akash-network/console/issues/1742)) ([c6925e5](https://github.com/akash-network/console/commit/c6925e54353f828756c138e305a5c70d387cb8c5))
+
 ## [2.108.1](https://github.com/akash-network/console/compare/console-api/v2.108.0...console-api/v2.108.1) (2025-07-28)
 
 
