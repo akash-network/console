@@ -11,10 +11,12 @@ import { PriceValue } from "@src/components/shared/PriceValue";
 import { StatusPill } from "@src/components/shared/StatusPill";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
+import { useFlag } from "@src/hooks/useFlag";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth } from "@src/utils/priceUtils";
+import { TrialDeploymentBadge } from "../shared";
 import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 
 type Props = {
@@ -30,8 +32,8 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   const hasLeases = !!leases && leases.length > 0;
   const hasActiveLeases = hasLeases && leases.some(l => l.state === "active");
   const denomData = useDenomData(deployment.escrowAccount.balance.denom);
-  const { isCustodial } = useWallet();
-
+  const { isCustodial, isTrialing } = useWallet();
+  const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
   return (
     <div className="grid grid-cols-2 gap-4 p-4">
       <div>
@@ -127,6 +129,8 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
             <div className="flex items-center space-x-2">
               <div>{deployment.state}</div>
               <StatusPill state={deployment.state} size="small" />
+
+              {!isAnonymousFreeTrialEnabled && isTrialing && <TrialDeploymentBadge createdHeight={deployment.createdAt} />}
             </div>
           }
         />

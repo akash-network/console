@@ -15,6 +15,7 @@ import { UAKT_DENOM } from "@src/config/denom.config";
 import { usePricing } from "@src/context/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
+import { useFlag } from "@src/hooks/useFlag";
 import useTailwind from "@src/hooks/useTailwind";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import sdlStore from "@src/store/sdlStore";
@@ -25,6 +26,7 @@ import { roundDecimal, udenomToDenom } from "@src/utils/mathHelpers";
 import { getAvgCostPerMonth, uaktToAKT } from "@src/utils/priceUtils";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { UrlService } from "@src/utils/urlUtils";
+import { TrialDeploymentBadge } from "../shared";
 import { ConnectWallet } from "../shared/ConnectWallet";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
@@ -41,7 +43,7 @@ type Props = {
 export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances, walletBalance, activeDeployments, leases, providers }) => {
   const { resolvedTheme } = useTheme();
   const tw = useTailwind();
-  const { address, isManaged: isManagedWallet } = useWallet();
+  const { address, isManaged: isManagedWallet, isTrialing } = useWallet();
   const usdcIbcDenom = useUsdcDenom();
   const [selectedDataId, setSelectedDataId] = useState<string | null>(null);
   const [costPerMonth, setCostPerMonth] = useState<number | null>(null);
@@ -55,7 +57,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
   const _storage = bytesToShrink(totalStorage);
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const { price, isLoaded } = usePricing();
-
+  const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
   const colors: Record<string, string> = {
     balance_akt: customColors.akashRed,
     balance_usdc: customColors.akashRed,
@@ -156,6 +158,8 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
     <Card>
       <CardHeader>
         <CardTitle className="text-2xl font-bold">Your Account</CardTitle>
+
+        {!isAnonymousFreeTrialEnabled && isTrialing && <TrialDeploymentBadge />}
       </CardHeader>
 
       <CardContent>
@@ -227,13 +231,13 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
               <div className="mt-4 flex gap-2">
                 <Link href={UrlService.newDeployment()} className={cn(buttonVariants({ variant: "default" }))} onClick={onDeployClick}>
                   Deploy
-                  <Rocket className="ml-4rotate-45 text-sm" />
+                  <Rocket className="ml-2 rotate-45 text-sm" />
                 </Link>
                 {isManagedWallet && (
                   <>
                     <AddFundsLink className={cn(buttonVariants({ variant: "default" }))} href={UrlService.payment()}>
-                      Add Funds
-                      <HandCard className="ml-4 rotate-45 text-sm" />
+                      <span className="whitespace-nowrap">Add Funds</span>
+                      <HandCard className="ml-2 text-xs" />
                     </AddFundsLink>
                   </>
                 )}

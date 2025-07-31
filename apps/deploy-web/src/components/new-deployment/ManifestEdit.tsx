@@ -37,6 +37,7 @@ import { domainName, handleDocClick, UrlService } from "@src/utils/urlUtils";
 import { useSettings } from "../../context/SettingsProvider";
 import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { DeploymentMinimumEscrowAlertText } from "../sdl/DeploymentMinimumEscrowAlertText";
+import { TrialDeploymentBadge } from "../shared";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 import { DynamicMonacoEditor } from "../shared/DynamicMonacoEditor";
 import { LinkTo } from "../shared/LinkTo";
@@ -452,6 +453,12 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
               <LinkTo onClick={ev => handleDocClick(ev, "https://akash.network/docs/getting-started/intro-to-akash/payments/#escrow-accounts")}>
                 <strong>Learn more.</strong>
               </LinkTo>
+
+              {!isAnonymousFreeTrialEnabled && isTrialing && (
+                <div className="mt-2">
+                  <TrialDeploymentBadge />
+                </div>
+              )}
             </Alert>
           }
           services={services}
