@@ -34,9 +34,14 @@ const PaginationLink = ({ className, isActive, size = "icon", disabled = false, 
     aria-disabled={disabled}
     className={cn(
       buttonVariants({
-        variant: isActive ? "outline" : "ghost",
+        variant: isActive ? "outline" : "text",
         size
       }),
+      {
+        "bg-secondary text-secondary-foreground hover:bg-secondary/80": isActive,
+        "text-current": !isActive
+      },
+      "cursor-pointer",
       disabled && "pointer-events-none cursor-not-allowed opacity-50",
       className
     )}
