@@ -1,11 +1,28 @@
+import { faker } from "@faker-js/faker";
 import type { Hono } from "hono";
 import { decode } from "jsonwebtoken";
+import { container } from "tsyringe";
+
+import { AbilityService } from "@src/auth/services/ability/ability.service";
+import { AuthService } from "@src/auth/services/auth.service";
+import type { UserWalletOutput } from "@src/billing/repositories/user-wallet/user-wallet.repository";
+import { WalletInitializerService } from "@src/billing/services";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 
 export class WalletTestingService<T extends Hono<any>> {
   constructor(private readonly app: T) {}
 
   async createUserAndWallet() {
-    const { user, token } = await this.createRegisteredUser();
+    const { user, token } = await this.createRegisteredUser({
+      username: faker.internet.displayName(),
+      email: faker.internet.email(),
+      email_verified: true,
+      name: faker.person.fullName(),
+      nickname: faker.person.firstName(),
+      picture: faker.image.url(),
+      updated_at: faker.date.recent().toISOString(),
+      sub: faker.string.uuid()
+    });
     const walletResponse = await this.app.request("/v1/start-trial", {
       method: "POST",
       body: JSON.stringify({
@@ -18,18 +35,18 @@ export class WalletTestingService<T extends Hono<any>> {
     return { user, token, wallet };
   }
 
+  /** @deprecated anonymous users will not be supported in the nearest future */
   async createAnonymousUserAndWallet() {
     const { user, token } = await this.createUser();
-    const walletResponse = await this.app.request("/v1/start-trial", {
-      method: "POST",
-      body: JSON.stringify({
-        data: { userId: user.id }
-      }),
-      headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` })
-    });
-    const { data: wallet } = (await walletResponse.json()) as any;
+    return container.resolve(ExecutionContextService).runWithContext(async () => {
+      container.resolve(AuthService).currentUser = user;
+      container.resolve(AuthService).ability = container.resolve(AbilityService).getAbilityFor("REGULAR_ANONYMOUS_USER", user);
+      const wallet = (await container.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)) as {
+        [K in keyof UserWalletOutput]: NonNullable<UserWalletOutput[K]>;
+      };
 
-    return { user, token, wallet };
+      return { user, token, wallet };
+    });
   }
 
   async createUser() {
@@ -45,24 +62,73 @@ export class WalletTestingService<T extends Hono<any>> {
   /**
    * Creates a registered user and returns the user and token.
    * Specify the user code to use for the user.
-   * "debug" will create a user with the email "dev@example.com" and the nickname "dev".
-   * "debug1" will create a user with the email "dev1@example.com" and the nickname "dev1".
-   * "debug2" through "debug20" will create users with corresponding emails and nicknames.
-   * This is setup in the docker-compose.dev.yml file.
-   * @param userCode - The user code to use for the user.
    * @returns The user and token.
    */
-  async createRegisteredUser(userCode: string = "debug") {
-    const tokenResponse = await fetch("http://localhost:8080/default/token", {
+  async createRegisteredUser(claims: {
+    username: string;
+    email: string;
+    email_verified: boolean;
+    name: string;
+    nickname: string;
+    picture: string;
+    updated_at: string;
+    sub: string;
+  }) {
+    const oauth2ServerUrl = "http://localhost:8080";
+    const redirectUri = "http://localhost:8080/api";
+    const requestParams = new URLSearchParams({
+      client_id: "debug-client",
+      scope: "openid profile email",
+      response_type: "code",
+      redirect_uri: redirectUri,
+      audience: "my-audience",
+      action: "signup",
+      nonce: "9iicXKCPLq68WIm8DPexHa4j7-qLqRpWXkxbOBjgrQI"
+    });
+    const tokenResponse = await fetch(`${oauth2ServerUrl}/default/authorize?${requestParams}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
       },
-      body: `grant_type=authorization_code&code=${userCode}&client_id=debug-client&code_verifier=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN123456`
+      redirect: "manual",
+      body: new URLSearchParams({
+        username: claims.username,
+        claims: JSON.stringify({
+          sub: claims.sub,
+          email: claims.email,
+          email_verified: claims.email_verified,
+          name: claims.name,
+          nickname: claims.nickname,
+          picture: claims.picture,
+          updated_at: claims.updated_at
+        })
+      })
     });
 
-    const tokenData = (await tokenResponse.json()) as { access_token: string };
-    const { access_token } = tokenData;
+    const redirectLocation = new URL(tokenResponse.headers.get("Location") ?? "");
+    const code = redirectLocation.searchParams.get("code") || "";
+
+    const result = await fetch(`${oauth2ServerUrl}/default/token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: redirectUri,
+        client_id: "debug-client",
+        client_secret: "debug-client-secret"
+      }).toString()
+    });
+    const { access_token } = (await result.json()) as {
+      token_type: string;
+      access_token: string;
+      refresh_token: string;
+      id_token: string;
+      expires_in: number;
+    };
+
     const decoded = decode(access_token) as { sub: string; email: string; nickname: string; email_verified: boolean };
 
     const userResponse = await this.app.request(`/user/tokenInfo`, {

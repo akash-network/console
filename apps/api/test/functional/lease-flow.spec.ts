@@ -32,7 +32,7 @@ describe("Lease Flow", () => {
   const yml = createSdlYml();
 
   async function createTestUser() {
-    const { user, wallet } = await walletService.createAnonymousUserAndWallet();
+    const { user, wallet } = await walletService.createUserAndWallet();
     const userWithId = { ...user, userId: faker.string.uuid() };
     config = stub<CoreConfigService>({ get: jest.fn() });
     config.get.mockReturnValue("test");

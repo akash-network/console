@@ -25,7 +25,7 @@
     "release": "release-it",
     "start": "webpack --config webpack.dev.js --watch",
     "test": "jest --selectProjects unit functional",
-    "test:ci-setup": "dc up:db",
+    "test:ci-setup": "dc up:dev -d db mock-oauth2-server",
     "test:ci-teardown": "dc down",
     "test:cov": "jest --selectProjects unit functional --coverage --reporters=default --reporters=jest-junit",
     "test:functional": "jest --selectProjects functional",

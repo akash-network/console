@@ -31,7 +31,7 @@ describe("API Keys", () => {
   // Refactor once the proper auth0 mocking is implemented
   // https://github.com/akash-network/console/issues/552
   async function createTestUser(trial = false) {
-    const { user, token } = await walletService.createAnonymousUserAndWallet();
+    const { user, token } = await walletService.createUserAndWallet();
     const userWithId = { ...user, userId: faker.string.uuid() };
 
     jest.spyOn(userRepository, "findByUserId").mockImplementation(async id => {
