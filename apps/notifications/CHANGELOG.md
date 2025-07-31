@@ -1,5 +1,12 @@
 
 
+## [1.20.0](https://github.com/akash-network/console/compare/notifications/v1.19.0...notifications/v1.20.0) (2025-07-31)
+
+
+### Features
+
+* **billing:** add stripe charges table list to usage ui  ([81e9d42](https://github.com/akash-network/console/commit/81e9d42d254bee6248451aecde8868ccbf018d89))
+
 ## [1.19.0](https://github.com/akash-network/console/compare/notifications/v1.18.1...notifications/v1.19.0) (2025-07-27)
 
 

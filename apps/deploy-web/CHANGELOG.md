@@ -1,5 +1,17 @@
 
 
+## [2.98.0](https://github.com/akash-network/console/compare/console-web/v2.97.1...console-web/v2.98.0) (2025-07-31)
+
+
+### Features
+
+* **billing:** add composable guard for usage page ([#1710](https://github.com/akash-network/console/issues/1710)) ([a397e64](https://github.com/akash-network/console/commit/a397e640d1175e3b5c0f5ab7d334b2e9236522d5))
+* **billing:** add date filtering to usage ui ([21debff](https://github.com/akash-network/console/commit/21debff21de5c78eec914ea101cbd1ffd8f16d37))
+* **billing:** add stripe charges table list to usage ui  ([81e9d42](https://github.com/akash-network/console/commit/81e9d42d254bee6248451aecde8868ccbf018d89))
+* **billing:** add usage trend indicator ui ([#1709](https://github.com/akash-network/console/issues/1709)) ([c25683c](https://github.com/akash-network/console/commit/c25683c3d89c5fa956dee091a9a967e9fdfe8704))
+* **billing:** validate payment methods trial ([#1750](https://github.com/akash-network/console/issues/1750)) ([1776442](https://github.com/akash-network/console/commit/17764422232ac089fd4b48225d3b148e077947b6))
+* **deployment:** implement trial deployment badge ([#1764](https://github.com/akash-network/console/issues/1764)) ([3e2fdae](https://github.com/akash-network/console/commit/3e2fdaee9f03bb95235f1f3171665111004807f8))
+
 ## [2.97.1](https://github.com/akash-network/console/compare/console-web/v2.97.0...console-web/v2.97.1) (2025-07-28)
 
 

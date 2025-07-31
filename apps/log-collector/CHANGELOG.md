@@ -1,5 +1,12 @@
 
 
+## [1.3.0](https://github.com/akash-network/console/compare/log-collector/v1.2.0...log-collector/v1.3.0) (2025-07-31)
+
+
+### Features
+
+* **billing:** add stripe charges table list to usage ui  ([81e9d42](https://github.com/akash-network/console/commit/81e9d42d254bee6248451aecde8868ccbf018d89))
+
 ## [1.2.0](https://github.com/akash-network/console/compare/log-collector/v1.1.0...log-collector/v1.2.0) (2025-07-27)
 
 

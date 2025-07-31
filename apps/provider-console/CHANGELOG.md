@@ -1,5 +1,13 @@
 
 
+## [1.19.0](https://github.com/akash-network/console/compare/provider-console/v1.18.0...provider-console/v1.19.0) (2025-07-31)
+
+
+### Features
+
+* **billing:** add stripe charges table list to usage ui  ([81e9d42](https://github.com/akash-network/console/commit/81e9d42d254bee6248451aecde8868ccbf018d89))
+* **deployment:** implement trial deployment badge ([#1764](https://github.com/akash-network/console/issues/1764)) ([3e2fdae](https://github.com/akash-network/console/commit/3e2fdaee9f03bb95235f1f3171665111004807f8))
+
 ## [1.18.0](https://github.com/akash-network/console/compare/provider-console/v1.17.0...provider-console/v1.18.0) (2025-07-27)
 
 
