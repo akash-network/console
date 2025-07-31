@@ -62,11 +62,9 @@ describe("TrialDeploymentTooltip", () => {
   it("renders HandCard icon in Add Funds button", () => {
     setup({ createdHeight: 10000000 });
 
-    // The HandCard icon is rendered as an SVG, so we can check for its presence
     const addFundsButton = screen.getByText("Add Funds");
     expect(addFundsButton).toBeInTheDocument();
 
-    // Check that the SVG icon is present (HandCard renders as an SVG)
     const svgIcon = addFundsButton.closest("div")?.querySelector("svg");
     expect(svgIcon).toBeInTheDocument();
   });
@@ -84,7 +82,6 @@ describe("TrialDeploymentTooltip", () => {
 
     expect(screen.getByText("Trial Deployment")).toBeInTheDocument();
     expect(screen.getByText("Time remaining:")).toBeInTheDocument();
-    // The empty span should be present but not contain any text
     const timeRemainingSpan = screen.getByText("Time remaining:").closest("p")?.querySelector("span");
     expect(timeRemainingSpan).toHaveClass("font-medium", "text-primary");
     expect(timeRemainingSpan?.textContent).toBe("");

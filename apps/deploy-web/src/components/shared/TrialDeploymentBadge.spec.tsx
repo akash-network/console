@@ -92,7 +92,7 @@ describe("TrialDeploymentBadge", () => {
 
     const badge = screen.queryByText("Trial");
     expect(badge).toBeInTheDocument();
-    // Check that the badge is rendered (the actual styling is handled by the Badge component)
+
     expect(badge?.closest("div")).toBeInTheDocument();
   });
 
@@ -101,7 +101,7 @@ describe("TrialDeploymentBadge", () => {
 
     const badge = screen.queryByText("Trial");
     expect(badge).toBeInTheDocument();
-    // Check that the badge is rendered (the actual styling is handled by the Badge component)
+
     expect(badge?.closest("div")).toBeInTheDocument();
   });
 
@@ -110,7 +110,7 @@ describe("TrialDeploymentBadge", () => {
 
     const badge = screen.queryByText("Trial");
     expect(badge).toBeInTheDocument();
-    // Check that the badge is rendered (the actual styling is handled by the Badge component)
+
     expect(badge?.closest("div")).toBeInTheDocument();
   });
 
