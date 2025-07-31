@@ -5,6 +5,8 @@ import { cn } from "@akashnetwork/ui/utils";
 import { format } from "date-fns";
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 
+import { TrendIndicator } from "@src/components/billing-usage/TrendIndicator/TrendIndicator";
+
 export type CumulativeSpendingChartData = Array<{
   date: string;
   totalUsdSpent: number;
@@ -79,6 +81,7 @@ export const CumulativeSpendingLineChart: FC<CumulativeSpendingLineChartProps> =
             />
           </C.LineChart>
         </ChartContainer>
+        <TrendIndicator isFetching={isFetching} data={data} field="totalUsdSpent" />
       </CardContent>
     </Card>
   );
