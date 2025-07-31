@@ -12,7 +12,7 @@ const common: Config.InitialOptions = {
     "^@tests(.*)$": "<rootDir>/tests/$1"
   },
   transform: {
-    "\\.tsx?$": ["ts-jest", { tsconfig: "<rootDir>/tsconfig.json" }]
+    "\\.tsx?$": ["ts-jest", { tsconfig: "<rootDir>/tsconfig.spec.json" }]
   }
 };
 
@@ -34,16 +34,15 @@ const getConfig = createJestConfig({
 export default async (): Promise<Config.InitialOptions> => {
   return {
     rootDir: ".",
+    collectCoverageFrom: ["<rootDir>/src/**/*.{js,ts,tsx}"],
     projects: [
       {
-        collectCoverageFrom: ["<rootDir>/src/**/*.{js,ts,tsx}"],
         coveragePathIgnorePatterns: ["/lib/nextjs/", "/tests/"],
         displayName: "unit",
         ...(await getConfig())
       },
       {
-        collectCoverageFrom: ["<rootDir>/src/lib/nextjs/**/*.{js,ts,tsx}"],
-        coveragePathIgnorePatterns: ["/lib/nextjs/setup-node-tests.ts", "/tests/"],
+        coveragePathIgnorePatterns: ["/lib/nextjs/setup-node-tests\\.ts$", "/tests/", "\\.spec\\.tsx?$"],
         displayName: "unit-node",
         testEnvironment: "node",
         testMatch: ["<rootDir>/src/lib/nextjs/**/*.spec.{tsx,ts}"],
