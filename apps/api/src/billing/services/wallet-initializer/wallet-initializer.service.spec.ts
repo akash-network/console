@@ -2,6 +2,7 @@ import { mock } from "jest-mock-extended";
 import { container } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { JwtTokenService } from "@src/provider/services/jwt-token/jwt-token.service";
 import { UserWalletRepository } from "../../repositories/user-wallet/user-wallet.repository";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 import { WalletInitializerService } from "./wallet-initializer.service";
@@ -15,12 +16,14 @@ describe(WalletInitializerService.name, () => {
       const userId = "test-user-id";
       const newWallet = UserWalletSeeder.create({ userId });
       const chainWallet = createChainWallet();
+      const findWalletBy = jest.fn().mockImplementation(async () => newWallet);
       const findWalletByUserId = jest.fn().mockImplementation(async () => null);
       const createWallet = jest.fn().mockImplementation(async () => newWallet);
       const createAndAuthorizeTrialSpending = jest.fn().mockImplementation(async () => chainWallet);
       const updateWalletById = jest.fn().mockImplementation(async () => newWallet);
 
       const di = setup({
+        findWalletBy,
         findWalletByUserId,
         createWallet,
         createAndAuthorizeTrialSpending,
@@ -92,26 +95,31 @@ describe(WalletInitializerService.name, () => {
         createAndAuthorizeTrialSpending: input?.createAndAuthorizeTrialSpending
       })
     );
-    di.registerInstance(
-      UserWalletRepository,
-      mock<UserWalletRepository>({
-        findOneByUserId: input?.findWalletByUserId,
-        updateById: input?.updateWalletById,
-        deleteById: input?.deleteWalletById ?? jest.fn(),
-        accessibleBy() {
-          return this as unknown as UserWalletRepository;
-        },
-        create: input?.createWallet,
-        toPublic: value => ({
-          ...value,
-          isTrialing: !!value.isTrialing
-        })
-      }) as unknown as UserWalletRepository
-    );
+    const userWalletRepositoryMock = mock<UserWalletRepository>({
+      findOneBy: input?.findWalletBy,
+      findOneByUserId: input?.findWalletByUserId,
+      updateById: input?.updateWalletById,
+      deleteById: input?.deleteWalletById ?? jest.fn(),
+      accessibleBy() {
+        return userWalletRepositoryMock;
+      },
+      create: input?.createWallet,
+      toPublic: value => ({
+        ...value,
+        isTrialing: !!value.isTrialing
+      })
+    }) as unknown as UserWalletRepository;
+    di.registerInstance(UserWalletRepository, userWalletRepositoryMock);
     di.registerInstance(
       AuthService,
       mock<AuthService>({
         ability: {}
+      })
+    );
+    di.registerInstance(
+      JwtTokenService,
+      mock<JwtTokenService>({
+        generateJwtToken: jest.fn().mockResolvedValue("mock-jwt-token")
       })
     );
 
@@ -121,6 +129,7 @@ describe(WalletInitializerService.name, () => {
   }
 
   interface SetupInput {
+    findWalletBy?: UserWalletRepository["findOneBy"];
     findWalletByUserId?: UserWalletRepository["findOneByUserId"];
     updateWalletById?: UserWalletRepository["updateById"];
     createWallet?: UserWalletRepository["create"];
