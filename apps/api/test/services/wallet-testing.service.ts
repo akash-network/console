@@ -74,6 +74,7 @@ export class WalletTestingService<T extends Hono<any>> {
     updated_at: string;
     sub: string;
   }) {
+    const oauth2ServerUrl = "http://localhost:8080";
     const redirectUri = "http://localhost:8080/api";
     const requestParams = new URLSearchParams({
       client_id: "debug-client",
@@ -84,7 +85,7 @@ export class WalletTestingService<T extends Hono<any>> {
       action: "signup",
       nonce: "9iicXKCPLq68WIm8DPexHa4j7-qLqRpWXkxbOBjgrQI"
     });
-    const tokenResponse = await fetch(`http://mock-oauth2-server:8080/default/authorize?${requestParams}`, {
+    const tokenResponse = await fetch(`${oauth2ServerUrl}/default/authorize?${requestParams}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
@@ -107,7 +108,7 @@ export class WalletTestingService<T extends Hono<any>> {
     const redirectLocation = new URL(tokenResponse.headers.get("Location") ?? "");
     const code = redirectLocation.searchParams.get("code") || "";
 
-    const result = await fetch(`http://mock-oauth2-server:8080/default/token`, {
+    const result = await fetch(`${oauth2ServerUrl}/default/token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
