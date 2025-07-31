@@ -86,6 +86,18 @@ describe("TrialDeploymentBadge", () => {
     });
     MockInfo.displayName = "Info";
 
+    const MockHandCard = React.forwardRef<SVGSVGElement, any>((props, ref) => {
+      return <svg ref={ref} {...props} />;
+    });
+    MockHandCard.displayName = "HandCard";
+
+    const mockUrlService = {
+      payment: jest.fn().mockReturnValue("/payment")
+    } as any;
+
+    const mockButtonVariants = jest.fn().mockReturnValue("button-classes");
+    const mockCn = jest.fn().mockReturnValue("combined-classes");
+
     const props = {
       createdHeight: 10000000,
       trialDurationHours: input.trialDurationHours || 24,
@@ -96,6 +108,11 @@ describe("TrialDeploymentBadge", () => {
         Badge: ComponentMock,
         CustomTooltip: ComponentMock,
         Info: MockInfo,
+        HandCard: MockHandCard,
+        UrlService: mockUrlService,
+        AddFundsLink: ComponentMock,
+        buttonVariants: mockButtonVariants,
+        cn: mockCn,
         useBlock: mockUseBlock
       }
     };
