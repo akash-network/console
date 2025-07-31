@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useRealTimeLeft } from "@src/hooks/useRealTimeLeft";
 import { useDenomData } from "@src/hooks/useWalletBalance";
@@ -35,6 +36,7 @@ import { getAvgCostPerMonth, getTimeLeft } from "@src/utils/priceUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { UrlService } from "@src/utils/urlUtils";
 import { useLocalNotes } from "../../context/LocalNoteProvider";
+import { TrialDeploymentBadge } from "../shared";
 import { CopyTextToClipboardButton } from "../shared/CopyTextToClipboardButton";
 import { CustomDropdownLinkItem } from "../shared/CustomDropdownLinkItem";
 import { PricePerMonth } from "../shared/PricePerMonth";
@@ -60,7 +62,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const [open, setOpen] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
   const { changeDeploymentName, getDeploymentData } = useLocalNotes();
-  const { address, signAndBroadcastTx, isManaged: isManagedWallet } = useWallet();
+  const { address, signAndBroadcastTx, isManaged: isManagedWallet, isTrialing } = useWallet();
   const isActive = deployment.state === "active";
   const { data: leases, isLoading: isLoadingLeases } = useAllLeases(address, { enabled: !!deployment && isActive });
   const filteredLeases = leases?.filter(l => l.dseq === deployment.dseq);
@@ -84,6 +86,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const provider = providersByOwner[lease?.provider || ""];
   const { localCert } = useCertificate();
   const { data: leaseStatus } = useLeaseStatus({ provider, lease, enabled: !!(provider && lease && localCert) });
+  const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
 
   const viewDeployment = useCallback(
     (event: React.MouseEvent) => {
@@ -179,6 +182,12 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         </TableCell>
         <TableCell className="max-w-[100px] text-center">
           <DeploymentName deployment={deployment} deploymentServices={leaseStatus?.services} providerHostUri={provider?.hostUri} />
+
+          {!isAnonymousFreeTrialEnabled && isTrialing && (
+            <div className="mt-2">
+              <TrialDeploymentBadge createdHeight={deployment.createdAt} />
+            </div>
+          )}
         </TableCell>
         <TableCell className="text-center">
           <div className="flex items-center justify-center gap-x-1">

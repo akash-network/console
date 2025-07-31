@@ -70,8 +70,8 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
 
       <div className="flex flex-col items-center justify-end space-y-2 pt-2">
         <AddFundsLink className={cn("w-full hover:no-underline", buttonVariants({ variant: "default" }))} href={UrlService.payment()}>
-          <HandCard className="text-xs" />
-          <span className="m-2 whitespace-nowrap">Add Funds</span>
+          <span className="whitespace-nowrap">Add Funds</span>
+          <HandCard className="ml-2 text-xs" />
         </AddFundsLink>
         <Separator className="my-2 bg-secondary/90 dark:bg-white/10" />
         <Button onClick={isWalletConnected ? switchWalletType : connect} variant="outline" className="w-full space-x-2">
