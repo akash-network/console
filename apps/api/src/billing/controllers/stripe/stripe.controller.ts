@@ -5,7 +5,7 @@ import { singleton } from "tsyringe";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
 import { ApplyCouponRequest, ConfirmPaymentRequest, Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
-import { StripeService } from "@src/billing/services/stripe/stripe.service";
+import { PaymentMethod, StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import { Semaphore } from "@src/core/lib/semaphore.decorator";
 
@@ -33,7 +33,7 @@ export class StripeController {
   }
 
   @Protected([{ action: "read", subject: "StripePayment" }])
-  async getPaymentMethods(): Promise<{ data: Stripe.PaymentMethod[] }> {
+  async getPaymentMethods(): Promise<{ data: PaymentMethod[] }> {
     const { currentUser } = this.authService;
 
     if (!currentUser.stripeCustomerId) {
