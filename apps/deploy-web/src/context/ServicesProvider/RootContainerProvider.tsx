@@ -1,7 +1,7 @@
 import { useContext } from "react";
 
+import { services as rootContainer } from "@src/services/app-di-container/browser-di-container";
 import { createChildContainer, type DIContainer } from "@src/services/container/createContainer";
-import { services as rootContainer } from "@src/services/http/http-browser.service";
 import type { RootContainer } from "./ServicesContext";
 import { ServicesContext } from "./ServicesContext";
 

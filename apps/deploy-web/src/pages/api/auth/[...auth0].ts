@@ -6,8 +6,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 import type { ServerEnvConfig } from "@src/config/env-config.schema";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
+import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import type { SeverityLevel } from "@src/services/error-handler/error-handler.service";
-import type { AppServices } from "@src/services/http/http-server.service";
 
 export default defineApiHandler({
   route: "/api/auth/[...auth0]",

@@ -5,7 +5,7 @@ import type { GetServerSidePropsContext, GetServerSidePropsResult } from "next";
 import type { z } from "zod";
 import { z as zod, ZodError } from "zod";
 
-import { services } from "@src/services/http/http-server.service";
+import { services } from "@src/services/app-di-container/server-di-container.service";
 import { requestExecutionContext } from "../requestExecutionContext";
 import type { AppTypedContext } from "./defineServerSideProps";
 import { defineServerSideProps } from "./defineServerSideProps";
