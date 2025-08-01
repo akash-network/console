@@ -4,11 +4,11 @@ import { requestFn } from "@openapi-qraft/react";
 import * as unleashModule from "@unleash/nextjs";
 
 import { serverEnvConfig } from "@src/config/server-env.config";
-import { createAppRootContainer } from "@src/services/app-di-container/app-di-container";
 import { ApiUrlService } from "../api-url/api-url.service";
 import { clientIpForwardingInterceptor } from "../client-ip-forwarding/client-ip-forwarding.interceptor";
 import { createChildContainer } from "../container/createContainer";
 import { FeatureFlagService } from "../feature-flag/feature-flag.service";
+import { createAppRootContainer } from "./app-di-container";
 
 const rootContainer = createAppRootContainer({
   ...serverEnvConfig,

@@ -3,13 +3,13 @@ import { requestFn } from "@openapi-qraft/react";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { ApiUrlService } from "@src/services/api-url/api-url.service";
-import { createAppRootContainer } from "@src/services/app-di-container/app-di-container";
 import networkStore from "@src/store/networkStore";
 import { createChildContainer } from "../container/createContainer";
 import { BitbucketService } from "../remote-deploy/bitbucket-http.service";
 import { GitHubService } from "../remote-deploy/github-http.service";
 import { GitLabService } from "../remote-deploy/gitlab-http.service";
 import { UserProviderService } from "../user-provider/user-provider.service";
+import { createAppRootContainer } from "./app-di-container";
 
 const rootContainer = createAppRootContainer({
   runtimeEnv: "browser",

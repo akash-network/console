@@ -6,7 +6,7 @@ import { useSnackbar } from "notistack";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { services } from "@src/services/http/http-browser.service";
+import { services } from "@src/services/app-di-container/browser-di-container";
 
 export const useEmailVerificationRequiredEventHandler = (): ((messageOtherwise: string) => (callback: MouseEventHandler) => MouseEventHandler) => {
   const { requireAction } = usePopup();
