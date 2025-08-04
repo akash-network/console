@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
 import { Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
-import { PaymentMethodRepository, UserWalletRepository } from "@src/billing/repositories";
+import { PaymentMethodRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { LoggerService } from "@src/core/providers/logging.provider";
@@ -30,8 +30,7 @@ export class StripeService extends Stripe {
     private readonly billingConfig: BillingConfigService,
     private readonly userRepository: UserRepository,
     private readonly refillService: RefillService,
-    private readonly paymentMethodRepository: PaymentMethodRepository,
-    private readonly userWalletRepository: UserWalletRepository
+    private readonly paymentMethodRepository: PaymentMethodRepository
   ) {
     super(billingConfig.get("STRIPE_SECRET_KEY"), {
       apiVersion: "2024-06-20"
@@ -93,7 +92,7 @@ export class StripeService extends Stripe {
     return orderBy(responsePrices, ["isCustom", "unitAmount"], ["asc", "asc"]) as StripePrices[];
   }
 
-  async getPaymentMethods(customerId: string) {
+  async getPaymentMethods(customerId: string): Promise<PaymentMethod[]> {
     const paymentMethods = await this.paymentMethods.list({
       customer: customerId
     });
@@ -439,7 +438,7 @@ export class StripeService extends Stripe {
     return reloaded.stripeCustomerId;
   }
 
-  async hasDuplicateTrialAccount(paymentMethods: Stripe.PaymentMethod[], currentUserId: string): Promise<boolean> {
+  async hasDuplicateTrialAccount(paymentMethods: PaymentMethod[], currentUserId: string): Promise<boolean> {
     logger.info({
       event: "VALIDATING_PAYMENT_METHODS_FOR_TRIAL",
       paymentMethodCount: paymentMethods.length,
@@ -452,4 +451,35 @@ export class StripeService extends Stripe {
 
     return !!otherPaymentMethods;
   }
+}
+
+export interface PaymentMethod {
+  type: string;
+  id: string;
+  card?: {
+    brand: string | null;
+    last4: string | null;
+    exp_month: number;
+    exp_year: number;
+    funding?: string | null;
+    country?: string | null;
+    network?: string | null;
+    fingerprint?: string | null;
+    three_d_secure_usage?: {
+      supported?: boolean | null;
+    } | null;
+  } | null;
+  billing_details?: {
+    address?: {
+      city: string | null;
+      country: string | null;
+      line1: string | null;
+      line2: string | null;
+      postal_code: string | null;
+      state: string | null;
+    } | null;
+    email?: string | null;
+    name?: string | null;
+    phone?: string | null;
+  };
 }

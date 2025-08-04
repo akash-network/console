@@ -8,29 +8,14 @@ import { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletOutput } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { WalletInitializerService } from "@src/billing/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import type { UserOutput } from "@src/user/repositories";
 
 export class WalletTestingService<T extends Hono<any>> {
   constructor(private readonly app: T) {}
 
   async createUserAndWallet() {
-    const { user, token } = await this.createRegisteredUser({
-      username: faker.internet.displayName(),
-      email: faker.internet.email(),
-      email_verified: true,
-      name: faker.person.fullName(),
-      nickname: faker.person.firstName(),
-      picture: faker.image.url(),
-      updated_at: faker.date.recent().toISOString(),
-      sub: faker.string.uuid()
-    });
-    const walletResponse = await this.app.request("/v1/start-trial", {
-      method: "POST",
-      body: JSON.stringify({
-        data: { userId: user.id }
-      }),
-      headers: new Headers({ "Content-Type": "application/json", authorization: `Bearer ${token}` })
-    });
-    const { data: wallet } = (await walletResponse.json()) as any;
+    const { user, token } = await this.createRegisteredUser();
+    const wallet = await this.createWallet(user);
 
     return { user, token, wallet };
   }
@@ -38,14 +23,18 @@ export class WalletTestingService<T extends Hono<any>> {
   /** @deprecated anonymous users will not be supported in the nearest future */
   async createAnonymousUserAndWallet() {
     const { user, token } = await this.createUser();
+    const wallet = await this.createWallet(user);
+
+    return { user, token, wallet };
+  }
+
+  private async createWallet(user: UserOutput) {
     return container.resolve(ExecutionContextService).runWithContext(async () => {
       container.resolve(AuthService).currentUser = user;
       container.resolve(AuthService).ability = container.resolve(AbilityService).getAbilityFor("REGULAR_ANONYMOUS_USER", user);
-      const wallet = (await container.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)) as {
+      return (await container.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)) as {
         [K in keyof UserWalletOutput]: NonNullable<UserWalletOutput[K]>;
       };
-
-      return { user, token, wallet };
     });
   }
 
@@ -64,16 +53,18 @@ export class WalletTestingService<T extends Hono<any>> {
    * Specify the user code to use for the user.
    * @returns The user and token.
    */
-  async createRegisteredUser(claims: {
-    username: string;
-    email: string;
-    email_verified: boolean;
-    name: string;
-    nickname: string;
-    picture: string;
-    updated_at: string;
-    sub: string;
-  }) {
+  async createRegisteredUser(
+    claims: Partial<{
+      username: string;
+      email: string;
+      email_verified: boolean;
+      name: string;
+      nickname: string;
+      picture: string;
+      updated_at: string;
+      sub: string;
+    }> = {}
+  ) {
     const oauth2ServerUrl = "http://localhost:8080";
     const redirectUri = "http://localhost:8080/api";
     const requestParams = new URLSearchParams({
@@ -92,15 +83,15 @@ export class WalletTestingService<T extends Hono<any>> {
       },
       redirect: "manual",
       body: new URLSearchParams({
-        username: claims.username,
+        username: claims.username ?? faker.internet.displayName(),
         claims: JSON.stringify({
-          sub: claims.sub,
-          email: claims.email,
-          email_verified: claims.email_verified,
-          name: claims.name,
-          nickname: claims.nickname,
-          picture: claims.picture,
-          updated_at: claims.updated_at
+          sub: claims.sub ?? faker.string.uuid(),
+          email: claims.email ?? faker.internet.email(),
+          email_verified: claims.email_verified ?? true,
+          name: claims.name ?? faker.person.fullName(),
+          nickname: claims.nickname ?? faker.person.firstName(),
+          picture: claims.picture ?? faker.image.url(),
+          updated_at: claims.updated_at ?? faker.date.recent().toISOString()
         })
       })
     });
