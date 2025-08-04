@@ -120,7 +120,7 @@ export class NetworkStore {
           network.versionUrl = this.options.apiBaseUrl + network.versionUrl;
           network.nodesUrl = this.options.apiBaseUrl + network.nodesUrl;
 
-          const response = await axios.get<string>(network.versionUrl, { timeout: 10000 });
+          const response = await axios.get<string>(network.versionUrl, { timeout: 10000, adapter: "fetch" });
           network.version = response.data;
 
           return network;

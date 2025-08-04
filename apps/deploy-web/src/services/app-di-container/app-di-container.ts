@@ -28,7 +28,7 @@ import { ProviderProxyService } from "../provider-proxy/provider-proxy.service";
 import { StripeService } from "../stripe/stripe.service";
 
 export const createAppRootContainer = (config: ServicesConfig) => {
-  const apiConfig = { baseURL: config.BASE_API_MAINNET_URL };
+  const apiConfig = { baseURL: config.BASE_API_MAINNET_URL, adapter: "fetch" };
   const container = createContainer({
     getTraceData: () => getTraceData,
     applyAxiosInterceptors: (): typeof withInterceptors => {
@@ -81,7 +81,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         request: [container.authService.withAnonymousUserHeader]
       }),
     apiKey: () =>
-      container.applyAxiosInterceptors(new ApiKeyHttpService(), {
+      container.applyAxiosInterceptors(new ApiKeyHttpService(apiConfig), {
         request: [container.authService.withAnonymousUserHeader]
       }),
     externalApiHttpClient: () =>
@@ -94,7 +94,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
     createAxios:
       () =>
       (options?: CreateAxiosDefaults): AxiosInstance =>
-        withInterceptors(axios.create(options), {
+        withInterceptors(axios.create({ ...options, adapter: "fetch" }), {
           request: [config.globalRequestMiddleware]
         }),
     certificateManager: () => certificateManager,
@@ -104,7 +104,8 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       container.applyAxiosInterceptors(
         new ManagedWalletHttpService(
           {
-            baseURL: container.apiUrlService.getBaseApiUrlFor(config.MANAGED_WALLET_NETWORK_ID)
+            baseURL: container.apiUrlService.getBaseApiUrlFor(config.MANAGED_WALLET_NETWORK_ID),
+            adapter: "fetch"
           },
           container.analyticsService
         ),
@@ -146,7 +147,7 @@ export interface ServicesConfig {
   apiUrlService: () => ApiUrlService;
 }
 
-function withInterceptors<T extends Axios | AxiosInstance = AxiosInstance>(axios: T, interceptors?: Interceptors) {
+export function withInterceptors<T extends Axios | AxiosInstance = AxiosInstance>(axios: T, interceptors?: Interceptors) {
   interceptors?.request?.forEach(interceptor => axios.interceptors.request.use(interceptor));
   interceptors?.response?.forEach(interceptor => axios.interceptors.response.use(interceptor));
   return axios;

@@ -6,38 +6,12 @@ import { MdInfo } from "react-icons/md";
 import { Button } from "@akashnetwork/ui/components";
 import type { TurnstileInstance } from "@marsidev/react-turnstile";
 import { Turnstile as ReactTurnstile } from "@marsidev/react-turnstile";
-import type { Axios, AxiosError, AxiosResponse } from "axios";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 
 import { useWhen } from "@src/hooks/useWhen";
-import { services } from "@src/services/app-di-container/browser-di-container";
-
-const HTTP_SERVICES = [
-  services.managedWalletService,
-  services.user,
-  services.stripe,
-  services.tx,
-  services.template,
-  services.auth,
-  services.deploymentSetting
-];
 
 let originalFetch: typeof fetch | undefined;
-
-const addResponseInterceptor = (intercept: (service: Axios, value: AxiosError) => AxiosResponse | Promise<AxiosResponse>) => {
-  const removes = HTTP_SERVICES.map(service => {
-    const interceptorId = service.interceptors.response.use(null, error => intercept(service, error));
-
-    return () => {
-      service.interceptors.response.eject(interceptorId);
-    };
-  });
-
-  return () => {
-    removes.forEach(remove => remove());
-  };
-};
 
 type TurnstileStatus = "uninitialized" | "solved" | "interactive" | "expired" | "error" | "dismissed";
 
@@ -78,7 +52,13 @@ export const Turnstile: FC<TurnstileProps> = ({ enabled, siteKey, components: c 
   }, [resetWidget]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      if (typeof originalFetch === "function") {
+        globalThis.fetch = originalFetch;
+        originalFetch = undefined;
+      }
+      return;
+    }
 
     if (typeof globalThis.fetch === "function") {
       originalFetch = originalFetch || globalThis.fetch;
@@ -94,16 +74,7 @@ export const Turnstile: FC<TurnstileProps> = ({ enabled, siteKey, components: c 
       };
     }
 
-    const ejectInterceptors = addResponseInterceptor(async (service, error) => {
-      if (error?.response?.headers["cf-mitigated"] === "challenge" && turnstileRef.current && (await renderTurnstileAndWaitForResponse())) {
-        return service.request(error.config!);
-      }
-
-      return Promise.reject(error);
-    });
-
     return () => {
-      ejectInterceptors();
       if (typeof originalFetch === "function") {
         globalThis.fetch = originalFetch;
         originalFetch = undefined;

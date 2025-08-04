@@ -59,7 +59,7 @@ export class AuthzHttpService extends HttpService {
 
   private readonly FEE_ALLOWANCE_TYPE: FeeAllowance["allowance"]["@type"] = "/cosmos.feegrant.v1beta1.BasicAllowance";
 
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
+  constructor(config?: Pick<AxiosRequestConfig, "baseURL" | "adapter">) {
     super(config);
   }
 

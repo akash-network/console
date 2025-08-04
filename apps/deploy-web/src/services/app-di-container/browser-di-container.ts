@@ -1,6 +1,7 @@
 import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { requestFn } from "@openapi-qraft/react";
 
+import { ANONYMOUS_USER_TOKEN_KEY } from "@src/config/auth.config";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { ApiUrlService } from "@src/services/api-url/api-url.service";
 import networkStore from "@src/store/networkStore";
@@ -8,8 +9,7 @@ import { createChildContainer } from "../container/createContainer";
 import { BitbucketService } from "../remote-deploy/bitbucket-http.service";
 import { GitHubService } from "../remote-deploy/github-http.service";
 import { GitLabService } from "../remote-deploy/gitlab-http.service";
-import { UserProviderService } from "../user-provider/user-provider.service";
-import { createAppRootContainer } from "./app-di-container";
+import { createAppRootContainer, withInterceptors } from "./app-di-container";
 
 const rootContainer = createAppRootContainer({
   runtimeEnv: "browser",
@@ -20,7 +20,6 @@ const rootContainer = createAppRootContainer({
 });
 
 export const services = createChildContainer(rootContainer, {
-  userProviderService: () => new UserProviderService(),
   notificationsApi: () =>
     createAPIClient({
       requestFn,
@@ -30,12 +29,26 @@ export const services = createChildContainer(rootContainer, {
   githubService: () => new GitHubService(services.internalApiHttpClient, services.createAxios),
   bitbucketService: () => new BitbucketService(services.internalApiHttpClient, services.createAxios),
   gitlabService: () => new GitLabService(services.internalApiHttpClient, services.createAxios),
-  internalApiHttpClient: () => services.createAxios(),
+  internalApiHttpClient: () =>
+    withInterceptors(services.createAxios(), {
+      request: [
+        config => {
+          const token = localStorage.getItem(ANONYMOUS_USER_TOKEN_KEY);
+
+          if (token) {
+            config.headers.set("authorization", `Bearer ${token}`);
+          }
+
+          return config;
+        }
+      ]
+    }),
   consoleApiHttpClient: () =>
-    services.applyAxiosInterceptors(services.createAxios({ baseURL: browserEnvConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL }), {
+    services.applyAxiosInterceptors(services.createAxios({ baseURL: services.appConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL }), {
       request: [services.authService.withAnonymousUserHeader]
     }),
   /** TODO: https://github.com/akash-network/console/issues/1720 */
   publicConsoleApiHttpClient: () => services.applyAxiosInterceptors(services.createAxios()),
-  networkStore: () => networkStore
+  networkStore: () => networkStore,
+  appConfig: () => browserEnvConfig
 });
