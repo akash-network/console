@@ -2,9 +2,9 @@ import React, { useContext } from "react";
 import { AuthzHttpService, CertificatesService } from "@akashnetwork/http-sdk";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
+import { services as rootContainer } from "@src/services/app-di-container/browser-di-container";
 import type { DIContainer, Factories } from "@src/services/container/createContainer";
 import { createChildContainer } from "@src/services/container/createContainer";
-import { services as rootContainer } from "@src/services/http/http-browser.service";
 import { WalletBalancesService } from "@src/services/wallet-balances/wallet-balances.service";
 import type { Settings } from "../SettingsProvider/SettingsProviderContext";
 import { useSettings } from "../SettingsProvider/SettingsProviderContext";

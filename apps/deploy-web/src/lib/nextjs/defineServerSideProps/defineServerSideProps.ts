@@ -4,7 +4,7 @@ import type { GetServerSideProps, GetServerSidePropsContext, GetServerSidePropsR
 import type { ParsedUrlQuery } from "querystring";
 import type { z } from "zod";
 
-import { services } from "@src/services/http/http-server.service";
+import { services } from "@src/services/app-di-container/server-di-container.service";
 import { createRequestExecutionContext, requestExecutionContext } from "../requestExecutionContext";
 
 export interface WrapServerSideOptions<TSchema extends z.ZodSchema<any> | undefined, TProps, TParams extends ParsedUrlQuery, TPreviewData extends PreviewData> {

@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 
 import { useWhen } from "@src/hooks/useWhen";
-import { services } from "@src/services/http/http-browser.service";
+import { services } from "@src/services/app-di-container/browser-di-container";
 
 const HTTP_SERVICES = [
   services.managedWalletService,
