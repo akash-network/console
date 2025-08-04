@@ -1,5 +1,6 @@
 import * as JwtModule from "@akashnetwork/jwt";
 import type { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import { faker } from "@faker-js/faker";
 import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
 import { container } from "tsyringe";
@@ -8,45 +9,63 @@ import * as WalletModule from "@src/billing/lib/wallet/wallet";
 import type { BillingConfig } from "@src/billing/providers";
 import { JwtTokenService } from "./jwt-token.service";
 
+import { createAkashAddress } from "@test/seeders";
+
 describe("JwtTokenService", () => {
   const mockMnemonic = "test mnemonic phrase for testing purposes only";
-  const mockWalletId = 123;
   const mockAddress = "akash1testaddress123456789";
-  const mockToken =
-    "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJha2FzaDF0ZXN0YWRkcmVzcyIsImV4cCI6MTcwMDAwMDAxMCwibmJmIjoxNzAwMDAwMDAwLCJpYXQiOjE3MDAwMDAwMDAsImp0aSI6InRlc3QtdXVpZCIsInZlcnNpb24iOiJ2MSIsImxlYXNlcyI6eyJhY2Nlc3MiOiJmdWxsIn19.test-signature";
 
   describe("generateJwtToken", () => {
     it("should generate a JWT token successfully", async () => {
-      const { jwtTokenService, mockWallet } = setup();
+      const { jwtTokenService, mockWalletId, mockWallet, mockProvider } = setup();
 
       const now = Math.floor(Date.now() / 1000);
       jest.spyOn(Date, "now").mockReturnValue(now * 1000);
 
-      const result = await jwtTokenService.generateJwtToken(mockWalletId);
+      const result = JSON.parse(await jwtTokenService.generateJwtToken({ walletId: mockWalletId, provider: mockProvider }));
 
-      expect(result).toBe(mockToken);
+      expect(result.leases).toEqual({
+        access: "granular",
+        permissions: [
+          {
+            provider: mockProvider,
+            access: "full"
+          }
+        ]
+      });
       expect(WalletModule.Wallet).toHaveBeenCalledWith(mockMnemonic, mockWalletId);
       expect(mockWallet.getInstance).toHaveBeenCalled();
     });
 
+    it("memoizes JWT Token generation", async () => {
+      const { jwtTokenService, mockWalletId, mockProvider } = setup();
+
+      await jwtTokenService.generateJwtToken({ walletId: mockWalletId, provider: mockProvider });
+      await jwtTokenService.generateJwtToken({ walletId: mockWalletId, provider: mockProvider });
+
+      expect(WalletModule.Wallet).toHaveBeenCalledTimes(1);
+      expect(JwtModule.createSignArbitraryAkashWallet).toHaveBeenCalledTimes(1);
+      expect(JwtModule.JwtToken).toHaveBeenCalledTimes(1);
+    });
+
     it("should generate unique jti for each token", async () => {
-      const { jwtTokenService, mockCreateToken } = setup();
+      const { jwtTokenService, mockWalletId, mockProvider } = setup();
 
-      await jwtTokenService.generateJwtToken(mockWalletId);
-      await jwtTokenService.generateJwtToken(mockWalletId);
+      const tokens = (
+        await Promise.all([
+          jwtTokenService.generateJwtToken({ walletId: mockWalletId, provider: mockProvider }),
+          jwtTokenService.generateJwtToken({ walletId: mockWalletId, provider: mockProvider })
+        ])
+      ).map(token => JSON.parse(token));
 
-      expect(JwtModule.JwtToken).toHaveBeenCalledTimes(2);
-
-      const createTokenCalls = jest.mocked(mockCreateToken).mock.calls;
-      const jtis = createTokenCalls.map(call => call[0].jti);
-      expect(jtis[0]).not.toBe(jtis[1]);
+      expect(tokens[0].jti).not.toBe(tokens[1].jti);
     });
 
     it("should work with different wallet IDs", async () => {
-      const { jwtTokenService } = setup();
+      const { jwtTokenService, mockProvider } = setup();
 
-      await jwtTokenService.generateJwtToken(1);
-      await jwtTokenService.generateJwtToken(999);
+      await jwtTokenService.generateJwtToken({ walletId: 1, provider: mockProvider });
+      await jwtTokenService.generateJwtToken({ walletId: 999, provider: mockProvider });
 
       expect(WalletModule.Wallet).toHaveBeenCalledWith(mockMnemonic, 1);
       expect(WalletModule.Wallet).toHaveBeenCalledWith(mockMnemonic, 999);
@@ -56,10 +75,12 @@ describe("JwtTokenService", () => {
   function setup(): {
     jwtTokenService: JwtTokenService;
     mockBillingConfig: MockProxy<BillingConfig>;
+    mockWalletId: number;
     mockWallet: MockProxy<WalletModule.Wallet>;
-    mockCreateToken: JwtModule.JwtToken["createToken"];
+    mockProvider: string;
   } {
     jest.clearAllMocks();
+    const mockWalletId = faker.number.int({ min: 1, max: 10000 });
 
     const mockWallet = mock<WalletModule.Wallet>();
     const mockDirectSecp256k1HdWallet = mock<DirectSecp256k1HdWallet>();
@@ -78,11 +99,10 @@ describe("JwtTokenService", () => {
     };
 
     jest.spyOn(JwtModule, "createSignArbitraryAkashWallet").mockResolvedValue(mockAkashWallet);
-    const mockCreateToken = jest.fn().mockResolvedValue(mockToken);
     jest.spyOn(JwtModule, "JwtToken").mockImplementation(
       () =>
         ({
-          createToken: mockCreateToken
+          createToken: jest.fn().mockImplementation(args => JSON.stringify(args))
         }) as unknown as JwtModule.JwtToken
     );
 
@@ -90,12 +110,14 @@ describe("JwtTokenService", () => {
     container.register("BILLING_CONFIG", { useValue: mockBillingConfig });
 
     const jwtTokenService = new JwtTokenService(mockBillingConfig);
+    const mockProvider = createAkashAddress();
 
     return {
       jwtTokenService,
       mockBillingConfig,
+      mockWalletId,
       mockWallet,
-      mockCreateToken
+      mockProvider
     };
   }
 });

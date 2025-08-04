@@ -57,7 +57,7 @@ export class ProviderService {
           method: "PUT",
           body: jsonStr,
           headers: {
-            Authorization: `Bearer ${await this.jwtTokenService.generateJwtToken(walletId)}`,
+            Authorization: `Bearer ${await this.jwtTokenService.generateJwtToken({ walletId, provider: providerIdentity.owner })}`,
             "Content-Type": "application/json"
           },
           chainNetwork: this.chainNetwork,
@@ -95,7 +95,7 @@ export class ProviderService {
     return await this.providerProxy.fetchProviderUrl<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${await this.jwtTokenService.generateJwtToken(walletId)}`,
+        Authorization: `Bearer ${await this.jwtTokenService.generateJwtToken({ walletId, provider: providerIdentity.owner })}`,
         "Content-Type": "application/json"
       },
       chainNetwork: this.chainNetwork,
