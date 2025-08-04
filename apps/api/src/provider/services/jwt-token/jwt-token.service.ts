@@ -1,24 +1,29 @@
 import { createSignArbitraryAkashWallet, JwtToken } from "@akashnetwork/jwt";
+import { minutesToSeconds } from "date-fns";
 import { singleton } from "tsyringe";
 import * as uuid from "uuid";
 
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { Memoize } from "@src/caching/helpers";
 
 const JWT_TOKEN_TTL_IN_SECONDS = 30;
+
+type JwtTokenWithAddress = {
+  jwtToken: JwtToken;
+  address: string;
+};
 
 @singleton()
 export class JwtTokenService {
   constructor(@InjectBillingConfig() private readonly config: BillingConfig) {}
 
-  async generateJwtToken(walletId: number) {
-    const wallet = new Wallet(this.config.MASTER_WALLET_MNEMONIC, walletId);
-    const akashWallet = await createSignArbitraryAkashWallet(await wallet.getInstance());
-    const jwtToken = new JwtToken(akashWallet);
+  async generateJwtToken({ walletId, provider }: { walletId: number; provider: string }) {
+    const { jwtToken, address } = await this.getJwtToken(walletId.toString());
     const now = Math.floor(Date.now() / 1000);
 
     const token = await jwtToken.createToken({
-      iss: akashWallet.address,
+      iss: address,
       exp: now + JWT_TOKEN_TTL_IN_SECONDS,
       nbf: now,
       iat: now,
@@ -28,5 +33,14 @@ export class JwtTokenService {
     });
 
     return token;
+  }
+
+  @Memoize({ ttlInSeconds: minutesToSeconds(5) })
+  private async getJwtToken(walletId: string): Promise<JwtTokenWithAddress> {
+    const wallet = new Wallet(this.config.MASTER_WALLET_MNEMONIC, Number(walletId));
+    const akashWallet = await createSignArbitraryAkashWallet(await wallet.getInstance());
+    const jwtToken = new JwtToken(akashWallet);
+
+    return { jwtToken, address: akashWallet.address };
   }
 }
