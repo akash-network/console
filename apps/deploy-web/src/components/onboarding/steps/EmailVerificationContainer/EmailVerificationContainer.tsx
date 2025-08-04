@@ -6,7 +6,7 @@ import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { services } from "@src/services/http/http-browser.service";
+import { services } from "@src/services/app-di-container/browser-di-container";
 
 const DEPENDENCIES = {
   useCustomUser,

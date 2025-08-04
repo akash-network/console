@@ -1,6 +1,6 @@
 import type { AxiosInstance } from "axios";
 
-import { services } from "@src/services/http/http-browser.service";
+import { services } from "@src/services/app-di-container/browser-di-container";
 import networkStore from "@src/store/networkStore";
 import { appendSearchParams } from "./urlUtils";
 

@@ -2,7 +2,7 @@ import { wrapApiHandlerWithSentry } from "@sentry/nextjs";
 import type { NextApiHandler, NextApiRequest, NextApiResponse } from "next";
 import type { z } from "zod";
 
-import { services } from "@src/services/http/http-server.service";
+import { services } from "@src/services/app-di-container/server-di-container.service";
 import { createRequestExecutionContext, requestExecutionContext } from "../requestExecutionContext";
 
 /** @internal use for testing only */
