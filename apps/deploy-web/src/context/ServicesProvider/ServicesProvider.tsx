@@ -1,7 +1,6 @@
 import React, { useContext } from "react";
 import { AuthzHttpService, CertificatesService } from "@akashnetwork/http-sdk";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { services as rootContainer } from "@src/services/app-di-container/browser-di-container";
 import type { DIContainer, Factories } from "@src/services/container/createContainer";
 import { createChildContainer } from "@src/services/container/createContainer";
@@ -31,8 +30,8 @@ export function useServices() {
 
 function createAppContainer<T extends Factories>(settings: Settings, services: T) {
   const di = createChildContainer(rootContainer, {
-    authzHttpService: () => new AuthzHttpService({ baseURL: settings?.apiEndpoint }),
-    walletBalancesService: () => new WalletBalancesService(di.authzHttpService, di.chainApiHttpClient, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS),
+    authzHttpService: () => new AuthzHttpService({ baseURL: settings?.apiEndpoint, adapter: "fetch" }),
+    walletBalancesService: () => new WalletBalancesService(di.authzHttpService, di.chainApiHttpClient, di.appConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS),
     certificatesService: () => new CertificatesService(di.chainApiHttpClient),
     chainApiHttpClient: () => rootContainer.createAxios({ baseURL: settings?.apiEndpoint }),
     ...services
