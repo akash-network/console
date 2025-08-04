@@ -12,7 +12,7 @@ import { singleton } from "tsyringe";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
-import { ProviderIdentity, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
+import { ProviderIdentity } from "@src/provider/services/provider/provider-proxy.service";
 import { ProviderList } from "@src/types/provider";
 import { toUTC } from "@src/utils";
 import { mapProviderToList } from "@src/utils/map/provider";
@@ -27,7 +27,6 @@ export class ProviderService {
   private readonly chainNetwork: SupportedChainNetworks;
 
   constructor(
-    private readonly providerProxy: ProviderProxyService,
     private readonly providerHttpService: ProviderHttpService,
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
@@ -55,19 +54,12 @@ export class ProviderService {
   private async sendManifestToProvider(walletId: number, dseq: string, jsonStr: string, providerIdentity: ProviderIdentity) {
     for (let i = 1; i <= this.MANIFEST_SEND_MAX_RETRIES; i++) {
       try {
-        const result = await this.providerProxy.fetchProviderUrl(`/deployment/${dseq}/manifest`, {
-          method: "PUT",
-          body: jsonStr,
-          headers: {
-            Authorization: `Bearer ${await this.jwtTokenService.generateJwtToken({ walletId, provider: providerIdentity.owner })}`,
-            "Content-Type": "application/json"
-          },
-          chainNetwork: this.chainNetwork,
-          providerIdentity,
-          timeout: 60000
-        });
+        const jwtToken = await this.jwtTokenService.generateJwtToken({ walletId, provider: providerIdentity.owner });
+        const result = await this.providerHttpService.sendManifest({ hostUri: providerIdentity.hostUri, dseq, jsonStr, jwtToken });
 
-        if (result) return result;
+        if (result) {
+          return result;
+        }
       } catch (err: any) {
         if (err.message?.includes("no lease for deployment") && i < this.MANIFEST_SEND_MAX_RETRIES) {
           await delay(this.MANIFEST_SEND_RETRY_DELAY);
@@ -87,21 +79,9 @@ export class ProviderService {
       throw new Error(`Provider ${provider} not found`);
     }
 
-    const providerIdentity: ProviderIdentity = {
-      owner: provider,
-      hostUri: providerResponse.provider.host_uri
-    };
+    const jwtToken = await this.jwtTokenService.generateJwtToken({ walletId, provider });
 
-    return await this.providerProxy.fetchProviderUrl<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${await this.jwtTokenService.generateJwtToken({ walletId, provider: providerIdentity.owner })}`,
-        "Content-Type": "application/json"
-      },
-      chainNetwork: this.chainNetwork,
-      providerIdentity,
-      timeout: 30000
-    });
+    return await this.providerHttpService.getLeaseStatus({ hostUri: providerResponse.provider.host_uri, dseq, gseq, oseq, jwtToken });
   }
 
   async getProviderList({ trial = false }: { trial?: boolean } = {}): Promise<ProviderList[]> {
