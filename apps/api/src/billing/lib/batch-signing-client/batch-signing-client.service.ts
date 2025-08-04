@@ -44,8 +44,10 @@ export class BatchSigningClientService {
   private chainId?: string;
 
   private cachedFirstAddress?: string;
+  private firstAddressPromise?: Promise<string>;
 
   private cachedAccountInfo?: ShortAccountInfo;
+  private accountInfoPromise?: Promise<ShortAccountInfo>;
 
   private execTxLoader = new DataLoader(
     async (batchedInputs: readonly ExecuteTxInput[]) => {
@@ -98,29 +100,63 @@ export class BatchSigningClientService {
   }
 
   private async getCachedFirstAddress(): Promise<string> {
-    if (!this.cachedFirstAddress) {
-      this.cachedFirstAddress = await this.wallet.getFirstAddress();
+    if (this.cachedFirstAddress) {
+      return this.cachedFirstAddress;
     }
-    return this.cachedFirstAddress;
+
+    if (this.firstAddressPromise) {
+      return this.firstAddressPromise;
+    }
+
+    this.firstAddressPromise = this.wallet
+      .getFirstAddress()
+      .then(address => {
+        this.cachedFirstAddress = address;
+        this.firstAddressPromise = undefined;
+        return address;
+      })
+      .catch(error => {
+        this.firstAddressPromise = undefined;
+        throw error;
+      });
+
+    return this.firstAddressPromise;
   }
 
   private async getCachedAccountInfo(): Promise<ShortAccountInfo> {
-    if (!this.cachedAccountInfo) {
-      const client = await this.clientAsPromised;
-      const address = await this.getCachedFirstAddress();
-      const account = await client.getAccount(address);
-
-      if (!account) {
-        throw new Error(`Account not found for address: ${address}. The account may not exist on the blockchain yet.`);
-      }
-
-      this.cachedAccountInfo = {
-        accountNumber: account.accountNumber,
-        sequence: account.sequence,
-        address: address
-      };
+    if (this.cachedAccountInfo) {
+      return this.cachedAccountInfo;
     }
-    return this.cachedAccountInfo;
+
+    if (this.accountInfoPromise) {
+      return this.accountInfoPromise;
+    }
+
+    this.accountInfoPromise = this.clientAsPromised
+      .then(async client => {
+        const address = await this.getCachedFirstAddress();
+        const account = await client.getAccount(address);
+
+        if (!account) {
+          throw new Error(`Account not found for address: ${address}. The account may not exist on the blockchain yet.`);
+        }
+
+        const accountInfo = {
+          accountNumber: account.accountNumber,
+          sequence: account.sequence,
+          address: address
+        };
+
+        this.cachedAccountInfo = accountInfo;
+        this.accountInfoPromise = undefined;
+        return accountInfo;
+      })
+      .catch(error => {
+        this.accountInfoPromise = undefined;
+        throw error;
+      });
+
+    return this.accountInfoPromise;
   }
 
   private incrementSequence(): void {
@@ -131,6 +167,7 @@ export class BatchSigningClientService {
 
   private clearCachedAccountInfo(): void {
     this.cachedAccountInfo = undefined;
+    this.accountInfoPromise = undefined;
   }
 
   private async executeTxBatchBlocking(inputs: ExecuteTxInput[]): Promise<IndexedTx[]> {
