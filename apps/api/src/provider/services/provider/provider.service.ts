@@ -37,7 +37,7 @@ export class ProviderService {
     this.chainNetwork = this.config.NETWORK as SupportedChainNetworks;
   }
 
-  async sendManifest(provider: string, dseq: string, manifest: string, walletId: number) {
+  async sendManifest({ provider, dseq, manifest, walletId }: { provider: string; dseq: string; manifest: string; walletId: number }) {
     const jsonStr = manifest.replace(/"quantity":{"val/g, '"size":{"val');
 
     const providerResponse = await this.providerHttpService.getProvider(provider);
