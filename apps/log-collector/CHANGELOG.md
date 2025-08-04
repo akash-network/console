@@ -1,5 +1,12 @@
 
 
+## [1.3.1](https://github.com/akash-network/console/compare/log-collector/v1.3.0...log-collector/v1.3.1) (2025-08-04)
+
+
+### Code Refactoring
+
+* switch http services in deploy-web to fetch API ([#1775](https://github.com/akash-network/console/issues/1775)) ([c6d1105](https://github.com/akash-network/console/commit/c6d110544bff4eb422954bcce8dd007e795e1213)), closes [#1423](https://github.com/akash-network/console/issues/1423)
+
 ## [1.3.0](https://github.com/akash-network/console/compare/log-collector/v1.2.0...log-collector/v1.3.0) (2025-07-31)
 
 

@@ -1,5 +1,13 @@
 
 
+## [2.98.1](https://github.com/akash-network/console/compare/console-web/v2.98.0...console-web/v2.98.1) (2025-08-04)
+
+
+### Code Refactoring
+
+* renames and moves di container files to different location ([#1767](https://github.com/akash-network/console/issues/1767)) ([b3625ed](https://github.com/akash-network/console/commit/b3625ed0b4653e3f266440da0d73697ca55fe886))
+* switch http services in deploy-web to fetch API ([#1775](https://github.com/akash-network/console/issues/1775)) ([c6d1105](https://github.com/akash-network/console/commit/c6d110544bff4eb422954bcce8dd007e795e1213)), closes [#1423](https://github.com/akash-network/console/issues/1423)
+
 ## [2.98.0](https://github.com/akash-network/console/compare/console-web/v2.97.1...console-web/v2.98.0) (2025-07-31)
 
 
