@@ -11,9 +11,9 @@ import type { FCWithChildren } from "@src/types/component";
  * which is a client only component.
  */
 export const UserProviders: FCWithChildren = ({ children }) => {
-  const { userProviderService } = useServices();
+  const { internalApiHttpClient } = useServices();
   return browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED ? (
-    <UserProvider fetcher={userProviderService.getProfile}>
+    <UserProvider fetcher={url => internalApiHttpClient.get(url).then(response => response.data)}>
       <UserInitLoader>
         <AnonymousUserProvider>{children}</AnonymousUserProvider>
       </UserInitLoader>
