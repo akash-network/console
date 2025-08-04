@@ -18,6 +18,7 @@ import { withSpan } from "@src/core/services/tracing/tracing.service";
 interface ShortAccountInfo {
   accountNumber: number;
   sequence: number;
+  address: string;
 }
 
 export interface ExecuteTxOptions {
@@ -40,9 +41,13 @@ export class BatchSigningClientService {
 
   private readonly semaphore = new Sema(1);
 
-  private accountInfo?: ShortAccountInfo;
-
   private chainId?: string;
+
+  private cachedFirstAddress?: string;
+  private firstAddressPromise?: Promise<string>;
+
+  private cachedAccountInfo?: ShortAccountInfo;
+  private accountInfoPromise?: Promise<ShortAccountInfo>;
 
   private execTxLoader = new DataLoader(
     async (batchedInputs: readonly ExecuteTxInput[]) => {
@@ -53,10 +58,6 @@ export class BatchSigningClientService {
 
   private readonly logger = LoggerService.forContext(this.loggerContext);
 
-  get hasPendingTransactions() {
-    return this.semaphore.nrWaiting() > 0;
-  }
-
   constructor(
     private readonly config: BillingConfigService,
     private readonly wallet: Wallet,
@@ -65,6 +66,18 @@ export class BatchSigningClientService {
     private readonly loggerContext = BatchSigningClientService.name
   ) {
     this.clientAsPromised = this.initClient();
+  }
+
+  get hasPendingTransactions() {
+    return this.semaphore.nrWaiting() > 0;
+  }
+
+  async executeTx(messages: readonly EncodeObject[], options?: ExecuteTxOptions) {
+    const tx = await this.execTxLoader.load({ messages, options });
+
+    assert(tx?.code === 0, 500, "Failed to sign and broadcast tx", { data: tx });
+
+    return tx;
   }
 
   private async initClient() {
@@ -86,12 +99,75 @@ export class BatchSigningClientService {
     );
   }
 
-  async executeTx(messages: readonly EncodeObject[], options?: ExecuteTxOptions) {
-    const tx = await this.execTxLoader.load({ messages, options });
+  private async getCachedFirstAddress(): Promise<string> {
+    if (this.cachedFirstAddress) {
+      return this.cachedFirstAddress;
+    }
 
-    assert(tx?.code === 0, 500, "Failed to sign and broadcast tx", { data: tx });
+    if (this.firstAddressPromise) {
+      return this.firstAddressPromise;
+    }
 
-    return tx;
+    this.firstAddressPromise = this.wallet
+      .getFirstAddress()
+      .then(address => {
+        this.cachedFirstAddress = address;
+        this.firstAddressPromise = undefined;
+        return address;
+      })
+      .catch(error => {
+        this.firstAddressPromise = undefined;
+        throw error;
+      });
+
+    return this.firstAddressPromise;
+  }
+
+  private async getCachedAccountInfo(): Promise<ShortAccountInfo> {
+    if (this.cachedAccountInfo) {
+      return this.cachedAccountInfo;
+    }
+
+    if (this.accountInfoPromise) {
+      return this.accountInfoPromise;
+    }
+
+    this.accountInfoPromise = this.clientAsPromised
+      .then(async client => {
+        const address = await this.getCachedFirstAddress();
+        const account = await client.getAccount(address);
+
+        if (!account) {
+          throw new Error(`Account not found for address: ${address}. The account may not exist on the blockchain yet.`);
+        }
+
+        const accountInfo = {
+          accountNumber: account.accountNumber,
+          sequence: account.sequence,
+          address: address
+        };
+
+        this.cachedAccountInfo = accountInfo;
+        this.accountInfoPromise = undefined;
+        return accountInfo;
+      })
+      .catch(error => {
+        this.accountInfoPromise = undefined;
+        throw error;
+      });
+
+    return this.accountInfoPromise;
+  }
+
+  private incrementSequence(): void {
+    if (this.cachedAccountInfo) {
+      this.cachedAccountInfo.sequence++;
+    }
+  }
+
+  private clearCachedAccountInfo(): void {
+    this.cachedAccountInfo = undefined;
+    this.accountInfoPromise = undefined;
   }
 
   private async executeTxBatchBlocking(inputs: ExecuteTxInput[]): Promise<IndexedTx[]> {
@@ -108,7 +184,8 @@ export class BatchSigningClientService {
 
           if (isSequenceMismatch) {
             this.clientAsPromised = this.initClient();
-            this.logger.warn({ event: "ACCOUNT_SEQUENCE_MISMATCH", address: await this.wallet.getFirstAddress(), attempt });
+            this.clearCachedAccountInfo();
+            this.logger.warn({ event: "ACCOUNT_SEQUENCE_MISMATCH", address: await this.getCachedFirstAddress(), attempt });
 
             return true;
           }
@@ -124,22 +201,22 @@ export class BatchSigningClientService {
   private async executeTxBatch(inputs: ExecuteTxInput[]): Promise<IndexedTx[]> {
     return await withSpan("BatchSigningClientService.executeTxBatch", async () => {
       const client = await this.clientAsPromised;
-      const accountInfo = await this.updateAccountInfo();
-      const address = await this.wallet.getFirstAddress();
+      const accountInfo = await this.getCachedAccountInfo();
 
       const txes: TxRaw[] = [];
       let txIndex: number = 0;
       while (txIndex < inputs.length) {
         const { messages, options } = inputs[txIndex];
-        const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee.granter);
+        const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee?.granter);
+
         txes.push(
-          await client.sign(address, messages, fee, "", {
+          await client.sign(accountInfo.address, messages, fee, "", {
             accountNumber: accountInfo.accountNumber,
-            sequence: accountInfo.sequence++,
+            sequence: accountInfo.sequence,
             chainId: this.chainId!
           })
         );
-
+        this.incrementSequence();
         txIndex++;
       }
 
@@ -191,16 +268,6 @@ export class BatchSigningClientService {
     });
   }
 
-  private async updateAccountInfo() {
-    const client = await this.clientAsPromised;
-    const accountInfo = await client.getAccount(await this.wallet.getFirstAddress()).then(account => ({
-      accountNumber: account!.accountNumber,
-      sequence: account!.sequence
-    }));
-    this.accountInfo = accountInfo;
-    return accountInfo;
-  }
-
   private async estimateFee(messages: readonly EncodeObject[], denom: string, granter?: string, options?: { mock?: boolean }) {
     if (options?.mock) {
       return {
@@ -219,6 +286,6 @@ export class BatchSigningClientService {
   }
 
   private async simulate(messages: readonly EncodeObject[], memo: string) {
-    return (await this.clientAsPromised).simulate(await this.wallet.getFirstAddress(), messages, memo);
+    return (await this.clientAsPromised).simulate(await this.getCachedFirstAddress(), messages, memo);
   }
 }
