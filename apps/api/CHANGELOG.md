@@ -1,5 +1,20 @@
 
 
+## [2.109.1](https://github.com/akash-network/console/compare/console-api/v2.109.0...console-api/v2.109.1) (2025-08-04)
+
+
+### Bug Fixes
+
+* **billing:** refactor billing signing client ([#1771](https://github.com/akash-network/console/issues/1771)) ([5982d52](https://github.com/akash-network/console/commit/5982d5242aa24651ffd3ee85aae7d7ab9b8eb42b))
+* handle "tx already in cache" gracefully ([#1728](https://github.com/akash-network/console/issues/1728)) ([9b05a7c](https://github.com/akash-network/console/commit/9b05a7cb102f85c1423fda2dfc226bea18b7e172)), closes [#1692](https://github.com/akash-network/console/issues/1692)
+
+
+### Code Refactoring
+
+* adds unit tests for start-trial ([#1762](https://github.com/akash-network/console/issues/1762)) ([25c880e](https://github.com/akash-network/console/commit/25c880e70103d9cd7d39122371a4d7f96ac84d4c))
+* replaces custom sleep with built-in ([#1761](https://github.com/akash-network/console/issues/1761)) ([205e829](https://github.com/akash-network/console/commit/205e829d68e5da41b1df3d28a78be074e800066e))
+* switch http services in deploy-web to fetch API ([#1775](https://github.com/akash-network/console/issues/1775)) ([c6d1105](https://github.com/akash-network/console/commit/c6d110544bff4eb422954bcce8dd007e795e1213)), closes [#1423](https://github.com/akash-network/console/issues/1423)
+
 ## [2.109.0](https://github.com/akash-network/console/compare/console-api/v2.108.1...console-api/v2.109.0) (2025-07-31)
 
 

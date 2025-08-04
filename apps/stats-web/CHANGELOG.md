@@ -1,5 +1,12 @@
 
 
+## [0.32.1](https://github.com/akash-network/console/compare/stats-web/v0.32.0...stats-web/v0.32.1) (2025-08-04)
+
+
+### Code Refactoring
+
+* switch http services in deploy-web to fetch API ([#1775](https://github.com/akash-network/console/issues/1775)) ([c6d1105](https://github.com/akash-network/console/commit/c6d110544bff4eb422954bcce8dd007e795e1213)), closes [#1423](https://github.com/akash-network/console/issues/1423)
+
 ## [0.32.0](https://github.com/akash-network/console/compare/stats-web/v0.31.0...stats-web/v0.32.0) (2025-07-31)
 
 
