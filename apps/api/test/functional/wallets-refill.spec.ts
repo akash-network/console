@@ -55,7 +55,7 @@ describe("Wallets Refill", () => {
 
       const records = await Promise.all(prepareRecords);
       await walletController.refillWallets();
-      const trialingWallet = records.pop();
+      const trialingWallet = records.pop()!;
 
       await Promise.all([
         ...records.map(async ({ wallet }) => {
@@ -63,7 +63,7 @@ describe("Wallets Refill", () => {
 
           expect(walletRecord?.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_AMOUNT);
         }),
-        userWalletRepository.findById(trialingWallet?.wallet.id).then(walletRecord => {
+        userWalletRepository.findById(trialingWallet.wallet.id).then(walletRecord => {
           expect(walletRecord?.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_THRESHOLD);
         })
       ]);
