@@ -29,7 +29,15 @@ export class JwtTokenService {
       iat: now,
       jti: uuid.v4(),
       version: "v1",
-      leases: { access: "full" }
+      leases: {
+        access: "granular",
+        permissions: [
+          {
+            provider,
+            access: "full"
+          }
+        ]
+      }
     });
 
     return token;
