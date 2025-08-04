@@ -1,6 +1,7 @@
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import { Registry } from "@cosmjs/proto-signing";
+import type { Account } from "@cosmjs/stargate";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { mock } from "jest-mock-extended";
 
@@ -63,8 +64,8 @@ describe("BatchSigningClientService", () => {
   it("should cache account info and prevent race conditions", async () => {
     const { service, mockClient } = setup();
 
-    let resolveAccount: (value: any) => void;
-    const accountPromise = new Promise<any>(resolve => {
+    let resolveAccount: (value: Account) => void;
+    const accountPromise = new Promise<Account>(resolve => {
       resolveAccount = resolve;
     });
     mockClient.getAccount.mockReturnValue(accountPromise);
