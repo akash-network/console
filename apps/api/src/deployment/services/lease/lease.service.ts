@@ -36,7 +36,7 @@ export class LeaseService {
     await this.signerService.executeDecodedTxByUserId(wallet.userId, leaseMessages);
 
     for (const lease of input.leases) {
-      await this.providerService.sendManifest(lease.provider, lease.dseq, input.manifest, wallet.id);
+      await this.providerService.sendManifest({ provider: lease.provider, dseq: lease.dseq, manifest: input.manifest, walletId: wallet.id });
     }
 
     return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address!, input.leases[0].dseq);

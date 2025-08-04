@@ -126,7 +126,7 @@ export class DeploymentWriterService {
   private async sendManifestToProviders(walletId: number, dseq: string, manifest: string, leases: GetDeploymentResponse["data"]["leases"]): Promise<void> {
     const leaseProviders = leases.map(lease => lease.lease_id.provider).filter((v, i, s) => s.indexOf(v) === i);
     for (const provider of leaseProviders) {
-      await this.providerService.sendManifest(provider, dseq, manifest, walletId);
+      await this.providerService.sendManifest({ provider, dseq, manifest, walletId });
     }
   }
 }
