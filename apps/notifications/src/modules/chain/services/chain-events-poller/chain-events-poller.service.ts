@@ -52,8 +52,7 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
     this.processBlocksLooping().catch(error => {
       this.loggerService.error({
         event: "CHAIN_POLLER_FAILURE",
-        error,
-        stack: error.stack
+        error
       });
       this.loggerService.fatal({ event: "APPLICATION_STOP" });
       this.isActive.next(false);
@@ -116,13 +115,9 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private logProcessingError(error: unknown, attempt: number) {
-    const isError = error instanceof Error;
-    const errorMessage = isError ? error.message : "Unknown error";
-    const stack = isError ? error.stack : undefined;
     this.loggerService.error({
       event: "BLOCK_PROCESSING_FAILED",
-      message: errorMessage,
-      stack,
+      error,
       attempt
     });
   }
