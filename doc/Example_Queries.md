@@ -458,3 +458,19 @@ GROUP BY
     dr.daily_usd_revenue
 ORDER BY dl.date DESC, dl."hostUri";
 ```
+
+## Query to fetch the number of active gpus by provider for an owner
+
+```
+SELECT 
+    p."hostUri",
+    SUM(l."gpuUnits") AS total_active_gpu_count
+FROM lease l
+JOIN provider p ON l."providerAddress" = p.owner
+JOIN deployment d ON l."deploymentId" = d.id
+WHERE d.owner = 'akash18andxgtd6r08zzfpcdqg9pdr6smks7gv76tyt6'  -- Replace with the wallet address parameter
+    AND l."closedHeight" IS NULL  -- Only active leases
+    AND p."deletedHeight" IS NULL  -- Only active providers
+GROUP BY p.owner, p."hostUri"
+ORDER BY total_active_gpu_count DESC;
+```
