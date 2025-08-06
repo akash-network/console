@@ -413,6 +413,65 @@ export class StripeService extends Stripe {
     };
   }
 
+  async exportTransactionsCsv(customerId: string, options: { startDate: string; endDate: string }): Promise<string> {
+    const allTransactions: Transaction[] = [];
+    let hasMore = true;
+    let startingAfter: string | undefined;
+    const batchSize = 100;
+
+    while (hasMore) {
+      const batch = await this.getCustomerTransactions(customerId, {
+        limit: batchSize,
+        startingAfter,
+        startDate: options.startDate,
+        endDate: options.endDate
+      });
+
+      allTransactions.push(...batch.transactions);
+      hasMore = batch.hasMore;
+      startingAfter = batch.nextPage || undefined;
+
+      if (allTransactions.length > 50000) {
+        throw new Error("Transaction export limit exceeded. Please use a smaller date range.");
+      }
+    }
+
+    return this.convertTransactionsToCsv(allTransactions);
+  }
+
+  private convertTransactionsToCsv(transactions: Transaction[]): string {
+    if (transactions.length === 0) {
+      return "No transactions found for the specified date range.";
+    }
+
+    const headers = ["Transaction ID", "Date", "Amount", "Currency", "Status", "Payment Method", "Card Brand", "Card Last 4", "Description", "Receipt URL"];
+
+    const rows = transactions.map(transaction => {
+      const date = new Date(transaction.created * 1000).toISOString().split("T")[0];
+      const amount = (transaction.amount / 100).toFixed(2);
+      const paymentMethod = transaction.paymentMethod?.type || "";
+      const cardBrand = transaction.paymentMethod?.card?.brand || "";
+      const cardLast4 = transaction.paymentMethod?.card?.last4 || "";
+
+      return [
+        transaction.id,
+        date,
+        amount,
+        transaction.currency.toUpperCase(),
+        transaction.status,
+        paymentMethod,
+        cardBrand,
+        cardLast4,
+        transaction.description || "",
+        transaction.receiptUrl || ""
+      ];
+    });
+
+    const csvContent = [headers, ...rows].map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(",")).join("\n");
+
+    return csvContent;
+  }
+
   async getStripeCustomerId(user: UserOutput): Promise<string> {
     if (user.stripeCustomerId) {
       return user.stripeCustomerId;
