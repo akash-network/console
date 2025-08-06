@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { FormattedDate } from "react-intl";
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@akashnetwork/ui/components";
+import { useIntl } from "react-intl";
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Spinner } from "@akashnetwork/ui/components";
 import { copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { Calendar, Clock, Copy, Eye, EyeClosed, Key, Trash } from "iconoir-react";
 
@@ -15,6 +15,7 @@ interface ApiKeyListProps {
   updateApiKeyToDelete: (apiKey: ApiKey) => void;
   onCreateApiKey: () => void;
   isCreating: boolean;
+  isLoading?: boolean;
 }
 
 export const ApiKeyList: React.FC<ApiKeyListProps> = ({
@@ -25,10 +26,35 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
   apiKeyToDelete,
   updateApiKeyToDelete,
   onCreateApiKey,
-  isCreating
+  isCreating,
+  isLoading = false
 }) => {
+  const intl = useIntl();
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Helper function to convert UTC timestamp to local time
+  const formatLocalDate = (utcTimestamp: string) => {
+    if (!utcTimestamp) return "";
+    try {
+      // Ensure the timestamp is treated as UTC by appending 'Z' if it doesn't have timezone info
+      const utcDate = utcTimestamp.endsWith("Z") ? utcTimestamp : utcTimestamp + "Z";
+      const date = new Date(utcDate);
+      if (isNaN(date.getTime())) {
+        return "Invalid date";
+      }
+      return intl.formatDate(date, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      });
+    } catch {
+      return "Invalid date";
+    }
+  };
 
   const hasApiKey = !!apiKey;
 
@@ -54,7 +80,15 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
 
       <div className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         <div className="p-6">
-          {!hasApiKey ? (
+          {isLoading ? (
+            <div className="py-12 text-center">
+              <div className="mx-auto mb-4 flex justify-center">
+                <Spinner />
+              </div>
+              <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">Loading API Key</h3>
+              <p className="text-gray-500 dark:text-gray-400">Please wait while we fetch your API key information.</p>
+            </div>
+          ) : !hasApiKey ? (
             <div className="py-12 text-center">
               <Key className="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-500" />
               <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-white">No API Key Available</h3>
@@ -78,18 +112,14 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                       <span className="text-gray-600 dark:text-gray-400">Created:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        <FormattedDate value={apiKey.createdAt} year="numeric" month="short" day="numeric" hour="2-digit" minute="2-digit" />
-                      </span>
+                      <span className="font-medium text-gray-900 dark:text-white">{formatLocalDate(apiKey.createdAt)}</span>
                     </div>
 
                     {apiKey.lastUsedAt && (
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                         <span className="text-gray-600 dark:text-gray-400">Last used:</span>
-                        <span className="font-medium text-gray-900 dark:text-white">
-                          <FormattedDate value={apiKey.lastUsedAt} year="numeric" month="short" day="numeric" hour="2-digit" minute="2-digit" />
-                        </span>
+                        <span className="font-medium text-gray-900 dark:text-white">{formatLocalDate(apiKey.lastUsedAt)}</span>
                       </div>
                     )}
 
@@ -98,7 +128,7 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
                         <Calendar className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                         <span className="text-gray-600 dark:text-gray-400">Expires:</span>
                         <span className={`font-medium ${isExpired ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white"}`}>
-                          <FormattedDate value={apiKey.expiresAt} year="numeric" month="short" day="numeric" hour="2-digit" minute="2-digit" />
+                          {formatLocalDate(apiKey.expiresAt)}
                         </span>
                       </div>
                     )}

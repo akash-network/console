@@ -123,6 +123,18 @@ describe("ApiKeyList", () => {
     expect(deleteButton).toBeDisabled();
   });
 
+  it("should handle invalid expiration date gracefully", () => {
+    const mockApiKeyWithInvalidDate: ApiKey = {
+      ...mockApiKey,
+      expiresAt: "invalid-date-string"
+    };
+    setup({ apiKey: mockApiKeyWithInvalidDate });
+    // Should not show expired status when date parsing fails
+    expect(screen.queryByText("Expired")).not.toBeInTheDocument();
+    // Should display "Invalid date" for the expiration date
+    expect(screen.queryByText("Invalid date")).toBeInTheDocument();
+  });
+
   it("should display created date correctly", () => {
     setup({ apiKey: mockApiKey });
     expect(screen.queryByText("Created:")).toBeInTheDocument();
