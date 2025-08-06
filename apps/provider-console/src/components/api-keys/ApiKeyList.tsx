@@ -36,16 +36,24 @@ export const ApiKeyList: React.FC<ApiKeyListProps> = ({
   // Helper function to convert UTC timestamp to local time
   const formatLocalDate = (utcTimestamp: string) => {
     if (!utcTimestamp) return "";
-    // Ensure the timestamp is treated as UTC by appending 'Z' if it doesn't have timezone info
-    const utcDate = utcTimestamp.endsWith("Z") ? utcTimestamp : utcTimestamp + "Z";
-    return intl.formatDate(new Date(utcDate), {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    });
+    try {
+      // Ensure the timestamp is treated as UTC by appending 'Z' if it doesn't have timezone info
+      const utcDate = utcTimestamp.endsWith("Z") ? utcTimestamp : utcTimestamp + "Z";
+      const date = new Date(utcDate);
+      if (isNaN(date.getTime())) {
+        return "Invalid date";
+      }
+      return intl.formatDate(date, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      });
+    } catch {
+      return "Invalid date";
+    }
   };
 
   const hasApiKey = !!apiKey;
