@@ -66,8 +66,7 @@ export class TxEventsService {
       this.loggerService.error({
         event: "BLOCK_EVENTS_PROCESSING_FAILED",
         blockHeight,
-        error: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined
+        error
       });
       return [];
     }
@@ -125,8 +124,7 @@ export class TxEventsService {
     } catch (error) {
       this.loggerService.error({
         event: "TRANSACTION_LOG_PARSING_FAILED",
-        error: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined,
+        error,
         log: transaction.log
       });
       return undefined;
