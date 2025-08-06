@@ -100,6 +100,25 @@ describe(ChainErrorService.name, () => {
       expect(appErr).toBeInstanceOf(BadRequest);
       expect(appErr.message).toBe("Insufficient funds");
     });
+
+    it("returns 400 for Invalid Owner Address error", async () => {
+      const { service } = setup();
+      const err = new Error("Invalid Owner Address: invalid address");
+
+      const appErr = await service.toAppError(err, encodeMessages);
+      expect(appErr).toBeInstanceOf(BadRequest);
+      expect(appErr.message).toBe("Invalid owner address");
+    });
+
+    it("returns 400 for Invalid Owner Address error with message prefix", async () => {
+      const { service } = setup();
+      const err = new Error("Invalid Owner Address: invalid address message index: 0");
+      const messages: EncodeObject[] = [{ typeUrl: "/akash.cert.v1beta3.MsgCreateCertificate", value: {} }];
+
+      const appErr = await service.toAppError(err, messages);
+      expect(appErr).toBeInstanceOf(BadRequest);
+      expect(appErr.message).toBe("Failed to create certificate: Invalid owner address");
+    });
   });
 
   function setup(): {

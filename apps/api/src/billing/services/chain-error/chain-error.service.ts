@@ -41,12 +41,17 @@ export class ChainErrorService {
     "Deployment exists": {
       code: 400,
       message: "Deployment with provided dseq and owner already exists"
+    },
+    "Invalid Owner Address": {
+      code: 400,
+      message: "Invalid owner address"
     }
   };
 
   private MESSAGE_ERROR_TITLES: Record<string, string> = {
     "/akash.deployment.v1beta3.MsgCreateDeployment": "Failed to create deployment",
-    "/akash.market.v1beta4.MsgCreateLease": "Failed to create lease"
+    "/akash.market.v1beta4.MsgCreateLease": "Failed to create lease",
+    "/akash.cert.v1beta3.MsgCreateCertificate": "Failed to create certificate"
   };
 
   constructor(
