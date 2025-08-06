@@ -9,6 +9,7 @@ import { StripeService } from "./stripe.service";
 
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { create as StripeSeederCreate } from "@test/seeders/stripe.seeder";
+import { StripeTransactionSeeder } from "@test/seeders/stripe-transaction.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { stub } from "@test/services/stub";
 
@@ -369,11 +370,9 @@ describe(StripeService.name, () => {
     it("exports transactions for a single page", async () => {
       const { service } = setup();
       const mockTransactions = [
-        {
+        StripeTransactionSeeder.create({
           id: "ch_123",
           amount: 1000,
-          currency: "usd",
-          status: "succeeded",
           created: 1640995200,
           paymentMethod: generatePaymentMethod({
             type: "card",
@@ -381,14 +380,12 @@ describe(StripeService.name, () => {
             cardLast4: "4242"
           }),
           receiptUrl: "https://receipt.url/123",
-          description: "Test payment",
-          metadata: {}
-        },
-        {
+          description: "Test payment"
+        }),
+        StripeTransactionSeeder.create({
           id: "ch_456",
           amount: 2500,
           currency: "eur",
-          status: "succeeded",
           created: 1641081600,
           paymentMethod: generatePaymentMethod({
             type: "card",
@@ -396,9 +393,8 @@ describe(StripeService.name, () => {
             cardLast4: "8888"
           }),
           receiptUrl: null,
-          description: null,
-          metadata: {}
-        }
+          description: null
+        })
       ];
 
       jest.spyOn(service, "getCustomerTransactions").mockResolvedValue({
@@ -432,11 +428,9 @@ describe(StripeService.name, () => {
       const { service } = setup();
 
       const firstPageTransactions = [
-        {
+        StripeTransactionSeeder.create({
           id: "ch_001",
           amount: 1000,
-          currency: "usd",
-          status: "succeeded",
           created: 1640995200,
           paymentMethod: generatePaymentMethod({
             type: "card",
@@ -444,17 +438,14 @@ describe(StripeService.name, () => {
             cardLast4: "1111"
           }),
           receiptUrl: null,
-          description: "First transaction",
-          metadata: {}
-        }
+          description: "First transaction"
+        })
       ];
 
       const secondPageTransactions = [
-        {
+        StripeTransactionSeeder.create({
           id: "ch_002",
           amount: 2000,
-          currency: "usd",
-          status: "succeeded",
           created: 1641081600,
           paymentMethod: generatePaymentMethod({
             type: "card",
@@ -462,9 +453,8 @@ describe(StripeService.name, () => {
             cardLast4: "2222"
           }),
           receiptUrl: null,
-          description: "Second transaction",
-          metadata: {}
-        }
+          description: "Second transaction"
+        })
       ];
 
       jest
@@ -510,22 +500,21 @@ describe(StripeService.name, () => {
     it("throws error when transaction limit is exceeded", async () => {
       const { service } = setup();
 
-      const manyTransactions = Array.from({ length: 25001 }, (_, i) => ({
-        id: `ch_${i}`,
-        amount: 1000,
-        currency: "usd",
-        status: "succeeded",
-        created: 1640995200,
-        paymentMethod: null,
-        receiptUrl: null,
-        description: null,
-        metadata: {}
-      }));
+      const manyTransactions = Array.from({ length: 50001 }, (_, i) =>
+        StripeTransactionSeeder.create({
+          id: `ch_${i}`,
+          amount: 1000,
+          created: 1640995200,
+          paymentMethod: null,
+          receiptUrl: null,
+          description: null
+        })
+      );
 
       jest.spyOn(service, "getCustomerTransactions").mockResolvedValue({
         transactions: manyTransactions,
         hasMore: true,
-        nextPage: "ch_25000",
+        nextPage: "ch_50000",
         prevPage: null
       });
 
@@ -558,17 +547,14 @@ describe(StripeService.name, () => {
     it("handles transactions with null/undefined payment methods", async () => {
       const { service } = setup();
       const mockTransactions = [
-        {
+        StripeTransactionSeeder.create({
           id: "ch_123",
           amount: 1000,
-          currency: "usd",
-          status: "succeeded",
           created: 1640995200,
           paymentMethod: null,
           receiptUrl: null,
-          description: "No payment method",
-          metadata: {}
-        }
+          description: "No payment method"
+        })
       ];
 
       jest.spyOn(service, "getCustomerTransactions").mockResolvedValue({
