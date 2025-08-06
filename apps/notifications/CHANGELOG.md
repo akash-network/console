@@ -1,5 +1,12 @@
 
 
+## [1.20.2](https://github.com/akash-network/console/compare/notifications/v1.20.1...notifications/v1.20.2) (2025-08-06)
+
+
+### Code Refactoring
+
+* improves error logging in notification service ([#1781](https://github.com/akash-network/console/issues/1781)) ([8fb1a2e](https://github.com/akash-network/console/commit/8fb1a2ed952bc2d330334894a54f1cf041e7b63e))
+
 ## [1.20.1](https://github.com/akash-network/console/compare/notifications/v1.20.0...notifications/v1.20.1) (2025-08-04)
 
 
