@@ -41,6 +41,10 @@ export class ChainErrorService {
     "Deployment exists": {
       code: 400,
       message: "Deployment with provided dseq and owner already exists"
+    },
+    "Invalid Owner Address": {
+      code: 400,
+      message: "Invalid owner address"
     }
   };
 
