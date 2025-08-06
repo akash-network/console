@@ -69,6 +69,8 @@ export class ManagedSignerService {
     assert(userWallet, 404, "UserWallet Not Found");
     const user = this.authService.currentUser.userId === userId ? this.authService.currentUser : await this.userRepository.findById(userId);
     assert(user, 404, "User Not Found");
+    assert(userWallet.feeAllowance > 0, 403, "UserWallet has no fee allowance");
+    assert(userWallet.deploymentAllowance > 0, 403, "UserWallet has no deployment allowance");
 
     if (this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
       await Promise.all(
