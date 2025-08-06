@@ -70,7 +70,7 @@ describe("Lease Flow", () => {
 
     const findOneByUserIdMock = jest.fn().mockImplementation(async (id: string) => {
       if (id === userWithId.id) {
-        return { ...wallet, isTrialing: false };
+        return { ...wallet, isTrialing: false, feeAllowance: 1_000_000, deploymentAllowance: 1_000_000 };
       }
       return undefined;
     });
