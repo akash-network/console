@@ -2,8 +2,8 @@ import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/akash-api
 import { StargateClient } from "@cosmjs/stargate";
 import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { once } from "events";
 import { backOff } from "exponential-backoff";
-import { BehaviorSubject, filter, firstValueFrom } from "rxjs";
 import { setTimeout as delay } from "timers/promises";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
@@ -18,9 +18,7 @@ import { BlockMessageService } from "../block-message/block-message.service";
 
 @Injectable()
 export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
-  private shouldActivate: boolean = true;
-
-  private readonly isActive = new BehaviorSubject<boolean>(false);
+  private abortController?: AbortController;
 
   constructor(
     private readonly brokerService: BrokerService,
@@ -48,28 +46,26 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private subscribeToChainEvents(blockHeight: number) {
+    this.abortController = new AbortController();
     this.loggerService.log({ event: "START_CHAIN_POLLER", blockHeight });
     this.processBlocksLooping().catch(error => {
+      this.abortController?.abort();
       this.loggerService.error({
         event: "CHAIN_POLLER_FAILURE",
         error
       });
       this.loggerService.fatal({ event: "APPLICATION_STOP" });
-      this.isActive.next(false);
       this.shutdownService.shutdown();
     });
-    this.isActive.next(true);
   }
 
   private async processBlocksLooping() {
-    if (!this.shouldActivate) {
-      this.isActive.next(false);
-      return;
+    const signal = this.abortController?.signal;
+    while (signal && !signal.aborted) {
+      const processedBlock = await this.processNextBlockWithRetries();
+      await this.delayAfterBlock(processedBlock, signal);
     }
-
-    const processedBlock = await this.processNextBlockWithRetries();
-    await this.delayAfterBlock(processedBlock);
-    await this.processBlocksLooping();
+    signal?.dispatchEvent(new Event("complete"));
   }
 
   private async processNextBlockWithRetries(): Promise<BlockData> {
@@ -122,15 +118,14 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private async delayAfterBlock(block: BlockData) {
+  private async delayAfterBlock(block: BlockData, signal: AbortSignal) {
     const blockTimeMs = this.configService.getOrThrow("chain.BLOCK_TIME_SEC") * 1000;
     const date = new Date(block.time);
     const nextBlockDate = new Date(date.getTime() + blockTimeMs);
-    const now = new Date();
-    const nextRunDelay = nextBlockDate.getTime() - now.getTime();
+    const nextRunDelay = nextBlockDate.getTime() - Date.now();
 
     if (nextRunDelay > 0) {
-      await delay(nextRunDelay);
+      await delay(nextRunDelay, null, { signal }).catch(error => (error?.name === "AbortError" ? undefined : Promise.reject(error)));
     }
   }
 
@@ -139,7 +134,11 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async finishPolling() {
-    this.shouldActivate = false;
-    await firstValueFrom(this.isActive.pipe(filter(isActive => !isActive)));
+    if (this.abortController) {
+      const completePolling = once(this.abortController.signal, "complete");
+      this.abortController.abort();
+      await completePolling;
+      this.abortController = undefined;
+    }
   }
 }

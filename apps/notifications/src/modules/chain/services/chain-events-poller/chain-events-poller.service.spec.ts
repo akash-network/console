@@ -90,14 +90,22 @@ describe(ChainEventsPollerService.name, () => {
 
   it("completes currently processed block before shutdown is finalized", async () => {
     const { service, blockMessageService } = await setup();
+    const controller = Promise.withResolvers<ReturnType<typeof generateMockBlockData>>();
 
-    blockMessageService.getMessages.mockImplementation(async () => generateMockBlockData({ time: new Date().toISOString() }));
+    blockMessageService.getMessages.mockImplementation(() => controller.promise);
 
-    service.onModuleInit();
+    await service.onModuleInit();
     await delay(10);
-    service.onModuleDestroy();
+    const finalizeDestroy = jest.fn();
+    service.onModuleDestroy().finally(finalizeDestroy);
+    await delay(100);
 
     expect(blockMessageService.getMessages).toHaveBeenCalledTimes(1);
+    expect(finalizeDestroy).not.toHaveBeenCalled();
+
+    controller.resolve(generateMockBlockData({ time: new Date().toISOString() }));
+    await delay(100);
+    expect(finalizeDestroy).toHaveBeenCalled();
   });
 
   async function setup(): Promise<{
