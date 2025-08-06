@@ -97,14 +97,12 @@ export class BlockMessageParserService {
         });
 
         return acc;
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      } catch (error) {
         this.loggerService.error({
           event: "ERROR_PARSING_TRANSACTION",
           height: block.header.height,
           index,
-          error: errorMessage,
-          stack: error instanceof Error ? error.stack : undefined
+          error
         });
         return acc;
       }
@@ -147,12 +145,10 @@ export class BlockMessageParserService {
               value: decodedValue
             }
           ];
-        } catch (error: unknown) {
-          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        } catch (error) {
           this.loggerService.error({
             event: "ERROR_EXTRACTING_MESSAGE",
-            error: errorMessage,
-            stack: error instanceof Error ? error.stack : undefined
+            error
           });
           return [];
         }

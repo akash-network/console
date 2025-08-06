@@ -160,9 +160,10 @@ describe(BlockMessageParserService.name, () => {
 
       const height = faker.number.int({ min: 1, max: 1000000 });
       const mockBlock = generateSimpleMockBlock({ height, txCount: 1 });
+      const error = new Error("Failed to decode transaction");
 
       cosmjsDecodingService.decodeTxRaw.mockImplementation(() => {
-        throw new Error("Failed to decode transaction");
+        throw error;
       });
 
       const result = service.parseBlockMessages(mockBlock);
@@ -176,7 +177,7 @@ describe(BlockMessageParserService.name, () => {
         expect.objectContaining({
           event: "ERROR_PARSING_TRANSACTION",
           height,
-          error: "Failed to decode transaction"
+          error
         })
       );
     });
@@ -201,7 +202,7 @@ describe(BlockMessageParserService.name, () => {
       expect(loggerService.error).toHaveBeenCalledWith(
         expect.objectContaining({
           event: "ERROR_EXTRACTING_MESSAGE",
-          error: "Failed to decode message value"
+          error: expect.any(Error)
         })
       );
     });
