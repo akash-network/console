@@ -1,5 +1,13 @@
 
 
+## [2.109.2](https://github.com/akash-network/console/compare/console-api/v2.109.1...console-api/v2.109.2) (2025-08-06)
+
+
+### Bug Fixes
+
+* **billing:** invalid owner address ([#1785](https://github.com/akash-network/console/issues/1785)) ([510648f](https://github.com/akash-network/console/commit/510648f5be9c98080c853ba6cdef569dd7c659de))
+* **billing:** prevent empty accounts to sign ([#1784](https://github.com/akash-network/console/issues/1784)) ([51f0a56](https://github.com/akash-network/console/commit/51f0a56475ba0d5b2997e5b13385d4faa8ec1327))
+
 ## [2.109.1](https://github.com/akash-network/console/compare/console-api/v2.109.0...console-api/v2.109.1) (2025-08-04)
 
 
