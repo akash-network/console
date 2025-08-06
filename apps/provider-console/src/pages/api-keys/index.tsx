@@ -78,6 +78,7 @@ const ApiKeysPage: React.FC = () => {
         updateApiKeyToDelete={apiKey => setApiKeyToDelete(apiKey)}
         onCreateApiKey={onCreateApiKey}
         isCreating={isCreating}
+        isLoading={isLoadingApiKey}
       />
     </Layout>
   );
