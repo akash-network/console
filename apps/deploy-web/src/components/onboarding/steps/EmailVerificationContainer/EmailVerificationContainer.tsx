@@ -6,13 +6,11 @@ import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { services } from "@src/services/app-di-container/browser-di-container";
 
 const DEPENDENCIES = {
   useCustomUser,
   useSnackbar,
   useServices,
-  services,
   Snackbar
 };
 
@@ -34,7 +32,7 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
   const { enqueueSnackbar } = d.useSnackbar();
   const [isResending, setIsResending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
-  const { analyticsService } = d.useServices();
+  const { analyticsService, auth } = d.useServices();
 
   const isEmailVerified = !!user?.emailVerified;
 
@@ -43,7 +41,7 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
 
     setIsResending(true);
     try {
-      await d.services.auth.sendVerificationEmail(user.id);
+      await auth.sendVerificationEmail(user.id);
       enqueueSnackbar(<d.Snackbar title="Verification email sent" subTitle="Please check your email and click the verification link" iconVariant="success" />, {
         variant: "success"
       });
@@ -54,7 +52,7 @@ export const EmailVerificationContainer: FC<EmailVerificationContainerProps> = (
     } finally {
       setIsResending(false);
     }
-  }, [user?.id, d.services.auth, enqueueSnackbar, d.Snackbar]);
+  }, [user?.id, auth, enqueueSnackbar, d.Snackbar]);
 
   const handleCheckVerification = useCallback(async () => {
     setIsChecking(true);
