@@ -1,5 +1,12 @@
 
 
+## [1.20.3](https://github.com/akash-network/console/compare/notifications/v1.20.2...notifications/v1.20.3) (2025-08-07)
+
+
+### Code Refactoring
+
+* archive completed jobs in 24h ([#1783](https://github.com/akash-network/console/issues/1783)) ([219e0a3](https://github.com/akash-network/console/commit/219e0a37a0073feaba78d35af063e03f5dea6c65))
+
 ## [1.20.2](https://github.com/akash-network/console/compare/notifications/v1.20.1...notifications/v1.20.2) (2025-08-06)
 
 
