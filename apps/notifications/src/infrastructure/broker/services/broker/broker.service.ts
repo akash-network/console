@@ -5,8 +5,7 @@ import PgBoss from "pg-boss";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { BrokerConfig } from "@src/infrastructure/broker/config";
-
-type EventPayload = object;
+import { EventToPayload } from "./event-map";
 
 type Event = {
   eventName: string;
@@ -26,8 +25,12 @@ export class BrokerService {
     this.logger.setContext(BrokerService.name);
   }
 
-  async publish(eventName: string, event: EventPayload) {
-    await this.boss.publish(eventName, event);
+  async publish<T extends keyof EventToPayload>(eventName: T, event: EventToPayload[T], options?: PublishOptions) {
+    if (options) {
+      await this.boss.publish(eventName, event, options);
+    } else {
+      await this.boss.publish(eventName, event);
+    }
     this.logger.log({ event: "EVENT_PUBLISHED", eventName });
   }
 
@@ -40,7 +43,6 @@ export class BrokerService {
       Array.from({ length: options.prefetchCount }).map(() =>
         this.boss.work(queueName, async ([job]: PgBoss.Job<ReqData>[]) => {
           await handler(job);
-          await this.boss.deleteJob(queueName, job.id);
         })
       )
     );
@@ -58,7 +60,7 @@ export class BrokerService {
       });
 
       await this.pg.query("COMMIT");
-    } catch (error: unknown) {
+    } catch (error) {
       await this.pg.query("ROLLBACK");
       throw error;
     }
@@ -68,3 +70,5 @@ export class BrokerService {
     return `${this.configService.getOrThrow("broker.APP_NAME")}.${eventName}`;
   }
 }
+
+export type PublishOptions = PgBoss.SendOptions;
