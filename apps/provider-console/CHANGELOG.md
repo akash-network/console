@@ -1,5 +1,12 @@
 
 
+## [1.19.1](https://github.com/akash-network/console/compare/provider-console/v1.19.0...provider-console/v1.19.1) (2025-08-07)
+
+
+### Bug Fixes
+
+* **provider:** added loading for api-key get call ([#1792](https://github.com/akash-network/console/issues/1792)) ([9552aa2](https://github.com/akash-network/console/commit/9552aa2c711c0613b2efd92d4db2aae75abf328f))
+
 ## [1.19.0](https://github.com/akash-network/console/compare/provider-console/v1.18.0...provider-console/v1.19.0) (2025-07-31)
 
 
