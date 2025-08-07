@@ -5,7 +5,7 @@ import { TemplateService } from "@src/modules/alert/services/template/template.s
 export interface SendOptions {
   summary: string;
   description: string;
-  vars: Record<string, any>;
+  vars?: Record<string, any>;
 }
 
 export interface AlertMessagePayload {
@@ -17,7 +17,7 @@ export interface AlertMessagePayload {
 export class AlertMessageService {
   constructor(private readonly templateService: TemplateService) {}
 
-  getMessage({ vars, ...templates }: SendOptions): AlertMessagePayload {
+  getMessage({ vars = {}, ...templates }: SendOptions): AlertMessagePayload {
     return {
       summary: this.templateService.interpolate(templates.summary, vars),
       description: this.templateService.interpolate(templates.description, vars)

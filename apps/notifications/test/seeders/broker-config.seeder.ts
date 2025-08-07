@@ -7,7 +7,8 @@ import { namespaced } from "@src/lib/namespaced/namespaced";
 
 export const generateEnvBrokerConfig = (): BrokerEnvConfig => ({
   APP_NAME: faker.lorem.word(),
-  EVENT_BROKER_POSTGRES_URI: `postgres://user:password@localhost:5432/${faker.lorem.word()}`
+  EVENT_BROKER_POSTGRES_URI: `postgres://user:password@localhost:5432/${faker.lorem.word()}`,
+  EVENT_BROKER_ARCHIVE_COMPLETED_AFTER_SECONDS: 1000
 });
 
 export const generateBrokerConfig = (): BrokerConfig => namespaced(NAMESPACE, generateEnvBrokerConfig());
