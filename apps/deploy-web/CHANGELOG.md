@@ -1,5 +1,12 @@
 
 
+## [2.98.2](https://github.com/akash-network/console/compare/console-web/v2.98.1...console-web/v2.98.2) (2025-08-07)
+
+
+### Code Refactoring
+
+* reduces usage of services variable ([#1772](https://github.com/akash-network/console/issues/1772)) ([67e5c30](https://github.com/akash-network/console/commit/67e5c30c407f27df1ca9f1ce56eb723765d50282))
+
 ## [2.98.1](https://github.com/akash-network/console/compare/console-web/v2.98.0...console-web/v2.98.1) (2025-08-04)
 
 
