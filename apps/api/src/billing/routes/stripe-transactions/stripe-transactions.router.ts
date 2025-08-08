@@ -2,7 +2,12 @@ import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { StripeController } from "@src/billing/controllers/stripe/stripe.controller";
-import { ConfirmPaymentRequestSchema, CustomerTransactionsQuerySchema, CustomerTransactionsResponseSchema } from "@src/billing/http-schemas/stripe.schema";
+import {
+  ConfirmPaymentRequestSchema,
+  CustomerTransactionsCsvExportQuerySchema,
+  CustomerTransactionsQuerySchema,
+  CustomerTransactionsResponseSchema
+} from "@src/billing/http-schemas/stripe.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
 const confirmPaymentRoute = createRoute({
@@ -46,6 +51,29 @@ const getCustomerTransactionsRoute = createRoute({
   }
 });
 
+const exportTransactionsCsvRoute = createRoute({
+  method: "get",
+  path: "/v1/stripe/transactions/export",
+  summary: "Export transaction history as CSV for the current customer",
+  tags: ["Payment"],
+  request: {
+    query: CustomerTransactionsCsvExportQuerySchema
+  },
+  responses: {
+    200: {
+      description: "CSV file with transaction data",
+      content: {
+        "text/csv": {
+          schema: {
+            type: "string",
+            format: "binary"
+          }
+        }
+      }
+    }
+  }
+});
+
 export const stripeTransactionsRouter = new OpenApiHonoHandler();
 
 stripeTransactionsRouter.openapi(confirmPaymentRoute, async function confirmPayment(c) {
@@ -69,4 +97,20 @@ stripeTransactionsRouter.openapi(getCustomerTransactionsRoute, async function ge
     endDate
   });
   return c.json(response, 200);
+});
+
+stripeTransactionsRouter.openapi(exportTransactionsCsvRoute, async function exportTransactionsCsv(c) {
+  const { startDate, endDate } = c.req.valid("query");
+
+  const csvContent = await container.resolve(StripeController).exportTransactionsCsv({
+    startDate,
+    endDate
+  });
+
+  const filename = `transactions_${startDate.split("T")[0]}_to_${endDate.split("T")[0]}.csv`;
+
+  c.header("Content-Type", "text/csv");
+  c.header("Content-Disposition", `attachment; filename="${filename}"`);
+
+  return c.body(csvContent);
 });
