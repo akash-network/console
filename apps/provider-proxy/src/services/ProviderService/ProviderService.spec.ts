@@ -75,6 +75,11 @@ describe(ProviderService.name, () => {
         expected: true
       },
       {
+        name: 'includes "validation failed"',
+        body: "manifest version validation failed",
+        expected: true
+      },
+      {
         name: "is empty",
         body: "",
         expected: false
