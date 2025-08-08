@@ -1,13 +1,11 @@
 import { Provider, ProviderAttribute, ProviderAttributeSignature, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
 import { ProviderHttpService } from "@akashnetwork/http-sdk";
-import { SupportedChainNetworks } from "@akashnetwork/net";
 import { add } from "date-fns";
 import { Op } from "sequelize";
 import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
-import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderIdentity } from "@src/provider/services/provider/provider-proxy.service";
@@ -22,17 +20,13 @@ import { ProviderAttributesSchemaService } from "../provider-attributes-schema/p
 export class ProviderService {
   private readonly MANIFEST_SEND_MAX_RETRIES = 3;
   private readonly MANIFEST_SEND_RETRY_DELAY = 6000;
-  private readonly chainNetwork: SupportedChainNetworks;
 
   constructor(
     private readonly providerHttpService: ProviderHttpService,
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
-    @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly jwtTokenService: JwtTokenService
-  ) {
-    this.chainNetwork = this.config.NETWORK as SupportedChainNetworks;
-  }
+  ) {}
 
   async sendManifest({ provider, dseq, manifest, walletId }: { provider: string; dseq: string; manifest: string; walletId: number }) {
     const manifestWithSize = manifest.replace(/"quantity":{"val/g, '"size":{"val');
