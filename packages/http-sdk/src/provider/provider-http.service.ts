@@ -12,11 +12,11 @@ export class ProviderHttpService extends HttpService {
     return this.extractData(await this.get<GetProviderResponse>(`/akash/provider/v1beta3/providers/${address}`));
   }
 
-  async sendManifest({ hostUri, dseq, jsonStr, jwtToken }: { hostUri: string; dseq: string; jsonStr: string; jwtToken: string }) {
+  async sendManifest({ hostUri, dseq, manifest, jwtToken }: { hostUri: string; dseq: string; manifest: string; jwtToken: string }) {
     return this.extractData(
       await this.put(`/deployment/${dseq}/manifest`, {
         baseURL: hostUri,
-        body: jsonStr,
+        body: manifest,
         headers: this.getJwtTokenHeaders(jwtToken),
         timeout: 60000
       })
