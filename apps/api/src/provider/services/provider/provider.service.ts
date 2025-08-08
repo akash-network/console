@@ -37,7 +37,7 @@ export class ProviderService {
   }
 
   async sendManifest({ provider, dseq, manifest, walletId }: { provider: string; dseq: string; manifest: string; walletId: number }) {
-    const jsonStr = manifest.replace(/"quantity":{"val/g, '"size":{"val');
+    const manifestWithSize = manifest.replace(/"quantity":{"val/g, '"size":{"val');
 
     const providerResponse = await this.providerHttpService.getProvider(provider);
 
@@ -48,14 +48,24 @@ export class ProviderService {
       hostUri: providerResponse.provider.host_uri
     };
 
-    return await this.sendManifestToProvider(walletId, dseq, jsonStr, providerIdentity);
+    return await this.sendManifestToProvider({ walletId, dseq, manifest: manifestWithSize, providerIdentity });
   }
 
-  private async sendManifestToProvider(walletId: number, dseq: string, jsonStr: string, providerIdentity: ProviderIdentity) {
+  private async sendManifestToProvider({
+    walletId,
+    dseq,
+    manifest,
+    providerIdentity
+  }: {
+    walletId: number;
+    dseq: string;
+    manifest: string;
+    providerIdentity: ProviderIdentity;
+  }) {
     for (let i = 1; i <= this.MANIFEST_SEND_MAX_RETRIES; i++) {
       try {
         const jwtToken = await this.jwtTokenService.generateJwtToken({ walletId, provider: providerIdentity.owner });
-        const result = await this.providerHttpService.sendManifest({ hostUri: providerIdentity.hostUri, dseq, jsonStr, jwtToken });
+        const result = await this.providerHttpService.sendManifest({ hostUri: providerIdentity.hostUri, dseq, manifest, jwtToken });
 
         if (result) {
           return result;
