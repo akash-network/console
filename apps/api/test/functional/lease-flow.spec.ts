@@ -115,7 +115,22 @@ describe("Lease Flow", () => {
     throw new Error("No bids received after maximum attempts");
   }
 
-  it("should execute complete lease lifecycle", async () => {
+  [
+    {
+      name: "should execute complete lease lifecycle without a certificate provided",
+      includeCertificate: false
+    },
+    {
+      name: "should execute complete lease lifecycle with a certificate provided",
+      includeCertificate: true
+    }
+  ].forEach(({ name, includeCertificate }) => {
+    it(name, async () => {
+      await runLifecycle(includeCertificate);
+    });
+  });
+
+  const runLifecycle = async (includeCertificate: boolean) => {
     // 1. Setup user and get authentication
     const { apiKey, wallet } = await createTestUser();
 
@@ -182,10 +197,12 @@ describe("Lease Flow", () => {
 
     const body = {
       manifest,
-      certificate: {
-        certPem,
-        keyPem: encryptedKey
-      },
+      certificate: includeCertificate
+        ? {
+            certPem,
+            keyPem: encryptedKey
+          }
+        : undefined,
       leases: [
         {
           dseq,
@@ -277,5 +294,5 @@ describe("Lease Flow", () => {
     expect(finalBalances.deployments).toBeLessThan(afterDepositBalances.deployments);
     // Total should be less than initial total due to fees
     expect(finalBalances.total).toBeLessThan(initialTotal);
-  });
+  };
 });
