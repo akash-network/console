@@ -30,6 +30,23 @@ describe("JwtTokenService", () => {
       expect(mockWallet.getInstance).toHaveBeenCalled();
     });
 
+    it("generates a JWT token with 30 seconds of a TTL by default", async () => {
+      const { jwtTokenService, mockWalletId, leases } = setup();
+
+      const result = JSON.parse(await jwtTokenService.generateJwtToken({ walletId: mockWalletId, leases }));
+
+      expect(result.exp).toBe(result.iat + 30);
+    });
+
+    it("can generate a JWT token with a custom TTL", async () => {
+      const { jwtTokenService, mockWalletId, leases } = setup();
+      const ttl = 100;
+
+      const result = JSON.parse(await jwtTokenService.generateJwtToken({ walletId: mockWalletId, leases, ttl }));
+
+      expect(result.exp).toBe(result.iat + ttl);
+    });
+
     it("memoizes JWT Token generation", async () => {
       const { jwtTokenService, mockWalletId, leases } = setup();
 

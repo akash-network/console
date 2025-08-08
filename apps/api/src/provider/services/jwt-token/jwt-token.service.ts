@@ -15,17 +15,23 @@ type JwtTokenWithAddress = {
   address: string;
 };
 
+type GenerateJwtTokenParams = {
+  walletId: number;
+  leases: JwtTokenOptions["leases"];
+  ttl?: number;
+};
+
 @singleton()
 export class JwtTokenService {
   constructor(@InjectBillingConfig() private readonly config: BillingConfig) {}
 
-  async generateJwtToken({ walletId, leases }: { walletId: number; leases: JwtTokenOptions["leases"] }) {
+  async generateJwtToken({ walletId, leases, ttl = JWT_TOKEN_TTL_IN_SECONDS }: GenerateJwtTokenParams) {
     const { jwtToken, address } = await this.getJwtToken(walletId.toString());
     const now = Math.floor(Date.now() / 1000);
 
     const token = await jwtToken.createToken({
       iss: address,
-      exp: now + JWT_TOKEN_TTL_IN_SECONDS,
+      exp: now + ttl,
       nbf: now,
       iat: now,
       jti: uuid.v4(),
