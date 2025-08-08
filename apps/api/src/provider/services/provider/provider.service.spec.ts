@@ -39,7 +39,7 @@ describe(ProviderService.name, () => {
       expect(providerHttpService.sendManifest).toHaveBeenCalledWith({
         hostUri,
         dseq,
-        jsonStr: '{"size":{"val":"1"}}',
+        manifest: '{"size":{"val":"1"}}',
         jwtToken
       });
       expect(result).toEqual({ success: true });
