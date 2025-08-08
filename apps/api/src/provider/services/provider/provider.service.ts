@@ -64,7 +64,13 @@ export class ProviderService {
   }) {
     for (let i = 1; i <= this.MANIFEST_SEND_MAX_RETRIES; i++) {
       try {
-        const jwtToken = await this.jwtTokenService.generateJwtToken({ walletId, provider: providerIdentity.owner });
+        const jwtToken = await this.jwtTokenService.generateJwtToken({
+          walletId,
+          leases: this.jwtTokenService.getGranularLeases({
+            provider: providerIdentity.owner,
+            scope: ["send-manifest"]
+          })
+        });
         const result = await this.providerHttpService.sendManifest({ hostUri: providerIdentity.hostUri, dseq, manifest, jwtToken });
 
         if (result) {
@@ -89,7 +95,13 @@ export class ProviderService {
       throw new Error(`Provider ${provider} not found`);
     }
 
-    const jwtToken = await this.jwtTokenService.generateJwtToken({ walletId, provider });
+    const jwtToken = await this.jwtTokenService.generateJwtToken({
+      walletId,
+      leases: this.jwtTokenService.getGranularLeases({
+        provider,
+        scope: ["status"]
+      })
+    });
 
     return await this.providerHttpService.getLeaseStatus({ hostUri: providerResponse.provider.host_uri, dseq, gseq, oseq, jwtToken });
   }
