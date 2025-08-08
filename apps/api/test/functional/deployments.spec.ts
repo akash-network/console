@@ -710,6 +710,45 @@ describe("Deployments API", () => {
       });
     });
 
+    it("should update a deployment successfully with a certificate provided", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const dseq = "1234";
+      setupDeploymentInfoMock(wallets, dseq);
+
+      const mockTxResult = {
+        code: 0,
+        hash: "test-hash",
+        transactionHash: "test-hash",
+        rawLog: "success"
+      };
+
+      jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          data: {
+            sdl: yml,
+            certificate: {
+              certPem: "test-cert-pem",
+              keyPem: "test-key-pem"
+            }
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: unknown };
+      expect(result.data).toEqual({
+        deployment: expect.any(Object),
+        escrow_account: expect.any(Object),
+        leases: expect.arrayContaining([expect.any(Object)])
+      });
+    });
+
     it("should return 404 if deployment does not exist", async () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
