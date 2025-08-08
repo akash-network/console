@@ -1,4 +1,5 @@
 import type { ProviderHttpService } from "@akashnetwork/http-sdk";
+import type { JwtTokenOptions } from "@akashnetwork/jwt/src/types";
 import { mock } from "jest-mock-extended";
 
 import type { BillingConfig } from "@src/billing/providers";
@@ -28,14 +29,23 @@ describe(ProviderService.name, () => {
         }
       };
 
+      const leases: JwtTokenOptions["leases"] = {
+        access: "granular",
+        permissions: [{ provider: providerAddress, access: "scoped", scope: ["send-manifest"] }]
+      };
+
       providerHttpService.getProvider.mockResolvedValue(mockProviderResponse);
       jwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
+      jwtTokenService.getGranularLeases.mockReturnValue(leases);
       providerHttpService.sendManifest.mockResolvedValue({ success: true });
 
       const result = await service.sendManifest({ provider: providerAddress, dseq, manifest, walletId });
 
       expect(providerHttpService.getProvider).toHaveBeenCalledWith(providerAddress);
-      expect(jwtTokenService.generateJwtToken).toHaveBeenCalledWith({ walletId, provider: providerAddress });
+      expect(jwtTokenService.generateJwtToken).toHaveBeenCalledWith({
+        walletId,
+        leases
+      });
       expect(providerHttpService.sendManifest).toHaveBeenCalledWith({
         hostUri,
         dseq,
@@ -171,14 +181,23 @@ describe(ProviderService.name, () => {
         services: {}
       };
 
+      const leases: JwtTokenOptions["leases"] = {
+        access: "granular",
+        permissions: [{ provider: providerAddress, access: "scoped", scope: ["status"] }]
+      };
+
       providerHttpService.getProvider.mockResolvedValue(mockProviderResponse);
       jwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
+      jwtTokenService.getGranularLeases.mockReturnValue(leases);
       providerHttpService.getLeaseStatus.mockResolvedValue(mockLeaseStatus);
 
       const result = await service.getLeaseStatus(providerAddress, dseq, gseq, oseq, walletId);
 
       expect(providerHttpService.getProvider).toHaveBeenCalledWith(providerAddress);
-      expect(jwtTokenService.generateJwtToken).toHaveBeenCalledWith({ walletId, provider: providerAddress });
+      expect(jwtTokenService.generateJwtToken).toHaveBeenCalledWith({
+        walletId,
+        leases
+      });
       expect(providerHttpService.getLeaseStatus).toHaveBeenCalledWith({
         hostUri,
         dseq,
