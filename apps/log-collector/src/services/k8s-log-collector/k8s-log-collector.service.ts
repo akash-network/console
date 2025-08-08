@@ -1,260 +1,71 @@
-import { CoreV1Api, KubeConfig, Log, V1Pod } from "@kubernetes/client-node";
-import partition from "lodash/partition";
-import { PassThrough } from "stream";
 import { singleton } from "tsyringe";
 
-import { ConfigService } from "@src/services/config/config.service";
+import { FileDestinationFactory } from "@src/factories/file-destination/file-destination.factory";
+import { PodLogsCollectorFactory } from "@src/factories/pod-logs-collector/pod-logs-collector.factory";
+import { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
 import { LoggerService } from "@src/services/logger/logger.service";
-import { LogDestinationService, LogMetadata } from "@src/types/log-destination.interface";
+import { PodDiscoveryService, PodInfo } from "@src/services/pod-discovery/pod-discovery.service";
 
-interface PodInfo {
-  podName: string;
-  status?: string;
-  podIP?: string;
-  nodeName?: string;
-  labels: Record<string, string>;
-  annotations: Record<string, string>;
-}
-
-interface LogStreamOptions {
-  follow: boolean;
-  tailLines: number;
-  pretty: boolean;
-  timestamps: boolean;
-}
-
+/**
+ * Orchestrates log collection from Kubernetes pods in the current namespace
+ *
+ * This service coordinates the discovery of pods and the collection of their logs.
+ * It uses factory patterns to create dedicated instances of log collectors and file
+ * destinations for each pod, ensuring proper separation of concerns and resource management.
+ */
 @singleton()
 export class K8sLogCollectorService {
-  private readonly DEFAULT_LOG_STREAM_OPTIONS: LogStreamOptions = {
-    follow: true,
-    tailLines: 10,
-    pretty: false,
-    timestamps: true
-  };
-
   constructor(
-    private readonly k8sClient: CoreV1Api,
-    private readonly k8sLogClient: Log,
-    private readonly kubeConfig: KubeConfig,
-    private readonly config: ConfigService,
-    private readonly loggerService: LoggerService
+    private readonly podDiscoveryService: PodDiscoveryService,
+    private readonly podLogsCollectorFactory: PodLogsCollectorFactory,
+    private readonly fileDestinationFactory: FileDestinationFactory,
+    private readonly loggerService: LoggerService,
+    private readonly errorHandlerService: ErrorHandlerService
   ) {
     this.loggerService.setContext(K8sLogCollectorService.name);
   }
 
-  async collectLogs(logDestination: LogDestinationService): Promise<void> {
-    try {
-      const currentPodName = this.getCurrentPodName();
-      const namespace = this.getCurrentNamespace();
+  /**
+   * Starts the log collection process for all pods in the current namespace
+   *
+   * This method:
+   * 1. Discovers all pods in the current namespace
+   * 2. Creates dedicated log collectors and file destinations for each pod
+   * 3. Starts concurrent log collection for all pods
+   *
+   * @returns Promise that resolves when all log collection has started successfully
+   * @throws Error if pod discovery fails
+   * @throws AggregateError if any pod fails to start log collection
+   */
+  async start(): Promise<void> {
+    const pods = await this.podDiscoveryService.discoverPodsInNamespace();
 
-      this.loggerService.info({ currentPodName, namespace, message: "Starting log collection" });
-
-      const pods = await this.discoverPodsInNamespace(namespace);
-      if (pods.length === 0) {
-        this.loggerService.warn({ namespace, message: "No pods found in namespace" });
-        return;
-      }
-
-      const targetPods = this.filterOutCurrentPod(pods, currentPodName);
-      this.logDiscoveredPods(namespace, targetPods);
-
-      await this.startLogStreams(namespace, targetPods, logDestination);
-    } catch (error) {
-      this.loggerService.error({ error, message: "Error collecting logs" });
-      throw error;
-    }
-  }
-
-  private getCurrentPodName(): string {
-    const hostname = this.config.get("HOSTNAME");
-    if (!hostname) {
-      throw new Error("HOSTNAME environment variable is required but not set");
-    }
-    return hostname;
-  }
-
-  private getCurrentNamespace(): string {
-    const overrideNamespace = this.config.get("KUBERNETES_NAMESPACE_OVERRIDE");
-    if (overrideNamespace) {
-      return overrideNamespace;
+    if (pods.length === 0) {
+      this.loggerService.warn({ message: "No pods found to collect logs from. Exiting." });
+      return;
     }
 
-    return this.getNamespaceFromKubeConfig();
+    await this.startLogCollectionForAllPods(pods);
   }
 
-  private getNamespaceFromKubeConfig(): string {
-    const currentContext = this.kubeConfig.getCurrentContext();
-    this.loggerService.debug({ currentContext });
+  /**
+   * Starts log collection for multiple pods concurrently
+   *
+   * Creates dedicated instances of FileDestinationService and PodLogsCollectorService
+   * for each pod using factory patterns, then starts concurrent log collection.
+   *
+   * @param pods - Array of pod information to collect logs from
+   * @returns Promise that resolves when all log collection has been initiated
+   * @throws AggregateError if any pod fails to start log collection
+   */
+  private async startLogCollectionForAllPods(pods: PodInfo[]): Promise<void> {
+    const collectionPromises = pods.map(pod => {
+      const fileDestination = this.fileDestinationFactory.create(pod);
+      const podLogsCollector = this.podLogsCollectorFactory.create(pod, fileDestination);
 
-    const context = this.kubeConfig.getContextObject(currentContext);
-    this.loggerService.debug({ context });
-
-    if (!context) {
-      throw new Error(`Context object not found for current context: ${currentContext}`);
-    }
-
-    const namespace = context.namespace;
-
-    if (!namespace) {
-      throw new Error(`No namespace provided in k8s context: ${currentContext}. Please set namespace in context or provide KUBERNETES_NAMESPACE_OVERRIDE`);
-    }
-
-    this.loggerService.info({ namespace, source: "kubeconfig" });
-
-    return namespace;
-  }
-
-  private async discoverPodsInNamespace(namespace: string): Promise<PodInfo[]> {
-    const podsResponse = await this.k8sClient.listNamespacedPod({ namespace });
-    return podsResponse.items.map(pod => this.mapPodToInfo(pod));
-  }
-
-  private mapPodToInfo(pod: V1Pod): PodInfo {
-    return {
-      podName: pod.metadata?.name || "",
-      status: pod.status?.phase,
-      podIP: pod.status?.podIP,
-      nodeName: pod.spec?.nodeName,
-      labels: pod.metadata?.labels || {},
-      annotations: pod.metadata?.annotations || {}
-    };
-  }
-
-  private filterOutCurrentPod(pods: PodInfo[], currentPodName: string): PodInfo[] {
-    return pods.filter(pod => pod.podName !== currentPodName);
-  }
-
-  private logDiscoveredPods(namespace: string, pods: PodInfo[]): void {
-    this.loggerService.info({
-      namespace,
-      podCount: pods.length,
-      pods,
-      message: "Discovered pods in namespace"
-    });
-  }
-
-  private async startLogStreams(namespace: string, pods: PodInfo[], logDestination: LogDestinationService): Promise<void> {
-    this.loggerService.info({
-      targetPodCount: pods.length,
-      message: "Starting log streams... Press Ctrl+C to stop"
+      return podLogsCollector.collectPodLogs();
     });
 
-    const streamPromises = pods.map(pod => this.streamPodLogs(namespace, pod.podName, logDestination));
-
-    const results = await Promise.allSettled(streamPromises);
-
-    const [fulfilled, rejected] = partition(results, result => result.status === "fulfilled");
-    const succeeded = fulfilled.length;
-    const failed = rejected.length;
-
-    this.loggerService.info({
-      namespace,
-      totalPods: pods.length,
-      succeeded,
-      failed,
-      message: "Log stream results"
-    });
-
-    if (failed > 0) {
-      const failedPods = rejected.map(result => {
-        const originalIndex = results.indexOf(result);
-        return pods[originalIndex].podName;
-      });
-
-      throw new Error(`Log streams failed for pods: ${failedPods.join(", ")}`);
-    }
-  }
-
-  private async streamPodLogs(namespace: string, podName: string, logDestination: LogDestinationService): Promise<void> {
-    try {
-      this.loggerService.info({ podName, namespace, message: "Starting log stream for pod" });
-
-      const containerName = await this.getContainerName(namespace, podName);
-      this.loggerService.info({ podName, containerName: containerName || "default", message: "Using container" });
-
-      const logStream = this.createLogStream(podName, namespace, logDestination);
-
-      this.startKubernetesLogStream(namespace, podName, containerName, logStream);
-
-      return new Promise((resolve, reject) => {
-        logStream.on("error", error => {
-          reject(error);
-        });
-
-        logStream.on("end", () => {
-          resolve();
-        });
-      });
-    } catch (error) {
-      this.loggerService.error({ error, podName, namespace, message: "Error streaming logs from pod" });
-      throw error;
-    }
-  }
-
-  private async getContainerName(namespace: string, podName: string): Promise<string> {
-    const podResponse = await this.k8sClient.readNamespacedPod({ name: podName, namespace });
-    const containers = podResponse.spec?.containers || [];
-    return containers.length > 0 ? containers[0].name : "";
-  }
-
-  private createLogStream(podName: string, namespace: string, logDestination: LogDestinationService): PassThrough {
-    const logStream = new PassThrough();
-
-    logStream.on("data", async chunk => {
-      this.writeToConsole(podName, chunk);
-      await this.sendToDestination(chunk, podName, namespace, logDestination);
-    });
-
-    logStream.on("end", () => {
-      this.loggerService.info({ podName, namespace, message: "Log stream ended normally" });
-    });
-
-    logStream.on("error", error => {
-      this.loggerService.error({ error, podName, namespace, message: "Log stream error" });
-    });
-
-    logStream.on("close", () => {
-      this.loggerService.info({ podName, namespace, message: "Log stream closed" });
-    });
-
-    return logStream;
-  }
-
-  private writeToConsole(podName: string, chunk: Buffer): void {
-    if (this.config.get("WRITE_TO_CONSOLE")) {
-      process.stdout.write(`[${podName}] ${chunk}`);
-    }
-  }
-
-  private async sendToDestination(chunk: Buffer, podName: string, namespace: string, logDestination: LogDestinationService): Promise<void> {
-    const metadata = this.createLogMetadata(podName, namespace);
-
-    try {
-      await logDestination.sendLog(chunk.toString(), metadata);
-    } catch (error) {
-      this.loggerService.error({ error, podName, message: "Error in log destination for pod" });
-    }
-  }
-
-  private createLogMetadata(podName: string, namespace: string): LogMetadata {
-    return {
-      source: this.config.get("SOURCE"),
-      environment: this.config.get("ENVIRONMENT"),
-      tags: {
-        namespace,
-        pod: podName,
-        service: podName,
-        kubernetes_namespace: namespace,
-        kubernetes_pod: podName
-      },
-      hostname: podName,
-      service: podName,
-      namespace,
-      podName
-    };
-  }
-
-  private async startKubernetesLogStream(namespace: string, podName: string, containerName: string, logStream: PassThrough): Promise<void> {
-    await this.k8sLogClient.log(namespace, podName, containerName, logStream, this.DEFAULT_LOG_STREAM_OPTIONS);
+    await this.errorHandlerService.aggregateConcurrentResults(collectionPromises, "pod log collection");
   }
 }

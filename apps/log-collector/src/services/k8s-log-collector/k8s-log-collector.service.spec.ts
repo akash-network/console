@@ -1,164 +1,80 @@
-import { faker } from "@faker-js/faker";
-import { CoreV1Api, KubeConfig, Log } from "@kubernetes/client-node";
 import { mock } from "jest-mock-extended";
-import type { PassThrough } from "node:stream";
 import { container } from "tsyringe";
 
-import { PROCESS_ENV } from "@src/providers/process-env.provider";
+import { FileDestinationFactory } from "@src/factories/file-destination/file-destination.factory";
+import { PodLogsCollectorFactory } from "@src/factories/pod-logs-collector/pod-logs-collector.factory";
+import { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
+import type { FileDestinationService } from "@src/services/file-destination/file-destination.service";
 import { LoggerService } from "@src/services/logger/logger.service";
+import type { PodInfo } from "@src/services/pod-discovery/pod-discovery.service";
+import { PodDiscoveryService } from "@src/services/pod-discovery/pod-discovery.service";
+import type { PodLogsCollectorService } from "@src/services/pod-logs-collector/pod-logs-collector.service";
 import { K8sLogCollectorService } from "./k8s-log-collector.service";
 
-import type { ConfigTestData } from "@test/seeders/config.seeder";
-import { seedConfigTestData, seedMinimalConfigTestData } from "@test/seeders/config.seeder";
-import { seedK8sTestData } from "@test/seeders/k8s-log-collector.seeder";
+import { seedPodInfoTestData } from "@test/seeders/pod-info.seeder";
 import { mockProvider } from "@test/utils/mock-provider.util";
 
 describe(K8sLogCollectorService.name, () => {
-  it("should collect logs from pods in namespace", async () => {
-    const config = seedConfigTestData();
-    const { k8sLogCollectorService, k8sClient, k8sLogClient, loggerService, namespace } = setup(config);
-    const { pods, logDestination } = seedK8sTestData();
+  it("should start log collection for all pods in namespace", async () => {
+    const { k8sLogCollectorService, podDiscoveryService, podLogsCollectorFactory, fileDestinationFactory, errorHandlerService } = setup();
+    const pods: PodInfo[] = [seedPodInfoTestData(), seedPodInfoTestData()];
 
-    k8sClient.listNamespacedPod.mockResolvedValue({ items: pods });
-    k8sClient.readNamespacedPod.mockResolvedValue({
-      spec: { containers: [{ name: "main-container" }] }
-    });
-    k8sLogClient.log.mockResolvedValue(new AbortController());
+    const mockPodLogsCollector = mock<PodLogsCollectorService>();
+    mockPodLogsCollector.collectPodLogs.mockResolvedValue();
 
-    const mockStream = mock<PassThrough>();
-    mockStream.on.mockImplementation((event: string, handler: (...args: any[]) => void) => {
-      if (event === "end") {
-        setTimeout(() => handler(), 0);
-      }
-      return mockStream;
-    });
+    const mockFileDestination1 = mock<FileDestinationService>();
+    const mockFileDestination2 = mock<FileDestinationService>();
 
-    jest.spyOn(k8sLogCollectorService as any, "createLogStream").mockReturnValue(mockStream);
+    podDiscoveryService.discoverPodsInNamespace.mockResolvedValue(pods);
+    podLogsCollectorFactory.create.mockReturnValue(mockPodLogsCollector);
+    fileDestinationFactory.create.mockReturnValueOnce(mockFileDestination1).mockReturnValueOnce(mockFileDestination2);
 
-    await k8sLogCollectorService.collectLogs(logDestination);
+    await k8sLogCollectorService.start();
 
-    expect(k8sClient.listNamespacedPod).toHaveBeenCalledWith({ namespace });
-    expect(loggerService.info).toHaveBeenCalledWith({
-      currentPodName: config.HOSTNAME,
-      namespace,
-      message: "Starting log collection"
-    });
+    expect(podDiscoveryService.discoverPodsInNamespace).toHaveBeenCalled();
+    expect(fileDestinationFactory.create).toHaveBeenCalledTimes(2);
+    expect(podLogsCollectorFactory.create).toHaveBeenCalledTimes(2);
+
+    expect(fileDestinationFactory.create).toHaveBeenNthCalledWith(1, pods[0]);
+    expect(fileDestinationFactory.create).toHaveBeenNthCalledWith(2, pods[1]);
+
+    expect(podLogsCollectorFactory.create).toHaveBeenNthCalledWith(1, pods[0], mockFileDestination1);
+    expect(podLogsCollectorFactory.create).toHaveBeenNthCalledWith(2, pods[1], mockFileDestination2);
+
+    expect(mockPodLogsCollector.collectPodLogs).toHaveBeenCalledTimes(2);
+    expect(errorHandlerService.aggregateConcurrentResults).toHaveBeenCalledWith(expect.arrayContaining([expect.any(Promise)]), "pod log collection");
   });
 
   it("should handle empty namespace gracefully", async () => {
-    const config = seedConfigTestData();
-    const { k8sLogCollectorService, k8sClient, loggerService, namespace } = setup(config);
-    const { logDestination } = seedK8sTestData();
+    const { k8sLogCollectorService, podDiscoveryService, loggerService } = setup();
 
-    k8sClient.listNamespacedPod.mockResolvedValue({ items: [] });
+    podDiscoveryService.discoverPodsInNamespace.mockResolvedValue([]);
 
-    await k8sLogCollectorService.collectLogs(logDestination);
+    await k8sLogCollectorService.start();
 
     expect(loggerService.warn).toHaveBeenCalledWith({
-      namespace,
-      message: "No pods found in namespace"
+      message: "No pods found to collect logs from. Exiting."
     });
   });
 
-  it("should handle errors during log collection", async () => {
-    const config = seedConfigTestData();
-    const { k8sLogCollectorService, k8sClient, loggerService } = setup(config);
-    const { logDestination } = seedK8sTestData();
-    const error = new Error("Kubernetes API error");
-
-    k8sClient.listNamespacedPod.mockRejectedValue(error);
-
-    await expect(k8sLogCollectorService.collectLogs(logDestination)).rejects.toThrow("Kubernetes API error");
-
-    expect(loggerService.error).toHaveBeenCalledWith({
-      error,
-      message: "Error collecting logs"
-    });
-  });
-
-  it("should fail when no kubeconfig context is available", async () => {
-    const config = seedMinimalConfigTestData();
-    const { k8sLogCollectorService, kubeConfig } = setup(config);
-    const { logDestination } = seedK8sTestData();
-    kubeConfig.getContextObject.mockReturnValue(null);
-
-    await expect(k8sLogCollectorService.collectLogs(logDestination)).rejects.toThrow("Context object not found for current context: test-context");
-  });
-
-  it("should fail when kubeconfig context has no namespace", async () => {
-    const config = seedMinimalConfigTestData();
-    const { k8sLogCollectorService, kubeConfig } = setup(config);
-    const { logDestination } = seedK8sTestData();
-
-    kubeConfig.getCurrentContext.mockReturnValue("test-context");
-    kubeConfig.getContextObject.mockReturnValue({
-      cluster: faker.internet.domainWord(),
-      user: faker.internet.domainWord(),
-      name: faker.internet.domainWord(),
-      namespace: undefined
-    });
-
-    await expect(k8sLogCollectorService.collectLogs(logDestination)).rejects.toThrow(
-      "No namespace provided in k8s context: test-context. Please set namespace in context or provide KUBERNETES_NAMESPACE_OVERRIDE"
-    );
-  });
-
-  it("should handle stream errors and propagate them", async () => {
-    const config = seedConfigTestData();
-    const { k8sLogCollectorService, k8sClient, k8sLogClient, loggerService } = setup(config);
-    const { pods, logDestination } = seedK8sTestData();
-
-    k8sClient.listNamespacedPod.mockResolvedValue({ items: pods });
-    k8sClient.readNamespacedPod.mockResolvedValue({
-      spec: { containers: [{ name: "main-container" }] }
-    });
-    k8sLogClient.log.mockResolvedValue(new AbortController());
-
-    const mockStream = mock<PassThrough>();
-    mockStream.on.mockImplementation((event: string, handler: (...args: any[]) => void) => {
-      if (event === "error") {
-        setTimeout(() => handler(new Error("Stream error")), 0);
-      }
-      return mockStream;
-    });
-
-    jest.spyOn(k8sLogCollectorService as any, "createLogStream").mockReturnValue(mockStream);
-
-    await expect(k8sLogCollectorService.collectLogs(logDestination)).rejects.toThrow("Log streams failed for pods:");
-
-    expect(loggerService.error).toHaveBeenCalledWith({
-      error: expect.any(Error),
-      message: "Error collecting logs"
-    });
-  });
-
-  function setup(config: ConfigTestData) {
+  function setup() {
     container.clearInstances();
 
-    const k8sClient = mockProvider(CoreV1Api);
-    const k8sLogClient = mockProvider(Log);
-    const kubeConfig = mockProvider(KubeConfig);
+    const podDiscoveryService = mockProvider(PodDiscoveryService);
     const loggerService = mockProvider(LoggerService);
-    container.register(PROCESS_ENV, { useValue: config });
+    const errorHandlerService = mockProvider(ErrorHandlerService);
+    const podLogsCollectorFactory = mockProvider(PodLogsCollectorFactory);
+    const fileDestinationFactory = mockProvider(FileDestinationFactory);
 
     const k8sLogCollectorService = container.resolve(K8sLogCollectorService);
 
-    const namespace = faker.internet.domainWord();
-    kubeConfig.getCurrentContext.mockReturnValue("test-context");
-    kubeConfig.getContextObject.mockReturnValue({
-      cluster: faker.internet.domainWord(),
-      user: faker.internet.domainWord(),
-      name: faker.internet.domainWord(),
-      namespace
-    });
-
     return {
       k8sLogCollectorService,
-      k8sClient,
-      k8sLogClient,
-      kubeConfig,
+      podDiscoveryService,
+      podLogsCollectorFactory,
+      fileDestinationFactory,
       loggerService,
-      namespace
+      errorHandlerService
     };
   }
 });
