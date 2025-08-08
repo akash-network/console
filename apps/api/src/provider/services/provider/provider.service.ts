@@ -53,11 +53,18 @@ export class ProviderService {
   private async sendManifestToProvider(walletId: number, dseq: string, jsonStr: string, providerIdentity: ProviderIdentity) {
     for (let i = 1; i <= this.MANIFEST_SEND_MAX_RETRIES; i++) {
       try {
+        const jwtToken = await this.jwtTokenService.generateJwtToken({
+          walletId,
+          leases: this.jwtTokenService.getGranularLeases({
+            provider: providerIdentity.owner,
+            scope: ["send-manifest"]
+          })
+        });
         const result = await this.providerProxy.fetchProviderUrl(`/deployment/${dseq}/manifest`, {
           method: "PUT",
           body: jsonStr,
           headers: {
-            Authorization: `Bearer ${await this.jwtTokenService.generateJwtToken({ walletId, provider: providerIdentity.owner })}`,
+            Authorization: `Bearer ${jwtToken}`,
             "Content-Type": "application/json"
           },
           chainNetwork: this.chainNetwork,
@@ -91,11 +98,18 @@ export class ProviderService {
       owner: providerAddress,
       hostUri: provider.hostUri
     };
+    const jwtToken = await this.jwtTokenService.generateJwtToken({
+      walletId,
+      leases: this.jwtTokenService.getGranularLeases({
+        provider: providerAddress,
+        scope: ["status"]
+      })
+    });
 
     return await this.providerProxy.fetchProviderUrl<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${await this.jwtTokenService.generateJwtToken({ walletId, provider: providerIdentity.owner })}`,
+        Authorization: `Bearer ${jwtToken}`,
         "Content-Type": "application/json"
       },
       chainNetwork: this.chainNetwork,
