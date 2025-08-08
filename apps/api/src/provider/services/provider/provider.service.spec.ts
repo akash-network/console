@@ -2,7 +2,6 @@ import type { ProviderHttpService } from "@akashnetwork/http-sdk";
 import type { JwtTokenOptions } from "@akashnetwork/jwt/src/types";
 import { mock } from "jest-mock-extended";
 
-import type { BillingConfig } from "@src/billing/providers";
 import type { AuditorService } from "@src/provider/services/auditors/auditors.service";
 import type { JwtTokenService } from "@src/provider/services/jwt-token/jwt-token.service";
 import type { ProviderAttributesSchemaService } from "@src/provider/services/provider-attributes-schema/provider-attributes-schema.service";
@@ -227,19 +226,15 @@ describe(ProviderService.name, () => {
     const providerHttpService = mock<ProviderHttpService>();
     const providerAttributesSchemaService = mock<ProviderAttributesSchemaService>();
     const auditorsService = mock<AuditorService>();
-    const billingConfig = mock<BillingConfig>();
     const jwtTokenService = mock<JwtTokenService>();
 
-    billingConfig.NETWORK = "testnet";
-
-    const service = new ProviderService(providerHttpService, providerAttributesSchemaService, auditorsService, billingConfig, jwtTokenService);
+    const service = new ProviderService(providerHttpService, providerAttributesSchemaService, auditorsService, jwtTokenService);
 
     return {
       service,
       providerHttpService,
       providerAttributesSchemaService,
       auditorsService,
-      billingConfig,
       jwtTokenService
     };
   }
