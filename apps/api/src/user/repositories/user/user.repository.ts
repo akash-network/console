@@ -1,10 +1,12 @@
 import subDays from "date-fns/subDays";
 import { and, desc, eq, isNull, lt, lte, SQL, sql } from "drizzle-orm";
+import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
 import { ApiPgDatabase, ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import { userAgentMaxLength } from "@src/user/model-schemas/user/user.schema";
 
 export type UserOutput = ApiPgTables["Users"]["$inferSelect"] & {
   trial?: boolean;
@@ -42,15 +44,29 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     return await this.cursor.query.Users.findFirst({ where: this.whereAccessibleBy(and(eq(this.table.id, id), isNull(this.table.userId))) });
   }
 
-  async markAsActive(id: UserOutput["id"], throttleTimeSeconds: number): Promise<void> {
+  async markAsActive(
+    id: UserOutput["id"],
+    options: {
+      throttleTimeSeconds: number;
+      ip?: string;
+      fingerprint?: string;
+    }
+  ): Promise<void> {
+    const changes: PgUpdateSetSource<typeof this.table> = {
+      lastActiveAt: sql`now()`
+    };
+
+    if (options.ip) changes.lastIp = options.ip;
+    if (options.fingerprint) changes.lastFingerprint = options.fingerprint;
+
     await this.cursor
       .update(this.table)
-      .set({ lastActiveAt: sql`now()` })
+      .set(changes)
       .where(
         and(
           // keep new line
           eq(this.table.id, id),
-          lt(this.table.lastActiveAt, sql`now() - make_interval(secs => ${throttleTimeSeconds})`)
+          lt(this.table.lastActiveAt, sql`now() - make_interval(secs => ${options.throttleTimeSeconds})`)
         )
       );
   }
@@ -77,6 +93,18 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     } while (lastId);
   }
 
+  async upsert(data: UserInput): Promise<UserOutput> {
+    const [item] = await this.cursor
+      .insert(this.table)
+      .values(this.toInput(data))
+      .onConflictDoUpdate({
+        target: [this.table.userId],
+        set: data
+      })
+      .returning();
+    return this.toOutput(item);
+  }
+
   private async findUserWithWallet(whereClause: SQL<unknown>) {
     const result = await this.cursor.query.Users.findFirst({
       where: this.whereAccessibleBy(whereClause),
@@ -94,6 +122,14 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     return {
       ...result,
       trial: result.userWallets?.isTrialing ?? true
+    };
+  }
+
+  toInput(payload: Partial<UserInput>): Partial<UserInput> {
+    if (!payload.lastUserAgent) return payload;
+    return {
+      ...payload,
+      lastUserAgent: payload.lastUserAgent.slice(0, userAgentMaxLength)
     };
   }
 }
