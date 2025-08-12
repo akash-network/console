@@ -95,8 +95,8 @@ describe("pageGuards", () => {
 
 function setup(input?: { enabledFeatures?: string[]; session?: Partial<Session> }) {
   return mock<AppTypedContext>({
+    session: input?.session,
     services: {
-      getSession: jest.fn().mockResolvedValue(input?.session),
       featureFlagService: mock<FeatureFlagService>({
         isEnabledForCtx: jest.fn(async featureName => !!input?.enabledFeatures?.includes(featureName))
       }),

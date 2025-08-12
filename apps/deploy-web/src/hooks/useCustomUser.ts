@@ -10,6 +10,9 @@ type UseCustomUser = {
   checkSession: () => Promise<void>;
 };
 
+/**
+ * Returns information about registered user.
+ */
 export const useCustomUser = (): UseCustomUser => {
   const { user, isLoading, error, checkSession } = useUser();
   const completeUser = user ? { ...user, plan: plans.find(x => x.code === user.planCode) } : user;

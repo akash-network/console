@@ -1,4 +1,5 @@
 import { isHttpError } from "@akashnetwork/http-sdk";
+import type { Session } from "@auth0/nextjs-auth0";
 import { wrapGetServerSidePropsWithSentry } from "@sentry/nextjs";
 import type { GetServerSideProps, GetServerSidePropsContext, GetServerSidePropsResult, PreviewData } from "next";
 import type { ParsedUrlQuery } from "querystring";
@@ -24,7 +25,10 @@ export type AppTypedContext<
   TSchema extends z.ZodSchema<any> | undefined = undefined,
   TParams extends ParsedUrlQuery = ParsedUrlQuery,
   TPreviewData extends PreviewData = PreviewData
-> = TypedContext<TSchema, TParams, TPreviewData> & { services: typeof services };
+> = TypedContext<TSchema, TParams, TPreviewData> & {
+  services: typeof services;
+  session?: Session | null;
+};
 type TypedContext<TSchema extends z.ZodSchema<any> | undefined, TParams extends ParsedUrlQuery, TPreviewData extends PreviewData> =
   TSchema extends z.ZodSchema<any>
     ? Omit<GetServerSidePropsContext<TParams, TPreviewData>, "params" | "query"> & {
@@ -45,17 +49,22 @@ export function defineServerSideProps<
 >(options: WrapServerSideOptions<TSchema, TProps, TParams, TPreviewData>): GetServerSideProps<TProps, TParams, TPreviewData> {
   return wrapGetServerSidePropsWithSentry(async (context: GetServerSidePropsContext<TParams, TPreviewData>): Promise<GetServerSidePropsResult<TProps>> => {
     return requestExecutionContext.run(createRequestExecutionContext(context.req), async () => {
-      const logger = "services" in context ? (context.services as typeof services).logger : services.logger;
+      const requestServices = "services" in context ? (context.services as typeof services) : services;
+
+      const session = await requestServices.getSession(context.req, context.res);
+      requestServices.userTracker.track(session?.user);
+
       const validatedContext = options.schema ? options.schema.safeParse(context) : undefined;
       if (validatedContext && !validatedContext.success) {
-        logger.warn({ message: `Invalid context for route ${options.route}`, error: validatedContext.error });
+        requestServices.logger.warn({ message: `Invalid context for route ${options.route}`, error: validatedContext.error });
         return NOT_FOUND;
       }
 
       const newContext = {
-        services,
+        services: requestServices,
         ...context,
-        ...validatedContext?.data
+        ...validatedContext?.data,
+        session
       } as AppTypedContext<TSchema, TParams, TPreviewData>;
 
       const result = await options.if?.(newContext);
@@ -67,7 +76,7 @@ export function defineServerSideProps<
           return await options.handler(newContext);
         } catch (error) {
           if (isHttpError(error) && (error.response?.status === 404 || error.response?.status === 400)) {
-            logger.warn({
+            requestServices.logger.warn({
               message: `Error in handler for route ${options.route}`,
               error
             });

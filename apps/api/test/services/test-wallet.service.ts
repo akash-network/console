@@ -120,9 +120,14 @@ export class TestWalletService {
 
     await this.topUpFaucetWallet(faucetAddress);
 
+    let maxAttempts = 10;
     while (initialAmount === updatedAmount) {
       const updatedBalance = await this.balanceHttpService.getBalance(faucetAddress, "uakt");
       updatedAmount = updatedBalance?.amount;
+      maxAttempts--;
+      if (maxAttempts <= 0) {
+        throw new Error(`Wallet ${faucetAddress} balance has not been changed after top up for 10 seconds`);
+      }
       await delay(1000);
     }
 
@@ -135,13 +140,18 @@ export class TestWalletService {
   private async topUpFaucetWallet(address: string) {
     const times = 1;
     for (let i = 0; i < times; i++) {
-      await fetch(config!.FAUCET_URL, {
+      const response = await fetch(config!.FAUCET_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded"
         },
         body: `address=${encodeURIComponent(address)}`
       });
+      if (response.status >= 300 || response.status < 200) {
+        this.log(`Unable to top up wallet with faucet. Response: ${response.status}`);
+        this.log(await response.json());
+        throw new Error("Unable to top up wallet with faucet");
+      }
     }
   }
 
@@ -149,7 +159,7 @@ export class TestWalletService {
     return path.split(FOLDER_SEP).pop()!;
   }
 
-  private log(message: string) {
+  private log(message: unknown) {
     console.log(message);
   }
 }
