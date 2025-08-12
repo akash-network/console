@@ -51,10 +51,17 @@ export class JwtTokenService {
     return { jwtToken, address: akashWallet.address };
   }
 
-  getGranularLeases({ provider, scope }: { provider: string; scope: AccessScope[] }): JwtTokenPayload["leases"] {
+  getScopedLeases({ provider, scope }: { provider: string; scope: AccessScope[] }): JwtTokenPayload["leases"] {
     return {
       access: "granular",
       permissions: [{ provider, access: "scoped", scope }]
+    };
+  }
+
+  getFullAccessLeases({ provider }: { provider: string }): JwtTokenPayload["leases"] {
+    return {
+      access: "granular",
+      permissions: [{ provider, access: "full" }]
     };
   }
 }

@@ -4,11 +4,13 @@ import "./app/providers/jobs.provider";
 import { LoggerService } from "@akashnetwork/logging";
 import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
 import { serve } from "@hono/node-server";
+import { createNodeWebSocket } from "@hono/node-ws";
 import { otel } from "@hono/otel";
 import { swaggerUI } from "@hono/swagger-ui";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import once from "lodash/once";
+import type { AddressInfo } from "net";
 import { container } from "tsyringe";
 
 import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
@@ -39,6 +41,7 @@ import { userRouter } from "./routers/userRouter";
 import { web3IndexRouter } from "./routers/web3indexRouter";
 import { env } from "./utils/env";
 import { bytesToHumanReadableSize } from "./utils/files";
+import { initLeaseWebsocketRoute } from "./websocket/routes/websocket/websocket.router";
 import { addressRouter } from "./address";
 import { sendVerificationEmailRouter } from "./auth";
 import {
@@ -163,6 +166,9 @@ for (const handler of openApiHonoHandlers) {
   appHono.route("/", handler);
 }
 
+const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app: appHono });
+initLeaseWebsocketRoute(appHono, upgradeWebSocket);
+
 appHono.route("/", notificationsApiProxy);
 
 appHono.route("/", healthzRouter);
@@ -199,22 +205,31 @@ const appLogger = LoggerService.forContext("APP");
  * Start scheduler
  * Start server
  */
-export async function initApp() {
+export async function initApp(port: number = Number(PORT)): Promise<AppServer> {
   try {
     await Promise.all([initDb(), ...container.resolveAll(APP_INITIALIZER).map(initializer => initializer[ON_APP_START]())]);
     startScheduler();
 
-    appLogger.info({ event: "SERVER_STARTING", url: `http://localhost:${PORT}`, NODE_OPTIONS: process.env.NODE_OPTIONS });
+    appLogger.info({ event: "SERVER_STARTING", url: `http://localhost:${port}`, NODE_OPTIONS: process.env.NODE_OPTIONS });
     const server = serve({
       fetch: appHono.fetch,
-      port: typeof PORT === "string" ? parseInt(PORT, 10) : PORT
+      port: typeof port === "string" ? parseInt(port, 10) : port
     });
+    injectWebSocket(server);
     const shutdown = once(() => shutdownServer(server, appLogger, container.dispose.bind(container)));
 
     process.on("SIGTERM", shutdown);
     process.on("SIGINT", shutdown);
+
+    return {
+      host: `http://localhost:${(server.address() as AddressInfo).port}`,
+      async close() {
+        await shutdown();
+      }
+    };
   } catch (error) {
     appLogger.error({ event: "APP_INIT_ERROR", error });
+    throw error;
   }
 }
 
@@ -239,3 +254,8 @@ export async function initDb() {
 }
 
 export { appHono as app };
+
+export interface AppServer {
+  host: string;
+  close(): Promise<void>;
+}

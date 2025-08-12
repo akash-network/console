@@ -60,7 +60,7 @@ export class ProviderService {
       try {
         const jwtToken = await this.jwtTokenService.generateJwtToken({
           walletId,
-          leases: this.jwtTokenService.getGranularLeases({
+          leases: this.jwtTokenService.getScopedLeases({
             provider: providerIdentity.owner,
             scope: ["send-manifest"]
           })
@@ -94,7 +94,7 @@ export class ProviderService {
 
     const jwtToken = await this.jwtTokenService.generateJwtToken({
       walletId,
-      leases: this.jwtTokenService.getGranularLeases({
+      leases: this.jwtTokenService.getScopedLeases({
         provider,
         scope: ["status"]
       })
