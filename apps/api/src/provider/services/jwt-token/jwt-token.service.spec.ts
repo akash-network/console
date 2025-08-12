@@ -1,5 +1,5 @@
 import * as JwtModule from "@akashnetwork/jwt";
-import type { JwtTokenOptions } from "@akashnetwork/jwt/src/types";
+import type { JwtTokenPayload } from "@akashnetwork/jwt/src/types";
 import type { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import type { MockProxy } from "jest-mock-extended";
@@ -107,7 +107,7 @@ describe("JwtTokenService", () => {
     mockBillingConfig: MockProxy<BillingConfig>;
     mockWalletId: number;
     mockWallet: MockProxy<WalletModule.Wallet>;
-    leases: JwtTokenOptions["leases"];
+    leases: JwtTokenPayload["leases"];
   } {
     jest.clearAllMocks();
     const mockWalletId = faker.number.int({ min: 1, max: 10000 });
@@ -141,7 +141,7 @@ describe("JwtTokenService", () => {
 
     const jwtTokenService = new JwtTokenService(mockBillingConfig);
 
-    const leases: JwtTokenOptions["leases"] = {
+    const leases: JwtTokenPayload["leases"] = {
       access: "granular",
       permissions: [
         {
