@@ -114,7 +114,7 @@ describe(BillingView.name, () => {
     );
 
     const defaultComponents: NonNullable<BillingViewProps["components"]> = {
-      FormattedNumber: ({ value }: { value: number }) => <span>{value}</span>,
+      FormattedNumber: ({ value }) => <span>{value.toFixed(2)}</span>,
       PaginationSizeSelector: ({ pageSize, setPageSize }) => (
         <select value={pageSize} onChange={e => setPageSize?.(parseInt(e.target.value, 10))} role="combobox">
           {[10, 20, 50].map(size => (

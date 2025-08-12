@@ -3,6 +3,11 @@
   "version": "2.98.2",
   "private": true,
   "description": "Web UI to deploy on the Akash Network and view statistic about network usage.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akash-network/console.git",
+    "directory": "apps/deploy-web"
+  },
   "license": "Apache-2.0",
   "author": "Akash Network",
   "scripts": {

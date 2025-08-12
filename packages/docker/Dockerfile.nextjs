@@ -9,10 +9,13 @@ ARG WORKSPACE
 ENV WORKSPACE $WORKSPACE
 
 # see https://r1ch.net/blog/node-v20-aggregateeerror-etimedout-happy-eyeballs and https://github.com/nodejs/node/issues/54359
-ARG NODE_OPTIONS="--no-network-family-autoselection"
+ARG NODE_OPTIONS="--no-network-family-autoselection --enable-source-maps"
 
 ARG DEPLOYMENT_ENV
 ENV DEPLOYMENT_ENV $DEPLOYMENT_ENV
+
+ARG SENTRY_AUTH_TOKEN
+ARG GIT_COMMIT_HASH
 
 ENV NEXT_TELEMETRY_DISABLED 1
 
@@ -50,6 +53,8 @@ FROM development AS builder
 
 ENV NODE_ENV production
 
+ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
+ENV GIT_COMMIT_HASH=$GIT_COMMIT_HASH
 RUN npm run build -w $WORKSPACE
 
 FROM base AS production
