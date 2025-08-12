@@ -82,12 +82,12 @@ describe("JwtTokenService", () => {
     });
   });
 
-  describe("getGranularLeases", () => {
+  describe("getScopedLeases", () => {
     it("returns leases for a provider, scoped", () => {
       const { jwtTokenService } = setup();
 
       const provider = createAkashAddress();
-      const result = jwtTokenService.getGranularLeases({ provider, scope: ["status"] });
+      const result = jwtTokenService.getScopedLeases({ provider, scope: ["status"] });
 
       expect(result).toEqual({
         access: "granular",
@@ -96,6 +96,25 @@ describe("JwtTokenService", () => {
             provider,
             access: "scoped",
             scope: ["status"]
+          }
+        ]
+      });
+    });
+  });
+
+  describe("getFullAccessLeases", () => {
+    it("returns leases for a provider, with full access", () => {
+      const { jwtTokenService } = setup();
+
+      const provider = createAkashAddress();
+      const result = jwtTokenService.getFullAccessLeases({ provider });
+
+      expect(result).toEqual({
+        access: "granular",
+        permissions: [
+          {
+            provider,
+            access: "full"
           }
         ]
       });

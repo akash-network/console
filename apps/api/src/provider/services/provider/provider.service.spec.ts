@@ -35,7 +35,7 @@ describe(ProviderService.name, () => {
 
       providerHttpService.getProvider.mockResolvedValue(mockProviderResponse);
       jwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
-      jwtTokenService.getGranularLeases.mockReturnValue(leases);
+      jwtTokenService.getScopedLeases.mockReturnValue(leases);
       providerHttpService.sendManifest.mockResolvedValue({ success: true });
 
       const result = await service.sendManifest({ provider: providerAddress, dseq, manifest, walletId });
@@ -187,7 +187,7 @@ describe(ProviderService.name, () => {
 
       providerHttpService.getProvider.mockResolvedValue(mockProviderResponse);
       jwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
-      jwtTokenService.getGranularLeases.mockReturnValue(leases);
+      jwtTokenService.getScopedLeases.mockReturnValue(leases);
       providerHttpService.getLeaseStatus.mockResolvedValue(mockLeaseStatus);
 
       const result = await service.getLeaseStatus(providerAddress, dseq, gseq, oseq, walletId);
