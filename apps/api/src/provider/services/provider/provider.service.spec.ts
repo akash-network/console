@@ -1,5 +1,5 @@
 import type { ProviderHttpService } from "@akashnetwork/http-sdk";
-import type { JwtTokenOptions } from "@akashnetwork/jwt/src/types";
+import type { JwtTokenPayload } from "@akashnetwork/jwt/src/types";
 import { mock } from "jest-mock-extended";
 
 import type { AuditorService } from "@src/provider/services/auditors/auditors.service";
@@ -28,7 +28,7 @@ describe(ProviderService.name, () => {
         }
       };
 
-      const leases: JwtTokenOptions["leases"] = {
+      const leases: JwtTokenPayload["leases"] = {
         access: "granular",
         permissions: [{ provider: providerAddress, access: "scoped", scope: ["send-manifest"] }]
       };
@@ -180,7 +180,7 @@ describe(ProviderService.name, () => {
         services: {}
       };
 
-      const leases: JwtTokenOptions["leases"] = {
+      const leases: JwtTokenPayload["leases"] = {
         access: "granular",
         permissions: [{ provider: providerAddress, access: "scoped", scope: ["status"] }]
       };
