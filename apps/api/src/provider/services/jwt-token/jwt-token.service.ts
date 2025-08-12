@@ -1,5 +1,5 @@
 import { createSignArbitraryAkashWallet, JwtToken } from "@akashnetwork/jwt";
-import { JwtTokenOptions, Scope } from "@akashnetwork/jwt/src/types";
+import type { AccessScope, JwtTokenPayload } from "@akashnetwork/jwt/src/types";
 import { minutesToSeconds } from "date-fns";
 import { singleton } from "tsyringe";
 import * as uuid from "uuid";
@@ -17,7 +17,7 @@ type JwtTokenWithAddress = {
 
 type GenerateJwtTokenParams = {
   walletId: number;
-  leases: JwtTokenOptions["leases"];
+  leases: JwtTokenPayload["leases"];
   ttl?: number;
 };
 
@@ -51,7 +51,7 @@ export class JwtTokenService {
     return { jwtToken, address: akashWallet.address };
   }
 
-  getGranularLeases({ provider, scope }: { provider: string; scope: Scope[] }): JwtTokenOptions["leases"] {
+  getGranularLeases({ provider, scope }: { provider: string; scope: AccessScope[] }): JwtTokenPayload["leases"] {
     return {
       access: "granular",
       permissions: [{ provider, access: "scoped", scope }]
