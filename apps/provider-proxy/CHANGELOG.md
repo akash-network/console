@@ -1,5 +1,12 @@
 
 
+## [1.14.2](https://github.com/akash-network/console/compare/provider-proxy/v1.14.1...provider-proxy/v1.14.2) (2025-08-13)
+
+
+### Bug Fixes
+
+* returns 400 if provider API returns "validation failed" in response ([#1795](https://github.com/akash-network/console/issues/1795)) ([ed0c32c](https://github.com/akash-network/console/commit/ed0c32cf415372d3115bf96065a39d9d2ad2a009))
+
 ## [1.14.1](https://github.com/akash-network/console/compare/provider-proxy/v1.14.0...provider-proxy/v1.14.1) (2025-07-31)
 
 
