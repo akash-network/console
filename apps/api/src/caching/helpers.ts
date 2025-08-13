@@ -33,44 +33,70 @@ export const Memoize = (options?: MemoizeOptions) => (target: object, propertyNa
             .join("#")}`
         : cacheKey;
 
-    return await cacheResponse(options?.ttlInSeconds || 60 * 2, argsKey, originalMethod.bind(this, ...args), options?.keepData);
+    return await cacheResponse(options?.ttlInSeconds || 60 * 2, argsKey, originalMethod.bind(this, ...args));
   };
 };
 
-export async function cacheResponse<T>(seconds: number, key: string, refreshRequest: () => Promise<T>, keepData?: boolean): Promise<T> {
-  const duration = seconds * 1000;
-  const cachedObject = cacheEngine.getFromCache(key) as CachedObject<T> | undefined;
+export async function cacheResponse<T>(seconds: number, key: string, refreshRequest: () => Promise<T>): Promise<T> {
+  const cachedObject = cacheEngine.getFromCache(key) as CachedObject<T> | false;
   logger.debug(`Request for key: ${key}`);
 
-  // If first time or expired, must refresh data if not already refreshing
-  const requiresRefresh = !cachedObject || Math.abs(differenceInSeconds(cachedObject.date, new Date())) > seconds;
-  if (requiresRefresh && !(key in pendingRequests)) {
-    logger.debug(`Object was not in cache or is expired, making new request for key: ${key}`);
-    pendingRequests[key] = refreshRequest()
-      .then(data => {
-        cacheEngine.storeInCache(key, { date: new Date(), data: data }, keepData ? undefined : duration);
-        return data;
-      })
-      .catch(err => {
-        if (cachedObject) {
-          logger.error({ message: `Error making cache request`, error: err });
-        } else {
-          throw err;
-        }
-      })
-      .finally(() => {
-        delete pendingRequests[key];
-      });
+  const hasCachedData = cachedObject !== false;
+
+  // Check if cached data is still valid (only if we have cached data)
+  let isExpired = true;
+  if (hasCachedData) {
+    const timeDiff = Math.abs(differenceInSeconds(cachedObject.date, new Date()));
+    isExpired = timeDiff > seconds;
   }
 
-  // If there is data in cache, return it even if it is expired. Otherwise, wait for the refresh request to finish
-  if (cachedObject) {
-    logger.debug(`Returning cached object for key: ${key}`);
+  // If we have cached data (valid or expired), return it immediately
+  if (hasCachedData) {
+    logger.debug(`Returning cached object for key: ${key} (expired: ${isExpired})`);
+
+    // If data is expired and there's no pending request, start background refresh
+    if (isExpired && !(key in pendingRequests)) {
+      logger.debug(`Starting background refresh for key: ${key}`);
+
+      // Start background refresh
+      pendingRequests[key] = refreshRequest()
+        .then(data => {
+          logger.debug(`Background refresh completed for key: ${key}`);
+          // Store without duration to keep it in cache for future background refreshes
+          cacheEngine.storeInCache(key, { date: new Date(), data: data });
+          return data;
+        })
+        .catch(err => {
+          logger.error({ message: `Error making background cache refresh`, error: err });
+        })
+        .finally(() => {
+          delete pendingRequests[key];
+          logger.debug(`Removed pending request for key: ${key}`);
+        });
+    }
+
+    // Return the cached data immediately (whether valid or expired)
     return cachedObject.data;
-  } else {
-    logger.debug(`Waiting for pending request for key: ${key}`);
-    return (await pendingRequests[key]) as T;
   }
+
+  // If no cached data exists, make the request and wait for it
+  logger.debug(`No cached data, making new request for key: ${key}`);
+  pendingRequests[key] = refreshRequest()
+    .then(data => {
+      logger.debug(`New request completed for key: ${key}`);
+      // Store without duration to keep it in cache for background refresh
+      cacheEngine.storeInCache(key, { date: new Date(), data: data });
+      return data;
+    })
+    .catch(err => {
+      throw err;
+    })
+    .finally(() => {
+      delete pendingRequests[key];
+      logger.debug(`Removed pending request for key: ${key}`);
+    });
+
+  return (await pendingRequests[key]) as T;
 }
 
 export const cacheKeys = {
