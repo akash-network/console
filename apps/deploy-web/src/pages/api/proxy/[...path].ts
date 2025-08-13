@@ -27,7 +27,9 @@ export default defineApiHandler({
       secure: false,
       autoRewrite: false,
       headers: {
-        "cf-connecting-ip": String(req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "")
+        "cf-connecting-ip": String(req.headers["cf-connecting-ip"] || req.socket.remoteAddress || ""),
+        traceparent: String(req.headers["sentry-trace"] || req.headers["traceparent"] || ""),
+        baggage: String(req.headers["baggage"] || "")
       }
     });
 

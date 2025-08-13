@@ -1,4 +1,5 @@
 import type { LoggerService } from "@akashnetwork/logging";
+import type { Session } from "@auth0/nextjs-auth0";
 import { mock } from "jest-mock-extended";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { z } from "zod";
@@ -15,10 +16,15 @@ describe("defineApiHandler", () => {
       body: { b: "2" }
     });
     const res = mock<NextApiResponse>();
+    const customServices = {
+      userTracker: mock<typeof services.userTracker>(),
+      getSession: jest.fn(async () => null)
+    };
     await setup({
       context: {
         req,
-        res
+        res,
+        services: customServices
       },
       handler
     });
@@ -26,10 +32,46 @@ describe("defineApiHandler", () => {
     expect(handler).toHaveBeenCalledWith({
       req,
       res,
-      services,
+      services: { ...services, ...customServices },
       query: req.query,
-      body: req.body
+      body: req.body,
+      session: null
     });
+  });
+
+  it("tracks current user", async () => {
+    const handler = jest.fn().mockResolvedValue(undefined);
+    const req = createRequest({
+      query: { a: "1" },
+      body: { b: "2" }
+    });
+
+    const res = mock<NextApiResponse>();
+    const session: Session = {
+      user: {
+        id: "123"
+      }
+    };
+    const customServices = {
+      userTracker: mock<typeof services.userTracker>(),
+      getSession: jest.fn(async () => session)
+    };
+    await setup({
+      context: {
+        req,
+        res,
+        services: customServices
+      },
+      handler
+    });
+
+    expect(customServices.userTracker.track).toHaveBeenCalledWith(session.user);
+    expect(customServices.getSession).toHaveBeenCalledWith(req, res);
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        session
+      })
+    );
   });
 
   it("validates request with schema when provided", async () => {
@@ -127,6 +169,8 @@ describe("defineApiHandler", () => {
 
     (req as NextApiRequestWithServices)[REQ_SERVICES_KEY] = {
       ...services,
+      getSession: jest.fn(async () => null),
+      userTracker: mock<typeof services.userTracker>(),
       ...input.context?.services
     };
 

@@ -77,6 +77,7 @@ import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
 import { validatorsRouter } from "./validator";
 
 const appHono = new Hono<AppEnv>();
+appHono.use("*", otel());
 appHono.use(
   "/*",
   cors({
@@ -86,7 +87,6 @@ appHono.use(
     exposeHeaders: ["cf-mitigated"]
   })
 );
-appHono.use("*", otel());
 
 const { PORT = 3080 } = process.env;
 

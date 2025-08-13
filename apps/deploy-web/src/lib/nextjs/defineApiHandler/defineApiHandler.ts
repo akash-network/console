@@ -1,3 +1,4 @@
+import type { Session } from "@auth0/nextjs-auth0";
 import { wrapApiHandlerWithSentry } from "@sentry/nextjs";
 import type { NextApiHandler, NextApiRequest, NextApiResponse } from "next";
 import type { z } from "zod";
@@ -14,18 +15,23 @@ export function defineApiHandler<TResponse, TSchema extends z.ZodSchema<any> | u
 ): NextApiHandler<TResponse> {
   return wrapApiHandlerWithSentry(
     (async (req, res) => {
+      const requestServices = (req as NextApiRequestWithServices)[REQ_SERVICES_KEY] || services;
+      const session = await requestServices.getSession(req, res);
+
+      requestServices.userTracker.track(session?.user);
       const context: ApiHandlerContext<TResponse, TSchema> = {
         req,
         res,
-        services: (req as NextApiRequestWithServices)[REQ_SERVICES_KEY] || services,
+        services: requestServices,
         query: req.query as ApiHandlerContext<TResponse, TSchema>["query"],
-        body: req.body as ApiHandlerContext<TResponse, TSchema>["body"]
+        body: req.body as ApiHandlerContext<TResponse, TSchema>["body"],
+        session
       };
 
       if (options.schema) {
         const validatedContext = options.schema.safeParse(context);
         if (!validatedContext.success) {
-          context.services.logger.warn({ error: validatedContext.error, event: "INVALID_API_REQUEST" });
+          requestServices.logger.warn({ error: validatedContext.error, event: "INVALID_API_REQUEST" });
           res.status(400);
           res.json({
             errors: validatedContext.error.errors.map(error => ({
@@ -61,4 +67,5 @@ export interface ApiHandlerContext<TResponse, TSchema extends z.ZodSchema<any> |
   services: typeof services;
   query: TSchema extends z.ZodSchema<any> ? z.infer<TSchema>["query"] : NextApiRequest["query"];
   body: TSchema extends z.ZodSchema<any> ? z.infer<TSchema>["body"] : NextApiRequest["body"];
+  session?: Session | null;
 }

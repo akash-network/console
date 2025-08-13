@@ -26,7 +26,7 @@
     "@akashnetwork/net": "*",
     "@cosmjs/encoding": "^0.32.4",
     "@hono/node-server": "^1.13.8",
-    "@hono/otel": "^0.1.0",
+    "@hono/otel": "~0.4.0",
     "@hono/zod-openapi": "^0.18.4",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.57.1",

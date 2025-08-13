@@ -22,7 +22,7 @@ import { CustomIntlProvider } from "@src/components/layout/CustomIntlProvider";
 import { Loading } from "@src/components/layout/Layout";
 import { PageHead } from "@src/components/layout/PageHead";
 import { ClientOnlyTurnstile } from "@src/components/turnstile/Turnstile";
-import { UserProviders } from "@src/components/user/UserProviders";
+import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { BackgroundTaskProvider } from "@src/context/BackgroundTaskProvider";
 import { CertificateProvider } from "@src/context/CertificateProvider";

@@ -26,6 +26,7 @@ import { ErrorHandlerService } from "../error-handler/error-handler.service";
 import { ManagedWalletHttpService } from "../managed-wallet-http/managed-wallet-http.service";
 import { ProviderProxyService } from "../provider-proxy/provider-proxy.service";
 import { StripeService } from "../stripe/stripe.service";
+import { UserTracker } from "../user-tracker/user-tracker.service";
 
 export const createAppRootContainer = (config: ServicesConfig) => {
   const apiConfig = { baseURL: config.BASE_API_MAINNET_URL, adapter: "fetch" };
@@ -132,7 +133,8 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       }),
     errorHandler: () => new ErrorHandlerService(container.logger),
     logger: () => new LoggerService({ name: `app-${config.runtimeEnv}` }),
-    urlService: () => UrlService
+    urlService: () => UrlService,
+    userTracker: () => new UserTracker()
   });
 
   return container;

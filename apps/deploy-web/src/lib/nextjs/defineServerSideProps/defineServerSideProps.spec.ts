@@ -1,4 +1,5 @@
 import type { LoggerService } from "@akashnetwork/logging";
+import type { Session } from "@auth0/nextjs-auth0";
 import { AxiosError } from "axios";
 import { mock } from "jest-mock-extended";
 import type { GetServerSidePropsContext, GetServerSidePropsResult } from "next";
@@ -19,18 +20,58 @@ describe(defineServerSideProps, () => {
 
   it("executes handler and returns its result", async () => {
     const mockHandler = jest.fn().mockResolvedValue({ props: { data: "test" } });
+    const customServices = {
+      userTracker: mock<typeof services.userTracker>(),
+      getSession: jest.fn(async () => null)
+    };
 
     const result = await setup({
       route: "/test",
-      handler: mockHandler
+      handler: mockHandler,
+      context: {
+        services: customServices
+      }
     });
 
     expect(mockHandler).toHaveBeenCalledWith(
       expect.objectContaining({
-        services
+        services: { ...services, ...customServices }
       })
     );
     expect(result).toEqual({ props: { data: "test" } });
+  });
+
+  it("tracks current user", async () => {
+    const mockHandler = jest.fn().mockResolvedValue({ props: { data: "test" } });
+    const session: Session = {
+      user: {
+        id: "123"
+      }
+    };
+    const customServices = {
+      userTracker: mock<typeof services.userTracker>(),
+      getSession: jest.fn(async () => session)
+    };
+    const req = createRequest();
+    const res = mock<GetServerSidePropsContext["res"]>();
+
+    await setup({
+      route: "/test",
+      handler: mockHandler,
+      context: {
+        services: customServices,
+        req,
+        res
+      }
+    });
+
+    expect(mockHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        session
+      })
+    );
+    expect(customServices.userTracker.track).toHaveBeenCalledWith(session.user);
+    expect(customServices.getSession).toHaveBeenCalledWith(req, res);
   });
 
   it("validates context with schema when provided", async () => {
@@ -77,9 +118,9 @@ describe(defineServerSideProps, () => {
       schema,
       context: {
         query: {},
-        services: mock<typeof services>({
+        services: {
           logger
-        })
+        }
       }
     });
 
@@ -309,9 +350,9 @@ describe(defineServerSideProps, () => {
     schema?: z.ZodSchema<any>;
     if?: (context: any) => boolean | Promise<boolean> | GetServerSidePropsResult<any> | Promise<GetServerSidePropsResult<any>>;
     handler?: (context: any) => Promise<any> | any;
-    context?: Partial<AppTypedContext>;
+    context?: Partial<Omit<AppTypedContext, "services"> & { services?: Partial<AppTypedContext["services"]> }>;
   }) {
-    const context: GetServerSidePropsContext = {
+    const context: AppTypedContext = {
       req: createRequest(),
       res: mock<GetServerSidePropsContext["res"]>(),
       query: {},
@@ -320,7 +361,14 @@ describe(defineServerSideProps, () => {
       locale: "en",
       locales: ["en"],
       defaultLocale: "en",
-      ...input.context
+      session: null,
+      ...input.context,
+      services: {
+        ...services,
+        userTracker: mock<typeof services.userTracker>(),
+        getSession: jest.fn(async () => null),
+        ...input.context?.services
+      }
     };
 
     return defineServerSideProps({
