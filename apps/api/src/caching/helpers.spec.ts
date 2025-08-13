@@ -139,6 +139,43 @@ describe("Memoize Function", () => {
       expect(cachedData).toEqual(cachedObject);
     });
 
+    it("should prevent race conditions in cold-start path", async () => {
+      setup();
+
+      const newData = { fresh: "data" };
+      let resolveRequest: (value: any) => void;
+      let requestCount = 0;
+
+      const refreshRequest = jest.fn().mockImplementation(() => {
+        requestCount++;
+        return new Promise(resolve => {
+          resolveRequest = resolve;
+        });
+      });
+
+      // Start multiple concurrent calls
+      const promises = [
+        cacheResponse(120, "test-key", refreshRequest),
+        cacheResponse(120, "test-key", refreshRequest),
+        cacheResponse(120, "test-key", refreshRequest)
+      ];
+
+      // Wait a bit to ensure all calls have started
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Resolve the request
+      resolveRequest!(newData);
+
+      const results = await Promise.all(promises);
+
+      // All calls should return the same result
+      expect(results).toEqual([newData, newData, newData]);
+
+      // Only one request should have been made
+      expect(requestCount).toBe(1);
+      expect(refreshRequest).toHaveBeenCalledTimes(1);
+    });
+
     function setup() {
       jest.clearAllMocks();
       cacheEngine.clearAllKeyInCache();

@@ -85,22 +85,26 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
 
   // If no cached data exists, make the request and wait for it
   logger.debug(`No cached data, making new request for key: ${key}`);
-  pendingRequests[key] = refreshRequest()
-    .then(data => {
-      logger.debug(`New request completed for key: ${key}`);
-      // Only store in cache if we have valid data
-      if (data !== undefined) {
-        cacheEngine.storeInCache(key, { date: new Date(), data: data });
-      }
-      return data;
-    })
-    .catch(err => {
-      throw err;
-    })
-    .finally(() => {
-      delete pendingRequests[key];
-      logger.debug(`Removed pending request for key: ${key}`);
-    });
+
+  // Get or create the pending request promise
+  pendingRequests[key] =
+    pendingRequests[key] ||
+    refreshRequest()
+      .then(data => {
+        logger.debug(`New request completed for key: ${key}`);
+        // Only store in cache if we have valid data
+        if (data !== undefined) {
+          cacheEngine.storeInCache(key, { date: new Date(), data: data });
+        }
+        return data;
+      })
+      .catch(err => {
+        throw err;
+      })
+      .finally(() => {
+        delete pendingRequests[key];
+        logger.debug(`Removed pending request for key: ${key}`);
+      });
 
   return (await pendingRequests[key]) as T;
 }
