@@ -62,12 +62,16 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
       pendingRequests[key] = refreshRequest()
         .then(data => {
           logger.debug(`Background refresh completed for key: ${key}`);
-          // Store without duration to keep it in cache for future background refreshes
-          cacheEngine.storeInCache(key, { date: new Date(), data: data });
+          // Only store in cache if we have valid data
+          if (data !== undefined) {
+            cacheEngine.storeInCache(key, { date: new Date(), data: data });
+          }
           return data;
         })
         .catch(err => {
           logger.error({ message: `Error making background cache refresh`, error: err });
+          // Return the current cached data on error to maintain consistency
+          return cachedObject.data;
         })
         .finally(() => {
           delete pendingRequests[key];
@@ -84,8 +88,10 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
   pendingRequests[key] = refreshRequest()
     .then(data => {
       logger.debug(`New request completed for key: ${key}`);
-      // Store without duration to keep it in cache for background refresh
-      cacheEngine.storeInCache(key, { date: new Date(), data: data });
+      // Only store in cache if we have valid data
+      if (data !== undefined) {
+        cacheEngine.storeInCache(key, { date: new Date(), data: data });
+      }
       return data;
     })
     .catch(err => {

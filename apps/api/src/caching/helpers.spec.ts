@@ -97,6 +97,13 @@ describe("Memoize Function", () => {
 
       expect(result).toEqual(mockData); // Should still return cached data
       expect(refreshRequest).toHaveBeenCalledTimes(1);
+
+      // Wait for background refresh to complete
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Verify the original cached data is still there (not overwritten with undefined)
+      const cachedData = cacheEngine.getFromCache("test-key");
+      expect(cachedData).toEqual(cachedObject);
     });
 
     it("should propagate errors when no cached data exists", async () => {
@@ -106,6 +113,30 @@ describe("Memoize Function", () => {
       const refreshRequest = jest.fn().mockRejectedValue(error);
 
       await expect(cacheResponse(120, "test-key", refreshRequest)).rejects.toThrow("Request failed");
+    });
+
+    it("should not store undefined values in cache", async () => {
+      setup();
+
+      const mockData = { test: "data" };
+      const expiredDate = new Date(Date.now() - 200 * 1000);
+      const cachedObject = { date: expiredDate, data: mockData };
+
+      cacheEngine.storeInCache("test-key", cachedObject);
+
+      const refreshRequest = jest.fn().mockResolvedValue(undefined);
+
+      const result = await cacheResponse(120, "test-key", refreshRequest);
+
+      expect(result).toEqual(mockData); // Should still return cached data
+      expect(refreshRequest).toHaveBeenCalledTimes(1);
+
+      // Wait for background refresh to complete
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Verify the original cached data is still there (not overwritten with undefined)
+      const cachedData = cacheEngine.getFromCache("test-key");
+      expect(cachedData).toEqual(cachedObject);
     });
 
     function setup() {
