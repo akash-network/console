@@ -37,7 +37,7 @@ export const Memoize = (options?: MemoizeOptions) => (target: object, propertyNa
 };
 
 export async function cacheResponse<T>(seconds: number, key: string, refreshRequest: () => Promise<T>): Promise<T> {
-  const cachedObject = cacheEngine.getFromCache(key) as CachedObject<T> | false;
+  const cachedObject = cacheEngine.getFromCache<CachedObject<T>>(key);
   logger.debug(`Request for key: ${key}`);
 
   const hasCachedData = cachedObject !== false;
@@ -46,7 +46,7 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
   let isExpired = true;
   if (hasCachedData) {
     const timeDiff = differenceInSeconds(new Date(), cachedObject.date);
-    isExpired = timeDiff > seconds;
+    isExpired = timeDiff >= seconds;
   }
 
   // If we have cached data (valid or expired), return it immediately
@@ -88,7 +88,7 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
   logger.debug(`No cached data, making new request for key: ${key}`);
 
   // Get or create the pending request promise
-  let pendingRequest = pendingRequests.get(key);
+  let pendingRequest = pendingRequests.get(key) as Promise<T> | undefined;
   if (!pendingRequest) {
     pendingRequest = refreshRequest()
       .then(data => {
@@ -99,9 +99,6 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
         }
         return data;
       })
-      .catch(err => {
-        throw err;
-      })
       .finally(() => {
         pendingRequests.delete(key);
         logger.debug(`Removed pending request for key: ${key}`);
@@ -110,7 +107,7 @@ export async function cacheResponse<T>(seconds: number, key: string, refreshRequ
     pendingRequests.set(key, pendingRequest);
   }
 
-  return (await pendingRequest) as T;
+  return await pendingRequest;
 }
 
 export const cacheKeys = {

@@ -5,10 +5,10 @@ export default class MemoryCacheEngine {
    * Used to retrieve data from memcache
    * @param {*} key
    */
-  getFromCache(key: string) {
+  getFromCache<T>(key: string): T | false {
     const cachedBody = mcache.get(key);
     if (cachedBody) {
-      return cachedBody;
+      return cachedBody as T;
     }
     return false;
   }

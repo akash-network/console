@@ -1,17 +1,28 @@
 import "reflect-metadata";
 
+import { cacheEngine } from "@src/caching/helpers";
 import { TestDatabaseService } from "./services/test-database.service";
 
 const testPath = expect.getState().testPath;
 const dbService = new TestDatabaseService(testPath!);
 
 beforeAll(async () => {
+  cacheEngine.clearAllKeyInCache();
   await dbService.setup();
 }, 10000);
 
 afterAll(async () => {
   await dbService.teardown();
+  cacheEngine.clearAllKeyInCache();
 }, 10000);
+
+beforeEach(() => {
+  cacheEngine.clearAllKeyInCache();
+});
+
+afterEach(() => {
+  cacheEngine.clearAllKeyInCache();
+});
 
 expect.extend({
   toBeTypeOrNull(received: unknown, type: StringConstructor) {
