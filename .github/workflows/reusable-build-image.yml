@@ -58,6 +58,8 @@ jobs:
 
       - name: Determine registry and app
         id: determine
+        env:
+          SENTRY_AUTH_TOKEN_CONSOLE_WEB: ${{ secrets.SENTRY_AUTH_TOKEN_CONSOLE_WEB }}
         run: |
           tag="${{ inputs.tag }}"
 
@@ -68,6 +70,7 @@ jobs:
             echo "registry=${{ vars.WEB_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=deploy-web" >> "$GITHUB_ENV"
             echo "force_build=-f" >> "$GITHUB_ENV"
+            echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN_CONSOLE_WEB}" >> "$GITHUB_ENV"
           elif [[ "$tag" == provider-proxy/* ]]; then
             echo "registry=${{ vars.PROVIDER_PROXY_REGISTRY }}" >> "$GITHUB_ENV"
             echo "app=provider-proxy" >> "$GITHUB_ENV"
@@ -98,6 +101,7 @@ jobs:
         env:
           DEPLOYMENT_ENV: ${{ inputs.deployment-env }}
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }} # used by console-api to fetch Akash templates
+          GIT_COMMIT_HASH: ${{ github.sha }}
         run: |
           # shellcheck disable=SC2086
           ./packages/docker/script/build.sh -r ${{ env.registry }} -t ${{ env.tag }} -a ${{ env.app }} ${{ env.force_build }}

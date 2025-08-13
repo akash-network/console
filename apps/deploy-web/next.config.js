@@ -2,7 +2,7 @@ require("@akashnetwork/env-loader");
 const withBundleAnalyzer = require("@next/bundle-analyzer")({
   enabled: process.env.ANALYZE === "true"
 });
-const { version } = require("./package.json");
+const { version, repository } = require("./package.json");
 const isDev = process.env.NODE_ENV === "development";
 const withPWA = require("next-pwa")({
   dest: "public",
@@ -29,7 +29,7 @@ if (process.env.NODE_ENV === "test") {
 /**
  * @type {import('next').NextConfig}
  */
-const moduleExports = {
+const nextConfig = {
   reactStrictMode: false,
   productionBrowserSourceMaps: true,
   env: {
@@ -160,8 +160,18 @@ const sentryWebpackPluginOptions = {
 
   // silent: !process.env.CI, // Suppresses all logs,
   // dryRun: true,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
   release: {
-    name: version
+    name: version,
+    setCommits: {
+      repo: repository.url,
+      commit: process.env.GIT_COMMIT_HASH
+    }
+  },
+  sourcemaps: {
+    deleteSourcemapsAfterUpload: false
   },
   debug: !process.env.CI,
   reactComponentAnnotation: {
@@ -174,5 +184,4 @@ const sentryWebpackPluginOptions = {
 
 // Make sure adding Sentry options is the last code to run before exporting, to
 // ensure that your source maps include changes from all other Webpack plugins
-module.exports = withBundleAnalyzer(withPWA(withSentryConfig(moduleExports, sentryWebpackPluginOptions)));
-// module.exports = moduleExports
+module.exports = withBundleAnalyzer(withPWA(sentryWebpackPluginOptions.authToken ? withSentryConfig(nextConfig, sentryWebpackPluginOptions) : nextConfig));
