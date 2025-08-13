@@ -13,6 +13,7 @@ export interface UserSettings {
   githubUsername?: string;
   planCode?: PlanCode;
   plan?: IPlan;
+  emailVerified?: boolean;
 }
 
 export type CustomUserProfile = UserProfile & UserSettings;

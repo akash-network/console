@@ -1,5 +1,6 @@
 import { validateStaticEnvVars } from "./env-config.schema";
 
+/** @deprecated use appConfig from useServices hook instead */
 export const browserEnvConfig = validateStaticEnvVars({
   NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
   NEXT_PUBLIC_STATS_APP_URL: process.env.NEXT_PUBLIC_STATS_APP_URL,

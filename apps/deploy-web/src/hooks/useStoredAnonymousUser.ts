@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 import { ANONYMOUS_USER_KEY, ANONYMOUS_USER_TOKEN_KEY } from "@src/config/auth.config";
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useWhen } from "@src/hooks/useWhen";
 import type { UserOutput } from "@src/queries/useAnonymousUserQuery";
@@ -16,9 +16,10 @@ const storedAnonymousUserStr = typeof window !== "undefined" && localStorage.get
 const storedAnonymousUser: UserOutput | undefined = storedAnonymousUserStr ? JSON.parse(storedAnonymousUserStr) : undefined;
 
 export const useStoredAnonymousUser = (): UseApiUserResult => {
+  const { appConfig } = useServices();
   const { user: registeredUser, isLoading: isLoadingRegisteredUser } = useCustomUser();
   const { user, isLoading, token, error } = useAnonymousUserQuery(storedAnonymousUser?.id, {
-    enabled: browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED && !registeredUser && !isLoadingRegisteredUser
+    enabled: appConfig.NEXT_PUBLIC_BILLING_ENABLED && !registeredUser && !isLoadingRegisteredUser
   });
 
   useWhen(storedAnonymousUser && !storedAnonymousUser.userId && error && "status" in error && error.status === 401, () => {
