@@ -1,5 +1,12 @@
 
 
+## [2.98.3](https://github.com/akash-network/console/compare/console-web/v2.98.2...console-web/v2.98.3) (2025-08-13)
+
+
+### Code Refactoring
+
+* improves types in jwt ([#1794](https://github.com/akash-network/console/issues/1794)) ([070910e](https://github.com/akash-network/console/commit/070910eb9b815c4acb64615d1d26d6d47fbdc26a))
+
 ## [2.98.2](https://github.com/akash-network/console/compare/console-web/v2.98.1...console-web/v2.98.2) (2025-08-07)
 
 

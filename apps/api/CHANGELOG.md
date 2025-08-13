@@ -1,5 +1,12 @@
 
 
+## [2.109.3](https://github.com/akash-network/console/compare/console-api/v2.109.2...console-api/v2.109.3) (2025-08-13)
+
+
+### Bug Fixes
+
+* **billing:** only check for deployment allowance tx when create ([#1804](https://github.com/akash-network/console/issues/1804)) ([844ea53](https://github.com/akash-network/console/commit/844ea53a747688ad59076a9272037227a29197f3))
+
 ## [2.109.2](https://github.com/akash-network/console/compare/console-api/v2.109.1...console-api/v2.109.2) (2025-08-06)
 
 
