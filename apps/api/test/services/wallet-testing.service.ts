@@ -122,7 +122,7 @@ export class WalletTestingService<T extends Hono<any>> {
 
     const decoded = decode(access_token) as { sub: string; email: string; nickname: string; email_verified: boolean };
 
-    const userResponse = await this.app.request(`/user/tokenInfo`, {
+    const userResponse = await this.app.request(`/v1/register-user`, {
       method: "POST",
       headers: new Headers({
         "Content-Type": "application/json",
@@ -135,8 +135,9 @@ export class WalletTestingService<T extends Hono<any>> {
         subscribedToNewsletter: false
       })
     });
+    const body = (await userResponse.json()) as { data: any };
 
-    return { user: (await userResponse.json()) as any, token: access_token };
+    return { user: body.data, token: access_token };
   }
 
   async getWalletByUserId(userId: string, token: string): Promise<{ id: number; address: string; creditAmount: number }> {

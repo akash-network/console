@@ -39,6 +39,9 @@ userOptionalRouter.get("/byUsername/:username", async c => {
   return c.json(user);
 });
 
+/**
+ * @deprecated Use /v1/register-user instead
+ */
 userRequiredRouter.post("/tokenInfo", async c => {
   const userId = getCurrentUserId(c);
   const { wantedUsername, email, emailVerified, subscribedToNewsletter } = await c.req.json();

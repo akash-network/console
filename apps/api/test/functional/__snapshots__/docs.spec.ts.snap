@@ -10036,6 +10036,73 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/register-user": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "email": {
+                    "type": "string",
+                  },
+                  "emailVerified": {
+                    "type": "boolean",
+                  },
+                  "subscribedToNewsletter": {
+                    "type": "boolean",
+                  },
+                  "wantedUsername": {
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "wantedUsername",
+                  "email",
+                  "emailVerified",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "body": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "_cached": null,
+                    "_def": {
+                      "catchall": {
+                        "_def": {
+                          "typeName": "ZodNever",
+                        },
+                        "~standard": {
+                          "vendor": "zod",
+                          "version": 1,
+                        },
+                      },
+                      "typeName": "ZodObject",
+                      "unknownKeys": "strip",
+                    },
+                    "~standard": {
+                      "vendor": "zod",
+                      "version": 1,
+                    },
+                  },
+                },
+              },
+            },
+            "description": "Returns the registered user",
+          },
+        },
+        "summary": "Registers a new user",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
     "/v1/send-verification-email": {
       "post": {
         "requestBody": {
@@ -11741,6 +11808,45 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         "summary": "Get historical usage stats for a wallet address.",
         "tags": [
           "Billing",
+        ],
+      },
+    },
+    "/v1/user/me": {
+      "get": {
+        "responses": {
+          "200": {
+            "body": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "_cached": null,
+                    "_def": {
+                      "catchall": {
+                        "_def": {
+                          "typeName": "ZodNever",
+                        },
+                        "~standard": {
+                          "vendor": "zod",
+                          "version": 1,
+                        },
+                      },
+                      "typeName": "ZodObject",
+                      "unknownKeys": "strip",
+                    },
+                    "~standard": {
+                      "vendor": "zod",
+                      "version": 1,
+                    },
+                  },
+                },
+              },
+            },
+            "description": "Returns the logged in user",
+          },
+        },
+        "summary": "Retrieves the logged in user",
+        "tags": [
+          "Users",
         ],
       },
     },

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
-import { UrlService } from "@src/utils/urlUtils";
+import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
 import { type OnboardingStep } from "../OnboardingStepper/OnboardingStepper";
 
 export enum OnboardingStepIndex {
@@ -34,8 +34,7 @@ const DEPENDENCIES = {
   useUser,
   usePaymentMethodsQuery,
   useServices,
-  useRouter,
-  UrlService
+  useRouter
 };
 
 export const OnboardingContainer: React.FunctionComponent<OnboardingContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
@@ -45,10 +44,10 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const router = d.useRouter();
   const user = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
-  const { analyticsService } = d.useServices();
+  const { analyticsService, urlService } = d.useServices();
 
   useEffect(() => {
-    const savedStep = localStorage.getItem("onboardingStep");
+    const savedStep = localStorage.getItem(ONBOARDING_STEP_KEY);
     if (savedStep) {
       const step = parseInt(savedStep, 10);
       if (step >= 0 && step < Object.keys(OnboardingStepIndex).length / 2) {
@@ -65,7 +64,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
 
       setCompletedSteps(prev => new Set([...prev, OnboardingStepIndex.SIGNUP]));
       setCurrentStep(OnboardingStepIndex.EMAIL_VERIFICATION);
-      localStorage.setItem("onboardingStep", OnboardingStepIndex.EMAIL_VERIFICATION.toString());
+      localStorage.setItem(ONBOARDING_STEP_KEY, OnboardingStepIndex.EMAIL_VERIFICATION.toString());
 
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete("fromSignup");
@@ -95,7 +94,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       });
 
       setCurrentStep(step);
-      localStorage.setItem("onboardingStep", step.toString());
+      localStorage.setItem(ONBOARDING_STEP_KEY, step.toString());
     },
     [currentStep, user?.emailVerified, paymentMethods.length, analyticsService]
   );
@@ -115,7 +114,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   );
 
   const handleComplete = useCallback(() => {
-    localStorage.removeItem("onboardingStep");
+    localStorage.removeItem(ONBOARDING_STEP_KEY);
     router.push("/");
   }, [router]);
 
@@ -126,10 +125,10 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
 
     handleStepComplete(OnboardingStepIndex.FREE_TRIAL);
 
-    const returnUrl = `${window.location.origin}${d.UrlService.onboarding(true)}`;
-    const signupUrl = `${d.UrlService.signup()}?returnTo=${encodeURIComponent(returnUrl)}`;
+    const returnUrl = `${window.location.origin}${urlService.onboarding(true)}`;
+    const signupUrl = `${urlService.signup()}?returnTo=${encodeURIComponent(returnUrl)}`;
     window.location.href = signupUrl;
-  }, [analyticsService, handleStepComplete, d.UrlService]);
+  }, [analyticsService, handleStepComplete, urlService]);
 
   const handlePaymentMethodComplete = useCallback(() => {
     if (paymentMethods.length > 0) {

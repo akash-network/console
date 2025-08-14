@@ -3,6 +3,7 @@ import type { DBQueryConfig } from "drizzle-orm";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { PgTableWithColumns } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm/sql/sql";
+import { PostgresError } from "postgres";
 
 import type { ApiPgDatabase, ApiPgTables, TxService } from "@src/core";
 import { DrizzleAbility } from "@src/lib/drizzle-ability/drizzle-ability";
@@ -221,3 +222,8 @@ type TableName<T extends PgTableWithColumns<any>> = T extends PgTableWithColumns
 type TableNameInSchema<T extends PgTableWithColumns<any>> = {
   [K in keyof TablesOnly<ApiPgTables> as TableName<ApiPgTables[K]>]: K;
 }[TableName<T>];
+
+const UNIQUE_VIOLATION_CODE = "23505";
+export function isUniqueViolation(error: unknown): error is PostgresError {
+  return error instanceof PostgresError && error.code === UNIQUE_VIOLATION_CODE;
+}
