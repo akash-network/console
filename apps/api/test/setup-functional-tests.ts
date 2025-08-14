@@ -1,17 +1,52 @@
 import "reflect-metadata";
 
+import { cacheEngine } from "@src/caching/helpers";
 import { TestDatabaseService } from "./services/test-database.service";
 
 const testPath = expect.getState().testPath;
 const dbService = new TestDatabaseService(testPath!);
 
+/**
+ * Test helper for targeted cache invalidation
+ * @param keyOrPrefix - Specific key or prefix to clear. If not provided, clears all cache.
+ */
+export function clearCache(keyOrPrefix?: string) {
+  if (!keyOrPrefix) {
+    cacheEngine.clearAllKeyInCache();
+  } else if (keyOrPrefix.includes("*")) {
+    // Handle wildcard patterns if needed in the future
+    const prefix = keyOrPrefix.replace("*", "");
+    cacheEngine.clearByPrefix(prefix);
+  } else {
+    // Check if it's a prefix by looking for keys that start with it
+    const keys = cacheEngine.getKeys();
+    const isPrefix = keys.some((key: string) => key.startsWith(keyOrPrefix) && key !== keyOrPrefix);
+
+    if (isPrefix) {
+      cacheEngine.clearByPrefix(keyOrPrefix);
+    } else {
+      cacheEngine.clearByKey(keyOrPrefix);
+    }
+  }
+}
+
 beforeAll(async () => {
+  cacheEngine.clearAllKeyInCache();
   await dbService.setup();
 }, 10000);
 
 afterAll(async () => {
   await dbService.teardown();
+  cacheEngine.clearAllKeyInCache();
 }, 10000);
+
+beforeEach(() => {
+  cacheEngine.clearAllKeyInCache();
+});
+
+afterEach(() => {
+  cacheEngine.clearAllKeyInCache();
+});
 
 expect.extend({
   toBeTypeOrNull(received: unknown, type: StringConstructor) {

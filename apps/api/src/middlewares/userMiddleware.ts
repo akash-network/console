@@ -9,7 +9,7 @@ export const kvStore = {
     const result = cacheEngine.getFromCache(key);
     if (!result) {
       return null;
-    } else if (format === "json") {
+    } else if (format === "json" && typeof result === "string") {
       return JSON.parse(result);
     } else {
       return cacheEngine.getFromCache(key);
