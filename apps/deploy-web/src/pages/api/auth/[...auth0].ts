@@ -1,5 +1,6 @@
 // pages/api/auth/[...auth0].js
-import { handleAuth, handleLogin, handleLogout, handleProfile } from "@auth0/nextjs-auth0";
+import type { Session } from "@auth0/nextjs-auth0";
+import { handleAuth, handleCallback, handleLogin, handleLogout, handleProfile } from "@auth0/nextjs-auth0";
 import { AxiosHeaders } from "axios";
 import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -8,6 +9,7 @@ import type { ServerEnvConfig } from "@src/config/env-config.schema";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import type { SeverityLevel } from "@src/services/error-handler/error-handler.service";
+import type { UserSettings } from "@src/types/user";
 
 export default defineApiHandler({
   route: "/api/auth/[...auth0]",
@@ -32,6 +34,48 @@ const authHandler = once((services: AppServices) =>
         }
       });
     },
+    async callback(req: NextApiRequest, res: NextApiResponse) {
+      try {
+        await handleCallback(req, res, {
+          afterCallback: async (req: NextApiRequest, res: NextApiResponse, session: Session) => {
+            try {
+              const user_metadata = session.user["https://console.akash.network/user_metadata"];
+              const headers = new AxiosHeaders({
+                Authorization: `Bearer ${session.accessToken}`
+              });
+
+              const anonymousAuthorization = req.headers.authorization;
+
+              if (anonymousAuthorization) {
+                headers.set("x-anonymous-authorization", anonymousAuthorization);
+              }
+
+              const userSettings = await services.consoleApiHttpClient.post<{ data: UserSettings }>(
+                `${services.apiUrlService.getBaseApiUrlFor("mainnet")}/v1/register-user`,
+                {
+                  wantedUsername: session.user.nickname,
+                  email: session.user.email,
+                  emailVerified: session.user.email_verified,
+                  subscribedToNewsletter: user_metadata?.subscribedToNewsletter === "true"
+                },
+                {
+                  headers: headers.toJSON()
+                }
+              );
+
+              session.user = { ...session.user, ...userSettings.data.data };
+            } catch (error) {
+              services.errorHandler.reportError({ error, tags: { category: "auth0" } });
+            }
+
+            return session;
+          }
+        });
+      } catch (error) {
+        services.errorHandler.reportError({ error, tags: { category: "auth0", event: "AUTH_CALLBACK_ERROR" } });
+        throw error;
+      }
+    },
     logout: services.config.AUTH0_LOCAL_ENABLED
       ? async function (req: NextApiRequest, res: NextApiResponse) {
           const cookies = req.cookies;
@@ -52,31 +96,18 @@ const authHandler = once((services: AppServices) =>
           refetch: true,
           afterRefetch: async (req, res, session) => {
             try {
-              const user_metadata = session.user["https://console.akash.network/user_metadata"];
               const headers = new AxiosHeaders({
                 Authorization: `Bearer ${session.accessToken}`
               });
 
-              const anonymousAuthorization = req.headers.authorization;
-
-              if (anonymousAuthorization) {
-                headers.set("x-anonymous-authorization", anonymousAuthorization);
-              }
-
-              const userSettings = await services.consoleApiHttpClient.post(
-                `${services.apiUrlService.getBaseApiUrlFor("mainnet")}/user/tokenInfo`,
-                {
-                  wantedUsername: session.user.nickname,
-                  email: session.user.email,
-                  emailVerified: session.user.email_verified,
-                  subscribedToNewsletter: user_metadata?.subscribedToNewsletter === "true"
-                },
+              const userSettings = await services.consoleApiHttpClient.get<{ data: UserSettings }>(
+                `${services.apiUrlService.getBaseApiUrlFor("mainnet")}/v1/user/me`,
                 {
                   headers: headers.toJSON()
                 }
               );
 
-              session.user = { ...session.user, ...userSettings.data };
+              session.user = { ...session.user, ...userSettings.data.data };
             } catch (error) {
               services.errorHandler.reportError({ error, tags: { category: "auth0" } });
             }

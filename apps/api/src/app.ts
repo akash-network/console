@@ -73,7 +73,7 @@ import {
 import { Scheduler } from "./scheduler";
 import { templatesRouter } from "./template";
 import { transactionsRouter } from "./transaction";
-import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
+import { createAnonymousUserRouter, getAnonymousUserRouter, getCurrentUserRouter, registerUserRouter } from "./user";
 import { validatorsRouter } from "./validator";
 
 const appHono = new Hono<AppEnv>();
@@ -123,6 +123,8 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   usageRouter,
   createAnonymousUserRouter,
   getAnonymousUserRouter,
+  registerUserRouter,
+  getCurrentUserRouter,
   sendVerificationEmailRouter,
   deploymentSettingRouter,
   deploymentsRouter,

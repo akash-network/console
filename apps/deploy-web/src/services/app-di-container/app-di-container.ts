@@ -45,7 +45,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
           response: [...(interceptors?.response || [])]
         });
     },
-    authService: () => new AuthService(),
+    authService: () => new AuthService(container.urlService),
     user: () =>
       container.applyAxiosInterceptors(new UserHttpService(apiConfig), {
         request: [container.authService.withAnonymousUserHeader],
