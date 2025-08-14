@@ -1,4 +1,5 @@
 import type { ApiKeyHttpService } from "@akashnetwork/http-sdk/src/api-key/api-key-http.service";
+import { useQueryClient } from "@tanstack/react-query";
 import { mock } from "jest-mock-extended";
 
 import type { ContextType as WalletProviderContextType } from "@src/context/WalletProvider/WalletProvider";
@@ -88,6 +89,14 @@ describe("useApiKeysQuery", () => {
       });
 
       expect(result.current.query.data).toEqual(mockApiKeys);
+
+      // Verify the query key in the cache
+      const expectedQueryKey = ["API_KEYS", mockUser.userId];
+      const queryCache = result.current.queryClient.getQueryCache();
+      const queries = queryCache.findAll({ queryKey: expectedQueryKey });
+
+      expect(queries).toHaveLength(1);
+      expect(queries[0].queryKey).toEqual(expectedQueryKey);
     });
   });
 
@@ -198,15 +207,19 @@ describe("useApiKeysQuery", () => {
   function setupApiKeysQuery(input?: { user?: CustomUserProfile | undefined; wallet?: WalletProviderContextType; services?: Record<string, () => unknown> }) {
     const dependencies: typeof USE_API_KEYS_DEPENDENCIES = {
       ...USE_API_KEYS_DEPENDENCIES,
-      useUser: () => input?.user as CustomUserProfile,
+      useUser: () => input?.user ?? mockUser,
       useWallet: () => input?.wallet || mockWallet
     };
 
     return setupQuery(
-      () => ({
-        query: useUserApiKeys({}, dependencies),
-        dependencies
-      }),
+      () => {
+        const queryClient = useQueryClient();
+        return {
+          query: useUserApiKeys({}, dependencies),
+          dependencies,
+          queryClient
+        };
+      },
       {
         services: {
           apiKey: () => mock<ApiKeyHttpService>(),

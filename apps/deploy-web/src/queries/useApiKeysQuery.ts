@@ -13,7 +13,7 @@ export const USE_API_KEYS_DEPENDENCIES = {
 };
 
 export function useUserApiKeys(
-  options: Omit<UseQueryOptions<ApiKeyResponse[], Error, any, QueryKey>, "queryKey" | "queryFn"> = {},
+  options: Omit<UseQueryOptions<ApiKeyResponse[], Error, ApiKeyResponse[], QueryKey>, "queryKey" | "queryFn"> = {},
   dependencies: typeof USE_API_KEYS_DEPENDENCIES = USE_API_KEYS_DEPENDENCIES
 ) {
   const user = dependencies.useUser();
