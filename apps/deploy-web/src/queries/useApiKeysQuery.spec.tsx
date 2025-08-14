@@ -1,5 +1,6 @@
-import type { ApiKeyHttpService } from "@akashnetwork/http-sdk/src/api-key/api-key-http.service";
-import { useQueryClient } from "@tanstack/react-query";
+import type { ApiKeyHttpService } from "@akashnetwork/http-sdk";
+import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
+import { QueryClient } from "@tanstack/react-query";
 import { mock } from "jest-mock-extended";
 
 import type { ContextType as WalletProviderContextType } from "@src/context/WalletProvider/WalletProvider";
@@ -41,26 +42,38 @@ describe("useApiKeysQuery", () => {
       expect(result.current.query.isSuccess).toBe(false);
     });
 
-    it("should return null when user is trialing", async () => {
+    it("should return undefined and not fetch when user is trialing", async () => {
+      const apiKeyService = mock<ApiKeyHttpService>({
+        getApiKeys: jest.fn()
+      });
       const { result } = setupApiKeysQuery({
         user: mockUser,
-        wallet: { ...mockWallet, isTrialing: true }
+        wallet: { ...mockWallet, isTrialing: true },
+        services: {
+          apiKey: () => apiKeyService
+        }
       });
 
-      await waitFor(() => {
-        expect(result.current.query.data).toBeUndefined();
-      });
+      expect(result.current.query.fetchStatus).toBe("idle");
+      expect(apiKeyService.getApiKeys).not.toHaveBeenCalled();
+      expect(result.current.query.data).toBeUndefined();
     });
 
-    it("should return null when wallet is not managed", async () => {
+    it("should return undefined and not fetch when wallet is not managed", async () => {
+      const apiKeyService = mock<ApiKeyHttpService>({
+        getApiKeys: jest.fn()
+      });
       const { result } = setupApiKeysQuery({
         user: mockUser,
-        wallet: { ...mockWallet, isManaged: false }
+        wallet: { ...mockWallet, isManaged: false },
+        services: {
+          apiKey: () => apiKeyService
+        }
       });
 
-      await waitFor(() => {
-        expect(result.current.query.data).toBeUndefined();
-      });
+      expect(result.current.query.fetchStatus).toBe("idle");
+      expect(apiKeyService.getApiKeys).not.toHaveBeenCalled();
+      expect(result.current.query.data).toBeUndefined();
     });
 
     it("should fetch API keys when user is valid and wallet is managed", async () => {
@@ -89,11 +102,13 @@ describe("useApiKeysQuery", () => {
         getApiKeys: jest.fn().mockResolvedValue(mockApiKeys)
       });
 
+      const queryClient = new QueryClient();
       const { result } = setupApiKeysQuery({
         user: mockUser,
         wallet: mockWallet,
         services: {
-          apiKey: () => apiKeyService
+          apiKey: () => apiKeyService,
+          queryClient: () => queryClient
         }
       });
 
@@ -105,7 +120,7 @@ describe("useApiKeysQuery", () => {
 
       // Verify the query key in the cache
       const expectedQueryKey = ["API_KEYS", mockUser.userId];
-      const queryCache = result.current.queryClient.getQueryCache();
+      const queryCache = queryClient.getQueryCache();
       const queries = queryCache.findAll({ queryKey: expectedQueryKey });
 
       expect(queries).toHaveLength(1);
@@ -120,6 +135,7 @@ describe("useApiKeysQuery", () => {
         createApiKey: jest.fn().mockResolvedValue(newApiKey)
       });
 
+      const queryClient = new QueryClient();
       const { result } = setupQuery(
         () => {
           const dependencies: typeof USE_API_KEYS_DEPENDENCIES = {
@@ -131,7 +147,8 @@ describe("useApiKeysQuery", () => {
         },
         {
           services: {
-            apiKey: () => apiKeyService
+            apiKey: () => apiKeyService,
+            queryClient: () => queryClient
           }
         }
       );
@@ -147,15 +164,23 @@ describe("useApiKeysQuery", () => {
       expect(apiKeyService.createApiKey).toHaveBeenCalledWith({
         data: { name: "New Key" }
       });
+
+      // Verify the cache is updated with the new API key
+      const expectedQueryKey = ["API_KEYS", mockUser.userId];
+      const cachedData = queryClient.getQueryData<ApiKeyResponse[]>(expectedQueryKey);
+      expect(cachedData).toContainEqual(newApiKey);
     });
   });
 
   describe("useDeleteApiKey", () => {
     it("should delete API key successfully", async () => {
+      const keyToDelete = buildApiKey({ id: "key-1", name: "Key to Delete" });
+      const remainingKeys = [buildApiKey({ id: "key-2", name: "Remaining Key" })];
       const apiKeyService = mock<ApiKeyHttpService>({
         deleteApiKey: jest.fn().mockResolvedValue(undefined)
       });
 
+      const queryClient = new QueryClient();
       const { result } = setupQuery(
         () => {
           const dependencies: typeof USE_API_KEYS_DEPENDENCIES = {
@@ -167,7 +192,13 @@ describe("useApiKeysQuery", () => {
         },
         {
           services: {
-            apiKey: () => apiKeyService
+            apiKey: () => apiKeyService,
+            queryClient: () => {
+              // Pre-seed the cache with the key to be deleted
+              const expectedQueryKey = ["API_KEYS", mockUser.userId];
+              queryClient.setQueryData(expectedQueryKey, [keyToDelete, ...remainingKeys]);
+              return queryClient;
+            }
           }
         }
       );
@@ -181,6 +212,12 @@ describe("useApiKeysQuery", () => {
       });
 
       expect(apiKeyService.deleteApiKey).toHaveBeenCalledWith("key-1");
+
+      // Verify the cache is updated and the key is removed
+      const expectedQueryKey = ["API_KEYS", mockUser.userId];
+      const cachedData = queryClient.getQueryData<ApiKeyResponse[]>(expectedQueryKey);
+      expect(cachedData).toEqual(remainingKeys);
+      expect(cachedData).not.toContainEqual(keyToDelete);
     });
 
     it("should call onSuccess callback when deletion succeeds", async () => {
@@ -226,11 +263,9 @@ describe("useApiKeysQuery", () => {
 
     return setupQuery(
       () => {
-        const queryClient = useQueryClient();
         return {
           query: useUserApiKeys({}, dependencies),
-          dependencies,
-          queryClient
+          dependencies
         };
       },
       {
