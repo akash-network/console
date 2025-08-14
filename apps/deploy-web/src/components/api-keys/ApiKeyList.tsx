@@ -18,7 +18,7 @@ interface Props {
 }
 
 export function ApiKeyList({ apiKeys, onDeleteApiKey, onDeleteClose, isDeleting, apiKeyToDelete, updateApiKeyToDelete }: Props) {
-  const { isTrialing } = useWallet();
+  const { isTrialing, isManaged } = useWallet();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   return (
@@ -102,7 +102,7 @@ export function ApiKeyList({ apiKeys, onDeleteApiKey, onDeleteClose, isDeleting,
                   </TableRow>
                 ))}
 
-              {(apiKeys?.length === 0 || isTrialing) && (
+              {(apiKeys?.length === 0 || isTrialing || !isManaged) && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center">
                     No API keys found
