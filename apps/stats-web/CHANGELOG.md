@@ -1,5 +1,12 @@
 
 
+## [0.33.0](https://github.com/akash-network/console/compare/stats-web/v0.32.1...stats-web/v0.33.0) (2025-08-14)
+
+
+### Features
+
+* enables sentry sourcemaps in deploy-web ([#1800](https://github.com/akash-network/console/issues/1800)) ([f7c83bf](https://github.com/akash-network/console/commit/f7c83bf749199d17e9d9b8cb7c2f7a3413a59887))
+
 ## [0.32.1](https://github.com/akash-network/console/compare/stats-web/v0.32.0...stats-web/v0.32.1) (2025-08-04)
 
 

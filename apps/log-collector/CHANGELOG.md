@@ -1,5 +1,12 @@
 
 
+## [1.4.0](https://github.com/akash-network/console/compare/log-collector/v1.3.1...log-collector/v1.4.0) (2025-08-14)
+
+
+### Features
+
+* enables sentry sourcemaps in deploy-web ([#1800](https://github.com/akash-network/console/issues/1800)) ([f7c83bf](https://github.com/akash-network/console/commit/f7c83bf749199d17e9d9b8cb7c2f7a3413a59887))
+
 ## [1.3.1](https://github.com/akash-network/console/compare/log-collector/v1.3.0...log-collector/v1.3.1) (2025-08-04)
 
 
