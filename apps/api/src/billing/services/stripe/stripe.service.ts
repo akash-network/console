@@ -10,6 +10,7 @@ import { PaymentMethodRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { LoggerService } from "@src/core/providers/logging.provider";
+import { TransactionCsvRow } from "@src/types/transactions";
 import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 
 const logger = LoggerService.forContext("StripeService");
@@ -443,7 +444,10 @@ export class StripeService extends Stripe {
     }
   }
 
-  private async *createTransactionGenerator(customerId: string, options: { startDate: string; endDate: string }): AsyncGenerator<any, void, unknown> {
+  private async *createTransactionGenerator(
+    customerId: string,
+    options: { startDate: string; endDate: string }
+  ): AsyncGenerator<TransactionCsvRow, void, unknown> {
     let hasMore = true;
     let startingAfter: string | undefined;
     const batchSize = 100;
@@ -483,6 +487,16 @@ export class StripeService extends Stripe {
     }
   }
 
+  private sanitizeForCsv(value: string): string {
+    if (!value) return "";
+
+    if (/^[=+\-@]/.test(value)) {
+      return "'" + value;
+    }
+
+    return value;
+  }
+
   private transformTransactionForCsv(transaction: Transaction) {
     const date = new Date(transaction.created * 1000).toISOString().split("T")[0];
     const amount = (transaction.amount / 100).toFixed(2);
@@ -496,7 +510,7 @@ export class StripeService extends Stripe {
       paymentMethodType: transaction.paymentMethod?.type || "",
       cardBrand: transaction.paymentMethod?.card?.brand || "",
       cardLast4: transaction.paymentMethod?.card?.last4 || "",
-      description: transaction.description || "",
+      description: this.sanitizeForCsv(transaction.description || ""),
       receiptUrl: transaction.receiptUrl || ""
     };
   }

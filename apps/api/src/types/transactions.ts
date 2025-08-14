@@ -17,3 +17,16 @@ export type ApiTransactionResponse = {
     relatedDeploymentId: string | null;
   }[];
 };
+
+export type TransactionCsvRow = {
+  id: string;
+  date: string;
+  amount: string;
+  currency: string;
+  status: string;
+  paymentMethodType: string;
+  cardBrand: string;
+  cardLast4: string;
+  description: string;
+  receiptUrl: string;
+};
