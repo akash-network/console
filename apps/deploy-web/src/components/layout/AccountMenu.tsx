@@ -14,6 +14,7 @@ import ClickAwayListener from "@mui/material/ClickAwayListener";
 import { GraphUp, Key, LogOut, MultiplePages, Settings, Star, User } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useFlag } from "@src/hooks/useFlag";
@@ -27,6 +28,7 @@ export function AccountMenu() {
   const router = useRouter();
   const isBillingUsageEnabled = useFlag("billing_usage");
   const wallet = useWallet();
+  const { authService } = useServices();
 
   return (
     <React.Fragment>
@@ -98,7 +100,7 @@ export function AccountMenu() {
                           </CustomDropdownLinkItem>
                         )}
                         <DropdownMenuSeparator />
-                        <CustomDropdownLinkItem onClick={() => (window.location.href = UrlService.logout())} icon={<LogOut />}>
+                        <CustomDropdownLinkItem onClick={() => authService.logout()} icon={<LogOut />}>
                           Logout
                         </CustomDropdownLinkItem>
                       </div>

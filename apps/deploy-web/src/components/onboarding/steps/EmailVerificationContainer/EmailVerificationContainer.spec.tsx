@@ -157,14 +157,11 @@ describe("EmailVerificationContainer", () => {
     });
 
     const mockUseServices = jest.fn().mockReturnValue({
-      analyticsService: mockAnalyticsService
-    });
-
-    const mockServices = {
+      analyticsService: mockAnalyticsService,
       auth: {
         sendVerificationEmail: mockSendVerificationEmail
       }
-    } as any;
+    });
 
     const mockSnackbar = ({ title, subTitle, iconVariant }: any) => (
       <div data-testid="snackbar" data-title={title} data-subtitle={subTitle} data-icon-variant={iconVariant} />
@@ -174,7 +171,6 @@ describe("EmailVerificationContainer", () => {
       useCustomUser: mockUseCustomUser,
       useSnackbar: mockUseSnackbar,
       useServices: mockUseServices,
-      services: mockServices,
       Snackbar: mockSnackbar
     };
 

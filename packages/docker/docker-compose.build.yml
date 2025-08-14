@@ -45,6 +45,8 @@ services:
       args:
         WORKSPACE: apps/deploy-web
         DEPLOYMENT_ENV: ${DEPLOYMENT_ENV}
+        SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN}
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH}
 
   stats-web:
     image: ${STATS_WEB_REPO:-console-stats-web}:${STATS_WEB_TAG:-latest}

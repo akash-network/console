@@ -243,46 +243,55 @@ describe("Provider Graph Data", () => {
       const today = new Date();
       today.setHours(0, 14, 59, 999);
 
-      await createProviderSnapshot({
-        owner: providers[0].owner,
-        checkDate: today,
-        isOnline: true,
-        isLastSuccessOfDay: true,
-        activeCPU: 1000,
-        activeGPU: 1000,
-        activeMemory: 1000,
-        activePersistentStorage: 1000,
-        activeEphemeralStorage: 1000,
-        pendingCPU: 1000,
-        pendingGPU: 1000,
-        pendingMemory: 1000,
-        pendingPersistentStorage: 1000,
-        pendingEphemeralStorage: 1000,
-        availableCPU: 1000,
-        availableGPU: 1000,
-        availableMemory: 1000,
-        availablePersistentStorage: 1000,
-        availableEphemeralStorage: 1000
-      });
+      // Mock the current time to match the snapshot time
+      jest.useFakeTimers();
+      jest.setSystemTime(today);
 
-      await createDay({
-        date: format(today, "yyyy-MM-dd"),
-        firstBlockHeight: 301,
-        lastBlockHeight: 400,
-        lastBlockHeightYet: 400
-      });
+      try {
+        await createProviderSnapshot({
+          owner: providers[0].owner,
+          checkDate: today,
+          isOnline: true,
+          isLastSuccessOfDay: true,
+          activeCPU: 1000,
+          activeGPU: 1000,
+          activeMemory: 1000,
+          activePersistentStorage: 1000,
+          activeEphemeralStorage: 1000,
+          pendingCPU: 1000,
+          pendingGPU: 1000,
+          pendingMemory: 1000,
+          pendingPersistentStorage: 1000,
+          pendingEphemeralStorage: 1000,
+          availableCPU: 1000,
+          availableGPU: 1000,
+          availableMemory: 1000,
+          availablePersistentStorage: 1000,
+          availableEphemeralStorage: 1000
+        });
 
-      await createAkashBlock({
-        datetime: today,
-        height: 400
-      });
+        await createDay({
+          date: format(today, "yyyy-MM-dd"),
+          firstBlockHeight: 301,
+          lastBlockHeight: 400,
+          lastBlockHeightYet: 400
+        });
 
-      const response = await app.request("/v1/provider-graph-data/count");
-      const data = (await response.json()) as any;
+        await createAkashBlock({
+          datetime: today,
+          height: 400
+        });
 
-      expect(response.status).toBe(200);
+        const response = await app.request("/v1/provider-graph-data/count");
+        const data = (await response.json()) as any;
 
-      expect(data.snapshots[data.snapshots.length - 1].date).toBe(format(yesterday, "yyyy-MM-dd") + "T00:00:00.000Z");
+        expect(response.status).toBe(200);
+
+        expect(data.snapshots[data.snapshots.length - 1].date).toBe(format(yesterday, "yyyy-MM-dd") + "T00:00:00.000Z");
+      } finally {
+        // Restore real timers
+        jest.useRealTimers();
+      }
     });
   });
 });

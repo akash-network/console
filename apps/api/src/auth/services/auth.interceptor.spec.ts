@@ -5,6 +5,7 @@ import { container as globalContainer } from "tsyringe";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
 import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { AbilityService } from "./ability/ability.service";
@@ -130,6 +131,23 @@ describe(AuthInterceptor.name, () => {
       })
     );
     di.register(AuthInterceptor, { useClass: AuthInterceptor });
+    di.register(ExecutionContextService, {
+      useValue: mock<ExecutionContextService>({
+        get: key =>
+          (
+            ({
+              HTTP_CONTEXT: {
+                var: {
+                  clientInfo: {
+                    ip: "127.0.0.1",
+                    fingerprint: "123"
+                  }
+                }
+              }
+            }) as any
+          )[key]
+      })
+    });
 
     const app = new Hono().use(di.resolve(AuthInterceptor).intercept()).get("/", c => c.text("Ok"));
     const headers: Record<string, string> = {};

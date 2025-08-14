@@ -185,7 +185,10 @@ describe("OnboardingContainer", () => {
 
     const mockUseUser = jest.fn().mockReturnValue(input.user || { emailVerified: false });
     const mockUsePaymentMethodsQuery = jest.fn().mockReturnValue({ data: input.paymentMethods || [] });
-    const mockUseServices = jest.fn().mockReturnValue({ analyticsService: mockAnalyticsService });
+    const mockUseServices = jest.fn().mockReturnValue({
+      analyticsService: mockAnalyticsService,
+      urlService: mockUrlService
+    });
     const mockUseRouter = jest.fn().mockReturnValue(mockRouter);
 
     // Create dependencies object
@@ -193,8 +196,7 @@ describe("OnboardingContainer", () => {
       useUser: mockUseUser,
       usePaymentMethodsQuery: mockUsePaymentMethodsQuery,
       useServices: mockUseServices,
-      useRouter: mockUseRouter,
-      UrlService: mockUrlService
+      useRouter: mockUseRouter
     };
 
     const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);

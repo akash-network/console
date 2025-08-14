@@ -73,10 +73,11 @@ import {
 import { Scheduler } from "./scheduler";
 import { templatesRouter } from "./template";
 import { transactionsRouter } from "./transaction";
-import { createAnonymousUserRouter, getAnonymousUserRouter } from "./user";
+import { createAnonymousUserRouter, getAnonymousUserRouter, getCurrentUserRouter, registerUserRouter } from "./user";
 import { validatorsRouter } from "./validator";
 
 const appHono = new Hono<AppEnv>();
+appHono.use("*", otel());
 appHono.use(
   "/*",
   cors({
@@ -86,7 +87,6 @@ appHono.use(
     exposeHeaders: ["cf-mitigated"]
   })
 );
-appHono.use("*", otel());
 
 const { PORT = 3080 } = process.env;
 
@@ -123,6 +123,8 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   usageRouter,
   createAnonymousUserRouter,
   getAnonymousUserRouter,
+  registerUserRouter,
+  getCurrentUserRouter,
   sendVerificationEmailRouter,
   deploymentSettingRouter,
   deploymentsRouter,

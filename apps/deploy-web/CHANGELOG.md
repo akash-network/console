@@ -1,5 +1,36 @@
 
 
+## [2.99.0](https://github.com/akash-network/console/compare/console-web/v2.98.3...console-web/v2.99.0) (2025-08-14)
+
+
+### Features
+
+* enables sentry sourcemaps in deploy-web ([#1800](https://github.com/akash-network/console/issues/1800)) ([f7c83bf](https://github.com/akash-network/console/commit/f7c83bf749199d17e9d9b8cb7c2f7a3413a59887))
+
+
+### Bug Fixes
+
+* ensure that traceparent/tracestate are tracked in logs ([#1799](https://github.com/akash-network/console/issues/1799)) ([ace47e6](https://github.com/akash-network/console/commit/ace47e6fa75b3354e18995f36fc064a42afd5165))
+
+
+### Code Refactoring
+
+* moves user registraction logic under user controller ([#1796](https://github.com/akash-network/console/issues/1796)) ([b16573b](https://github.com/akash-network/console/commit/b16573b2e42856aff2332d62267d34aa3f27d201))
+
+## [2.98.3](https://github.com/akash-network/console/compare/console-web/v2.98.2...console-web/v2.98.3) (2025-08-13)
+
+
+### Code Refactoring
+
+* improves types in jwt ([#1794](https://github.com/akash-network/console/issues/1794)) ([070910e](https://github.com/akash-network/console/commit/070910eb9b815c4acb64615d1d26d6d47fbdc26a))
+
+## [2.98.2](https://github.com/akash-network/console/compare/console-web/v2.98.1...console-web/v2.98.2) (2025-08-07)
+
+
+### Code Refactoring
+
+* reduces usage of services variable ([#1772](https://github.com/akash-network/console/issues/1772)) ([67e5c30](https://github.com/akash-network/console/commit/67e5c30c407f27df1ca9f1ce56eb723765d50282))
+
 ## [2.98.1](https://github.com/akash-network/console/compare/console-web/v2.98.0...console-web/v2.98.1) (2025-08-04)
 
 

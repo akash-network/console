@@ -1,5 +1,24 @@
 
 
+## [1.15.0](https://github.com/akash-network/console/compare/provider-proxy/v1.14.2...provider-proxy/v1.15.0) (2025-08-14)
+
+
+### Features
+
+* enables sentry sourcemaps in deploy-web ([#1800](https://github.com/akash-network/console/issues/1800)) ([f7c83bf](https://github.com/akash-network/console/commit/f7c83bf749199d17e9d9b8cb7c2f7a3413a59887))
+
+
+### Bug Fixes
+
+* ensure that traceparent/tracestate are tracked in logs ([#1799](https://github.com/akash-network/console/issues/1799)) ([ace47e6](https://github.com/akash-network/console/commit/ace47e6fa75b3354e18995f36fc064a42afd5165))
+
+## [1.14.2](https://github.com/akash-network/console/compare/provider-proxy/v1.14.1...provider-proxy/v1.14.2) (2025-08-13)
+
+
+### Bug Fixes
+
+* returns 400 if provider API returns "validation failed" in response ([#1795](https://github.com/akash-network/console/issues/1795)) ([ed0c32c](https://github.com/akash-network/console/commit/ed0c32cf415372d3115bf96065a39d9d2ad2a009))
+
 ## [1.14.1](https://github.com/akash-network/console/compare/provider-proxy/v1.14.0...provider-proxy/v1.14.1) (2025-07-31)
 
 

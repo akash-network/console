@@ -1,5 +1,31 @@
 
 
+## [2.110.0](https://github.com/akash-network/console/compare/console-api/v2.109.3...console-api/v2.110.0) (2025-08-14)
+
+
+### Features
+
+* enables sentry sourcemaps in deploy-web ([#1800](https://github.com/akash-network/console/issues/1800)) ([f7c83bf](https://github.com/akash-network/console/commit/f7c83bf749199d17e9d9b8cb7c2f7a3413a59887))
+
+
+### Bug Fixes
+
+* **billing:** handle missing Stripe customer ID gracefully in transac… ([#1812](https://github.com/akash-network/console/issues/1812)) ([5ab6d2a](https://github.com/akash-network/console/commit/5ab6d2aa97be4ab4ce26c3aa147afd3e37b8b691))
+* ensure that traceparent/tracestate are tracked in logs ([#1799](https://github.com/akash-network/console/issues/1799)) ([ace47e6](https://github.com/akash-network/console/commit/ace47e6fa75b3354e18995f36fc064a42afd5165))
+* improve caching function ([#1805](https://github.com/akash-network/console/issues/1805)) ([bb1185e](https://github.com/akash-network/console/commit/bb1185e42242186e04d458c1aa4fb3e83e5b30b6))
+
+
+### Code Refactoring
+
+* moves user registraction logic under user controller ([#1796](https://github.com/akash-network/console/issues/1796)) ([b16573b](https://github.com/akash-network/console/commit/b16573b2e42856aff2332d62267d34aa3f27d201))
+
+## [2.109.3](https://github.com/akash-network/console/compare/console-api/v2.109.2...console-api/v2.109.3) (2025-08-13)
+
+
+### Bug Fixes
+
+* **billing:** only check for deployment allowance tx when create ([#1804](https://github.com/akash-network/console/issues/1804)) ([844ea53](https://github.com/akash-network/console/commit/844ea53a747688ad59076a9272037227a29197f3))
+
 ## [2.109.2](https://github.com/akash-network/console/compare/console-api/v2.109.1...console-api/v2.109.2) (2025-08-06)
 
 

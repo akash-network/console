@@ -1,6 +1,6 @@
 import { base64UrlEncode } from "./base64";
 import { JwtValidator } from "./jwt-validator";
-import type { JWTPayload, JwtTokenOptions } from "./types";
+import type { JwtTokenPayload } from "./types";
 import type { SignArbitraryAkashWallet } from "./wallet-utils";
 
 export class JwtToken {
@@ -33,21 +33,22 @@ export class JwtToken {
    *   }
    * );
    * const token = await jwtToken.createToken({
+   *   version: "v1",
    *   iss: "https://example.com",
    *   exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
    *   iat: Math.floor(Date.now() / 1000), // current timestamp
    * });
    * console.log(token);
    */
-  async createToken(options: JwtTokenOptions): Promise<string> {
+  async createToken(options: CreateJWTOptions): Promise<string> {
     const now = Math.floor(Date.now() / 1000);
-    const inputPayload: JWTPayload = {
+    const inputPayload: JwtTokenPayload = {
       iss: options.iss,
       exp: options.exp ? options.exp : now + 3600, // Default to 1 hour expiration
-      nbf: options.nbf,
-      iat: options.iat,
+      nbf: options.nbf || now,
+      iat: options.iat || now,
       jti: options.jti,
-      version: options.version || "v1",
+      version: options.version,
       leases: options.leases || { access: "full" }
     };
 
@@ -71,7 +72,7 @@ export class JwtToken {
    * @returns The decoded JWT payload
    * @throws Error if the token is malformed
    */
-  decodeToken(token: string): JWTPayload {
+  decodeToken(token: string): JwtTokenPayload {
     const parts = token.split(".");
     if (parts.length !== 3) {
       throw new Error("Invalid JWT format");
@@ -91,7 +92,7 @@ export class JwtToken {
    * @param payload - The JWT payload to validate
    * @returns A boolean indicating whether the payload is valid
    */
-  public validatePayload(payload: JWTPayload): { isValid: boolean; errors?: string[] } {
+  public validatePayload(payload: JwtTokenPayload): { isValid: boolean; errors?: string[] } {
     const result = this.validator.validateToken(payload);
     if (!result.isValid) {
       return { isValid: false, errors: result.errors };
@@ -100,13 +101,11 @@ export class JwtToken {
     const now = Math.floor(Date.now() / 1000);
     const errors: string[] = [];
 
-    // Check expiration
-    if (payload.exp && payload.exp <= now) {
+    if (payload.exp <= now) {
       errors.push("Token has expired");
     }
 
-    // Check not-before time
-    if (payload.nbf && payload.nbf > now) {
+    if (payload.nbf > now) {
       errors.push("Token is not yet valid (nbf check failed)");
     }
 
@@ -115,4 +114,9 @@ export class JwtToken {
       errors: errors.length > 0 ? errors : undefined
     };
   }
+}
+
+export interface CreateJWTOptions extends Partial<Omit<JwtTokenPayload, "iss" | "version">> {
+  version: JwtTokenPayload["version"];
+  iss: JwtTokenPayload["iss"];
 }

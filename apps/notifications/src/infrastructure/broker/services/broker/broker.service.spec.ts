@@ -6,6 +6,7 @@ import type { MockProxy } from "jest-mock-extended";
 import { Client } from "pg";
 import PgBoss from "pg-boss";
 
+import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import type { BrokerConfig } from "@src/infrastructure/broker/config";
 import { NAMESPACE } from "@src/infrastructure/broker/config";
@@ -25,8 +26,8 @@ describe(BrokerService.name, () => {
     it("should publish an event to PgBoss", async () => {
       const { service, pgBoss } = await setup();
 
-      const eventName = faker.string.alphanumeric(10);
-      const eventPayload = { data: faker.lorem.sentence() };
+      const eventName = eventKeyRegistry.blockCreated;
+      const eventPayload = { height: faker.number.int() };
 
       await service.publish(eventName, eventPayload);
 

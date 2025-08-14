@@ -70,7 +70,10 @@ export class ManagedSignerService {
     const user = this.authService.currentUser.userId === userId ? this.authService.currentUser : await this.userRepository.findById(userId);
     assert(user, 404, "User Not Found");
     assert(userWallet.feeAllowance > 0, 403, "UserWallet has no fee allowance");
-    assert(userWallet.deploymentAllowance > 0, 403, "UserWallet has no deployment allowance");
+
+    if (messages.some(message => message.typeUrl === "/akash.deployment.v1beta3.MsgCreateDeployment")) {
+      assert(userWallet.deploymentAllowance > 0, 403, "UserWallet has no deployment allowance");
+    }
 
     if (this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
       await Promise.all(

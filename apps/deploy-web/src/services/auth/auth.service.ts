@@ -1,9 +1,10 @@
 import type { InternalAxiosRequestConfig } from "axios";
 
 import { ANONYMOUS_USER_TOKEN_KEY } from "@src/config/auth.config";
+import { ONBOARDING_STEP_KEY } from "../storage/keys";
 
 export class AuthService {
-  constructor() {
+  constructor(private readonly urlService: LogoutUrlService) {
     this.withAnonymousUserHeader = this.withAnonymousUserHeader.bind(this);
   }
 
@@ -18,4 +19,15 @@ export class AuthService {
 
     return config;
   }
+
+  logout() {
+    if (typeof window === "undefined") return;
+    window.localStorage.removeItem(ANONYMOUS_USER_TOKEN_KEY);
+    window.localStorage.removeItem(ONBOARDING_STEP_KEY);
+    window.location.href = this.urlService.logout();
+  }
+}
+
+interface LogoutUrlService {
+  logout(): string;
 }

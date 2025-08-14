@@ -1,4 +1,4 @@
-import type { JWTPayload } from "../types";
+import type { JwtTokenPayload } from "../types";
 import type { jwtClaimsTestCases } from "./generated/jwt-claims-test-cases";
 import { createAkashAddress } from "./seeders/akash-address.seeder";
 
@@ -45,5 +45,5 @@ export function replaceTemplateValues(testCase: (typeof jwtClaimsTestCases)[0]) 
     }));
   }
 
-  return { ...testCase, claims: claims as JWTPayload };
+  return { ...testCase, claims: claims as JwtTokenPayload };
 }

@@ -4,7 +4,7 @@ import addFormats from "ajv-formats";
 
 import { jwtSchemaData } from "./generated/jwt-schema-data";
 import { base64Decode } from "./base64";
-import type { JWTPayload } from "./types";
+import type { JwtTokenPayload } from "./types";
 
 export interface JwtValidationResult {
   isValid: boolean;
@@ -36,7 +36,7 @@ export class JwtValidator {
    * @param token The JWT token to validate
    * @returns Validation result with errors if any
    */
-  validateToken(token: string | JWTPayload): JwtValidationResult {
+  validateToken(token: string | JwtTokenPayload): JwtValidationResult {
     const result: JwtValidationResult = {
       isValid: false,
       errors: []

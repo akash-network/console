@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/console-api",
-  "version": "2.109.2",
+  "version": "2.110.0",
   "description": "Api providing data to the deploy tool",
   "repository": {
     "type": "git",
@@ -56,7 +56,7 @@
     "@cosmjs/tendermint-rpc": "^0.32.4",
     "@dotenvx/dotenvx": "^1.9.0",
     "@hono/node-server": "1.13.7",
-    "@hono/otel": "^0.1.0",
+    "@hono/otel": "~0.4.0",
     "@hono/swagger-ui": "0.4.1",
     "@hono/zod-openapi": "0.18.4",
     "@octokit/rest": "^18.12.0",

@@ -30,8 +30,9 @@ export class RichError extends Error {
     public message: string,
     public code: string | number = "UNDEFINED",
     public data: Record<string, unknown> = {},
-    public cause?: unknown
+    cause?: unknown
   ) {
-    super(message);
+    super(message, { cause });
+    this.name = "RichError";
   }
 }

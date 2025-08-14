@@ -8,6 +8,7 @@ import { singleton } from "tsyringe";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { ApiKeyOutput, ApiKeyRepository } from "../repositories/api-key/api-key.repository";
@@ -32,7 +33,8 @@ export class AuthInterceptor implements HonoInterceptor {
     private readonly anonymousUserAuthService: AuthTokenService,
     private readonly userAuthService: UserAuthTokenService,
     private readonly apiKeyRepository: ApiKeyRepository,
-    private readonly apiKeyAuthService: ApiKeyAuthService
+    private readonly apiKeyAuthService: ApiKeyAuthService,
+    private readonly executionContextService: ExecutionContextService
   ) {}
 
   intercept() {
@@ -112,7 +114,12 @@ export class AuthInterceptor implements HonoInterceptor {
     const now = new Date();
     if (this.shouldMarkUserAsActive(userId, now)) {
       this.lastUserActivityCache.set(userId, now);
-      await this.userRepository.markAsActive(userId, LAST_USER_ACTIVITY_THROTTLE_TIME_SECONDS);
+      const httpContext = this.executionContextService.get("HTTP_CONTEXT");
+      await this.userRepository.markAsActive(userId, {
+        throttleTimeSeconds: LAST_USER_ACTIVITY_THROTTLE_TIME_SECONDS,
+        ip: httpContext?.var.clientInfo?.ip,
+        fingerprint: httpContext?.var.clientInfo?.fingerprint
+      });
     }
   }
 

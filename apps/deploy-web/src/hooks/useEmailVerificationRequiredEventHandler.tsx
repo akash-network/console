@@ -4,14 +4,14 @@ import { Snackbar } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { useSnackbar } from "notistack";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
-import { analyticsService } from "@src/services/analytics/analytics.service";
-import { services } from "@src/services/app-di-container/browser-di-container";
 
 export const useEmailVerificationRequiredEventHandler = (): ((messageOtherwise: string) => (callback: MouseEventHandler) => MouseEventHandler) => {
   const { requireAction } = usePopup();
   const { user } = useCustomUser();
   const { enqueueSnackbar } = useSnackbar();
+  const { auth, analyticsService } = useServices();
 
   return useCallback(
     (messageOtherwise: string) => (handler: MouseEventHandler) => {
@@ -30,7 +30,7 @@ export const useEmailVerificationRequiredEventHandler = (): ((messageOtherwise: 
                   return;
                 }
 
-                services.auth
+                auth
                   .sendVerificationEmail(user.id)
                   .then(() => {
                     enqueueSnackbar(
