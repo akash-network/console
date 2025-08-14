@@ -24,13 +24,14 @@ export const usePayingCustomerRequiredEventHandler = (): ((messageOtherwise: str
               {messageOtherwise}
             </Alert>
           ),
-          actions: [
+          actions: ({ close }) => [
             {
               label: "Add Funds",
               side: "right",
               size: "lg",
               onClick: () => {
                 router.push(UrlService.payment());
+                close();
               }
             }
           ]
