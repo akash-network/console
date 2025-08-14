@@ -17,15 +17,28 @@ const mockWallet: WalletProviderContextType = buildWallet();
 
 describe("useApiKeysQuery", () => {
   describe("useUserApiKeys", () => {
-    it("should return null when user is not provided", async () => {
-      const { result } = setupApiKeysQuery({
-        user: undefined,
-        wallet: mockWallet
+    it("should be disabled when user is not provided", async () => {
+      const apiKeyService = mock<ApiKeyHttpService>({
+        getApiKeys: jest.fn().mockResolvedValue(mockApiKeys)
       });
 
-      await waitFor(() => {
-        expect(result.current.query.data).toBeUndefined();
+      const { result } = setupApiKeysQuery({
+        user: undefined,
+        wallet: mockWallet,
+        services: {
+          apiKey: () => apiKeyService
+        }
       });
+
+      // Verify the service was not called since the query is disabled
+      expect(apiKeyService.getApiKeys).not.toHaveBeenCalled();
+
+      // Verify the query data is undefined
+      expect(result.current.query.data).toBeUndefined();
+
+      // Verify the query is not in a loading or success state
+      expect(result.current.query.isLoading).toBe(false);
+      expect(result.current.query.isSuccess).toBe(false);
     });
 
     it("should return null when user is trialing", async () => {
@@ -207,7 +220,7 @@ describe("useApiKeysQuery", () => {
   function setupApiKeysQuery(input?: { user?: CustomUserProfile | undefined; wallet?: WalletProviderContextType; services?: Record<string, () => unknown> }) {
     const dependencies: typeof USE_API_KEYS_DEPENDENCIES = {
       ...USE_API_KEYS_DEPENDENCIES,
-      useUser: () => input?.user ?? mockUser,
+      useUser: () => input?.user as CustomUserProfile,
       useWallet: () => input?.wallet || mockWallet
     };
 
