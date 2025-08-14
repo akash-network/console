@@ -8,6 +8,7 @@ import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.reposit
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import type { BidResponse } from "@src/bid/http-schemas/bid.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
+import { cacheEngine } from "@src/caching/helpers";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { UserRepository } from "@src/user/repositories";
@@ -70,7 +71,7 @@ describe("Lease Flow", () => {
 
     const findOneByUserIdMock = jest.fn().mockImplementation(async (id: string) => {
       if (id === userWithId.id) {
-        return { ...wallet, isTrialing: false, feeAllowance: 1_000_000, deploymentAllowance: 1_000_000 };
+        return { ...wallet, isTrialing: false, feeAllowance: 1_000_000, deploymentAllowance: 10_000_000 };
       }
       return undefined;
     });
@@ -154,6 +155,9 @@ describe("Lease Flow", () => {
     expect(deployResponse.status).toBe(201);
     const { dseq, manifest } = ((await deployResponse.json()) as any).data;
 
+    // Clear cache to ensure fresh balance data
+    cacheEngine.clearAllKeyInCache();
+
     // 5. Check balances after deployment creation
     const afterDeployBalancesResponse = await app.request("/v1/balances", {
       method: "GET",
@@ -210,6 +214,9 @@ describe("Lease Flow", () => {
     });
     expect(depositResponse.status).toBe(200);
 
+    // Clear cache to ensure fresh balance data after deposit
+    cacheEngine.clearAllKeyInCache();
+
     // 9. Check balances after deposit
     const afterDepositBalancesResponse = await app.request("/v1/balances", {
       method: "GET",
@@ -250,6 +257,9 @@ describe("Lease Flow", () => {
     expect(closeResponse.status).toBe(200);
     const closeResult = (await closeResponse.json()) as any;
     expect(closeResult.data.success).toBe(true);
+
+    // Clear cache to ensure fresh balance data after deployment closure
+    cacheEngine.clearAllKeyInCache();
 
     // 12. Check final balances
     const finalBalancesResponse = await app.request("/v1/balances", {

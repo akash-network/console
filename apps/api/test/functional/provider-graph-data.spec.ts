@@ -243,6 +243,10 @@ describe("Provider Graph Data", () => {
       const today = new Date();
       today.setHours(0, 14, 59, 999);
 
+      // Mock the current time to match the snapshot time
+      jest.useFakeTimers();
+      jest.setSystemTime(today);
+
       await createProviderSnapshot({
         owner: providers[0].owner,
         checkDate: today,
@@ -283,6 +287,9 @@ describe("Provider Graph Data", () => {
       expect(response.status).toBe(200);
 
       expect(data.snapshots[data.snapshots.length - 1].date).toBe(format(yesterday, "yyyy-MM-dd") + "T00:00:00.000Z");
+
+      // Restore real timers
+      jest.useRealTimers();
     });
   });
 });
