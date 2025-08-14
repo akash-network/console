@@ -3,7 +3,7 @@ import { faker } from "@faker-js/faker";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { AppContext } from "@src/core/types/app-context";
-import type { NotificationsConfig } from "@src/notifications/config";
+import type { NotificationsConfig } from "@src/notifications/config/env.config";
 import { createProxy } from "@src/notifications/routes/proxy/proxy.route";
 
 import { createAkashAddress } from "@test/seeders";

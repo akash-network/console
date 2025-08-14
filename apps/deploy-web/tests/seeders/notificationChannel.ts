@@ -14,6 +14,7 @@ export function buildNotificationChannel(
     userId: faker.string.uuid(),
     createdAt: faker.date.past(),
     updatedAt: faker.date.recent(),
+    isDefault: faker.datatype.boolean(),
     ...overrides
   };
 }

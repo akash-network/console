@@ -1,5 +1,5 @@
-import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
-import { ApiQuery } from "@nestjs/swagger";
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
+import { ApiNoContentResponse, ApiQuery } from "@nestjs/swagger";
 import { createZodDto } from "nestjs-zod";
 import { Err, Ok, Result } from "ts-results";
 import { z } from "zod";
@@ -17,12 +17,16 @@ import {
 export const notificationChannelCreateInputSchema = z.object({
   name: z.string(),
   type: z.literal("email"),
-  config: notificationChannelConfigSchema
+  config: notificationChannelConfigSchema,
+  isDefault: z.boolean().default(false)
 });
+
+export const notificationChannelCreateDefaultInputSchema = notificationChannelCreateInputSchema.omit({ isDefault: true });
 
 export const notificationChannelOutputSchema = notificationChannelCreateInputSchema.extend({
   id: z.string().uuid(),
   userId: z.string().uuid(),
+  isDefault: z.boolean(),
   createdAt: z.date(),
   updatedAt: z.date()
 });
@@ -43,6 +47,7 @@ class NotificationChannelPatchInput extends createZodDto(z.object({ data: notifi
 class NotificationChannelOutput extends createZodDto(notificationChannelOutputResponseSchema) {}
 class NotificationChannelListQuery extends createZodDto(toPaginatedQuery()) {}
 class NotificationChannelListOutput extends createZodDto(toPaginatedResponse(notificationChannelOutputSchema)) {}
+class NotificationChannelCreateDefaultInput extends createZodDto(z.object({ data: notificationChannelCreateDefaultInputSchema })) {}
 
 @Controller({
   version: "1",
@@ -69,6 +74,18 @@ export class NotificationChannelController {
         userId: this.authService.userId
       })
     });
+  }
+
+  @Post("default")
+  @HttpCode(204)
+  @ApiNoContentResponse({ description: "Creates the default notification channel only if it doesn't exist." })
+  async createDefaultChannel(@Body() { data }: NotificationChannelCreateDefaultInput): Promise<Result<void, unknown>> {
+    await this.notificationChannelRepository.accessibleBy(this.authService.ability, "create").createDefaultChannel({
+      ...data,
+      userId: this.authService.userId
+    });
+
+    return Ok(undefined);
   }
 
   @Get(":id")

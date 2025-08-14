@@ -145,6 +145,20 @@ describe(NotificationChannelController.name, () => {
     });
   });
 
+  describe("createDefaultChannel", () => {
+    it("should call notificationChannelRepository.createDefaultChannel()", async () => {
+      const { controller, notificationChannelRepository, userId } = await setup();
+      const input = generateMock(notificationChannelCreateInputSchema);
+
+      await controller.createDefaultChannel({ data: input });
+
+      expect(notificationChannelRepository.createDefaultChannel).toHaveBeenCalledWith({
+        ...input,
+        userId
+      });
+    });
+  });
+
   async function setup(): Promise<{
     controller: NotificationChannelController;
     notificationChannelRepository: MockProxy<NotificationChannelRepository>;

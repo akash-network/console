@@ -2550,6 +2550,216 @@ export interface V1Service {
       error: GetNotificationChannelsError;
     };
   };
+  createDefaultChannel: {
+    /**/
+    getMutationKey(
+      parameters: DeepReadonly<CreateDefaultChannelParameters> | void
+    ): ServiceOperationMutationKey<CreateDefaultChannelSchema, CreateDefaultChannelParameters>;
+    /**
+     * Enables performing asynchronous data mutation operations such as POST, PUT, PATCH, or DELETE requests.
+     * Handles loading state, optimistic updates, and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
+     * @example Mutation with predefined parameters, e.g., for updating
+     * ```ts
+     * const { mutate, isPending } = qraft.v1Service.createDefaultChannel.useMutation({
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
+     * mutate(body);
+     * ```
+     * @example Mutation without predefined parameters, e.g., for creating
+     * ```ts
+     * const { mutate, isPending } = qraft.v1Service.createDefaultChannel.useMutation()
+     * mutate({
+     *     body: bodyPayload,
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * });
+     * ```
+     */
+    useMutation<TVariables extends CreateDefaultChannelBody, TContext = unknown>(
+      parameters: DeepReadonly<CreateDefaultChannelParameters>,
+      options?: ServiceOperationUseMutationOptions<
+        CreateDefaultChannelSchema,
+        CreateDefaultChannelData,
+        CreateDefaultChannelParameters,
+        TVariables,
+        CreateDefaultChannelError | Error,
+        TContext
+      >
+    ): UseMutationResult<CreateDefaultChannelData, CreateDefaultChannelError | Error, TVariables, TContext>;
+    /**
+     * Enables performing asynchronous data mutation operations such as POST, PUT, PATCH, or DELETE requests.
+     * Handles loading state, optimistic updates, and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
+     * @example Mutation with predefined parameters, e.g., for updating
+     * ```ts
+     * const { mutate, isPending } = qraft.v1Service.createDefaultChannel.useMutation({
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * })
+     * mutate(body);
+     * ```
+     * @example Mutation without predefined parameters, e.g., for creating
+     * ```ts
+     * const { mutate, isPending } = qraft.v1Service.createDefaultChannel.useMutation()
+     * mutate({
+     *     body: bodyPayload,
+     *     header: {
+     *         Authorization: authorization
+     *     }
+     * });
+     * ```
+     */
+    useMutation<TVariables extends MutationVariables<CreateDefaultChannelBody, CreateDefaultChannelParameters>, TContext = unknown>(
+      parameters: void,
+      options?: ServiceOperationUseMutationOptions<
+        CreateDefaultChannelSchema,
+        CreateDefaultChannelData,
+        CreateDefaultChannelParameters,
+        TVariables,
+        CreateDefaultChannelError | Error,
+        TContext
+      >
+    ): UseMutationResult<CreateDefaultChannelData, CreateDefaultChannelError | Error, TVariables, TContext>;
+    /**
+     * Returns the count of currently in-progress mutations.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useIsMutating|`useIsMutating(...)` documentation}
+     * @example Check how many mutations are currently in progress for the specified service method.
+     * ```ts
+     * const createDefaultChannelTotal = qraft.v1Service.createDefaultChannel.useIsMutating()
+     * ```
+     * @example Check how many mutations are currently in progress with the specified parameters.
+     * ```ts
+     * const createDefaultChannelTotal = qraft.v1Service.createDefaultChannel.useIsMutating({
+     *     parameters: {
+     *         header: {
+     *             Authorization: authorization
+     *         }
+     *     }
+     * })
+     * ```
+     */
+    useIsMutating<TContext = unknown>(
+      filters?:
+        | MutationFiltersByParameters<
+            CreateDefaultChannelBody,
+            CreateDefaultChannelData,
+            CreateDefaultChannelParameters,
+            CreateDefaultChannelError | Error,
+            TContext
+          >
+        | MutationFiltersByMutationKey<
+            CreateDefaultChannelSchema,
+            CreateDefaultChannelBody,
+            CreateDefaultChannelData,
+            CreateDefaultChannelParameters,
+            CreateDefaultChannelError | Error,
+            TContext
+          >
+    ): number;
+    /**/
+    isMutating<TContext>(
+      filters?:
+        | MutationFiltersByParameters<
+            CreateDefaultChannelBody,
+            CreateDefaultChannelData,
+            CreateDefaultChannelParameters,
+            CreateDefaultChannelError | Error,
+            TContext
+          >
+        | MutationFiltersByMutationKey<
+            CreateDefaultChannelSchema,
+            CreateDefaultChannelBody,
+            CreateDefaultChannelData,
+            CreateDefaultChannelParameters,
+            CreateDefaultChannelError | Error,
+            TContext
+          >
+    ): number;
+    /**/
+    (
+      options: ServiceOperationMutationFnOptions<CreateDefaultChannelBody, CreateDefaultChannelParameters>,
+      client?: (
+        schema: CreateDefaultChannelSchema,
+        options: ServiceOperationMutationFnOptions<CreateDefaultChannelBody, CreateDefaultChannelParameters>
+      ) => Promise<RequestFnResponse<CreateDefaultChannelData, CreateDefaultChannelError>>
+    ): Promise<RequestFnResponse<CreateDefaultChannelData, CreateDefaultChannelError>>;
+    /**
+     * Provides access to the current state of a mutation, including its status, any resulting data, and associated errors.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutationState|`useMutationState(...)` documentation}
+     * @example Get all variables of all running mutations.
+     * ```ts
+     * const createDefaultChannelPendingMutationVariables = qraft.v1Service.createDefaultChannel.useMutationState({
+     *     filters: {
+     *         status: "pending"
+     *     },
+     *     select: mutation => mutation.state.variables
+     * })
+     * ```
+     * @example Get all data for specific mutations via the `parameters`.
+     * ```ts
+     * const createDefaultChannelMutationData = qraft.v1Service.createDefaultChannel.useMutationState({
+     *     filters: {
+     *         parameters: {
+     *             header: {
+     *                 Authorization: authorization
+     *             }
+     *         }
+     *     },
+     *     select: mutation => mutation.state.data
+     * })
+     * ```
+     */
+    useMutationState<
+      TContext = unknown,
+      TResult = MutationState<
+        CreateDefaultChannelData,
+        CreateDefaultChannelError | Error,
+        MutationVariables<CreateDefaultChannelBody, CreateDefaultChannelParameters>,
+        TContext
+      >
+    >(options?: {
+      filters?:
+        | MutationFiltersByParameters<
+            CreateDefaultChannelBody,
+            CreateDefaultChannelData,
+            CreateDefaultChannelParameters,
+            CreateDefaultChannelError | Error,
+            TContext
+          >
+        | MutationFiltersByMutationKey<
+            CreateDefaultChannelSchema,
+            CreateDefaultChannelBody,
+            CreateDefaultChannelData,
+            CreateDefaultChannelParameters,
+            CreateDefaultChannelError | Error,
+            TContext
+          >;
+      select?: (
+        mutation: Mutation<
+          CreateDefaultChannelData,
+          CreateDefaultChannelError | Error,
+          MutationVariables<CreateDefaultChannelBody, CreateDefaultChannelParameters>,
+          TContext
+        >
+      ) => TResult;
+    }): Array<TResult>;
+    schema: CreateDefaultChannelSchema;
+    types: {
+      parameters: CreateDefaultChannelParameters;
+      data: CreateDefaultChannelData;
+      error: CreateDefaultChannelError;
+      body: CreateDefaultChannelBody;
+    };
+  };
   getNotificationChannel: {
     /**/
     cancelQueries<TInfinite extends boolean = false>(
@@ -4614,6 +4824,16 @@ export const getNotificationChannels = {
   schema: GetNotificationChannelsSchema;
   [QraftServiceOperationsToken]: V1Service["getNotificationChannels"];
 };
+export const createDefaultChannel = {
+  schema: {
+    method: "post",
+    url: "/v1/notification-channels/default",
+    mediaType: ["application/json"]
+  }
+} as {
+  schema: CreateDefaultChannelSchema;
+  [QraftServiceOperationsToken]: V1Service["createDefaultChannel"];
+};
 export const getNotificationChannel = {
   schema: {
     method: "get",
@@ -4669,6 +4889,7 @@ export const v1Service = {
   deleteAlert,
   createNotificationChannel,
   getNotificationChannels,
+  createDefaultChannel,
   getNotificationChannel,
   patchNotificationChannel,
   deleteNotificationChannel,
@@ -4759,6 +4980,19 @@ type GetNotificationChannelsError =
   | paths["/v1/notification-channels"]["get"]["responses"]["401"]["content"]["application/json"]
   | paths["/v1/notification-channels"]["get"]["responses"]["403"]["content"]["application/json"]
   | paths["/v1/notification-channels"]["get"]["responses"]["500"]["content"]["application/json"];
+type CreateDefaultChannelSchema = {
+  method: "post";
+  url: "/v1/notification-channels/default";
+  mediaType: ["application/json"];
+};
+type CreateDefaultChannelParameters = paths["/v1/notification-channels/default"]["post"]["parameters"];
+type CreateDefaultChannelData = paths["/v1/notification-channels/default"]["post"]["responses"]["204"]["content"]["application/json"];
+type CreateDefaultChannelError =
+  | paths["/v1/notification-channels/default"]["post"]["responses"]["400"]["content"]["application/json"]
+  | paths["/v1/notification-channels/default"]["post"]["responses"]["401"]["content"]["application/json"]
+  | paths["/v1/notification-channels/default"]["post"]["responses"]["403"]["content"]["application/json"]
+  | paths["/v1/notification-channels/default"]["post"]["responses"]["500"]["content"]["application/json"];
+type CreateDefaultChannelBody = paths["/v1/notification-channels/default"]["post"]["requestBody"]["content"]["application/json"];
 type GetNotificationChannelSchema = {
   method: "get";
   url: "/v1/notification-channels/{id}";

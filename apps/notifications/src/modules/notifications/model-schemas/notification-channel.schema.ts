@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, jsonb, pgEnum, pgTable, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, jsonb, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { timestamps } from "@src/lib/db/timestamps";
 
@@ -17,8 +17,14 @@ export const NotificationChannel = pgTable(
     type: NotificationChannelType("type").notNull(),
     config: jsonb("config").notNull(),
     deletedAt: timestamp("deleted_at"),
+    isDefault: boolean("is_default").notNull().default(false),
 
     ...timestamps
   },
-  table => [index("idx_notification_channels_user_id").on(table.userId), index("idx_notification_channels_created_at").on(table.createdAt)]
+  table => [
+    index("idx_notification_channels_user_id").on(table.userId),
+    uniqueIndex("idx_notification_channels_user_id_is_default")
+      .on(table.userId, table.isDefault)
+      .where(sql`is_default = true and deleted_at is null`)
+  ]
 );

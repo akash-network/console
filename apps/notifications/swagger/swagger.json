@@ -591,6 +591,86 @@
         ]
       }
     },
+    "/v1/notification-channels/default": {
+      "post": {
+        "operationId": "createDefaultChannel",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationChannelCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Creates the default notification channel only if it doesn't exist. If it does exist, it returns the existing channel.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AugmentedZodDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error responded when some request parameters are invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error responded when the user is not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error responded when the user is not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error, should probably be reported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "NotificationChannel"
+        ]
+      }
+    },
     "/v1/notification-channels/{id}": {
       "get": {
         "operationId": "getNotificationChannel",
@@ -4361,6 +4441,9 @@
                 "type": "string",
                 "format": "uuid"
               },
+              "isDefault": {
+                "type": "boolean"
+              },
               "createdAt": {},
               "updatedAt": {}
             },
@@ -4370,6 +4453,7 @@
               "config",
               "id",
               "userId",
+              "isDefault",
               "createdAt",
               "updatedAt"
             ]
@@ -4379,6 +4463,7 @@
           "data"
         ]
       },
+      "AugmentedZodDto": {},
       "NotFoundErrorResponse": {
         "type": "object",
         "properties": {
@@ -4436,6 +4521,9 @@
                   "type": "string",
                   "format": "uuid"
                 },
+                "isDefault": {
+                  "type": "boolean"
+                },
                 "createdAt": {},
                 "updatedAt": {}
               },
@@ -4445,6 +4533,7 @@
                 "config",
                 "id",
                 "userId",
+                "isDefault",
                 "createdAt",
                 "updatedAt"
               ]

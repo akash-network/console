@@ -1,11 +1,12 @@
 import randomInt from "lodash/random";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
-import { UserOutput, UserRepository } from "../../repositories/user/user.repository";
+import { NOTIFICATIONS_API_CLIENT, type NotificationsApiClient } from "@src/notifications/providers/notifications-api.provider";
+import { type UserOutput, UserRepository } from "../../repositories/user/user.repository";
 
 @singleton()
 export class UserService {
@@ -13,7 +14,8 @@ export class UserService {
     private readonly userRepository: UserRepository,
     private readonly analyticsService: AnalyticsService,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly logger: LoggerService
+    private readonly logger: LoggerService,
+    @inject(NOTIFICATIONS_API_CLIENT) private readonly notificationsApi: NotificationsApiClient
   ) {}
 
   async registerUser(data: RegisterUserInput): Promise<{
@@ -66,6 +68,29 @@ export class UserService {
     this.logger.info({ event, id: user.id, userId: user.userId });
     this.analyticsService.track(user.id, "user_registered");
 
+    const result = await this.notificationsApi.v1
+      .createDefaultChannel({
+        parameters: {
+          header: {
+            "x-user-id": user.id
+          } as Record<string, string>
+        },
+        body: {
+          data: {
+            name: "Default",
+            type: "email",
+            config: {
+              addresses: [data.email]
+            }
+          }
+        }
+      })
+      .catch(error => ({ error }));
+
+    if (result?.error) {
+      this.logger.error({ event: "FAILED_TO_CREATE_DEFAULT_NOTIFICATION_CHANNEL", id: user.id, error: result.error });
+    }
+
     const { id, userId, username, email, emailVerified, stripeCustomerId, bio, subscribedToNewsletter, youtubeUsername, twitterUsername, githubUsername } =
       user;
 
@@ -86,7 +111,7 @@ export class UserService {
 
   private async upsertUser(userDetails: UpdateUserInput, attempt = 0): Promise<UserOutput> {
     try {
-      return await this.userRepository.upsert(userDetails);
+      return await this.userRepository.upsertByUserId(userDetails);
     } catch (error) {
       if (userDetails.username && isUniqueViolation(error) && error.constraint_name?.includes("username") && attempt < 10) {
         return this.upsertUser(
