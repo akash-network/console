@@ -78,7 +78,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { analyticsService, tx: txHttpService } = useServices();
 
   const [, setSettingsId] = useAtom(settingsIdAtom);
-  const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(true);
+  const [isWalletLoaded, setIsWalletLoaded] = useState<boolean>(false);
   const [loadingState, setLoadingState] = useState<LoadingState | undefined>(undefined);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const router = useRouter();

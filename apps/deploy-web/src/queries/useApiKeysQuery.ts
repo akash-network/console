@@ -1,11 +1,14 @@
 import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "./queryKeys";
+
+const is403Error = (error: unknown) => axios.isAxiosError(error) && error?.status === 403;
 
 export function useUserApiKeys(options: Omit<UseQueryOptions<ApiKeyResponse[], Error, any, QueryKey>, "queryKey" | "queryFn"> = {}) {
   const user = useUser();
@@ -17,7 +20,9 @@ export function useUserApiKeys(options: Omit<UseQueryOptions<ApiKeyResponse[], E
     queryFn: async () => await apiKey.getApiKeys(),
     enabled: !!user?.userId && !isTrialing,
     refetchInterval: 10_000,
-    retry: failureCount => failureCount < 5,
+    retry: (failureCount, error) => {
+      return !is403Error(error) && failureCount < 5;
+    },
     retryDelay: 10_000,
     ...options
   });
