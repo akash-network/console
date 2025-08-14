@@ -22,17 +22,47 @@ export default class MemoryCacheEngine {
   storeInCache<T>(key: string, data: T, duration?: number) {
     mcache.put(key, data, duration);
   }
+
   /**
    * Used to delete all keys in a memcache
    */
   clearAllKeyInCache() {
     mcache.clear();
   }
+
   /**
-   * Used to  delete specific key from memcache
+   * Used to delete specific key from memcache
    * @param {*} key
    */
   clearKeyInCache(key: string) {
     mcache.del(key);
+  }
+
+  /**
+   * Used to delete a specific key from memcache (alias for clearKeyInCache)
+   * @param {*} key
+   */
+  clearByKey(key: string) {
+    this.clearKeyInCache(key);
+  }
+
+  /**
+   * Used to delete all keys that start with a specific prefix
+   * @param {*} prefix
+   */
+  clearByPrefix(prefix: string) {
+    const keys = mcache.keys();
+    keys.forEach(key => {
+      if (key.startsWith(prefix)) {
+        mcache.del(key);
+      }
+    });
+  }
+
+  /**
+   * Used to get all keys in the cache
+   */
+  getKeys(): string[] {
+    return mcache.keys();
   }
 }

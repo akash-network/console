@@ -247,49 +247,51 @@ describe("Provider Graph Data", () => {
       jest.useFakeTimers();
       jest.setSystemTime(today);
 
-      await createProviderSnapshot({
-        owner: providers[0].owner,
-        checkDate: today,
-        isOnline: true,
-        isLastSuccessOfDay: true,
-        activeCPU: 1000,
-        activeGPU: 1000,
-        activeMemory: 1000,
-        activePersistentStorage: 1000,
-        activeEphemeralStorage: 1000,
-        pendingCPU: 1000,
-        pendingGPU: 1000,
-        pendingMemory: 1000,
-        pendingPersistentStorage: 1000,
-        pendingEphemeralStorage: 1000,
-        availableCPU: 1000,
-        availableGPU: 1000,
-        availableMemory: 1000,
-        availablePersistentStorage: 1000,
-        availableEphemeralStorage: 1000
-      });
+      try {
+        await createProviderSnapshot({
+          owner: providers[0].owner,
+          checkDate: today,
+          isOnline: true,
+          isLastSuccessOfDay: true,
+          activeCPU: 1000,
+          activeGPU: 1000,
+          activeMemory: 1000,
+          activePersistentStorage: 1000,
+          activeEphemeralStorage: 1000,
+          pendingCPU: 1000,
+          pendingGPU: 1000,
+          pendingMemory: 1000,
+          pendingPersistentStorage: 1000,
+          pendingEphemeralStorage: 1000,
+          availableCPU: 1000,
+          availableGPU: 1000,
+          availableMemory: 1000,
+          availablePersistentStorage: 1000,
+          availableEphemeralStorage: 1000
+        });
 
-      await createDay({
-        date: format(today, "yyyy-MM-dd"),
-        firstBlockHeight: 301,
-        lastBlockHeight: 400,
-        lastBlockHeightYet: 400
-      });
+        await createDay({
+          date: format(today, "yyyy-MM-dd"),
+          firstBlockHeight: 301,
+          lastBlockHeight: 400,
+          lastBlockHeightYet: 400
+        });
 
-      await createAkashBlock({
-        datetime: today,
-        height: 400
-      });
+        await createAkashBlock({
+          datetime: today,
+          height: 400
+        });
 
-      const response = await app.request("/v1/provider-graph-data/count");
-      const data = (await response.json()) as any;
+        const response = await app.request("/v1/provider-graph-data/count");
+        const data = (await response.json()) as any;
 
-      expect(response.status).toBe(200);
+        expect(response.status).toBe(200);
 
-      expect(data.snapshots[data.snapshots.length - 1].date).toBe(format(yesterday, "yyyy-MM-dd") + "T00:00:00.000Z");
-
-      // Restore real timers
-      jest.useRealTimers();
+        expect(data.snapshots[data.snapshots.length - 1].date).toBe(format(yesterday, "yyyy-MM-dd") + "T00:00:00.000Z");
+      } finally {
+        // Restore real timers
+        jest.useRealTimers();
+      }
     });
   });
 });
