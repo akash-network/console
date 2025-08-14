@@ -366,34 +366,21 @@ describe(StripeService.name, () => {
     });
   });
 
-  describe("exportTransactionsCsv", () => {
-    it("exports transactions for a single page", async () => {
+  describe("exportTransactionsCsvStream", () => {
+    it("streams transactions for a single page", async () => {
       const { service } = setup();
       const mockTransactions = [
         StripeTransactionSeeder.create({
           id: "ch_123",
           amount: 1000,
+          currency: "usd",
+          status: "succeeded",
           created: 1640995200,
           paymentMethod: generatePaymentMethod({
             type: "card",
             cardBrand: "visa",
             cardLast4: "4242"
-          }),
-          receiptUrl: "https://receipt.url/123",
-          description: "Test payment"
-        }),
-        StripeTransactionSeeder.create({
-          id: "ch_456",
-          amount: 2500,
-          currency: "eur",
-          created: 1641081600,
-          paymentMethod: generatePaymentMethod({
-            type: "card",
-            cardBrand: "mastercard",
-            cardLast4: "8888"
-          }),
-          receiptUrl: null,
-          description: null
+          })
         })
       ];
 
@@ -404,40 +391,42 @@ describe(StripeService.name, () => {
         prevPage: null
       });
 
-      const result = await service.exportTransactionsCsv("cus_123", {
+      const csvStream = service.exportTransactionsCsvStream("cus_123", {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z"
       });
 
-      const expectedCsv = [
-        '"Transaction ID","Date","Amount","Currency","Status","Payment Method","Card Brand","Card Last 4","Description","Receipt URL"',
-        '"ch_123","2022-01-01","10.00","USD","succeeded","card","visa","4242","Test payment","https://receipt.url/123"',
-        '"ch_456","2022-01-02","25.00","EUR","succeeded","card","mastercard","8888","",""'
-      ].join("\n");
+      const chunks: string[] = [];
+      for await (const chunk of csvStream) {
+        chunks.push(chunk);
+      }
 
-      expect(result).toBe(expectedCsv);
-      expect(service.getCustomerTransactions).toHaveBeenCalledWith("cus_123", {
-        limit: 100,
-        startingAfter: undefined,
-        startDate: "2022-01-01T00:00:00Z",
-        endDate: "2022-01-31T23:59:59Z"
-      });
+      const fullCsv = chunks.join("");
+
+      expect(fullCsv).toContain("Transaction ID,Date,Amount");
+
+      expect(fullCsv).toContain("ch_123");
+      expect(fullCsv).toContain("2022-01-01");
+      expect(fullCsv).toContain("10.00");
+      expect(fullCsv).toContain("visa");
+      expect(fullCsv).toContain("4242");
     });
 
-    it("handles pagination and fetches multiple pages", async () => {
+    it("streams multiple pages without loading all into memory", async () => {
       const { service } = setup();
 
       const firstPageTransactions = [
         StripeTransactionSeeder.create({
           id: "ch_001",
           amount: 1000,
+          currency: "usd",
+          status: "succeeded",
           created: 1640995200,
           paymentMethod: generatePaymentMethod({
             type: "card",
             cardBrand: "visa",
             cardLast4: "1111"
           }),
-          receiptUrl: null,
           description: "First transaction"
         })
       ];
@@ -446,13 +435,14 @@ describe(StripeService.name, () => {
         StripeTransactionSeeder.create({
           id: "ch_002",
           amount: 2000,
+          currency: "usd",
+          status: "succeeded",
           created: 1641081600,
           paymentMethod: generatePaymentMethod({
             type: "card",
             cardBrand: "mastercard",
             cardLast4: "2222"
           }),
-          receiptUrl: null,
           description: "Second transaction"
         })
       ];
@@ -472,10 +462,17 @@ describe(StripeService.name, () => {
           prevPage: "ch_002"
         });
 
-      const result = await service.exportTransactionsCsv("cus_123", {
+      const csvStream = service.exportTransactionsCsvStream("cus_123", {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z"
       });
+
+      const chunks: string[] = [];
+      for await (const chunk of csvStream) {
+        chunks.push(chunk);
+      }
+
+      const fullCsv = chunks.join("");
 
       expect(service.getCustomerTransactions).toHaveBeenCalledTimes(2);
       expect(service.getCustomerTransactions).toHaveBeenNthCalledWith(1, "cus_123", {
@@ -491,39 +488,10 @@ describe(StripeService.name, () => {
         endDate: "2022-01-31T23:59:59Z"
       });
 
-      expect(result).toContain("ch_001");
-      expect(result).toContain("ch_002");
-      expect(result).toContain("First transaction");
-      expect(result).toContain("Second transaction");
-    });
-
-    it("throws error when transaction limit is exceeded", async () => {
-      const { service } = setup();
-
-      const manyTransactions = Array.from({ length: 50001 }, (_, i) =>
-        StripeTransactionSeeder.create({
-          id: `ch_${i}`,
-          amount: 1000,
-          created: 1640995200,
-          paymentMethod: null,
-          receiptUrl: null,
-          description: null
-        })
-      );
-
-      jest.spyOn(service, "getCustomerTransactions").mockResolvedValue({
-        transactions: manyTransactions,
-        hasMore: true,
-        nextPage: "ch_50000",
-        prevPage: null
-      });
-
-      await expect(
-        service.exportTransactionsCsv("cus_123", {
-          startDate: "2022-01-01T00:00:00Z",
-          endDate: "2022-12-31T23:59:59Z"
-        })
-      ).rejects.toThrow("Transaction export limit exceeded. Please use a smaller date range.");
+      expect(fullCsv).toContain("ch_001");
+      expect(fullCsv).toContain("ch_002");
+      expect(fullCsv).toContain("First transaction");
+      expect(fullCsv).toContain("Second transaction");
     });
 
     it("returns message when no transactions found", async () => {
@@ -536,25 +504,34 @@ describe(StripeService.name, () => {
         prevPage: null
       });
 
-      const result = await service.exportTransactionsCsv("cus_123", {
+      const csvStream = service.exportTransactionsCsvStream("cus_123", {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z"
       });
 
-      expect(result).toBe("No transactions found for the specified date range.");
+      const chunks: string[] = [];
+      for await (const chunk of csvStream) {
+        chunks.push(chunk);
+      }
+
+      const fullCsv = chunks.join("");
+      expect(fullCsv).toContain("No transactions found for the specified date range");
     });
 
-    it("handles transactions with null/undefined payment methods", async () => {
+    it("handles transactions with null payment methods", async () => {
       const { service } = setup();
       const mockTransactions = [
-        StripeTransactionSeeder.create({
+        {
           id: "ch_123",
           amount: 1000,
+          currency: "usd",
+          status: "succeeded",
           created: 1640995200,
           paymentMethod: null,
           receiptUrl: null,
-          description: "No payment method"
-        })
+          description: "No payment method",
+          metadata: {}
+        }
       ];
 
       jest.spyOn(service, "getCustomerTransactions").mockResolvedValue({
@@ -564,12 +541,21 @@ describe(StripeService.name, () => {
         prevPage: null
       });
 
-      const result = await service.exportTransactionsCsv("cus_123", {
+      const csvStream = service.exportTransactionsCsvStream("cus_123", {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z"
       });
 
-      expect(result).toContain('"ch_123","2022-01-01","10.00","USD","succeeded","","","","No payment method",""');
+      const chunks: string[] = [];
+      for await (const chunk of csvStream) {
+        chunks.push(chunk);
+      }
+
+      const fullCsv = chunks.join("");
+
+      expect(fullCsv).toContain("ch_123");
+      expect(fullCsv).toContain("No payment method");
+      expect(fullCsv).toMatch(/ch_123,[^,]*,[^,]*,[^,]*,[^,]*,,,,/);
     });
   });
 

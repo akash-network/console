@@ -1,5 +1,7 @@
+import { stringify } from "csv-stringify";
 import assert from "http-assert";
 import orderBy from "lodash/orderBy";
+import { Readable } from "stream";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
@@ -413,11 +415,39 @@ export class StripeService extends Stripe {
     };
   }
 
-  async exportTransactionsCsv(customerId: string, options: { startDate: string; endDate: string }): Promise<string> {
-    const allTransactions: Transaction[] = [];
+  async *exportTransactionsCsvStream(customerId: string, options: { startDate: string; endDate: string }): AsyncIterable<string> {
+    const transactionGenerator = this.createTransactionGenerator(customerId, options);
+
+    const csvStringifier = stringify({
+      header: true,
+      columns: [
+        { key: "id", header: "Transaction ID" },
+        { key: "date", header: "Date" },
+        { key: "amount", header: "Amount" },
+        { key: "currency", header: "Currency" },
+        { key: "status", header: "Status" },
+        { key: "paymentMethodType", header: "Payment Method" },
+        { key: "cardBrand", header: "Card Brand" },
+        { key: "cardLast4", header: "Card Last 4" },
+        { key: "description", header: "Description" },
+        { key: "receiptUrl", header: "Receipt URL" }
+      ]
+    });
+
+    const sourceStream = Readable.from(transactionGenerator);
+
+    const csvStream = sourceStream.pipe(csvStringifier);
+
+    for await (const chunk of csvStream) {
+      yield chunk.toString();
+    }
+  }
+
+  private async *createTransactionGenerator(customerId: string, options: { startDate: string; endDate: string }): AsyncGenerator<any, void, unknown> {
     let hasMore = true;
     let startingAfter: string | undefined;
     const batchSize = 100;
+    let hasYieldedAny = false;
 
     while (hasMore) {
       const batch = await this.getCustomerTransactions(customerId, {
@@ -427,49 +457,48 @@ export class StripeService extends Stripe {
         endDate: options.endDate
       });
 
-      allTransactions.push(...batch.transactions);
+      for (const transaction of batch.transactions) {
+        hasYieldedAny = true;
+
+        yield this.transformTransactionForCsv(transaction);
+      }
+
       hasMore = batch.hasMore;
       startingAfter = batch.nextPage || undefined;
-
-      if (allTransactions.length > 50000) {
-        throw new Error("Transaction export limit exceeded. Please use a smaller date range.");
-      }
     }
 
-    return this.convertTransactionsToCsv(allTransactions);
+    if (!hasYieldedAny) {
+      yield {
+        id: "No transactions found for the specified date range",
+        date: "",
+        amount: "",
+        currency: "",
+        status: "",
+        paymentMethodType: "",
+        cardBrand: "",
+        cardLast4: "",
+        description: "",
+        receiptUrl: ""
+      };
+    }
   }
 
-  private convertTransactionsToCsv(transactions: Transaction[]): string {
-    if (transactions.length === 0) {
-      return "No transactions found for the specified date range.";
-    }
+  private transformTransactionForCsv(transaction: Transaction) {
+    const date = new Date(transaction.created * 1000).toISOString().split("T")[0];
+    const amount = (transaction.amount / 100).toFixed(2);
 
-    const headers = ["Transaction ID", "Date", "Amount", "Currency", "Status", "Payment Method", "Card Brand", "Card Last 4", "Description", "Receipt URL"];
-
-    const rows = transactions.map(transaction => {
-      const date = new Date(transaction.created * 1000).toISOString().split("T")[0];
-      const amount = (transaction.amount / 100).toFixed(2);
-      const paymentMethod = transaction.paymentMethod?.type || "";
-      const cardBrand = transaction.paymentMethod?.card?.brand || "";
-      const cardLast4 = transaction.paymentMethod?.card?.last4 || "";
-
-      return [
-        transaction.id,
-        date,
-        amount,
-        transaction.currency.toUpperCase(),
-        transaction.status,
-        paymentMethod,
-        cardBrand,
-        cardLast4,
-        transaction.description || "",
-        transaction.receiptUrl || ""
-      ];
-    });
-
-    const csvContent = [headers, ...rows].map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(",")).join("\n");
-
-    return csvContent;
+    return {
+      id: transaction.id,
+      date,
+      amount,
+      currency: transaction.currency.toUpperCase(),
+      status: transaction.status,
+      paymentMethodType: transaction.paymentMethod?.type || "",
+      cardBrand: transaction.paymentMethod?.card?.brand || "",
+      cardLast4: transaction.paymentMethod?.card?.last4 || "",
+      description: transaction.description || "",
+      receiptUrl: transaction.receiptUrl || ""
+    };
   }
 
   async getStripeCustomerId(user: UserOutput): Promise<string> {

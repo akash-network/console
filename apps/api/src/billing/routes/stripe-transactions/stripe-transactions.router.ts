@@ -102,15 +102,31 @@ stripeTransactionsRouter.openapi(getCustomerTransactionsRoute, async function ge
 stripeTransactionsRouter.openapi(exportTransactionsCsvRoute, async function exportTransactionsCsv(c) {
   const { startDate, endDate } = c.req.valid("query");
 
-  const csvContent = await container.resolve(StripeController).exportTransactionsCsv({
+  const filename = `transactions_${startDate.split("T")[0]}_to_${endDate.split("T")[0]}.csv`;
+
+  const csvStream = await container.resolve(StripeController).exportTransactionsCsvStream({
     startDate,
     endDate
   });
 
-  const filename = `transactions_${startDate.split("T")[0]}_to_${endDate.split("T")[0]}.csv`;
+  const readableStream = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const chunk of csvStream) {
+          controller.enqueue(new TextEncoder().encode(chunk));
+        }
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    }
+  });
 
-  c.header("Content-Type", "text/csv");
-  c.header("Content-Disposition", `attachment; filename="${filename}"`);
-
-  return c.body(csvContent);
+  return new Response(readableStream, {
+    headers: {
+      "Content-Type": "text/csv",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Transfer-Encoding": "chunked"
+    }
+  });
 });

@@ -152,11 +152,11 @@ export class StripeController {
   }
 
   @Protected([{ action: "read", subject: "StripePayment" }])
-  async exportTransactionsCsv(options: { startDate: string; endDate: string }): Promise<string> {
+  async exportTransactionsCsvStream(options: { startDate: string; endDate: string }): Promise<AsyncIterable<string>> {
     const { currentUser } = this.authService;
 
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
 
-    return await this.stripe.exportTransactionsCsv(currentUser.stripeCustomerId, options);
+    return this.stripe.exportTransactionsCsvStream(currentUser.stripeCustomerId, options);
   }
 }
