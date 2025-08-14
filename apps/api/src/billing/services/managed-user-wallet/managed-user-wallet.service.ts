@@ -6,7 +6,7 @@ import add from "date-fns/add";
 import { singleton } from "tsyringe";
 
 import { Wallet } from "@src/billing/lib/wallet/wallet";
-import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import type { DryRunOptions } from "@src/core/types/console";
 import { ManagedSignerService } from "../managed-signer/managed-signer.service";

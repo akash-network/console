@@ -4,7 +4,7 @@ import { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js/session";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { container, singleton } from "tsyringe";
 
-import { ApiPgDatabase, ApiPgTables, InjectPg } from "@src/core/providers/postgres.provider";
+import { type ApiPgDatabase, type ApiPgTables, InjectPg } from "@src/core/providers/postgres.provider";
 
 type TxType = "PG_TX";
 

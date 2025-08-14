@@ -3,7 +3,7 @@ import type { Context } from "hono";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { CheckoutService } from "@src/billing/services/checkout/checkout.service";
 import { StripeWebhookService } from "@src/billing/services/stripe-webhook/stripe-webhook.service";
 

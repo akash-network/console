@@ -2,9 +2,9 @@ import { AuthzHttpService, DeploymentHttpService, DeploymentInfo } from "@akashn
 import { singleton } from "tsyringe";
 
 import { Wallet } from "@src/billing/lib/wallet/wallet";
-import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
-import { UserWalletInput, UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 
 @singleton()
 export class BalancesService {

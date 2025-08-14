@@ -2,8 +2,8 @@ import { eq, lt, sql } from "drizzle-orm";
 import { and } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
-import { ApiPgDatabase, ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
-import { AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
+import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
+import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
 
 type Table = ApiPgTables["ApiKeys"];
