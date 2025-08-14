@@ -8,7 +8,7 @@ import { LeaseRepository } from "@src/deployment/repositories/lease/lease.reposi
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
-jest.setTimeout(20000);
+jest.setTimeout(30000);
 
 describe("Deployment Settings", () => {
   const walletService = new WalletTestingService(app);

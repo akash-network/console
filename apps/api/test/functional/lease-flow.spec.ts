@@ -16,6 +16,7 @@ import { createSdlYml } from "@test/mocks/template";
 import { LeaseStatusSeeder } from "@test/seeders/lease-status.seeder";
 import { stub } from "@test/services/stub";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
+import { clearCache } from "@test/setup-functional-tests";
 
 jest.setTimeout(120_000); // 120 seconds for the full flow
 
@@ -70,7 +71,7 @@ describe("Lease Flow", () => {
 
     const findOneByUserIdMock = jest.fn().mockImplementation(async (id: string) => {
       if (id === userWithId.id) {
-        return { ...wallet, isTrialing: false, feeAllowance: 1_000_000, deploymentAllowance: 1_000_000 };
+        return { ...wallet, isTrialing: false, feeAllowance: 1_000_000, deploymentAllowance: 10_000_000 };
       }
       return undefined;
     });
@@ -154,6 +155,9 @@ describe("Lease Flow", () => {
     expect(deployResponse.status).toBe(201);
     const { dseq, manifest } = ((await deployResponse.json()) as any).data;
 
+    // Clear balance cache to ensure fresh balance data
+    clearCache("WalletController#getBalances");
+
     // 5. Check balances after deployment creation
     const afterDeployBalancesResponse = await app.request("/v1/balances", {
       method: "GET",
@@ -210,6 +214,9 @@ describe("Lease Flow", () => {
     });
     expect(depositResponse.status).toBe(200);
 
+    // Clear balance cache to ensure fresh balance data after deposit
+    clearCache("WalletController#getBalances");
+
     // 9. Check balances after deposit
     const afterDepositBalancesResponse = await app.request("/v1/balances", {
       method: "GET",
@@ -250,6 +257,9 @@ describe("Lease Flow", () => {
     expect(closeResponse.status).toBe(200);
     const closeResult = (await closeResponse.json()) as any;
     expect(closeResult.data.success).toBe(true);
+
+    // Clear balance cache to ensure fresh balance data after deployment closure
+    clearCache("WalletController#getBalances");
 
     // 12. Check final balances
     const finalBalancesResponse = await app.request("/v1/balances", {

@@ -6,7 +6,7 @@ import MemoryCacheEngine from "./memoryCacheEngine";
 const logger = LoggerService.forContext("Caching");
 
 export const cacheEngine = new MemoryCacheEngine();
-const pendingRequests: { [key: string]: Promise<unknown> } = {};
+const pendingRequests = new Map<string, Promise<unknown>>();
 
 interface CachedObject<T> {
   date: Date;
@@ -14,7 +14,6 @@ interface CachedObject<T> {
 }
 
 interface MemoizeOptions {
-  keepData?: boolean;
   ttlInSeconds?: number;
   key?: string;
 }
@@ -33,44 +32,82 @@ export const Memoize = (options?: MemoizeOptions) => (target: object, propertyNa
             .join("#")}`
         : cacheKey;
 
-    return await cacheResponse(options?.ttlInSeconds || 60 * 2, argsKey, originalMethod.bind(this, ...args), options?.keepData);
+    return cacheResponse(options?.ttlInSeconds || 60 * 2, argsKey, originalMethod.bind(this, ...args));
   };
 };
 
-export async function cacheResponse<T>(seconds: number, key: string, refreshRequest: () => Promise<T>, keepData?: boolean): Promise<T> {
-  const duration = seconds * 1000;
-  const cachedObject = cacheEngine.getFromCache(key) as CachedObject<T> | undefined;
+export async function cacheResponse<T>(seconds: number, key: string, refreshRequest: () => Promise<T>): Promise<T> {
+  const cachedObject = cacheEngine.getFromCache<CachedObject<T>>(key);
   logger.debug(`Request for key: ${key}`);
 
-  // If first time or expired, must refresh data if not already refreshing
-  const requiresRefresh = !cachedObject || Math.abs(differenceInSeconds(cachedObject.date, new Date())) > seconds;
-  if (requiresRefresh && !(key in pendingRequests)) {
-    logger.debug(`Object was not in cache or is expired, making new request for key: ${key}`);
-    pendingRequests[key] = refreshRequest()
-      .then(data => {
-        cacheEngine.storeInCache(key, { date: new Date(), data: data }, keepData ? undefined : duration);
-        return data;
-      })
-      .catch(err => {
-        if (cachedObject) {
-          logger.error({ message: `Error making cache request`, error: err });
-        } else {
-          throw err;
-        }
-      })
-      .finally(() => {
-        delete pendingRequests[key];
-      });
+  const hasCachedData = cachedObject !== false;
+
+  // Check if cached data is still valid (only if we have cached data)
+  let isExpired = true;
+  if (hasCachedData) {
+    const timeDiff = differenceInSeconds(new Date(), cachedObject.date);
+    isExpired = timeDiff >= seconds;
   }
 
-  // If there is data in cache, return it even if it is expired. Otherwise, wait for the refresh request to finish
-  if (cachedObject) {
-    logger.debug(`Returning cached object for key: ${key}`);
+  // If we have cached data (valid or expired), return it immediately
+  if (hasCachedData) {
+    logger.debug(`Returning cached object for key: ${key} (expired: ${isExpired})`);
+
+    // If data is expired and there's no pending request, start background refresh
+    if (isExpired && !pendingRequests.has(key)) {
+      logger.debug(`Starting background refresh for key: ${key}`);
+
+      // Start background refresh
+      const pendingRequest = refreshRequest()
+        .then(data => {
+          logger.debug(`Background refresh completed for key: ${key}`);
+          // Only store in cache if we have valid data
+          if (data !== undefined) {
+            cacheEngine.storeInCache(key, { date: new Date(), data: data });
+          }
+          return data;
+        })
+        .catch(err => {
+          logger.error({ message: `Error making background cache refresh`, error: err });
+          // Return the current cached data on error to maintain consistency
+          return cachedObject.data;
+        })
+        .finally(() => {
+          pendingRequests.delete(key);
+          logger.debug(`Removed pending request for key: ${key}`);
+        });
+
+      pendingRequests.set(key, pendingRequest);
+    }
+
+    // Return the cached data immediately (whether valid or expired)
     return cachedObject.data;
-  } else {
-    logger.debug(`Waiting for pending request for key: ${key}`);
-    return (await pendingRequests[key]) as T;
   }
+
+  // If no cached data exists, make the request and wait for it
+  logger.debug(`No cached data, making new request for key: ${key}`);
+
+  // Get or create the pending request promise
+  let pendingRequest = pendingRequests.get(key) as Promise<T> | undefined;
+  if (!pendingRequest) {
+    pendingRequest = refreshRequest()
+      .then(data => {
+        logger.debug(`New request completed for key: ${key}`);
+        // Only store in cache if we have valid data
+        if (data !== undefined) {
+          cacheEngine.storeInCache(key, { date: new Date(), data: data });
+        }
+        return data;
+      })
+      .finally(() => {
+        pendingRequests.delete(key);
+        logger.debug(`Removed pending request for key: ${key}`);
+      });
+
+    pendingRequests.set(key, pendingRequest);
+  }
+
+  return await pendingRequest;
 }
 
 export const cacheKeys = {

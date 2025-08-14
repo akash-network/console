@@ -4,9 +4,14 @@ import { app } from "@src/app";
 
 describe("Market Data", () => {
   beforeAll(async () => {
+    // Clean up any existing nock interceptors
+    nock.cleanAll();
+
     const coinGeckoApiUrl = "https://api.coingecko.com";
 
+    // More permissive nock setup that matches any headers
     nock(coinGeckoApiUrl)
+      .persist()
       .get("/api/v3/coins/akash-network")
       .reply(200, {
         id: "akash-network",
@@ -23,6 +28,7 @@ describe("Market Data", () => {
       });
 
     nock(coinGeckoApiUrl)
+      .persist()
       .get("/api/v3/coins/usd-coin")
       .reply(200, {
         id: "usd-coin",
@@ -37,6 +43,10 @@ describe("Market Data", () => {
           price_change_percentage_24h: 0.00375
         }
       });
+  });
+
+  afterAll(() => {
+    nock.cleanAll();
   });
 
   describe("GET /v1/market-data/{coin}", () => {
