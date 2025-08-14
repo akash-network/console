@@ -137,7 +137,7 @@ export const PopupProvider = ({ children }: React.PropsWithChildren) => {
   );
 };
 
-export const usePopup = () => {
+export const usePopup = (): PopupProviderContext => {
   const context = React.useContext(PopupContext);
   if (!context) {
     throw new Error("usePopup must be used within a PopupProvider");

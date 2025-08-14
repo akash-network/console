@@ -7,15 +7,23 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "./queryKeys";
 
-export function useUserApiKeys(options: Omit<UseQueryOptions<ApiKeyResponse[], Error, any, QueryKey>, "queryKey" | "queryFn"> = {}) {
-  const user = useUser();
-  const { isTrialing } = useWallet();
+export const USE_API_KEYS_DEPENDENCIES = {
+  useUser,
+  useWallet
+};
+
+export function useUserApiKeys(
+  options: Omit<UseQueryOptions<ApiKeyResponse[], Error, ApiKeyResponse[], QueryKey>, "queryKey" | "queryFn"> = {},
+  dependencies: typeof USE_API_KEYS_DEPENDENCIES = USE_API_KEYS_DEPENDENCIES
+) {
+  const user = dependencies.useUser();
+  const { isTrialing, isManaged } = dependencies.useWallet();
   const { apiKey } = useServices();
 
   return useQuery<ApiKeyResponse[], Error>({
     queryKey: QueryKeys.getApiKeysKey(user?.userId ?? ""),
     queryFn: async () => await apiKey.getApiKeys(),
-    enabled: !!user?.userId && !isTrialing,
+    enabled: !!user?.userId && !isTrialing && isManaged,
     refetchInterval: 10_000,
     retry: failureCount => failureCount < 5,
     retryDelay: 10_000,
@@ -23,8 +31,8 @@ export function useUserApiKeys(options: Omit<UseQueryOptions<ApiKeyResponse[], E
   });
 }
 
-export function useCreateApiKey() {
-  const user = useUser();
+export function useCreateApiKey(dependencies: typeof USE_API_KEYS_DEPENDENCIES = USE_API_KEYS_DEPENDENCIES) {
+  const user = dependencies.useUser();
   const queryClient = useQueryClient();
   const { apiKey } = useServices();
 
@@ -44,8 +52,8 @@ export function useCreateApiKey() {
   });
 }
 
-export function useDeleteApiKey(id: string, onSuccess?: () => void) {
-  const user = useUser();
+export function useDeleteApiKey(id: string, onSuccess?: () => void, dependencies: typeof USE_API_KEYS_DEPENDENCIES = USE_API_KEYS_DEPENDENCIES) {
+  const user = dependencies.useUser();
   const queryClient = useQueryClient();
   const { apiKey } = useServices();
 
