@@ -3,10 +3,10 @@ import { singleton } from "tsyringe";
 
 import { Protected } from "@src/auth/services/auth.service";
 import {
-  CreateDeploymentSettingRequest,
-  DeploymentSettingResponse,
-  FindDeploymentSettingParams,
-  UpdateDeploymentSettingRequest
+  type CreateDeploymentSettingRequest,
+  type DeploymentSettingResponse,
+  type FindDeploymentSettingParams,
+  type UpdateDeploymentSettingRequest
 } from "@src/deployment/http-schemas/deployment-setting.schema";
 import { DeploymentSettingService } from "@src/deployment/services/deployment-setting/deployment-setting.service";
 

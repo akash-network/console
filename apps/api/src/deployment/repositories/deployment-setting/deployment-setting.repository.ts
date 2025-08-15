@@ -3,8 +3,8 @@ import { last } from "lodash";
 import { singleton } from "tsyringe";
 
 import { UserWallets } from "@src/billing/model-schemas";
-import { ApiPgDatabase, ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
-import { AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
+import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
+import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
 import { Users } from "@src/user/model-schemas";
 

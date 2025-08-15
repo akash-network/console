@@ -4,7 +4,7 @@ import { injectable } from "tsyringe";
 
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { InjectPg } from "@src/core/providers/postgres.provider";
-import { ApiPgDatabase } from "@src/core/providers/postgres.provider";
+import { type ApiPgDatabase } from "@src/core/providers/postgres.provider";
 import type { HealthzResponse } from "@src/healthz/routes/healthz.router";
 
 @injectable()

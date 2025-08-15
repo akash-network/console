@@ -1,7 +1,7 @@
 import { inject, singleton } from "tsyringe";
 
-import { AMPLITUDE, Amplitude } from "@src/core/providers/amplitude.provider";
-import { HASHER, Hasher } from "@src/core/providers/hash.provider";
+import { AMPLITUDE, type Amplitude } from "@src/core/providers/amplitude.provider";
+import { HASHER, type Hasher } from "@src/core/providers/hash.provider";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 

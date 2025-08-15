@@ -5,7 +5,7 @@ import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
 import { chainDb } from "@src/db/dbConnection";
-import { ProviderStats, ProviderStatsKey } from "@src/types";
+import { type ProviderStats, type ProviderStatsKey } from "@src/types";
 import { env } from "@src/utils/env";
 
 export const emptyProviderGraphData = {
