@@ -8,8 +8,8 @@ import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { AppContext } from "@src/core/types/app-context";
-import type { NotificationsConfig } from "@src/notifications/config";
-import { config } from "@src/notifications/config";
+import type { NotificationsConfig } from "@src/notifications/config/env.config";
+import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 
 const notificationsApiProxy = new Hono();
 
@@ -53,7 +53,7 @@ export const createProxy =
     });
   };
 
-const proxyRoute = createProxy(container.resolve(AuthService), container.resolve(UserWalletRepository), config, fetch);
+const proxyRoute = createProxy(container.resolve(AuthService), container.resolve(UserWalletRepository), container.resolve(NOTIFICATIONS_CONFIG), fetch);
 const proxyRouteIfEnabled = (featureFlag: FeatureFlagValue) => {
   return async (c: AppContext) => {
     if (!container.resolve(FeatureFlagsService).isEnabled(featureFlag)) return c.json({ error: "MethodNotAllowed" }, 405);

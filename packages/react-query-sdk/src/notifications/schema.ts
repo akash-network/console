@@ -52,6 +52,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/notification-channels/default": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["createDefaultChannel"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/notification-channels/{id}": {
     parameters: {
       query?: never;
@@ -623,10 +639,12 @@ export interface components {
         id: string;
         /** Format: uuid */
         userId: string;
+        isDefault: boolean;
         createdAt: unknown;
         updatedAt: unknown;
       };
     };
+    AugmentedZodDto: unknown;
     NotFoundErrorResponse: {
       statusCode: number;
       message: string;
@@ -643,6 +661,7 @@ export interface components {
         id: string;
         /** Format: uuid */
         userId: string;
+        isDefault: boolean;
         createdAt: unknown;
         updatedAt: unknown;
       }[];
@@ -1120,6 +1139,68 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["NotificationChannelOutput"];
+        };
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
+        };
+      };
+    };
+  };
+  createDefaultChannel: {
+    parameters: {
+      query?: never;
+      header?: {
+        Authorization?: string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NotificationChannelCreateInput"];
+      };
+    };
+    responses: {
+      /** @description Creates the default notification channel only if it doesn't exist. If it does exist, it returns the existing channel. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AugmentedZodDto"];
         };
       };
       /** @description Validation error responded when some request parameters are invalid */
