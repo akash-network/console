@@ -18,7 +18,7 @@ export const notificationChannelCreateInputSchema = z.object({
   name: z.string(),
   type: z.literal("email"),
   config: notificationChannelConfigSchema,
-  isDefault: z.boolean().default(false)
+  isDefault: z.boolean().optional()
 });
 
 export const notificationChannelCreateDefaultInputSchema = notificationChannelCreateInputSchema.omit({ isDefault: true });
@@ -71,6 +71,7 @@ export class NotificationChannelController {
     return Ok({
       data: await this.notificationChannelRepository.accessibleBy(this.authService.ability, "create").create({
         ...data,
+        isDefault: data.isDefault ?? false,
         userId: this.authService.userId
       })
     });
