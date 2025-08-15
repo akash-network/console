@@ -2,8 +2,8 @@ import { LoggerService } from "@akashnetwork/logging";
 import { PromisePool } from "@supercharge/promise-pool";
 import { singleton } from "tsyringe";
 
-import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService, WalletInitializerService } from "@src/billing/services";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { Semaphore } from "@src/core/lib/semaphore.decorator";

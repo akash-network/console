@@ -1,11 +1,11 @@
 import { LoggerService } from "@akashnetwork/logging";
 import { singleton } from "tsyringe";
 
-import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService, RpcMessageService } from "@src/billing/services";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
-import { ProviderCleanupParams } from "@src/billing/types/provider-cleanup";
+import { type ProviderCleanupParams } from "@src/billing/types/provider-cleanup";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { ProviderCleanupSummarizer } from "@src/deployment/lib/provider-cleanup-summarizer/provider-cleanup-summarizer";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
