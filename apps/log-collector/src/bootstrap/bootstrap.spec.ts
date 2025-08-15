@@ -1,45 +1,47 @@
 import { container } from "tsyringe";
 
-import { LOG_DESTINATION } from "@src/providers/log-destination.provider";
+import { PROCESS } from "@src/providers/nodejs-process.provider";
 import { K8sLogCollectorService } from "@src/services/k8s-log-collector/k8s-log-collector.service";
 import { LoggerService } from "@src/services/logger/logger.service";
-import type { LogDestinationService } from "@src/types/log-destination.interface";
-import { bootstrap } from "./main";
+import { bootstrap } from "./bootstrap";
 
 import { mockProvider } from "@test/utils/mock-provider.util";
 
-describe("main", () => {
+describe("bootstrap", () => {
   it("should bootstrap the application and start log collection", async () => {
-    const { logCollectorService, logDestinationService } = setup();
+    const { logCollectorService, loggerService } = setup();
 
     await bootstrap(container);
 
-    expect(logCollectorService.collectLogs).toHaveBeenCalledWith(logDestinationService);
+    expect(logCollectorService.start).toHaveBeenCalled();
+    expect(loggerService.error).not.toHaveBeenCalled();
   });
 
-  it("should handle errors during log collection", async () => {
-    const { logCollectorService, loggerService } = setup();
+  it("should handle errors during log collection and exit process", async () => {
+    const { logCollectorService, loggerService, process } = setup();
     const error = new Error("Log collection failed");
-    logCollectorService.collectLogs.mockRejectedValue(error);
+    logCollectorService.start.mockRejectedValue(error);
 
     await bootstrap(container);
 
     expect(loggerService.error).toHaveBeenCalledWith({ error });
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 
   function setup() {
     const loggerService = mockProvider(LoggerService);
     const logCollectorService = mockProvider(K8sLogCollectorService);
-    const logDestinationService = mockProvider<LogDestinationService>(LOG_DESTINATION);
+    const process = mockProvider<NodeJS.Process>(PROCESS);
 
-    logCollectorService.collectLogs.mockResolvedValue();
+    logCollectorService.start.mockResolvedValue();
     loggerService.setContext.mockReturnValue(undefined);
     loggerService.error.mockReturnValue(undefined);
+    process.exit.mockReturnValue(undefined as never);
 
     return {
       loggerService,
       logCollectorService,
-      logDestinationService
+      process
     };
   }
 });
