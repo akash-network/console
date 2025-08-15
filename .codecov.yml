@@ -3,11 +3,11 @@ coverage:
     project:
       default: off
       api:
-        target: 70%
+        target: 80%
         flags:
           - api
       deploy-web:
-        target: 18%
+        target: 20%
         flags:
           - deploy-web
       notifications:
