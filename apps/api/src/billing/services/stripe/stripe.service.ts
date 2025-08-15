@@ -1,5 +1,7 @@
+import { stringify } from "csv-stringify";
 import assert from "http-assert";
 import orderBy from "lodash/orderBy";
+import { Readable } from "stream";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
@@ -8,6 +10,7 @@ import { PaymentMethodRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { LoggerService } from "@src/core/providers/logging.provider";
+import { TransactionCsvRow } from "@src/types/transactions";
 import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 
 const logger = LoggerService.forContext("StripeService");
@@ -410,6 +413,105 @@ export class StripeService extends Stripe {
       hasMore: charges.has_more,
       nextPage: charges.data[charges.data.length - 1]?.id,
       prevPage: options?.startingAfter ? charges.data[0]?.id : null
+    };
+  }
+
+  async *exportTransactionsCsvStream(customerId: string, options: { startDate: string; endDate: string }): AsyncIterable<string> {
+    const transactionGenerator = this.createTransactionGenerator(customerId, options);
+
+    const csvStringifier = stringify({
+      header: true,
+      columns: [
+        { key: "id", header: "Transaction ID" },
+        { key: "date", header: "Date" },
+        { key: "amount", header: "Amount" },
+        { key: "currency", header: "Currency" },
+        { key: "status", header: "Status" },
+        { key: "paymentMethodType", header: "Payment Method" },
+        { key: "cardBrand", header: "Card Brand" },
+        { key: "cardLast4", header: "Card Last 4" },
+        { key: "description", header: "Description" },
+        { key: "receiptUrl", header: "Receipt URL" }
+      ]
+    });
+
+    const sourceStream = Readable.from(transactionGenerator);
+
+    const csvStream = sourceStream.pipe(csvStringifier);
+
+    for await (const chunk of csvStream) {
+      yield chunk.toString();
+    }
+  }
+
+  private async *createTransactionGenerator(
+    customerId: string,
+    options: { startDate: string; endDate: string }
+  ): AsyncGenerator<TransactionCsvRow, void, unknown> {
+    let hasMore = true;
+    let startingAfter: string | undefined;
+    const batchSize = 100;
+    let hasYieldedAny = false;
+
+    while (hasMore) {
+      const batch = await this.getCustomerTransactions(customerId, {
+        limit: batchSize,
+        startingAfter,
+        startDate: options.startDate,
+        endDate: options.endDate
+      });
+
+      for (const transaction of batch.transactions) {
+        hasYieldedAny = true;
+
+        yield this.transformTransactionForCsv(transaction);
+      }
+
+      hasMore = batch.hasMore;
+      startingAfter = batch.nextPage || undefined;
+    }
+
+    if (!hasYieldedAny) {
+      yield {
+        id: "No transactions found for the specified date range",
+        date: "",
+        amount: "",
+        currency: "",
+        status: "",
+        paymentMethodType: "",
+        cardBrand: "",
+        cardLast4: "",
+        description: "",
+        receiptUrl: ""
+      };
+    }
+  }
+
+  private sanitizeForCsv(value: string): string {
+    if (!value) return "";
+
+    if (/^[=+\-@]/.test(value)) {
+      return "'" + value;
+    }
+
+    return value;
+  }
+
+  private transformTransactionForCsv(transaction: Transaction) {
+    const date = new Date(transaction.created * 1000).toISOString().split("T")[0];
+    const amount = (transaction.amount / 100).toFixed(2);
+
+    return {
+      id: transaction.id,
+      date,
+      amount,
+      currency: transaction.currency.toUpperCase(),
+      status: transaction.status,
+      paymentMethodType: transaction.paymentMethod?.type || "",
+      cardBrand: transaction.paymentMethod?.card?.brand || "",
+      cardLast4: transaction.paymentMethod?.card?.last4 || "",
+      description: this.sanitizeForCsv(transaction.description || ""),
+      receiptUrl: transaction.receiptUrl || ""
     };
   }
 
