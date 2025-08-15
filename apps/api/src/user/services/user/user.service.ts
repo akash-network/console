@@ -1,11 +1,11 @@
 import randomInt from "lodash/random";
-import { inject, singleton } from "tsyringe";
+import { singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
-import { NOTIFICATIONS_API_CLIENT, type NotificationsApiClient } from "@src/notifications/providers/notifications-api.provider";
+import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { type UserOutput, UserRepository } from "../../repositories/user/user.repository";
 
 @singleton()
@@ -15,7 +15,7 @@ export class UserService {
     private readonly analyticsService: AnalyticsService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly logger: LoggerService,
-    @inject(NOTIFICATIONS_API_CLIENT) private readonly notificationsApi: NotificationsApiClient
+    private readonly notificationService: NotificationService
   ) {}
 
   async registerUser(data: RegisterUserInput): Promise<{
@@ -68,24 +68,7 @@ export class UserService {
     this.logger.info({ event, id: user.id, userId: user.userId });
     this.analyticsService.track(user.id, "user_registered");
 
-    const result = await this.notificationsApi.v1
-      .createDefaultChannel({
-        parameters: {
-          header: {
-            "x-user-id": user.id
-          } as Record<string, string>
-        },
-        body: {
-          data: {
-            name: "Default",
-            type: "email",
-            config: {
-              addresses: [data.email]
-            }
-          }
-        }
-      })
-      .catch(error => ({ error }));
+    const result = await this.notificationService.createDefaultChannel(user).catch(error => ({ error }));
 
     if (result?.error) {
       this.logger.error({ event: "FAILED_TO_CREATE_DEFAULT_NOTIFICATION_CHANNEL", id: user.id, error: result.error });

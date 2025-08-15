@@ -19,3 +19,5 @@ function createNotificationsApiClient(config: NotificationsConfig) {
     baseUrl: config.NOTIFICATIONS_API_BASE_URL
   });
 }
+
+export { operations } from "@akashnetwork/react-query-sdk/notifications";
