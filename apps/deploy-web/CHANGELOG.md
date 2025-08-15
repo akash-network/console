@@ -1,5 +1,13 @@
 
 
+## [2.100.0](https://github.com/akash-network/console/compare/console-web/v2.99.0...console-web/v2.100.0) (2025-08-15)
+
+
+### Features
+
+* adds creation of default notification channel on user login/registration ([#1808](https://github.com/akash-network/console/issues/1808)) ([aa53ee6](https://github.com/akash-network/console/commit/aa53ee64f7d8a004521807c2cd32f55799e323dd))
+* **auth:** enhance API key management with new hooks and tests ([#1813](https://github.com/akash-network/console/issues/1813)) ([ebfcbbe](https://github.com/akash-network/console/commit/ebfcbbe50812fb683e5e43136bb4147da85e75a9))
+
 ## [2.99.0](https://github.com/akash-network/console/compare/console-web/v2.98.3...console-web/v2.99.0) (2025-08-14)
 
 

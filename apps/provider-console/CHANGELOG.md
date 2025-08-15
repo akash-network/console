@@ -1,5 +1,12 @@
 
 
+## [1.21.0](https://github.com/akash-network/console/compare/provider-console/v1.20.0...provider-console/v1.21.0) (2025-08-15)
+
+
+### Features
+
+* **auth:** enhance API key management with new hooks and tests ([#1813](https://github.com/akash-network/console/issues/1813)) ([ebfcbbe](https://github.com/akash-network/console/commit/ebfcbbe50812fb683e5e43136bb4147da85e75a9))
+
 ## [1.20.0](https://github.com/akash-network/console/compare/provider-console/v1.19.1...provider-console/v1.20.0) (2025-08-14)
 
 
