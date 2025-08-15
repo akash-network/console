@@ -16,7 +16,7 @@ export const register = <TSchema extends Record<string, unknown> = Record<string
     useFactory(configService: ConfigService<DbConfig>) {
       return {
         pg: {
-          connection: "client",
+          connection: "pool",
           config: {
             connectionString: configService.getOrThrow("db.NOTIFICATIONS_POSTGRES_URL")
           }
