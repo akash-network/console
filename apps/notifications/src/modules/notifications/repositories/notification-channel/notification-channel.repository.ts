@@ -81,23 +81,46 @@ export class NotificationChannelRepository {
     return notificationChannel && this.toOutput(notificationChannel);
   }
 
-  async paginate(options: PaginateOptions): Promise<PaginatedResult<NotificationChannelOutput>> {
+  async findDefaultByUserId(userId: NotificationChannelOutput["userId"]): Promise<NotificationChannelOutput | undefined> {
+    const notificationChannel = await this.db.query.NotificationChannel.findFirst({
+      where: this.whereAccessibleBy(this.nonDeleted(and(eq(schema.NotificationChannel.userId, userId), eq(schema.NotificationChannel.isDefault, true))))
+    });
+
+    return notificationChannel && this.toOutput(notificationChannel);
+  }
+
+  async createDefaultChannel(input: NotificationChannelInput): Promise<void> {
+    await this.db
+      .insert(schema.NotificationChannel)
+      .values({
+        ...this.toInput(input),
+        isDefault: true
+      })
+      .onConflictDoNothing({
+        target: [schema.NotificationChannel.userId, schema.NotificationChannel.isDefault],
+        where: and(eq(schema.NotificationChannel.isDefault, true), isNull(schema.NotificationChannel.deletedAt))
+      });
+  }
+
+  async paginate(options: PaginateNotificationChannelsOptions): Promise<PaginatedResult<NotificationChannelOutput>> {
     const page = options.page || 1;
     const limit = options.limit || 10;
     const offset = (page - 1) * limit;
-    const where = this.nonDeleted(this.whereAccessibleBy());
+    const where = options.userId ? eq(schema.NotificationChannel.userId, options.userId) : undefined;
+    const finalWhere = this.nonDeleted(this.whereAccessibleBy(where));
 
-    const notificationChannels = await this.db.query.NotificationChannel.findMany({
-      where,
-      limit,
-      offset,
-      orderBy: schema.NotificationChannel.createdAt
-    });
-
-    const countResult = await this.db
-      .select({ count: count(schema.NotificationChannel.id) })
-      .from(schema.NotificationChannel)
-      .where(where);
+    const [notificationChannels, countResult] = await Promise.all([
+      this.db.query.NotificationChannel.findMany({
+        where: finalWhere,
+        limit,
+        offset,
+        orderBy: schema.NotificationChannel.createdAt
+      }),
+      this.db
+        .select({ count: count(schema.NotificationChannel.id) })
+        .from(schema.NotificationChannel)
+        .where(finalWhere)
+    ]);
 
     const total = Number(countResult[0].count);
     const totalPages = Math.ceil(total / limit);
@@ -173,4 +196,8 @@ export class NotificationChannelRepository {
       config: notificationChannelConfigSchema.parse(notificationChannel.config)
     };
   }
+}
+
+export interface PaginateNotificationChannelsOptions extends PaginateOptions {
+  userId?: string;
 }

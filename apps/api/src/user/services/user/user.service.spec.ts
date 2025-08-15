@@ -10,11 +10,13 @@ import type { AnalyticsService } from "@src/core/services/analytics/analytics.se
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
+import type { NotificationsApiClient } from "@src/notifications/providers/notifications-api.provider";
 
 describe(UserService.name, () => {
   describe("registerUser", () => {
     it("registers a new user if no anonymousUserId and no userId is provided", async () => {
-      const { service, analyticsService, logger } = setup();
+      const createDefaultNotificationChannel = jest.fn(async () => ({}));
+      const { service, analyticsService, logger } = setup({ createDefaultNotificationChannel });
 
       const input: RegisterUserInput = {
         userId: faker.string.uuid(),
@@ -39,6 +41,21 @@ describe(UserService.name, () => {
 
       expect(analyticsService.track).toHaveBeenCalledWith(user.id, "user_registered");
       expect(logger.info).toHaveBeenCalledWith({ event: "USER_REGISTERED", id: user.id, userId: user.userId });
+      expect(createDefaultNotificationChannel).toHaveBeenCalledWith({
+        parameters: {
+          header: {
+            "x-user-id": user.id
+          }
+        },
+        body: {
+          data: expect.objectContaining({
+            type: "email",
+            config: {
+              addresses: [input.email]
+            }
+          })
+        }
+      });
     });
 
     it("updates anonymous user if anonymousUserId is provided", async () => {
@@ -260,12 +277,76 @@ describe(UserService.name, () => {
         subscribedToNewsletter: input.subscribedToNewsletter
       });
     });
+
+    it("logs an error if createDefaultNotificationChannel returns an error", async () => {
+      const input: RegisterUserInput = {
+        userId: faker.string.uuid(),
+        wantedUsername: `test-user-${Date.now()}`,
+        email: faker.internet.email(),
+        emailVerified: faker.datatype.boolean(),
+        subscribedToNewsletter: faker.datatype.boolean(),
+        ip: faker.internet.ipv4(),
+        userAgent: faker.string.alphanumeric(32),
+        fingerprint: faker.string.alphanumeric(16)
+      };
+
+      const error = new Error("test");
+      const { service, logger } = setup({
+        createDefaultNotificationChannel: () => Promise.resolve({ error })
+      });
+
+      const user = await service.registerUser(input);
+
+      expect(user.id).toBeDefined();
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "FAILED_TO_CREATE_DEFAULT_NOTIFICATION_CHANNEL",
+        id: user.id,
+        error
+      });
+    });
+
+    it("logs an error if createDefaultNotificationChannel fails", async () => {
+      const input: RegisterUserInput = {
+        userId: faker.string.uuid(),
+        wantedUsername: `test-user-${Date.now()}`,
+        email: faker.internet.email(),
+        emailVerified: faker.datatype.boolean(),
+        subscribedToNewsletter: faker.datatype.boolean(),
+        ip: faker.internet.ipv4(),
+        userAgent: faker.string.alphanumeric(32),
+        fingerprint: faker.string.alphanumeric(16)
+      };
+
+      const error = new Error("test");
+      const { service, logger } = setup({
+        createDefaultNotificationChannel: () => Promise.reject(error)
+      });
+
+      const user = await service.registerUser(input);
+
+      expect(user.id).toBeDefined();
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "FAILED_TO_CREATE_DEFAULT_NOTIFICATION_CHANNEL",
+        id: user.id,
+        error
+      });
+    });
   });
 
-  function setup() {
+  function setup(input?: { createDefaultNotificationChannel?: () => Promise<{ error?: unknown }> }) {
     const analyticsService = mock<AnalyticsService>();
     const logger = mock<LoggerService>();
-    const service = new UserService(container.resolve(UserRepository), analyticsService, container.resolve(UserWalletRepository), logger);
+    const service = new UserService(
+      container.resolve(UserRepository),
+      analyticsService,
+      container.resolve(UserWalletRepository),
+      logger,
+      mock<NotificationsApiClient>({
+        v1: {
+          createDefaultChannel: input?.createDefaultNotificationChannel ?? (async () => ({}))
+        } as unknown as NotificationsApiClient["v1"]
+      })
+    );
 
     return { service, analyticsService, logger };
   }

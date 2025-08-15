@@ -93,7 +93,7 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     } while (lastId);
   }
 
-  async upsert(data: UserInput): Promise<UserOutput> {
+  async upsertByUserId(data: UserInput): Promise<UserOutput> {
     const [item] = await this.cursor
       .insert(this.table)
       .values(this.toInput(data))
