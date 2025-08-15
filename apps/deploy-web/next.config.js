@@ -173,6 +173,7 @@ const sentryWebpackPluginOptions = {
   sourcemaps: {
     deleteSourcemapsAfterUpload: false
   },
+  widenClientFileUpload: true,
   debug: !process.env.CI,
   reactComponentAnnotation: {
     enabled: true
