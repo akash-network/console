@@ -2,6 +2,10 @@ import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserWalletInput, UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { NotificationService } from "@src/notifications/services/notification/notification.service";
+import { startTrialNotification } from "@src/notifications/services/notification-templates/start-trial";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 
 @singleton()
@@ -9,7 +13,9 @@ export class WalletInitializerService {
   constructor(
     private readonly walletManager: ManagedUserWalletService,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly notificationService: NotificationService,
+    private readonly featureFlagsService: FeatureFlagsService
   ) {}
 
   async initializeAndGrantTrialLimits(userId: UserWalletInput["userId"]): Promise<UserWalletPublicOutput> {
@@ -29,6 +35,10 @@ export class WalletInitializerService {
         },
         { returning: true }
       );
+
+      if (!this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL) && this.authService.currentUser.email) {
+        await this.notificationService.createNotification(startTrialNotification(this.authService.currentUser));
+      }
     } catch (error) {
       await this.userWalletRepository.deleteById(userWallet.id);
       throw error;
