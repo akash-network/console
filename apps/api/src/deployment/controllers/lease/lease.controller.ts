@@ -3,8 +3,8 @@ import { singleton } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import { UserWalletRepository } from "@src/billing/repositories";
-import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
-import { CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
+import { type GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { type CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { LeaseService } from "@src/deployment/services/lease/lease.service";
 
 @singleton()

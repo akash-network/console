@@ -7,7 +7,7 @@ import { Op } from "sequelize";
 import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
-import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";

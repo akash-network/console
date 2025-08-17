@@ -3,7 +3,7 @@ import { v2Manifest, v2Sdl, v3Manifest } from "@akashnetwork/akashjs/build/sdl/t
 import { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import { singleton } from "tsyringe";
 
-import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 
 type NetworkType = "beta2" | "beta3";
 

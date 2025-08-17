@@ -29,6 +29,13 @@
       "when": 1752498988131,
       "tag": "0003_round_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1755227368663,
+      "tag": "0004_add_is_default_column_and_unique_index",
+      "breakpoints": true
     }
   ]
 }

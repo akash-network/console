@@ -4,6 +4,7 @@
   "include": ["src/**/*", "../../packages/logging/src/types/pino-fluentd.d.ts"],
   "compilerOptions": {
     "target": "es2022",
-    "useDefineForClassFields": false
+    "useDefineForClassFields": false,
+    "module": "NodeNext"
   }
 }
