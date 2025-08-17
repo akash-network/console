@@ -41,7 +41,7 @@ describe(UsageService.name, () => {
         const result = await service.getHistoryStats(address, startDate, endDate);
 
         expect(usageRepository.getHistory).toHaveBeenCalledWith(address, startDate, endDate);
-        expect(deploymentRepository.countByOwner).toHaveBeenCalledWith(address);
+        expect(deploymentRepository.countByOwner).toHaveBeenCalledWith(address, startDate, endDate);
 
         expect(result).toEqual({
           totalSpent: 15.55,
@@ -92,7 +92,7 @@ describe(UsageService.name, () => {
         const result = await service.getHistoryStats(address, startDate, endDate);
 
         expect(usageRepository.getHistory).toHaveBeenCalledWith(address, startDate, endDate);
-        expect(deploymentRepository.countByOwner).toHaveBeenCalledWith(address);
+        expect(deploymentRepository.countByOwner).toHaveBeenCalledWith(address, startDate, endDate);
 
         expect(result).toEqual({
           totalSpent: 0,
