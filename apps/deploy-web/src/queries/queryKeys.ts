@@ -104,4 +104,6 @@ export class QueryKeys {
 
     return key;
   };
+
+  static getExportTransactionsCsvKey = (startDate: Date, endDate: Date) => ["EXPORT_TRANSACTIONS_CSV", startDate.toISOString(), endDate.toISOString()];
 }

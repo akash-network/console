@@ -104,6 +104,13 @@ describe(BillingView.name, () => {
     });
   });
 
+  it("calls onExport when export button clicked", () => {
+    const onExport = jest.fn();
+    setup({ onExport });
+    fireEvent.click(screen.getByText(/Export as CSV/i));
+    expect(onExport).toHaveBeenCalled();
+  });
+
   function setup(props: Partial<React.ComponentProps<typeof BillingView>> = {}) {
     const defaultData = createMockItems(createMockTransaction, 1).map((t: ReturnType<typeof createMockTransaction>) =>
       mock<Charge>({
@@ -153,6 +160,7 @@ describe(BillingView.name, () => {
       isFetching: false,
       isError: false,
       error: null,
+      onExport: props.onExport ?? jest.fn(),
       onPaginationChange: props.onPaginationChange ?? jest.fn(),
       pagination: props.pagination ?? { pageIndex: 0, pageSize: 10 },
       totalCount: 1,
@@ -167,6 +175,7 @@ describe(BillingView.name, () => {
         <BillingView {...defaultProps} />
       </TooltipProvider>
     );
+
     return defaultProps;
   }
 });

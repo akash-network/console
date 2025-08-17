@@ -6,7 +6,7 @@ import type { PaginationState } from "@tanstack/react-table";
 import type { AxiosError } from "axios";
 import { mock } from "jest-mock-extended";
 
-import type { usePaymentTransactionsQuery } from "@src/queries";
+import type { useExportTransactionsCsvMutation, usePaymentTransactionsQuery } from "@src/queries";
 import type { ChildrenProps } from "./BillingContainer";
 import { BillingContainer } from "./BillingContainer";
 
@@ -46,15 +46,24 @@ describe(BillingContainer.name, () => {
     expect(child.hasMore).toBe(false);
   });
 
-  it("calls onPaginationChange and onDateRangeChange", async () => {
-    const { child, onPaginationChange, onDateRangeChange } = await setup();
+  it("calls onPaginationChange", async () => {
+    const { child, onPaginationChange } = await setup();
     const newPagination: PaginationState = { pageIndex: 1, pageSize: 10 };
     child.onPaginationChange(newPagination);
     expect(onPaginationChange).toHaveBeenCalledWith(newPagination);
+  });
 
+  it("calls onDateRangeChange", async () => {
+    const { child, onDateRangeChange } = await setup();
     const newRange = { from: new Date(2024, 0, 1), to: new Date(2024, 0, 2) };
     child.onDateRangeChange(newRange);
     expect(onDateRangeChange).toHaveBeenCalledWith(newRange);
+  });
+
+  it("calls onExport", async () => {
+    const { child, onExport } = await setup();
+    child.onExport();
+    expect(onExport).toHaveBeenCalled();
   });
 
   async function setup(
@@ -81,6 +90,7 @@ describe(BillingContainer.name, () => {
 
     const onPaginationChange = jest.fn();
     const onDateRangeChange = jest.fn();
+    const onExport = jest.fn();
 
     const mockedUsePaymentTransactionsQuery = jest.fn(() => ({
       data,
@@ -89,8 +99,16 @@ describe(BillingContainer.name, () => {
       error: queryError
     })) as unknown as jest.MockedFunction<typeof usePaymentTransactionsQuery>;
 
+    const mockedUseExportTransactionsCsvMutation = jest.fn(() => ({
+      mutate: jest.fn(),
+      isLoading: false,
+      isError: false,
+      error: null
+    })) as unknown as jest.MockedFunction<typeof useExportTransactionsCsvMutation>;
+
     const dependencies = {
-      usePaymentTransactionsQuery: mockedUsePaymentTransactionsQuery
+      usePaymentTransactionsQuery: mockedUsePaymentTransactionsQuery,
+      useExportTransactionsCsvMutation: mockedUseExportTransactionsCsvMutation
     };
 
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
@@ -107,6 +125,10 @@ describe(BillingContainer.name, () => {
             onDateRangeChange: (range?: { from?: Date; to?: Date }) => {
               onDateRangeChange(range);
               props.onDateRangeChange(range);
+            },
+            onExport: () => {
+              onExport();
+              props.onExport();
             }
           });
         }}
@@ -115,6 +137,6 @@ describe(BillingContainer.name, () => {
 
     const child = await childCapturer.awaitChild(() => true);
 
-    return { data, child, onPaginationChange, onDateRangeChange };
+    return { data, child, onPaginationChange, onDateRangeChange, onExport };
   }
 });

@@ -64,6 +64,21 @@ export class StripeService extends ApiHttpService {
     return this.extractApiData(await this.get(url));
   }
 
+  async exportTransactionsCsv(params: { startDate: Date; endDate: Date }): Promise<Blob> {
+    const queryParams = new URLSearchParams({
+      startDate: params.startDate.toISOString(),
+      endDate: params.endDate.toISOString()
+    });
+
+    const url = `/v1/stripe/transactions/export?${queryParams}`;
+
+    return this.extractData(
+      await this.get(url, {
+        responseType: "blob"
+      })
+    );
+  }
+
   // Prices (legacy endpoint)
   async findPrices(config?: AxiosRequestConfig): Promise<StripePrice[]> {
     return this.extractApiData(await this.get("/v1/stripe/prices", config));

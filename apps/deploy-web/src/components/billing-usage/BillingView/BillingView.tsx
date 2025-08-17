@@ -33,8 +33,7 @@ import { Download, Page } from "iconoir-react";
 import Link from "next/link";
 
 import { Title } from "@src/components/shared/Title";
-import { downloadCsv } from "@src/utils/domUtils";
-import { capitalizeFirstLetter, sanitizeCsvField } from "@src/utils/stringUtils";
+import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 
 export const COMPONENTS = {
   FormattedNumber,
@@ -49,6 +48,7 @@ export type BillingViewProps = {
   isFetching: boolean;
   isError: boolean;
   error: Error | null;
+  onExport: () => void;
   onPaginationChange: (state: PaginationState) => void;
   pagination: PaginationState;
   totalCount: number;
@@ -64,6 +64,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
   isFetching,
   error,
   isError,
+  onExport,
   onPaginationChange,
   pagination,
   dateRange,
@@ -160,25 +161,6 @@ export const BillingView: React.FC<BillingViewProps> = ({
 
   const columnClasses = ["w-32 px-4 py-2", "w-32 px-4 py-2", "w-32 px-4 py-2", "w-32 px-4 py-2", "w-4 px-4 py-2"];
 
-  const exportCsv = () => {
-    const csvContent = [
-      ["Date", "Amount", "Account Source", "Status", "Receipt URL"],
-      ...data.map(charge => [
-        sanitizeCsvField(new Date(charge.created * 1000).toLocaleDateString()),
-        sanitizeCsvField(`${(charge.amount / 100).toFixed(2)} ${charge.currency}`),
-        sanitizeCsvField(
-          charge.paymentMethod.card ? `${capitalizeFirstLetter(charge.paymentMethod.card.brand)} **** ${charge.paymentMethod.card.last4}` : "N/A"
-        ),
-        sanitizeCsvField(capitalizeFirstLetter(charge.status)),
-        sanitizeCsvField(charge.receiptUrl || "")
-      ])
-    ]
-      .map(row => row.join(","))
-      .join("\n");
-
-    downloadCsv(csvContent, "akash_billing_transactions");
-  };
-
   return (
     <div className="space-y-2">
       <Title subTitle>History</Title>
@@ -189,7 +171,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
           <DateRangePicker date={dateRange} onChange={onDateRangeChange} className="w-full" minDate={oneYearAgo} maxDate={endOfToday()} maxRangeInDays={366} />
         </div>
 
-        <Button variant="secondary" onClick={exportCsv} className="h-12 gap-4" disabled={!data.length}>
+        <Button variant="secondary" onClick={onExport} className="h-12 gap-4" disabled={!data.length}>
           <Download width={16} />
           Export as CSV
         </Button>

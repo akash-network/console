@@ -1,4 +1,11 @@
-import type { ApplyCouponParams, ConfirmPaymentParams, Discount, PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type {
+  ApplyCouponParams,
+  ConfirmPaymentParams,
+  Discount,
+  ExportTransactionsCsvParams,
+  PaymentMethod,
+  SetupIntentResponse
+} from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -105,4 +112,28 @@ export const usePaymentMutations = () => {
     applyCoupon,
     removePaymentMethod
   };
+};
+
+export const useExportTransactionsCsvMutation = () => {
+  const { stripe } = useServices();
+
+  return useMutation<Blob, Error, ExportTransactionsCsvParams>({
+    mutationFn: async (params: ExportTransactionsCsvParams): Promise<Blob> => {
+      return await stripe.exportTransactionsCsv(params);
+    },
+    onSuccess: (blob: Blob, params: ExportTransactionsCsvParams) => {
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+
+      const startDateStr = params.startDate.toISOString().split("T")[0];
+      const endDateStr = params.endDate.toISOString().split("T")[0];
+      link.download = `transactions_${startDateStr}_to_${endDateStr}.csv`;
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    }
+  });
 };

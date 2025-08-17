@@ -3,11 +3,12 @@ import type { Charge } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import type { PaginationState } from "@tanstack/react-table";
 import axios from "axios";
 
-import { usePaymentTransactionsQuery } from "@src/queries";
+import { useExportTransactionsCsvMutation, usePaymentTransactionsQuery } from "@src/queries";
 import { createDateRange } from "@src/utils/dateUtils";
 
 const DEPENDENCIES = {
-  usePaymentTransactionsQuery
+  usePaymentTransactionsQuery,
+  useExportTransactionsCsvMutation
 };
 
 export type ChildrenProps = {
@@ -17,6 +18,7 @@ export type ChildrenProps = {
   isFetching: boolean;
   isError: boolean;
   error: Error | null;
+  onExport: () => void;
   onPaginationChange: (state: PaginationState) => void;
   pagination: PaginationState;
   totalCount: number;
@@ -47,7 +49,9 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
 
   const [error, setError] = React.useState<Error | null>(null);
 
-  const { from, to } = dateRange;
+  const { from: startDate, to: endDate } = dateRange;
+
+  const exportMutation = D.useExportTransactionsCsvMutation();
 
   const {
     data,
@@ -58,8 +62,8 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
     limit: pagination.pageSize,
     startingAfter: currentCursors.startingAfter,
     endingBefore: currentCursors.endingBefore,
-    startDate: from,
-    endDate: to
+    startDate,
+    endDate
   });
 
   React.useEffect(() => {
@@ -119,12 +123,21 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
     setDateRange(createDateRange(range));
   };
 
+  const exportCsv = () => {
+    if (startDate && endDate) {
+      exportMutation.mutate({ startDate, endDate });
+    } else {
+      setError(new Error("Please select a valid date range before exporting."));
+    }
+  };
+
   return (
     <>
       {children({
         data: data?.transactions || [],
         hasMore: data?.hasMore || false,
         hasPrevious: pagination.pageIndex > 0,
+        onExport: exportCsv,
         onPaginationChange: handlePaginationChange,
         totalCount: data?.totalCount || 0,
         dateRange,
