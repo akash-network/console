@@ -3,6 +3,7 @@ import type { WriteStream } from "fs";
 import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
 import type * as pathGlobal from "path";
+import { PassThrough } from "stream";
 import { container } from "tsyringe";
 
 import { ConfigService } from "@src/services/config/config.service";
@@ -15,7 +16,7 @@ import { mockProvider } from "@test/utils/mock-provider.util";
 type FsGlobal = typeof fsGlobal;
 
 describe(FileDestinationService.name, () => {
-  it("should create write stream successfully", async () => {
+  it("should create stable write stream successfully", async () => {
     const { fileDestinationService, mockFs, mockPath, expectedPath } = setup();
     const mockWriteStream = mock<WriteStream>();
 
@@ -25,7 +26,7 @@ describe(FileDestinationService.name, () => {
 
     const result = await fileDestinationService.createWriteStream();
 
-    expect(result).toBe(mockWriteStream);
+    expect(result).toBeInstanceOf(PassThrough);
     expect(mockFs.createWriteStream).toHaveBeenCalledWith(expectedPath, {
       flags: "a",
       autoClose: false
@@ -137,7 +138,7 @@ describe(FileDestinationService.name, () => {
     expect(result).toBeNull();
   });
 
-  it("should setup file rotation on write stream", async () => {
+  it("should create stable write stream with internal rotation handling", async () => {
     const { fileDestinationService, mockFs, mockPath, expectedPath } = setup();
     const mockWriteStream = mock<WriteStream>();
 
@@ -145,10 +146,10 @@ describe(FileDestinationService.name, () => {
     mockFs.createWriteStream.mockReturnValue(mockWriteStream);
     mockPath.join.mockReturnValue(expectedPath);
 
-    await fileDestinationService.createWriteStream();
+    const result = await fileDestinationService.createWriteStream();
 
-    expect(mockWriteStream.on).toHaveBeenCalledWith("finish", expect.any(Function));
-    expect(mockWriteStream.on).toHaveBeenCalledWith("error", expect.any(Function));
+    expect(result).toBeInstanceOf(PassThrough);
+    expect(mockFs.createWriteStream).toHaveBeenCalledWith(expectedPath, { flags: "a", autoClose: false });
   });
 
   it("should build correct log file path", async () => {

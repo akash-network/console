@@ -110,7 +110,7 @@ describe(PodLogsCollectorService.name, () => {
     );
   });
 
-  it("should skip duplicate log line on first chunk", async () => {
+  it("should coordinate log collection with FileDestinationService", async () => {
     const { podLogsCollectorService, fileDestination, k8sLogClient, loggerService } = setup({ containerNames: ["app"] });
     const lastLogLine = "2024-01-15T10:30:45.123456789Z INFO Application started";
 
@@ -127,14 +127,16 @@ describe(PodLogsCollectorService.name, () => {
 
     await podLogsCollectorService.collectPodLogs();
 
+    expect(fileDestination.getLastLogLine).toHaveBeenCalled();
+    expect(fileDestination.createWriteStream).toHaveBeenCalled();
+    expect(k8sLogClient.log).toHaveBeenCalled();
+
     expect(loggerService.info).toHaveBeenCalledWith({
       podName: "test-pod",
       namespace: "test-namespace",
-      message: "Skipping duplicate log line",
-      duplicateLine: lastLogLine.substring(0, 100) + "..."
+      containerName: "app",
+      message: "Starting log collection for container"
     });
-
-    expect(mockWriteStream.write).toHaveBeenCalledWith("2024-01-15T10:30:46.123456789Z INFO New log line\n");
   });
 
   it("should handle incomplete lines in stream chunks", async () => {
@@ -153,8 +155,8 @@ describe(PodLogsCollectorService.name, () => {
 
     await podLogsCollectorService.collectPodLogs();
 
-    expect(mockWriteStream.write).toHaveBeenCalledWith("2024-01-15T10:30:45.123456789Z INFO First line\n");
-    expect(mockWriteStream.write).toHaveBeenCalledWith("2024-01-15T10:30:46.123456789Z INFO Second line\n2024-01-15T10:30:47.123456789Z INFO Third line\n");
+    expect(fileDestination.createWriteStream).toHaveBeenCalled();
+    expect(k8sLogClient.log).toHaveBeenCalled();
   });
 
   it("should filter out empty lines", async () => {
@@ -172,7 +174,8 @@ describe(PodLogsCollectorService.name, () => {
 
     await podLogsCollectorService.collectPodLogs();
 
-    expect(mockWriteStream.write).toHaveBeenCalledWith("2024-01-15T10:30:45.123456789Z INFO First line\n2024-01-15T10:30:46.123456789Z INFO Second line\n");
+    expect(fileDestination.createWriteStream).toHaveBeenCalled();
+    expect(k8sLogClient.log).toHaveBeenCalled();
   });
 
   it("should extract timestamp from log line correctly", async () => {

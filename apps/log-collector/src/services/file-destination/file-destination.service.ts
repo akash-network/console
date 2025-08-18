@@ -1,6 +1,7 @@
 import * as fsGlobal from "fs";
 import memoize from "lodash/memoize";
 import * as pathGlobal from "path";
+import { PassThrough } from "stream";
 
 import type { ConfigService } from "@src/services/config/config.service";
 import type { LoggerService } from "@src/services/logger/logger.service";
@@ -42,22 +43,22 @@ export class FileDestinationService {
   }
 
   /**
-   * Creates a write stream for the pod's log file
+   * Creates a stable write stream for the pod's log file
    *
-   * This method:
-   * 1. Gets or creates the log file path (memoized)
-   * 2. Creates a write stream with append mode
-   * 3. Sets up automatic file rotation based on size
+   * This method returns a single stable write stream that handles file rotation
+   * internally. The client code can write to this stream continuously without
+   * worrying about rotation. If rotation fails, the stream will emit an 'error'
+   * event that the client should handle.
    *
-   * @returns Promise that resolves to a write stream for the log file
-   * @throws Error if file system operations fail
+   * @returns Promise that resolves to a stable write stream for the log file
+   * @throws Error if file system operations fail during initialization
    */
   async createWriteStream(): Promise<NodeJS.WritableStream> {
     const filePath = await this.getLogPath();
-    const writeStream = this.createFileWriteStream(filePath);
-    this.setupFileRotation(writeStream, filePath);
+    const stableStream = new PassThrough();
+    this.createStableWriteStream(filePath, stableStream);
 
-    return writeStream;
+    return stableStream;
   }
 
   /**
@@ -146,64 +147,106 @@ export class FileDestinationService {
   }
 
   /**
-   * Creates a write stream for the specified file path
+   * Creates a stable wright stream that handles rotation internally
    *
-   * Creates a write stream in append mode with autoClose disabled to allow
-   * external management of the stream lifecycle.
+   * This method creates a PassThrough stream that acts as a stable interface
+   * for the client. It internally manages file rotation by monitoring the
+   * underlying file size and creating new write streams when rotation is needed.
+   * If rotation fails, it emits an 'error' event on the stable stream.
    *
    * @param filePath - The absolute path of the file to create a write stream for
-   * @returns A write stream configured for appending to the file
+   * @returns A stable write stream that handles rotation internally
    */
-  private createFileWriteStream(filePath: string): NodeJS.WritableStream {
-    return this.fs.createWriteStream(filePath, {
-      flags: "a",
-      autoClose: false
-    });
-  }
-
-  /**
-   * Sets up automatic file rotation on a write stream
-   *
-   * Monitors the file size periodically and triggers rotation when the file
-   * size exceeds the maximum limit. The rotation process shifts existing
-   * rotated files and removes the oldest one.
-   *
-   * @param writeStream - The write stream to monitor for rotation
-   * @param filePath - The path of the file being written to
-   */
-  private setupFileRotation(writeStream: NodeJS.WritableStream, filePath: string): void {
+  private createStableWriteStream(filePath: string, stableStream: PassThrough): void {
+    const maxFileSize = this.configService.get("LOG_MAX_FILE_SIZE_BYTES");
+    let currentWriteStream: NodeJS.WritableStream | undefined;
     let isRotating = false;
+    let bytesWritten = 0;
+    let rotationBuffer: Buffer[] = [];
+    let isEnded = false;
 
-    const checkInterval = setInterval(async () => {
-      if (isRotating) return; // Prevent concurrent rotations
+    try {
+      currentWriteStream = this.fs.createWriteStream(filePath, {
+        flags: "a",
+        autoClose: false
+      });
 
-      try {
-        const stats = await this.fs.promises.stat(filePath);
+      stableStream.pipe(currentWriteStream);
 
-        if (stats.size >= this.configService.get("LOG_MAX_FILE_SIZE_BYTES")) {
+      stableStream.on("data", async (chunk: Buffer) => {
+        if (isEnded && !currentWriteStream) {
+          return;
+        }
+
+        if (isEnded && currentWriteStream) {
+          currentWriteStream.end();
+          return;
+        }
+
+        if (isRotating) {
+          rotationBuffer.push(chunk);
+          return;
+        }
+
+        bytesWritten += chunk.length;
+
+        if (bytesWritten >= maxFileSize) {
           isRotating = true;
 
           try {
-            await this.rotateLogFile(filePath);
-            await this.ensureFileExists(filePath);
+            stableStream.unpipe(currentWriteStream!);
 
-            writeStream.emit("rotation");
+            currentWriteStream!.end();
+
+            await this.rotateLogFile(filePath);
+
+            currentWriteStream = this.fs.createWriteStream(filePath, {
+              flags: "a",
+              autoClose: false
+            });
+
+            stableStream.pipe(currentWriteStream);
+
+            bytesWritten = 0;
+
+            if (rotationBuffer.length > 0) {
+              for (const bufferedChunk of rotationBuffer) {
+                bytesWritten += bufferedChunk.length;
+                currentWriteStream!.write(bufferedChunk);
+              }
+              rotationBuffer = [];
+            }
+
+            this.loggerService.info({
+              message: "Log file rotated successfully",
+              filePath
+            });
+          } catch (error) {
+            this.loggerService.error({
+              error,
+              message: "Failed to rotate log file",
+              filePath
+            });
+            stableStream.emit("error", error);
           } finally {
             isRotating = false;
           }
         }
-      } catch (error) {
-        isRotating = false;
+      });
+    } catch (error) {
+      stableStream.emit("error", error);
+    }
+
+    const cleanup = () => {
+      if (currentWriteStream && !isEnded) {
+        currentWriteStream.end();
+        isEnded = true;
+        currentWriteStream = undefined;
       }
-    }, 100);
+    };
 
-    writeStream.on("finish", () => {
-      clearInterval(checkInterval);
-    });
-
-    writeStream.on("error", () => {
-      clearInterval(checkInterval);
-    });
+    stableStream.on("end", cleanup);
+    stableStream.on("error", cleanup);
   }
 
   /**

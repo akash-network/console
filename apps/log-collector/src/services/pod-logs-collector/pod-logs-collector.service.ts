@@ -126,7 +126,8 @@ export class PodLogsCollectorService {
    */
   private async startLogCollectionForAllContainers(containerNames: string[], lastTimestamp?: number | null): Promise<void> {
     const collectionPromises = containerNames.map(async containerName => {
-      const logStream = await this.createLogStream();
+      const logStream = new PassThrough();
+      const writePromise = this.write(logStream);
 
       this.loggerService.info({
         podName: this.podInfo.podName,
@@ -135,88 +136,94 @@ export class PodLogsCollectorService {
         message: "Starting log collection for container"
       });
 
-      return this.startKubernetesLogStream(containerName, logStream, lastTimestamp);
+      const k8sPromise = this.startKubernetesLogStream(containerName, logStream, lastTimestamp);
+
+      await Promise.all([writePromise, k8sPromise]);
     });
 
     await this.errorHandlerService.aggregateConcurrentResults(collectionPromises, "container log collection");
   }
 
   /**
-   * Creates a log stream with duplicate detection and file writing capabilities
+   * Sets up log processing and writing to the file destination
    *
-   * Sets up a PassThrough stream that:
-   * - Processes incoming log data in chunks
-   * - Handles incomplete lines across chunk boundaries
-   * - Filters out empty lines
-   * - Detects and skips duplicate log lines on the first chunk
-   * - Writes processed logs to the file destination
-   * - Handles file rotation by recreating write streams
+   * Configures the log stream to:
+   * - Process incoming log data in chunks
+   * - Handle incomplete lines across chunk boundaries
+   * - Filter out empty lines
+   * - Detect and skip duplicate log lines on the first chunk
+   * - Write processed logs to the stable file destination
+   * - Return a promise that rejects if there are any stream errors
    *
-   * @returns Promise that resolves to a configured PassThrough stream
+   * @param logStream - The PassThrough stream to configure for log processing
+   * @returns Promise that stays pending and rejects on stream errors
    */
-  private async createLogStream(): Promise<PassThrough> {
-    const logStream = new PassThrough();
-    let writeStream = await this.fileDestination.createWriteStream();
-    const lastLogLine = await this.getLastLogLine();
+  private write(logStream: PassThrough): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      (async () => {
+        try {
+          const writeStream = await this.fileDestination.createWriteStream();
+          const lastLogLine = await this.getLastLogLine();
 
-    let isFirstChunk = true;
-    let remainingBuffer = Buffer.alloc(0);
+          let isFirstChunk = true;
+          let remainingBuffer = Buffer.alloc(0);
 
-    // Handle file rotation by recreating the write stream
-    const handleRotation = async () => {
-      // Close the old stream and create a new one
-      writeStream.end();
-      writeStream = await this.fileDestination.createWriteStream();
-
-      // Set up rotation handling for the new stream
-      writeStream.on("rotation", handleRotation);
-    };
-
-    writeStream.on("rotation", handleRotation);
-
-    logStream.on("data", (chunk: Buffer) => {
-      const combinedBuffer = Buffer.concat([remainingBuffer, chunk]);
-      const lines = combinedBuffer.toString().split("\n");
-
-      const isLastLineComplete = combinedBuffer[combinedBuffer.length - 1] === 10;
-      const linesToProcess = isLastLineComplete ? lines : lines.slice(0, -1);
-      remainingBuffer = isLastLineComplete ? Buffer.alloc(0) : Buffer.from(lines[lines.length - 1]);
-
-      const outputLines: string[] = [];
-
-      for (let i = 0; i < linesToProcess.length; i++) {
-        const line = linesToProcess[i];
-
-        if (!line.trim()) {
-          continue;
-        }
-
-        if (isFirstChunk && i === 0 && lastLogLine && line === lastLogLine.line) {
-          this.loggerService.info({
-            podName: this.podInfo.podName,
-            namespace: this.podInfo.namespace,
-            message: "Skipping duplicate log line",
-            duplicateLine: line.substring(0, 100) + "..."
+          writeStream.on("error", error => {
+            this.loggerService.error({
+              error,
+              message: "Write stream error during log collection",
+              podName: this.podInfo.podName,
+              namespace: this.podInfo.namespace
+            });
+            reject(error);
           });
-          continue;
+
+          logStream.on("data", (chunk: Buffer) => {
+            const combinedBuffer = Buffer.concat([remainingBuffer, chunk]);
+            const lines = combinedBuffer.toString().split("\n");
+
+            const isLastLineComplete = combinedBuffer[combinedBuffer.length - 1] === 10;
+            const linesToProcess = isLastLineComplete ? lines : lines.slice(0, -1);
+            remainingBuffer = isLastLineComplete ? Buffer.alloc(0) : Buffer.from(lines[lines.length - 1]);
+
+            const outputLines: string[] = [];
+
+            for (let i = 0; i < linesToProcess.length; i++) {
+              const line = linesToProcess[i];
+
+              if (!line.trim()) {
+                continue;
+              }
+
+              if (isFirstChunk && i === 0 && lastLogLine && line === lastLogLine.line) {
+                this.loggerService.info({
+                  podName: this.podInfo.podName,
+                  namespace: this.podInfo.namespace,
+                  message: "Skipping duplicate log line",
+                  duplicateLine: line.substring(0, 100) + "..."
+                });
+                continue;
+              }
+
+              outputLines.push(line);
+            }
+
+            if (outputLines.length > 0) {
+              const outputContent = outputLines.join("\n");
+              writeStream.write(outputContent + "\n");
+            }
+
+            isFirstChunk = false;
+          });
+
+          if (remainingBuffer.length > 0) {
+            writeStream.write(remainingBuffer);
+          }
+        } catch (error) {
+          reject(error);
         }
-
-        outputLines.push(line);
-      }
-
-      if (outputLines.length > 0) {
-        const outputContent = outputLines.join("\n");
-        writeStream.write(outputContent + "\n");
-      }
-
-      isFirstChunk = false;
+      })();
     });
-
-    if (remainingBuffer.length > 0) {
-      writeStream.write(remainingBuffer);
-    }
-
-    return logStream;
   }
 
   /**
