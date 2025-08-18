@@ -13,6 +13,7 @@ import assert from "http-assert";
 import type { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargate-client/sync-signing-stargate-client";
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import type { ChainConfigService } from "@src/core/services/chain-config/chain-config.service";
 import { withSpan } from "@src/core/services/tracing/tracing.service";
 
 interface ShortAccountInfo {
@@ -63,6 +64,7 @@ export class BatchSigningClientService {
     private readonly wallet: Wallet,
     private readonly registry: Registry,
     private readonly connectWithSigner: ConnectWithSignerFn,
+    private readonly chainConfigService: ChainConfigService,
     private readonly loggerContext = BatchSigningClientService.name
   ) {
     this.clientAsPromised = this.initClient();
@@ -81,9 +83,12 @@ export class BatchSigningClientService {
   }
 
   private async initClient() {
+    const rpcUrl = this.chainConfigService.getBaseRpcUrl();
+    if (!rpcUrl) throw new Error("The env variable RPC_NODE_ENDPOINT is not set.");
+
     return await backOff(
       () =>
-        this.connectWithSigner(this.config.get("RPC_NODE_ENDPOINT"), this.wallet, {
+        this.connectWithSigner(rpcUrl, this.wallet, {
           registry: this.registry
         }).then(async client => {
           this.chainId = await client.getChainId();

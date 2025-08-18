@@ -1,6 +1,6 @@
 import { AkashBlock as Block, Lease, Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { Day } from "@akashnetwork/database/dbSchemas/base";
-import { CoinGeckoHttpService, CosmosHttpService } from "@akashnetwork/http-sdk";
+import { CoinGeckoHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { differenceInSeconds, minutesToSeconds, sub, subHours } from "date-fns";
 import { cloneDeep } from "lodash";
@@ -9,6 +9,7 @@ import { Op, QueryTypes } from "sequelize";
 import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
+import { CosmosHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 import { GraphDataResponse } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
 import { LeasesDurationParams, LeasesDurationQuery, LeasesDurationResponse } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import { MarketDataParams } from "@src/dashboard/http-schemas/market-data/market-data.schema";
@@ -62,7 +63,7 @@ export const emptyNetworkCapacity = {
 @singleton()
 export class StatsService {
   constructor(
-    private readonly cosmosHttpService: CosmosHttpService,
+    private readonly cosmosHttpServiceWrapper: CosmosHttpServiceWrapper,
     private readonly coinGeckoHttpService: CoinGeckoHttpService
   ) {}
 
@@ -271,29 +272,29 @@ export class StatsService {
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   async getChainStats() {
     const bondedTokensAsPromised = await runOrLog(async () => {
-      const stakingPool = await this.cosmosHttpService.getStakingPool();
+      const stakingPool = await this.cosmosHttpServiceWrapper.getStakingPool();
 
       return parseInt(stakingPool.bonded_tokens);
     }, 0);
 
     const totalSupplyAsPromised = await runOrLog(async () => {
-      const supply = await this.cosmosHttpService.getBankSupply();
+      const supply = await this.cosmosHttpServiceWrapper.getBankSupply();
 
       return parseInt(supply.find(x => x.denom === "uakt")?.amount || "0");
     }, 0);
 
     const communityPoolAsPromised = await runOrLog(async () => {
-      const pool = await this.cosmosHttpService.getCommunityPool();
+      const pool = await this.cosmosHttpServiceWrapper.getCommunityPool();
 
       return parseFloat(pool.find(x => x.denom === "uakt")?.amount || "0");
     }, 0);
 
     const inflationAsPromised = await runOrLog(async () => {
-      return await this.cosmosHttpService.getInflation();
+      return await this.cosmosHttpServiceWrapper.getInflation();
     }, 0);
 
     const communityTaxAsPromised = await runOrLog(async () => {
-      const params = await this.cosmosHttpService.getDistributionParams();
+      const params = await this.cosmosHttpServiceWrapper.getDistributionParams();
 
       return parseFloat(params.community_tax || "0");
     }, 0);

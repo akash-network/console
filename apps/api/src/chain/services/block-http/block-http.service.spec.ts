@@ -1,24 +1,29 @@
-import "@test/mocks/logger-service.mock";
+import type { MockProxy } from "jest-mock-extended";
+import { mock } from "jest-mock-extended";
 
-import { BlockHttpService as BlockHttpServiceCommon } from "@akashnetwork/http-sdk";
-import { faker } from "@faker-js/faker";
+import type { BlockHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
+import { BlockHttpService as BlockHttpServiceClass } from "./block-http.service";
 
-import { BlockHttpService } from "./block-http.service";
+describe("BlockHttpService", () => {
+  function setup(): {
+    blockHttpServiceWrapper: MockProxy<BlockHttpServiceWrapper>;
+    service: BlockHttpServiceClass;
+  } {
+    const blockHttpServiceWrapper = mock<BlockHttpServiceWrapper>();
+    const service = new BlockHttpServiceClass(blockHttpServiceWrapper);
 
-describe(BlockHttpService.name, () => {
-  let service: BlockHttpService;
-  let blockHttpService: BlockHttpServiceCommon;
+    return { blockHttpServiceWrapper, service };
+  }
 
-  beforeEach(() => {
-    blockHttpService = new BlockHttpServiceCommon();
-    service = new BlockHttpService(blockHttpService);
-  });
+  describe("getCurrentHeight", () => {
+    it("returns current height", async () => {
+      const { service, blockHttpServiceWrapper } = setup();
+      blockHttpServiceWrapper.getCurrentHeight.mockResolvedValue(12345);
 
-  it("should get current height", async () => {
-    const height = faker.number.int({ min: 1000000, max: 10000000 });
-    jest.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(height);
-    const result = await service.getCurrentHeight();
+      const result = await service.getCurrentHeight();
 
-    expect(result).toBe(height);
+      expect(result).toBe(12345);
+      expect(blockHttpServiceWrapper.getCurrentHeight).toHaveBeenCalled();
+    });
   });
 });

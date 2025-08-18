@@ -12,6 +12,8 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_BASE_API_TESTNET_URL: z.string().url(),
   NEXT_PUBLIC_BASE_API_SANDBOX_URL: z.string().url(),
   NEXT_PUBLIC_BASE_API_MAINNET_URL: z.string().url(),
+  NEXT_PUBLIC_PROXY_API_URL: z.string().optional().default("https://rpc.akt.dev/rest"),
+  NEXT_PUBLIC_PROXY_RPC_URL: z.string().optional().default("https://rpc.akt.dev/rpc"),
   NEXT_PUBLIC_LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).optional().default("info")
 });
 
@@ -19,7 +21,9 @@ export const serverEnvSchema = browserEnvSchema.extend({
   MAINTENANCE_MODE: coercedBoolean().optional().default("false"),
   BASE_API_MAINNET_URL: z.string().url(),
   BASE_API_TESTNET_URL: z.string().url(),
-  BASE_API_SANDBOX_URL: z.string().url()
+  BASE_API_SANDBOX_URL: z.string().url(),
+  PROXY_API_URL: z.string().optional().default("https://rpc.akt.dev/rest"),
+  PROXY_RPC_URL: z.string().optional().default("https://rpc.akt.dev/rpc")
 });
 
 export type BrowserEnvConfig = z.infer<typeof browserEnvSchema>;

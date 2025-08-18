@@ -5,12 +5,13 @@ import type { Account } from "@cosmjs/stargate";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { mock } from "jest-mock-extended";
 
+import type { ChainConfigService } from "@src/core/services/chain-config/chain-config.service";
 import type { BillingConfigService } from "../../services/billing-config/billing-config.service";
 import type { SyncSigningStargateClient } from "../sync-signing-stargate-client/sync-signing-stargate-client";
 import type { Wallet } from "../wallet/wallet";
 import { BatchSigningClientService } from "./batch-signing-client.service";
 
-describe("BatchSigningClientService", () => {
+describe(BatchSigningClientService.name, () => {
   it("should handle duplicate tx error gracefully and proceed with hash", async () => {
     const { service, expectedHash, mockClient } = setup();
     mockClient.tmBroadcastTxSync.mockImplementation(async () => {
@@ -199,6 +200,9 @@ describe("BatchSigningClientService", () => {
 
     const mockRegistry = new Registry();
 
+    const mockChainConfigService = mock<ChainConfigService>();
+    mockChainConfigService.getBaseRpcUrl.mockReturnValue("http://localhost:26657");
+
     const mockClient = mock<SyncSigningStargateClient>();
     mockClient.getChainId.mockResolvedValue("test-chain");
     mockClient.getAccount.mockResolvedValue({
@@ -224,7 +228,7 @@ describe("BatchSigningClientService", () => {
 
     const connectWithSigner = jest.fn().mockResolvedValue(mockClient);
 
-    const service = new BatchSigningClientService(mockConfig, mockWallet, mockRegistry, connectWithSigner);
+    const service = new BatchSigningClientService(mockConfig, mockWallet, mockRegistry, connectWithSigner, mockChainConfigService);
 
     return { service, expectedHash, mockWallet, mockConfig, mockRegistry, mockClient };
   }

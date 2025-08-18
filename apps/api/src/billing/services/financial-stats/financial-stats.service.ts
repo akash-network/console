@@ -1,5 +1,5 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import { CosmosDistributionCommunityPoolResponse, CosmosHttpService } from "@akashnetwork/http-sdk";
+import type { CosmosDistributionCommunityPoolResponse } from "@akashnetwork/http-sdk";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import axios from "axios";
 import { Op, QueryTypes } from "sequelize";
@@ -8,15 +8,17 @@ import { singleton } from "tsyringe";
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
+import { ChainConfigService } from "@src/core/services/chain-config/chain-config.service";
+import { CosmosHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 import { chainDb } from "@src/db/dbConnection";
-import { apiNodeUrl } from "@src/utils/constants";
 
 @singleton()
 export class FinancialStatsService {
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
-    private readonly cosmosHttpService: CosmosHttpService
+    private readonly cosmosHttpServiceWrapper: CosmosHttpServiceWrapper,
+    private readonly chainConfigService: ChainConfigService
   ) {}
 
   async getPayingUserCount() {
@@ -31,7 +33,7 @@ export class FinancialStatsService {
   }
 
   private async getWalletBalances(address: string, denom: string) {
-    const response = await this.cosmosHttpService.getBankBalancesByAddress(address);
+    const response = await this.cosmosHttpServiceWrapper.getBankBalancesByAddress(address);
     return parseFloat(response.balances.find(b => b.denom === denom)?.amount || "0");
   }
 
@@ -53,6 +55,7 @@ export class FinancialStatsService {
   }
 
   async getCommunityPoolUsdc() {
+    const apiNodeUrl = this.chainConfigService.getBaseAPIUrl();
     const communityPoolData = await axios.get<CosmosDistributionCommunityPoolResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
     return parseFloat(communityPoolData.data.pool.find(x => x.denom === USDC_IBC_DENOMS.mainnetId)?.amount || "0");
   }

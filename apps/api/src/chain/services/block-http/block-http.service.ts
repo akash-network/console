@@ -1,12 +1,12 @@
-import { BlockHttpService as BlockHttpServiceCommon } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
 import { Memoize } from "@src/caching/helpers";
+import { BlockHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
 export class BlockHttpService {
-  constructor(private readonly blockHttpService: BlockHttpServiceCommon) {}
+  constructor(private readonly blockHttpService: BlockHttpServiceWrapper) {}
 
   @Memoize({ ttlInSeconds: averageBlockTime })
   async getCurrentHeight() {
