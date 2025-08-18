@@ -1,5 +1,22 @@
 
 
+## [2.111.0](https://github.com/akash-network/console/compare/console-api/v2.110.0...console-api/v2.111.0) (2025-08-18)
+
+
+### Features
+
+* adds creation of default notification channel on user login/registration ([#1808](https://github.com/akash-network/console/issues/1808)) ([aa53ee6](https://github.com/akash-network/console/commit/aa53ee64f7d8a004521807c2cd32f55799e323dd))
+
+
+### Bug Fixes
+
+* **billing:** add date filtering to deployment count by owner ([#1820](https://github.com/akash-network/console/issues/1820)) ([3607c34](https://github.com/akash-network/console/commit/3607c34d89b78469d58867e05bb28e6fd556c5f0))
+
+
+### Code Refactoring
+
+* api types ([#1810](https://github.com/akash-network/console/issues/1810)) ([12fa6b5](https://github.com/akash-network/console/commit/12fa6b59bf8cd36839665602a36f939b5a1ca543))
+
 ## [2.110.0](https://github.com/akash-network/console/compare/console-api/v2.109.3...console-api/v2.110.0) (2025-08-14)
 
 
