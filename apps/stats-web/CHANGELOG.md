@@ -1,5 +1,17 @@
 
 
+## [0.34.0](https://github.com/akash-network/console/compare/stats-web/v0.33.0...stats-web/v0.34.0) (2025-08-18)
+
+
+### Features
+
+* **auth:** enhance API key management with new hooks and tests ([#1813](https://github.com/akash-network/console/issues/1813)) ([ebfcbbe](https://github.com/akash-network/console/commit/ebfcbbe50812fb683e5e43136bb4147da85e75a9))
+
+
+### Bug Fixes
+
+* make date range picker scrollable if it overflows container ([ac6f2a8](https://github.com/akash-network/console/commit/ac6f2a87cea5eecfe5696c15af38bec09027087a))
+
 ## [0.33.0](https://github.com/akash-network/console/compare/stats-web/v0.32.1...stats-web/v0.33.0) (2025-08-14)
 
 
