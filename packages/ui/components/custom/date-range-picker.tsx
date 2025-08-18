@@ -256,7 +256,7 @@ export function DateRangePicker({
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="mx-4 w-screen max-w-sm p-0" align="center">
+          <PopoverContent className="mx-4 max-h-[calc(var(--radix-popover-content-available-height))] w-screen max-w-sm overflow-auto p-0" align="center">
             <div className="space-y-4 p-4">
               {showPresets && (
                 <Collapsible open={presetsOpen} onOpenChange={togglePresetsVisibility}>
@@ -401,7 +401,7 @@ export function DateRangePicker({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="max-h-[calc(var(--radix-popover-content-available-height))] w-auto overflow-auto p-0" align="start">
           <div className="flex">
             <div className="min-w-[200px] border-r p-3">
               {showPresets && (
