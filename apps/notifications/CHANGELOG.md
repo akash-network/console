@@ -1,5 +1,17 @@
 
 
+## [1.22.0](https://github.com/akash-network/console/compare/notifications/v1.21.0...notifications/v1.22.0) (2025-08-18)
+
+
+### Features
+
+* adds creation of default notification channel on user login/registration ([#1808](https://github.com/akash-network/console/issues/1808)) ([aa53ee6](https://github.com/akash-network/console/commit/aa53ee64f7d8a004521807c2cd32f55799e323dd))
+
+
+### Bug Fixes
+
+* changes notifications to use pg pool ([#1817](https://github.com/akash-network/console/issues/1817)) ([5b0118f](https://github.com/akash-network/console/commit/5b0118fe6791082d458f8fadec4a422207d1069d))
+
 ## [1.21.0](https://github.com/akash-network/console/compare/notifications/v1.20.3...notifications/v1.21.0) (2025-08-14)
 
 
