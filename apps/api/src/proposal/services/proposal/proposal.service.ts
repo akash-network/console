@@ -1,15 +1,15 @@
-import { CosmosHttpService } from "@akashnetwork/http-sdk";
 import axios from "axios";
 import { singleton } from "tsyringe";
 
+import { CosmosHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 import { GetProposalByIdResponse, GetProposalListResponse } from "@src/proposal/http-schemas/proposal.schema";
 
 @singleton()
 export class ProposalService {
-  constructor(private readonly cosmosHttpService: CosmosHttpService) {}
+  constructor(private readonly cosmosHttpServiceWrapper: CosmosHttpServiceWrapper) {}
 
   async getProposals(): Promise<GetProposalListResponse> {
-    const proposalsFromCosmos = await this.cosmosHttpService.getProposals();
+    const proposalsFromCosmos = await this.cosmosHttpServiceWrapper.getProposals();
     const proposals = proposalsFromCosmos.map(x => ({
       id: parseInt(x.proposal_id),
       title: x.content.title,
@@ -27,11 +27,11 @@ export class ProposalService {
 
   async getProposalById(id: number): Promise<GetProposalByIdResponse | null> {
     try {
-      const proposalFromCosmos = await this.cosmosHttpService.getProposal(id);
+      const proposalFromCosmos = await this.cosmosHttpServiceWrapper.getProposal(id);
 
       let tally = null;
       if (proposalFromCosmos.status === "PROPOSAL_STATUS_VOTING_PERIOD") {
-        const tallyFromCosmos = await this.cosmosHttpService.getProposalTally(id);
+        const tallyFromCosmos = await this.cosmosHttpServiceWrapper.getProposalTally(id);
 
         tally = {
           yes: parseInt(tallyFromCosmos.yes) || 0,

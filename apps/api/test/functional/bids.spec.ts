@@ -10,7 +10,7 @@ import type { UserWalletOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
-import { apiNodeUrl } from "@src/utils/constants";
+import { apiProxyUrl } from "@src/utils/constants";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
@@ -80,7 +80,7 @@ describe("Bids API", () => {
     knownApiKeys[userApiKeySecret] = apiKey;
     knownWallets[user.id] = wallets;
 
-    nock(apiNodeUrl)
+    nock(apiProxyUrl)
       .get(`/akash/market/v1beta4/bids/list?filters.owner=${wallets[0].address}&filters.dseq=${dseq}`)
       .reply(200, {
         bids: [

@@ -84,7 +84,7 @@ export class BatchSigningClientService {
 
   private async initClient() {
     const rpcUrl = this.chainConfigService.getBaseRpcUrl();
-    if (!rpcUrl) throw new Error("The env variable RPC_NODE_ENDPOINT is not set.");
+    if (!rpcUrl) throw new Error("RPC url for the batch signing client is not set.");
 
     return await backOff(
       () =>

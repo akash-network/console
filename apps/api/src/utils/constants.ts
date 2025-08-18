@@ -17,3 +17,6 @@ export const openApiExampleValidatorAddress = "akashvaloper14mt78hz73d9tdwpdvkd5
 export const betaTypeVersion = "v1beta3";
 export const betaTypeVersionMarket = "v1beta4";
 export const nodeApiBasePath = env.NODE_API_BASE_PATH;
+
+export const apiProxyUrl = env.PROXY_API_URL;
+export const rpcProxyUrl = env.PROXY_RPC_URL;

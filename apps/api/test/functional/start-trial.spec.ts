@@ -1,4 +1,3 @@
-import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
@@ -11,6 +10,7 @@ import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { AuthzHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 
 jest.setTimeout(20000);
 
@@ -19,7 +19,7 @@ describe("start trial", () => {
   const config = container.resolve<BillingConfig>(BILLING_CONFIG);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsQuery = db.query.UserWallets;
-  const authzHttpService = container.resolve(AuthzHttpService);
+  const authzHttpService = container.resolve(AuthzHttpServiceWrapper);
 
   afterEach(() => {
     jest.restoreAllMocks();

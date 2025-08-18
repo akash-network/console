@@ -1,4 +1,3 @@
-import { BlockHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { setTimeout as delay } from "timers/promises";
 import { container } from "tsyringe";
@@ -9,6 +8,7 @@ import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-gener
 import type { BidResponse } from "@src/bid/http-schemas/bid.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import { BlockHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { UserRepository } from "@src/user/repositories";
 
@@ -23,7 +23,7 @@ jest.setTimeout(120_000); // 120 seconds for the full flow
 describe("Lease Flow", () => {
   const userRepository = container.resolve(UserRepository);
   const apiKeyRepository = container.resolve(ApiKeyRepository);
-  const blockHttpService = container.resolve(BlockHttpService);
+  const blockHttpService = container.resolve(BlockHttpServiceWrapper);
   const walletService = new WalletTestingService(app);
   const userWalletRepository = container.resolve(UserWalletRepository);
   const providerService = container.resolve(ProviderService);

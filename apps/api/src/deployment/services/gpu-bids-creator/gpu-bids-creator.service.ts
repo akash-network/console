@@ -31,7 +31,7 @@ export class GpuBidsCreatorService {
   async createGpuBids() {
     const rpcUrl = this.chainConfigService.getBaseRpcUrl();
     if (!env.GPU_BOT_WALLET_MNEMONIC) throw new Error("The env variable GPU_BOT_WALLET_MNEMONIC is not set.");
-    if (!rpcUrl) throw new Error("The env variable RPC_NODE_ENDPOINT is not set.");
+    if (!rpcUrl) throw new Error("RPC url for the GPU bids creator is not set.");
 
     const wallet = await DirectSecp256k1HdWallet.fromMnemonic(env.GPU_BOT_WALLET_MNEMONIC, { prefix: "akash" });
     const [account] = await wallet.getAccounts();

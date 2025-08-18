@@ -17,13 +17,11 @@ export class ChainConfigService {
   }
 
   getBaseAPIUrl(): string {
-    return this.netConfig.getBaseAPIUrl("mainnet");
-    // return this.netConfig.getBaseAPIUrl(env.NETWORK as SupportedChainNetworks);
+    return this.netConfig.getBaseAPIUrl(env.NETWORK as SupportedChainNetworks);
   }
 
   getBaseRpcUrl(): string {
-    return this.netConfig.getBaseRpcUrl("mainnet");
-    // return this.netConfig.getBaseRpcUrl(env.NETWORK as SupportedChainNetworks);
+    return this.netConfig.getBaseRpcUrl(env.NETWORK as SupportedChainNetworks);
   }
 
   getSupportedNetworks(): SupportedChainNetworks[] {
