@@ -7,6 +7,7 @@ import type {
   CustomerDiscountsResponse,
   CustomerTransactionsParams,
   CustomerTransactionsResponse,
+  ExportTransactionsCsvParams,
   PaymentMethod,
   SetupIntentResponse,
   StripePrice
@@ -64,7 +65,7 @@ export class StripeService extends ApiHttpService {
     return this.extractApiData(await this.get(url));
   }
 
-  async exportTransactionsCsv(params: { startDate: Date; endDate: Date }): Promise<Blob> {
+  async exportTransactionsCsv(params: ExportTransactionsCsvParams): Promise<Blob> {
     const queryParams = new URLSearchParams({
       startDate: params.startDate.toISOString(),
       endDate: params.endDate.toISOString()

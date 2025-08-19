@@ -452,6 +452,7 @@ export class StripeService extends Stripe {
     let startingAfter: string | undefined;
     const batchSize = 100;
     let hasYieldedAny = false;
+    const utcHoursOffset = -new Date().getTimezoneOffset() / 60;
 
     while (hasMore) {
       const batch = await this.getCustomerTransactions(customerId, {
@@ -464,7 +465,7 @@ export class StripeService extends Stripe {
       for (const transaction of batch.transactions) {
         hasYieldedAny = true;
 
-        yield this.transformTransactionForCsv(transaction);
+        yield this.transformTransactionForCsv(transaction, utcHoursOffset);
       }
 
       hasMore = batch.hasMore;
@@ -497,13 +498,17 @@ export class StripeService extends Stripe {
     return value;
   }
 
-  private transformTransactionForCsv(transaction: Transaction) {
-    const date = new Date(transaction.created * 1000).toISOString().split("T")[0];
+  private transformTransactionForCsv(transaction: Transaction, utcHoursOffset: number) {
     const amount = (transaction.amount / 100).toFixed(2);
+    const date = new Date(transaction.created * 1000);
+
+    if (utcHoursOffset !== 0) {
+      date.setHours(date.getHours() + utcHoursOffset);
+    }
 
     return {
       id: transaction.id,
-      date,
+      date: date.toISOString().split("T")[0],
       amount,
       currency: transaction.currency.toUpperCase(),
       status: transaction.status,

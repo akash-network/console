@@ -5,6 +5,7 @@
   "compilerOptions": {
     "target": "es2022",
     "useDefineForClassFields": false,
-    "module": "NodeNext"
+    "module": "NodeNext",
+    "lib": ["esnext"]
   }
 }

@@ -373,8 +373,6 @@ describe(StripeService.name, () => {
         StripeTransactionSeeder.create({
           id: "ch_123",
           amount: 1000,
-          currency: "usd",
-          status: "succeeded",
           created: 1640995200,
           paymentMethod: generatePaymentMethod({
             type: "card",
@@ -396,10 +394,7 @@ describe(StripeService.name, () => {
         endDate: "2022-01-31T23:59:59Z"
       });
 
-      const chunks: string[] = [];
-      for await (const chunk of csvStream) {
-        chunks.push(chunk);
-      }
+      const chunks = await Array.fromAsync(csvStream);
 
       const fullCsv = chunks.join("");
 
@@ -419,8 +414,6 @@ describe(StripeService.name, () => {
         StripeTransactionSeeder.create({
           id: "ch_001",
           amount: 1000,
-          currency: "usd",
-          status: "succeeded",
           created: 1640995200,
           paymentMethod: generatePaymentMethod({
             type: "card",
@@ -435,8 +428,6 @@ describe(StripeService.name, () => {
         StripeTransactionSeeder.create({
           id: "ch_002",
           amount: 2000,
-          currency: "usd",
-          status: "succeeded",
           created: 1641081600,
           paymentMethod: generatePaymentMethod({
             type: "card",
@@ -467,10 +458,7 @@ describe(StripeService.name, () => {
         endDate: "2022-01-31T23:59:59Z"
       });
 
-      const chunks: string[] = [];
-      for await (const chunk of csvStream) {
-        chunks.push(chunk);
-      }
+      const chunks = await Array.fromAsync(csvStream);
 
       const fullCsv = chunks.join("");
 
@@ -509,10 +497,7 @@ describe(StripeService.name, () => {
         endDate: "2022-01-31T23:59:59Z"
       });
 
-      const chunks: string[] = [];
-      for await (const chunk of csvStream) {
-        chunks.push(chunk);
-      }
+      const chunks = await Array.fromAsync(csvStream);
 
       const fullCsv = chunks.join("");
       expect(fullCsv).toContain("No transactions found for the specified date range");
@@ -521,7 +506,7 @@ describe(StripeService.name, () => {
     it("handles transactions with null payment methods", async () => {
       const { service } = setup();
       const mockTransactions = [
-        {
+        StripeTransactionSeeder.create({
           id: "ch_123",
           amount: 1000,
           currency: "usd",
@@ -529,9 +514,8 @@ describe(StripeService.name, () => {
           created: 1640995200,
           paymentMethod: null,
           receiptUrl: null,
-          description: "No payment method",
-          metadata: {}
-        }
+          description: "No payment method"
+        })
       ];
 
       jest.spyOn(service, "getCustomerTransactions").mockResolvedValue({
@@ -546,10 +530,7 @@ describe(StripeService.name, () => {
         endDate: "2022-01-31T23:59:59Z"
       });
 
-      const chunks: string[] = [];
-      for await (const chunk of csvStream) {
-        chunks.push(chunk);
-      }
+      const chunks = await Array.fromAsync(csvStream);
 
       const fullCsv = chunks.join("");
 

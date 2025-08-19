@@ -18,7 +18,7 @@ describe(BillingView.name, () => {
   });
 
   it("shows error alert when error", () => {
-    setup({ isError: true, error: new Error("fail!") });
+    setup({ isError: true, errorMessage: "fail!" });
     expect(screen.getByText("Error fetching billing data")).toBeInTheDocument();
     expect(screen.getByText("fail!")).toBeInTheDocument();
   });
@@ -92,7 +92,8 @@ describe(BillingView.name, () => {
     setup({
       onDateRangeChange,
       dateRange: {
-        from: new Date("2020-01-01")
+        from: new Date("2020-01-01"),
+        to: new Date()
       }
     });
     fireEvent.change(screen.getByLabelText("Filter by end date"), {
@@ -138,7 +139,7 @@ describe(BillingView.name, () => {
             <input
               type="date"
               value={date?.from ? date.from.toISOString().split("T")[0] : ""}
-              onChange={e => onChange?.({ from: new Date(e.target.value), to: date?.to })}
+              onChange={e => onChange?.({ from: new Date(e.target.value), to: date?.to || new Date() })}
             />
           </label>
           <label>
@@ -146,7 +147,7 @@ describe(BillingView.name, () => {
             <input
               type="date"
               value={date?.to ? date.to.toISOString().split("T")[0] : ""}
-              onChange={e => onChange?.({ from: date?.from, to: new Date(e.target.value) })}
+              onChange={e => onChange?.({ from: date?.from || new Date(), to: new Date(e.target.value) })}
             />
           </label>
         </div>
@@ -159,7 +160,7 @@ describe(BillingView.name, () => {
       hasPrevious: false,
       isFetching: false,
       isError: false,
-      error: null,
+      errorMessage: "",
       onExport: props.onExport ?? jest.fn(),
       onPaginationChange: props.onPaginationChange ?? jest.fn(),
       pagination: props.pagination ?? { pageIndex: 0, pageSize: 10 },

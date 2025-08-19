@@ -6,7 +6,7 @@ import type { PaginationState } from "@tanstack/react-table";
 import type { AxiosError } from "axios";
 import { mock } from "jest-mock-extended";
 
-import type { useExportTransactionsCsvMutation, usePaymentTransactionsQuery } from "@src/queries";
+import type { useExportTransactionsCsvQuery, usePaymentTransactionsQuery } from "@src/queries";
 import type { ChildrenProps } from "./BillingContainer";
 import { BillingContainer } from "./BillingContainer";
 
@@ -35,8 +35,7 @@ describe(BillingContainer.name, () => {
       response: { data: { message: "fail" } }
     });
     const { child } = await setup({ queryError: axiosError });
-    expect(child.error).toBeInstanceOf(Error);
-    expect(child.error?.message).toBe("fail");
+    expect(child.errorMessage).toBe("fail");
   });
 
   it("uses default values when data is empty", async () => {
@@ -99,16 +98,17 @@ describe(BillingContainer.name, () => {
       error: queryError
     })) as unknown as jest.MockedFunction<typeof usePaymentTransactionsQuery>;
 
-    const mockedUseExportTransactionsCsvMutation = jest.fn(() => ({
+    const mockedUseExportTransactionsCsvQuery = jest.fn(() => ({
       mutate: jest.fn(),
       isLoading: false,
       isError: false,
-      error: null
-    })) as unknown as jest.MockedFunction<typeof useExportTransactionsCsvMutation>;
+      error: null,
+      refetch: jest.fn()
+    })) as unknown as jest.MockedFunction<typeof useExportTransactionsCsvQuery>;
 
     const dependencies = {
       usePaymentTransactionsQuery: mockedUsePaymentTransactionsQuery,
-      useExportTransactionsCsvMutation: mockedUseExportTransactionsCsvMutation
+      useExportTransactionsCsvQuery: mockedUseExportTransactionsCsvQuery
     };
 
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
@@ -122,7 +122,7 @@ describe(BillingContainer.name, () => {
               onPaginationChange(state);
               props.onPaginationChange(state);
             },
-            onDateRangeChange: (range?: { from?: Date; to?: Date }) => {
+            onDateRangeChange: (range: { from: Date; to: Date }) => {
               onDateRangeChange(range);
               props.onDateRangeChange(range);
             },

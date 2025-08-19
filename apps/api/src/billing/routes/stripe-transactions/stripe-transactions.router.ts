@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import { Readable } from "stream";
 import { container } from "tsyringe";
 
 import { StripeController } from "@src/billing/controllers/stripe/stripe.controller";
@@ -109,18 +110,7 @@ stripeTransactionsRouter.openapi(exportTransactionsCsvRoute, async function expo
     endDate
   });
 
-  const readableStream = new ReadableStream({
-    async start(controller) {
-      try {
-        for await (const chunk of csvStream) {
-          controller.enqueue(new TextEncoder().encode(chunk));
-        }
-        controller.close();
-      } catch (error) {
-        controller.error(error);
-      }
-    }
-  });
+  const readableStream = Readable.toWeb(Readable.from(csvStream)) as ReadableStream;
 
   return new Response(readableStream, {
     headers: {

@@ -3,12 +3,13 @@ import type { Charge } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import type { PaginationState } from "@tanstack/react-table";
 import axios from "axios";
 
-import { useExportTransactionsCsvMutation, usePaymentTransactionsQuery } from "@src/queries";
+import { useExportTransactionsCsvQuery, usePaymentTransactionsQuery } from "@src/queries";
 import { createDateRange } from "@src/utils/dateUtils";
+import { downloadCsv } from "@src/utils/domUtils";
 
 const DEPENDENCIES = {
   usePaymentTransactionsQuery,
-  useExportTransactionsCsvMutation
+  useExportTransactionsCsvQuery
 };
 
 export type ChildrenProps = {
@@ -17,13 +18,13 @@ export type ChildrenProps = {
   hasPrevious: boolean;
   isFetching: boolean;
   isError: boolean;
-  error: Error | null;
+  errorMessage: string;
   onExport: () => void;
   onPaginationChange: (state: PaginationState) => void;
   pagination: PaginationState;
   totalCount: number;
-  dateRange: { from: Date | undefined; to?: Date };
-  onDateRangeChange: (range?: { from?: Date; to?: Date }) => void;
+  dateRange: { from: Date; to: Date };
+  onDateRangeChange: (range: { from: Date; to: Date }) => void;
 };
 
 type BillingContainerProps = {
@@ -38,7 +39,7 @@ type CursorHistoryItem = {
 };
 
 export const BillingContainer: React.FC<BillingContainerProps> = ({ children, dependencies: D = DEPENDENCIES }) => {
-  const [dateRange, setDateRange] = React.useState<{ from: Date | undefined; to?: Date }>(() => createDateRange());
+  const [dateRange, setDateRange] = React.useState<{ from: Date; to: Date }>(() => createDateRange());
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
   const [currentCursors, setCurrentCursors] = useState<{
     startingAfter?: string | null;
@@ -47,11 +48,14 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
 
   const [cursorHistory, setCursorHistory] = useState<CursorHistoryItem[]>([{ pageIndex: 0 }]);
 
-  const [error, setError] = React.useState<Error | null>(null);
+  const [errorMessage, setErrorMessage] = React.useState("");
 
   const { from: startDate, to: endDate } = dateRange;
 
-  const exportMutation = D.useExportTransactionsCsvMutation();
+  const exportCsvQuery = D.useExportTransactionsCsvQuery({
+    startDate,
+    endDate
+  });
 
   const {
     data,
@@ -68,9 +72,13 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
 
   React.useEffect(() => {
     if (axios.isAxiosError(queryError)) {
-      setError(new Error(queryError.response?.data.message || "An error occurred while fetching payment transactions."));
+      setErrorMessage(queryError.response?.data.message || "An error occurred while fetching payment transactions.");
     }
   }, [queryError]);
+
+  React.useEffect(() => {
+    exportCsvQuery.data?.text().then(downloadCsv);
+  }, [exportCsvQuery.data]);
 
   const handlePaginationChange = (state: PaginationState) => {
     const isForward = state.pageIndex > pagination.pageIndex;
@@ -123,11 +131,11 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
     setDateRange(createDateRange(range));
   };
 
-  const exportCsv = () => {
+  const exportCsv = async () => {
     if (startDate && endDate) {
-      exportMutation.mutate({ startDate, endDate });
+      await exportCsvQuery.refetch();
     } else {
-      setError(new Error("Please select a valid date range before exporting."));
+      setErrorMessage("Please select a valid date range before exporting.");
     }
   };
 
@@ -145,7 +153,7 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
         pagination,
         isFetching,
         isError,
-        error
+        errorMessage
       })}
     </>
   );
