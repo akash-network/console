@@ -32,8 +32,8 @@ export type UsageViewProps = {
   isUsageHistoryError: boolean;
   isFetchingUsageHistoryStats: boolean;
   isUsageHistoryStatsError: boolean;
-  dateRange: { from: Date | undefined; to?: Date };
-  onDateRangeChange: (range?: { from?: Date; to?: Date }) => void;
+  dateRange: { from: Date; to: Date };
+  onDateRangeChange: (range: { from: Date; to: Date }) => void;
   components?: typeof COMPONENTS;
 };
 
