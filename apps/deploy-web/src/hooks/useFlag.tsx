@@ -9,6 +9,7 @@ export type FeatureFlag =
   | "anonymous_free_trial"
   | "notifications_general_alerts_update"
   | "ui_deployment_closed_alert"
-  | "billing_usage";
+  | "billing_usage"
+  | "custodial_auto_topup";
 export const useFlag: FeatureFlagHook = browserEnvConfig.NEXT_PUBLIC_UNLEASH_ENABLE_ALL ? useDummyFlag : useFlagOriginal;
 type FeatureFlagHook = (flag: FeatureFlag) => boolean;

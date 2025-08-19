@@ -10,6 +10,7 @@ import { LocalDataManager } from "@src/components/settings/LocalDataManager";
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { LabelValue } from "@src/components/shared/LabelValue";
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useWhen } from "@src/hooks/useWhen";
 import networkStore from "@src/store/networkStore";
 import Layout from "../layout/Layout";
@@ -24,6 +25,7 @@ export const SettingsContainer: React.FunctionComponent = () => {
   const selectedNetwork = networkStore.useSelectedNetwork();
   const wallet = useWallet();
   const router = useRouter();
+  const isCustodialAutoTopupEnabled = useFlag("custodial_auto_topup");
 
   useWhen(!wallet.isWalletConnected || wallet.isManaged, () => router.push("/"));
 
@@ -59,9 +61,11 @@ export const SettingsContainer: React.FunctionComponent = () => {
             <LocalDataManager />
           </Fieldset>
 
-          <Fieldset label="Auto Top Up">
-            <AutoTopUpSettingContainer />
-          </Fieldset>
+          {isCustodialAutoTopupEnabled && (
+            <Fieldset label="Auto Top Up">
+              <AutoTopUpSettingContainer />
+            </Fieldset>
+          )}
         </div>
 
         <Fieldset label="Certificates" className="mb-4">
