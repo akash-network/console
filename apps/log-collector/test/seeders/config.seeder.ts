@@ -12,7 +12,7 @@ export function seedConfigTestData(overrides: Partial<ConfigTestData> = {}): Con
   return {
     HOSTNAME: faker.internet.domainWord(),
     LOG_DIR: "./log",
-    LOG_MAX_FILE_SIZE_BYTES: "10240", // 10KB default
+    LOG_MAX_FILE_SIZE_BYTES: (10 * 1024 * 1024).toString(),
     LOG_MAX_ROTATED_FILES: "5",
     ...overrides
   };

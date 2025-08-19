@@ -29,19 +29,29 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 ENV PATH="/opt/fluent-bit/bin:${PATH}"
 
+# Create non-root user and group for security
+RUN groupadd -r appuser && useradd -r -g appuser -s /bin/bash appuser
+
 WORKDIR /app
 
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/apps/log-collector/package.json ./apps/log-collector/
+COPY --from=builder --chown=appuser:appuser /app/package*.json ./
+COPY --from=builder --chown=appuser:appuser /app/apps/log-collector/package.json ./apps/log-collector/
 RUN npm ci --omit=dev -w apps/log-collector
 
-COPY --from=builder /app/apps/log-collector/dist ./apps/log-collector/dist/
+COPY --from=builder --chown=appuser:appuser /app/apps/log-collector/dist ./apps/log-collector/dist/
 
-COPY apps/log-collector/fluent-bit/fluent-bit.conf /etc/fluent-bit/fluent-bit.conf
-COPY apps/log-collector/fluent-bit/parsers.conf /etc/fluent-bit/parsers.conf
-COPY apps/log-collector/fluent-bit/scripts/extract_service.lua /etc/fluent-bit/extract_service.lua
+COPY --chown=appuser:appuser apps/log-collector/fluent-bit/fluent-bit.conf /etc/fluent-bit/fluent-bit.conf
+COPY --chown=appuser:appuser apps/log-collector/fluent-bit/parsers.conf /etc/fluent-bit/parsers.conf
+COPY --chown=appuser:appuser apps/log-collector/fluent-bit/scripts/extract_service.lua /etc/fluent-bit/extract_service.lua
+
+# Ensure proper permissions for log directories and app working directory
+RUN mkdir -p /app/apps/log-collector/log && chown -R appuser:appuser /app/apps/log-collector/log
+RUN chown -R appuser:appuser /app
 
 ENV NODE_ENV=production
 
+# Switch to non-root user for security
+USER appuser
+
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["/bin/bash", "-c", "fluent-bit -c /etc/fluent-bit/fluent-bit.conf & node /app/apps/log-collector/dist/server.js"]
+CMD ["/bin/bash", "-c", "fluent-bit -c /etc/fluent-bit/fluent-bit.conf & npm run prod -w apps/log-collector"]

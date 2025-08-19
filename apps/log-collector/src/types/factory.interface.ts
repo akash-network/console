@@ -8,7 +8,7 @@
  * @template T - The type of service to create
  * @template P - The type of parameters required to create the service
  */
-export interface Factory<T, P extends any[] = any[]> {
+export interface Factory<T, P extends unknown[] = unknown[]> {
   /**
    * Creates a new instance of the service
    *

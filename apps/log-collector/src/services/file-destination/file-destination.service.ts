@@ -160,10 +160,8 @@ export class FileDestinationService {
   private createStableWriteStream(filePath: string, stableStream: PassThrough): void {
     const maxFileSize = this.configService.get("LOG_MAX_FILE_SIZE_BYTES");
     let currentWriteStream: NodeJS.WritableStream | undefined;
-    let isRotating = false;
-    let bytesWritten = 0;
-    let rotationBuffer: Buffer[] = [];
     let isEnded = false;
+    let sizeCheckInterval: NodeJS.Timeout;
 
     try {
       currentWriteStream = this.fs.createWriteStream(filePath, {
@@ -173,71 +171,56 @@ export class FileDestinationService {
 
       stableStream.pipe(currentWriteStream);
 
-      stableStream.on("data", async (chunk: Buffer) => {
-        if (isEnded && !currentWriteStream) {
-          return;
-        }
+      const checkFileSize = async () => {
+        try {
+          const stats = await this.fs.promises.stat(filePath);
+          if (stats.size >= maxFileSize) {
+            try {
+              stableStream.unpipe(currentWriteStream!);
+              currentWriteStream!.end();
 
-        if (isEnded && currentWriteStream) {
-          currentWriteStream.end();
-          return;
-        }
+              await new Promise<void>(resolve => {
+                currentWriteStream!.on("finish", resolve);
+              });
 
-        if (isRotating) {
-          rotationBuffer.push(chunk);
-          return;
-        }
+              await this.rotateLogFile(filePath);
 
-        bytesWritten += chunk.length;
+              currentWriteStream = this.fs.createWriteStream(filePath, {
+                flags: "a",
+                autoClose: false
+              });
 
-        if (bytesWritten >= maxFileSize) {
-          isRotating = true;
+              stableStream.pipe(currentWriteStream);
 
-          try {
-            stableStream.unpipe(currentWriteStream!);
-
-            currentWriteStream!.end();
-
-            await this.rotateLogFile(filePath);
-
-            currentWriteStream = this.fs.createWriteStream(filePath, {
-              flags: "a",
-              autoClose: false
-            });
-
-            stableStream.pipe(currentWriteStream);
-
-            bytesWritten = 0;
-
-            if (rotationBuffer.length > 0) {
-              for (const bufferedChunk of rotationBuffer) {
-                bytesWritten += bufferedChunk.length;
-                currentWriteStream!.write(bufferedChunk);
-              }
-              rotationBuffer = [];
+              this.loggerService.info({
+                message: "Log file rotated successfully",
+                filePath
+              });
+            } catch (error) {
+              this.loggerService.error({
+                error,
+                message: "Failed to rotate log file",
+                filePath
+              });
+              stableStream.emit("error", error);
             }
-
-            this.loggerService.info({
-              message: "Log file rotated successfully",
-              filePath
-            });
-          } catch (error) {
-            this.loggerService.error({
-              error,
-              message: "Failed to rotate log file",
-              filePath
-            });
-            stableStream.emit("error", error);
-          } finally {
-            isRotating = false;
           }
+        } catch (error) {
+          this.loggerService.error({
+            error,
+            message: "Failed to check file size for rotation",
+            filePath
+          });
         }
-      });
+      };
+
+      sizeCheckInterval = setInterval(checkFileSize, 1000);
     } catch (error) {
       stableStream.emit("error", error);
     }
 
     const cleanup = () => {
+      clearInterval(sizeCheckInterval);
       if (currentWriteStream && !isEnded) {
         currentWriteStream.end();
         isEnded = true;

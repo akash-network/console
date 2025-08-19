@@ -226,7 +226,7 @@ export class PodLogsCollectorService {
     });
   }
 
-  /**
+  /**z
    * Starts Kubernetes log streaming for a specific container
    *
    * Configures log stream options based on whether we're resuming from a timestamp
