@@ -154,7 +154,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
     return (
       <Alert variant="destructive">
         <AlertTitle>Error fetching billing data</AlertTitle>
-        <AlertDescription>{errorMessage || "An unexpected errorMessage occurred."}</AlertDescription>
+        <AlertDescription>{errorMessage || "An unexpected error occurred."}</AlertDescription>
       </Alert>
     );
   }
