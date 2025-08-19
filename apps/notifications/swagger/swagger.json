@@ -594,76 +594,20 @@
     "/v1/notification-channels/default": {
       "post": {
         "operationId": "createDefaultChannel",
-        "parameters": [
-          {
-            "name": "Authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NotificationChannelCreateInput"
+                "$ref": "#/components/schemas/NotificationChannelCreateDefaultInput"
               }
             }
           }
         },
         "responses": {
           "204": {
-            "description": "Creates the default notification channel only if it doesn't exist. If it does exist, it returns the existing channel.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AugmentedZodDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error responded when some request parameters are invalid",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized error responded when the user is not authenticated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UnauthorizedErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden error responded when the user is not authorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error, should probably be reported",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InternalServerErrorResponse"
-                }
-              }
-            }
+            "description": "Creates the default notification channel only if it doesn't exist."
           }
         },
         "tags": [
@@ -1111,6 +1055,30 @@
         },
         "tags": [
           "DeploymentAlert"
+        ]
+      }
+    },
+    "/v1/jobs/notification": {
+      "post": {
+        "operationId": "createNotification",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationJobDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Creates a notification job"
+          }
+        },
+        "tags": [
+          "Jobs"
         ]
       }
     }
@@ -4390,6 +4358,9 @@
                 "required": [
                   "addresses"
                 ]
+              },
+              "isDefault": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -4433,6 +4404,9 @@
                   "addresses"
                 ]
               },
+              "isDefault": {
+                "type": "boolean"
+              },
               "id": {
                 "type": "string",
                 "format": "uuid"
@@ -4441,9 +4415,6 @@
                 "type": "string",
                 "format": "uuid"
               },
-              "isDefault": {
-                "type": "boolean"
-              },
               "createdAt": {},
               "updatedAt": {}
             },
@@ -4451,9 +4422,9 @@
               "name",
               "type",
               "config",
+              "isDefault",
               "id",
               "userId",
-              "isDefault",
               "createdAt",
               "updatedAt"
             ]
@@ -4463,7 +4434,48 @@
           "data"
         ]
       },
-      "AugmentedZodDto": {},
+      "NotificationChannelCreateDefaultInput": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              },
+              "config": {
+                "type": "object",
+                "properties": {
+                  "addresses": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "email"
+                    }
+                  }
+                },
+                "required": [
+                  "addresses"
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "type",
+              "config"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
       "NotFoundErrorResponse": {
         "type": "object",
         "properties": {
@@ -4513,6 +4525,9 @@
                     "addresses"
                   ]
                 },
+                "isDefault": {
+                  "type": "boolean"
+                },
                 "id": {
                   "type": "string",
                   "format": "uuid"
@@ -4521,9 +4536,6 @@
                   "type": "string",
                   "format": "uuid"
                 },
-                "isDefault": {
-                  "type": "boolean"
-                },
                 "createdAt": {},
                 "updatedAt": {}
               },
@@ -4531,9 +4543,9 @@
                 "name",
                 "type",
                 "config",
+                "isDefault",
                 "id",
                 "userId",
-                "isDefault",
                 "createdAt",
                 "updatedAt"
               ]
@@ -4770,6 +4782,40 @@
         },
         "required": [
           "data"
+        ]
+      },
+      "NotificationJobDto": {
+        "type": "object",
+        "properties": {
+          "notificationId": {
+            "type": "string"
+          },
+          "notificationChannelId": {
+            "type": "string"
+          },
+          "startAfter": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payload": {
+            "type": "object",
+            "properties": {
+              "summary": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "summary",
+              "description"
+            ]
+          }
+        },
+        "required": [
+          "notificationId",
+          "payload"
         ]
       }
     }
