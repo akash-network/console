@@ -15,8 +15,6 @@ export function createContainer() {
 
   const wsStats = new WebsocketStats();
   const appLogger = isLoggingDisabled ? undefined : new LoggerService({ name: "app" });
-
-  // Create feature flags service
   const featureFlagsService = new FeatureFlagsService();
 
   const providerService = new ProviderService(

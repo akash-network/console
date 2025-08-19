@@ -14,11 +14,10 @@ export class RpcUrlResolverService {
 
   async getRpcUrl(): Promise<string> {
     const useProxyUrls = this.featureFlagsService.isEnabled(FeatureFlags.USE_PROXY_URLS);
-    const proxyRpcUrl = this.configService.getOrThrow("chain.PROXY_RPC_URL");
     const directRpcUrl = this.configService.getOrThrow("chain.RPC_NODE_ENDPOINT");
 
-    if (useProxyUrls && proxyRpcUrl) {
-      return proxyRpcUrl;
+    if (useProxyUrls) {
+      return this.configService.getOrThrow("chain.PROXY_RPC_URL");
     }
 
     return directRpcUrl;

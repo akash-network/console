@@ -5,16 +5,6 @@ import type { BlockHttpServiceWrapper } from "@src/core/services/http-service-wr
 import { BlockHttpService as BlockHttpServiceClass } from "./block-http.service";
 
 describe("BlockHttpService", () => {
-  function setup(): {
-    blockHttpServiceWrapper: MockProxy<BlockHttpServiceWrapper>;
-    service: BlockHttpServiceClass;
-  } {
-    const blockHttpServiceWrapper = mock<BlockHttpServiceWrapper>();
-    const service = new BlockHttpServiceClass(blockHttpServiceWrapper);
-
-    return { blockHttpServiceWrapper, service };
-  }
-
   describe("getCurrentHeight", () => {
     it("returns current height", async () => {
       const { service, blockHttpServiceWrapper } = setup();
@@ -26,4 +16,14 @@ describe("BlockHttpService", () => {
       expect(blockHttpServiceWrapper.getCurrentHeight).toHaveBeenCalled();
     });
   });
+
+  function setup(): {
+    blockHttpServiceWrapper: MockProxy<BlockHttpServiceWrapper>;
+    service: BlockHttpServiceClass;
+  } {
+    const blockHttpServiceWrapper = mock<BlockHttpServiceWrapper>();
+    const service = new BlockHttpServiceClass(blockHttpServiceWrapper);
+
+    return { blockHttpServiceWrapper, service };
+  }
 });
