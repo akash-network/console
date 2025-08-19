@@ -17,11 +17,8 @@ describe("BlockHttpService", () => {
     });
   });
 
-  function setup(): {
-    blockHttpServiceWrapper: MockProxy<BlockHttpServiceWrapper>;
-    service: BlockHttpServiceClass;
-  } {
-    const blockHttpServiceWrapper = mock<BlockHttpServiceWrapper>();
+  function setup(input?: { blockHttpServiceWrapper?: MockProxy<BlockHttpServiceWrapper> }) {
+    const blockHttpServiceWrapper = input?.blockHttpServiceWrapper ?? mock<BlockHttpServiceWrapper>();
     const service = new BlockHttpServiceClass(blockHttpServiceWrapper);
 
     return { blockHttpServiceWrapper, service };
