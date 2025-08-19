@@ -8,6 +8,7 @@ import { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletOutput } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { WalletInitializerService } from "@src/billing/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { UserOutput } from "@src/user/repositories";
 
 export class WalletTestingService<T extends Hono<any>> {
@@ -29,6 +30,8 @@ export class WalletTestingService<T extends Hono<any>> {
   }
 
   private async createWallet(user: UserOutput) {
+    jest.spyOn(container.resolve(NotificationService), "createNotification").mockResolvedValue(undefined);
+
     return container.resolve(ExecutionContextService).runWithContext(async () => {
       container.resolve(AuthService).currentUser = user;
       container.resolve(AuthService).ability = container.resolve(AbilityService).getAbilityFor("REGULAR_ANONYMOUS_USER", user);
@@ -122,6 +125,7 @@ export class WalletTestingService<T extends Hono<any>> {
 
     const decoded = decode(access_token) as { sub: string; email: string; nickname: string; email_verified: boolean };
 
+    jest.spyOn(container.resolve(NotificationService), "createDefaultChannel").mockResolvedValue(undefined);
     const userResponse = await this.app.request(`/v1/register-user`, {
       method: "POST",
       headers: new Headers({

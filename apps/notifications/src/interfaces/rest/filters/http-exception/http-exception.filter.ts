@@ -25,10 +25,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
       });
     } else if (exception instanceof HttpException && !isSerializationException) {
       const statusCode = exception.getStatus();
+      const errorResponse = exception.getResponse();
+      const details = typeof errorResponse === "string" ? { message: response } : errorResponse;
       response.status(statusCode).json({
         statusCode,
         message: exception.message,
-        errors: exception.cause
+        errors: exception.cause,
+        ...details
       });
     } else if (exception instanceof ForbiddenError) {
       response.status(403).json({

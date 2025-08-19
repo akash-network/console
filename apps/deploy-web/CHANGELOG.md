@@ -1,5 +1,19 @@
 
 
+## [2.100.0](https://github.com/akash-network/console/compare/console-web/v2.99.0...console-web/v2.100.0) (2025-08-18)
+
+
+### Features
+
+* adds creation of default notification channel on user login/registration ([#1808](https://github.com/akash-network/console/issues/1808)) ([aa53ee6](https://github.com/akash-network/console/commit/aa53ee64f7d8a004521807c2cd32f55799e323dd))
+* **auth:** enhance API key management with new hooks and tests ([#1813](https://github.com/akash-network/console/issues/1813)) ([ebfcbbe](https://github.com/akash-network/console/commit/ebfcbbe50812fb683e5e43136bb4147da85e75a9))
+
+
+### Bug Fixes
+
+* make date range picker scrollable if it overflows container ([ac6f2a8](https://github.com/akash-network/console/commit/ac6f2a87cea5eecfe5696c15af38bec09027087a))
+* widens sentry sourcemaps ([#1819](https://github.com/akash-network/console/issues/1819)) ([2077603](https://github.com/akash-network/console/commit/20776032cffccccbc50ce40e2aa24ec304ebca3f))
+
 ## [2.99.0](https://github.com/akash-network/console/compare/console-web/v2.98.3...console-web/v2.99.0) (2025-08-14)
 
 

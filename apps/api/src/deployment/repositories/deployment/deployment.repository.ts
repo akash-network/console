@@ -31,9 +31,18 @@ export class DeploymentRepository {
     });
   }
 
-  async countByOwner(owner: string): Promise<number> {
+  async countByOwner(owner: string, startDate: string, endDate: string): Promise<number> {
     return await Deployment.count({
-      where: { owner }
+      where: {
+        owner,
+        closedHeight: { [Op.not]: null },
+        "$createdBlock.datetime$": { [Op.gte]: startDate },
+        "$closedBlock.datetime$": { [Op.lte]: endDate }
+      },
+      include: [
+        { model: Block, as: "createdBlock" },
+        { model: Block, as: "closedBlock" }
+      ]
     });
   }
 
