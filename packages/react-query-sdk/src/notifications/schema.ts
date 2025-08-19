@@ -100,6 +100,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/jobs/notification": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["createNotification"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -625,6 +641,7 @@ export interface components {
         config: {
           addresses: string[];
         };
+        isDefault?: boolean;
       };
     };
     NotificationChannelOutput: {
@@ -635,16 +652,25 @@ export interface components {
         config: {
           addresses: string[];
         };
+        isDefault: boolean;
         /** Format: uuid */
         id: string;
         /** Format: uuid */
         userId: string;
-        isDefault: boolean;
         createdAt: unknown;
         updatedAt: unknown;
       };
     };
-    AugmentedZodDto: unknown;
+    NotificationChannelCreateDefaultInput: {
+      data: {
+        name: string;
+        /** @enum {string} */
+        type: "email";
+        config: {
+          addresses: string[];
+        };
+      };
+    };
     NotFoundErrorResponse: {
       statusCode: number;
       message: string;
@@ -657,11 +683,11 @@ export interface components {
         config: {
           addresses: string[];
         };
+        isDefault: boolean;
         /** Format: uuid */
         id: string;
         /** Format: uuid */
         userId: string;
-        isDefault: boolean;
         createdAt: unknown;
         updatedAt: unknown;
       }[];
@@ -730,6 +756,16 @@ export interface components {
             suppressedBySystem?: boolean;
           };
         };
+      };
+    };
+    NotificationJobDto: {
+      notificationId: string;
+      notificationChannelId?: string;
+      /** Format: date-time */
+      startAfter?: string;
+      payload: {
+        summary: string;
+        description: string;
       };
     };
   };
@@ -1182,62 +1218,22 @@ export interface operations {
   createDefaultChannel: {
     parameters: {
       query?: never;
-      header?: {
-        Authorization?: string;
-      };
+      header?: never;
       path?: never;
       cookie?: never;
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["NotificationChannelCreateInput"];
+        "application/json": components["schemas"]["NotificationChannelCreateDefaultInput"];
       };
     };
     responses: {
-      /** @description Creates the default notification channel only if it doesn't exist. If it does exist, it returns the existing channel. */
+      /** @description Creates the default notification channel only if it doesn't exist. */
       204: {
         headers: {
           [name: string]: unknown;
         };
-        content: {
-          "application/json": components["schemas"]["AugmentedZodDto"];
-        };
-      };
-      /** @description Validation error responded when some request parameters are invalid */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ValidationErrorResponse"];
-        };
-      };
-      /** @description Unauthorized error responded when the user is not authenticated */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
-        };
-      };
-      /** @description Forbidden error responded when the user is not authorized */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ForbiddenErrorResponse"];
-        };
-      };
-      /** @description Internal server error, should probably be reported */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["InternalServerErrorResponse"];
-        };
+        content?: never;
       };
     };
   };
@@ -1575,6 +1571,28 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["InternalServerErrorResponse"];
         };
+      };
+    };
+  };
+  createNotification: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NotificationJobDto"];
+      };
+    };
+    responses: {
+      /** @description Creates a notification job */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

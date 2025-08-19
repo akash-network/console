@@ -2562,21 +2562,14 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
      * @example Mutation with predefined parameters, e.g., for updating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.createDefaultChannel.useMutation({
-     *     header: {
-     *         Authorization: authorization
-     *     }
-     * })
+     * const { mutate, isPending } = qraft.v1Service.createDefaultChannel.useMutation({})
      * mutate(body);
      * ```
      * @example Mutation without predefined parameters, e.g., for creating
      * ```ts
      * const { mutate, isPending } = qraft.v1Service.createDefaultChannel.useMutation()
      * mutate({
-     *     body: bodyPayload,
-     *     header: {
-     *         Authorization: authorization
-     *     }
+     *     body: bodyPayload
      * });
      * ```
      */
@@ -2598,21 +2591,14 @@ export interface V1Service {
      * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
      * @example Mutation with predefined parameters, e.g., for updating
      * ```ts
-     * const { mutate, isPending } = qraft.v1Service.createDefaultChannel.useMutation({
-     *     header: {
-     *         Authorization: authorization
-     *     }
-     * })
+     * const { mutate, isPending } = qraft.v1Service.createDefaultChannel.useMutation({})
      * mutate(body);
      * ```
      * @example Mutation without predefined parameters, e.g., for creating
      * ```ts
      * const { mutate, isPending } = qraft.v1Service.createDefaultChannel.useMutation()
      * mutate({
-     *     body: bodyPayload,
-     *     header: {
-     *         Authorization: authorization
-     *     }
+     *     body: bodyPayload
      * });
      * ```
      */
@@ -2638,11 +2624,7 @@ export interface V1Service {
      * @example Check how many mutations are currently in progress with the specified parameters.
      * ```ts
      * const createDefaultChannelTotal = qraft.v1Service.createDefaultChannel.useIsMutating({
-     *     parameters: {
-     *         header: {
-     *             Authorization: authorization
-     *         }
-     *     }
+     *     parameters: {}
      * })
      * ```
      */
@@ -2708,11 +2690,7 @@ export interface V1Service {
      * ```ts
      * const createDefaultChannelMutationData = qraft.v1Service.createDefaultChannel.useMutationState({
      *     filters: {
-     *         parameters: {
-     *             header: {
-     *                 Authorization: authorization
-     *             }
-     *         }
+     *         parameters: {}
      *     },
      *     select: mutation => mutation.state.data
      * })
@@ -4757,6 +4735,176 @@ export interface V1Service {
       error: GetDeploymentAlertsError;
     };
   };
+  createNotification: {
+    /**/
+    getMutationKey(
+      parameters: DeepReadonly<CreateNotificationParameters> | void
+    ): ServiceOperationMutationKey<CreateNotificationSchema, CreateNotificationParameters>;
+    /**
+     * Enables performing asynchronous data mutation operations such as POST, PUT, PATCH, or DELETE requests.
+     * Handles loading state, optimistic updates, and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
+     * @example Mutation with predefined parameters, e.g., for updating
+     * ```ts
+     * const { mutate, isPending } = qraft.v1Service.createNotification.useMutation({})
+     * mutate(body);
+     * ```
+     * @example Mutation without predefined parameters, e.g., for creating
+     * ```ts
+     * const { mutate, isPending } = qraft.v1Service.createNotification.useMutation()
+     * mutate({
+     *     body: bodyPayload
+     * });
+     * ```
+     */
+    useMutation<TVariables extends CreateNotificationBody, TContext = unknown>(
+      parameters: DeepReadonly<CreateNotificationParameters>,
+      options?: ServiceOperationUseMutationOptions<
+        CreateNotificationSchema,
+        CreateNotificationData,
+        CreateNotificationParameters,
+        TVariables,
+        CreateNotificationError | Error,
+        TContext
+      >
+    ): UseMutationResult<CreateNotificationData, CreateNotificationError | Error, TVariables, TContext>;
+    /**
+     * Enables performing asynchronous data mutation operations such as POST, PUT, PATCH, or DELETE requests.
+     * Handles loading state, optimistic updates, and error handling.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutation|`useMutation(...)` documentation}
+     * @example Mutation with predefined parameters, e.g., for updating
+     * ```ts
+     * const { mutate, isPending } = qraft.v1Service.createNotification.useMutation({})
+     * mutate(body);
+     * ```
+     * @example Mutation without predefined parameters, e.g., for creating
+     * ```ts
+     * const { mutate, isPending } = qraft.v1Service.createNotification.useMutation()
+     * mutate({
+     *     body: bodyPayload
+     * });
+     * ```
+     */
+    useMutation<TVariables extends MutationVariables<CreateNotificationBody, CreateNotificationParameters>, TContext = unknown>(
+      parameters: void,
+      options?: ServiceOperationUseMutationOptions<
+        CreateNotificationSchema,
+        CreateNotificationData,
+        CreateNotificationParameters,
+        TVariables,
+        CreateNotificationError | Error,
+        TContext
+      >
+    ): UseMutationResult<CreateNotificationData, CreateNotificationError | Error, TVariables, TContext>;
+    /**
+     * Returns the count of currently in-progress mutations.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useIsMutating|`useIsMutating(...)` documentation}
+     * @example Check how many mutations are currently in progress for the specified service method.
+     * ```ts
+     * const createNotificationTotal = qraft.v1Service.createNotification.useIsMutating()
+     * ```
+     * @example Check how many mutations are currently in progress with the specified parameters.
+     * ```ts
+     * const createNotificationTotal = qraft.v1Service.createNotification.useIsMutating({
+     *     parameters: {}
+     * })
+     * ```
+     */
+    useIsMutating<TContext = unknown>(
+      filters?:
+        | MutationFiltersByParameters<CreateNotificationBody, CreateNotificationData, CreateNotificationParameters, CreateNotificationError | Error, TContext>
+        | MutationFiltersByMutationKey<
+            CreateNotificationSchema,
+            CreateNotificationBody,
+            CreateNotificationData,
+            CreateNotificationParameters,
+            CreateNotificationError | Error,
+            TContext
+          >
+    ): number;
+    /**/
+    isMutating<TContext>(
+      filters?:
+        | MutationFiltersByParameters<CreateNotificationBody, CreateNotificationData, CreateNotificationParameters, CreateNotificationError | Error, TContext>
+        | MutationFiltersByMutationKey<
+            CreateNotificationSchema,
+            CreateNotificationBody,
+            CreateNotificationData,
+            CreateNotificationParameters,
+            CreateNotificationError | Error,
+            TContext
+          >
+    ): number;
+    /**/
+    (
+      options: ServiceOperationMutationFnOptions<CreateNotificationBody, CreateNotificationParameters>,
+      client?: (
+        schema: CreateNotificationSchema,
+        options: ServiceOperationMutationFnOptions<CreateNotificationBody, CreateNotificationParameters>
+      ) => Promise<RequestFnResponse<CreateNotificationData, CreateNotificationError>>
+    ): Promise<RequestFnResponse<CreateNotificationData, CreateNotificationError>>;
+    /**
+     * Provides access to the current state of a mutation, including its status, any resulting data, and associated errors.
+     *
+     * @see {@link https://openapi-qraft.github.io/openapi-qraft/docs/hooks/useMutationState|`useMutationState(...)` documentation}
+     * @example Get all variables of all running mutations.
+     * ```ts
+     * const createNotificationPendingMutationVariables = qraft.v1Service.createNotification.useMutationState({
+     *     filters: {
+     *         status: "pending"
+     *     },
+     *     select: mutation => mutation.state.variables
+     * })
+     * ```
+     * @example Get all data for specific mutations via the `parameters`.
+     * ```ts
+     * const createNotificationMutationData = qraft.v1Service.createNotification.useMutationState({
+     *     filters: {
+     *         parameters: {}
+     *     },
+     *     select: mutation => mutation.state.data
+     * })
+     * ```
+     */
+    useMutationState<
+      TContext = unknown,
+      TResult = MutationState<
+        CreateNotificationData,
+        CreateNotificationError | Error,
+        MutationVariables<CreateNotificationBody, CreateNotificationParameters>,
+        TContext
+      >
+    >(options?: {
+      filters?:
+        | MutationFiltersByParameters<CreateNotificationBody, CreateNotificationData, CreateNotificationParameters, CreateNotificationError | Error, TContext>
+        | MutationFiltersByMutationKey<
+            CreateNotificationSchema,
+            CreateNotificationBody,
+            CreateNotificationData,
+            CreateNotificationParameters,
+            CreateNotificationError | Error,
+            TContext
+          >;
+      select?: (
+        mutation: Mutation<
+          CreateNotificationData,
+          CreateNotificationError | Error,
+          MutationVariables<CreateNotificationBody, CreateNotificationParameters>,
+          TContext
+        >
+      ) => TResult;
+    }): Array<TResult>;
+    schema: CreateNotificationSchema;
+    types: {
+      parameters: CreateNotificationParameters;
+      data: CreateNotificationData;
+      error: CreateNotificationError;
+      body: CreateNotificationBody;
+    };
+  };
 }
 export const createAlert = {
   schema: {
@@ -4881,6 +5029,16 @@ export const getDeploymentAlerts = {
   schema: GetDeploymentAlertsSchema;
   [QraftServiceOperationsToken]: V1Service["getDeploymentAlerts"];
 };
+export const createNotification = {
+  schema: {
+    method: "post",
+    url: "/v1/jobs/notification",
+    mediaType: ["application/json"]
+  }
+} as {
+  schema: CreateNotificationSchema;
+  [QraftServiceOperationsToken]: V1Service["createNotification"];
+};
 export const v1Service = {
   createAlert,
   getAlerts,
@@ -4894,7 +5052,8 @@ export const v1Service = {
   patchNotificationChannel,
   deleteNotificationChannel,
   upsertDeploymentAlert,
-  getDeploymentAlerts
+  getDeploymentAlerts,
+  createNotification
 } as const;
 type CreateAlertSchema = {
   method: "post";
@@ -4985,13 +5144,13 @@ type CreateDefaultChannelSchema = {
   url: "/v1/notification-channels/default";
   mediaType: ["application/json"];
 };
-type CreateDefaultChannelParameters = paths["/v1/notification-channels/default"]["post"]["parameters"];
-type CreateDefaultChannelData = paths["/v1/notification-channels/default"]["post"]["responses"]["204"]["content"]["application/json"];
-type CreateDefaultChannelError =
-  | paths["/v1/notification-channels/default"]["post"]["responses"]["400"]["content"]["application/json"]
-  | paths["/v1/notification-channels/default"]["post"]["responses"]["401"]["content"]["application/json"]
-  | paths["/v1/notification-channels/default"]["post"]["responses"]["403"]["content"]["application/json"]
-  | paths["/v1/notification-channels/default"]["post"]["responses"]["500"]["content"]["application/json"];
+type CreateDefaultChannelParameters = {
+  query?: never;
+  header?: never;
+  path?: never;
+};
+type CreateDefaultChannelData = null;
+type CreateDefaultChannelError = unknown;
 type CreateDefaultChannelBody = paths["/v1/notification-channels/default"]["post"]["requestBody"]["content"]["application/json"];
 type GetNotificationChannelSchema = {
   method: "get";
@@ -5056,3 +5215,16 @@ type GetDeploymentAlertsError =
   | paths["/v1/deployment-alerts/{dseq}"]["get"]["responses"]["401"]["content"]["application/json"]
   | paths["/v1/deployment-alerts/{dseq}"]["get"]["responses"]["403"]["content"]["application/json"]
   | paths["/v1/deployment-alerts/{dseq}"]["get"]["responses"]["500"]["content"]["application/json"];
+type CreateNotificationSchema = {
+  method: "post";
+  url: "/v1/jobs/notification";
+  mediaType: ["application/json"];
+};
+type CreateNotificationParameters = {
+  query?: never;
+  header?: never;
+  path?: never;
+};
+type CreateNotificationData = null;
+type CreateNotificationError = unknown;
+type CreateNotificationBody = paths["/v1/jobs/notification"]["post"]["requestBody"]["content"]["application/json"];
