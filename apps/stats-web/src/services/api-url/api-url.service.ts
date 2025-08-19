@@ -6,24 +6,23 @@ import type { BrowserEnvConfig, ServerEnvConfig } from "@/config/env-config.sche
 export class ApiUrlService {
   constructor(
     private readonly config:
-      | Pick<ServerEnvConfig, "BASE_API_MAINNET_URL" | "BASE_API_TESTNET_URL" | "BASE_API_SANDBOX_URL" | "PROXY_API_URL">
+      | Pick<ServerEnvConfig, "BASE_API_MAINNET_URL" | "BASE_API_TESTNET_URL" | "BASE_API_SANDBOX_URL" | "PROXY_API_URL" | "USE_PROXY_URLS">
       | Pick<
           BrowserEnvConfig,
-          "NEXT_PUBLIC_BASE_API_TESTNET_URL" | "NEXT_PUBLIC_BASE_API_SANDBOX_URL" | "NEXT_PUBLIC_BASE_API_MAINNET_URL" | "NEXT_PUBLIC_PROXY_API_URL"
+          | "NEXT_PUBLIC_BASE_API_TESTNET_URL"
+          | "NEXT_PUBLIC_BASE_API_SANDBOX_URL"
+          | "NEXT_PUBLIC_BASE_API_MAINNET_URL"
+          | "NEXT_PUBLIC_PROXY_API_URL"
+          | "NEXT_PUBLIC_USE_PROXY_URLS"
         >
   ) {}
 
-  getBaseApiUrlFor(network: NetworkId, useProxyUrls = false) {
-    // Only use proxy URLs for mainnet
-    if (useProxyUrls && network === MAINNET_ID) {
-      const proxyUrl =
-        "PROXY_API_URL" in this.config
-          ? this.config.PROXY_API_URL
-          : (this.config as Pick<BrowserEnvConfig, "NEXT_PUBLIC_PROXY_API_URL">).NEXT_PUBLIC_PROXY_API_URL;
-      return proxyUrl;
-    }
-
+  getBaseApiUrlFor(network: NetworkId) {
     if ("BASE_API_MAINNET_URL" in this.config) {
+      if (this.config.USE_PROXY_URLS && network === MAINNET_ID) {
+        return this.config.PROXY_API_URL;
+      }
+
       switch (network) {
         case TESTNET_ID:
           return this.config.BASE_API_TESTNET_URL;
@@ -35,6 +34,10 @@ export class ApiUrlService {
     }
 
     if ("NEXT_PUBLIC_BASE_API_MAINNET_URL" in this.config) {
+      if (this.config.NEXT_PUBLIC_USE_PROXY_URLS && network === MAINNET_ID) {
+        return this.config.NEXT_PUBLIC_PROXY_API_URL;
+      }
+
       switch (network) {
         case TESTNET_ID:
           return this.config.NEXT_PUBLIC_BASE_API_TESTNET_URL;

@@ -1,7 +1,7 @@
 import { LoggerService } from "@akashnetwork/logging";
 import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
 import type { SupportedChainNetworks } from "@akashnetwork/net";
-import { netConfigData } from "@akashnetwork/net/src/generated/netConfigData";
+import { createNetConfig } from "@akashnetwork/net";
 
 import { CertificateValidator, createCertificateValidatorInstrumentation } from "./services/CertificateValidator";
 import { FeatureFlags } from "./services/feature-flags/feature-flags";
@@ -16,6 +16,7 @@ export function createContainer() {
   const wsStats = new WebsocketStats();
   const appLogger = isLoggingDisabled ? undefined : new LoggerService({ name: "app" });
   const featureFlagsService = new FeatureFlagsService();
+  const netConfig = createNetConfig({ useProxyUrls: featureFlagsService.isEnabled(FeatureFlags.USE_PROXY_URLS) });
 
   const providerService = new ProviderService(
     (network: SupportedChainNetworks) => {
@@ -24,19 +25,7 @@ export function createContainer() {
       // both nock and msw do not work well when I need to use low level API like X509 certificate validation
       // for some reason when these libraries are used I receive MockSocket instead of TLSSocket
       // @see https://github.com/mswjs/msw/discussions/2416
-      if (process.env.TEST_CHAIN_NETWORK_URL) {
-        return process.env.TEST_CHAIN_NETWORK_URL;
-      }
-
-      // For now, use the default URL since ProviderService expects sync
-      // In the future, we might need to make ProviderService async-aware
-      const useProxy = featureFlagsService.isEnabled(FeatureFlags.USE_PROXY_URLS);
-      if (useProxy && network === "mainnet") {
-        return process.env.PROXY_API_URL || "https://rpc.akt.dev/rest";
-      }
-
-      // Fall back to default URLs from netConfigData
-      return netConfigData[network].apiUrls[0];
+      return process.env.TEST_CHAIN_NETWORK_URL || netConfig.getBaseAPIUrl(network);
     },
     fetch,
     appLogger
@@ -58,7 +47,7 @@ export function createContainer() {
     httpLogger,
     httpLoggerInterceptor,
     wsLogger,
-
+    netConfig,
     featureFlagsService,
     appLogger,
     providerService
