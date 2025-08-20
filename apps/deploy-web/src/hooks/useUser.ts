@@ -4,7 +4,7 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useStoredAnonymousUser } from "@src/hooks/useStoredAnonymousUser";
 import type { CustomUserProfile } from "@src/types/user";
 
-export const useUser = (): CustomUserProfile & { isLoading: boolean } => {
+export const useUser = (): CustomUserProfile => {
   const { user: registeredUser, isLoading: isLoadingRegisteredUser } = useCustomUser();
   const { user: anonymousUser, isLoading: isLoadingAnonymousUser } = useStoredAnonymousUser();
   const user = useMemo(() => registeredUser || anonymousUser || {}, [registeredUser, anonymousUser]);

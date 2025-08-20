@@ -35,8 +35,8 @@ export const composeGuards = (...guards: UseCheck[]): UseCheck => {
 
     for (const guard of guards) {
       const result = guard();
-      canVisit = canVisit && result.canVisit;
-      isLoading = isLoading || result.isLoading;
+      canVisit &&= result.canVisit;
+      isLoading ||= result.isLoading;
     }
 
     return { canVisit, isLoading };
