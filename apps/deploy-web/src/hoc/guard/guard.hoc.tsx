@@ -1,8 +1,18 @@
+import { Loading } from "@src/components/layout/Layout";
 import FourOhFour from "@src/pages/404";
 
-export const Guard = <P extends object>(Component: React.ComponentType<P>, useCheck: () => boolean, FallbackComponent = FourOhFour) => {
+type UseCheck = () => {
+  canVisit: boolean;
+  isLoading: boolean;
+};
+
+export const Guard = <P extends object>(Component: React.ComponentType<P>, useCheck: UseCheck, FallbackComponent = FourOhFour) => {
   const WithGuard = (props: P) => {
-    const canVisit = useCheck();
+    const { canVisit, isLoading } = useCheck();
+
+    if (isLoading) {
+      return <Loading text="Please wait..." />;
+    }
 
     if (canVisit) {
       return <Component {...props} />;
@@ -18,6 +28,17 @@ export const Guard = <P extends object>(Component: React.ComponentType<P>, useCh
   return WithGuard;
 };
 
-export const composeGuards = (...guards: (() => boolean)[]) => {
-  return () => guards.every(guard => guard());
+export const composeGuards = (...guards: UseCheck[]): UseCheck => {
+  return () => {
+    let canVisit = true;
+    let isLoading = false;
+
+    for (const guard of guards) {
+      const result = guard();
+      canVisit = canVisit && result.canVisit;
+      isLoading = isLoading || result.isLoading;
+    }
+
+    return { canVisit, isLoading };
+  };
 };

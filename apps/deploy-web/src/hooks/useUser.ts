@@ -4,15 +4,23 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useStoredAnonymousUser } from "@src/hooks/useStoredAnonymousUser";
 import type { CustomUserProfile } from "@src/types/user";
 
-export const useUser = (): CustomUserProfile => {
-  const { user: registeredUser } = useCustomUser();
-  const { user: anonymousUser } = useStoredAnonymousUser();
-  const user = useMemo(() => registeredUser || anonymousUser, [registeredUser, anonymousUser]);
+export const useUser = (): CustomUserProfile & { isLoading: boolean } => {
+  const { user: registeredUser, isLoading: isLoadingRegisteredUser } = useCustomUser();
+  const { user: anonymousUser, isLoading: isLoadingAnonymousUser } = useStoredAnonymousUser();
+  const user = useMemo(() => registeredUser || anonymousUser || {}, [registeredUser, anonymousUser]);
+  const isLoading = useMemo(() => isLoadingRegisteredUser || isLoadingAnonymousUser, [isLoadingRegisteredUser, isLoadingAnonymousUser]);
 
-  return user;
+  return {
+    ...user,
+    isLoading
+  };
 };
 
 export const useIsRegisteredUser = () => {
-  const user = useUser();
-  return !!user?.userId;
+  const { isLoading, userId } = useUser();
+
+  return {
+    isLoading,
+    canVisit: !!userId
+  };
 };

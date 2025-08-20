@@ -357,8 +357,9 @@ export function useWallet() {
 }
 
 export function useIsManagedWalletUser() {
-  const { isManaged } = useWallet();
-  return isManaged;
+  const { isManaged: canVisit, isWalletLoading: isLoading } = useWallet();
+
+  return { canVisit, isLoading };
 }
 
 const TransactionSnackbarContent: React.FC<{ snackMessage: string; transactionHash: string }> = ({ snackMessage, transactionHash }) => {
