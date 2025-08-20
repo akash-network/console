@@ -11,8 +11,4 @@ export class FeatureFlagsService {
         return false;
     }
   }
-
-  async isEnabledAsync(featureFlag: FeatureFlagValue): Promise<boolean> {
-    return this.isEnabled(featureFlag);
-  }
 }
