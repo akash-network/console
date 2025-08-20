@@ -17,7 +17,7 @@ export const useUser = (): CustomUserProfile => {
 };
 
 export const useIsRegisteredUser = () => {
-  const { isLoading, userId } = useUser();
+  const { isLoading = false, userId } = useUser();
 
   return {
     isLoading,
