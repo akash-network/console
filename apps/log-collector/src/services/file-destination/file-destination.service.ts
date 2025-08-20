@@ -2,6 +2,7 @@ import * as fsGlobal from "fs";
 import memoize from "lodash/memoize";
 import * as pathGlobal from "path";
 import { PassThrough } from "stream";
+import { setTimeout as delay } from "timers/promises";
 
 import type { ConfigService } from "@src/services/config/config.service";
 import type { LoggerService } from "@src/services/logger/logger.service";
@@ -147,7 +148,7 @@ export class FileDestinationService {
   }
 
   /**
-   * Creates a stable wright stream that handles rotation internally
+   * Creates a stable write stream that handles rotation internally
    *
    * This method creates a PassThrough stream that acts as a stable interface
    * for the client. It internally manages file rotation by monitoring the
@@ -155,13 +156,13 @@ export class FileDestinationService {
    * If rotation fails, it emits an 'error' event on the stable stream.
    *
    * @param filePath - The absolute path of the file to create a write stream for
+   * @param stableStream - The PassThrough stream to configure for log processing
    * @returns A stable write stream that handles rotation internally
    */
   private createStableWriteStream(filePath: string, stableStream: PassThrough): void {
     const maxFileSize = this.configService.get("LOG_MAX_FILE_SIZE_BYTES");
     let currentWriteStream: NodeJS.WritableStream | undefined;
     let isEnded = false;
-    let sizeCheckInterval: NodeJS.Timeout;
 
     try {
       currentWriteStream = this.fs.createWriteStream(filePath, {
@@ -171,59 +172,72 @@ export class FileDestinationService {
 
       stableStream.pipe(currentWriteStream);
 
-      const checkFileSize = async () => {
-        try {
-          const stats = await this.fs.promises.stat(filePath);
-          if (stats.size >= maxFileSize) {
-            try {
-              stableStream.unpipe(currentWriteStream!);
-              currentWriteStream!.end();
+      const checkFileSizePeriodically = async (): Promise<void> => {
+        while (!isEnded) {
+          try {
+            await delay(1000);
 
-              await new Promise<void>(resolve => {
-                currentWriteStream!.on("finish", resolve);
-              });
+            if (isEnded) break;
 
-              await this.rotateLogFile(filePath);
+            const stats = await this.fs.promises.stat(filePath);
+            if (stats.size >= maxFileSize) {
+              try {
+                stableStream.unpipe(currentWriteStream!);
+                currentWriteStream!.end();
 
-              currentWriteStream = this.fs.createWriteStream(filePath, {
-                flags: "a",
-                autoClose: false
-              });
+                await new Promise<void>(resolve => {
+                  currentWriteStream!.on("finish", resolve);
+                });
 
-              stableStream.pipe(currentWriteStream);
+                await this.rotateLogFile(filePath);
 
-              this.loggerService.info({
-                message: "Log file rotated successfully",
-                filePath
-              });
-            } catch (error) {
-              this.loggerService.error({
-                error,
-                message: "Failed to rotate log file",
-                filePath
-              });
-              stableStream.emit("error", error);
+                currentWriteStream = this.fs.createWriteStream(filePath, {
+                  flags: "a",
+                  autoClose: false
+                });
+
+                stableStream.pipe(currentWriteStream);
+
+                this.loggerService.info({
+                  message: "Log file rotated successfully",
+                  filePath
+                });
+              } catch (error) {
+                this.loggerService.error({
+                  error,
+                  message: "Failed to rotate log file",
+                  filePath
+                });
+                stableStream.emit("error", error);
+                break;
+              }
             }
+          } catch (error) {
+            this.loggerService.error({
+              error,
+              message: "Failed to check file size for rotation",
+              filePath
+            });
           }
-        } catch (error) {
-          this.loggerService.error({
-            error,
-            message: "Failed to check file size for rotation",
-            filePath
-          });
         }
       };
 
-      sizeCheckInterval = setInterval(checkFileSize, 1000);
+      checkFileSizePeriodically().catch(error => {
+        this.loggerService.error({
+          error,
+          message: "File size checking loop failed",
+          filePath
+        });
+        stableStream.emit("error", error);
+      });
     } catch (error) {
       stableStream.emit("error", error);
     }
 
     const cleanup = () => {
-      clearInterval(sizeCheckInterval);
-      if (currentWriteStream && !isEnded) {
+      isEnded = true;
+      if (currentWriteStream) {
         currentWriteStream.end();
-        isEnded = true;
         currentWriteStream = undefined;
       }
     };
