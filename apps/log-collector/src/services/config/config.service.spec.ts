@@ -12,7 +12,6 @@ describe("ConfigService", () => {
     const config = setup({ env: configData });
 
     expect(config.get("HOSTNAME")).toBe(configData.HOSTNAME);
-    expect(config.get("LOG_DIR")).toBe(configData.LOG_DIR);
   });
 
   function setup(input: { env: NodeJS.ProcessEnv }) {

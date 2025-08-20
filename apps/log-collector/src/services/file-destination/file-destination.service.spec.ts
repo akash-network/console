@@ -1,168 +1,198 @@
 import type * as fsGlobal from "fs";
-import type { WriteStream } from "fs";
+import type { ReadStream, WriteStream } from "fs";
 import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
 import type * as pathGlobal from "path";
-import { PassThrough } from "stream";
+import type * as readlineGlobal from "readline";
 import { container } from "tsyringe";
 
 import { ConfigService } from "@src/services/config/config.service";
 import { LoggerService } from "@src/services/logger/logger.service";
 import { FileDestinationService } from "./file-destination.service";
 
+import { seedConfigTestData } from "@test/seeders/config.seeder";
 import { seedPodInfoTestData } from "@test/seeders/pod-info.seeder";
 import { mockProvider } from "@test/utils/mock-provider.util";
 
 type FsGlobal = typeof fsGlobal;
 
 describe(FileDestinationService.name, () => {
-  it("should create stable write stream successfully", async () => {
-    const { fileDestinationService, mockFs, mockPath, expectedPath } = setup();
-    const mockWriteStream = mock<WriteStream>();
+  let cleanUp = () => {};
+  afterEach(() => cleanUp());
 
-    mockFs.promises.access.mockResolvedValue(undefined);
-    mockFs.createWriteStream.mockReturnValue(mockWriteStream);
-    mockPath.join.mockReturnValue(expectedPath);
+  describe("createWriteStream", () => {
+    it("should create stable write stream successfully", async () => {
+      const { fileDestinationService, mockFs, expectedPath } = setup();
+      await fileDestinationService.createWriteStream();
 
-    const result = await fileDestinationService.createWriteStream();
+      expect(mockFs.createWriteStream).toHaveBeenCalledWith(expectedPath, {
+        flags: "a",
+        autoClose: false
+      });
+    });
 
-    expect(result).toBeInstanceOf(PassThrough);
-    expect(mockFs.createWriteStream).toHaveBeenCalledWith(expectedPath, {
-      flags: "a",
-      autoClose: false
+    it("should create log directory if it doesn't exist", async () => {
+      const { fileDestinationService, mockFs, logDir, loggerService } = setup();
+
+      mockFs.promises.access
+        .mockRejectedValueOnce(new Error("File not found"))
+        .mockRejectedValueOnce(new Error("Directory not found"))
+        .mockResolvedValue(undefined);
+
+      await fileDestinationService.createWriteStream();
+
+      expect(mockFs.promises.mkdir).toHaveBeenCalledWith(logDir, { recursive: true });
+      expect(loggerService.info).toHaveBeenCalledWith({
+        message: "Created log directory",
+        path: logDir
+      });
+    });
+
+    it("should create log file if it doesn't exist", async () => {
+      const { fileDestinationService, loggerService, mockFs, expectedPath } = setup();
+
+      mockFs.promises.access.mockRejectedValueOnce(new Error("File not found")).mockResolvedValue(undefined);
+
+      await fileDestinationService.createWriteStream();
+
+      expect(mockFs.promises.writeFile).toHaveBeenCalledWith(expectedPath, "");
+      expect(loggerService.info).toHaveBeenCalledWith({
+        message: "Created log file",
+        filePath: expectedPath,
+        namespace: "test-namespace",
+        podName: "test-pod"
+      });
+    });
+
+    it("should cache log path after first access", async () => {
+      const { fileDestinationService, mockPath } = setup();
+
+      await fileDestinationService.createWriteStream();
+      await fileDestinationService.createWriteStream();
+
+      expect(mockPath.join).toHaveBeenCalledTimes(1);
+    });
+
+    it("should build correct log file path", async () => {
+      const { fileDestinationService, mockPath, logDir } = setup();
+
+      await fileDestinationService.createWriteStream();
+
+      expect(mockPath.join).toHaveBeenCalledWith(logDir, "test-namespace_test-pod.log");
     });
   });
 
-  it("should create log directory if it doesn't exist", async () => {
-    const { fileDestinationService, loggerService, mockFs, mockPath, logDir, expectedPath } = setup();
+  describe("getLastLogLine", () => {
+    it("should get last log line from file", async () => {
+      const { fileDestinationService, mockFs, mockPath, expectedPath, mockReadline } = setup();
+      const mockReadStream = mock<ReadStream>();
+      const mockRl = mock<readlineGlobal.Interface>();
 
-    mockFs.promises.access
-      .mockRejectedValueOnce(new Error("File not found"))
-      .mockRejectedValueOnce(new Error("Directory not found"))
-      .mockResolvedValue(undefined);
-    mockFs.promises.mkdir.mockResolvedValue(undefined);
-    mockFs.promises.writeFile.mockResolvedValue(undefined);
-    mockFs.createWriteStream.mockReturnValue(mock<WriteStream>());
-    mockPath.join.mockReturnValue(expectedPath);
+      mockFs.createReadStream.mockReturnValue(mockReadStream);
+      mockReadline.createInterface.mockReturnValue(mockRl);
+      mockPath.join.mockReturnValue(expectedPath);
 
-    await fileDestinationService.createWriteStream();
+      mockRl.on.mockImplementation((event, callback) => {
+        if (event === "line") {
+          callback("2024-01-15T10:30:45.123456789Z INFO First line");
+          callback("2024-01-15T10:30:46.123456789Z INFO Second line");
+        } else if (event === "close") {
+          callback("close");
+        }
+        return mockRl;
+      });
 
-    expect(mockFs.promises.mkdir).toHaveBeenCalledWith(logDir, { recursive: true });
-    expect(loggerService.info).toHaveBeenCalledWith({
-      message: "Created log directory",
-      path: logDir
+      const result = await fileDestinationService.getLastLogLines();
+
+      expect(result).toMatchObject([
+        { timestamp: new Date("2024-01-15T10:30:46.123456789Z").getTime(), line: "2024-01-15T10:30:46.123456789Z INFO Second line" }
+      ]);
+      expect(mockFs.createReadStream).toHaveBeenCalledWith(expectedPath, { encoding: "utf8" });
+      expect(mockReadline.createInterface).toHaveBeenCalledWith({
+        input: mockReadStream,
+        crlfDelay: Infinity
+      });
     });
-  });
 
-  it("should create log file if it doesn't exist", async () => {
-    const { fileDestinationService, loggerService, mockFs, mockPath, expectedPath } = setup();
+    it("should get last log lines with same second from file", async () => {
+      const { fileDestinationService, mockFs, mockPath, expectedPath, mockReadline } = setup();
+      const mockReadStream = mock<ReadStream>();
+      const mockRl = mock<readlineGlobal.Interface>();
 
-    mockFs.promises.access.mockRejectedValueOnce(new Error("File not found")).mockResolvedValue(undefined);
-    mockFs.promises.writeFile.mockResolvedValue(undefined);
-    mockFs.createWriteStream.mockReturnValue(mock<WriteStream>());
-    mockPath.join.mockReturnValue(expectedPath);
+      mockFs.createReadStream.mockReturnValue(mockReadStream);
+      mockReadline.createInterface.mockReturnValue(mockRl);
+      mockPath.join.mockReturnValue(expectedPath);
 
-    await fileDestinationService.createWriteStream();
+      mockRl.on.mockImplementation((event, callback) => {
+        if (event === "line") {
+          callback("2024-01-15T10:30:45.123456789Z INFO First line");
+          callback("2024-01-15T10:30:46.123456789Z INFO Second line");
+          callback("2024-01-15T10:30:46.133456789Z INFO Third line");
+        } else if (event === "close") {
+          callback("close");
+        }
+        return mockRl;
+      });
 
-    expect(mockFs.promises.writeFile).toHaveBeenCalledWith(expectedPath, "");
-    expect(loggerService.info).toHaveBeenCalledWith({
-      message: "Created log file",
-      filePath: expectedPath,
-      namespace: "test-namespace",
-      podName: "test-pod"
+      const result = await fileDestinationService.getLastLogLines();
+
+      expect(result).toMatchObject([
+        { timestamp: new Date("2024-01-15T10:30:46.123456789Z").getTime(), line: "2024-01-15T10:30:46.123456789Z INFO Second line" },
+        { timestamp: new Date("2024-01-15T10:30:46.133456789Z").getTime(), line: "2024-01-15T10:30:46.133456789Z INFO Third line" }
+      ]);
+      expect(mockFs.createReadStream).toHaveBeenCalledWith(expectedPath, { encoding: "utf8" });
+      expect(mockReadline.createInterface).toHaveBeenCalledWith({
+        input: mockReadStream,
+        crlfDelay: Infinity
+      });
     });
-  });
 
-  it("should cache log path after first access", async () => {
-    const { fileDestinationService, mockFs, mockPath, configService } = setup();
-    const logDir = configService.get("LOG_DIR");
-    const expectedPath = `${logDir}/test-namespace_test-pod.log`;
+    it("should return empty array for empty file", async () => {
+      const { fileDestinationService, mockFs, mockPath, expectedPath, mockReadline } = setup();
+      const mockReadStream = mock<ReadStream>();
+      const mockRl = mock<readlineGlobal.Interface>();
 
-    mockFs.promises.access.mockResolvedValue(undefined);
-    mockFs.createWriteStream.mockReturnValue(mock<WriteStream>());
-    mockPath.join.mockReturnValue(expectedPath);
+      mockRl.on.mockImplementation((event, callback) => {
+        if (event === "line") {
+          callback("");
+        } else if (event === "close") {
+          callback("close");
+        }
+        return mockRl;
+      });
+      mockFs.createReadStream.mockReturnValue(mockReadStream);
+      mockReadline.createInterface.mockReturnValue(mockRl);
+      mockPath.join.mockReturnValue(expectedPath);
 
-    await fileDestinationService.createWriteStream();
-    await fileDestinationService.createWriteStream();
+      const result = await fileDestinationService.getLastLogLines();
 
-    expect(mockPath.join).toHaveBeenCalledTimes(1);
-  });
+      expect(result).toBeInstanceOf(Array);
+      expect(result).toHaveLength(0);
+    });
 
-  it("should get last log line from file", async () => {
-    const { fileDestinationService, mockFs, mockPath, expectedPath } = setup();
-    const logContent = "2024-01-15T10:30:45.123456789Z INFO First line\n2024-01-15T10:30:46.123456789Z INFO Second line\n";
+    it("should handle file read errors gracefully", async () => {
+      const { fileDestinationService, mockFs, mockPath, expectedPath, mockReadline } = setup();
+      const mockReadStream = mock<ReadStream>();
+      const mockRl = mock<readlineGlobal.Interface>();
 
-    mockFs.promises.access.mockResolvedValue(undefined);
-    mockFs.promises.readFile.mockResolvedValue(logContent);
-    mockPath.join.mockReturnValue(expectedPath);
+      mockRl.on.mockReturnValue(mockRl);
 
-    const result = await fileDestinationService.getLastLogLine();
+      mockFs.createReadStream.mockReturnValue(mockReadStream);
+      mockReadline.createInterface.mockReturnValue(mockRl);
+      mockPath.join.mockReturnValue(expectedPath);
 
-    expect(result).toBe("2024-01-15T10:30:46.123456789Z INFO Second line");
-    expect(mockFs.promises.readFile).toHaveBeenCalledWith(expectedPath, "utf8");
-  });
+      mockRl.on.mockImplementation((event, callback) => {
+        if (event === "error") {
+          callback(new Error("File read error"));
+        }
+        return mockRl;
+      });
 
-  it("should return null for empty file", async () => {
-    const { fileDestinationService, mockFs, mockPath, expectedPath } = setup();
+      const result = await fileDestinationService.getLastLogLines();
 
-    mockFs.promises.access.mockResolvedValue(undefined);
-    mockFs.promises.readFile.mockResolvedValue("");
-    mockPath.join.mockReturnValue(expectedPath);
-
-    const result = await fileDestinationService.getLastLogLine();
-
-    expect(result).toBeNull();
-  });
-
-  it("should return null for file with only empty lines", async () => {
-    const { fileDestinationService, mockFs, mockPath, expectedPath } = setup();
-
-    mockFs.promises.access.mockResolvedValue(undefined);
-    mockFs.promises.readFile.mockResolvedValue("\n\n\n");
-    mockPath.join.mockReturnValue(expectedPath);
-
-    const result = await fileDestinationService.getLastLogLine();
-
-    expect(result).toBeNull();
-  });
-
-  it("should handle file read errors gracefully", async () => {
-    const { fileDestinationService, mockFs, mockPath, expectedPath } = setup();
-
-    mockFs.promises.access.mockResolvedValue(undefined);
-    mockFs.promises.readFile.mockRejectedValue(new Error("File read error"));
-    mockPath.join.mockReturnValue(expectedPath);
-
-    const result = await fileDestinationService.getLastLogLine();
-
-    expect(result).toBeNull();
-  });
-
-  it("should create stable write stream with internal rotation handling", async () => {
-    const { fileDestinationService, mockFs, mockPath, expectedPath } = setup();
-    const mockWriteStream = mock<WriteStream>();
-
-    mockFs.promises.access.mockResolvedValue(undefined);
-    mockFs.createWriteStream.mockReturnValue(mockWriteStream);
-    mockPath.join.mockReturnValue(expectedPath);
-
-    const result = await fileDestinationService.createWriteStream();
-
-    expect(result).toBeInstanceOf(PassThrough);
-    expect(mockFs.createWriteStream).toHaveBeenCalledWith(expectedPath, { flags: "a", autoClose: false });
-  });
-
-  it("should build correct log file path", async () => {
-    const { fileDestinationService, configService, mockFs, mockPath } = setup();
-
-    mockFs.promises.access.mockResolvedValue(undefined);
-    mockFs.createWriteStream.mockReturnValue(mock<WriteStream>());
-    mockPath.join.mockReturnValue("/var/log/mycollector/test-namespace_test-pod");
-
-    await fileDestinationService.createWriteStream();
-
-    expect(mockPath.join).toHaveBeenCalledWith("/var/log/mycollector", "test-namespace_test-pod.log");
-    expect(configService.get).toHaveBeenCalledWith("LOG_DIR");
+      expect(result).toBeInstanceOf(Array);
+      expect(result).toHaveLength(0);
+    });
   });
 
   function setup() {
@@ -172,19 +202,27 @@ describe(FileDestinationService.name, () => {
       namespace: "test-namespace"
     });
     const loggerService = mockProvider(LoggerService);
-    const configService = mockProvider(ConfigService);
+    const configService = new ConfigService(seedConfigTestData());
+    container.register(ConfigService, { useValue: configService });
 
     const mockFs = mock<Omit<FsGlobal, "promises"> & { promises: MockProxy<FsGlobal["promises"]> }>();
     mockFs.promises = mock<FsGlobal["promises"]>();
+    mockFs.createWriteStream.mockReset();
+    mockFs.createReadStream = jest.fn() as any;
+    const mockWriteStream = mock<WriteStream>();
+    mockFs.createWriteStream.mockReturnValue(mockWriteStream);
 
     const mockPath = mock<typeof pathGlobal>();
-
-    const logDir = "/var/log/mycollector";
+    const logDir = configService.get("LOG_DIR");
     const expectedPath = `${logDir}/test-namespace_test-pod.log`;
+    mockPath.join.mockReturnValue(expectedPath);
 
-    configService.get.mockReturnValue(logDir);
+    const mockReadline = mock<typeof readlineGlobal>();
+    const fileDestinationService = new FileDestinationService(loggerService, configService, podInfo, mockFs, mockPath, mockReadline);
 
-    const fileDestinationService = new FileDestinationService(loggerService, configService, podInfo, mockFs, mockPath);
+    cleanUp = () => {
+      fileDestinationService.stopRotating();
+    };
 
     return {
       fileDestinationService,
@@ -193,8 +231,9 @@ describe(FileDestinationService.name, () => {
       configService,
       mockFs,
       mockPath,
-      logDir,
-      expectedPath
+      mockReadline,
+      expectedPath,
+      logDir
     };
   }
 });

@@ -1,6 +1,7 @@
 import * as fsGlobal from "fs";
 import memoize from "lodash/memoize";
 import * as pathGlobal from "path";
+import * as readlineGlobal from "readline";
 import { PassThrough } from "stream";
 import { setTimeout as delay } from "timers/promises";
 
@@ -8,15 +9,21 @@ import type { ConfigService } from "@src/services/config/config.service";
 import type { LoggerService } from "@src/services/logger/logger.service";
 import type { PodInfo } from "@src/services/pod-discovery/pod-discovery.service";
 
+interface ParsedLine {
+  timestamp?: number;
+  line: string;
+}
+
 /**
  * Manages file-based log destinations for Kubernetes pod logs
  *
  * This service handles:
  * - Creating and managing log files for individual pods
  * - Automatic log file rotation based on configurable size limits
- * - Retrieving the last log line for resumption purposes
- * - Memoized log path generation for performance
+ * - Retrieving the last log lines with the same timestamp for resumption purposes
+ * - Memoized log path generation and last log line retrieval for performance
  * - Graceful error handling for file system operations
+ * - Streaming-based log reading to avoid memory issues with large files
  *
  * The service creates log files in the format: `<namespace>_<podName>` within
  * the configured log directory, and implements automatic rotation when files
@@ -24,6 +31,8 @@ import type { PodInfo } from "@src/services/pod-discovery/pod-discovery.service"
  * Rotation keeps up to LOG_MAX_ROTATED_FILES rotated files.
  */
 export class FileDestinationService {
+  private isRotating = true;
+
   /**
    * Creates a new FileDestinationService instance
    *
@@ -32,15 +41,30 @@ export class FileDestinationService {
    * @param podInfo - Information about the pod to manage logs for
    * @param fs - File system module (defaults to Node.js fs module)
    * @param path - Path module (defaults to Node.js path module)
+   * @param readline - Readline module (defaults to Node.js readline module)
    */
   constructor(
     private readonly loggerService: LoggerService,
     private readonly configService: ConfigService,
     private readonly podInfo: PodInfo,
     private readonly fs = fsGlobal,
-    private readonly path = pathGlobal
+    private readonly path = pathGlobal,
+    private readonly readline = readlineGlobal
   ) {
     this.getLogPath = memoize(this.getLogPath.bind(this));
+    this.getLastLogLines = memoize(this.getLastLogLines.bind(this));
+  }
+
+  /**
+   * Stops the file rotation process
+   *
+   * This method sets the internal rotation flag to false, which will cause
+   * the periodic file size checking loop to terminate gracefully. This is
+   * useful for cleanup when the service is being shut down or when rotation
+   * is no longer needed.
+   */
+  stopRotating(): void {
+    this.isRotating = false;
   }
 
   /**
@@ -63,20 +87,21 @@ export class FileDestinationService {
   }
 
   /**
-   * Retrieves the last non-empty line from the pod's log file
+   * Retrieves the last log lines with the same timestamp from the pod's log file
    *
    * This method is used for log resumption to avoid duplicate log collection.
-   * It reads the entire file and returns the last non-empty line, or null
-   * if the file is empty or doesn't exist.
+   * It reads the file and returns all lines that share the same timestamp as
+   * the last log entry, or an empty array if no logs exist. This enables
+   * proper deduplication when multiple log entries occur within the same second.
    *
-   * @returns Promise that resolves to the last log line or null if no logs exist
+   * @returns Promise that resolves to an array of parsed log lines with timestamps, or empty array if no logs exist
    */
-  async getLastLogLine(): Promise<string | null> {
+  async getLastLogLines(): Promise<ParsedLine[]> {
     try {
       const filePath = await this.getLogPath();
-      return await this.readLastLineFromFile(filePath);
+      return await this.readLastLinesFromFile(filePath);
     } catch (error) {
-      return null;
+      return [];
     }
   }
 
@@ -173,7 +198,7 @@ export class FileDestinationService {
       stableStream.pipe(currentWriteStream);
 
       const checkFileSizePeriodically = async (): Promise<void> => {
-        while (!isEnded) {
+        while (!isEnded && this.isRotating) {
           try {
             await delay(1000);
 
@@ -185,8 +210,9 @@ export class FileDestinationService {
                 stableStream.unpipe(currentWriteStream!);
                 currentWriteStream!.end();
 
-                await new Promise<void>(resolve => {
-                  currentWriteStream!.on("finish", resolve);
+                await new Promise<void>((resolve, reject) => {
+                  currentWriteStream!.once("close", resolve);
+                  currentWriteStream!.once("error", reject);
                 });
 
                 await this.rotateLogFile(filePath);
@@ -247,20 +273,90 @@ export class FileDestinationService {
   }
 
   /**
-   * Reads and returns the last non-empty line from a file
+   * Reads and returns the last log lines with the same timestamp from a file
    *
-   * Reads the entire file content, splits it into lines, filters out empty
-   * lines, and returns the last non-empty line or null if no content exists.
+   * Uses streaming to read the file line by line, avoiding memory issues
+   * with large files. Returns all lines that share the same timestamp as
+   * the last log entry. If the current file is empty, checks the most
+   * recent rotated file for log lines.
    *
    * @param filePath - The absolute path of the file to read
-   * @returns Promise that resolves to the last non-empty line or null
+   * @returns Promise that resolves to an array of parsed log lines with timestamps
    * @throws Error if file reading fails
    */
-  private async readLastLineFromFile(filePath: string): Promise<string | null> {
-    const fileContent = await this.fs.promises.readFile(filePath, "utf8");
-    const nonEmptyLines = fileContent.split("\n").filter(line => line.trim());
+  private async readLastLinesFromFile(filePath: string): Promise<ParsedLine[]> {
+    let lastLines = await this.readLastLineFromSpecificFile(filePath);
 
-    return nonEmptyLines.length > 0 ? nonEmptyLines[nonEmptyLines.length - 1] : null;
+    if (lastLines.length === 0) {
+      const rotatedFilePath = `${filePath}.1`;
+      try {
+        lastLines = await this.readLastLineFromSpecificFile(rotatedFilePath);
+      } catch (error) {
+        this.loggerService.debug({
+          message: "No rotated file found or readable",
+          rotatedFilePath,
+          error
+        });
+      }
+    }
+
+    return lastLines;
+  }
+
+  /**
+   * Reads and returns the last log lines with the same timestamp from a specific file
+   *
+   * Uses streaming to read the file line by line, processing timestamps in real-time.
+   * Groups lines by second-level timestamp (ignoring milliseconds) and returns
+   * the last group of lines that share the same timestamp. This method is designed
+   * to handle log files where multiple entries may occur within the same second.
+   *
+   * @param filePath - The absolute path of the file to read
+   * @returns Promise that resolves to an array of parsed log lines with timestamps
+   * @throws Error if file reading fails
+   */
+  private async readLastLineFromSpecificFile(filePath: string): Promise<ParsedLine[]> {
+    return new Promise((resolve, reject) => {
+      let lastLines: ParsedLine[] = [];
+      let lastTimestampSec: string | null = null;
+
+      try {
+        const readStream = this.fs.createReadStream(filePath, { encoding: "utf8" });
+        const rl = this.readline.createInterface({
+          input: readStream,
+          crlfDelay: Infinity
+        });
+
+        rl.on("line", (line: string) => {
+          if (line.trim()) {
+            const timestampSecMatch = line.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/);
+            const timestampSec = timestampSecMatch ? timestampSecMatch[1] : null;
+            const timestampMatch = line.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z)/);
+            const timestamp = timestampMatch ? new Date(timestampMatch[1]).getTime() : undefined;
+
+            if (!lastTimestampSec && timestampSec) {
+              lastTimestampSec = timestampSec;
+              lastLines.push({ timestamp, line });
+            } else if (timestampSec && timestampSec === lastTimestampSec) {
+              lastLines.push({ timestamp, line });
+            } else if (timestampSec) {
+              lastLines = [{ timestamp, line }];
+              lastTimestampSec = timestampSec;
+            }
+          }
+        });
+
+        rl.on("close", () => {
+          resolve(lastLines);
+        });
+
+        rl.on("error", (error: Error) => {
+          reject(error);
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 
   /**
@@ -289,6 +385,8 @@ export class FileDestinationService {
         message: "Failed to rotate log file",
         filePath
       });
+
+      throw error;
     }
   }
 

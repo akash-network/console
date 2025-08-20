@@ -17,13 +17,12 @@ describe(PodLogsCollectorService.name, () => {
       containerNames: ["app", "sidecar"]
     });
 
-    fileDestination.getLastLogLine.mockResolvedValue(null);
+    fileDestination.getLastLogLines.mockResolvedValue([]);
     fileDestination.createWriteStream.mockResolvedValue(mock<NodeJS.WritableStream>());
     k8sLogClient.log.mockResolvedValue(new AbortController());
 
     await podLogsCollectorService.collectPodLogs();
 
-    expect(fileDestination.getLastLogLine).toHaveBeenCalledTimes(1);
     expect(fileDestination.createWriteStream).toHaveBeenCalled();
     expect(k8sLogClient.log).toHaveBeenCalledTimes(2);
 
@@ -91,7 +90,7 @@ describe(PodLogsCollectorService.name, () => {
     const mockWriteStream = mock<NodeJS.WritableStream>();
     const mockAbortController = new AbortController();
 
-    fileDestination.getLastLogLine.mockResolvedValue(lastLogLine);
+    fileDestination.getLastLogLines.mockResolvedValue([{ timestamp: expectedTimestamp, line: lastLogLine }]);
     fileDestination.createWriteStream.mockResolvedValue(mockWriteStream);
     k8sLogClient.log.mockResolvedValue(mockAbortController);
 
@@ -117,7 +116,7 @@ describe(PodLogsCollectorService.name, () => {
     const mockWriteStream = mock<NodeJS.WritableStream>();
     const mockAbortController = new AbortController();
 
-    fileDestination.getLastLogLine.mockResolvedValue(lastLogLine);
+    fileDestination.getLastLogLines.mockResolvedValue([{ timestamp: new Date("2024-01-15T10:30:45.123456789Z").getTime(), line: lastLogLine }]);
     fileDestination.createWriteStream.mockResolvedValue(mockWriteStream);
     k8sLogClient.log.mockImplementation((namespace, podName, containerName, stream) => {
       stream.write(Buffer.from(lastLogLine + "\n"));
@@ -127,7 +126,7 @@ describe(PodLogsCollectorService.name, () => {
 
     await podLogsCollectorService.collectPodLogs();
 
-    expect(fileDestination.getLastLogLine).toHaveBeenCalled();
+    expect(fileDestination.getLastLogLines).toHaveBeenCalled();
     expect(fileDestination.createWriteStream).toHaveBeenCalled();
     expect(k8sLogClient.log).toHaveBeenCalled();
 
@@ -145,7 +144,7 @@ describe(PodLogsCollectorService.name, () => {
     const mockWriteStream = mock<NodeJS.WritableStream>();
     const mockAbortController = new AbortController();
 
-    fileDestination.getLastLogLine.mockResolvedValue(null);
+    fileDestination.getLastLogLines.mockResolvedValue([]);
     fileDestination.createWriteStream.mockResolvedValue(mockWriteStream);
     k8sLogClient.log.mockImplementation((namespace, podName, containerName, stream) => {
       stream.write(Buffer.from("2024-01-15T10:30:45.123456789Z INFO First line\n2024-01-15T10:30:46.123456789Z INFO Second line"));
@@ -165,7 +164,7 @@ describe(PodLogsCollectorService.name, () => {
     const mockWriteStream = mock<NodeJS.WritableStream>();
     const mockAbortController = new AbortController();
 
-    fileDestination.getLastLogLine.mockResolvedValue(null);
+    fileDestination.getLastLogLines.mockResolvedValue([]);
     fileDestination.createWriteStream.mockResolvedValue(mockWriteStream);
     k8sLogClient.log.mockImplementation((namespace, podName, containerName, stream) => {
       stream.write(Buffer.from("2024-01-15T10:30:45.123456789Z INFO First line\n\n2024-01-15T10:30:46.123456789Z INFO Second line\n"));
@@ -185,7 +184,7 @@ describe(PodLogsCollectorService.name, () => {
     const mockWriteStream = mock<NodeJS.WritableStream>();
     const mockAbortController = new AbortController();
 
-    fileDestination.getLastLogLine.mockResolvedValue(logLineWithTimestamp);
+    fileDestination.getLastLogLines.mockResolvedValue([{ timestamp: new Date("2024-01-15T10:30:45.123456789Z").getTime(), line: logLineWithTimestamp }]);
     fileDestination.createWriteStream.mockResolvedValue(mockWriteStream);
     k8sLogClient.log.mockResolvedValue(mockAbortController);
 
@@ -210,7 +209,7 @@ describe(PodLogsCollectorService.name, () => {
     const mockWriteStream = mock<NodeJS.WritableStream>();
     const mockAbortController = new AbortController();
 
-    fileDestination.getLastLogLine.mockResolvedValue(logLineWithoutTimestamp);
+    fileDestination.getLastLogLines.mockResolvedValue([{ line: logLineWithoutTimestamp }]);
     fileDestination.createWriteStream.mockResolvedValue(mockWriteStream);
     k8sLogClient.log.mockResolvedValue(mockAbortController);
 

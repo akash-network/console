@@ -1,6 +1,5 @@
 import { Log as K8sLog } from "@kubernetes/client-node";
 import { LogOptions } from "@kubernetes/client-node/dist/log";
-import memoize from "lodash/memoize";
 import { PassThrough } from "stream";
 import { singleton } from "tsyringe";
 
@@ -10,24 +9,13 @@ import { LoggerService } from "@src/services/logger/logger.service";
 import type { PodInfo } from "@src/services/pod-discovery/pod-discovery.service";
 
 /**
- * Represents a log line with optional timestamp extraction
- */
-type LogLine = {
-  /** Extracted timestamp in milliseconds, undefined if no timestamp found */
-  timestamp?: number;
-  /** The original log line content */
-  line: string;
-};
-
-/**
  * Collects logs from all containers in a Kubernetes pod
  *
  * This service handles the collection of logs from multiple containers within a single pod.
  * It provides features such as:
  * - Concurrent log collection from multiple containers
- * - Timestamp-based log resumption to avoid duplicates
- * - Stream processing with duplicate line detection
- * - Memoized last log line retrieval for performance
+ * - Timestamp-based log resumption to avoid duplicates using last log lines with same timestamp
+ * - Stream processing with duplicate line detection against multiple last log lines
  * - Error aggregation for robust error handling
  */
 @singleton()
@@ -59,14 +47,13 @@ export class PodLogsCollectorService {
     private readonly loggerService: LoggerService
   ) {
     this.loggerService.setContext(PodLogsCollectorService.name);
-    this.getLastLogLine = memoize(this.getLastLogLine.bind(this));
   }
 
   /**
    * Starts log collection for all containers in the pod
    *
    * This method:
-   * 1. Retrieves the last log line to determine resumption point
+   * 1. Retrieves the last log lines with the same timestamp to determine resumption point
    * 2. Checks if the pod has any containers to collect from
    * 3. Starts concurrent log collection for all containers
    * 4. Uses timestamp-based resumption to avoid duplicate logs
@@ -76,7 +63,7 @@ export class PodLogsCollectorService {
    * @throws AggregateError if any container fails to start log collection
    */
   async collectPodLogs(): Promise<void> {
-    const logLine = await this.getLastLogLine();
+    const logLine = await this.fileDestination.getLastLogLines();
 
     if (this.podInfo.containerNames.length === 0) {
       this.loggerService.warn({
@@ -87,30 +74,7 @@ export class PodLogsCollectorService {
       return;
     }
 
-    await this.startLogCollectionForAllContainers(this.podInfo.containerNames, logLine?.timestamp);
-  }
-
-  /**
-   * Retrieves and parses the last log line from the file destination
-   *
-   * This method is memoized to improve performance when called multiple times.
-   * It extracts timestamps from log lines in the format: YYYY-MM-DDTHH:mm:ss.nnnnnnnnnZ
-   *
-   * @returns Promise that resolves to the parsed log line or undefined if no log exists
-   */
-  private async getLastLogLine(): Promise<LogLine | undefined> {
-    const logLine = await this.fileDestination.getLastLogLine();
-
-    if (!logLine) {
-      return undefined;
-    }
-
-    const timestampMatch = logLine.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z)/);
-
-    return {
-      timestamp: timestampMatch ? new Date(timestampMatch[1]).getTime() : undefined,
-      line: logLine
-    };
+    await this.startLogCollectionForAllContainers(this.podInfo.containerNames, logLine[0]?.timestamp);
   }
 
   /**
@@ -151,7 +115,7 @@ export class PodLogsCollectorService {
    * - Process incoming log data in chunks
    * - Handle incomplete lines across chunk boundaries
    * - Filter out empty lines
-   * - Detect and skip duplicate log lines on the first chunk
+   * - Detect and skip duplicate log lines by comparing against all last log lines with same timestamp
    * - Write processed logs to the stable file destination
    * - Return a promise that rejects if there are any stream errors
    *
@@ -163,7 +127,7 @@ export class PodLogsCollectorService {
       (async () => {
         try {
           const writeStream = await this.fileDestination.createWriteStream();
-          const lastLogLine = await this.getLastLogLine();
+          const lastLogLines = await this.fileDestination.getLastLogLines();
 
           let isFirstChunk = true;
           let remainingBuffer = Buffer.alloc(0);
@@ -205,7 +169,7 @@ export class PodLogsCollectorService {
                 continue;
               }
 
-              if (isFirstChunk && i === 0 && lastLogLine && line === lastLogLine.line) {
+              if (isFirstChunk && lastLogLines.length > 0 && lastLogLines.some(lastLogLine => lastLogLine.line === line)) {
                 this.loggerService.info({
                   podName: this.podInfo.podName,
                   namespace: this.podInfo.namespace,
@@ -213,17 +177,23 @@ export class PodLogsCollectorService {
                   duplicateLine: line.substring(0, 100) + "..."
                 });
                 continue;
+              } else {
+                setTimeout(() => {
+                  isFirstChunk = false;
+                }, 1000);
               }
 
               outputLines.push(line);
             }
 
             if (outputLines.length > 0) {
-              const outputContent = outputLines.join("\n");
-              writeStream.write(outputContent + "\n");
+              const outputContent = outputLines.join("\n") + "\n";
+              const canContinue = writeStream.write(outputContent);
+              if (!canContinue) {
+                logStream.pause();
+                writeStream.once("drain", () => logStream.resume());
+              }
             }
-
-            isFirstChunk = false;
           });
         } catch (error) {
           reject(error);
@@ -237,6 +207,8 @@ export class PodLogsCollectorService {
    *
    * Configures log stream options based on whether we're resuming from a timestamp
    * and initiates the Kubernetes log stream for the specified container.
+   * Note: Kubernetes sinceTime parameter ignores milliseconds, so timestamp-based
+   * resumption may include some duplicate logs that need to be filtered out.
    *
    * @param containerName - Name of the container to stream logs from
    * @param logStream - PassThrough stream to receive the log data
