@@ -1,4 +1,4 @@
-import { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
+import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
 import { ProviderAttributesSchemaService } from "@src/provider/services/provider-attributes-schema/provider-attributes-schema.service";

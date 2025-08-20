@@ -1,4 +1,4 @@
-import { CosmosHttpService, RestCosmosStakingValidatorResponse } from "@akashnetwork/http-sdk";
+import { CosmosHttpService, type RestCosmosStakingValidatorResponse } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
 import { GetValidatorByAddressResponse, GetValidatorListResponse } from "@src/validator/http-schemas/validator.schema";

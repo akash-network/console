@@ -1,4 +1,4 @@
-import { AuthzHttpService, DeploymentHttpService, DeploymentInfo } from "@akashnetwork/http-sdk";
+import { AuthzHttpService, DeploymentHttpService, type DeploymentInfo } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
 import { Wallet } from "@src/billing/lib/wallet/wallet";

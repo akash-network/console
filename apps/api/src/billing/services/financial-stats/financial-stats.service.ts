@@ -1,5 +1,5 @@
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import type { CosmosDistributionCommunityPoolResponse, CosmosHttpService } from "@akashnetwork/http-sdk";
+import { type CosmosDistributionCommunityPoolResponse, CosmosHttpService } from "@akashnetwork/http-sdk";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import axios from "axios";
 import { Op, QueryTypes } from "sequelize";

@@ -1,6 +1,6 @@
 import { Block } from "@akashnetwork/database/dbSchemas";
 import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
-import { DeploymentHttpService, DeploymentInfo, LeaseHttpService } from "@akashnetwork/http-sdk";
+import { DeploymentHttpService, type DeploymentInfo, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { PromisePool } from "@supercharge/promise-pool";
 import assert from "http-assert";
 import { InternalServerError } from "http-errors";
