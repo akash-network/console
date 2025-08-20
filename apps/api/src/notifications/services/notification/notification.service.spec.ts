@@ -1,6 +1,5 @@
-import { mock, mockDeep } from "jest-mock-extended";
+import { mockDeep } from "jest-mock-extended";
 
-import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { NotificationsApiClient } from "../../providers/notifications-api.provider";
 import { type CreateNotificationInput, NotificationService } from "./notification.service";
 
@@ -128,8 +127,7 @@ describe(NotificationService.name, () => {
 
     it("does not create default channel when user has no email and logs an error", async () => {
       jest.useFakeTimers();
-      const logger = mock<LoggerService>();
-      const { service, api } = setup({ logger });
+      const { service, api } = setup();
 
       const input: CreateNotificationInput = {
         user: { id: "user-1", email: null },
@@ -137,23 +135,20 @@ describe(NotificationService.name, () => {
         payload: { summary: "s", description: "d" }
       };
 
-      api.v1.createNotification.mockResolvedValue({ error: { code: "NOTIFICATION_CHANNEL_NOT_FOUND" }, response: new Response() });
+      const error = { code: "NOTIFICATION_CHANNEL_NOT_FOUND" };
+      api.v1.createNotification.mockResolvedValue({ error, response: new Response() });
 
-      await Promise.all([service.createNotification(input), jest.runAllTimersAsync()]);
+      const [result] = await Promise.allSettled([service.createNotification(input), jest.runAllTimersAsync()]);
 
-      expect(logger.error).toHaveBeenCalledWith({
-        event: "FAILED_TO_CREATE_NOTIFICATION",
-        error: expect.any(Error),
-        userId: input.user.id
-      });
+      expect(result.status).toBe("rejected");
+      expect((result as PromiseRejectedResult).reason.cause).toBe(error);
       expect(api.v1.createDefaultChannel).not.toHaveBeenCalled();
       expect(api.v1.createNotification).toHaveBeenCalledTimes(10);
     });
 
     it("fails after 10 attempts if notification service is not available and logs an error", async () => {
       jest.useFakeTimers();
-      const logger = mock<LoggerService>();
-      const { service, api } = setup({ logger });
+      const { service, api } = setup();
 
       const input: CreateNotificationInput = {
         user: { id: "user-1", email: null },
@@ -161,22 +156,20 @@ describe(NotificationService.name, () => {
         payload: { summary: "s", description: "d" }
       };
 
-      api.v1.createNotification.mockRejectedValue(new Error("fetch failed"));
+      const error = new Error("fetch failed");
+      api.v1.createNotification.mockRejectedValue(error);
 
-      await Promise.all([service.createNotification(input), jest.runAllTimersAsync()]);
+      const [result] = await Promise.allSettled([service.createNotification(input), jest.runAllTimersAsync()]);
 
-      expect(logger.error).toHaveBeenCalledWith({
-        event: "FAILED_TO_CREATE_NOTIFICATION",
-        error: expect.any(Error),
-        userId: input.user.id
-      });
+      expect(result.status).toBe("rejected");
+      expect((result as PromiseRejectedResult).reason.cause).toBe(error);
       expect(api.v1.createNotification).toHaveBeenCalledTimes(10);
     });
   });
 
-  function setup(input?: { logger?: LoggerService }) {
+  function setup() {
     const api = mockDeep<NotificationsApiClient>();
-    const service = new NotificationService(api, input?.logger ?? mock<LoggerService>());
+    const service = new NotificationService(api);
 
     return { service, api };
   }

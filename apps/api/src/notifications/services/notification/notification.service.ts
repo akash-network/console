@@ -1,7 +1,6 @@
 import { backOff, type BackoffOptions } from "exponential-backoff";
 import { inject, singleton } from "tsyringe";
 
-import { LoggerService } from "@src/core/providers/logging.provider";
 import { NOTIFICATIONS_API_CLIENT, NotificationsApiClient, operations } from "../../providers/notifications-api.provider";
 
 const DEFAULT_BACKOFF_OPTIONS: BackoffOptions = {
@@ -13,10 +12,7 @@ const DEFAULT_BACKOFF_OPTIONS: BackoffOptions = {
 
 @singleton()
 export class NotificationService {
-  constructor(
-    @inject(NOTIFICATIONS_API_CLIENT) private readonly notificationsApi: NotificationsApiClient,
-    private readonly logger: LoggerService
-  ) {}
+  constructor(@inject(NOTIFICATIONS_API_CLIENT) private readonly notificationsApi: NotificationsApiClient) {}
 
   async createNotification(input: CreateNotificationInput): Promise<void> {
     const { user, ...notification } = input;
@@ -39,13 +35,7 @@ export class NotificationService {
       }
 
       throw new Error("Failed to create notification", { cause: result.error });
-    }, DEFAULT_BACKOFF_OPTIONS).catch(error => {
-      this.logger.error({
-        event: "FAILED_TO_CREATE_NOTIFICATION",
-        error,
-        userId: user.id
-      });
-    });
+    }, DEFAULT_BACKOFF_OPTIONS);
   }
 
   async createDefaultChannel(user: UserInput): Promise<void> {

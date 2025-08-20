@@ -1,13 +1,15 @@
 import assert from "assert";
-import { Disposable, inject, singleton } from "tsyringe";
+import { Disposable, inject, registry, singleton } from "tsyringe";
 import { Unleash, UnleashConfig } from "unleash-client";
 
+import { APP_INITIALIZER, AppInitializer, ON_APP_START } from "@src/core/providers/app-initializer";
 import { CoreConfigService } from "../core-config/core-config.service";
 import { ExecutionContextService } from "../execution-context/execution-context.service";
 import { FeatureFlagValue } from "./feature-flags";
 
+@registry([{ token: APP_INITIALIZER, useToken: FeatureFlagsService }])
 @singleton()
-export class FeatureFlagsService implements Disposable {
+export class FeatureFlagsService implements Disposable, AppInitializer {
   private readonly configService: CoreConfigService;
   private readonly executionContext: ExecutionContextService;
   private client?: Unleash;
@@ -73,6 +75,10 @@ export class FeatureFlagsService implements Disposable {
   dispose(): void {
     this.client?.destroyWithFlush();
     this.client?.removeAllListeners();
+  }
+
+  async [ON_APP_START](): Promise<void> {
+    await this.initialize();
   }
 }
 
