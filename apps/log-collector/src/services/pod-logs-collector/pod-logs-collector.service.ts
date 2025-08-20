@@ -178,6 +178,16 @@ export class PodLogsCollectorService {
             reject(error);
           });
 
+          logStream.on("error", error => {
+            this.loggerService.error({
+              error,
+              message: "Log stream error during log collection",
+              podName: this.podInfo.podName,
+              namespace: this.podInfo.namespace
+            });
+            reject(error);
+          });
+
           logStream.on("data", (chunk: Buffer) => {
             const combinedBuffer = Buffer.concat([remainingBuffer, chunk]);
             const lines = combinedBuffer.toString().split("\n");
@@ -215,10 +225,6 @@ export class PodLogsCollectorService {
 
             isFirstChunk = false;
           });
-
-          if (remainingBuffer.length > 0) {
-            writeStream.write(remainingBuffer);
-          }
         } catch (error) {
           reject(error);
         }
@@ -226,7 +232,7 @@ export class PodLogsCollectorService {
     });
   }
 
-  /**z
+  /**
    * Starts Kubernetes log streaming for a specific container
    *
    * Configures log stream options based on whether we're resuming from a timestamp

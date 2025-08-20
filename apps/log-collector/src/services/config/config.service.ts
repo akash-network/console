@@ -12,7 +12,7 @@ import { PROCESS_ENV } from "@src/providers/nodejs-process.provider";
 @singleton()
 export class ConfigService {
   /** Schema for validating and transforming environment variables */
-  private readonly envSchema = z.object({
+  static readonly envSchema = z.object({
     HOSTNAME: z.string(),
     KUBERNETES_NAMESPACE_OVERRIDE: z.string().optional(),
     LOG_MAX_FILE_SIZE_BYTES: z
@@ -23,15 +23,15 @@ export class ConfigService {
   });
 
   /** Validated and transformed environment configuration */
-  private readonly envConfig: z.infer<typeof this.envSchema>;
+  readonly envConfig: z.infer<typeof ConfigService.envSchema>;
 
   /** Static configuration values that don't come from environment variables */
-  private readonly staticConfig = {
+  static readonly staticConfig = {
     LOG_DIR: "./log"
   };
 
   /** Combined configuration type for both environment and static configs */
-  private readonly combinedConfig: typeof this.envConfig & typeof this.staticConfig;
+  private readonly combinedConfig: z.infer<typeof ConfigService.envSchema> & typeof ConfigService.staticConfig;
 
   /**
    * Creates a new ConfigService instance
@@ -39,8 +39,8 @@ export class ConfigService {
    * @param env - Node.js environment variables to validate and use
    */
   constructor(@inject(PROCESS_ENV) private readonly env: NodeJS.ProcessEnv) {
-    this.envConfig = this.envSchema.parse(env);
-    this.combinedConfig = { ...this.envConfig, ...this.staticConfig };
+    this.envConfig = ConfigService.envSchema.parse(env);
+    this.combinedConfig = { ...this.envConfig, ...ConfigService.staticConfig };
   }
 
   /**
@@ -49,7 +49,9 @@ export class ConfigService {
    * @param key - The configuration key to retrieve
    * @returns The configuration value with proper typing
    */
-  get<K extends keyof typeof this.combinedConfig>(key: K): (typeof this.combinedConfig)[K] {
+  get<K extends keyof (z.infer<typeof ConfigService.envSchema> & typeof ConfigService.staticConfig)>(
+    key: K
+  ): (z.infer<typeof ConfigService.envSchema> & typeof ConfigService.staticConfig)[K] {
     return this.combinedConfig[key];
   }
 }

@@ -15,6 +15,7 @@ The Log Collector leverages internal Kubernetes access to discover and stream lo
 - **Configurable Log Tail**: Configurable log tail lines (default: 100)
 - **File Naming Convention**: `{namespace}_{podName}.log`
 - **Log Collection**: Uses Fluent Bit to collect logs from files and forward to external services
+- **Log Directory**: Logs are stored in `/app/apps/log-collector/log/` within the container
 
 ## How It Works
 
@@ -22,8 +23,8 @@ The Log Collector leverages internal Kubernetes access to discover and stream lo
 2. **Pod Discovery**: Scans the namespace for all running pods (excluding pods from the same deployment)
 3. **Log Streaming**: Establishes log streams for each pod
 4. **File Output**: Writes collected logs to files for external processing
-5. **Log Rotation**: Automatically rotates log files when they reach the configured size limit
-6. **Log Collection**: Fluent Bit monitors the log files and forwards them to configured external services
+5. **Log Rotation**: Automatically rotates log files when they reach the configured size limit, maintaining up to `LOG_MAX_ROTATED_FILES` rotated files
+6. **Log Collection**: Fluent Bit monitors the log files and forwards them to configured external services like Datadog
 
 ## Configuration
 
@@ -45,7 +46,7 @@ To forward logs to Datadog, configure these environment variables:
 | `DD_SITE`      | Datadog site URL     | `datadoghq.com`     |
 | `DD_API_KEY`   | Datadog API key      | `your-api-key-here` |
 | `DD_TAGS`      | Additional tags      | `env:prod,team:dev` |
-| `DD_LOG_LEVEL` | Fluent Bit log level | `info`              |
+| `FB_LOG_LEVEL` | Fluent Bit log level | `info`              |
 
 ## Deployment
 
@@ -105,7 +106,6 @@ For local development and testing, you can override the automatic detection:
 | ------------------------------- | --------------------------- | ------------- | ---------------- |
 | `HOSTNAME`                      | Pod name (for testing)      | Auto-detected | `test-pod-123`   |
 | `KUBERNETES_NAMESPACE_OVERRIDE` | Override detected namespace | Auto-detected | `test-namespace` |
-| `ENVIRONMENT`                   | Environment identifier      | `default`     | `development`    |
 
 ### Development Workflow
 

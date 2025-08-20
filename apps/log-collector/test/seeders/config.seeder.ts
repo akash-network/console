@@ -17,10 +17,3 @@ export function seedConfigTestData(overrides: Partial<ConfigTestData> = {}): Con
     ...overrides
   };
 }
-
-export function seedMinimalConfigTestData(overrides: Partial<ConfigTestData> = {}): ConfigTestData {
-  return {
-    HOSTNAME: faker.internet.domainWord(),
-    ...overrides
-  };
-}
