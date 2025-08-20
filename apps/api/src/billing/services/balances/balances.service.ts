@@ -1,11 +1,10 @@
-import { DeploymentInfo } from "@akashnetwork/http-sdk";
+import { AuthzHttpService, DeploymentHttpService, DeploymentInfo } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
-import { AuthzHttpServiceWrapper, DeploymentHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 
 @singleton()
 export class BalancesService {
@@ -13,8 +12,8 @@ export class BalancesService {
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
-    private readonly authzHttpServiceWrapper: AuthzHttpServiceWrapper,
-    private readonly deploymentHttpServiceWrapper: DeploymentHttpServiceWrapper
+    private readonly authzHttpService: AuthzHttpService,
+    private readonly deploymentHttpService: DeploymentHttpService
   ) {}
 
   async refreshUserWalletLimits(userWallet: UserWalletOutput, options?: { endTrial: boolean }): Promise<void> {
@@ -53,7 +52,7 @@ export class BalancesService {
 
   private async retrieveAndCalcFeeLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
     const masterWalletAddress = await this.masterWallet.getFirstAddress();
-    const feeAllowance = await this.authzHttpServiceWrapper.getFeeAllowanceForGranterAndGrantee(masterWalletAddress, userWallet.address!);
+    const feeAllowance = await this.authzHttpService.getFeeAllowanceForGranterAndGrantee(masterWalletAddress, userWallet.address!);
 
     if (!feeAllowance) {
       return 0;
@@ -64,10 +63,7 @@ export class BalancesService {
 
   async retrieveDeploymentLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
     const masterWalletAddress = await this.masterWallet.getFirstAddress();
-    const depositDeploymentGrant = await this.authzHttpServiceWrapper.getValidDepositDeploymentGrantsForGranterAndGrantee(
-      masterWalletAddress,
-      userWallet.address!
-    );
+    const depositDeploymentGrant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(masterWalletAddress, userWallet.address!);
 
     if (!depositDeploymentGrant || depositDeploymentGrant.authorization.spend_limit.denom !== this.config.DEPLOYMENT_GRANT_DENOM) {
       return 0;
@@ -82,7 +78,7 @@ export class BalancesService {
    * @returns Total escrow balance
    */
   async calculateDeploymentEscrowBalance(address: string): Promise<number> {
-    const activeDeploymentsResponse = await this.deploymentHttpServiceWrapper.loadDeploymentList(address, "active");
+    const activeDeploymentsResponse = await this.deploymentHttpService.loadDeploymentList(address, "active");
     const activeDeployments = activeDeploymentsResponse.deployments;
 
     const deploymentEscrowBalance = activeDeployments.reduce((total: number, deployment: DeploymentInfo) => {

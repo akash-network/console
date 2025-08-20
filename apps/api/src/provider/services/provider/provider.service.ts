@@ -1,5 +1,6 @@
 import { Provider, ProviderAttribute, ProviderAttributeSignature, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
+import { ProviderHttpService } from "@akashnetwork/http-sdk";
 import { SupportedChainNetworks } from "@akashnetwork/net";
 import { add } from "date-fns";
 import { Op } from "sequelize";
@@ -7,7 +8,6 @@ import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import { ProviderHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
@@ -26,7 +26,7 @@ export class ProviderService {
 
   constructor(
     private readonly providerProxy: ProviderProxyService,
-    private readonly providerHttpServiceWrapper: ProviderHttpServiceWrapper,
+    private readonly providerHttpService: ProviderHttpService,
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
     @InjectBillingConfig() private readonly config: BillingConfig
@@ -37,7 +37,7 @@ export class ProviderService {
   async sendManifest(provider: string, dseq: string, manifest: string, options: { certPem: string; keyPem: string }) {
     const jsonStr = manifest.replace(/"quantity":{"val/g, '"size":{"val');
 
-    const providerResponse = await this.providerHttpServiceWrapper.getProvider(provider);
+    const providerResponse = await this.providerHttpService.getProvider(provider);
     if (!providerResponse) {
       throw new Error(`Provider ${provider} not found`);
     }
@@ -77,7 +77,7 @@ export class ProviderService {
   }
 
   async getLeaseStatus(provider: string, dseq: string, gseq: number, oseq: number, options: { certPem: string; keyPem: string }): Promise<LeaseStatusResponse> {
-    const providerResponse = await this.providerHttpServiceWrapper.getProvider(provider);
+    const providerResponse = await this.providerHttpService.getProvider(provider);
     if (!providerResponse) {
       throw new Error(`Provider ${provider} not found`);
     }

@@ -1,10 +1,10 @@
+import { CosmosHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { asset_lists } from "@chain-registry/assets";
 import type { Coin } from "cosmjs-types/cosmos/base/v1beta1/coin";
 import { singleton } from "tsyringe";
 
 import type { GetAddressResponse } from "@src/address/http-schemas/address.schema";
-import { CosmosHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 import { TransactionService } from "@src/transaction/services/transaction/transaction.service";
 import { ValidatorRepository } from "@src/validator/repositories/validator/validator.repository";
 
@@ -14,16 +14,16 @@ const logger = LoggerService.forContext("AddressService");
 export class AddressService {
   constructor(
     private readonly transactionService: TransactionService,
-    private readonly cosmosHttpServiceWrapper: CosmosHttpServiceWrapper,
+    private readonly cosmosHttpService: CosmosHttpService,
     private readonly validatorRepository: ValidatorRepository
   ) {}
 
   async getAddressDetails(address: string): Promise<GetAddressResponse> {
     const [balancesResponse, delegationsResponse, rewardsResponse, redelegationsResponse, latestTransactions] = await Promise.all([
-      this.cosmosHttpServiceWrapper.getBankBalancesByAddress(address),
-      this.cosmosHttpServiceWrapper.getStakingDelegationsByAddress(address),
-      this.cosmosHttpServiceWrapper.getDistributionDelegatorsRewardsByAddress(address),
-      this.cosmosHttpServiceWrapper.getStakingDelegatorsRedelegationsByAddress(address),
+      this.cosmosHttpService.getBankBalancesByAddress(address),
+      this.cosmosHttpService.getStakingDelegationsByAddress(address),
+      this.cosmosHttpService.getDistributionDelegatorsRewardsByAddress(address),
+      this.cosmosHttpService.getStakingDelegatorsRedelegationsByAddress(address),
       this.transactionService.getTransactionsByAddress({ address, skip: 0, limit: 5 })
     ]);
 
@@ -32,7 +32,7 @@ export class AddressService {
     let commission = 0;
 
     if (validatorFromDb?.operatorAddress) {
-      const commissionData = await this.cosmosHttpServiceWrapper.getDistributionValidatorsCommissionByAddress(validatorFromDb.operatorAddress);
+      const commissionData = await this.cosmosHttpService.getDistributionValidatorsCommissionByAddress(validatorFromDb.operatorAddress);
       const coin = commissionData.commission.commission.find(x => x.denom === "uakt");
       commission = coin ? parseFloat(coin.amount) : 0;
     }

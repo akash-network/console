@@ -1,19 +1,18 @@
-import type { RestCosmosStakingValidatorResponse } from "@akashnetwork/http-sdk";
+import { CosmosHttpService, RestCosmosStakingValidatorResponse } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
-import { CosmosHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 import { GetValidatorByAddressResponse, GetValidatorListResponse } from "@src/validator/http-schemas/validator.schema";
 import { ValidatorRepository } from "@src/validator/repositories/validator/validator.repository";
 
 @singleton()
 export class ValidatorService {
   constructor(
-    private readonly cosmosHttpServiceWrapper: CosmosHttpServiceWrapper,
+    private readonly cosmosHttpService: CosmosHttpService,
     private readonly validatorRepository: ValidatorRepository
   ) {}
 
   public async list(): Promise<GetValidatorListResponse> {
-    const response = await this.cosmosHttpServiceWrapper.getValidatorList();
+    const response = await this.cosmosHttpService.getValidatorList();
     const validators = response.validators.map(x => ({
       operatorAddress: x.operator_address,
       moniker: x.description.moniker.trim(),
@@ -40,7 +39,7 @@ export class ValidatorService {
   public async getByAddress(address: string): Promise<GetValidatorByAddressResponse | null> {
     let cosmosResponse: RestCosmosStakingValidatorResponse;
     try {
-      cosmosResponse = await this.cosmosHttpServiceWrapper.getValidatorByAddress(address);
+      cosmosResponse = await this.cosmosHttpService.getValidatorByAddress(address);
     } catch (error: any) {
       if (error.response?.status === 404) {
         return null;
@@ -49,7 +48,7 @@ export class ValidatorService {
       throw error;
     }
 
-    const validatorsResponse = await this.cosmosHttpServiceWrapper.getValidatorList();
+    const validatorsResponse = await this.cosmosHttpService.getValidatorList();
     const validatorFromDb = await this.validatorRepository.findByAddress(address);
     const validatorRank = validatorsResponse.validators
       .map(x => {

@@ -1,3 +1,4 @@
+import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import subDays from "date-fns/subDays";
 import { container } from "tsyringe";
 
@@ -5,7 +6,6 @@ import { app } from "@src/app";
 import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
 import { resolveWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletRepository } from "@src/billing/repositories";
-import { AuthzHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { UserRepository } from "@src/user/repositories";
 
@@ -18,7 +18,7 @@ describe("Users", () => {
   const userWalletRepository = container.resolve(UserWalletRepository);
   const walletService = new WalletTestingService(app);
   const controller = container.resolve(UserController);
-  const authzHttpService = container.resolve(AuthzHttpServiceWrapper);
+  const authzHttpService = container.resolve(AuthzHttpService);
   const masterWalletService = resolveWallet("MANAGED");
   let masterAddress: string;
 

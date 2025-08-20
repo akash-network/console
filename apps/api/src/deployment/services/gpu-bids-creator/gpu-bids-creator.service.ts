@@ -1,6 +1,7 @@
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
 import { getAkashTypeRegistry } from "@akashnetwork/akashjs/build/stargate";
+import { BidHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, SigningStargateClient } from "@cosmjs/stargate";
@@ -11,8 +12,7 @@ import { setTimeout as sleep } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { ChainConfigService } from "@src/core/services/chain-config/chain-config.service";
-import { BidHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
+import { ChainNetworkConfigService } from "@src/core/services/chain-network-config/chain-network-config.service";
 import { GpuService } from "@src/gpu/services/gpu.service";
 import { env } from "@src/utils/env";
 import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templates";
@@ -23,9 +23,9 @@ export class GpuBidsCreatorService {
 
   constructor(
     private readonly config: BillingConfigService,
-    private readonly bidHttpServiceWrapper: BidHttpServiceWrapper,
+    private readonly bidHttpService: BidHttpService,
     private readonly gpuService: GpuService,
-    private readonly chainConfigService: ChainConfigService
+    private readonly chainConfigService: ChainNetworkConfigService
   ) {}
 
   async createGpuBids() {
@@ -112,7 +112,7 @@ export class GpuBidsCreatorService {
 
       await sleep(30_000);
 
-      const bids = await this.bidHttpServiceWrapper.list(walletAddress, dseq);
+      const bids = await this.bidHttpService.list(walletAddress, dseq);
 
       this.logger.info({ event: "DEPLOYMENT_CLOSING", bidsCount: bids.length });
       await this.closeDeployment(client, walletAddress, dseq);

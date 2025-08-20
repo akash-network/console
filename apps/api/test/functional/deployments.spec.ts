@@ -1,3 +1,4 @@
+import { BlockHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { NotFound } from "http-errors";
 import nock from "nock";
@@ -11,7 +12,6 @@ import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.servi
 import type { UserWalletOutput } from "@src/billing/repositories";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
-import { BlockHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
@@ -33,7 +33,7 @@ describe("Deployments API", () => {
   const apiKeyAuthService = container.resolve(ApiKeyAuthService);
   const userWalletRepository = container.resolve(UserWalletRepository);
   const providerService = container.resolve(ProviderService);
-  const blockHttpService = container.resolve(BlockHttpServiceWrapper);
+  const blockHttpService = container.resolve(BlockHttpService);
   const signerService = container.resolve(ManagedSignerService);
   const deploymentReaderService = container.resolve(DeploymentReaderService);
 

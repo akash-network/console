@@ -1,3 +1,4 @@
+import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { stringToPath } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
@@ -7,7 +8,6 @@ import { singleton } from "tsyringe";
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
-import { AuthzHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 import type { DryRunOptions } from "@src/core/types/console";
 import { ManagedSignerService } from "../managed-signer/managed-signer.service";
 import { RpcMessageService, SpendingAuthorizationMsgOptions } from "../rpc-message-service/rpc-message.service";
@@ -38,7 +38,7 @@ export class ManagedUserWalletService {
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
     private readonly managedSignerService: ManagedSignerService,
     private readonly rpcMessageService: RpcMessageService,
-    private readonly authzHttpServiceWrapper: AuthzHttpServiceWrapper
+    private readonly authzHttpService: AuthzHttpService
   ) {}
 
   async createAndAuthorizeTrialSpending({ addressIndex }: { addressIndex: number }) {
@@ -94,7 +94,7 @@ export class ManagedUserWalletService {
 
   private async authorizeFeeSpending(options: Omit<SpendingAuthorizationMsgOptions, "denom">) {
     const messages: EncodeObject[] = [];
-    const hasValidFeeAllowance = await this.authzHttpServiceWrapper.hasFeeAllowance(options.granter, options.grantee);
+    const hasValidFeeAllowance = await this.authzHttpService.hasFeeAllowance(options.granter, options.grantee);
 
     if (hasValidFeeAllowance) {
       messages.push(this.rpcMessageService.getRevokeAllowanceMsg(options));
@@ -119,12 +119,12 @@ export class ManagedUserWalletService {
       deploymentGrant: false
     };
 
-    if (await this.authzHttpServiceWrapper.hasFeeAllowance(params.granter, params.grantee)) {
+    if (await this.authzHttpService.hasFeeAllowance(params.granter, params.grantee)) {
       revokeSummary.feeAllowance = true;
       messages.push(this.rpcMessageService.getRevokeAllowanceMsg(params));
     }
 
-    if (await this.authzHttpServiceWrapper.hasDepositDeploymentGrant(params.granter, params.grantee)) {
+    if (await this.authzHttpService.hasDepositDeploymentGrant(params.granter, params.grantee)) {
       revokeSummary.deploymentGrant = true;
       messages.push(this.rpcMessageService.getRevokeDepositDeploymentGrantMsg(params));
     }

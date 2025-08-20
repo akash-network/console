@@ -1,13 +1,12 @@
 import { Block } from "@akashnetwork/database/dbSchemas";
 import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
-import type { DeploymentInfo } from "@akashnetwork/http-sdk";
+import { DeploymentHttpService, DeploymentInfo, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { PromisePool } from "@supercharge/promise-pool";
 import assert from "http-assert";
 import { InternalServerError } from "http-errors";
 import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
-import { DeploymentHttpServiceWrapper, LeaseHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
@@ -19,8 +18,8 @@ import { MessageService } from "../message-service/message.service";
 export class DeploymentReaderService {
   constructor(
     private readonly providerService: ProviderService,
-    private readonly deploymentHttpServiceWrapper: DeploymentHttpServiceWrapper,
-    private readonly leaseHttpServiceWrapper: LeaseHttpServiceWrapper,
+    private readonly deploymentHttpService: DeploymentHttpService,
+    private readonly leaseHttpService: LeaseHttpService,
     private readonly messageService: MessageService
   ) {}
 
@@ -29,7 +28,7 @@ export class DeploymentReaderService {
     dseq: string,
     options?: { certificate?: { certPem: string; keyPem: string } }
   ): Promise<GetDeploymentResponse["data"]> {
-    const deploymentResponse = await this.deploymentHttpServiceWrapper.findByOwnerAndDseq(owner, dseq);
+    const deploymentResponse = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
 
     if ("code" in deploymentResponse) {
       assert(!deploymentResponse.message?.toLowerCase()?.includes("deployment not found"), 404, "Deployment not found");
@@ -37,7 +36,7 @@ export class DeploymentReaderService {
       throw new InternalServerError(deploymentResponse.message);
     }
 
-    const { leases } = await this.leaseHttpServiceWrapper.list({ owner, dseq });
+    const { leases } = await this.leaseHttpService.list({ owner, dseq });
 
     const leasesWithStatus = await Promise.all(
       leases.map(async ({ lease }) => {
@@ -84,13 +83,13 @@ export class DeploymentReaderService {
     { skip, limit }: { skip?: number; limit?: number }
   ): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
     const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
-    const deploymentReponse = await this.deploymentHttpServiceWrapper.loadDeploymentList(owner, "active", pagination);
+    const deploymentReponse = await this.deploymentHttpService.loadDeploymentList(owner, "active", pagination);
     const deployments = deploymentReponse.deployments;
     const total = parseInt(deploymentReponse.pagination.total, 10);
 
     const { results: leaseResults } = await PromisePool.withConcurrency(100)
       .for(deployments)
-      .process(async deployment => this.leaseHttpServiceWrapper.list({ owner, dseq: deployment.deployment.deployment_id.dseq }));
+      .process(async deployment => this.leaseHttpService.list({ owner, dseq: deployment.deployment.deployment_id.dseq }));
 
     const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
@@ -122,13 +121,13 @@ export class DeploymentReaderService {
     limit?: number;
     reverseSorting?: boolean;
   }) {
-    const response = await this.deploymentHttpServiceWrapper.loadDeploymentList(address, status, {
+    const response = await this.deploymentHttpService.loadDeploymentList(address, status, {
       offset: skip,
       limit: limit,
       reverse: reverseSorting,
       countTotal: true
     });
-    const leaseResponse = await this.leaseHttpServiceWrapper.list({ owner: address, state: "active" });
+    const leaseResponse = await this.leaseHttpService.list({ owner: address, state: "active" });
     const providers = response.deployments.length ? await this.providerService.getProviderList() : ([] as ProviderList[]);
 
     return {
@@ -182,7 +181,7 @@ export class DeploymentReaderService {
   public async getDeploymentByOwnerAndDseq(owner: string, dseq: string) {
     let deploymentData: RestAkashDeploymentInfoResponse | null = null;
     try {
-      deploymentData = await this.deploymentHttpServiceWrapper.findByOwnerAndDseq(owner, dseq);
+      deploymentData = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
 
       if (deploymentData && typeof deploymentData === "object" && "code" in deploymentData) {
         if (deploymentData.message?.toLowerCase().includes("deployment not found")) {
@@ -203,7 +202,7 @@ export class DeploymentReaderService {
       return null;
     }
 
-    const leasesQuery = this.leaseHttpServiceWrapper.list({ owner, dseq });
+    const leasesQuery = this.leaseHttpService.list({ owner, dseq });
     const relatedMessagesQuery = this.messageService.getDeploymentRelatedMessages(owner, dseq);
     const dbDeploymentQuery = Deployment.findOne({
       attributes: ["createdHeight", "closedHeight"],

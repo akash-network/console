@@ -5,7 +5,7 @@ import type { Account } from "@cosmjs/stargate";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { mock } from "jest-mock-extended";
 
-import type { ChainConfigService } from "@src/core/services/chain-config/chain-config.service";
+import type { ChainNetworkConfigService } from "@src/core/services/chain-network-config/chain-network-config.service";
 import type { BillingConfigService } from "../../services/billing-config/billing-config.service";
 import type { SyncSigningStargateClient } from "../sync-signing-stargate-client/sync-signing-stargate-client";
 import type { Wallet } from "../wallet/wallet";
@@ -199,7 +199,7 @@ describe(BatchSigningClientService.name, () => {
 
     const mockRegistry = new Registry();
 
-    const mockChainConfigService = mock<ChainConfigService>();
+    const mockChainConfigService = mock<ChainNetworkConfigService>();
     mockChainConfigService.getBaseRpcUrl.mockReturnValue("http://localhost:26657");
 
     const mockClient = mock<SyncSigningStargateClient>();

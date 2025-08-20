@@ -1,3 +1,4 @@
+import { BalanceHttpService } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import createError from "http-errors";
 import { singleton } from "tsyringe";
@@ -5,7 +6,6 @@ import { singleton } from "tsyringe";
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { BalanceHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 
 @singleton()
 export class ChainErrorService {
@@ -55,7 +55,7 @@ export class ChainErrorService {
   };
 
   constructor(
-    private readonly balanceHttpServiceWrapper: BalanceHttpServiceWrapper,
+    private readonly balanceHttpService: BalanceHttpService,
     private readonly billingConfigService: BillingConfigService,
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet
   ) {}
@@ -81,7 +81,7 @@ export class ChainErrorService {
     if (!error.message.toLowerCase().includes("insufficient funds")) return false;
 
     const masterWalletAddress = await this.masterWallet.getFirstAddress();
-    const masterWalletBalance = await this.balanceHttpServiceWrapper.getBalance(masterWalletAddress, this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM"));
+    const masterWalletBalance = await this.balanceHttpService.getBalance(masterWalletAddress, this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM"));
     const insufficientFundsErrorData = this.parseInsufficientFundsErrorMessage(error.message);
 
     if (!insufficientFundsErrorData) return false;

@@ -5,7 +5,7 @@ import { env } from "../../../utils/env";
 import { FeatureFlagsService } from "../feature-flags/feature-flags.service";
 
 @singleton()
-export class ChainConfigService {
+export class ChainNetworkConfigService {
   private readonly netConfig: ReturnType<typeof createNetConfig>;
 
   constructor(private readonly featureFlagsService: FeatureFlagsService) {

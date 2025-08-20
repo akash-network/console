@@ -1,3 +1,4 @@
+import { BlockHttpService } from "@akashnetwork/http-sdk";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
@@ -7,7 +8,6 @@ import { UserWalletOutput } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
-import { BlockHttpServiceWrapper } from "@src/core/services/http-service-wrapper/http-service-wrapper";
 import {
   CreateDeploymentRequest,
   CreateDeploymentResponse,
@@ -22,7 +22,7 @@ import { DeploymentReaderService } from "../deployment-reader/deployment-reader.
 @singleton()
 export class DeploymentWriterService {
   constructor(
-    private readonly blockHttpServiceWrapper: BlockHttpServiceWrapper,
+    private readonly blockHttpService: BlockHttpService,
     private readonly signerService: ManagedSignerService,
     @InjectWallet("MANAGED") private readonly masterWallet: Wallet,
     private readonly rpcMessageService: RpcMessageService,
@@ -42,7 +42,7 @@ export class DeploymentWriterService {
       sdl = sdl.replace(/uakt/g, deploymentGrantDenom);
     }
 
-    const dseq = await this.blockHttpServiceWrapper.getCurrentHeight();
+    const dseq = await this.blockHttpService.getCurrentHeight();
     const groups = this.sdlService.getDeploymentGroups(sdl, "beta3");
     const manifestVersion = await this.sdlService.getManifestVersion(sdl, "beta3");
     const manifest = this.sdlService.getManifest(sdl, "beta3", true) as string;
