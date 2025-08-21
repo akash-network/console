@@ -1,11 +1,11 @@
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { TrialStarted } from "@src/billing/events/trial-started";
 import { UserWalletInput, UserWalletPublicOutput, UserWalletRepository } from "@src/billing/repositories";
+import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import { NotificationService } from "@src/notifications/services/notification/notification.service";
-import { startTrialNotification } from "@src/notifications/services/notification-templates/start-trial-notification";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 
 @singleton()
@@ -14,16 +14,16 @@ export class WalletInitializerService {
     private readonly walletManager: ManagedUserWalletService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly authService: AuthService,
-    private readonly notificationService: NotificationService,
+    private readonly domainEvents: DomainEventsService,
     private readonly featureFlagsService: FeatureFlagsService
   ) {}
 
-  async initializeAndGrantTrialLimits(userId: UserWalletInput["userId"]): Promise<UserWalletPublicOutput> {
-    let userWallet = await this.userWalletRepository.findOneByUserId(userId!);
-    if (userWallet) return this.userWalletRepository.toPublic(userWallet);
+  async initializeAndGrantTrialLimits(userId: string): Promise<UserWalletPublicOutput> {
+    const { wallet, isNew } = await this.userWalletRepository.accessibleBy(this.authService.ability, "create").getOrCreate({ userId });
+    let userWallet = wallet;
+    if (!isNew) return this.userWalletRepository.toPublic(userWallet);
 
-    userWallet = await this.userWalletRepository.accessibleBy(this.authService.ability, "create").create({ userId });
-
+    let isTrialSpendingAuthorized = false;
     try {
       const wallet = await this.walletManager.createAndAuthorizeTrialSpending({ addressIndex: userWallet.id });
       userWallet = await this.userWalletRepository.updateById(
@@ -35,16 +35,19 @@ export class WalletInitializerService {
         },
         { returning: true }
       );
+      isTrialSpendingAuthorized = true;
     } catch (error) {
       await this.userWalletRepository.deleteById(userWallet.id);
       throw error;
     }
 
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL) && this.authService.currentUser?.email) {
-      await this.notificationService.createNotification(startTrialNotification(this.authService.currentUser));
+    const walletOutput = this.userWalletRepository.toPublic(userWallet);
+
+    if (isTrialSpendingAuthorized && !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
+      await this.domainEvents.publish(new TrialStarted({ userId }));
     }
 
-    return this.userWalletRepository.toPublic(userWallet);
+    return walletOutput;
   }
 
   async initialize(userId: UserWalletInput["userId"]) {

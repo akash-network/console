@@ -3,6 +3,7 @@ import { DefaultLogger } from "drizzle-orm/logger";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import type { InjectionToken } from "tsyringe";
 import { container, inject } from "tsyringe";
 
 import * as authSchemas from "@src/auth/model-schemas";
@@ -24,7 +25,7 @@ export const migratePG = () => migrate(pgMigrationDatabase, { migrationsFolder: 
 
 const pgDatabase = drizzle(appClient, drizzleOptions);
 
-export const POSTGRES_DB = "POSTGRES_DB";
+export const POSTGRES_DB: InjectionToken<ApiPgDatabase> = "POSTGRES_DB";
 container.register(POSTGRES_DB, { useValue: pgDatabase });
 
 type TableName = keyof typeof schema;

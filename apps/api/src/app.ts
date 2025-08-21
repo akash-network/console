@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import "./app/providers/jobs.provider";
 
 import { LoggerService } from "@akashnetwork/logging";
 import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
@@ -20,7 +21,7 @@ import packageJson from "../package.json";
 import { apiKeysRouter } from "./auth/routes/api-keys/api-keys.router";
 import { bidsRouter } from "./bid/routes/bids/bids.router";
 import { certificateRouter } from "./certificate/routes/certificate.router";
-import { FeatureFlagsService } from "./core/services/feature-flags/feature-flags.service";
+import { APP_INITIALIZER, ON_APP_START } from "./core/providers/app-initializer";
 import { shutdownServer } from "./core/services/shutdown-server/shutdown-server";
 import type { AppEnv } from "./core/types/app-context";
 import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
@@ -200,7 +201,7 @@ const appLogger = LoggerService.forContext("APP");
  */
 export async function initApp() {
   try {
-    await Promise.all([initDb(), container.resolve(FeatureFlagsService).initialize()]);
+    await Promise.all([initDb(), ...container.resolveAll(APP_INITIALIZER).map(initializer => initializer[ON_APP_START]())]);
     startScheduler();
 
     appLogger.info({ event: "SERVER_STARTING", url: `http://localhost:${PORT}`, NODE_OPTIONS: process.env.NODE_OPTIONS });
