@@ -178,9 +178,7 @@ export class PodLogsCollectorService {
                 });
                 continue;
               } else {
-                setTimeout(() => {
-                  isFirstChunk = false;
-                }, 1000);
+                isFirstChunk = false;
               }
 
               outputLines.push(line);

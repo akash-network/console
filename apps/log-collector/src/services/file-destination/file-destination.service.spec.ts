@@ -207,8 +207,6 @@ describe(FileDestinationService.name, () => {
 
     const mockFs = mock<Omit<FsGlobal, "promises"> & { promises: MockProxy<FsGlobal["promises"]> }>();
     mockFs.promises = mock<FsGlobal["promises"]>();
-    mockFs.createWriteStream.mockReset();
-    mockFs.createReadStream = jest.fn() as any;
     const mockWriteStream = mock<WriteStream>();
     mockFs.createWriteStream.mockReturnValue(mockWriteStream);
 

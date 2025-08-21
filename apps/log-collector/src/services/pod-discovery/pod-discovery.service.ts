@@ -164,7 +164,7 @@ export class PodDiscoveryService {
       nodeName: pod.spec?.nodeName,
       labels: pod.metadata?.labels || {},
       annotations: pod.metadata?.annotations || {},
-      containerNames: pod.spec?.containers.map(container => container.name) || []
+      containerNames: pod.spec?.containers?.map(container => container.name) ?? []
     };
   }
 
