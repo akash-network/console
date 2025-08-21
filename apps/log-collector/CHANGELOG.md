@@ -1,5 +1,17 @@
 
 
+## [1.5.0](https://github.com/akash-network/console/compare/log-collector/v1.4.0...log-collector/v1.5.0) (2025-08-21)
+
+
+### Features
+
+* **log-collector:** implements fs log streaming and delivery with fluent-bit ([c05fe61](https://github.com/akash-network/console/commit/c05fe61bfbe9d218f9c88c1d0e1b3c74ec4a5d64))
+
+
+### Bug Fixes
+
+* refactor http-sdk services to accept httpClient ([#1829](https://github.com/akash-network/console/issues/1829)) ([abcb7dc](https://github.com/akash-network/console/commit/abcb7dc9eaeca626e6ba69edb561ff0172cf6c1a))
+
 ## [1.4.0](https://github.com/akash-network/console/compare/log-collector/v1.3.1...log-collector/v1.4.0) (2025-08-14)
 
 
