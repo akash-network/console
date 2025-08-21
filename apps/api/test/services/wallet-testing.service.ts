@@ -7,6 +7,7 @@ import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletOutput } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { WalletInitializerService } from "@src/billing/services";
+import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { UserOutput } from "@src/user/repositories";
@@ -30,7 +31,7 @@ export class WalletTestingService<T extends Hono<any>> {
   }
 
   private async createWallet(user: UserOutput) {
-    jest.spyOn(container.resolve(NotificationService), "createNotification").mockResolvedValue(undefined);
+    jest.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(undefined);
 
     return container.resolve(ExecutionContextService).runWithContext(async () => {
       container.resolve(AuthService).currentUser = user;

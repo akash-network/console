@@ -10,6 +10,10 @@ export class HttpService extends Axios {
   }
 
   protected extractData<T = unknown>(response: AxiosResponse<T>): AxiosResponse<T>["data"] {
-    return response.data;
+    return extractData(response);
   }
+}
+
+export function extractData<T = unknown>(response: AxiosResponse<T>): T {
+  return response.data;
 }

@@ -15,7 +15,6 @@ import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { Memoize } from "@src/caching/helpers";
-import { Semaphore } from "@src/core/lib/semaphore.decorator";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { averageBlockTime } from "@src/utils/constants";
@@ -34,7 +33,6 @@ export class WalletController {
     private readonly featureFlagsService: FeatureFlagsService
   ) {}
 
-  @Semaphore()
   @Protected([{ action: "create", subject: "UserWallet" }])
   async create({ data: { userId } }: StartTrialRequestInput): Promise<WalletOutputResponse> {
     const { currentUser } = this.authService;
