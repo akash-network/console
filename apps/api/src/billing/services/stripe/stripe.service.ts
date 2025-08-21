@@ -417,13 +417,19 @@ export class StripeService extends Stripe {
   }
 
   async *exportTransactionsCsvStream(customerId: string, options: { startDate: string; endDate: string; timezone: string }): AsyncIterable<string> {
-    const transactionGenerator = this.createTransactionGenerator(customerId, options);
+    const normalizedTimezone = this.normalizeTimeZone(options.timezone);
+    const transactionGenerator = this.createTransactionGenerator(customerId, {
+      ...options,
+      timezone: normalizedTimezone
+    });
 
     const csvStringifier = stringify({
       header: true,
+      bom: true,
       columns: [
         { key: "id", header: "Transaction ID" },
         { key: "date", header: "Date" },
+        { key: "date", header: `Date (${normalizedTimezone})` },
         { key: "amount", header: "Amount" },
         { key: "currency", header: "Currency" },
         { key: "status", header: "Status" },
@@ -439,8 +445,13 @@ export class StripeService extends Stripe {
 
     const csvStream = sourceStream.pipe(csvStringifier);
 
-    for await (const chunk of csvStream) {
-      yield chunk.toString();
+    try {
+      for await (const chunk of csvStream) {
+        yield typeof chunk === "string" ? chunk : (chunk as Buffer).toString("utf8");
+      }
+    } catch (err) {
+      logger.error({ event: "CSV_STREAM_ERROR", error: err instanceof Error ? err.message : String(err) });
+      throw err;
     }
   }
 
@@ -515,6 +526,15 @@ export class StripeService extends Stripe {
       description: this.sanitizeForCsv(transaction.description || ""),
       receiptUrl: transaction.receiptUrl || ""
     };
+  }
+
+  private normalizeTimeZone(tz: string): string {
+    try {
+      new Intl.DateTimeFormat("en-CA", { timeZone: tz });
+      return tz;
+    } catch {
+      return "UTC";
+    }
   }
 
   async getStripeCustomerId(user: UserOutput): Promise<string> {

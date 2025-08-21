@@ -179,7 +179,7 @@ export const CustomerTransactionsQuerySchema = z
 
 export const CustomerTransactionsCsvExportQuerySchema = z
   .object({
-    timezone: z.string().optional().openapi({
+    timezone: z.string().openapi({
       description: "Timezone for date formatting in the CSV",
       example: "America/New_York",
       default: "UTC"
