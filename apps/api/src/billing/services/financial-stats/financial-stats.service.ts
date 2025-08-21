@@ -8,7 +8,7 @@ import { singleton } from "tsyringe";
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
-import { ChainNetworkConfigService } from "@src/core/services/chain-network-config/chain-network-config.service";
+import { ChainConfigService } from "@src/chain/services/chain-config/chain-config.service";
 import { chainDb } from "@src/db/dbConnection";
 
 @singleton()
@@ -17,7 +17,7 @@ export class FinancialStatsService {
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly cosmosHttpService: CosmosHttpService,
-    private readonly chainNetworkConfigService: ChainNetworkConfigService
+    private readonly chainConfigService: ChainConfigService
   ) {}
 
   async getPayingUserCount() {
@@ -54,7 +54,7 @@ export class FinancialStatsService {
   }
 
   async getCommunityPoolUsdc() {
-    const apiNodeUrl = this.chainNetworkConfigService.getBaseAPIUrl();
+    const apiNodeUrl = this.chainConfigService.getBaseAPIUrl();
     const communityPoolData = await axios.get<CosmosDistributionCommunityPoolResponse>(`${apiNodeUrl}/cosmos/distribution/v1beta1/community_pool`);
     return parseFloat(communityPoolData.data.pool.find(x => x.denom === USDC_IBC_DENOMS.mainnetId)?.amount || "0");
   }

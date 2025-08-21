@@ -12,7 +12,7 @@ import { setTimeout as sleep } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { ChainNetworkConfigService } from "@src/core/services/chain-network-config/chain-network-config.service";
+import { ChainConfigService } from "@src/chain/services/chain-config/chain-config.service";
 import { GpuService } from "@src/gpu/services/gpu.service";
 import { env } from "@src/utils/env";
 import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templates";
@@ -25,7 +25,7 @@ export class GpuBidsCreatorService {
     private readonly config: BillingConfigService,
     private readonly bidHttpService: BidHttpService,
     private readonly gpuService: GpuService,
-    private readonly chainConfigService: ChainNetworkConfigService
+    private readonly chainConfigService: ChainConfigService
   ) {}
 
   async createGpuBids() {

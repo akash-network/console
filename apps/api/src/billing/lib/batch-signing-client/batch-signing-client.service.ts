@@ -13,7 +13,7 @@ import assert from "http-assert";
 import type { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargate-client/sync-signing-stargate-client";
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import type { ChainNetworkConfigService } from "@src/core/services/chain-network-config/chain-network-config.service";
+import type { ChainConfigService } from "@src/chain/services/chain-config/chain-config.service";
 import { withSpan } from "@src/core/services/tracing/tracing.service";
 
 interface ShortAccountInfo {
@@ -64,7 +64,7 @@ export class BatchSigningClientService {
     private readonly wallet: Wallet,
     private readonly registry: Registry,
     private readonly connectWithSigner: ConnectWithSignerFn,
-    private readonly chainNetworkConfigService: ChainNetworkConfigService,
+    private readonly chainConfigService: ChainConfigService,
     private readonly loggerContext = BatchSigningClientService.name
   ) {
     this.clientAsPromised = this.initClient();
@@ -83,7 +83,7 @@ export class BatchSigningClientService {
   }
 
   private async initClient() {
-    const rpcUrl = this.chainNetworkConfigService.getBaseRpcUrl();
+    const rpcUrl = this.chainConfigService.getBaseRpcUrl();
     if (!rpcUrl) throw new Error("RPC url for the batch signing client is not set.");
 
     return await backOff(

@@ -13,44 +13,30 @@ import {
   NodeHttpService,
   ProviderHttpService
 } from "@akashnetwork/http-sdk";
-import type { InjectionToken } from "tsyringe";
+import type { DependencyContainer, InjectionToken } from "tsyringe";
 import { container } from "tsyringe";
 
-import { apiNodeUrl, nodeApiBasePath } from "@src/utils/constants";
+import { nodeApiBasePath } from "@src/utils/constants";
+import { ChainConfigService } from "../../chain/services/chain-config/chain-config.service";
 
 export const CHAIN_API_HTTP_CLIENT: InjectionToken<HttpClient> = Symbol("CHAIN_API_HTTP_CLIENT");
 
 container.register(CHAIN_API_HTTP_CLIENT, {
-  useFactory: () => createHttpClient({ baseURL: apiNodeUrl })
+  useFactory: (c: DependencyContainer) => {
+    const chainConfigService = c.resolve(ChainConfigService);
+    return createHttpClient({ baseURL: chainConfigService.getBaseAPIUrl() });
+  }
 });
 
-const SERVICES = [BalanceHttpService, AuthzHttpService, BlockHttpService, BidHttpService, LeaseHttpService, ProviderHttpService];
+const SERVICES = [BalanceHttpService, AuthzHttpService, BlockHttpService, BidHttpService, LeaseHttpService, ProviderHttpService] as const;
 
-SERVICES.forEach(Service => container.register(Service, { useValue: new Service({ baseURL: apiNodeUrl }) }));
-
-container.register(BalanceHttpService, {
-  useFactory: c => new BalanceHttpService({ baseURL: c.resolve(ChainNetworkConfigService).getBaseAPIUrl() })
-});
-container.register(AuthzHttpService, {
-  useFactory: c => new AuthzHttpService({ baseURL: c.resolve(ChainNetworkConfigService).getBaseAPIUrl() })
-});
-container.register(BlockHttpService, {
-  useFactory: c => new BlockHttpService({ baseURL: c.resolve(ChainNetworkConfigService).getBaseAPIUrl() })
-});
-container.register(BidHttpService, {
-  useFactory: c => new BidHttpService({ baseURL: c.resolve(ChainNetworkConfigService).getBaseAPIUrl() })
-});
-container.register(DeploymentHttpService, {
-  useFactory: c => new DeploymentHttpService({ baseURL: c.resolve(ChainNetworkConfigService).getBaseAPIUrl() })
-});
-container.register(LeaseHttpService, {
-  useFactory: c => new LeaseHttpService({ baseURL: c.resolve(ChainNetworkConfigService).getBaseAPIUrl() })
-});
-container.register(ProviderHttpService, {
-  useFactory: c => new ProviderHttpService({ baseURL: c.resolve(ChainNetworkConfigService).getBaseAPIUrl() })
-});
-container.register(CosmosHttpService, {
-  useFactory: c => new CosmosHttpService({ baseURL: c.resolve(ChainNetworkConfigService).getBaseAPIUrl() })
+SERVICES.forEach(Service => {
+  container.register(Service, {
+    useFactory: (c: DependencyContainer) => {
+      const chainConfigService = c.resolve(ChainConfigService);
+      return new Service({ baseURL: chainConfigService.getBaseAPIUrl() });
+    }
+  });
 });
 
 container.register(GitHubHttpService, { useValue: new GitHubHttpService({ baseURL: "https://raw.githubusercontent.com" }) });
