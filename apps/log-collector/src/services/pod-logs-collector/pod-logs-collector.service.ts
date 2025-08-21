@@ -130,6 +130,7 @@ export class PodLogsCollectorService {
           const lastLogLines = await this.fileDestination.getLastLogLines();
 
           let isFirstChunk = true;
+          let firstChunkTimeout: NodeJS.Timeout | undefined = undefined;
           let remainingBuffer = Buffer.alloc(0);
 
           writeStream.on("error", error => {
@@ -178,7 +179,11 @@ export class PodLogsCollectorService {
                 });
                 continue;
               } else {
-                isFirstChunk = false;
+                if (!firstChunkTimeout) {
+                  firstChunkTimeout = setTimeout(() => {
+                    isFirstChunk = false;
+                  }, 300);
+                }
               }
 
               outputLines.push(line);
