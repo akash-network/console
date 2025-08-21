@@ -15,7 +15,7 @@ export class ChainConfigService extends ConfigService<typeof envSchema> {
   }
 
   private createNetConfig(): ReturnType<typeof createNetConfig> {
-    const useProxyUrls = env.USE_PROXY_URL === "true";
+    const useProxyUrls = env.USE_PROXY_URLS === "true";
 
     const config = {
       useProxyUrls,

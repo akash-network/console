@@ -7,7 +7,7 @@ export const env = z
     HEALTHCHECKS_ENABLED: z.string().optional(),
     CHAIN_INDEXER_POSTGRES_DB_URI: z.string(),
     NETWORK: z.string().default("mainnet"),
-    USE_PROXY_URL: z.string().optional().default("false"),
+    USE_PROXY_URLS: z.string().optional().default("false"),
     PROXY_API_URL: z.string().optional().default("https://rpc.akt.dev/rest"),
     PROXY_RPC_URL: z.string().optional().default("https://rpc.akt.dev/rpc"),
     SERVER_ORIGIN: z.string().optional().default("http://localhost:3080"),
