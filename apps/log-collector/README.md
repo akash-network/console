@@ -1,62 +1,68 @@
 # Akash Log Collector
 
-The Log Collector is a Kubernetes-native application designed to run on Akash Network that automatically collects logs from all pods in a namespace (except itself) and forwards them to external logging providers.
+The Log Collector is a Kubernetes-native application designed to run on Akash Network that automatically collects logs from all pods in a namespace (except itself) and writes them to files for external log agents to process.
 
 ## Overview
 
-The Log Collector leverages internal Kubernetes access to discover and stream logs from all pods in its deployment namespace. It automatically excludes itself from log collection to prevent infinite loops and forwards the collected logs to configured external logging services.
+The Log Collector leverages internal Kubernetes access to discover and stream logs from all pods in its deployment namespace. It automatically excludes itself from log collection to prevent infinite loops and writes the collected logs to files for external log agents to process.
 
-**Current Status**: Datadog integration is fully implemented, with support for additional providers planned. Work on edge cases like connection drops and improved error handling is also planned.
+## Features
 
-## Image Location
-
-```
-ghcr.io/akash-network/log-collector
-```
+- **Automatic Pod Discovery**: Discovers all pods in the deployment namespace and automatically excludes itself
+- **Real-time Log Streaming**: Streams logs from all discovered pods with automatic reconnection on pod restarts
+- **File-based Output**: Writes raw logs to files organized by namespace and pod name
+- **Automatic Log Rotation**: Rotates log files when they reach configurable size limits
+- **Configurable Log Tail**: Configurable log tail lines (default: 100)
+- **File Naming Convention**: `{namespace}_{podName}.log`
+- **Log Collection**: Uses Fluent Bit to collect logs from files and forward to external services
+- **Log Directory**: Logs are stored in `/app/apps/log-collector/log/` within the container
 
 ## How It Works
 
 1. **Namespace Discovery**: The collector automatically detects the Kubernetes namespace it's deployed in
-2. **Pod Discovery**: Scans the namespace for all running pods
-3. **Log Streaming**: Establishes log streams for each pod (excluding itself)
-4. **Log Forwarding**: Sends collected logs to the configured external logging provider
-5. **Metadata Enrichment**: Adds Kubernetes metadata (namespace, pod name, etc.) to each log entry
+2. **Pod Discovery**: Scans the namespace for all running pods (excluding pods from the same deployment)
+3. **Log Streaming**: Establishes log streams for each pod
+4. **File Output**: Writes collected logs to files for external processing
+5. **Log Rotation**: Automatically rotates log files when they reach the configured size limit, maintaining up to `LOG_MAX_ROTATED_FILES` rotated files
+6. **Log Collection**: Fluent Bit monitors the log files and forwards them to configured external services like Datadog
 
 ## Configuration
 
-### Required Environment Variables
+### Production Configuration
 
-| Variable      | Description                                 | Example   |
-| ------------- | ------------------------------------------- | --------- |
-| `DESTINATION` | Logging provider (currently only `DATADOG`) | `DATADOG` |
+These are the environment variables you need to configure for production deployment:
 
-### Datadog Configuration
+| Variable                  | Description                   | Default             | Example             |
+| ------------------------- | ----------------------------- | ------------------- | ------------------- |
+| `LOG_MAX_FILE_SIZE_BYTES` | Max file size before rotation | `10_485_760` (10MB) | `20_971_520` (20MB) |
+| `LOG_MAX_ROTATED_FILES`   | Max number of rotated files   | `5`                 | `10`                |
 
-When `DESTINATION=DATADOG`, the following variables are required:
+### Log Collection Configuration (Datadog)
 
-| Variable     | Description      | Example             |
-| ------------ | ---------------- | ------------------- |
-| `DD_SITE`    | Datadog site URL | `datadoghq.com`     |
-| `DD_API_KEY` | Datadog API key  | `your-api-key-here` |
+To forward logs to Datadog, configure these environment variables:
 
-### Optional Environment Variables
+| Variable       | Description          | Example             |
+| -------------- | -------------------- | ------------------- |
+| `DD_SITE`      | Datadog site URL     | `datadoghq.com`     |
+| `DD_API_KEY`   | Datadog API key      | `your-api-key-here` |
+| `DD_TAGS`      | Additional tags      | `env:prod,team:dev` |
+| `FB_LOG_LEVEL` | Fluent Bit log level | `info`              |
 
-| Variable           | Description                    | Default | Example |
-| ------------------ | ------------------------------ | ------- | ------- |
-| `WRITE_TO_CONSOLE` | Enable console output for logs | `false` | `true`  |
+## Deployment
 
-## Deployment Example
+### Image Location
 
-See the complete deployment example in [example.sdl.yaml](./example.sdl.yaml).
+```text
+ghcr.io/akash-network/log-collector
+```
 
-### Basic SDL Configuration
+### Akash Network Deployment
 
 ```yaml
 services:
   log-collector:
     image: ghcr.io/akash-network/log-collector:latest
     env:
-      - DESTINATION=DATADOG
       - DD_SITE=datadoghq.com
       - DD_API_KEY=your-datadog-api-key
     expose:
@@ -74,7 +80,7 @@ profiles:
         memory:
           size: 512Mi
         storage:
-          size: 512Mi
+          size: 1Gi
 
   placement:
     dcloud:
@@ -90,55 +96,16 @@ deployment:
       count: 1
 ```
 
-## Features
-
-### Automatic Pod Discovery
-
-- Discovers all pods in the deployment namespace
-- Automatically excludes itself from log collection
-- Handles pod lifecycle changes (new pods, terminated pods)
-
-### Log Streaming
-
-- Real-time log streaming from all discovered pods
-- Automatic reconnection on pod restarts
-- Configurable log tail lines (default: 10)
-
-### Metadata Enrichment
-
-Each log entry is enriched with Kubernetes metadata:
-
-- `namespace`: The pod's namespace
-- `pod`: The pod name
-- `service`: The pod name (for service identification)
-- `kubernetes_namespace`: Namespace identifier
-- `kubernetes_pod`: Pod identifier
-- `hostname`: Pod hostname
-- `source`: Application source identifier
-- `environment`: Environment identifier
-
-### Debug Mode
-
-Enable console output to see logs in the pod's console:
-
-```yaml
-env:
-  - WRITE_TO_CONSOLE=true
-```
-
 ## Development
 
 ### Development Configuration
 
-For development, you can use additional environment variables:
+For local development and testing, you can override the automatic detection:
 
-| Variable                        | Description                 | Default         | Example           |
-| ------------------------------- | --------------------------- | --------------- | ----------------- |
-| `HOSTNAME`                      | Pod name (for testing)      | Auto-detected   | `test-pod-123`    |
-| `KUBERNETES_NAMESPACE_OVERRIDE` | Override detected namespace | Auto-detected   | `test-namespace`  |
-| `ENVIRONMENT`                   | Environment identifier      | `default`       | `development`     |
-| `SOURCE`                        | Source identifier for logs  | `akash.network` | `dev-application` |
-| `DATADOG_DEBUG`                 | Enable Datadog debug mode   | `false`         | `true`            |
+| Variable                        | Description                 | Default       | Example          |
+| ------------------------------- | --------------------------- | ------------- | ---------------- |
+| `HOSTNAME`                      | Pod name (for testing)      | Auto-detected | `test-pod-123`   |
+| `KUBERNETES_NAMESPACE_OVERRIDE` | Override detected namespace | Auto-detected | `test-namespace` |
 
 ### Development Workflow
 
@@ -159,21 +126,12 @@ npm run prod
 docker build -f apps/log-collector/Dockerfile -t log-collector:local .
 
 # 6. Run Docker image
-docker run -e DESTINATION=DATADOG -e DD_SITE=your-site -e DD_API_KEY=your-key log-collector:local
+docker run -e HOSTNAME=test-pod log-collector:local
 
 # or
 docker run --env-file apps/log-collector/env/.env.local log-collector:local
-
 ```
 
 ## Roadmap
 
-### Short Term (Next Release)
-
-- **Connection Resilience**: Improved handling of connection drops and network interruptions
-- **Enhanced Error Handling**: Better error recovery and retry mechanisms
-- **Log Filtering**: Basic log filtering capabilities (by log level, source, etc.)
-
-### Medium Term (2-3 Releases)
-
-- **Additional Logging Providers**: Support for Loki, Elasticsearch, and other popular logging services
+- **Fluent Bit Templating**: Support for multiple configurable destinations beyond Datadog

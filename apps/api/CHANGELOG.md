@@ -1,5 +1,18 @@
 
 
+## [2.112.0](https://github.com/akash-network/console/compare/console-api/v2.111.0...console-api/v2.112.0) (2025-08-21)
+
+
+### Features
+
+* adds more notifications on start trial event ([#1827](https://github.com/akash-network/console/issues/1827)) ([8b65c91](https://github.com/akash-network/console/commit/8b65c91d29b5b35defff752fd9a3c2ddf35c8a0c))
+* adds notification on start trial ([#1818](https://github.com/akash-network/console/issues/1818)) ([1eb381a](https://github.com/akash-network/console/commit/1eb381a3634313cc9135cf0a997ad551883ba862))
+
+
+### Bug Fixes
+
+* refactor http-sdk services to accept httpClient ([#1829](https://github.com/akash-network/console/issues/1829)) ([abcb7dc](https://github.com/akash-network/console/commit/abcb7dc9eaeca626e6ba69edb561ff0172cf6c1a))
+
 ## [2.111.0](https://github.com/akash-network/console/compare/console-api/v2.110.0...console-api/v2.111.0) (2025-08-18)
 
 
