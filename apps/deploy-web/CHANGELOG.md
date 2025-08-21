@@ -1,5 +1,18 @@
 
 
+## [2.101.0](https://github.com/akash-network/console/compare/console-web/v2.100.0...console-web/v2.101.0) (2025-08-21)
+
+
+### Features
+
+* adds notification on start trial ([#1818](https://github.com/akash-network/console/issues/1818)) ([1eb381a](https://github.com/akash-network/console/commit/1eb381a3634313cc9135cf0a997ad551883ba862))
+* **deployment:** hide custodial auto top up with feature flag ([#1825](https://github.com/akash-network/console/issues/1825)) ([431fa2a](https://github.com/akash-network/console/commit/431fa2ac8cfe74396ad123a610d465f8ac7d5fab))
+
+
+### Bug Fixes
+
+* refactor http-sdk services to accept httpClient ([#1829](https://github.com/akash-network/console/issues/1829)) ([abcb7dc](https://github.com/akash-network/console/commit/abcb7dc9eaeca626e6ba69edb561ff0172cf6c1a))
+
 ## [2.100.0](https://github.com/akash-network/console/compare/console-web/v2.99.0...console-web/v2.100.0) (2025-08-18)
 
 
