@@ -99,11 +99,11 @@ describe(JobQueueService.name, () => {
     });
   });
 
-  describe("drain", () => {
+  describe("startWorkers", () => {
     it("throws error when handlers are not registered", async () => {
       const { service } = setup();
 
-      await expect(service.drain()).rejects.toThrow("Handlers not registered. Register handlers first.");
+      await expect(service.startWorkers()).rejects.toThrow("Handlers not registered. Register handlers first.");
     });
 
     it("processes jobs successfully", async () => {
@@ -122,7 +122,7 @@ describe(JobQueueService.name, () => {
       });
 
       await service.registerHandlers([handler]);
-      await service.drain({ batchSize: 5 });
+      await service.startWorkers({ batchSize: 5 });
 
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
         name: "test",
@@ -166,7 +166,7 @@ describe(JobQueueService.name, () => {
       });
 
       await service.registerHandlers([handler]);
-      await service.drain();
+      await service.startWorkers();
 
       expect(handleFn).toHaveBeenCalledTimes(2);
       expect(logger.info).toHaveBeenCalledWith({
@@ -191,7 +191,7 @@ describe(JobQueueService.name, () => {
       });
 
       await service.registerHandlers([handler]);
-      await service.drain();
+      await service.startWorkers();
 
       expect(pgBoss.work).toHaveBeenCalledWith("test", { batchSize: 10 }, expect.any(Function));
     });

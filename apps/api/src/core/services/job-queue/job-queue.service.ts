@@ -80,7 +80,7 @@ export class JobQueueService {
     });
   }
 
-  async drain(options: ProcessOptions = {}): Promise<void> {
+  async startWorkers(options: ProcessOptions = {}): Promise<void> {
     if (!this.handlers) throw new Error("Handlers not registered. Register handlers first.");
 
     const jobs = this.handlers.map(async handler => {

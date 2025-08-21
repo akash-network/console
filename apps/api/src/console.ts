@@ -105,7 +105,7 @@ program
 program
   .command("drain-job-queues")
   .description("Process delayed jobs from the job queues")
-  .action(daemon(async () => container.resolve(JobQueueService).drain()));
+  .action(daemon(async () => container.resolve(JobQueueService).startWorkers()));
 
 const logger = LoggerService.forContext("CLI");
 
