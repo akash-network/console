@@ -1,5 +1,17 @@
 
 
+## [1.23.0](https://github.com/akash-network/console/compare/notifications/v1.22.0...notifications/v1.23.0) (2025-08-21)
+
+
+### Features
+
+* adds notification on start trial ([#1818](https://github.com/akash-network/console/issues/1818)) ([1eb381a](https://github.com/akash-network/console/commit/1eb381a3634313cc9135cf0a997ad551883ba862))
+
+
+### Bug Fixes
+
+* refactor http-sdk services to accept httpClient ([#1829](https://github.com/akash-network/console/issues/1829)) ([abcb7dc](https://github.com/akash-network/console/commit/abcb7dc9eaeca626e6ba69edb561ff0172cf6c1a))
+
 ## [1.22.0](https://github.com/akash-network/console/compare/notifications/v1.21.0...notifications/v1.22.0) (2025-08-18)
 
 
