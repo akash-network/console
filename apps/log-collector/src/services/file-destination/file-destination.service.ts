@@ -211,7 +211,19 @@ export class FileDestinationService {
                 stableStream.unpipe(currentWriteStream!);
                 currentWriteStream!.end();
 
-                await once(currentWriteStream!, "close");
+                try {
+                  await Promise.race([
+                    once(currentWriteStream!, "finish").then(() => console.log("finish")),
+                    once(currentWriteStream!, "close").then(() => console.log("close")),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Stream close timeout")), 15000))
+                  ]);
+                } catch (error) {
+                  this.loggerService.warn({
+                    message: "Write stream close failed, proceeding with rotation",
+                    filePath,
+                    error
+                  });
+                }
 
                 await this.rotateLogFile(filePath);
 
