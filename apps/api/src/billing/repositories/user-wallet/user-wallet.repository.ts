@@ -46,6 +46,31 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return new UserWalletRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
+  async getOrCreate(input: { userId: Exclude<UserWalletInput["userId"], undefined | null> }): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
+    const foundWallet = await this.findOneByUserId(input.userId);
+    if (foundWallet) return { wallet: foundWallet, isNew: false };
+
+    this.ability?.throwUnlessCanExecute(input);
+    const [newWallet] = await this.cursor
+      .insert(this.table)
+      .values(input)
+      .onConflictDoNothing({
+        target: [this.table.userId]
+      })
+      .returning();
+
+    if (newWallet) {
+      return {
+        wallet: this.toOutput(newWallet),
+        isNew: true
+      };
+    }
+
+    // race condition, wallet was created by another call
+    const wallet = await this.findOneByUserId(input.userId);
+    return { wallet: wallet!, isNew: false };
+  }
+
   async create(input: Pick<UserWalletInput, "userId" | "address">) {
     const value = {
       userId: input.userId,
