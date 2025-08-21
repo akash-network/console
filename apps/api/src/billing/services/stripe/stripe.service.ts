@@ -428,7 +428,6 @@ export class StripeService extends Stripe {
       bom: true,
       columns: [
         { key: "id", header: "Transaction ID" },
-        { key: "date", header: "Date" },
         { key: "date", header: `Date (${normalizedTimezone})` },
         { key: "amount", header: "Amount" },
         { key: "currency", header: "Currency" },

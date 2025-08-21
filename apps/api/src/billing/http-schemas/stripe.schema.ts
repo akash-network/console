@@ -152,6 +152,15 @@ const dateRangeCheck = (data: { startDate?: string; endDate?: string }) => {
 
 const dateRangeErrorMessage = "Date range cannot exceed 366 days and startDate must be before endDate";
 
+const isValidIanaTimeZone = (tz: string) => {
+  try {
+    new Intl.DateTimeFormat("en-CA", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const CustomerTransactionsQuerySchema = z
   .object({
     limit: z.coerce.number().optional().openapi({
@@ -179,7 +188,7 @@ export const CustomerTransactionsQuerySchema = z
 
 export const CustomerTransactionsCsvExportQuerySchema = z
   .object({
-    timezone: z.string().openapi({
+    timezone: z.string().refine(isValidIanaTimeZone, { message: "Invalid IANA timezone" }).openapi({
       description: "Timezone for date formatting in the CSV",
       example: "America/New_York",
       default: "UTC"
