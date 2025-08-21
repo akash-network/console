@@ -213,8 +213,8 @@ export class FileDestinationService {
 
                 try {
                   await Promise.race([
-                    once(currentWriteStream!, "finish").then(() => console.log("finish")),
-                    once(currentWriteStream!, "close").then(() => console.log("close")),
+                    once(currentWriteStream!, "finish"),
+                    once(currentWriteStream!, "close"),
                     new Promise((_, reject) => setTimeout(() => reject(new Error("Stream close timeout")), 15000))
                   ]);
                 } catch (error) {
