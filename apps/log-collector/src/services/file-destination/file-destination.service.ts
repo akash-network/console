@@ -1,5 +1,6 @@
 import * as fsGlobal from "fs";
 import memoize from "lodash/memoize";
+import { once } from "node:events";
 import * as pathGlobal from "path";
 import * as readlineGlobal from "readline";
 import { PassThrough } from "stream";
@@ -210,10 +211,7 @@ export class FileDestinationService {
                 stableStream.unpipe(currentWriteStream!);
                 currentWriteStream!.end();
 
-                await new Promise<void>((resolve, reject) => {
-                  currentWriteStream!.once("close", resolve);
-                  currentWriteStream!.once("error", reject);
-                });
+                await once(currentWriteStream!, "close");
 
                 await this.rotateLogFile(filePath);
 
