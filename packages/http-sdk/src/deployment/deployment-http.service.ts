@@ -1,7 +1,7 @@
-import type { AxiosRequestConfig } from "axios";
 import z from "zod";
 
-import { HttpService } from "../http/http.service";
+import { extractData } from "../http/http.service";
+import type { HttpClient } from "../utils/httpClient";
 import { loadWithPagination } from "../utils/pagination.utils";
 
 const AttributeSchema = z.object({
@@ -131,14 +131,12 @@ interface PaginationParams {
   reverse?: boolean;
 }
 
-export class DeploymentHttpService extends HttpService {
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL">) {
-    super(config);
-  }
+export class DeploymentHttpService {
+  constructor(private readonly httpClient: HttpClient) {}
 
   public async findByOwnerAndDseq(owner: string, dseq: string): Promise<RestAkashDeploymentInfoResponse> {
-    return this.extractData(
-      await this.get<RestAkashDeploymentInfoResponse>("/akash/deployment/v1beta3/deployments/info", {
+    return extractData(
+      await this.httpClient.get<RestAkashDeploymentInfoResponse>("/akash/deployment/v1beta3/deployments/info", {
         params: {
           "id.owner": owner,
           "id.dseq": dseq
@@ -156,13 +154,13 @@ export class DeploymentHttpService extends HttpService {
    * @returns Paginated response with deployments
    */
   public async loadDeploymentList(owner: string, state?: "active" | "closed", pagination?: PaginationParams): Promise<DeploymentListResponse> {
-    const baseUrl = this.getUri({
+    const baseUrl = this.httpClient.getUri({
       url: `/akash/deployment/v1beta3/deployments/list?filters.owner=${owner}${state ? `&filters.state=${state}` : ""}`
     });
     const defaultLimit = 1000;
 
     if (!pagination) {
-      const allDeployments = await loadWithPagination<DeploymentInfo>(baseUrl, "deployments", defaultLimit, this);
+      const allDeployments = await loadWithPagination<DeploymentInfo>(baseUrl, "deployments", defaultLimit, this.httpClient);
       return {
         deployments: allDeployments,
         pagination: {
@@ -188,8 +186,8 @@ export class DeploymentHttpService extends HttpService {
       params["filters.state"] = state;
     }
 
-    return this.extractData(
-      await this.get<DeploymentListResponse>("/akash/deployment/v1beta3/deployments/list", {
+    return extractData(
+      await this.httpClient.get<DeploymentListResponse>("/akash/deployment/v1beta3/deployments/list", {
         params
       })
     );
