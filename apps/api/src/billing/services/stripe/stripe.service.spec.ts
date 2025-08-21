@@ -399,7 +399,7 @@ describe(StripeService.name, () => {
 
       const fullCsv = chunks.join("");
 
-      expect(fullCsv).toContain("Transaction ID,Date,Amount");
+      expect(fullCsv).toContain("﻿Transaction ID,Date (UTC),Amount,Currency,Status,Payment Method,Card Brand,Card Last 4,Description,Receipt URL");
 
       expect(fullCsv).toContain("ch_123");
       expect(fullCsv).toContain("2022-01-01");
