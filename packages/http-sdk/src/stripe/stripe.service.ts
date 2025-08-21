@@ -68,7 +68,8 @@ export class StripeService extends ApiHttpService {
   async exportTransactionsCsv(params: ExportTransactionsCsvParams): Promise<Blob> {
     const queryParams = new URLSearchParams({
       startDate: params.startDate.toISOString(),
-      endDate: params.endDate.toISOString()
+      endDate: params.endDate.toISOString(),
+      timezone: params.timezone
     });
 
     const url = `/v1/stripe/transactions/export?${queryParams}`;

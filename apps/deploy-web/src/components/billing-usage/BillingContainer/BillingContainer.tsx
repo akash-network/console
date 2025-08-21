@@ -54,7 +54,8 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
 
   const exportCsvQuery = D.useExportTransactionsCsvQuery({
     startDate,
-    endDate
+    endDate,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
   });
 
   const {

@@ -101,13 +101,14 @@ stripeTransactionsRouter.openapi(getCustomerTransactionsRoute, async function ge
 });
 
 stripeTransactionsRouter.openapi(exportTransactionsCsvRoute, async function exportTransactionsCsv(c) {
-  const { startDate, endDate } = c.req.valid("query");
+  const { startDate, endDate, timezone } = c.req.valid("query");
 
   const filename = `transactions_${startDate.split("T")[0]}_to_${endDate.split("T")[0]}.csv`;
 
   const csvStream = await container.resolve(StripeController).exportTransactionsCsvStream({
     startDate,
-    endDate
+    endDate,
+    timezone
   });
 
   const readableStream = Readable.toWeb(Readable.from(csvStream)) as ReadableStream;

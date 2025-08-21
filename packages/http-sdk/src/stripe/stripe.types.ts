@@ -101,4 +101,5 @@ export interface CustomerTransactionsResponse {
 export interface ExportTransactionsCsvParams {
   startDate: Date;
   endDate: Date;
+  timezone: string;
 }

@@ -152,8 +152,10 @@ export class StripeController {
   }
 
   @Protected([{ action: "read", subject: "StripePayment" }])
-  async exportTransactionsCsvStream(options: { startDate: string; endDate: string }): Promise<AsyncIterable<string>> {
+  async exportTransactionsCsvStream(options: { startDate: string; endDate: string; timezone: string }): Promise<AsyncIterable<string>> {
     const { currentUser } = this.authService;
+
+    console.log("HERE, received timezone:", options.timezone);
 
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
 

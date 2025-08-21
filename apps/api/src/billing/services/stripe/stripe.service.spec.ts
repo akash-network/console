@@ -391,7 +391,8 @@ describe(StripeService.name, () => {
 
       const csvStream = service.exportTransactionsCsvStream("cus_123", {
         startDate: "2022-01-01T00:00:00Z",
-        endDate: "2022-01-31T23:59:59Z"
+        endDate: "2022-01-31T23:59:59Z",
+        timezone: "UTC"
       });
 
       const chunks = await Array.fromAsync(csvStream);
@@ -455,7 +456,8 @@ describe(StripeService.name, () => {
 
       const csvStream = service.exportTransactionsCsvStream("cus_123", {
         startDate: "2022-01-01T00:00:00Z",
-        endDate: "2022-01-31T23:59:59Z"
+        endDate: "2022-01-31T23:59:59Z",
+        timezone: "UTC"
       });
 
       const chunks = await Array.fromAsync(csvStream);
@@ -494,7 +496,8 @@ describe(StripeService.name, () => {
 
       const csvStream = service.exportTransactionsCsvStream("cus_123", {
         startDate: "2022-01-01T00:00:00Z",
-        endDate: "2022-01-31T23:59:59Z"
+        endDate: "2022-01-31T23:59:59Z",
+        timezone: "UTC"
       });
 
       const chunks = await Array.fromAsync(csvStream);
@@ -527,7 +530,8 @@ describe(StripeService.name, () => {
 
       const csvStream = service.exportTransactionsCsvStream("cus_123", {
         startDate: "2022-01-01T00:00:00Z",
-        endDate: "2022-01-31T23:59:59Z"
+        endDate: "2022-01-31T23:59:59Z",
+        timezone: "UTC"
       });
 
       const chunks = await Array.fromAsync(csvStream);

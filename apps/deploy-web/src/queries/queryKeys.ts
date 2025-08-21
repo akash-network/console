@@ -105,8 +105,8 @@ export class QueryKeys {
     return key;
   };
 
-  static getExportTransactionsCsvKey = (options: { startDate?: Date | null; endDate?: Date | null }) => {
-    const key = ["EXPORT_TRANSACTIONS_CSV"];
+  static getExportTransactionsCsvKey = (options: { startDate?: Date | null; endDate?: Date | null; timezone: string }) => {
+    const key = ["EXPORT_TRANSACTIONS_CSV", options.timezone];
 
     if (options.startDate) {
       key.push("start_date", options.startDate.toISOString());

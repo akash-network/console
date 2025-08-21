@@ -416,7 +416,7 @@ export class StripeService extends Stripe {
     };
   }
 
-  async *exportTransactionsCsvStream(customerId: string, options: { startDate: string; endDate: string }): AsyncIterable<string> {
+  async *exportTransactionsCsvStream(customerId: string, options: { startDate: string; endDate: string; timezone: string }): AsyncIterable<string> {
     const transactionGenerator = this.createTransactionGenerator(customerId, options);
 
     const csvStringifier = stringify({
@@ -446,13 +446,12 @@ export class StripeService extends Stripe {
 
   private async *createTransactionGenerator(
     customerId: string,
-    options: { startDate: string; endDate: string }
+    options: { startDate: string; endDate: string; timezone: string }
   ): AsyncGenerator<TransactionCsvRow, void, unknown> {
     let hasMore = true;
     let startingAfter: string | undefined;
     const batchSize = 100;
     let hasYieldedAny = false;
-    const utcHoursOffset = -new Date().getTimezoneOffset() / 60;
 
     while (hasMore) {
       const batch = await this.getCustomerTransactions(customerId, {
@@ -465,7 +464,7 @@ export class StripeService extends Stripe {
       for (const transaction of batch.transactions) {
         hasYieldedAny = true;
 
-        yield this.transformTransactionForCsv(transaction, utcHoursOffset);
+        yield this.transformTransactionForCsv(transaction, options.timezone);
       }
 
       hasMore = batch.hasMore;
@@ -498,17 +497,15 @@ export class StripeService extends Stripe {
     return value;
   }
 
-  private transformTransactionForCsv(transaction: Transaction, utcHoursOffset: number) {
+  private transformTransactionForCsv(transaction: Transaction, timeZone: string) {
     const amount = (transaction.amount / 100).toFixed(2);
-    const date = new Date(transaction.created * 1000);
-
-    if (utcHoursOffset !== 0) {
-      date.setHours(date.getHours() + utcHoursOffset);
-    }
+    const date = new Date(transaction.created * 1000).toLocaleDateString("en-CA", {
+      timeZone
+    });
 
     return {
       id: transaction.id,
-      date: date.toISOString().split("T")[0],
+      date,
       amount,
       currency: transaction.currency.toUpperCase(),
       status: transaction.status,
