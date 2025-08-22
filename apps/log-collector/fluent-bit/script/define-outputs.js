@@ -3,16 +3,10 @@ const fs = require("fs");
 const { z } = require("zod");
 
 /**
- * Command line argument for the destination fluent-bit configuration file
- * @type {string}
- */
-const [destination] = process.argv.slice(2);
-
-/**
  * Base fluent-bit configuration content
  * @type {string}
  */
-let config = fs.readFileSync(path.join(__dirname, "..", "fluent-bit.conf"), "utf8");
+let config = fs.readFileSync(path.join(__dirname, "..", "base-fluent-bit.conf"), "utf8");
 
 /**
  * Zod schema for stdout output configuration
@@ -52,5 +46,11 @@ function addOutput(schema, outputPath) {
   }
 }
 
-// Write the final configuration to the destination file
-fs.writeFileSync(destination, config);
+const outputPath = path.join(__dirname, "..", "..", "dist", "fluent-bit.conf");
+const destDir = path.dirname(outputPath);
+
+if (!fs.existsSync(destDir)) {
+  fs.mkdirSync(destDir, { recursive: true });
+}
+
+fs.writeFileSync(outputPath, config);

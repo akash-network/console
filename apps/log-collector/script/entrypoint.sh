@@ -6,7 +6,9 @@
 # -o pipefail: Exit if any command in a pipeline fails
 set -euo pipefail
 
-node ./apps/log-collector/fluent-bit/scripts/define-outputs.js /etc/fluent-bit/fluent-bit.conf
+node ./apps/log-collector/fluent-bit/script/define-outputs.js
+
+mv ./apps/log-collector/dist/fluent-bit.conf /etc/fluent-bit/fluent-bit.conf
 
 # Set Fluent Bit log level with fallback to 'info'
 # This environment variable is used in fluent-bit.conf for Log_Level setting

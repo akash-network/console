@@ -71,7 +71,7 @@ dev: $(ROOT_DIR)/apps/log-collector/Dockerfile $(ROOT_DIR)/apps/log-collector/sr
 	kubectl rollout restart deployment/$(IMAGE_NAME) -n $(NAMESPACE)
 	kubectl rollout restart deployment/log-target -n $(NAMESPACE)
 	@echo "📋 Waiting for pod to be ready..."
-	@kubectl wait --for=condition=ready pod -l app=log-collector -n $(NAMESPACE) --timeout=60s
+	@kubectl wait --for=condition=ready pod -l app=log-collector -n $(NAMESPACE) --timeout=15s
 	@echo "✅ Development workflow completed successfully"
 	@echo "💡 Run 'make logs' to view application logs"
 
