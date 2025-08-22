@@ -106,15 +106,12 @@ describe(JobQueueService.name, () => {
       await expect(service.startWorkers()).rejects.toThrow("Handlers not registered. Register handlers first.");
     });
 
-    it("processes jobs successfully", async () => {
+    it("processes job successfully", async () => {
       const handleFn = jest.fn().mockResolvedValue(undefined);
       const handler = new TestHandler(handleFn);
       const { service, pgBoss, logger } = setup();
 
-      const jobs = [
-        { id: "1", data: { message: "Job 1", userId: "user-1" } },
-        { id: "2", data: { message: "Job 2", userId: "user-2" } }
-      ];
+      const jobs = [{ id: "1", data: { message: "Job 1", userId: "user-1" } }];
 
       jest.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: any, processFn: (jobs: any[]) => Promise<void>) => {
         await processFn(jobs);
@@ -128,37 +125,27 @@ describe(JobQueueService.name, () => {
         name: "test",
         retryLimit: 10
       });
-      expect(pgBoss.work).toHaveBeenCalledWith("test", { batchSize: 5 }, expect.any(Function));
+      expect(pgBoss.work).toHaveBeenCalledTimes(5);
+      expect(pgBoss.work).toHaveBeenCalledWith("test", { batchSize: 1 }, expect.any(Function));
       expect(logger.info).toHaveBeenCalledWith({
-        event: "JOBS_STARTED",
-        jobsIds: jobs.map(job => job.id)
+        event: "JOB_STARTED",
+        jobId: jobs[0].id
       });
-      expect(handleFn).toHaveBeenCalledTimes(2);
+      expect(handleFn).toHaveBeenCalledTimes(5);
       expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" });
-      expect(handleFn).toHaveBeenCalledWith({ message: "Job 2", userId: "user-2" });
       expect(logger.info).toHaveBeenCalledWith({
         event: "JOB_DONE",
         jobId: jobs[0].id
-      });
-      expect(logger.info).toHaveBeenCalledWith({
-        event: "JOB_DONE",
-        jobId: jobs[1].id
       });
     });
 
     it("handles job failures and logs errors", async () => {
       const error = new Error("Job processing failed");
-      const handleFn = jest
-        .fn()
-        .mockResolvedValueOnce(undefined) // First job succeeds
-        .mockRejectedValueOnce(error); // Second job fails
+      const handleFn = jest.fn().mockRejectedValue(error);
       const handler = new TestHandler(handleFn);
       const { service, pgBoss, logger } = setup();
 
-      const jobs = [
-        { id: "1", data: { message: "Job 1", userId: "user-1" } },
-        { id: "2", data: { message: "Job 2", userId: "user-2" } }
-      ];
+      const jobs = [{ id: "1", data: { message: "Job 1", userId: "user-1" } }];
 
       jest.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: any, processFn: (jobs: any[]) => Promise<void>) => {
         await processFn(jobs);
@@ -166,18 +153,16 @@ describe(JobQueueService.name, () => {
       });
 
       await service.registerHandlers([handler]);
-      await service.startWorkers();
+      const [result] = await Promise.allSettled([service.startWorkers({ batchSize: 1 })]);
 
-      expect(handleFn).toHaveBeenCalledTimes(2);
-      expect(logger.info).toHaveBeenCalledWith({
-        event: "JOB_DONE",
-        jobId: jobs[0].id
-      });
+      expect(result.status).toBe("rejected");
+      expect((result as PromiseRejectedResult).reason).toBe(error);
       expect(logger.error).toHaveBeenCalledWith({
         event: "JOB_FAILED",
-        jobId: jobs[1].id,
-        error
+        jobId: jobs[0].id,
+        error: (result as PromiseRejectedResult).reason
       });
+      expect(handleFn).toHaveBeenCalledTimes(1);
     });
 
     it("uses default options when none provided", async () => {
@@ -186,22 +171,23 @@ describe(JobQueueService.name, () => {
       const { service, pgBoss } = setup();
 
       jest.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: any, processFn: (jobs: any[]) => Promise<void>) => {
-        await processFn([]);
+        await processFn([{ id: "1", data: { message: "Job 1", userId: "user-1" } }]);
         return "work-id";
       });
 
       await service.registerHandlers([handler]);
       await service.startWorkers();
 
-      expect(pgBoss.work).toHaveBeenCalledWith("test", { batchSize: 10 }, expect.any(Function));
+      expect(handleFn).toHaveBeenCalledTimes(10);
+      expect(pgBoss.work).toHaveBeenCalledWith("test", { batchSize: 1 }, expect.any(Function));
     });
   });
 
-  describe("start", () => {
+  describe("setup", () => {
     it("starts PgBoss and sets up error handling", async () => {
       const { service, pgBoss, logger } = setup();
 
-      await service.start();
+      await service.setup();
 
       expect(logger.info).toHaveBeenCalledWith({ event: "JOB_QUEUE_STARTING" });
       expect(pgBoss.on).toHaveBeenCalledWith("error", expect.any(Function));
@@ -221,7 +207,7 @@ describe(JobQueueService.name, () => {
         return pgBoss;
       });
 
-      await service.start();
+      await service.setup();
       errorHandler!(mockError);
 
       expect(logger.error).toHaveBeenCalledWith({

@@ -2,7 +2,7 @@ import type { AkashBlock, Deployment, DeploymentGroup, Provider } from "@akashne
 import { faker } from "@faker-js/faker";
 import { format, subWeeks } from "date-fns";
 
-import { app, initDb } from "@src/app";
+import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
 

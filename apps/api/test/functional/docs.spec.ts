@@ -1,4 +1,4 @@
-import { app } from "@src/app";
+import { app } from "@src/rest-app";
 
 describe("API Docs", () => {
   describe("GET /v1/doc", () => {

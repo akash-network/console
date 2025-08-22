@@ -16,7 +16,8 @@ describe(HealthzController.name, () => {
       service.getReadinessStatus.mockResolvedValue({
         status: "ok",
         data: {
-          postgres: true
+          postgres: true,
+          jobQueue: true
         }
       });
 
@@ -24,7 +25,7 @@ describe(HealthzController.name, () => {
 
       expect(result).toEqual({
         status: "ok",
-        data: { postgres: true }
+        data: { postgres: true, jobQueue: true }
       });
     });
   });
@@ -35,14 +36,14 @@ describe(HealthzController.name, () => {
 
       service.getLivenessStatus.mockResolvedValue({
         status: "ok",
-        data: { postgres: true }
+        data: { postgres: true, jobQueue: true }
       });
 
       const result = await controller.getLivenessStatus();
 
       expect(result).toEqual({
         status: "ok",
-        data: { postgres: true }
+        data: { postgres: true, jobQueue: true }
       });
     });
   });

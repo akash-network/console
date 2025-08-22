@@ -8,7 +8,7 @@ const { NODE_ENV = "production" } = process.env;
 
 /** @type {import('webpack').Configuration} */
 module.exports = {
-  entry: "./src/index.ts",
+  entry: "./src/server.ts",
   mode: NODE_ENV,
   target: "node",
   devtool: "source-map",
@@ -18,6 +18,9 @@ module.exports = {
   },
   resolve: {
     extensions: [".ts", ".js"],
+    extensionAlias: {
+      ".js": [".ts", ".js"]
+    },
     alias: hq.get("webpack")
   },
   externals: [nodeExternals()],

@@ -1,5 +1,5 @@
 import PgBoss from "pg-boss";
-import { inject, InjectionToken, singleton } from "tsyringe";
+import { Disposable, inject, InjectionToken, singleton } from "tsyringe";
 
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { CoreConfigService } from "../core-config/core-config.service";
@@ -7,7 +7,7 @@ import { CoreConfigService } from "../core-config/core-config.service";
 export const PG_BOSS_TOKEN: InjectionToken<PgBoss> = Symbol("pgBoss");
 
 @singleton()
-export class JobQueueService {
+export class JobQueueService implements Disposable {
   private readonly pgBoss: PgBoss;
   private handlers?: JobHandler<Job>[];
 
@@ -20,13 +20,19 @@ export class JobQueueService {
       pgBoss ??
       new PgBoss({
         connectionString: this.coreConfig.get("POSTGRES_DB_URI"),
-        schema: "pgboss"
+        schema: "pgboss",
+        schedule: false
       });
   }
 
   async registerHandlers(handlers: JobHandler<Job>[]): Promise<void> {
+    const seenJobs = new Set<string>();
     const promises = handlers.map(async handler => {
       const queueName = handler.accepts[JOB_NAME];
+      if (seenJobs.has(queueName)) {
+        throw new Error(`JobQueue does not support multiple handlers for the same queue: ${queueName}`);
+      }
+      seenJobs.add(queueName);
       await this.pgBoss.createQueue(queueName, {
         name: queueName,
         retryLimit: 10
@@ -80,37 +86,40 @@ export class JobQueueService {
     });
   }
 
+  /** Starts jobs processing */
   async startWorkers(options: ProcessOptions = {}): Promise<void> {
     if (!this.handlers) throw new Error("Handlers not registered. Register handlers first.");
 
+    const workerOptions = {
+      ...options,
+      batchSize: 1
+    };
     const jobs = this.handlers.map(async handler => {
       const queueName = handler.accepts[JOB_NAME];
-      await this.pgBoss.createQueue(queueName, {
-        name: queueName,
-        retryLimit: 10
-      });
-      await this.pgBoss.work<Job["data"]>(queueName, { batchSize: 10, ...options }, async jobs => {
-        this.logger.info({
-          event: "JOBS_STARTED",
-          jobsIds: jobs.map(job => job.id)
-        });
-        const promises = jobs.map(async job => handler.handle(job.data));
-        const results = await Promise.allSettled(promises);
-        results.forEach((result, index) => {
-          if (result.status === "fulfilled") {
+      const workersPromises = Array.from({ length: options.batchSize ?? 10 }).map(() =>
+        this.pgBoss.work<Job["data"]>(queueName, workerOptions, async ([job]) => {
+          this.logger.info({
+            event: "JOB_STARTED",
+            jobId: job.id
+          });
+          try {
+            await handler.handle(job.data);
             this.logger.info({
               event: "JOB_DONE",
-              jobId: jobs[index].id
+              jobId: job.id
             });
-          } else {
+          } catch (error) {
             this.logger.error({
               event: "JOB_FAILED",
-              jobId: jobs[index].id,
-              error: result.reason
+              jobId: job.id,
+              error
             });
+            throw error;
           }
-        });
-      });
+        })
+      );
+
+      await Promise.all(workersPromises);
     });
 
     await Promise.all(jobs);
@@ -120,13 +129,21 @@ export class JobQueueService {
     await this.pgBoss.stop();
   }
 
-  async start(): Promise<void> {
+  /**
+   * Configures tables and initializes schedules
+   */
+  async setup(): Promise<void> {
     this.logger.info({ event: "JOB_QUEUE_STARTING" });
     this.pgBoss.on("error", error => {
       this.logger.error({ event: "JOB_QUEUE_ERROR", error });
     });
     await this.pgBoss.start();
     this.logger.info({ event: "JOB_QUEUE_STARTED" });
+  }
+
+  async ping(): Promise<void> {
+    // @ts-expect-error - getDb is not typed, see https://github.com/timgit/pg-boss/issues/552#issuecomment-3213043039
+    await this.pgBoss.getDb().executeSql("SELECT 1");
   }
 }
 

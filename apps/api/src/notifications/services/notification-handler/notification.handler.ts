@@ -73,10 +73,10 @@ export class NotificationHandler implements JobHandler<NotificationJob> {
       return;
     }
 
-    await this.notificationService.createNotification(notificationTemplate(user, Object.hasOwn(payload, "vars") ? (payload as any).vars : {}));
+    await this.notificationService.createNotification(notificationTemplate(user, payload.vars));
   }
 }
 
 type TemplateVarsParameter<T extends NotificationTemplates[keyof NotificationTemplates]> = Parameters<T>["length"] extends 0 | 1
-  ? unknown
+  ? { vars?: undefined }
   : { vars: Parameters<T>[1] };

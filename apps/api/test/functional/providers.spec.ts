@@ -5,9 +5,9 @@ import map from "lodash/map";
 import mcache from "memory-cache";
 import nock from "nock";
 
-import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/db/dbConnection";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
+import { app, initDb } from "@src/rest-app";
 
 import { createDay, createDeployment, createDeploymentGroup, createLease, createProvider, createProviderSnapshot } from "@test/seeders";
 
