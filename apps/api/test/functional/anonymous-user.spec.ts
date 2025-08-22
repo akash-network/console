@@ -1,4 +1,4 @@
-import { app } from "@src/app";
+import { app } from "@src/rest-app";
 import type { AnonymousUserResponseOutput } from "@src/user/schemas/user.schema";
 
 describe("Users", () => {

@@ -1,70 +1,85 @@
-import { differenceInMilliseconds, millisecondsInMinute } from "date-fns";
-import { sql } from "drizzle-orm";
-import { injectable } from "tsyringe";
+import { secondsInMinute } from "date-fns";
+import { inject, injectable } from "tsyringe";
 
+import { Memoize } from "@src/caching/helpers";
+import { DB_HEALTHCHECK, DbHealthcheck, JOB_QUEUE_HEALTHCHECK, JobQueueHealthcheck } from "@src/core";
 import { LoggerService } from "@src/core/providers/logging.provider";
-import { InjectPg } from "@src/core/providers/postgres.provider";
-import { type ApiPgDatabase } from "@src/core/providers/postgres.provider";
-import type { HealthzResponse } from "@src/healthz/routes/healthz.router";
 
 @injectable()
 export class HealthzService {
-  private dbFailedAt: Date | undefined;
-
   constructor(
-    @InjectPg() private readonly pg: ApiPgDatabase,
+    @inject(DB_HEALTHCHECK) private readonly dbHealthcheck: DbHealthcheck,
+    @inject(JOB_QUEUE_HEALTHCHECK) private readonly jobQueueHealthcheck: JobQueueHealthcheck,
     private readonly logger: LoggerService
   ) {
     this.logger.setContext(HealthzService.name);
   }
 
-  async getReadinessStatus(): Promise<HealthzResponse & { status: "ok" | "error" }> {
-    const isPostgresReady = await this.isPostgresReady();
+  async getReadinessStatus(): Promise<HealthzResult> {
+    const [isPostgresReady, isJobQueueReady] = await Promise.all([this.isPostgresHealthy(), this.isJobQueueHealthy()]);
 
     return {
-      status: isPostgresReady ? "ok" : "error",
+      status: isPostgresReady && isJobQueueReady ? "ok" : "error",
       data: {
-        postgres: isPostgresReady
+        postgres: isPostgresReady,
+        jobQueue: isJobQueueReady
       }
     };
   }
 
-  async getLivenessStatus(threshold = millisecondsInMinute): Promise<HealthzResponse & { status: "ok" | "error" }> {
-    const isPostgresAlive = await this.isPostgresAlive(threshold);
+  async getLivenessStatus(): Promise<HealthzResult> {
+    const [isPostgresAlive, isJobQueueAlive] = await Promise.all([this.isPostgresAlive(), this.isJobQueueAlive()]);
 
     return {
-      status: isPostgresAlive ? "ok" : "error",
+      status: isPostgresAlive && isJobQueueAlive ? "ok" : "error",
       data: {
-        postgres: isPostgresAlive
+        postgres: isPostgresAlive,
+        jobQueue: isJobQueueAlive
       }
     };
   }
 
-  private async isPostgresReady() {
-    return this.isPostgresConnected();
+  @Memoize({ ttlInSeconds: secondsInMinute })
+  private async isPostgresAlive() {
+    return this.isPostgresHealthy();
   }
 
-  private async isPostgresAlive(threshold = millisecondsInMinute) {
-    if (await this.isPostgresConnected()) {
-      return true;
-    }
-
-    const dbFailingFor = this.dbFailedAt ? differenceInMilliseconds(new Date(), this.dbFailedAt) : 0;
-
-    return dbFailingFor < threshold;
+  @Memoize({ ttlInSeconds: secondsInMinute })
+  private async isJobQueueAlive() {
+    return this.isJobQueueHealthy();
   }
 
-  private async isPostgresConnected(): Promise<boolean> {
+  private async isPostgresHealthy(): Promise<boolean> {
     try {
-      await this.pg.execute(sql`SELECT 1`);
-      this.dbFailedAt = undefined;
-
+      await this.dbHealthcheck.ping();
       return true;
     } catch (error) {
-      this.dbFailedAt = this.dbFailedAt || new Date();
-      this.logger.error(error);
-
+      this.logger.error({
+        event: "DB_HEALTHCHECK_ERROR",
+        error
+      });
       return false;
     }
   }
+
+  private async isJobQueueHealthy() {
+    try {
+      await this.jobQueueHealthcheck.ping();
+      return true;
+    } catch (error) {
+      this.logger.error({
+        event: "JOB_QUEUE_HEALTHCHECK_ERROR",
+        error
+      });
+      return false;
+    }
+  }
+}
+
+export interface HealthzResult {
+  status: "ok" | "error";
+  data: {
+    postgres: boolean;
+    jobQueue: boolean;
+  };
 }

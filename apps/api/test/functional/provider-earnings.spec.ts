@@ -3,9 +3,9 @@ import { format, subDays } from "date-fns";
 import mcache from "memory-cache";
 import nock from "nock";
 
-import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/db/dbConnection";
 import type { ProviderEarningsResponse } from "@src/provider/http-schemas/provider-earnings.schema";
+import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createProvider } from "@test/seeders";
 
