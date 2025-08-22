@@ -71,16 +71,24 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return { wallet: wallet!, isNew: false };
   }
 
-  async create(input: Pick<UserWalletInput, "userId" | "address">) {
+  async create(input: Pick<UserWalletInput, "userId" | "address" | "derivedFromMasterWalletId" | "authzFromMasterWalletId">) {
     const value = {
       userId: input.userId,
-      address: input.address
+      address: input.address,
+      derivedFromMasterWalletId: input.derivedFromMasterWalletId,
+      authzFromMasterWalletId: input.authzFromMasterWalletId
     };
 
     this.ability?.throwUnlessCanExecute(value);
     const [item] = await this.cursor.insert(this.table).values(value).returning();
 
     return this.toOutput(item);
+  }
+
+  async updateAuthzMasterWallet(userId: string, authzFromMasterWalletId: number): Promise<UserWalletOutput | null> {
+    const [updatedWallet] = await this.cursor.update(this.table).set({ authzFromMasterWalletId }).where(eq(this.table.userId, userId)).returning();
+
+    return updatedWallet ? this.toOutput(updatedWallet) : null;
   }
 
   async findDrainingWallets(thresholds = { fee: 0 }) {

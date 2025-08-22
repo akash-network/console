@@ -80,6 +80,10 @@ export class BatchSigningClientService {
     return tx;
   }
 
+  async getWalletAddress(): Promise<string> {
+    return this.getCachedFirstAddress();
+  }
+
   private async initClient() {
     return await backOff(
       () =>

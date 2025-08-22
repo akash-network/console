@@ -1,9 +1,19 @@
 import { z } from "zod";
 
 export const envSchema = z.object({
-  MASTER_WALLET_MNEMONIC: z.string(),
+  // Legacy single wallet support (for backward compatibility)
+  MASTER_WALLET_MNEMONIC: z.string().optional(),
   UAKT_TOP_UP_MASTER_WALLET_MNEMONIC: z.string(),
   USDC_TOP_UP_MASTER_WALLET_MNEMONIC: z.string(),
+
+  // New multi-wallet support - Company wallets (comma-separated)
+  COMPANY_MASTER_WALLET_ADDRESSES: z.string().transform(val => val.split(",").map(addr => addr.trim())),
+  COMPANY_MASTER_WALLET_MNEMONICS: z.string().transform(val => val.split(",").map(mnemonic => mnemonic.trim())),
+
+  // New multi-wallet support - Community wallets (comma-separated)
+  COMMUNITY_MASTER_WALLET_ADDRESSES: z.string().transform(val => val.split(",").map(addr => addr.trim())),
+  COMMUNITY_MASTER_WALLET_MNEMONICS: z.string().transform(val => val.split(",").map(mnemonic => mnemonic.trim())),
+
   NETWORK: z.enum(["mainnet", "testnet", "sandbox"]),
   RPC_NODE_ENDPOINT: z.string(),
   TRIAL_ALLOWANCE_EXPIRATION_DAYS: z.number({ coerce: true }).default(30),
