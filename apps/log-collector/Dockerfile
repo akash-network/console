@@ -61,8 +61,10 @@ COPY --from=builder --chown=appuser:appuser /app/apps/log-collector/dist ./apps/
 
 # Copy Fluent Bit configuration files
 # These files configure log collection and processing
-COPY --chown=appuser:appuser apps/log-collector/fluent-bit/fluent-bit.conf /etc/fluent-bit/fluent-bit.conf
+COPY --chown=appuser:appuser apps/log-collector/fluent-bit/fluent-bit.conf /app/apps/log-collector/fluent-bit/
 COPY --chown=appuser:appuser apps/log-collector/fluent-bit/parsers.conf /etc/fluent-bit/parsers.conf
+COPY --chown=appuser:appuser apps/log-collector/fluent-bit/outputs /etc/fluent-bit/outputs
+COPY --chown=appuser:appuser apps/log-collector/fluent-bit/scripts/define-outputs.js /app/apps/log-collector/fluent-bit/scripts/
 COPY --chown=appuser:appuser apps/log-collector/fluent-bit/scripts/extract_metadata.lua /etc/fluent-bit/extract_metadata.lua
 
 # Copy entrypoint script for container startup
@@ -77,9 +79,11 @@ RUN chown -R appuser:appuser /app
 # Create Fluent Bit directories for storage, database, and logs
 # - /var/lib/fluent-bit/storage: Persistent storage for file tracking
 # - /var/log/fluent-bit: Fluent Bit internal logs
+# - /etc/fluent-bit: Configuration files and scripts (with appuser permissions for runtime modifications)
 RUN mkdir -p /var/lib/fluent-bit/storage \
     && mkdir -p /var/log/fluent-bit \
-    && chown -R appuser:appuser /var/lib/fluent-bit /var/log/fluent-bit
+    && chown -R appuser:appuser /var/lib/fluent-bit /var/log/fluent-bit \
+    && chown -R appuser:appuser /etc/fluent-bit
 
 # Set Node.js environment to production
 ENV NODE_ENV=production

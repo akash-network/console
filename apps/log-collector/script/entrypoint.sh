@@ -6,19 +6,7 @@
 # -o pipefail: Exit if any command in a pipeline fails
 set -euo pipefail
 
-# Validate required Datadog environment variables
-# These are critical for log forwarding and must be set before starting services
-if [[ -z "${DD_SITE:-}" ]]; then
-  echo "[entrypoint] ERROR: DD_SITE environment variable is required but not set"
-  echo "[entrypoint] Please set DD_SITE to your Datadog site (e.g., datadoghq.com, datadoghq.eu)"
-  exit 1
-fi
-
-if [[ -z "${DD_API_KEY:-}" ]]; then
-  echo "[entrypoint] ERROR: DD_API_KEY environment variable is required but not set"
-  echo "[entrypoint] Please set DD_API_KEY to your Datadog API key"
-  exit 1
-fi
+node ./apps/log-collector/fluent-bit/scripts/define-outputs.js /etc/fluent-bit/fluent-bit.conf
 
 # Set Fluent Bit log level with fallback to 'info'
 # This environment variable is used in fluent-bit.conf for Log_Level setting
