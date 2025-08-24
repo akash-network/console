@@ -33,8 +33,10 @@ export type DbHealthcheck = {
 export const DB_HEALTHCHECK: InjectionToken<DbHealthcheck> = "DB_HEALTHCHECK";
 container.register(DB_HEALTHCHECK, {
   useValue: {
-    ping: () => appClient.unsafe("SELECT 1")
-  }
+    async ping() {
+      await appClient.unsafe("SELECT 1");
+    }
+  } satisfies DbHealthcheck
 });
 
 export const POSTGRES_DB: InjectionToken<ApiPgDatabase> = "POSTGRES_DB";

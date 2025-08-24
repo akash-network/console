@@ -11,7 +11,6 @@ import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializ
 import { shutdownServer } from "../shutdown-server/shutdown-server";
 
 /**
- * Initialize database
  * Runs registered in container `APP_INITIALIZER`s
  * Starts hono server
  * Registers shutdown process signals
@@ -27,7 +26,6 @@ export async function startServer(
   }
 ): Promise<ServerType | undefined> {
   const container = options.container ?? rootContainer;
-  let server: ServerType | undefined;
   const disposeContainerOnce = once(() => {
     logger.info({ event: "DISPOSING_CONTAINER" });
     return Promise.resolve(container.dispose()).catch(error => {
@@ -35,6 +33,7 @@ export async function startServer(
     });
   });
 
+  let server: ServerType | undefined;
   const shutdown = once(async () => {
     if (server) {
       await shutdownServer(server, logger, disposeContainerOnce);
