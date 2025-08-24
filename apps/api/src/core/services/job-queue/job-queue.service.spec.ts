@@ -227,6 +227,18 @@ describe(JobQueueService.name, () => {
     });
   });
 
+  describe("ping", () => {
+    it("pings PgBoss", async () => {
+      const { service, pgBoss } = setup();
+      // @ts-expect-error - getDb is not typed, see https://github.com/timgit/pg-boss/issues/552#issuecomment-3213043039
+      jest.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql: jest.fn().mockResolvedValue(undefined) });
+      await service.ping();
+
+      // @ts-expect-error - getDb is not typed, see https://github.com/timgit/pg-boss/issues/552#issuecomment-3213043039
+      expect(pgBoss.getDb().executeSql).toHaveBeenCalledWith("SELECT 1");
+    });
+  });
+
   function setup(input?: { pgBoss?: PgBoss; postgresDbUri?: string }) {
     const mocks = {
       logger: mock<LoggerService>(),
