@@ -1,7 +1,7 @@
 import { LoggerService } from "@akashnetwork/logging";
 import { secondsInMinute } from "date-fns";
 import { Context, Next } from "hono";
-import { HTTPException } from "hono/http-exception";
+import { Unauthorized } from "http-errors";
 import { LRUCache } from "lru-cache";
 import { singleton } from "tsyringe";
 
@@ -72,9 +72,7 @@ export class AuthInterceptor implements HonoInterceptor {
           return await next();
         } catch (error) {
           this.logger.error(error);
-          throw new HTTPException(401, {
-            message: "Invalid API key"
-          });
+          throw new Unauthorized("Invalid API key");
         }
       }
 
