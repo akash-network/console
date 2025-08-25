@@ -1,7 +1,6 @@
 import { Provider, ProviderAttribute, ProviderAttributeSignature, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
 import { ProviderHttpService } from "@akashnetwork/http-sdk";
-import { SupportedChainNetworks } from "@akashnetwork/net";
 import { AxiosError } from "axios";
 import { add } from "date-fns";
 import assert from "http-assert";
@@ -9,34 +8,30 @@ import { Op } from "sequelize";
 import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
-import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
-import { ProviderIdentity, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
+import { ProviderIdentity } from "@src/provider/services/provider/provider-proxy.service";
 import { ProviderList } from "@src/types/provider";
 import { toUTC } from "@src/utils";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { AuditorService } from "../auditors/auditors.service";
+import { JwtTokenService } from "../jwt-token/jwt-token.service";
 import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
 
 @singleton()
 export class ProviderService {
   private readonly MANIFEST_SEND_MAX_RETRIES = 3;
   private readonly MANIFEST_SEND_RETRY_DELAY = 6000;
-  private readonly chainNetwork: SupportedChainNetworks;
 
   constructor(
-    private readonly providerProxy: ProviderProxyService,
     private readonly providerHttpService: ProviderHttpService,
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
-    @InjectBillingConfig() private readonly config: BillingConfig
-  ) {
-    this.chainNetwork = this.config.NETWORK as SupportedChainNetworks;
-  }
+    private readonly jwtTokenService: JwtTokenService
+  ) {}
 
-  async sendManifest(provider: string, dseq: string, manifest: string, options: { certPem: string; keyPem: string }) {
-    const jsonStr = manifest.replace(/"quantity":{"val/g, '"size":{"val');
+  async sendManifest({ provider, dseq, manifest, walletId }: { provider: string; dseq: string; manifest: string; walletId: number }) {
+    const manifestWithSize = manifest.replace(/"quantity":{"val/g, '"size":{"val');
 
     const providerResponse = await this.providerHttpService.getProvider(provider);
 
@@ -47,55 +42,65 @@ export class ProviderService {
       hostUri: providerResponse.provider.host_uri
     };
 
-    return await this.sendManifestToProvider(dseq, jsonStr, options, providerIdentity);
+    return await this.sendManifestToProvider({ walletId, dseq, manifest: manifestWithSize, providerIdentity });
   }
 
-  private async sendManifestToProvider(dseq: string, jsonStr: string, options: { certPem: string; keyPem: string }, providerIdentity: ProviderIdentity) {
+  private async sendManifestToProvider({
+    walletId,
+    dseq,
+    manifest,
+    providerIdentity
+  }: {
+    walletId: number;
+    dseq: string;
+    manifest: string;
+    providerIdentity: ProviderIdentity;
+  }) {
     for (let i = 1; i <= this.MANIFEST_SEND_MAX_RETRIES; i++) {
       try {
-        const result = await this.providerProxy.fetchProviderUrl(`/deployment/${dseq}/manifest`, {
-          method: "PUT",
-          body: jsonStr,
-          certPem: options.certPem,
-          keyPem: options.keyPem,
-          chainNetwork: this.chainNetwork,
-          providerIdentity,
-          timeout: 60000
+        const jwtToken = await this.jwtTokenService.generateJwtToken({
+          walletId,
+          leases: this.jwtTokenService.getScopedLeases({
+            provider: providerIdentity.owner,
+            scope: ["send-manifest"]
+          })
         });
+        const result = await this.providerHttpService.sendManifest({ hostUri: providerIdentity.hostUri, dseq, manifest, jwtToken });
 
-        if (result) return result;
+        if (result) {
+          return result;
+        }
       } catch (err: any) {
         if (err.message?.includes("no lease for deployment") && i < this.MANIFEST_SEND_MAX_RETRIES) {
           await delay(this.MANIFEST_SEND_RETRY_DELAY);
           continue;
         }
+
         const providerError = err instanceof AxiosError && err.response?.data;
-        assert(!providerError?.toLowerCase()?.includes("invalid manifest"), 400, err?.response?.data);
+        if (typeof providerError === "string") {
+          assert(!providerError.toLowerCase().includes("invalid manifest"), 400, err?.response?.data);
+        }
 
         throw new Error(providerError || err);
       }
     }
   }
 
-  async getLeaseStatus(provider: string, dseq: string, gseq: number, oseq: number, options: { certPem: string; keyPem: string }): Promise<LeaseStatusResponse> {
+  async getLeaseStatus(provider: string, dseq: string, gseq: number, oseq: number, walletId: number): Promise<LeaseStatusResponse> {
     const providerResponse = await this.providerHttpService.getProvider(provider);
     if (!providerResponse) {
       throw new Error(`Provider ${provider} not found`);
     }
 
-    const providerIdentity: ProviderIdentity = {
-      owner: provider,
-      hostUri: providerResponse.provider.host_uri
-    };
-
-    return await this.providerProxy.fetchProviderUrl<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
-      method: "GET",
-      certPem: options.certPem,
-      keyPem: options.keyPem,
-      chainNetwork: this.chainNetwork,
-      providerIdentity,
-      timeout: 30000
+    const jwtToken = await this.jwtTokenService.generateJwtToken({
+      walletId,
+      leases: this.jwtTokenService.getScopedLeases({
+        provider,
+        scope: ["status"]
+      })
     });
+
+    return await this.providerHttpService.getLeaseStatus({ hostUri: providerResponse.provider.host_uri, dseq, gseq, oseq, jwtToken });
   }
 
   async getProviderList({ trial = false }: { trial?: boolean } = {}): Promise<ProviderList[]> {

@@ -2,7 +2,7 @@
  * This script demonstrates how to create a deployment with a lease using the API and an API key.
  *
  * The script follows these steps:
- * 1. Creates a certificate for secure communication
+ * 1. Checks if API key env var is set
  * 2. Creates a deployment using the provided SDL file
  * 3. Waits for and collects bids from providers
  * 4. Creates a lease using the first received bid
@@ -23,6 +23,7 @@ import { config } from "@dotenvx/dotenvx";
 import axios from "axios";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import WebSocket from "ws";
 
 // Load environment variables from .env.local in the script directory
 const envPath = path.resolve(__dirname, ".env.local");
@@ -68,7 +69,7 @@ async function waitForBids(dseq: string, apiKey: string, maxAttempts = 10): Prom
 
 /**
  * This script is used to create a lease for a deployment using an api key.
- * It creates a certificate, creates a deployment, waits for bids, creates a lease, and then closes the deployment.
+ * It creates a deployment, waits for bids, creates a lease, and then closes the deployment.
  */
 async function main() {
   try {
@@ -78,22 +79,7 @@ async function main() {
       throw new Error("API_KEY environment variable is required");
     }
 
-    // 2. Create certificate
-    console.log("Creating certificate...");
-    const certResponse = await api.post(
-      "/v1/certificates",
-      {},
-      {
-        headers: {
-          "x-api-key": apiKey
-        }
-      }
-    );
-
-    const { certPem, encryptedKey } = certResponse.data.data;
-    console.log("Certificate created successfully");
-
-    // 3. Create deployment
+    // 2. Create deployment
     console.log("Creating deployment...");
     const deployResponse = await api.post(
       "/v1/deployments",
@@ -113,7 +99,7 @@ async function main() {
     const { dseq, manifest } = deployResponse.data.data;
     console.log(`Deployment created with dseq: ${dseq}`);
 
-    // 4. Wait for and get bids
+    // 3. Wait for and get bids
     console.log("Waiting for bids...");
     const bids = await waitForBids(dseq, apiKey);
     console.log(`Received ${bids.length} bids`);
@@ -126,23 +112,21 @@ async function main() {
       throw new Error(`No bid found from provider ${targetProvider}`);
     }
 
+    const { provider, gseq, oseq } = selectedBid.bid.bid_id;
+
     const body = {
       manifest,
-      certificate: {
-        certPem,
-        keyPem: encryptedKey
-      },
       leases: [
         {
           dseq,
-          gseq: selectedBid.bid.bid_id.gseq,
-          oseq: selectedBid.bid.bid_id.oseq,
-          provider: selectedBid.bid.bid_id.provider
+          gseq,
+          oseq,
+          provider
         }
       ]
     };
 
-    // 5. Create lease and send manifest
+    // 4. Create lease and send manifest
     console.log("Creating lease and sending manifest...");
     const leaseResponse = await api.post("/v1/leases", body, {
       headers: {
@@ -155,7 +139,7 @@ async function main() {
     }
     console.log("Lease created successfully", JSON.stringify(leaseResponse.data.data, null, 2));
 
-    // 6. Deposit into deployment
+    // 5. Deposit into deployment
     console.log("Depositing into deployment...");
     const depositResponse = await api.post(
       `/v1/deposit-deployment`,
@@ -182,11 +166,7 @@ async function main() {
       `/v1/deployments/${dseq}`,
       {
         data: {
-          sdl: updatedYml,
-          certificate: {
-            certPem,
-            keyPem: encryptedKey
-          }
+          sdl: updatedYml
         }
       },
       {
@@ -201,7 +181,7 @@ async function main() {
     }
     console.log("Deployment updated successfully");
 
-    // 7. Get the deployment details
+    // 6. Get the deployment details
     console.log("Getting deployment details...");
     const deploymentResponse = await api.get(`/v1/deployments/${dseq}`, {
       headers: {
@@ -210,6 +190,39 @@ async function main() {
     });
 
     console.log("Deployment details:", JSON.stringify(deploymentResponse.data.data, null, 2));
+
+    // 7. Stream logs from provider
+    const providerResponse = await api.get(`/v1/providers/${provider}`, {
+      headers: {
+        "x-api-key": apiKey
+      }
+    });
+    const { hostUri } = providerResponse.data;
+
+    const websocket = new WebSocket(`${API_URL}/v1/ws`, {
+      headers: {
+        "x-api-key": apiKey
+      }
+    });
+
+    websocket.on("message", message => {
+      console.log("WebSocket message received:", message.toString());
+    });
+
+    websocket.on("open", () => {
+      console.log("WebSocket connected, sending message to stream logs");
+      websocket.send(
+        JSON.stringify({
+          type: "websocket",
+          providerAddress: provider,
+          url: `${hostUri}/lease/${dseq}/${gseq}/${oseq}/logs`,
+          chainNetwork: "sandbox"
+        })
+      );
+    });
+
+    // wait for 5 seconds before closing the deployment
+    await new Promise(resolve => setTimeout(resolve, 5000));
 
     // 8. Close deployment
     console.log("Closing deployment...");

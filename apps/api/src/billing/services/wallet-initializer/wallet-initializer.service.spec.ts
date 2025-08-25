@@ -7,6 +7,7 @@ import { DomainEventsService } from "@src/core/services/domain-events/domain-eve
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { JwtTokenService } from "@src/provider/services/jwt-token/jwt-token.service";
 import { UserWalletRepository } from "../../repositories/user-wallet/user-wallet.repository";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 import { WalletInitializerService } from "./wallet-initializer.service";
@@ -148,6 +149,12 @@ describe(WalletInitializerService.name, () => {
       FeatureFlagsService,
       mock<FeatureFlagsService>({
         isEnabled: jest.fn(flag => !!input?.enabledFeatures?.includes(flag))
+      })
+    );
+    di.registerInstance(
+      JwtTokenService,
+      mock<JwtTokenService>({
+        generateJwtToken: jest.fn().mockResolvedValue("mock-jwt-token")
       })
     );
 
