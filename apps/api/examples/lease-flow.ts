@@ -23,6 +23,7 @@ import { config } from "@dotenvx/dotenvx";
 import axios from "axios";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import WebSocket from "ws";
 
 // Load environment variables from .env.local in the script directory
 const envPath = path.resolve(__dirname, ".env.local");
@@ -111,14 +112,16 @@ async function main() {
       throw new Error(`No bid found from provider ${targetProvider}`);
     }
 
+    const { provider, gseq, oseq } = selectedBid.bid.bid_id;
+
     const body = {
       manifest,
       leases: [
         {
           dseq,
-          gseq: selectedBid.bid.bid_id.gseq,
-          oseq: selectedBid.bid.bid_id.oseq,
-          provider: selectedBid.bid.bid_id.provider
+          gseq,
+          oseq,
+          provider
         }
       ]
     };
@@ -188,7 +191,40 @@ async function main() {
 
     console.log("Deployment details:", JSON.stringify(deploymentResponse.data.data, null, 2));
 
-    // 7. Close deployment
+    // 7. Stream logs from provider
+    const providerResponse = await api.get(`/v1/providers/${provider}`, {
+      headers: {
+        "x-api-key": apiKey
+      }
+    });
+    const { hostUri } = providerResponse.data;
+
+    const websocket = new WebSocket(`${API_URL}/v1/ws`, {
+      headers: {
+        "x-api-key": apiKey
+      }
+    });
+
+    websocket.on("message", message => {
+      console.log("WebSocket message received:", message.toString());
+    });
+
+    websocket.on("open", () => {
+      console.log("WebSocket connected, sending message to stream logs");
+      websocket.send(
+        JSON.stringify({
+          type: "websocket",
+          providerAddress: provider,
+          url: `${hostUri}/lease/${dseq}/${gseq}/${oseq}/logs`,
+          chainNetwork: "sandbox"
+        })
+      );
+    });
+
+    // wait for 5 seconds before closing the deployment
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    // 8. Close deployment
     console.log("Closing deployment...");
     const closeResponse = await api.delete(`/v1/deployments/${dseq}`, {
       headers: {
