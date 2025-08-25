@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import type { Charge } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import { useToast } from "@akashnetwork/ui/hooks";
 import type { PaginationState } from "@tanstack/react-table";
 import axios from "axios";
 
@@ -39,6 +40,7 @@ type CursorHistoryItem = {
 };
 
 export const BillingContainer: React.FC<BillingContainerProps> = ({ children, dependencies: D = DEPENDENCIES }) => {
+  const { toast } = useToast();
   const { stripe } = useServices();
   const [dateRange, setDateRange] = React.useState<{ from: Date; to: Date }>(() => createDateRange());
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
@@ -119,8 +121,12 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
     setPagination(state);
   };
 
-  const changeDateRange = (range?: { from?: Date; to?: Date }) => {
+  const changeDateRange = (range: { from: Date; to: Date }) => {
     setDateRange(createDateRange(range));
+    setCurrentCursors({});
+    setCursorHistory([{ pageIndex: 0 }]);
+    setPagination(prev => ({ ...prev, pageIndex: 0 }));
+    setErrorMessage("");
   };
 
   const exportCsv = async () => {
@@ -128,17 +134,27 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
       return;
     }
 
-    const csv = await stripe.exportTransactionsCsv({
-      startDate,
-      endDate,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    });
+    try {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    const [dateFrom] = startDate.toISOString().split("T");
-    const [dateTo] = endDate.toISOString().split("T");
-    const filename = `transactions_${dateFrom}_${dateTo}.csv`;
+      const csv = await stripe.exportTransactionsCsv({
+        startDate,
+        endDate,
+        timezone
+      });
 
-    downloadCsv(csv, filename);
+      const dateFrom = startDate.toLocaleDateString("en-CA", { timeZone: timezone });
+      const dateTo = endDate.toLocaleDateString("en-CA", { timeZone: timezone });
+      const filename = `transactions_${dateFrom}_${dateTo}`;
+
+      downloadCsv(csv, filename);
+    } catch (error) {
+      toast({
+        title: "Failed to export transactions",
+        description: axios.isAxiosError(error) ? error.response?.data.message || "An error occurred while exporting transactions." : (error as Error).message,
+        variant: "destructive"
+      });
+    }
   };
 
   return (
