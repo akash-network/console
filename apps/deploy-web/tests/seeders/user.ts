@@ -20,6 +20,7 @@ export const buildUser = (overrides: Partial<CustomUserProfile> = {}): CustomUse
     githubUsername: faker.internet.username(),
     planCode: "COMMUNITY",
     plan: plans.find(plan => plan.code === "COMMUNITY"),
+    isLoading: false,
     ...overrides
   };
 };
