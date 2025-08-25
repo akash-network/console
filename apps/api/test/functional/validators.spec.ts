@@ -1,7 +1,7 @@
 import type { Validator } from "@akashnetwork/database/dbSchemas/base";
 import nock from "nock";
 
-import { app } from "@src/app";
+import { app } from "@src/rest-app";
 import { apiNodeUrl } from "@src/utils/constants";
 
 import { createValidator } from "@test/seeders";

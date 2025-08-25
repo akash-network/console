@@ -1,8 +1,8 @@
 import type { Provider, ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { format, subDays } from "date-fns";
 
-import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/core";
+import { app, initDb } from "@src/rest-app";
 import { AuthorizedGraphDataNames } from "@src/services/db/statsService";
 
 import { createAkashBlock, createDay, createProvider, createProviderSnapshot, createProviderSnapshotNode, createProviderSnapshotNodeGpu } from "@test/seeders";

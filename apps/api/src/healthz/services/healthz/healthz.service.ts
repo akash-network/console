@@ -1,70 +1,108 @@
-import { differenceInMilliseconds, millisecondsInMinute } from "date-fns";
-import { sql } from "drizzle-orm";
-import { injectable } from "tsyringe";
+import { millisecondsInMinute } from "date-fns";
+import { inject, injectable } from "tsyringe";
 
+import { DB_HEALTHCHECK, DbHealthcheck, JOB_QUEUE_HEALTHCHECK, JobQueueHealthcheck } from "@src/core";
 import { LoggerService } from "@src/core/providers/logging.provider";
-import { InjectPg } from "@src/core/providers/postgres.provider";
-import { type ApiPgDatabase } from "@src/core/providers/postgres.provider";
-import type { HealthzResponse } from "@src/healthz/routes/healthz.router";
 
 @injectable()
 export class HealthzService {
-  private dbFailedAt: Date | undefined;
+  private readonly healthchecks: Healthcheck[] = [];
 
   constructor(
-    @InjectPg() private readonly pg: ApiPgDatabase,
-    private readonly logger: LoggerService
+    @inject(DB_HEALTHCHECK) dbHealthcheck: DbHealthcheck,
+    @inject(JOB_QUEUE_HEALTHCHECK) jobQueueHealthcheck: JobQueueHealthcheck,
+    logger: LoggerService
   ) {
-    this.logger.setContext(HealthzService.name);
+    logger.setContext(HealthzService.name);
+    this.healthchecks.push(
+      new Healthcheck("postgres", dbHealthcheck, logger, {
+        cacheTTL: millisecondsInMinute
+      })
+    );
+    this.healthchecks.push(
+      new Healthcheck("jobQueue", jobQueueHealthcheck, logger, {
+        cacheTTL: millisecondsInMinute
+      })
+    );
   }
 
-  async getReadinessStatus(): Promise<HealthzResponse & { status: "ok" | "error" }> {
-    const isPostgresReady = await this.isPostgresReady();
+  async getReadinessStatus(): Promise<HealthzResult> {
+    const results = await Promise.all(this.healthchecks.map(healthcheck => healthcheck.isHealthy({ ignoreCache: true })));
+    return this.buildResult(results);
+  }
 
+  async getLivenessStatus(): Promise<HealthzResult> {
+    const results = await Promise.all(this.healthchecks.map(healthcheck => healthcheck.isHealthy()));
+    return this.buildResult(results);
+  }
+
+  private buildResult(results: boolean[]): HealthzResult {
     return {
-      status: isPostgresReady ? "ok" : "error",
-      data: {
-        postgres: isPostgresReady
-      }
+      status: results.every(Boolean) ? "ok" : "error",
+      data: results.reduce(
+        (acc, result, index) => {
+          acc[this.healthchecks[index].name as keyof HealthzResult["data"]] = result;
+          return acc;
+        },
+        {} as HealthzResult["data"]
+      )
     };
   }
+}
 
-  async getLivenessStatus(threshold = millisecondsInMinute): Promise<HealthzResponse & { status: "ok" | "error" }> {
-    const isPostgresAlive = await this.isPostgresAlive(threshold);
+export interface HealthzResult {
+  status: "ok" | "error";
+  data: {
+    postgres: boolean;
+    jobQueue: boolean;
+  };
+}
 
-    return {
-      status: isPostgresAlive ? "ok" : "error",
-      data: {
-        postgres: isPostgresAlive
-      }
-    };
-  }
+class Healthcheck {
+  private checkedAt: Date | null = null;
+  private isFailed: boolean | null = null;
+  private inflightPing?: Promise<void>;
 
-  private async isPostgresReady() {
-    return this.isPostgresConnected();
-  }
-
-  private async isPostgresAlive(threshold = millisecondsInMinute) {
-    if (await this.isPostgresConnected()) {
-      return true;
+  constructor(
+    public readonly name: string,
+    private readonly healthchecker: Pick<DbHealthcheck | JobQueueHealthcheck, "ping">,
+    private readonly logger: LoggerService,
+    private readonly options: {
+      cacheTTL: number;
     }
+  ) {}
 
-    const dbFailingFor = this.dbFailedAt ? differenceInMilliseconds(new Date(), this.dbFailedAt) : 0;
+  async isHealthy(options?: { ignoreCache?: boolean }): Promise<boolean> {
+    const now = Date.now();
 
-    return dbFailingFor < threshold;
-  }
-
-  private async isPostgresConnected(): Promise<boolean> {
     try {
-      await this.pg.execute(sql`SELECT 1`);
-      this.dbFailedAt = undefined;
+      if (options?.ignoreCache || !this.checkedAt || now - this.checkedAt.getTime() > this.options.cacheTTL) {
+        await this.check();
+        this.isFailed = false;
+      }
 
       return true;
     } catch (error) {
-      this.dbFailedAt = this.dbFailedAt || new Date();
-      this.logger.error(error);
+      this.logger.error({
+        event: `${this.name.toUpperCase()}_HEALTHCHECK_ERROR`,
+        error
+      });
 
-      return false;
+      const prevIsFailed = this.isFailed;
+      if (this.isFailed === null || prevIsFailed || options?.ignoreCache) return false;
+
+      this.isFailed = true;
+      // tolerate failure for the 1st time and wait for the cache to expire until the next check
+      return true;
     }
+  }
+
+  private check() {
+    this.inflightPing ??= this.healthchecker.ping().finally(() => {
+      this.checkedAt = new Date();
+      this.inflightPing = undefined;
+    });
+
+    return this.inflightPing;
   }
 }

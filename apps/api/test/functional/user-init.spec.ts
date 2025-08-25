@@ -4,11 +4,11 @@ import first from "lodash/first";
 import omit from "lodash/omit";
 import { container } from "tsyringe";
 
-import { app } from "@src/app";
 import { UserWalletRepository } from "@src/billing/repositories";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { getCurrentUserId } from "@src/middlewares/userMiddleware";
+import { app } from "@src/rest-app";
 
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 

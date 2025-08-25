@@ -7,11 +7,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { container } from "tsyringe";
 
-import { app } from "@src/app";
 import { config } from "@src/billing/config";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { MANAGED_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import type { Wallet } from "@src/billing/services";
+import { app } from "@src/rest-app";
 import { apiNodeUrl } from "@src/utils/constants";
 
 import { WalletTestingService } from "@test/services/wallet-testing.service";

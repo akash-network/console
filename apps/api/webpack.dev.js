@@ -8,7 +8,7 @@ const { NODE_ENV = "development" } = process.env;
 
 /** @type {import('webpack').Configuration} */
 module.exports = {
-  entry: "./src/index.ts",
+  entry: ["./src/server.ts", "./src/rest-app.ts", "./src/background-jobs-app.ts"],
   mode: NODE_ENV,
   target: "node",
   devtool: "source-map",
@@ -18,6 +18,9 @@ module.exports = {
   },
   resolve: {
     extensions: [".ts", ".js"],
+    extensionAlias: {
+      ".js": [".ts", ".js"]
+    },
     alias: hq.get("webpack")
   },
   externals: [nodeExternals(), { "winston-transport": "commonjs winston-transport" }],

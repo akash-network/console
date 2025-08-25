@@ -10,9 +10,9 @@ import { format, setHours, setMinutes, setSeconds } from "date-fns";
 import Long from "long";
 import nock from "nock";
 
-import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/core";
 import type { ListGpuResponse } from "@src/gpu/http-schemas/gpu.schema";
+import { app, initDb } from "@src/rest-app";
 
 import {
   createAkashBlock,

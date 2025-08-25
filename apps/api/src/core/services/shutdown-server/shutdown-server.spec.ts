@@ -66,7 +66,7 @@ describe(shutdownServer.name, () => {
     await shutdownServer(server, appLogger, onShutdown);
 
     expect(appLogger.error).toHaveBeenCalledWith({
-      event: "CONTAINER_DISPOSE_ERROR",
+      event: "ON_SHUTDOWN_ERROR",
       error
     });
   });

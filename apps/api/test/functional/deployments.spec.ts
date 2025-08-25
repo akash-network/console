@@ -6,7 +6,6 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { container } from "tsyringe";
 
-import { app } from "@src/app";
 import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
 import type { UserWalletOutput } from "@src/billing/repositories";
@@ -14,6 +13,7 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
+import { app } from "@src/rest-app";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";

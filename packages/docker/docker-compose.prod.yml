@@ -7,6 +7,7 @@ services:
       - .env.sandbox.docker-compose-dev
     ports:
       - '3080:3000'
+      - '3081:3001' # background jobs server
 
   notifications:
     restart: always
@@ -15,7 +16,7 @@ services:
     env_file:
       - .env.sandbox.docker-compose-dev
     ports:
-      - '3081:3000'
+      - '3090:3000'
 
   indexer:
     restart: always

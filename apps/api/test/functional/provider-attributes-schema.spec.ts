@@ -1,4 +1,4 @@
-import { app } from "@src/app";
+import { app } from "@src/rest-app";
 
 describe("ProviderAttributesSchema", () => {
   describe("GET /v1/provider-attributes-schema", () => {

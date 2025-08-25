@@ -2,8 +2,8 @@ import { faker } from "@faker-js/faker";
 import mcache from "memory-cache";
 import nock from "nock";
 
-import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/db/dbConnection";
+import { app, initDb } from "@src/rest-app";
 import { env } from "@src/utils/env";
 
 import { NodeSeeder } from "@test/seeders/node.seeder";
