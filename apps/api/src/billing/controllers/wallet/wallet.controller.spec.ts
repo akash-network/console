@@ -5,8 +5,13 @@ import { mock } from "jest-mock-extended";
 import { container as rootContainer } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { UserWalletRepository } from "@src/billing/repositories";
 import { WalletInitializerService } from "@src/billing/services";
+import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
+import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
+import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -162,6 +167,26 @@ describe("WalletController", () => {
         }),
         hasDuplicateTrialAccount: jest.fn().mockResolvedValue(input?.hasDuplicateTrialAccount ?? false)
       })
+    });
+
+    rootContainer.register(ManagedSignerService, {
+      useValue: mock<ManagedSignerService>()
+    });
+
+    rootContainer.register(RefillService, {
+      useValue: mock<RefillService>()
+    });
+
+    rootContainer.register(WalletReaderService, {
+      useValue: mock<WalletReaderService>()
+    });
+
+    rootContainer.register(BalancesService, {
+      useValue: mock<BalancesService>()
+    });
+
+    rootContainer.register(UserWalletRepository, {
+      useValue: mock<UserWalletRepository>()
     });
 
     return rootContainer;

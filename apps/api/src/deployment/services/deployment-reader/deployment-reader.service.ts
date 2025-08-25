@@ -1,6 +1,6 @@
 import { Block } from "@akashnetwork/database/dbSchemas";
 import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
-import { DeploymentHttpService, DeploymentInfo, LeaseHttpService } from "@akashnetwork/http-sdk";
+import { DeploymentHttpService, type DeploymentInfo, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { PromisePool } from "@supercharge/promise-pool";
 import assert from "http-assert";
 import { InternalServerError } from "http-errors";
@@ -183,7 +183,7 @@ export class DeploymentReaderService {
     try {
       deploymentData = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
 
-      if ("code" in deploymentData) {
+      if (deploymentData && typeof deploymentData === "object" && "code" in deploymentData) {
         if (deploymentData.message?.toLowerCase().includes("deployment not found")) {
           return null;
         } else {
@@ -196,6 +196,10 @@ export class DeploymentReaderService {
       }
 
       throw error;
+    }
+
+    if (!deploymentData) {
+      return null;
     }
 
     const leasesQuery = this.leaseHttpService.list({ owner, dseq });

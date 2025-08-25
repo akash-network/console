@@ -26,10 +26,6 @@ async function main() {
       rpcUrls: rpcUrls.trim().split("\n")
     };
 
-    if (network === "mainnet") {
-      // networkConfig.apiUrls.unshift("https://public-proxy.akt.dev/rest");
-    }
-
     config[network] = networkConfig;
   }
 

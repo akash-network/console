@@ -1,4 +1,4 @@
-import { CosmosHttpService } from "@akashnetwork/http-sdk/src/cosmos/cosmos-http.service";
+import { CosmosHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { asset_lists } from "@chain-registry/assets";
 import type { Coin } from "cosmjs-types/cosmos/base/v1beta1/coin";

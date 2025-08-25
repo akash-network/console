@@ -8,7 +8,7 @@ import type { GetAddressTransactionsResponse } from "@src/address/http-schemas/a
 import { app, initDb } from "@src/app";
 import { closeConnections } from "@src/db/dbConnection";
 import type { ListWithResourcesResponse } from "@src/deployment/http-schemas/deployment.schema";
-import { apiNodeUrl } from "@src/utils/constants";
+import { apiProxyUrl } from "@src/utils/constants";
 
 import { createAddressReferenceInDatabase } from "@test/seeders/address-reference.seeder";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -222,7 +222,7 @@ describe("Addresses API", () => {
       createValidator()
     ]);
 
-    nock(apiNodeUrl)
+    nock(apiProxyUrl)
       .persist()
       .get(`/cosmos/bank/v1beta1/balances/${address}?pagination.limit=1000`)
       .reply(200, {
@@ -238,7 +238,7 @@ describe("Addresses API", () => {
         }
       });
 
-    nock(apiNodeUrl)
+    nock(apiProxyUrl)
       .persist()
       .get(`/cosmos/staking/v1beta1/delegations/${address}?pagination.limit=1000`)
       .reply(200, {
@@ -261,7 +261,7 @@ describe("Addresses API", () => {
         }
       });
 
-    nock(apiNodeUrl)
+    nock(apiProxyUrl)
       .persist()
       .get(`/cosmos/staking/v1beta1/delegators/${address}/redelegations?pagination.limit=1000`)
       .reply(200, {
@@ -291,7 +291,7 @@ describe("Addresses API", () => {
         }
       });
 
-    nock(apiNodeUrl)
+    nock(apiProxyUrl)
       .persist()
       .get(`/cosmos/distribution/v1beta1/delegators/${address}/rewards`)
       .reply(200, {
@@ -314,7 +314,7 @@ describe("Addresses API", () => {
         ]
       });
 
-    nock(apiNodeUrl)
+    nock(apiProxyUrl)
       .persist()
       .get(`/cosmos/distribution/v1beta1/validators/${validators[0].operatorAddress}/commission`)
       .reply(200, {
@@ -376,7 +376,7 @@ describe("Addresses API", () => {
       })
     ]);
 
-    nock(apiNodeUrl)
+    nock(apiProxyUrl)
       .persist()
       .get(
         `/akash/deployment/v1beta3/deployments/list?filters.owner=${address}&pagination.limit=10&pagination.offset=0&pagination.count_total=true&pagination.reverse=false`
@@ -437,7 +437,7 @@ describe("Addresses API", () => {
         }
       });
 
-    nock(apiNodeUrl)
+    nock(apiProxyUrl)
       .persist()
       .get(`/akash/market/v1beta4/leases/list?filters.owner=${address}&filters.state=active`)
       .reply(200, {

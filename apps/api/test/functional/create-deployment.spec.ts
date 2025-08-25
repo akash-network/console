@@ -12,7 +12,7 @@ import { config } from "@src/billing/config";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { MANAGED_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import type { Wallet } from "@src/billing/services";
-import { apiNodeUrl } from "@src/utils/constants";
+import { apiProxyUrl } from "@src/utils/constants";
 
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
@@ -33,7 +33,7 @@ describe("Tx Sign", () => {
   describe("POST /v1/tx", () => {
     it("should create a deployment for a user", async () => {
       const { user, token, wallet } = await walletService.createAnonymousUserAndWallet();
-      nock(apiNodeUrl, { allowUnmocked: true })
+      nock(apiProxyUrl, { allowUnmocked: true })
         .get(
           `/akash/deployment/v1beta3/deployments/list?filters.owner=${wallet.address}&pagination.offset=0&pagination.limit=1&pagination.count_total=true&pagination.reverse=false`
         )

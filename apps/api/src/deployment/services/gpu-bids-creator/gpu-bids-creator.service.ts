@@ -12,8 +12,8 @@ import { setTimeout as sleep } from "timers/promises";
 import { singleton } from "tsyringe";
 
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { ChainConfigService } from "@src/chain/services/chain-config/chain-config.service";
 import { GpuService } from "@src/gpu/services/gpu.service";
-import { apiNodeUrl } from "@src/utils/constants";
 import { env } from "@src/utils/env";
 import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templates";
 
@@ -24,12 +24,14 @@ export class GpuBidsCreatorService {
   constructor(
     private readonly config: BillingConfigService,
     private readonly bidHttpService: BidHttpService,
-    private readonly gpuService: GpuService
+    private readonly gpuService: GpuService,
+    private readonly chainConfigService: ChainConfigService
   ) {}
 
   async createGpuBids() {
+    const rpcUrl = this.chainConfigService.getBaseRpcUrl();
     if (!env.GPU_BOT_WALLET_MNEMONIC) throw new Error("The env variable GPU_BOT_WALLET_MNEMONIC is not set.");
-    if (!this.config.get("RPC_NODE_ENDPOINT")) throw new Error("The env variable RPC_NODE_ENDPOINT is not set.");
+    if (!rpcUrl) throw new Error("RPC url for the GPU bids creator is not set.");
 
     const wallet = await DirectSecp256k1HdWallet.fromMnemonic(env.GPU_BOT_WALLET_MNEMONIC, { prefix: "akash" });
     const [account] = await wallet.getAccounts();
@@ -38,7 +40,7 @@ export class GpuBidsCreatorService {
 
     const myRegistry = new Registry([...getAkashTypeRegistry()]);
 
-    const client = await SigningStargateClient.connectWithSigner(this.config.get("RPC_NODE_ENDPOINT"), wallet, {
+    const client = await SigningStargateClient.connectWithSigner(rpcUrl, wallet, {
       registry: myRegistry,
       broadcastTimeoutMs: 30_000
     });
@@ -178,6 +180,7 @@ export class GpuBidsCreatorService {
   }
 
   private async getCurrentHeight() {
+    const apiNodeUrl = this.chainConfigService.getBaseAPIUrl();
     const response = await axios.get(`${apiNodeUrl}/blocks/latest`);
 
     const height = parseInt(response.data.block.header.height);
