@@ -11021,7 +11021,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "name": "timezone",
             "required": true,
             "schema": {
-              "default": "UTC",
               "description": "Timezone for date formatting in the CSV",
               "example": "America/New_York",
               "type": "string",

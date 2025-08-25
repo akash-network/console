@@ -39,16 +39,17 @@ describe("domUtils", () => {
       (global.URL.createObjectURL as jest.Mock) = createObjectURLMock;
       (global.URL.revokeObjectURL as jest.Mock) = revokeObjectURLMock;
 
+      const originalCreateElement = document.createElement.bind(document);
+      const linkMock = mock<HTMLLinkElement>({
+        setAttribute: setAttributeMock,
+        style: {},
+        click: jest.fn()
+      });
       const createElementMock = jest.spyOn(document, "createElement").mockImplementation((tagName: string) => {
         if (tagName === "a") {
-          return mock<HTMLLinkElement>({
-            setAttribute: setAttributeMock,
-            style: {},
-            click: jest.fn()
-          });
+          return linkMock;
         }
-
-        return document.createElement(tagName);
+        return originalCreateElement(tagName);
       });
 
       jest.spyOn(document.body, "appendChild").mockImplementation(appendChildMock);
