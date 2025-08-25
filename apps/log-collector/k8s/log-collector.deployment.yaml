@@ -1,0 +1,24 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: log-collector
+  namespace: log-collector
+  labels:
+    app: log-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-collector
+  template:
+    metadata:
+      labels:
+        app: log-collector
+    spec:
+      containers:
+        - name: log-collector
+          image: log-collector
+          imagePullPolicy: Never
+          envFrom:
+            - configMapRef:
+                name: log-collector-config

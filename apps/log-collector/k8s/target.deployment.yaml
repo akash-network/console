@@ -1,0 +1,30 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: log-target
+  namespace: log-collector
+  labels:
+    app: log-target
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-target
+  template:
+    metadata:
+      labels:
+        app: log-target
+    spec:
+      containers:
+        - name: log-target
+          image: busybox:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              while true; do 
+                echo "$(date -u +%Y-%m-%dT%H:%M:%S.%NZ) [INFO] Dummy log message from pod dummy-logging-pod"
+                echo "$(date -u +%Y-%m-%dT%H:%M:%S.%NZ) [ERROR] This is a test error message"
+                echo "$(date -u +%Y-%m-%dT%H:%M:%S.%NZ) [DEBUG] Debug information for testing"
+                sleep 5
+              done
