@@ -37,16 +37,35 @@ These are the environment variables you need to configure for production deploym
 | `LOG_MAX_FILE_SIZE_BYTES` | Max file size before rotation | `10_485_760` (10MB) | `20_971_520` (20MB) |
 | `LOG_MAX_ROTATED_FILES`   | Max number of rotated files   | `5`                 | `10`                |
 
-### Log Collection Configuration (Datadog)
+### Log Collection Configuration
 
-To forward logs to Datadog, configure these environment variables:
+**Note**: Output destinations are automatically configured at startup based on environment variables. No manual configuration files needed.
 
-| Variable       | Description          | Example             |
+#### Fluent Bit Configuration
+
+| Variable       | Description          | Example |
+| -------------- | -------------------- | ------- |
+| `FB_LOG_LEVEL` | Fluent Bit log level | `info`  |
+
+#### Datadog Output (Automatic)
+
+To enable Datadog log forwarding, set these environment variables:
+
+| Variable     | Description      | Example             |
+| ------------ | ---------------- | ------------------- |
+| `DD_SITE`    | Datadog site URL | `datadoghq.com`     |
+| `DD_API_KEY` | Datadog API key  | `your-api-key-here` |
+
+**Note**: The system automatically sets `dd_source` to `akash.network` and uses `message` as the message key.
+
+#### Stdout Output (Automatic)
+
+To enable stdout output for debugging, set:
+| Variable | Description | Example |
 | -------------- | -------------------- | ------------------- |
-| `DD_SITE`      | Datadog site URL     | `datadoghq.com`     |
-| `DD_API_KEY`   | Datadog API key      | `your-api-key-here` |
-| `DD_TAGS`      | Additional tags      | `env:prod,team:dev` |
-| `FB_LOG_LEVEL` | Fluent Bit log level | `info`              |
+| `STDOUT` | Enable stdout output | `true` |
+
+**How it works**: The system automatically includes the appropriate output configuration files based on the environment variables present. No manual configuration needed.
 
 ## Deployment
 
@@ -98,7 +117,9 @@ deployment:
 
 ## Development
 
-### Development Configuration
+### Manual Development
+
+#### Configuration
 
 For local development and testing, you can override the automatic detection:
 
@@ -107,7 +128,7 @@ For local development and testing, you can override the automatic detection:
 | `HOSTNAME`                      | Pod name (for testing)      | Auto-detected | `test-pod-123`   |
 | `KUBERNETES_NAMESPACE_OVERRIDE` | Override detected namespace | Auto-detected | `test-namespace` |
 
-### Development Workflow
+#### Flow
 
 ```bash
 # 1. Start development server
@@ -132,6 +153,61 @@ docker run -e HOSTNAME=test-pod log-collector:local
 docker run --env-file apps/log-collector/env/.env.local log-collector:local
 ```
 
+### Using Makefile (Recommended)
+
+#### Prerequisites
+
+To use the Makefile workflow, you need:
+
+- **Local Kubernetes cluster** (Docker Desktop, Minikube, Kind, or K3s)
+- **kubectl** configured to access your cluster
+- **Docker** for building the container image
+
+The project includes a Makefile for easy development:
+
+```bash
+# See all available commands
+make help
+
+# Complete development workflow (build, deploy, restart)
+make dev
+
+# View application logs
+make logs
+
+# Clean up all resources
+make clean
+```
+
+#### What `make dev` Does
+
+The `make dev` command handles the complete development workflow:
+
+1. **Builds Docker image** (only if source files changed)
+2. **Creates namespace** and applies Kubernetes resources
+3. **Generates ConfigMap** from your `.env.local` file
+4. **Restarts deployments** to ensure latest configuration is used
+5. **Waits for pods** to be ready
+
+This ensures your configuration changes are always applied. After deployment, you can run `make logs` to view the application logs.
+
+#### Environment Configuration
+
+Copy the sample environment file and customize it for your setup:
+
+```bash
+# Copy the sample file
+cp k8s/.env.local.sample k8s/.env.local
+
+# Edit the file with your actual values
+# apps/log-collector/k8s/.env.local
+DD_API_KEY=your-actual-datadog-api-key
+DD_SITE=datadoghq.com   # or datadoghq.eu for EU
+STDOUT=true             # set to false to disable stdout output
+```
+
+**Note**: The ConfigMap is automatically generated from your `.env.local` file when you run `make dev`. No need to manually create or update Kubernetes ConfigMaps.
+
 ## Roadmap
 
-- **Fluent Bit Templating**: Support for multiple configurable destinations beyond Datadog
+- **Additional Output Plugins**: Support for more output destinations (Elasticsearch, Splunk, etc.)
