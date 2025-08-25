@@ -3,13 +3,13 @@ import type { Charge } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import type { PaginationState } from "@tanstack/react-table";
 import axios from "axios";
 
-import { useExportTransactionsCsvQuery, usePaymentTransactionsQuery } from "@src/queries";
+import { useServices } from "@src/context/ServicesProvider";
+import { usePaymentTransactionsQuery } from "@src/queries";
 import { createDateRange } from "@src/utils/dateUtils";
 import { downloadCsv } from "@src/utils/domUtils";
 
 const DEPENDENCIES = {
-  usePaymentTransactionsQuery,
-  useExportTransactionsCsvQuery
+  usePaymentTransactionsQuery
 };
 
 export type ChildrenProps = {
@@ -39,6 +39,7 @@ type CursorHistoryItem = {
 };
 
 export const BillingContainer: React.FC<BillingContainerProps> = ({ children, dependencies: D = DEPENDENCIES }) => {
+  const { stripe } = useServices();
   const [dateRange, setDateRange] = React.useState<{ from: Date; to: Date }>(() => createDateRange());
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
   const [currentCursors, setCurrentCursors] = useState<{
@@ -51,12 +52,6 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
   const [errorMessage, setErrorMessage] = React.useState("");
 
   const { from: startDate, to: endDate } = dateRange;
-
-  const exportCsvQuery = D.useExportTransactionsCsvQuery({
-    startDate,
-    endDate,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-  });
 
   const {
     data,
@@ -76,10 +71,6 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
       setErrorMessage(queryError.response?.data.message || "An error occurred while fetching payment transactions.");
     }
   }, [queryError]);
-
-  React.useEffect(() => {
-    exportCsvQuery.data?.text().then(downloadCsv);
-  }, [exportCsvQuery.data]);
 
   const handlePaginationChange = (state: PaginationState) => {
     const isForward = state.pageIndex > pagination.pageIndex;
@@ -133,11 +124,21 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
   };
 
   const exportCsv = async () => {
-    if (startDate && endDate) {
-      await exportCsvQuery.refetch();
-    } else {
-      setErrorMessage("Please select a valid date range before exporting.");
+    if (!startDate || !endDate) {
+      return;
     }
+
+    const csv = await stripe.exportTransactionsCsv({
+      startDate,
+      endDate,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
+
+    const [dateFrom] = startDate.toISOString().split("T");
+    const [dateTo] = endDate.toISOString().split("T");
+    const filename = `transactions_${dateFrom}_${dateTo}.csv`;
+
+    downloadCsv(csv, filename);
   };
 
   return (

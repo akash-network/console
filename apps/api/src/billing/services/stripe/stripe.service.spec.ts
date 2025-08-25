@@ -540,7 +540,7 @@ describe(StripeService.name, () => {
 
       expect(fullCsv).toContain("ch_123");
       expect(fullCsv).toContain("No payment method");
-      expect(fullCsv).toMatch(/ch_123,[^,]*,[^,]*,[^,]*,[^,]*,,,,/);
+      expect(fullCsv).toMatch(/ch_123,"[^"]*",[^,]*,[^,]*,[^,]*,,,,No payment method,/);
     });
   });
 

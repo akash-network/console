@@ -78,7 +78,9 @@ export const UsageView = ({
 
     const combinedCsvContent = [...statsCsvContent, ...historyCsvContent].join("\n");
 
-    downloadCsv(combinedCsvContent, "akash_billing_usage");
+    const blob = new Blob([combinedCsvContent], { type: "text/csv;charset=utf-8;" });
+
+    downloadCsv(blob, "akash_billing_usage");
   }, [usageHistoryData, usageHistoryStatsData]);
 
   return (

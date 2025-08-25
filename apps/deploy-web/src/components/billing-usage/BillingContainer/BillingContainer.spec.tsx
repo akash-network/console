@@ -6,7 +6,7 @@ import type { PaginationState } from "@tanstack/react-table";
 import type { AxiosError } from "axios";
 import { mock } from "jest-mock-extended";
 
-import type { useExportTransactionsCsvQuery, usePaymentTransactionsQuery } from "@src/queries";
+import type { usePaymentTransactionsQuery } from "@src/queries";
 import type { ChildrenProps } from "./BillingContainer";
 import { BillingContainer } from "./BillingContainer";
 
@@ -98,17 +98,8 @@ describe(BillingContainer.name, () => {
       error: queryError
     })) as unknown as jest.MockedFunction<typeof usePaymentTransactionsQuery>;
 
-    const mockedUseExportTransactionsCsvQuery = jest.fn(() => ({
-      mutate: jest.fn(),
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: jest.fn()
-    })) as unknown as jest.MockedFunction<typeof useExportTransactionsCsvQuery>;
-
     const dependencies = {
-      usePaymentTransactionsQuery: mockedUsePaymentTransactionsQuery,
-      useExportTransactionsCsvQuery: mockedUseExportTransactionsCsvQuery
+      usePaymentTransactionsQuery: mockedUsePaymentTransactionsQuery
     };
 
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();

@@ -1,12 +1,5 @@
-import type {
-  ApplyCouponParams,
-  ConfirmPaymentParams,
-  Discount,
-  ExportTransactionsCsvParams,
-  PaymentMethod,
-  SetupIntentResponse
-} from "@akashnetwork/http-sdk/src/stripe/stripe.types";
-import type { UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
+import type { ApplyCouponParams, ConfirmPaymentParams, Discount, PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type { UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -112,16 +105,4 @@ export const usePaymentMutations = () => {
     applyCoupon,
     removePaymentMethod
   };
-};
-
-export const useExportTransactionsCsvQuery = (options: ExportTransactionsCsvParams): UseQueryResult<Blob, Error> => {
-  const { stripe } = useServices();
-
-  return useQuery({
-    enabled: false,
-    queryKey: QueryKeys.getExportTransactionsCsvKey(options),
-    queryFn: async (): Promise<Blob> => {
-      return await stripe.exportTransactionsCsv(options);
-    }
-  });
 };

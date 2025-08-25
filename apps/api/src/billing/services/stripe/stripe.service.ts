@@ -448,9 +448,9 @@ export class StripeService extends Stripe {
       for await (const chunk of csvStream) {
         yield typeof chunk === "string" ? chunk : (chunk as Buffer).toString("utf8");
       }
-    } catch (err) {
-      logger.error({ event: "CSV_STREAM_ERROR", error: err instanceof Error ? err.message : String(err) });
-      throw err;
+    } catch (error) {
+      logger.error({ event: "CSV_STREAM_ERROR", error });
+      throw error;
     }
   }
 
@@ -509,7 +509,7 @@ export class StripeService extends Stripe {
 
   private transformTransactionForCsv(transaction: Transaction, timeZone: string) {
     const amount = (transaction.amount / 100).toFixed(2);
-    const date = new Date(transaction.created * 1000).toLocaleDateString("en-CA", {
+    const date = new Date(transaction.created * 1000).toLocaleString("en-CA", {
       timeZone
     });
 
@@ -528,12 +528,11 @@ export class StripeService extends Stripe {
   }
 
   private normalizeTimeZone(tz: string): string {
-    try {
-      new Intl.DateTimeFormat("en-CA", { timeZone: tz });
+    if (Intl.supportedValuesOf("timeZone").includes(tz)) {
       return tz;
-    } catch {
-      return "UTC";
     }
+
+    return "UTC";
   }
 
   async getStripeCustomerId(user: UserOutput): Promise<string> {
