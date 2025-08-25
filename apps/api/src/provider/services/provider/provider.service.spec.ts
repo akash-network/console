@@ -1,5 +1,5 @@
 import type { ProviderHttpService } from "@akashnetwork/http-sdk";
-import type { JwtTokenPayload } from "@akashnetwork/jwt/src/types";
+import type { JwtTokenPayload } from "@akashnetwork/jwt";
 import { mock } from "jest-mock-extended";
 
 import type { AuditorService } from "@src/provider/services/auditors/auditors.service";
