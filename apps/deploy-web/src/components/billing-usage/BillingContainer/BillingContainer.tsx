@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import type { Charge } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import { useToast } from "@akashnetwork/ui/hooks";
 import type { PaginationState } from "@tanstack/react-table";
 import axios from "axios";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { usePaymentTransactionsQuery } from "@src/queries";
 import { createDateRange } from "@src/utils/dateUtils";
+import { downloadCsv } from "@src/utils/domUtils";
 
 const DEPENDENCIES = {
   usePaymentTransactionsQuery
@@ -16,12 +19,13 @@ export type ChildrenProps = {
   hasPrevious: boolean;
   isFetching: boolean;
   isError: boolean;
-  error: Error | null;
+  errorMessage: string;
+  onExport: () => void;
   onPaginationChange: (state: PaginationState) => void;
   pagination: PaginationState;
   totalCount: number;
-  dateRange: { from: Date | undefined; to?: Date };
-  onDateRangeChange: (range?: { from?: Date; to?: Date }) => void;
+  dateRange: { from: Date; to: Date };
+  onDateRangeChange: (range: { from: Date; to: Date }) => void;
 };
 
 type BillingContainerProps = {
@@ -36,7 +40,9 @@ type CursorHistoryItem = {
 };
 
 export const BillingContainer: React.FC<BillingContainerProps> = ({ children, dependencies: D = DEPENDENCIES }) => {
-  const [dateRange, setDateRange] = React.useState<{ from: Date | undefined; to?: Date }>(() => createDateRange());
+  const { toast } = useToast();
+  const { stripe } = useServices();
+  const [dateRange, setDateRange] = React.useState<{ from: Date; to: Date }>(() => createDateRange());
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
   const [currentCursors, setCurrentCursors] = useState<{
     startingAfter?: string | null;
@@ -45,9 +51,9 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
 
   const [cursorHistory, setCursorHistory] = useState<CursorHistoryItem[]>([{ pageIndex: 0 }]);
 
-  const [error, setError] = React.useState<Error | null>(null);
+  const [errorMessage, setErrorMessage] = React.useState("");
 
-  const { from, to } = dateRange;
+  const { from: startDate, to: endDate } = dateRange;
 
   const {
     data,
@@ -58,13 +64,13 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
     limit: pagination.pageSize,
     startingAfter: currentCursors.startingAfter,
     endingBefore: currentCursors.endingBefore,
-    startDate: from,
-    endDate: to
+    startDate,
+    endDate
   });
 
   React.useEffect(() => {
     if (axios.isAxiosError(queryError)) {
-      setError(new Error(queryError.response?.data.message || "An error occurred while fetching payment transactions."));
+      setErrorMessage(queryError.response?.data.message || "An error occurred while fetching payment transactions.");
     }
   }, [queryError]);
 
@@ -115,8 +121,40 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
     setPagination(state);
   };
 
-  const changeDateRange = (range?: { from?: Date; to?: Date }) => {
+  const changeDateRange = (range: { from: Date; to: Date }) => {
     setDateRange(createDateRange(range));
+    setCurrentCursors({});
+    setCursorHistory([{ pageIndex: 0 }]);
+    setPagination(prev => ({ ...prev, pageIndex: 0 }));
+    setErrorMessage("");
+  };
+
+  const exportCsv = async () => {
+    if (!startDate || !endDate) {
+      return;
+    }
+
+    try {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      const csv = await stripe.exportTransactionsCsv({
+        startDate,
+        endDate,
+        timezone
+      });
+
+      const dateFrom = startDate.toLocaleDateString("en-CA", { timeZone: timezone });
+      const dateTo = endDate.toLocaleDateString("en-CA", { timeZone: timezone });
+      const filename = `transactions_${dateFrom}_${dateTo}`;
+
+      downloadCsv(csv, filename);
+    } catch (error) {
+      toast({
+        title: "Failed to export transactions",
+        description: axios.isAxiosError(error) ? error.response?.data.message || "An error occurred while exporting transactions." : (error as Error).message,
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -125,6 +163,7 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
         data: data?.transactions || [],
         hasMore: data?.hasMore || false,
         hasPrevious: pagination.pageIndex > 0,
+        onExport: exportCsv,
         onPaginationChange: handlePaginationChange,
         totalCount: data?.totalCount || 0,
         dateRange,
@@ -132,7 +171,7 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
         pagination,
         isFetching,
         isError,
-        error
+        errorMessage
       })}
     </>
   );

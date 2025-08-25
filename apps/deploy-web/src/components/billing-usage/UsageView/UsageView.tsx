@@ -32,8 +32,8 @@ export type UsageViewProps = {
   isUsageHistoryError: boolean;
   isFetchingUsageHistoryStats: boolean;
   isUsageHistoryStatsError: boolean;
-  dateRange: { from: Date | undefined; to?: Date };
-  onDateRangeChange: (range?: { from?: Date; to?: Date }) => void;
+  dateRange: { from: Date; to: Date };
+  onDateRangeChange: (range: { from: Date; to: Date }) => void;
   components?: typeof COMPONENTS;
 };
 
@@ -78,7 +78,9 @@ export const UsageView = ({
 
     const combinedCsvContent = [...statsCsvContent, ...historyCsvContent].join("\n");
 
-    downloadCsv(combinedCsvContent, "akash_billing_usage");
+    const blob = new Blob([combinedCsvContent], { type: "text/csv;charset=utf-8;" });
+
+    downloadCsv(blob, "akash_billing_usage");
   }, [usageHistoryData, usageHistoryStatsData]);
 
   return (

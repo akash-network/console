@@ -18,8 +18,8 @@ export type ChildrenProps = {
   isUsageHistoryError: boolean;
   isFetchingUsageHistoryStats: boolean;
   isUsageHistoryStatsError: boolean;
-  dateRange: { from: Date | undefined; to?: Date };
-  onDateRangeChange: (range?: { from?: Date; to?: Date }) => void;
+  dateRange: { from: Date; to: Date };
+  onDateRangeChange: (range: { from: Date; to: Date }) => void;
 };
 
 export type UsageContainerProps = {
@@ -28,7 +28,7 @@ export type UsageContainerProps = {
 };
 
 export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
-  const [dateRange, setDateRange] = React.useState<{ from: Date | undefined; to?: Date }>(() => createDateRange());
+  const [dateRange, setDateRange] = React.useState<{ from: Date; to: Date }>(() => createDateRange());
   const { address } = d.useWallet();
   const {
     data: usageHistoryData = [],

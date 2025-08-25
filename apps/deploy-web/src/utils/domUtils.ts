@@ -57,12 +57,7 @@ export function addScriptToBody(options: ScriptOptions): HTMLScriptElement | nul
   return script;
 }
 
-export function downloadCsv(content: string, filename = "export") {
-  if (!content) {
-    return;
-  }
-
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+export function downloadCsv(blob: Blob, filename = "export") {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.setAttribute("href", url);

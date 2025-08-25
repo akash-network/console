@@ -109,7 +109,7 @@ describe(UsageContainer.name, () => {
         {props =>
           childCapturer.renderChild({
             ...props,
-            onDateRangeChange: (range?: { from?: Date; to?: Date }) => {
+            onDateRangeChange: (range: { from: Date; to: Date }) => {
               onDateRangeChange(range);
               props.onDateRangeChange(range);
             }

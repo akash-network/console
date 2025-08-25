@@ -97,3 +97,9 @@ export interface CustomerTransactionsResponse {
   prevPage: string | null;
   totalCount: number;
 }
+
+export interface ExportTransactionsCsvParams {
+  startDate: Date;
+  endDate: Date;
+  timezone: string;
+}

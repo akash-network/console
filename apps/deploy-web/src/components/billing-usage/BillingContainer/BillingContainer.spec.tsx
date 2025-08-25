@@ -35,8 +35,7 @@ describe(BillingContainer.name, () => {
       response: { data: { message: "fail" } }
     });
     const { child } = await setup({ queryError: axiosError });
-    expect(child.error).toBeInstanceOf(Error);
-    expect(child.error?.message).toBe("fail");
+    expect(child.errorMessage).toBe("fail");
   });
 
   it("uses default values when data is empty", async () => {
@@ -46,15 +45,24 @@ describe(BillingContainer.name, () => {
     expect(child.hasMore).toBe(false);
   });
 
-  it("calls onPaginationChange and onDateRangeChange", async () => {
-    const { child, onPaginationChange, onDateRangeChange } = await setup();
+  it("calls onPaginationChange", async () => {
+    const { child, onPaginationChange } = await setup();
     const newPagination: PaginationState = { pageIndex: 1, pageSize: 10 };
     child.onPaginationChange(newPagination);
     expect(onPaginationChange).toHaveBeenCalledWith(newPagination);
+  });
 
+  it("calls onDateRangeChange", async () => {
+    const { child, onDateRangeChange } = await setup();
     const newRange = { from: new Date(2024, 0, 1), to: new Date(2024, 0, 2) };
     child.onDateRangeChange(newRange);
     expect(onDateRangeChange).toHaveBeenCalledWith(newRange);
+  });
+
+  it("calls onExport", async () => {
+    const { child, onExport } = await setup();
+    child.onExport();
+    expect(onExport).toHaveBeenCalled();
   });
 
   async function setup(
@@ -81,6 +89,7 @@ describe(BillingContainer.name, () => {
 
     const onPaginationChange = jest.fn();
     const onDateRangeChange = jest.fn();
+    const onExport = jest.fn();
 
     const mockedUsePaymentTransactionsQuery = jest.fn(() => ({
       data,
@@ -104,9 +113,13 @@ describe(BillingContainer.name, () => {
               onPaginationChange(state);
               props.onPaginationChange(state);
             },
-            onDateRangeChange: (range?: { from?: Date; to?: Date }) => {
+            onDateRangeChange: (range: { from: Date; to: Date }) => {
               onDateRangeChange(range);
               props.onDateRangeChange(range);
+            },
+            onExport: () => {
+              onExport();
+              props.onExport();
             }
           });
         }}
@@ -115,6 +128,6 @@ describe(BillingContainer.name, () => {
 
     const child = await childCapturer.awaitChild(() => true);
 
-    return { data, child, onPaginationChange, onDateRangeChange };
+    return { data, child, onPaginationChange, onDateRangeChange, onExport };
   }
 });

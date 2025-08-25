@@ -7,6 +7,7 @@ import type {
   CustomerDiscountsResponse,
   CustomerTransactionsParams,
   CustomerTransactionsResponse,
+  ExportTransactionsCsvParams,
   PaymentMethod,
   SetupIntentResponse,
   StripePrice
@@ -62,6 +63,22 @@ export class StripeService extends ApiHttpService {
     const url = `/v1/stripe/transactions${params.toString() ? `?${params}` : ""}`;
 
     return this.extractApiData(await this.get(url));
+  }
+
+  async exportTransactionsCsv(params: ExportTransactionsCsvParams): Promise<Blob> {
+    const queryParams = new URLSearchParams({
+      startDate: params.startDate.toISOString(),
+      endDate: params.endDate.toISOString(),
+      timezone: params.timezone
+    });
+
+    const url = `/v1/stripe/transactions/export?${queryParams}`;
+
+    return this.extractData(
+      await this.get(url, {
+        responseType: "blob"
+      })
+    );
   }
 
   // Prices (legacy endpoint)

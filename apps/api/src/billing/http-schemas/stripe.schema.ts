@@ -128,6 +128,30 @@ export const CustomerTransactionsResponseSchema = z.object({
   })
 });
 
+const dateRangeSchema = {
+  startDate: z.string().datetime().openapi({
+    description: "Start date for filtering transactions (inclusive)",
+    example: "2025-01-01T00:00:00Z"
+  }),
+  endDate: z.string().datetime().openapi({
+    description: "End date for filtering transactions (inclusive)",
+    example: "2025-01-02T00:00:00Z"
+  })
+};
+
+const dateRangeCheck = (data: { startDate?: string; endDate?: string }) => {
+  if (!data.startDate || !data.endDate) {
+    return true;
+  }
+
+  const start = new Date(data.startDate);
+  const end = new Date(data.endDate);
+
+  return start <= end && differenceInDays(end, start) <= 366;
+};
+
+const dateRangeErrorMessage = "Date range cannot exceed 366 days and startDate must be before endDate";
+
 export const CustomerTransactionsQuerySchema = z
   .object({
     limit: z.coerce.number().optional().openapi({
@@ -146,30 +170,27 @@ export const CustomerTransactionsQuerySchema = z
       description: "ID of the first transaction from the previous page (if paginating backwards)",
       example: "ch_0987654321"
     }),
-    startDate: z.string().datetime().optional().openapi({
-      description: "Start date for filtering transactions (inclusive)",
-      example: "2025-01-01T00:00:00Z"
-    }),
-    endDate: z.string().datetime().optional().openapi({
-      description: "End date for filtering transactions (inclusive)",
-      example: "2025-01-02T00:00:00Z"
-    })
+    startDate: dateRangeSchema.startDate.optional(),
+    endDate: dateRangeSchema.endDate.optional()
   })
-  .refine(
-    data => {
-      if (!data.startDate || !data.endDate) {
-        return true;
-      }
+  .refine(dateRangeCheck, {
+    message: dateRangeErrorMessage
+  });
 
-      const start = new Date(data.startDate);
-      const end = new Date(data.endDate);
-
-      return start <= end && differenceInDays(end, start) <= 366;
-    },
-    {
-      message: "Date range cannot exceed 366 days and startDate must be before endDate"
-    }
-  );
+export const CustomerTransactionsCsvExportQuerySchema = z
+  .object({
+    timezone: z
+      .string()
+      .refine(tz => Intl.supportedValuesOf("timeZone").includes(tz), { message: "Invalid IANA timezone" })
+      .openapi({
+        description: "Timezone for date formatting in the CSV",
+        example: "America/New_York"
+      }),
+    ...dateRangeSchema
+  })
+  .refine(dateRangeCheck, {
+    message: dateRangeErrorMessage
+  });
 
 export const ErrorResponseSchema = z.object({
   message: z.string(),

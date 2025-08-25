@@ -104,4 +104,18 @@ export class QueryKeys {
 
     return key;
   };
+
+  static getExportTransactionsCsvKey = (options: { startDate?: Date | null; endDate?: Date | null; timezone: string }) => {
+    const key = ["EXPORT_TRANSACTIONS_CSV", options.timezone];
+
+    if (options.startDate) {
+      key.push("start_date", options.startDate.toISOString());
+    }
+
+    if (options.endDate) {
+      key.push("end_date", options.endDate.toISOString());
+    }
+
+    return key;
+  };
 }

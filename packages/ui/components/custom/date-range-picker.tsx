@@ -16,8 +16,8 @@ import { Separator } from "../separator";
 
 interface DateRangePickerProps {
   className?: string;
-  date?: DateRange;
-  onChange?: (date: DateRange | undefined) => void;
+  date?: { from: Date; to: Date };
+  onChange?: (date: { from: Date; to: Date }) => void;
   minDate?: Date | null;
   maxDate?: Date | null;
   maxRangeInDays?: number;
@@ -184,7 +184,16 @@ export function DateRangePicker({
   );
 
   const applySelection = React.useCallback(() => {
-    onChange?.(selectedRange);
+    const { from, to } = selectedRange || {};
+
+    if (!from || !to) {
+      return;
+    }
+
+    onChange?.({
+      from,
+      to
+    });
     setOpen(false);
   }, [onChange, selectedRange]);
 

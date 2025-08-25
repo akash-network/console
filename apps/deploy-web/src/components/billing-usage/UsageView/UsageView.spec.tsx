@@ -92,6 +92,7 @@ describe(UsageView.name, () => {
     setup({
       onDateRangeChange,
       dateRange: {
+        to: new Date(),
         from: new Date("2020-01-01")
       }
     });
@@ -126,7 +127,7 @@ describe(UsageView.name, () => {
             <input
               type="date"
               value={date?.from ? date.from.toISOString().split("T")[0] : ""}
-              onChange={e => onChange?.({ from: new Date(e.target.value), to: date?.to })}
+              onChange={e => onChange?.({ from: new Date(e.target.value), to: date?.to || new Date() })}
             />
           </label>
           <label>
@@ -134,7 +135,7 @@ describe(UsageView.name, () => {
             <input
               type="date"
               value={date?.to ? date.to.toISOString().split("T")[0] : ""}
-              onChange={e => onChange?.({ from: date?.from, to: new Date(e.target.value) })}
+              onChange={e => onChange?.({ from: date?.from || new Date(), to: new Date(e.target.value) })}
             />
           </label>
         </div>
