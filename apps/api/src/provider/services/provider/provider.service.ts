@@ -2,7 +2,9 @@ import { Provider, ProviderAttribute, ProviderAttributeSignature, ProviderSnapsh
 import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
 import { ProviderHttpService } from "@akashnetwork/http-sdk";
 import { SupportedChainNetworks } from "@akashnetwork/net";
+import { AxiosError } from "axios";
 import { add } from "date-fns";
+import assert from "http-assert";
 import { Op } from "sequelize";
 import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
@@ -10,8 +12,7 @@ import { singleton } from "tsyringe";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
-import { ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
-import { ProviderIdentity } from "@src/provider/services/provider/provider-proxy.service";
+import { ProviderIdentity, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
 import { ProviderList } from "@src/types/provider";
 import { toUTC } from "@src/utils";
 import { mapProviderToList } from "@src/utils/map/provider";
@@ -38,18 +39,15 @@ export class ProviderService {
     const jsonStr = manifest.replace(/"quantity":{"val/g, '"size":{"val');
 
     const providerResponse = await this.providerHttpService.getProvider(provider);
-    if (!providerResponse) {
-      throw new Error(`Provider ${provider} not found`);
-    }
+
+    assert(providerResponse, 404, `Provider ${provider} not found`);
 
     const providerIdentity: ProviderIdentity = {
       owner: provider,
       hostUri: providerResponse.provider.host_uri
     };
 
-    const response = await this.sendManifestToProvider(dseq, jsonStr, options, providerIdentity);
-
-    return response;
+    return await this.sendManifestToProvider(dseq, jsonStr, options, providerIdentity);
   }
 
   private async sendManifestToProvider(dseq: string, jsonStr: string, options: { certPem: string; keyPem: string }, providerIdentity: ProviderIdentity) {
@@ -71,7 +69,10 @@ export class ProviderService {
           await delay(this.MANIFEST_SEND_RETRY_DELAY);
           continue;
         }
-        throw new Error(err?.response?.data || err);
+        const providerError = err instanceof AxiosError && err.response?.data;
+        assert(!providerError?.toLowerCase()?.includes("invalid manifest"), 400, err?.response?.data);
+
+        throw new Error(providerError || err);
       }
     }
   }
@@ -87,7 +88,7 @@ export class ProviderService {
       hostUri: providerResponse.provider.host_uri
     };
 
-    const response = await this.providerProxy.fetchProviderUrl<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
+    return await this.providerProxy.fetchProviderUrl<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
       method: "GET",
       certPem: options.certPem,
       keyPem: options.keyPem,
@@ -95,8 +96,6 @@ export class ProviderService {
       providerIdentity,
       timeout: 30000
     });
-
-    return response;
   }
 
   async getProviderList({ trial = false }: { trial?: boolean } = {}): Promise<ProviderList[]> {
