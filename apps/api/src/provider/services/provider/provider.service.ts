@@ -78,8 +78,11 @@ export class ProviderService {
           await delay(this.MANIFEST_SEND_RETRY_DELAY);
           continue;
         }
+
         const providerError = err instanceof AxiosError && err.response?.data;
-        assert(!providerError?.toLowerCase()?.includes("invalid manifest"), 400, err?.response?.data);
+        if (typeof providerError === "string") {
+          assert(!providerError.toLowerCase().includes("invalid manifest"), 400, err?.response?.data);
+        }
 
         throw new Error(providerError || err);
       }
