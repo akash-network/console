@@ -1,5 +1,17 @@
 
 
+## [1.6.0](https://github.com/akash-network/console/compare/log-collector/v1.5.0...log-collector/v1.6.0) (2025-08-25)
+
+
+### Features
+
+* make log outputs configurable and add local k8s dev setup ([#1832](https://github.com/akash-network/console/issues/1832)) ([754a3cb](https://github.com/akash-network/console/commit/754a3cb4ece83604d6391436b48f6931f9ecfb1f))
+
+
+### Bug Fixes
+
+* **deployment:** handles invalid manifest errors on POST /v1/leases ([f5da5c4](https://github.com/akash-network/console/commit/f5da5c4b02ef3e2977a8f5855eb5a8b81ac8281b)), closes [#1835](https://github.com/akash-network/console/issues/1835)
+
 ## [1.5.0](https://github.com/akash-network/console/compare/log-collector/v1.4.0...log-collector/v1.5.0) (2025-08-21)
 
 
