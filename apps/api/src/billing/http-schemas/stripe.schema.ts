@@ -184,8 +184,7 @@ export const CustomerTransactionsCsvExportQuerySchema = z
       .refine(tz => Intl.supportedValuesOf("timeZone").includes(tz), { message: "Invalid IANA timezone" })
       .openapi({
         description: "Timezone for date formatting in the CSV",
-        example: "America/New_York",
-        default: "UTC"
+        example: "America/New_York"
       }),
     ...dateRangeSchema
   })

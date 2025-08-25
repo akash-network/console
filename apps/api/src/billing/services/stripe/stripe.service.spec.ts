@@ -392,17 +392,17 @@ describe(StripeService.name, () => {
       const csvStream = service.exportTransactionsCsvStream("cus_123", {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z",
-        timezone: "UTC"
+        timezone: "America/New_York"
       });
 
       const chunks = await Array.fromAsync(csvStream);
 
       const fullCsv = chunks.join("");
 
-      expect(fullCsv).toContain("﻿Transaction ID,Date (UTC),Amount,Currency,Status,Payment Method,Card Brand,Card Last 4,Description,Receipt URL");
+      expect(fullCsv).toContain("Transaction ID,Date (America/New_York),Amount,Currency,Status,Payment Method,Card Brand,Card Last 4,Description,Receipt URL");
 
       expect(fullCsv).toContain("ch_123");
-      expect(fullCsv).toContain("2022-01-01");
+      expect(fullCsv).toContain("2021-12-31, 7:00:00 p.m.");
       expect(fullCsv).toContain("10.00");
       expect(fullCsv).toContain("visa");
       expect(fullCsv).toContain("4242");
@@ -457,7 +457,7 @@ describe(StripeService.name, () => {
       const csvStream = service.exportTransactionsCsvStream("cus_123", {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z",
-        timezone: "UTC"
+        timezone: "America/New_York"
       });
 
       const chunks = await Array.fromAsync(csvStream);
@@ -497,7 +497,7 @@ describe(StripeService.name, () => {
       const csvStream = service.exportTransactionsCsvStream("cus_123", {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z",
-        timezone: "UTC"
+        timezone: "America/New_York"
       });
 
       const chunks = await Array.fromAsync(csvStream);
@@ -531,7 +531,7 @@ describe(StripeService.name, () => {
       const csvStream = service.exportTransactionsCsvStream("cus_123", {
         startDate: "2022-01-01T00:00:00Z",
         endDate: "2022-01-31T23:59:59Z",
-        timezone: "UTC"
+        timezone: "America/New_York"
       });
 
       const chunks = await Array.fromAsync(csvStream);
