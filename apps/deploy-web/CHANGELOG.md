@@ -1,5 +1,12 @@
 
 
+## [2.101.1](https://github.com/akash-network/console/compare/console-web/v2.101.0...console-web/v2.101.1) (2025-08-25)
+
+
+### Bug Fixes
+
+* **deployment:** handles invalid manifest errors on POST /v1/leases ([f5da5c4](https://github.com/akash-network/console/commit/f5da5c4b02ef3e2977a8f5855eb5a8b81ac8281b)), closes [#1835](https://github.com/akash-network/console/issues/1835)
+
 ## [2.101.0](https://github.com/akash-network/console/compare/console-web/v2.100.0...console-web/v2.101.0) (2025-08-21)
 
 
