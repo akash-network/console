@@ -34,7 +34,8 @@ export async function startServer(
   });
 
   let server: ServerType | undefined;
-  const shutdown = once(async () => {
+  const shutdown = once(async (reason: string) => {
+    logger.info({ event: "APP_SERVER_SHUTDOWN_REQUESTED", reason });
     if (server) {
       await shutdownServer(server, logger, disposeContainerOnce);
     } else {
@@ -52,12 +53,12 @@ export async function startServer(
     });
 
     server.on("close", disposeContainerOnce);
-    processEvents.on("SIGTERM", shutdown);
-    processEvents.on("SIGINT", shutdown);
-    processEvents.on("exit", shutdown);
+    processEvents.on("SIGTERM", () => shutdown("SIGTERM"));
+    processEvents.on("SIGINT", () => shutdown("SIGINT"));
+    processEvents.on("exit", exitCode => shutdown(`EXIT:${exitCode}`));
     return server;
   } catch (error) {
     logger.error({ event: "SERVER_START_ERROR", error });
-    await shutdown();
+    await shutdown("SERVER_START_ERROR");
   }
 }

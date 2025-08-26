@@ -9,7 +9,7 @@ export async function startServer(): Promise<string> {
 }
 
 export async function stopServer(): Promise<void> {
-  await server?.close();
+  await server?.close("TEST_SHUTDOWN");
 }
 
 export async function request(url: string, init?: RequestInit): Promise<Response> {
