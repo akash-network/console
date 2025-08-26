@@ -7,7 +7,7 @@ import { UrlService } from "@src/utils/urlUtils";
 
 export const useLoginRequiredEventHandler = (): ((messageOtherwise: string) => (callback: MouseEventHandler) => MouseEventHandler) => {
   const { requireAction } = usePopup();
-  const user = useUser();
+  const { user } = useUser();
 
   return useCallback(
     (messageOtherwise: string) => (handler: MouseEventHandler) => {

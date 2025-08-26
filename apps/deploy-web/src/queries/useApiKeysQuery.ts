@@ -16,7 +16,7 @@ export function useUserApiKeys(
   options: Omit<UseQueryOptions<ApiKeyResponse[], Error, ApiKeyResponse[], QueryKey>, "queryKey" | "queryFn"> = {},
   dependencies: typeof USE_API_KEYS_DEPENDENCIES = USE_API_KEYS_DEPENDENCIES
 ) {
-  const user = dependencies.useUser();
+  const { user } = dependencies.useUser();
   const { isTrialing, isManaged } = dependencies.useWallet();
   const { apiKey } = useServices();
 
@@ -32,7 +32,7 @@ export function useUserApiKeys(
 }
 
 export function useCreateApiKey(dependencies: typeof USE_API_KEYS_DEPENDENCIES = USE_API_KEYS_DEPENDENCIES) {
-  const user = dependencies.useUser();
+  const { user } = dependencies.useUser();
   const queryClient = useQueryClient();
   const { apiKey } = useServices();
 
@@ -53,7 +53,7 @@ export function useCreateApiKey(dependencies: typeof USE_API_KEYS_DEPENDENCIES =
 }
 
 export function useDeleteApiKey(id: string, onSuccess?: () => void, dependencies: typeof USE_API_KEYS_DEPENDENCIES = USE_API_KEYS_DEPENDENCIES) {
-  const user = dependencies.useUser();
+  const { user } = dependencies.useUser();
   const queryClient = useQueryClient();
   const { apiKey } = useServices();
 

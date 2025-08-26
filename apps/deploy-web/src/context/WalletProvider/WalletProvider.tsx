@@ -83,7 +83,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const router = useRouter();
   const { settings } = useSettings();
-  const user = useUser();
+  const { user } = useUser();
   const userWallet = useSelectedChain();
   const { wallet: managedWallet, isLoading: isManagedWalletLoading, create: createManagedWallet, createError: managedWalletError } = useManagedWallet();
   const [, setIsWalletModelOpen] = useAtom(walletStore.isWalletModalOpen);
@@ -357,8 +357,9 @@ export function useWallet() {
 }
 
 export function useIsManagedWalletUser() {
-  const { isManaged } = useWallet();
-  return isManaged;
+  const { isManaged: canVisit, isWalletLoading: isLoading } = useWallet();
+
+  return { canVisit, isLoading };
 }
 
 const TransactionSnackbarContent: React.FC<{ snackMessage: string; transactionHash: string }> = ({ snackMessage, transactionHash }) => {

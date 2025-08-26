@@ -64,7 +64,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const wallet = useWallet();
-  const user = useUser();
+  const { user } = useUser();
   const isAlertsEnabled = useFlag("alerts");
 
   const mainRoutes = useMemo(() => {
