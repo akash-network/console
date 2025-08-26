@@ -5,10 +5,10 @@ import nock from "nock";
 import stripe from "stripe";
 import { container } from "tsyringe";
 
-import { app } from "@src/app";
 import { CheckoutSessionRepository } from "@src/billing/repositories";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
+import { app } from "@src/rest-app";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
 jest.setTimeout(20000);

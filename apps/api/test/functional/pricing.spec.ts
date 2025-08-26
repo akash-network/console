@@ -1,4 +1,4 @@
-import { app } from "@src/app";
+import { app } from "@src/rest-app";
 
 describe("Pricing API", () => {
   describe("POST /v1/pricing", () => {

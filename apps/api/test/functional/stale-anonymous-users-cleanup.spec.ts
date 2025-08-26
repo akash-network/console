@@ -2,10 +2,10 @@ import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import subDays from "date-fns/subDays";
 import { container } from "tsyringe";
 
-import { app } from "@src/app";
 import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
 import { resolveWallet } from "@src/billing/providers/wallet.provider";
 import { UserWalletRepository } from "@src/billing/repositories";
+import { app } from "@src/rest-app";
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { UserRepository } from "@src/user/repositories";
 

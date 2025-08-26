@@ -1,4 +1,4 @@
-import { app, initDb } from "@src/app";
+import { app, initDb } from "@src/rest-app";
 
 describe("app", () => {
   beforeAll(async () => {

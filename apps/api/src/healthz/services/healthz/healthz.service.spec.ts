@@ -1,103 +1,214 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { millisecondsInMinute } from "date-fns";
-import { sql } from "drizzle-orm";
-import type { MockProxy } from "jest-mock-extended";
 import { mock } from "jest-mock-extended";
 
-import type { ApiPgDatabase } from "@src/core/providers/postgres.provider";
+import { cacheEngine } from "@src/caching/helpers";
+import type { DbHealthcheck, JobQueueHealthcheck } from "@src/core";
 import { HealthzService } from "./healthz.service";
 
 describe(HealthzService.name, () => {
+  afterEach(() => {
+    cacheEngine.clearAllKeyInCache();
+  });
+
   describe("getReadinessStatus", () => {
-    it("should return ok if postgres is ready", async () => {
-      const { service, pg } = await setup();
+    it("returns ok if db and jobsQueue are ready", async () => {
+      const { service, dbHealthcheck, jobQueueHealthcheck } = setup();
 
       expect(await service.getReadinessStatus()).toEqual({
         status: "ok",
         data: {
-          postgres: true
+          postgres: true,
+          jobQueue: true
         }
       });
-      expect(pg.execute).toHaveBeenCalledWith(sql`SELECT 1`);
+      expect(dbHealthcheck.ping).toHaveBeenCalled();
+      expect(jobQueueHealthcheck.ping).toHaveBeenCalled();
     });
 
-    it("should return error if postgres is not ready", async () => {
-      const { service, pg } = await setup();
+    it("returns error if db is not ready", async () => {
+      const { service, dbHealthcheck, jobQueueHealthcheck, logger } = setup();
 
-      pg.execute.mockRejectedValue(new Error("Postgres is not ready"));
+      const error = new Error("Postgres is not ready");
+      dbHealthcheck.ping.mockRejectedValue(error);
 
       expect(await service.getReadinessStatus()).toEqual({
         status: "error",
         data: {
-          postgres: false
+          postgres: false,
+          jobQueue: true
         }
       });
-      expect(pg.execute).toHaveBeenCalledWith(sql`SELECT 1`);
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "POSTGRES_HEALTHCHECK_ERROR",
+        error
+      });
+      expect(dbHealthcheck.ping).toHaveBeenCalled();
+      expect(jobQueueHealthcheck.ping).toHaveBeenCalled();
+    });
+
+    it("returns error if jobsQueue is not ready", async () => {
+      const { service, dbHealthcheck, jobQueueHealthcheck, logger } = setup();
+
+      const error = new Error("JobsQueue is not ready");
+      jobQueueHealthcheck.ping.mockRejectedValue(error);
+
+      expect(await service.getReadinessStatus()).toEqual({
+        status: "error",
+        data: {
+          postgres: true,
+          jobQueue: false
+        }
+      });
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "JOBQUEUE_HEALTHCHECK_ERROR",
+        error
+      });
+      expect(dbHealthcheck.ping).toHaveBeenCalled();
+      expect(jobQueueHealthcheck.ping).toHaveBeenCalled();
     });
   });
 
   describe("getLivenessStatus", () => {
-    it("should return ok if postgres is ready", async () => {
-      const { service, pg } = await setup();
+    it("returns ok if postgres and jobQueue are ready", async () => {
+      const { service, dbHealthcheck, jobQueueHealthcheck } = setup();
 
       expect(await service.getLivenessStatus()).toEqual({
         status: "ok",
         data: {
-          postgres: true
+          postgres: true,
+          jobQueue: true
         }
       });
-      expect(pg.execute).toHaveBeenCalledWith(sql`SELECT 1`);
+      expect(dbHealthcheck.ping).toHaveBeenCalled();
+      expect(jobQueueHealthcheck.ping).toHaveBeenCalled();
     });
 
-    it("should return ok if postgres is not ready before the threshold", async () => {
-      const { service, pg, logger } = await setup();
-      const error = new Error("Postgres is not ready");
-      pg.execute.mockRejectedValue(error);
+    it("returns error if db or jobsQueue are not ready", async () => {
+      const { service, dbHealthcheck, jobQueueHealthcheck, logger } = setup();
+      const dbError = new Error("Postgres is not ready");
+      const jobQueueError = new Error("JobsQueue is not ready");
+      dbHealthcheck.ping.mockRejectedValue(dbError);
+      jobQueueHealthcheck.ping.mockRejectedValue(jobQueueError);
 
       expect(await service.getLivenessStatus()).toEqual({
-        status: "ok",
+        status: "error",
         data: {
-          postgres: true
+          postgres: false,
+          jobQueue: false
         }
       });
-      expect(pg.execute).toHaveBeenCalledWith(sql`SELECT 1`);
-      expect(logger.error).toHaveBeenCalledWith(error);
+      expect(dbHealthcheck.ping).toHaveBeenCalled();
+      expect(jobQueueHealthcheck.ping).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "POSTGRES_HEALTHCHECK_ERROR",
+        error: dbError
+      });
+      expect(logger.error).toHaveBeenCalledWith({
+        event: "JOBQUEUE_HEALTHCHECK_ERROR",
+        error: jobQueueError
+      });
     });
 
-    it("should return error if postgres is not ready after the threshold", async () => {
-      const { service, pg, logger } = await setup();
-      const error = new Error("Postgres is not ready");
-      pg.execute.mockRejectedValue(error);
+    it("caches liveness results and retries after TTL expires", async () => {
+      jest.useFakeTimers();
+      const { service, dbHealthcheck, jobQueueHealthcheck } = setup();
+
+      // First call - both should be called
+      await service.getLivenessStatus();
+      expect(dbHealthcheck.ping).toHaveBeenCalledTimes(1);
+      expect(jobQueueHealthcheck.ping).toHaveBeenCalledTimes(1);
+
+      // Second call within TTL - should use cached results, no additional calls
+      await service.getLivenessStatus();
+      expect(dbHealthcheck.ping).toHaveBeenCalledTimes(1);
+      expect(jobQueueHealthcheck.ping).toHaveBeenCalledTimes(1);
+
+      // Advance time beyond TTL
+      jest.advanceTimersByTime(millisecondsInMinute + 1);
+
+      // Call after TTL - should make new calls
+      await service.getLivenessStatus();
+      expect(dbHealthcheck.ping).toHaveBeenCalledTimes(2);
+      expect(jobQueueHealthcheck.ping).toHaveBeenCalledTimes(2);
+
+      jest.useRealTimers();
+    });
+
+    it("does not tolerate failure if has not been succeeded at least once", async () => {
+      const { service, dbHealthcheck, jobQueueHealthcheck } = setup();
+
+      dbHealthcheck.ping.mockRejectedValue(new Error("Postgres is not ready"));
+      jobQueueHealthcheck.ping.mockRejectedValue(new Error("JobsQueue is not ready"));
+
+      expect(await service.getLivenessStatus()).toEqual({
+        status: "error",
+        data: {
+          postgres: false,
+          jobQueue: false
+        }
+      });
+    });
+
+    it("tolerates failure for the 1st time and waits for the cache to expire until the next check", async () => {
+      jest.useFakeTimers();
+      const { service, dbHealthcheck, jobQueueHealthcheck } = setup();
 
       await service.getLivenessStatus();
 
-      jest.useFakeTimers();
+      // wait for TTL to expire
+      jest.advanceTimersByTime(millisecondsInMinute + 1);
+      dbHealthcheck.ping.mockRejectedValue(new Error("Postgres is not ready"));
+
+      expect(await service.getLivenessStatus()).toEqual({
+        status: "ok",
+        data: {
+          postgres: true,
+          jobQueue: true
+        }
+      });
+      expect(dbHealthcheck.ping).toHaveBeenCalledTimes(2);
+      expect(jobQueueHealthcheck.ping).toHaveBeenCalledTimes(2);
+
+      // uses cached results
+      expect(await service.getLivenessStatus()).toEqual({
+        status: "ok",
+        data: {
+          postgres: true,
+          jobQueue: true
+        }
+      });
+      expect(dbHealthcheck.ping).toHaveBeenCalledTimes(2);
+      expect(jobQueueHealthcheck.ping).toHaveBeenCalledTimes(2);
+
+      // wait for TTL to expire
       jest.advanceTimersByTime(millisecondsInMinute + 1);
 
       expect(await service.getLivenessStatus()).toEqual({
         status: "error",
         data: {
-          postgres: false
+          postgres: false,
+          jobQueue: true
         }
       });
-      expect(pg.execute).toHaveBeenCalledWith(sql`SELECT 1`);
-      expect(logger.error).toHaveBeenCalledWith(error);
+      expect(dbHealthcheck.ping).toHaveBeenCalledTimes(3);
+      expect(jobQueueHealthcheck.ping).toHaveBeenCalledTimes(3);
+
+      jest.useRealTimers();
     });
   });
 
-  function setup(): {
-    pg: MockProxy<ApiPgDatabase>;
-    logger: MockProxy<LoggerService>;
-    service: HealthzService;
-  } {
-    const pg = mock<ApiPgDatabase>();
+  function setup() {
     const logger = mock<LoggerService>();
-    const healthzService = new HealthzService(pg, logger);
+    const dbHealthcheck = mock<DbHealthcheck>({ ping: jest.fn().mockResolvedValue(undefined) });
+    const jobQueueHealthcheck = mock<JobQueueHealthcheck>({ ping: jest.fn().mockResolvedValue(undefined) });
+    const healthzService = new HealthzService(dbHealthcheck, jobQueueHealthcheck, logger);
 
     return {
-      pg,
       logger,
-      service: healthzService
+      service: healthzService,
+      dbHealthcheck,
+      jobQueueHealthcheck
     };
   }
 });

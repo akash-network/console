@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { app } from "@src/app";
+import { app } from "@src/rest-app";
 import type { GetTemplateByIdResponse, GetTemplatesFullResponse, GetTemplatesListResponse } from "@src/template/http-schemas/template.schema";
 import { env } from "@src/utils/env";
 
