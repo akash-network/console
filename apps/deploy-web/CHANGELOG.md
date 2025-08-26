@@ -1,5 +1,12 @@
 
 
+## [2.102.1](https://github.com/akash-network/console/compare/console-web/v2.102.0...console-web/v2.102.1) (2025-08-26)
+
+
+### Bug Fixes
+
+* billing usage page guard flicker ([52b25ba](https://github.com/akash-network/console/commit/52b25bad3c37dcb3bb1504f2d6b87ddbe4240268))
+
 ## [2.102.0](https://github.com/akash-network/console/compare/console-web/v2.101.1...console-web/v2.102.0) (2025-08-26)
 
 

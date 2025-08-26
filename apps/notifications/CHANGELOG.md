@@ -1,5 +1,12 @@
 
 
+## [1.24.1](https://github.com/akash-network/console/compare/notifications/v1.24.0...notifications/v1.24.1) (2025-08-26)
+
+
+### Bug Fixes
+
+* **notifications:** removes faulty options from jobs trigger  ([a314c82](https://github.com/akash-network/console/commit/a314c82952a54c1e95b2625137505cf586aa1f51))
+
 ## [1.24.0](https://github.com/akash-network/console/compare/notifications/v1.23.1...notifications/v1.24.0) (2025-08-26)
 
 
