@@ -155,11 +155,7 @@ export class StripeController {
   async exportTransactionsCsvStream(options: { startDate: string; endDate: string; timezone: string }): Promise<AsyncIterable<string>> {
     const { currentUser } = this.authService;
 
-    if (!currentUser.stripeCustomerId) {
-      return (async function* () {
-        yield "Payments are not configured. Please start with a trial first";
-      })();
-    }
+    assert(currentUser.stripeCustomerId, 403, "Payments are not configured. Please start with a trial first");
 
     return this.stripe.exportTransactionsCsvStream(currentUser.stripeCustomerId, options);
   }
