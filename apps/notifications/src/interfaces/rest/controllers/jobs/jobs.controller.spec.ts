@@ -7,7 +7,7 @@ import { BrokerService } from "@src/infrastructure/broker/services/broker/broker
 import { NotificationChannelRepository } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 import { AuthService } from "../../services/auth/auth.service";
 import { notificationChannelOutputSchema } from "../notification-channel/notification-channel.controller";
-import { DEFAULT_NOTIFICATION_EXPIRATION_IN_SECONDS, JobsController } from "./jobs.controller";
+import { JobsController } from "./jobs.controller";
 
 import { MockProvider } from "@test/mocks/provider.mock";
 
@@ -77,8 +77,7 @@ describe(JobsController.name, () => {
           }
         },
         {
-          id: "notifyAboutStartTrial",
-          expireInSeconds: DEFAULT_NOTIFICATION_EXPIRATION_IN_SECONDS
+          singletonKey: "notifyAboutStartTrial"
         }
       );
     });
@@ -111,8 +110,7 @@ describe(JobsController.name, () => {
           }
         },
         {
-          id: "notifyAboutStartTrial",
-          expireInSeconds: DEFAULT_NOTIFICATION_EXPIRATION_IN_SECONDS
+          singletonKey: "notifyAboutStartTrial"
         }
       );
     });
@@ -144,9 +142,8 @@ describe(JobsController.name, () => {
           }
         },
         {
-          id: "notifyAbout1WeekTrial",
-          startAfter,
-          expireInSeconds: Math.ceil((startAfter.getTime() - Date.now()) / 1000) + DEFAULT_NOTIFICATION_EXPIRATION_IN_SECONDS
+          singletonKey: "notifyAbout1WeekTrial",
+          startAfter
         }
       );
     });
