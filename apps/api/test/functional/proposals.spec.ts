@@ -1,7 +1,7 @@
 import nock from "nock";
 
-import { app } from "@src/app";
 import type { GetProposalByIdResponse, GetProposalListResponse } from "@src/proposal/http-schemas/proposal.schema";
+import { app } from "@src/rest-app";
 import { apiNodeUrl } from "@src/utils/constants";
 
 describe("Proposals", () => {

@@ -1,9 +1,9 @@
 import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 
-import { app } from "@src/app";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
+import { app } from "@src/rest-app";
 
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
 import { WalletTestingService } from "@test/services/wallet-testing.service";

@@ -1,7 +1,7 @@
 import { format, subDays } from "date-fns";
 
-import { app, initDb } from "@src/app";
 import type { UsageHistoryResponse, UsageHistoryStats } from "@src/billing/http-schemas/usage.schema";
+import { app, initDb } from "@src/rest-app";
 
 import { createAkashAddress, createAkashBlock, createDay, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
 

@@ -10,8 +10,12 @@ container.register(APP_INITIALIZER, {
   useValue: {
     async [ON_APP_START]() {
       const jobQueueManager = container.resolve(JobQueueService);
-      await jobQueueManager.registerHandlers([container.resolve(TrialStartedHandler), container.resolve(NotificationHandler)]);
-      await jobQueueManager.start();
+      await jobQueueManager.setup();
+      await jobQueueManager.registerHandlers([
+        // keep new lines
+        container.resolve(TrialStartedHandler),
+        container.resolve(NotificationHandler)
+      ]);
     }
   } satisfies AppInitializer
 });

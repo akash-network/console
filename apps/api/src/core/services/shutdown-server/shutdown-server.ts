@@ -13,7 +13,7 @@ export async function shutdownServer(server: ServerType, appLogger: Logger, onSh
 
       Promise.resolve(onShutdown?.())
         .catch(error => {
-          appLogger.error({ event: "CONTAINER_DISPOSE_ERROR", error });
+          appLogger.error({ event: "ON_SHUTDOWN_ERROR", error });
         })
         .finally(() => {
           resolve();

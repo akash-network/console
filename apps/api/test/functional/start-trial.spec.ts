@@ -3,7 +3,6 @@ import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
 
-import { app } from "@src/app";
 import type { BillingConfig } from "@src/billing/providers";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { resolveWallet } from "@src/billing/providers/wallet.provider";
@@ -11,6 +10,7 @@ import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { app } from "@src/rest-app";
 
 jest.setTimeout(20000);
 

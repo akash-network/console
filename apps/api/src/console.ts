@@ -1,12 +1,11 @@
+import "reflect-metadata";
 import "@akashnetwork/env-loader";
 import "@src/utils/protobuf";
-import "reflect-metadata";
 import "./open-telemetry";
-import "./app/providers/jobs.provider";
+import "./app";
 
 import { LoggerService } from "@akashnetwork/logging";
 import { context, trace } from "@opentelemetry/api";
-import type { OptionValues } from "commander";
 import { Command } from "commander";
 import { once } from "lodash";
 import { Err } from "ts-results";
@@ -22,7 +21,6 @@ import { ProviderController } from "@src/provider/controllers/provider/provider.
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { UserConfigService } from "@src/user/services/user-config/user-config.service";
 import { APP_INITIALIZER, ON_APP_START } from "./core/providers/app-initializer";
-import { JobQueueService } from "./core/services/job-queue/job-queue.service";
 
 const program = new Command();
 
@@ -102,11 +100,6 @@ program
     });
   });
 
-program
-  .command("drain-job-queues")
-  .description("Process delayed jobs from the job queues")
-  .action(daemon(async () => container.resolve(JobQueueService).startWorkers()));
-
 const logger = LoggerService.forContext("CLI");
 
 async function executeCliHandler(name: string, handler: () => Promise<unknown>, options?: { type?: "action" | "daemon" }) {
@@ -135,12 +128,6 @@ async function executeCliHandler(name: string, handler: () => Promise<unknown>, 
       }
     }
   });
-}
-
-function daemon(fn: (options: OptionValues, command: Command) => Promise<unknown>): (options: OptionValues, command: Command) => Promise<void> {
-  return async (options: Record<string, unknown>, command: Command) => {
-    await executeCliHandler(command.name(), () => fn(options, command), { type: "daemon" });
-  };
 }
 
 const shutdown = once(async () => {
