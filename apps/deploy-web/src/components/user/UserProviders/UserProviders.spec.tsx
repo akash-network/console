@@ -53,13 +53,8 @@ describe(UserProviders.name, () => {
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
 
-    expect(userTracker.track).toHaveBeenCalledWith({
-      isLoading: true
-    });
-    expect(userTracker.track).toHaveBeenCalledWith({
-      ...anonymousUser,
-      isLoading: false
-    });
+    expect(userTracker.track).toHaveBeenCalledWith(undefined);
+    expect(userTracker.track).toHaveBeenCalledWith(anonymousUser);
     expect(analyticsService.identify).toHaveBeenCalledTimes(2);
     expect(analyticsService.identify).toHaveBeenCalledWith({
       id: anonymousUser.id,

@@ -42,7 +42,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const [completedSteps, setCompletedSteps] = useState<Set<OnboardingStepIndex>>(new Set());
 
   const router = d.useRouter();
-  const user = d.useUser();
+  const { user } = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
   const { analyticsService, urlService } = d.useServices();
 

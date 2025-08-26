@@ -16,10 +16,7 @@ export interface UserSettings {
   emailVerified?: boolean;
 }
 
-export type CustomUserProfile = UserProfile &
-  UserSettings & {
-    isLoading?: boolean;
-  };
+export type CustomUserProfile = UserProfile & UserSettings;
 
 export interface IUserSetting {
   username: string;

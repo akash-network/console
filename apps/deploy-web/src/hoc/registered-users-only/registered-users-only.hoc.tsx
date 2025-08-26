@@ -5,7 +5,7 @@ import FourOhFour from "@src/pages/404";
 
 export const RegisteredUsersOnly = <P extends object>(Component: React.ComponentType<P>, FallbackComponent = FourOhFour) => {
   const WithRegisteredUsersOnly = (props: P) => {
-    const user = useUser();
+    const { user } = useUser();
 
     const isRegistered = !!user?.userId;
     if (isRegistered) {

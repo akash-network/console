@@ -9,7 +9,7 @@ import { useUser } from "./useUser";
 const withBilling = browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED;
 
 export function useHasCreditCardBanner(isMaintenanceBannerOpen: boolean) {
-  const user = useUser();
+  const { user } = useUser();
   const [isBannerVisible, setIsBannerVisible] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const { hasManagedWallet, isWalletLoading } = useWallet();

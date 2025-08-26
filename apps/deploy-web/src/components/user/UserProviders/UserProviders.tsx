@@ -29,7 +29,7 @@ export const UserProviders: FCWithChildren = ({ children }) => {
 };
 
 const UserTracker: FCWithChildren = ({ children }) => {
-  const user = useUser();
+  const { user } = useUser();
   const { analyticsService, userTracker } = useServices();
 
   useEffect(() => {

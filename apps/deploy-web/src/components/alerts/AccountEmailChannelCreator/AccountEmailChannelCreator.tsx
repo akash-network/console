@@ -23,7 +23,7 @@ export const AccountEmailChannelCreateTrigger: FC<ChildrenProps & { email: strin
 };
 
 export const AccountEmailChannelCreator = () => {
-  const user = useUser();
+  const { user } = useUser();
   return (
     <NotificationChannelCreateContainer>
       {props => (user?.email ? <AccountEmailChannelCreateTrigger {...props} email={user.email} /> : null)}

@@ -14,7 +14,7 @@ const COMPONENTS = {
 export type Props = { components?: typeof COMPONENTS };
 
 export const UserAwareFlagProvider: FCWithChildren<Props> = ({ children, components: c = COMPONENTS }) => {
-  const user = c.useUser();
+  const { user } = c.useUser();
   return <c.FlagProvider config={{ context: { userId: user?.id } }}>{children}</c.FlagProvider>;
 };
 
