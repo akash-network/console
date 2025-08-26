@@ -13,7 +13,7 @@ const { NEXT_PUBLIC_BILLING_ENABLED } = browserEnvConfig;
 const isBillingEnabled = NEXT_PUBLIC_BILLING_ENABLED;
 
 export const useManagedWallet = () => {
-  const user = useUser();
+  const { user } = useUser();
   const { user: signedInUser } = useCustomUser();
   const userWallet = useSelectedChain();
   const [selectedWalletType, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
