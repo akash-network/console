@@ -13,7 +13,10 @@ describe(UserAwareFlagProvider.name, () => {
         {children}
       </div>
     );
-    const customUseUser = () => testUser;
+    const customUseUser = () => ({
+      user: testUser,
+      isLoading: false
+    });
 
     const { getByTestId } = render(
       <UserAwareFlagProvider components={{ FlagProvider: customFlagProvider, useUser: customUseUser }}>

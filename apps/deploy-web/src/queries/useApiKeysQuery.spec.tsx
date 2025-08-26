@@ -140,7 +140,10 @@ describe("useApiKeysQuery", () => {
         () => {
           const dependencies: typeof USE_API_KEYS_DEPENDENCIES = {
             ...USE_API_KEYS_DEPENDENCIES,
-            useUser: () => mockUser,
+            useUser: () => ({
+              user: mockUser,
+              isLoading: false
+            }),
             useWallet: () => mockWallet
           };
           return useCreateApiKey(dependencies);
@@ -185,7 +188,10 @@ describe("useApiKeysQuery", () => {
         () => {
           const dependencies: typeof USE_API_KEYS_DEPENDENCIES = {
             ...USE_API_KEYS_DEPENDENCIES,
-            useUser: () => mockUser,
+            useUser: () => ({
+              user: mockUser,
+              isLoading: false
+            }),
             useWallet: () => mockWallet
           };
           return useDeleteApiKey("key-1", undefined, dependencies);
@@ -230,7 +236,10 @@ describe("useApiKeysQuery", () => {
         () => {
           const dependencies: typeof USE_API_KEYS_DEPENDENCIES = {
             ...USE_API_KEYS_DEPENDENCIES,
-            useUser: () => mockUser,
+            useUser: () => ({
+              user: mockUser,
+              isLoading: false
+            }),
             useWallet: () => mockWallet
           };
           return useDeleteApiKey("key-1", onSuccess, dependencies);
@@ -257,7 +266,10 @@ describe("useApiKeysQuery", () => {
   function setupApiKeysQuery(input?: { user?: CustomUserProfile | undefined; wallet?: WalletProviderContextType; services?: Record<string, () => unknown> }) {
     const dependencies: typeof USE_API_KEYS_DEPENDENCIES = {
       ...USE_API_KEYS_DEPENDENCIES,
-      useUser: () => input?.user as CustomUserProfile,
+      useUser: () => ({
+        user: input?.user as CustomUserProfile,
+        isLoading: false
+      }),
       useWallet: () => input?.wallet || mockWallet
     };
 
