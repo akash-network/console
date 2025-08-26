@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { Client } from "pg";
 import PgBoss from "pg-boss";
 
+import { LoggerService } from "@src/common/services/logger/logger.service";
 import type { BrokerConfig } from "@src/infrastructure/broker/config";
 
 export const createPgBossFactory =
@@ -13,14 +14,21 @@ export const createPgBossFactory =
     await migrator.start();
     await migrator.stop();
 
-    return new Broker({
+    const broker = new Broker({
       db: {
         executeSql(text: string, values: any[]): Promise<{ rows: any[] }> {
           return client.query(text, values);
         }
       },
       archiveCompletedAfterSeconds: config.getOrThrow("broker.EVENT_BROKER_ARCHIVE_COMPLETED_AFTER_SECONDS")
-    }).start();
+    });
+
+    const logger = new LoggerService({ context: "PgBoss" });
+    broker.on("error", error => {
+      logger.error({ event: "WORKER_UNHANDLED_ERROR", error });
+    });
+
+    return broker.start();
   };
 
 export const PgBossProvider: Provider<PgBoss> = {

@@ -1,6 +1,5 @@
 import { BadRequestException, Body, Controller, HttpCode, Post } from "@nestjs/common";
 import { ApiNoContentResponse } from "@nestjs/swagger";
-import { hoursToSeconds } from "date-fns";
 import { createZodDto } from "nestjs-zod";
 import { Err, Ok, Result } from "ts-results";
 import { z } from "zod";
@@ -21,8 +20,6 @@ class NotificationJobDto extends createZodDto(
     })
   })
 ) {}
-
-export const DEFAULT_NOTIFICATION_EXPIRATION_IN_SECONDS = hoursToSeconds(24);
 
 @Controller({
   version: "1",
@@ -55,14 +52,9 @@ export class JobsController {
 
     const startAfter = job.startAfter ? new Date(job.startAfter) : undefined;
     const publishOptions: PublishOptions = {
-      id: job.notificationId,
-      startAfter,
-      expireInSeconds: DEFAULT_NOTIFICATION_EXPIRATION_IN_SECONDS
+      singletonKey: job.notificationId,
+      startAfter
     };
-
-    if (startAfter) {
-      publishOptions.expireInSeconds = Math.ceil((startAfter.getTime() - Date.now()) / 1000) + DEFAULT_NOTIFICATION_EXPIRATION_IN_SECONDS;
-    }
 
     await this.brokerService.publish(
       eventKeyRegistry.createNotification,
