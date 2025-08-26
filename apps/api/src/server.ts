@@ -30,7 +30,6 @@ async function bootstrap({ PORT = "3080", INTERFACE = "all" }: Record<string, st
   }
 
   await appModule.bootstrap(port);
-  console.log("process.send", process.send, INTERFACE);
   if (process.send) {
     process.on("disconnect", () => process.exit(0));
     process.send("ready");
