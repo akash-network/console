@@ -1,6 +1,5 @@
 import { DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Injectable } from "@nestjs/common";
-import { backOff } from "exponential-backoff";
 import { Err, Ok, Result } from "ts-results";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
@@ -72,13 +71,7 @@ export class DeploymentService {
 
   async getDeploymentInfo(owner: string, dseq: string): Promise<Result<DeploymentInfo, RichError>> {
     try {
-      const result = await backOff(() => this.deploymentHttpService.findByOwnerAndDseq(owner, dseq), {
-        maxDelay: 5_000,
-        startingDelay: 500,
-        timeMultiple: 2,
-        numOfAttempts: 3,
-        jitter: "full"
-      });
+      const result = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
 
       if ("code" in result) {
         return Err(new RichError(result.message, result.code, { owner, dseq, details: result.details }, result));

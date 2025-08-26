@@ -1,11 +1,13 @@
 import "reflect-metadata";
 import "@akashnetwork/env-loader";
-import "./open-telemetry";
 import "@src/utils/protobuf";
+import "./open-telemetry";
+import "./app";
 
 import { LoggerService } from "@akashnetwork/logging";
 import { context, trace } from "@opentelemetry/api";
 import { Command } from "commander";
+import { once } from "lodash";
 import { Err } from "ts-results";
 import { container } from "tsyringe";
 import { z } from "zod";
@@ -18,6 +20,7 @@ import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.co
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
 import { UserController } from "@src/user/controllers/user/user.controller";
 import { UserConfigService } from "@src/user/services/user-config/user-config.service";
+import { APP_INITIALIZER, ON_APP_START } from "./core/providers/app-initializer";
 
 const program = new Command();
 
@@ -99,19 +102,18 @@ program
 
 const logger = LoggerService.forContext("CLI");
 
-async function executeCliHandler(name: string, handler: () => Promise<unknown>) {
+async function executeCliHandler(name: string, handler: () => Promise<unknown>, options?: { type?: "action" | "daemon" }) {
   await context.with(trace.setSpan(context.active(), tracer.startSpan(name)), async () => {
     logger.info({ event: "COMMAND_START", name });
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { migratePG, closeConnections } = await require("./core/providers/postgres.provider");
+    const { migratePG } = require("./core/providers/postgres.provider");
 
     try {
-      await migratePG();
-      await chainDb.authenticate();
+      await Promise.all([migratePG(), chainDb.authenticate(), ...container.resolveAll(APP_INITIALIZER).map(initializer => initializer[ON_APP_START]())]);
 
       const result = await handler();
 
-      if (result instanceof Err) {
+      if (result && result instanceof Err) {
         logger.error({ event: "COMMAND_ERROR", name, result: result.val });
         process.exitCode = 1;
       } else {
@@ -121,10 +123,19 @@ async function executeCliHandler(name: string, handler: () => Promise<unknown>) 
       logger.error({ event: "COMMAND_ERROR", name, error });
       process.exitCode = 1;
     } finally {
-      await closeConnections();
-      await chainDb.close();
+      if (options?.type !== "daemon") {
+        await shutdown();
+      }
     }
   });
 }
 
+const shutdown = once(async () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { closeConnections } = require("./core/providers/postgres.provider");
+
+  await Promise.all([closeConnections(), chainDb.close(), container.dispose()]);
+});
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
 program.parse();

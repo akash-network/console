@@ -1,52 +1,57 @@
 import { inject, singleton } from "tsyringe";
 import { z } from "zod";
 
-import { PROCESS_ENV } from "@src/providers/process-env.provider";
-
+import { PROCESS_ENV } from "@src/providers/nodejs-process.provider";
+/**
+ * Service for managing application configuration
+ *
+ * Provides type-safe access to environment variables and configuration values.
+ * Uses Zod schema validation to ensure required environment variables are present
+ * and have the correct types.
+ */
 @singleton()
 export class ConfigService {
-  private readonly envSchema = z.intersection(
-    z.object({
-      HOSTNAME: z.string(),
-      KUBERNETES_NAMESPACE_OVERRIDE: z.string().optional(),
-      ENVIRONMENT: z.string().optional().default("default"),
-      SOURCE: z.string().optional().default("akash.network"),
-      WRITE_TO_CONSOLE: z
-        .enum(["true", "false"])
-        .transform(val => val === "true")
-        .optional()
-        .default("false")
-    }),
-    z.discriminatedUnion("DESTINATION", [
-      z.object({
-        DESTINATION: z.literal("DATADOG"),
-        DD_SITE: z.string(),
-        DD_API_KEY: z.string(),
-        DATADOG_DEBUG: z
-          .enum(["true", "false"])
-          .transform(val => val === "true")
-          .optional()
-          .default("false")
-      })
-    ])
-  );
+  /** Schema for validating and transforming environment variables */
+  static readonly envSchema = z.object({
+    HOSTNAME: z.string(),
+    KUBERNETES_NAMESPACE_OVERRIDE: z.string().optional(),
+    LOG_MAX_FILE_SIZE_BYTES: z
+      .number({ coerce: true })
+      .optional()
+      .default(10 * 1024 * 1024),
+    LOG_MAX_ROTATED_FILES: z.number({ coerce: true }).optional().default(5)
+  });
 
-  private readonly envConfig: z.infer<typeof this.envSchema>;
+  /** Validated and transformed environment configuration */
+  readonly envConfig: z.infer<typeof ConfigService.envSchema>;
 
+  /** Static configuration values that don't come from environment variables */
+  static readonly staticConfig = {
+    LOG_DIR: "./log"
+  };
+
+  /** Combined configuration type for both environment and static configs */
+  private readonly combinedConfig: z.infer<typeof ConfigService.envSchema> & typeof ConfigService.staticConfig;
+
+  /**
+   * Creates a new ConfigService instance
+   *
+   * @param env - Node.js environment variables to validate and use
+   */
   constructor(@inject(PROCESS_ENV) private readonly env: NodeJS.ProcessEnv) {
-    this.envConfig = this.envSchema.parse(env);
+    this.envConfig = ConfigService.envSchema.parse(env);
+    this.combinedConfig = { ...this.envConfig, ...ConfigService.staticConfig };
   }
 
-  get<K extends keyof typeof this.envConfig>(key: K): (typeof this.envConfig)[K] {
-    return this.envConfig[key];
-  }
-
-  getDatadogValue<K extends keyof Extract<typeof this.envConfig, { DESTINATION: "DATADOG" }>>(
+  /**
+   * Gets a configuration value by key
+   *
+   * @param key - The configuration key to retrieve
+   * @returns The configuration value with proper typing
+   */
+  get<K extends keyof (z.infer<typeof ConfigService.envSchema> & typeof ConfigService.staticConfig)>(
     key: K
-  ): Extract<typeof this.envConfig, { DESTINATION: "DATADOG" }>[K] {
-    if (this.envConfig.DESTINATION === "DATADOG") {
-      return this.envConfig[key];
-    }
-    throw new Error(`Configuration for destination "DATADOG" is not available. Current destination is "${this.envConfig.DESTINATION}"`);
+  ): (z.infer<typeof ConfigService.envSchema> & typeof ConfigService.staticConfig)[K] {
+    return this.combinedConfig[key];
   }
 }

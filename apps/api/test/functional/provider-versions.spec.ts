@@ -1,6 +1,6 @@
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 
-import { app, initDb } from "@src/app";
+import { app, initDb } from "@src/rest-app";
 
 import { createProvider, createProviderSnapshot } from "@test/seeders";
 

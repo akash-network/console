@@ -3,6 +3,7 @@ import { DefaultLogger } from "drizzle-orm/logger";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import type { Disposable, InjectionToken } from "tsyringe";
 import { container, inject } from "tsyringe";
 
 import * as authSchemas from "@src/auth/model-schemas";
@@ -11,6 +12,8 @@ import { config } from "@src/core/config";
 import { PostgresLoggerService } from "@src/core/services/postgres-logger/postgres-logger.service";
 import * as deploymentSchemas from "@src/deployment/model-schemas";
 import * as userSchemas from "@src/user/model-schemas";
+import type { AppInitializer } from "./app-initializer";
+import { APP_INITIALIZER, ON_APP_START } from "./app-initializer";
 
 const logger = LoggerService.forContext("POSTGRES");
 const migrationClient = postgres(config.POSTGRES_DB_URI, { max: 1, onnotice: logger.info.bind(logger) });
@@ -24,7 +27,19 @@ export const migratePG = () => migrate(pgMigrationDatabase, { migrationsFolder: 
 
 const pgDatabase = drizzle(appClient, drizzleOptions);
 
-export const POSTGRES_DB = "POSTGRES_DB";
+export type DbHealthcheck = {
+  ping(): Promise<void>;
+};
+export const DB_HEALTHCHECK: InjectionToken<DbHealthcheck> = "DB_HEALTHCHECK";
+container.register(DB_HEALTHCHECK, {
+  useValue: {
+    async ping() {
+      await appClient.unsafe("SELECT 1");
+    }
+  } satisfies DbHealthcheck
+});
+
+export const POSTGRES_DB: InjectionToken<ApiPgDatabase> = "POSTGRES_DB";
 container.register(POSTGRES_DB, { useValue: pgDatabase });
 
 type TableName = keyof typeof schema;
@@ -38,4 +53,12 @@ export type ApiPgDatabase = typeof pgDatabase;
 export type ApiPgTables = typeof schema;
 export const resolveTable = <T extends TableName>(name: T) => container.resolve<ApiPgTables[T]>(name);
 
-export const closeConnections = async () => await Promise.all([migrationClient.end(), appClient.end()]);
+export const closeConnections = async () => await Promise.all([migrationClient.end(), appClient.end()]).then(() => undefined);
+
+container.register(APP_INITIALIZER, {
+  useFactory: () =>
+    ({
+      [ON_APP_START]: () => Promise.resolve(),
+      dispose: closeConnections
+    }) satisfies AppInitializer & Disposable
+});

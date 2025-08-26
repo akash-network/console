@@ -1,5 +1,32 @@
 
 
+## [2.102.0](https://github.com/akash-network/console/compare/console-web/v2.101.1...console-web/v2.102.0) (2025-08-26)
+
+
+### Features
+
+* adds api background-jobs server setup ([#1833](https://github.com/akash-network/console/issues/1833)) ([d3e6214](https://github.com/akash-network/console/commit/d3e6214800722fafd872a876ddaff0591a6e6dd8))
+
+## [2.101.1](https://github.com/akash-network/console/compare/console-web/v2.101.0...console-web/v2.101.1) (2025-08-25)
+
+
+### Bug Fixes
+
+* **deployment:** handles invalid manifest errors on POST /v1/leases ([f5da5c4](https://github.com/akash-network/console/commit/f5da5c4b02ef3e2977a8f5855eb5a8b81ac8281b)), closes [#1835](https://github.com/akash-network/console/issues/1835)
+
+## [2.101.0](https://github.com/akash-network/console/compare/console-web/v2.100.0...console-web/v2.101.0) (2025-08-21)
+
+
+### Features
+
+* adds notification on start trial ([#1818](https://github.com/akash-network/console/issues/1818)) ([1eb381a](https://github.com/akash-network/console/commit/1eb381a3634313cc9135cf0a997ad551883ba862))
+* **deployment:** hide custodial auto top up with feature flag ([#1825](https://github.com/akash-network/console/issues/1825)) ([431fa2a](https://github.com/akash-network/console/commit/431fa2ac8cfe74396ad123a610d465f8ac7d5fab))
+
+
+### Bug Fixes
+
+* refactor http-sdk services to accept httpClient ([#1829](https://github.com/akash-network/console/issues/1829)) ([abcb7dc](https://github.com/akash-network/console/commit/abcb7dc9eaeca626e6ba69edb561ff0172cf6c1a))
+
 ## [2.100.0](https://github.com/akash-network/console/compare/console-web/v2.99.0...console-web/v2.100.0) (2025-08-18)
 
 

@@ -1,7 +1,7 @@
 import type { AkashBlock } from "@akashnetwork/database/dbSchemas/akash";
 import { addMinutes, addSeconds, getUnixTime, subSeconds } from "date-fns";
 
-import { app } from "@src/app";
+import { app } from "@src/rest-app";
 
 import { createAkashBlock, createValidator } from "@test/seeders";
 

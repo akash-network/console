@@ -1,34 +1,30 @@
-import "reflect-metadata";
+import "./app";
 
 import { LoggerService } from "@akashnetwork/logging";
 import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
-import { serve } from "@hono/node-server";
 import { otel } from "@hono/otel";
 import { swaggerUI } from "@hono/swagger-ui";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import once from "lodash/once";
 import { container } from "tsyringe";
 
-import { AuthInterceptor } from "@src/auth/services/auth.interceptor";
-import { HonoErrorHandlerService } from "@src/core/services/hono-error-handler/hono-error-handler.service";
-import type { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
-import { OpenApiDocsService } from "@src/core/services/openapi-docs/openapi-docs.service";
-import { RequestContextInterceptor } from "@src/core/services/request-context-interceptor/request-context.interceptor";
-import { notificationsApiProxy } from "@src/notifications/routes/proxy/proxy.route";
 import packageJson from "../package.json";
-import { apiKeysRouter } from "./auth/routes/api-keys/api-keys.router";
+import { AuthInterceptor } from "./auth/services/auth.interceptor";
 import { bidsRouter } from "./bid/routes/bids/bids.router";
 import { certificateRouter } from "./certificate/routes/certificate.router";
-import { FeatureFlagsService } from "./core/services/feature-flags/feature-flags.service";
-import { shutdownServer } from "./core/services/shutdown-server/shutdown-server";
+import { HonoErrorHandlerService } from "./core/services/hono-error-handler/hono-error-handler.service";
+import type { OpenApiHonoHandler } from "./core/services/open-api-hono-handler/open-api-hono-handler";
+import { OpenApiDocsService } from "./core/services/openapi-docs/openapi-docs.service";
+import { RequestContextInterceptor } from "./core/services/request-context-interceptor/request-context.interceptor";
+import { startServer } from "./core/services/start-server/start-server";
 import type { AppEnv } from "./core/types/app-context";
-import { chainDb, syncUserSchema, userDb } from "./db/dbConnection";
+import { connectUsingSequelize } from "./db/dbConnection";
 import { deploymentSettingRouter } from "./deployment/routes/deployment-setting/deployment-setting.router";
 import { deploymentsRouter } from "./deployment/routes/deployments/deployments.router";
 import { leasesRouter } from "./deployment/routes/leases/leases.router";
 import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
+import { notificationsApiProxy } from "./notifications/routes/proxy/proxy.route";
 import { apiRouter } from "./routers/apiRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
 import { deploymentRouter } from "./routers/deploymentApiRouter";
@@ -39,7 +35,7 @@ import { web3IndexRouter } from "./routers/web3indexRouter";
 import { env } from "./utils/env";
 import { bytesToHumanReadableSize } from "./utils/files";
 import { addressRouter } from "./address";
-import { sendVerificationEmailRouter } from "./auth";
+import { apiKeysRouter, sendVerificationEmailRouter } from "./auth";
 import {
   checkoutRouter,
   getBalancesRouter,
@@ -54,6 +50,8 @@ import {
   usageRouter
 } from "./billing";
 import { blockPredictionRouter, blocksRouter } from "./block";
+import type { AppInitializer } from "./core";
+import { APP_INITIALIZER, migratePG, ON_APP_START } from "./core";
 import { dashboardDataRouter, graphDataRouter, leasesDurationRouter, marketDataRouter, networkCapacityRouter } from "./dashboard";
 import { gpuRouter } from "./gpu";
 import { networkRouter } from "./network";
@@ -87,8 +85,6 @@ appHono.use(
     exposeHeaders: ["cf-mitigated"]
   })
 );
-
-const { PORT = 3080 } = process.env;
 
 const scheduler = new Scheduler({
   healthchecksEnabled: env.HEALTHCHECKS_ENABLED === "true",
@@ -187,54 +183,19 @@ appHono.get("/v1/swagger", swaggerUI({ url: "/v1/doc" }));
 
 appHono.onError(container.resolve(HonoErrorHandlerService).handle);
 
-function startScheduler() {
-  scheduler.start();
+container.register(APP_INITIALIZER, {
+  useValue: {
+    async [ON_APP_START]() {
+      scheduler.start();
+    }
+  } satisfies AppInitializer
+});
+
+export { appHono as app, connectUsingSequelize as initDb };
+
+export async function bootstrap(port: number) {
+  await startServer(appHono, LoggerService.forContext("APP"), process, {
+    port,
+    beforeStart: migratePG
+  });
 }
-
-const appLogger = LoggerService.forContext("APP");
-
-/**
- * Initialize database
- * Start scheduler
- * Start server
- */
-export async function initApp() {
-  try {
-    await Promise.all([initDb(), container.resolve(FeatureFlagsService).initialize()]);
-    startScheduler();
-
-    appLogger.info({ event: "SERVER_STARTING", url: `http://localhost:${PORT}`, NODE_OPTIONS: process.env.NODE_OPTIONS });
-    const server = serve({
-      fetch: appHono.fetch,
-      port: typeof PORT === "string" ? parseInt(PORT, 10) : PORT
-    });
-    const shutdown = once(() => shutdownServer(server, appLogger, container.dispose.bind(container)));
-
-    process.on("SIGTERM", shutdown);
-    process.on("SIGINT", shutdown);
-  } catch (error) {
-    appLogger.error({ event: "APP_INIT_ERROR", error });
-  }
-}
-
-/**
- * Initialize database schema
- * Populate db
- * Create backups per version
- * Load from backup if exists for current version
- */
-export async function initDb() {
-  appLogger.debug(`Connecting to chain database (${chainDb.config.host}/${chainDb.config.database})...`);
-  await chainDb.authenticate();
-  appLogger.debug("Connection has been established successfully.");
-
-  appLogger.debug(`Connecting to user database (${userDb.config.host}/${userDb.config.database})...`);
-  await userDb.authenticate();
-  appLogger.debug("Connection has been established successfully.");
-
-  appLogger.debug("Sync user schema...");
-  await syncUserSchema();
-  appLogger.debug("User schema synced.");
-}
-
-export { appHono as app };

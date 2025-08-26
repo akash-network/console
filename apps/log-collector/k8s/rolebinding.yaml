@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tenant-pod-access
+  namespace: log-collector
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: log-collector
+roleRef:
+  kind: Role
+  name: tenant-pod-reader
+  apiGroup: rbac.authorization.k8s.io

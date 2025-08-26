@@ -2,11 +2,11 @@ import { faker } from "@faker-js/faker";
 import nock from "nock";
 import { container } from "tsyringe";
 
-import { app } from "@src/app";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserWalletRepository } from "@src/billing/repositories";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
 import { apiNodeUrl } from "@src/utils/constants";
 

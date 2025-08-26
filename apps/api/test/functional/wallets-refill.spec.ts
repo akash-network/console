@@ -1,11 +1,11 @@
 import { container } from "tsyringe";
 
-import { app } from "@src/app";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import type { BillingConfig } from "@src/billing/providers";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedUserWalletService } from "@src/billing/services";
+import { app } from "@src/rest-app";
 
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 

@@ -1,7 +1,7 @@
 import type { Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { map } from "lodash";
 
-import { app } from "@src/app";
+import { app } from "@src/rest-app";
 
 import { createAkashBlock, createTransaction } from "@test/seeders";
 

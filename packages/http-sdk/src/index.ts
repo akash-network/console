@@ -23,3 +23,4 @@ export * from "./coin-gecko";
 export * from "./node";
 export * from "./certificates/certificates.service";
 export { getAllItems } from "./utils/pagination.utils";
+export { createHttpClient, type HttpClient, type HttpClientOptions } from "./utils/httpClient";

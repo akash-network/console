@@ -1,5 +1,40 @@
 
 
+## [2.114.0](https://github.com/akash-network/console/compare/console-api/v2.113.0...console-api/v2.114.0) (2025-08-26)
+
+
+### Features
+
+* adds process events handling for provider-proxy ([#1844](https://github.com/akash-network/console/issues/1844)) ([a04e555](https://github.com/akash-network/console/commit/a04e555ba13f17733194c5835936dec19fa6d383))
+
+## [2.113.0](https://github.com/akash-network/console/compare/console-api/v2.112.1...console-api/v2.113.0) (2025-08-26)
+
+
+### Features
+
+* adds api background-jobs server setup ([#1833](https://github.com/akash-network/console/issues/1833)) ([d3e6214](https://github.com/akash-network/console/commit/d3e6214800722fafd872a876ddaff0591a6e6dd8))
+
+## [2.112.1](https://github.com/akash-network/console/compare/console-api/v2.112.0...console-api/v2.112.1) (2025-08-25)
+
+
+### Bug Fixes
+
+* **deployment:** handles invalid manifest errors on POST /v1/leases ([f5da5c4](https://github.com/akash-network/console/commit/f5da5c4b02ef3e2977a8f5855eb5a8b81ac8281b)), closes [#1835](https://github.com/akash-network/console/issues/1835)
+* throws errors supported by global error handler for api keys auth ([d6ce2e5](https://github.com/akash-network/console/commit/d6ce2e5d6d2ab0d19a8d78adecd18fb4d0da425d)), closes [#1836](https://github.com/akash-network/console/issues/1836)
+
+## [2.112.0](https://github.com/akash-network/console/compare/console-api/v2.111.0...console-api/v2.112.0) (2025-08-21)
+
+
+### Features
+
+* adds more notifications on start trial event ([#1827](https://github.com/akash-network/console/issues/1827)) ([8b65c91](https://github.com/akash-network/console/commit/8b65c91d29b5b35defff752fd9a3c2ddf35c8a0c))
+* adds notification on start trial ([#1818](https://github.com/akash-network/console/issues/1818)) ([1eb381a](https://github.com/akash-network/console/commit/1eb381a3634313cc9135cf0a997ad551883ba862))
+
+
+### Bug Fixes
+
+* refactor http-sdk services to accept httpClient ([#1829](https://github.com/akash-network/console/issues/1829)) ([abcb7dc](https://github.com/akash-network/console/commit/abcb7dc9eaeca626e6ba69edb561ff0172cf6c1a))
+
 ## [2.111.0](https://github.com/akash-network/console/compare/console-api/v2.110.0...console-api/v2.111.0) (2025-08-18)
 
 

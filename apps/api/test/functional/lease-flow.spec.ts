@@ -3,13 +3,13 @@ import { faker } from "@faker-js/faker";
 import { setTimeout as delay } from "timers/promises";
 import { container } from "tsyringe";
 
-import { app } from "@src/app";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import type { BidResponse } from "@src/bid/http-schemas/bid.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
+import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
 
 import { createSdlYml } from "@test/mocks/template";
