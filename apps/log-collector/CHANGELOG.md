@@ -1,5 +1,12 @@
 
 
+## [1.7.0](https://github.com/akash-network/console/compare/log-collector/v1.6.0...log-collector/v1.7.0) (2025-08-26)
+
+
+### Features
+
+* adds api background-jobs server setup ([#1833](https://github.com/akash-network/console/issues/1833)) ([d3e6214](https://github.com/akash-network/console/commit/d3e6214800722fafd872a876ddaff0591a6e6dd8))
+
 ## [1.6.0](https://github.com/akash-network/console/compare/log-collector/v1.5.0...log-collector/v1.6.0) (2025-08-25)
 
 
