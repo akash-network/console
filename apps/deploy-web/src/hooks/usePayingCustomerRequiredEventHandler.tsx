@@ -10,7 +10,7 @@ import { UrlService } from "@src/utils/urlUtils";
 
 export const usePayingCustomerRequiredEventHandler = (): ((messageOtherwise: string) => (callback: MouseEventHandler) => MouseEventHandler) => {
   const { requireAction } = usePopup();
-  const user = useUser();
+  const { user } = useUser();
   const { isTrialing, isManaged } = useWallet();
   const router = useRouter();
 

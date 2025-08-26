@@ -56,7 +56,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
   const [deploymentManifest, setDeploymentManifest] = useState<string | null>(null);
   const isRemoteDeploy: boolean = !!editedManifest && !!isCiCdImageInYaml(editedManifest);
   const repo: string | null = isRemoteDeploy ? extractRepositoryUrl(editedManifest) : null;
-  const user = useUser();
+  const { user } = useUser();
   const isAlertsEnabled = useFlag("alerts") && !!user?.userId && isManaged;
   const [badgedTabs, setBadgedTabs] = useState<Partial<Record<Tab, boolean>>>({});
 
