@@ -1,5 +1,12 @@
 
 
+## [2.114.0](https://github.com/akash-network/console/compare/console-api/v2.113.0...console-api/v2.114.0) (2025-08-26)
+
+
+### Features
+
+* adds process events handling for provider-proxy ([#1844](https://github.com/akash-network/console/issues/1844)) ([a04e555](https://github.com/akash-network/console/commit/a04e555ba13f17733194c5835936dec19fa6d383))
+
 ## [2.113.0](https://github.com/akash-network/console/compare/console-api/v2.112.1...console-api/v2.113.0) (2025-08-26)
 
 
