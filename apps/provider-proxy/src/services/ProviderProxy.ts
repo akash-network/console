@@ -40,8 +40,15 @@ export class ProviderProxy {
           },
           agent
         },
-        propagateTracingContext(async res => {
+        propagateTracingContext(async (res: IncomingMessage) => {
           try {
+            res.on(
+              "error",
+              propagateTracingContext(error => {
+                resolve({ ok: false, code: "connectionError", error });
+              })
+            );
+
             const socket = res.socket;
             if (!socket || !(socket instanceof TLSSocket)) {
               res.destroy();
@@ -74,8 +81,7 @@ export class ProviderProxy {
 
             resolve({ ok: true, response: res });
           } catch (error) {
-            res.destroy();
-            resolve({ ok: false, code: "connectionError", error });
+            res.destroy(error as Error);
           }
         })
       );

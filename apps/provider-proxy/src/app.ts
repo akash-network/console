@@ -50,26 +50,42 @@ export function createApp(container: Container): Hono<AppEnv> {
 }
 
 export async function startAppServer(port: number): Promise<AppServer> {
-  const container = createContainer();
-  const app = createApp(container);
-  const httpAppServer = serve({
-    fetch: app.fetch,
-    port
-  }) as http.Server;
-  const wss = new WebsocketServer(httpAppServer, container.certificateValidator, container.wsStats, container.wsLogger);
-  wss.listen();
+  let appContainer: Container | undefined;
+  try {
+    const container = createContainer();
+    appContainer = container;
+    const app = createApp(container);
+    const httpAppServer = serve({
+      fetch: app.fetch,
+      port
+    }) as http.Server;
+    const wss = new WebsocketServer(httpAppServer, container.certificateValidator, container.wsStats, container.wsLogger);
+    wss.listen();
+    let isClosingPromise: Promise<void> | undefined;
 
-  return {
-    host: `http://localhost:${(httpAppServer.address() as AddressInfo).port}`,
-    container,
-    async close() {
-      await Promise.all([shutdownServer(wss), shutdownServer(httpAppServer)]);
-    }
-  };
+    return {
+      host: `http://localhost:${(httpAppServer.address() as AddressInfo).port}`,
+      container,
+      close(reason: string) {
+        if (!isClosingPromise) {
+          container.appLogger?.info({ event: "APP_SERVER_SHUTDOWN_REQUESTED", reason });
+          isClosingPromise = Promise.all([shutdownServer(wss), shutdownServer(httpAppServer)])
+            .then(() => undefined)
+            .catch(error => {
+              container.appLogger?.error({ event: "APP_SERVER_SHUTDOWN_ERROR", error });
+            });
+        }
+        return isClosingPromise;
+      }
+    };
+  } catch (error) {
+    appContainer?.appLogger?.error({ event: "APP_SERVER_START_ERROR", error });
+    throw error;
+  }
 }
 
 export interface AppServer {
   host: string;
   container: Container;
-  close(): Promise<void>;
+  close(reason: string): Promise<void>;
 }

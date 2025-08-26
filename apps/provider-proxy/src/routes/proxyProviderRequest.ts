@@ -77,7 +77,7 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       }),
     {
       retryIf(result) {
-        const isServerError = result.ok && (!result.response.statusCode || result.response.statusCode > 500);
+        const isServerError = result.ok && (!result.response.statusCode || result.response.statusCode >= 500);
         const isConnectionError = result.ok === false && result.code === "connectionError" && canRetryOnError(result.error);
         return isServerError || isConnectionError;
       },
