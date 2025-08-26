@@ -6,6 +6,8 @@
     "target": "es2022",
     "useDefineForClassFields": false,
     "module": "NodeNext",
-    "lib": ["esnext"]
+    "lib": ["esnext"],
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true
   }
 }

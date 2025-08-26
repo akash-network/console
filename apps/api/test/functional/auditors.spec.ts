@@ -1,5 +1,5 @@
-import { app } from "@src/app";
 import type { AuditorListResponse } from "@src/provider/http-schemas/auditor.schema";
+import { app } from "@src/rest-app";
 
 describe("Auditors", () => {
   describe("GET /v1/auditors", () => {

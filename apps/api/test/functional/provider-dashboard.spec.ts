@@ -2,7 +2,7 @@ import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { Block } from "@akashnetwork/database/dbSchemas/base/block";
 import { subDays } from "date-fns";
 
-import { app, initDb } from "@src/app";
+import { app, initDb } from "@src/rest-app";
 
 import { createAkashBlock, createProvider } from "@test/seeders";
 

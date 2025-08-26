@@ -2,8 +2,8 @@ import { certificateManager } from "@akashnetwork/akashjs/build/certificates/cer
 import type { Registry } from "@cosmjs/proto-signing";
 import { container } from "tsyringe";
 
-import { app } from "@src/app";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+import { app } from "@src/rest-app";
 
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 

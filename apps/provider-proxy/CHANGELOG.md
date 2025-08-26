@@ -1,5 +1,19 @@
 
 
+## [1.17.0](https://github.com/akash-network/console/compare/provider-proxy/v1.16.0...provider-proxy/v1.17.0) (2025-08-26)
+
+
+### Features
+
+* adds process events handling for provider-proxy ([#1844](https://github.com/akash-network/console/issues/1844)) ([a04e555](https://github.com/akash-network/console/commit/a04e555ba13f17733194c5835936dec19fa6d383))
+
+## [1.16.0](https://github.com/akash-network/console/compare/provider-proxy/v1.15.1...provider-proxy/v1.16.0) (2025-08-26)
+
+
+### Features
+
+* adds api background-jobs server setup ([#1833](https://github.com/akash-network/console/issues/1833)) ([d3e6214](https://github.com/akash-network/console/commit/d3e6214800722fafd872a876ddaff0591a6e6dd8))
+
 ## [1.15.1](https://github.com/akash-network/console/compare/provider-proxy/v1.15.0...provider-proxy/v1.15.1) (2025-08-25)
 
 

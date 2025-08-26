@@ -1,5 +1,12 @@
 
 
+## [2.102.0](https://github.com/akash-network/console/compare/console-web/v2.101.1...console-web/v2.102.0) (2025-08-26)
+
+
+### Features
+
+* adds api background-jobs server setup ([#1833](https://github.com/akash-network/console/issues/1833)) ([d3e6214](https://github.com/akash-network/console/commit/d3e6214800722fafd872a876ddaff0591a6e6dd8))
+
 ## [2.101.1](https://github.com/akash-network/console/compare/console-web/v2.101.0...console-web/v2.101.1) (2025-08-25)
 
 

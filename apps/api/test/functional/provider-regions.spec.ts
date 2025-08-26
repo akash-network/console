@@ -1,8 +1,8 @@
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
 
-import { app, initDb } from "@src/app";
 import type { ProviderRegionsResponse } from "@src/provider/http-schemas/provider-regions.schema";
+import { app, initDb } from "@src/rest-app";
 
 import { createProvider } from "@test/seeders";
 

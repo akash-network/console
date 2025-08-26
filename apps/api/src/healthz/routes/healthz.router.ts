@@ -7,7 +7,8 @@ import { HealthzController } from "@src/healthz/controllers/healthz/healthz.cont
 
 const healthzResponseSchema = z.object({
   data: z.object({
-    postgres: z.boolean()
+    postgres: z.boolean(),
+    jobQueue: z.boolean()
   })
 });
 
