@@ -7,6 +7,7 @@ import { container } from "tsyringe";
 import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import { SuperUserService } from "@src/auth/services/super-user/super-user.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
@@ -307,7 +308,8 @@ describe(UserService.name, () => {
       logger,
       mock<NotificationService>({
         createDefaultChannel: input?.createDefaultNotificationChannel ?? (() => Promise.resolve())
-      })
+      }),
+      container.resolve(SuperUserService)
     );
 
     return { service, analyticsService, logger };

@@ -1,8 +1,9 @@
 import subDays from "date-fns/subDays";
-import { and, desc, eq, isNull, lt, lte, SQL, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, lt, lte, SQL, sql } from "drizzle-orm";
 import { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
+import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
@@ -89,6 +90,58 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
 
       if (items.length) {
         await cb(items);
+      }
+    } while (lastId);
+  }
+
+  async *paginateAll(options: { limit?: number } = {}): AsyncGenerator<Array<UserOutput & { walletAddress: string }>> {
+    let lastId: string | undefined;
+    const limit = options.limit || 100;
+
+    do {
+      const whereConditions = [];
+
+      if (lastId) {
+        whereConditions.push(lt(this.table.id, lastId));
+      }
+
+      // Use Drizzle JOIN to get users with their wallet addresses
+      const joinResults = await this.cursor
+        .select({
+          id: this.table.id,
+          userId: this.table.userId,
+          username: this.table.username,
+          email: this.table.email,
+          emailVerified: this.table.emailVerified,
+          stripeCustomerId: this.table.stripeCustomerId,
+          bio: this.table.bio,
+          subscribedToNewsletter: this.table.subscribedToNewsletter,
+          youtubeUsername: this.table.youtubeUsername,
+          twitterUsername: this.table.twitterUsername,
+          githubUsername: this.table.githubUsername,
+          lastActiveAt: this.table.lastActiveAt,
+          lastIp: this.table.lastIp,
+          lastUserAgent: this.table.lastUserAgent,
+          lastFingerprint: this.table.lastFingerprint,
+          userMetadata: this.table.userMetadata,
+          createdAt: this.table.createdAt,
+          walletAddress: UserWallets.address
+        })
+        .from(this.table)
+        .innerJoin(UserWallets, eq(this.table.id, UserWallets.userId))
+        .where(and(...whereConditions, isNotNull(UserWallets.address)))
+        .limit(limit)
+        .orderBy(desc(this.table.id));
+
+      const items = joinResults.map(result => ({
+        ...this.toOutput(result),
+        walletAddress: result.walletAddress!
+      }));
+
+      lastId = items.at(-1)?.id;
+
+      if (items.length) {
+        yield items;
       }
     } while (lastId);
   }

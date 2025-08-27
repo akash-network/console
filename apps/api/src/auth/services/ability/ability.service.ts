@@ -5,14 +5,17 @@ import { singleton } from "tsyringe";
 
 import { FeatureFlags, FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { env } from "@src/utils/env";
 
 type Role = "REGULAR_USER" | "REGULAR_ANONYMOUS_USER" | "REGULAR_PAYING_USER" | "SUPER_USER";
+
+type EnabledIf = FeatureFlagValue | `ENV_${keyof typeof env}`;
 
 @singleton()
 export class AbilityService {
   readonly EMPTY_ABILITY = createMongoAbility([]);
 
-  private readonly RULES: Record<Role, Array<RawRule & { enabledIf?: FeatureFlagValue }>> = {
+  private readonly RULES: Record<Role, Array<RawRule & { enabledIf?: EnabledIf }>> = {
     REGULAR_ANONYMOUS_USER: [
       { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: "${user.id}" } },
       { action: "create", subject: "UserWallet", conditions: { userId: "${user.id}" }, enabledIf: FeatureFlags.ANONYMOUS_FREE_TRIAL },
@@ -38,7 +41,7 @@ export class AbilityService {
       { action: "manage", subject: "Alert", conditions: { userId: "${user.id}" } },
       { action: "manage", subject: "NotificationChannel", conditions: { userId: "${user.id}" } }
     ],
-    SUPER_USER: [{ action: "manage", subject: "all" }]
+    SUPER_USER: [{ action: "manage", subject: "all", enabledIf: "ENV_ADMIN_ENABLED" }]
   };
 
   private compiledRules?: Record<Role, TemplateExecutor>;
@@ -58,7 +61,12 @@ export class AbilityService {
     this.compiledRules ??= (Object.keys(this.RULES) as Role[]).reduce(
       (acc, role) => {
         const rules = this.RULES[role].reduce<RawRule[]>((acc, { enabledIf, ...rule }) => {
-          if (!enabledIf || this.featureFlagsService.isEnabled(enabledIf)) {
+          if (typeof enabledIf === "string" && enabledIf.startsWith("ENV_")) {
+            const envKey = enabledIf.replace("ENV_", "") as keyof typeof env;
+            if (env[envKey] === "true") {
+              acc.push(rule);
+            }
+          } else if (!enabledIf || this.featureFlagsService.isEnabled(enabledIf as FeatureFlagValue)) {
             acc.push(rule);
           }
           return acc;

@@ -8,6 +8,7 @@ import { singleton } from "tsyringe";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import { AuthTokenService } from "@src/auth/services/auth-token/auth-token.service";
+import { SuperUserService } from "@src/auth/services/super-user/super-user.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { HonoInterceptor } from "@src/core/types/hono-interceptor.type";
 import { UserOutput, UserRepository } from "@src/user/repositories";
@@ -34,6 +35,7 @@ export class AuthInterceptor implements HonoInterceptor {
     private readonly userAuthService: UserAuthTokenService,
     private readonly apiKeyRepository: ApiKeyRepository,
     private readonly apiKeyAuthService: ApiKeyAuthService,
+    private readonly superUserService: SuperUserService,
     private readonly executionContextService: ExecutionContextService
   ) {}
 
@@ -99,6 +101,17 @@ export class AuthInterceptor implements HonoInterceptor {
 
   private getUserRole(user: UserOutput) {
     if (user.userId) {
+      const userMetadata = user.userMetadata as { role?: string; permissions?: string[]; roles?: string[] } | undefined;
+
+      // Extract roles from user metadata (from Auth0 JWT)
+      const roles = userMetadata?.roles;
+
+      const isSuperUser = this.superUserService.validateSuperUserAccess(user.userId, userMetadata, roles);
+
+      if (isSuperUser) {
+        return "SUPER_USER";
+      }
+
       return user.trial === false ? "REGULAR_PAYING_USER" : "REGULAR_USER";
     }
 

@@ -1,6 +1,7 @@
 import randomInt from "lodash/random";
 import { singleton } from "tsyringe";
 
+import { SuperUserService } from "@src/auth/services/super-user/super-user.service";
 import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
@@ -15,7 +16,8 @@ export class UserService {
     private readonly analyticsService: AnalyticsService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly logger: LoggerService,
-    private readonly notificationService: NotificationService
+    private readonly notificationService: NotificationService,
+    private readonly superUserService: SuperUserService
   ) {}
 
   async registerUser(data: RegisterUserInput): Promise<{
@@ -30,6 +32,7 @@ export class UserService {
     youtubeUsername: string | null;
     twitterUsername: string | null;
     githubUsername: string | null;
+    userMetadata: Record<string, any> | null;
   }> {
     let isAnonymous = false;
     const userDetails = {
@@ -39,7 +42,8 @@ export class UserService {
       subscribedToNewsletter: data.subscribedToNewsletter,
       lastIp: data.ip,
       lastUserAgent: data.userAgent,
-      lastFingerprint: data.fingerprint
+      lastFingerprint: data.fingerprint,
+      userMetadata: this.superUserService.sanitizeMetadata(data.userMetadata)
     };
 
     if (data.anonymousUserId) {
@@ -74,8 +78,20 @@ export class UserService {
       this.logger.error({ event: "FAILED_TO_CREATE_DEFAULT_NOTIFICATION_CHANNEL", id: user.id, error: result.error });
     }
 
-    const { id, userId, username, email, emailVerified, stripeCustomerId, bio, subscribedToNewsletter, youtubeUsername, twitterUsername, githubUsername } =
-      user;
+    const {
+      id,
+      userId,
+      username,
+      email,
+      emailVerified,
+      stripeCustomerId,
+      bio,
+      subscribedToNewsletter,
+      youtubeUsername,
+      twitterUsername,
+      githubUsername,
+      userMetadata
+    } = user;
 
     return {
       id,
@@ -88,7 +104,8 @@ export class UserService {
       subscribedToNewsletter,
       youtubeUsername,
       twitterUsername,
-      githubUsername
+      githubUsername,
+      userMetadata
     } as Awaited<ReturnType<this["registerUser"]>>;
   }
 
@@ -154,4 +171,5 @@ export interface RegisterUserInput {
   ip: string;
   userAgent: string;
   fingerprint: string;
+  userMetadata?: Record<string, any>;
 }

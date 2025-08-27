@@ -134,6 +134,20 @@
       "when": 1753807909660,
       "tag": "0018_spooky_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1756134727409,
+      "tag": "0019_romantic_stryfe",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1756291244015,
+      "tag": "0020_odd_black_tarantula",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,7 @@ import { LoggerService } from "@akashnetwork/logging";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
-import { CheckoutSessionRepository, PaymentMethodRepository } from "@src/billing/repositories";
+import { CheckoutSessionRepository, PaymentMethodRepository, StripeCouponRepository, StripeTransactionRepository } from "@src/billing/repositories";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { WithTransaction } from "@src/core";
@@ -19,7 +19,9 @@ export class StripeWebhookService {
     private readonly refillService: RefillService,
     private readonly billingConfig: BillingConfigService,
     private readonly userRepository: UserRepository,
-    private readonly paymentMethodRepository: PaymentMethodRepository
+    private readonly paymentMethodRepository: PaymentMethodRepository,
+    private readonly stripeTransactionRepository: StripeTransactionRepository,
+    private readonly stripeCouponRepository: StripeCouponRepository
   ) {}
 
   async routeStripeEvent(signature: string, rawEvent: string) {
@@ -45,6 +47,10 @@ export class StripeWebhookService {
           break;
         case "payment_method.detached":
           await this.handlePaymentMethodDetached(event);
+          break;
+
+        case "customer.discount.created":
+          await this.handleCustomerDiscountCreated(event);
           break;
       }
     } catch (error) {
@@ -136,6 +142,9 @@ export class StripeWebhookService {
         });
       }
     }
+
+    // Record the transaction in our database
+    await this.recordPaymentIntentTransaction(paymentIntent, user.id, customerId, originalAmount);
 
     // Use the original amount for the wallet top-up
     await this.refillService.topUpWallet(originalAmount, user.id);
@@ -232,6 +241,98 @@ export class StripeWebhookService {
       paymentMethodId: paymentMethod.id,
       fingerprint,
       deleted: !!deletedPaymentMethod
+    });
+  }
+
+  private async recordPaymentIntentTransaction(paymentIntent: Stripe.PaymentIntent, userId: string, customerId: string, amount: number) {
+    // Check if transaction already exists
+    const existingTransaction = await this.stripeTransactionRepository.findByStripeTransactionId(paymentIntent.id);
+    if (existingTransaction) {
+      this.logger.info({
+        event: "PAYMENT_INTENT_TRANSACTION_ALREADY_EXISTS",
+        paymentIntentId: paymentIntent.id,
+        userId
+      });
+      return;
+    }
+
+    // Create transaction record
+    await this.stripeTransactionRepository.create({
+      stripeTransactionId: paymentIntent.id,
+      userId,
+      stripeCustomerId: customerId,
+      amount: amount.toString(),
+      currency: paymentIntent.currency,
+      status: paymentIntent.status,
+      description: paymentIntent.description,
+      receiptUrl: null, // Payment intents don't have receipt URLs
+      metadata: paymentIntent.metadata,
+      stripeCreatedAt: new Date(paymentIntent.created * 1000)
+    });
+
+    this.logger.info({
+      event: "PAYMENT_INTENT_TRANSACTION_RECORDED",
+      paymentIntentId: paymentIntent.id,
+      userId,
+      amount,
+      currency: paymentIntent.currency
+    });
+  }
+
+  @WithTransaction()
+  async handleCustomerDiscountCreated(event: Stripe.CustomerDiscountCreatedEvent) {
+    const discount = event.data.object;
+    const customerId = discount.customer as string;
+
+    if (!customerId) {
+      this.logger.error({
+        event: "DISCOUNT_MISSING_CUSTOMER_ID",
+        discountId: discount.id
+      });
+      return;
+    }
+
+    const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
+    if (!user) {
+      this.logger.error({
+        event: "USER_NOT_FOUND_FOR_DISCOUNT",
+        customerId,
+        discountId: discount.id
+      });
+      return;
+    }
+
+    // Check if coupon already exists
+    const existingCoupon = await this.stripeCouponRepository.findByStripeCouponId(discount.id);
+    if (existingCoupon) {
+      this.logger.info({
+        event: "DISCOUNT_ALREADY_EXISTS",
+        discountId: discount.id,
+        userId: user.id
+      });
+      return;
+    }
+
+    // Create coupon record for claimed discount
+    await this.stripeCouponRepository.create({
+      stripeCouponId: discount.id,
+      userId: user.id,
+      stripeCustomerId: customerId,
+      stripeTransactionId: `discount_${discount.id}`, // No transaction yet, will be updated when used
+      couponCode: discount.coupon?.id,
+      discountAmount: null, // Will be populated when used
+      discountType: "fixed_amount", // Default type
+      currency: "usd", // Default currency
+      metadata: {},
+      stripeCreatedAt: new Date()
+    });
+
+    this.logger.info({
+      event: "DISCOUNT_CLAIMED_RECORDED",
+      discountId: discount.id,
+      userId: user.id,
+      customerId,
+      couponCode: discount.coupon?.id
     });
   }
 }

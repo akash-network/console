@@ -1,0 +1,1 @@
+ALTER TABLE "userSetting" ADD COLUMN "user_metadata" jsonb;

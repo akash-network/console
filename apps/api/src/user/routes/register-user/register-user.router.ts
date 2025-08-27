@@ -10,7 +10,8 @@ const registerUserInputSchema = z.object({
   wantedUsername: z.string(),
   email: z.string(),
   emailVerified: z.boolean(),
-  subscribedToNewsletter: z.boolean().optional()
+  subscribedToNewsletter: z.boolean().optional(),
+  userMetadata: z.record(z.any()).optional()
 });
 export type RegisterUserInput = z.infer<typeof registerUserInputSchema>;
 

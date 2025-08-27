@@ -40,6 +40,8 @@ const authHandler = once((services: AppServices) =>
           afterCallback: async (req: NextApiRequest, res: NextApiResponse, session: Session) => {
             try {
               const user_metadata = session.user["https://console.akash.network/user_metadata"];
+              const app_metadata = session.user["https://console.akash.network/app_metadata"];
+              const roles = session.user["https://console.akash.network/roles"];
               const headers = new AxiosHeaders({
                 Authorization: `Bearer ${session.accessToken}`
               });
@@ -56,7 +58,12 @@ const authHandler = once((services: AppServices) =>
                   wantedUsername: session.user.nickname,
                   email: session.user.email,
                   emailVerified: session.user.email_verified,
-                  subscribedToNewsletter: user_metadata?.subscribedToNewsletter === "true"
+                  subscribedToNewsletter: user_metadata?.subscribedToNewsletter === "true",
+                  userMetadata: {
+                    ...app_metadata,
+                    ...user_metadata,
+                    roles: roles
+                  }
                 },
                 {
                   headers: headers.toJSON()

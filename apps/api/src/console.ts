@@ -20,6 +20,7 @@ import { TrialController } from "@src/deployment/controllers/deployment/trial.co
 import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
 import { UserController } from "@src/user/controllers/user/user.controller";
+import { UserSnapshotController } from "@src/user/controllers/user-snapshot/user-snapshot.controller";
 import { UserConfigService } from "@src/user/services/user-config/user-config.service";
 import { APP_INITIALIZER, ON_APP_START } from "./core/providers/app-initializer";
 import { JobQueueService } from "./core/services/job-queue/job-queue.service";
@@ -106,6 +107,25 @@ program
   .command("drain-job-queues")
   .description("Process delayed jobs from the job queues")
   .action(daemon(async () => container.resolve(JobQueueService).startWorkers()));
+
+program
+  .command("user-snapshot")
+  .description("Take snapshots of user spending metrics for all users")
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      await container.resolve(UserSnapshotController).takeUserSpendingSnapshot();
+    });
+  });
+
+program
+  .command("snapshot-cleanup")
+  .description("Clean up old user snapshots (keeps last 30 days by default)")
+  .option("-d, --days <number>", "Keep snapshots newer than this many days", value => z.number({ coerce: true }).optional().default(30).parse(value))
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      await container.resolve(UserSnapshotController).cleanupOldSnapshots(options);
+    });
+  });
 
 const logger = LoggerService.forContext("CLI");
 

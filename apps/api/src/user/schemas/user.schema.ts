@@ -32,7 +32,13 @@ export const UserSchema = z.object({
   subscribedToNewsletter: z.boolean(),
   youtubeUsername: z.string().optional().nullable(),
   twitterUsername: z.string().optional().nullable(),
-  githubUsername: z.string().optional().nullable()
+  githubUsername: z.string().optional().nullable(),
+  userMetadata: z
+    .object({
+      roles: z.array(z.string()).optional()
+    })
+    .optional()
+    .nullable()
 });
 
 export type UserSchema = z.infer<typeof UserSchema>;

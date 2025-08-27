@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { boolean, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, jsonb, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { UserWallets } from "@src/billing/model-schemas/user-wallet/user-wallet.schema"; // eslint-disable-line import-x/no-cycle
 
@@ -24,6 +24,7 @@ export const Users = pgTable("userSetting", {
   lastIp: varchar("last_ip", { length: 255 }),
   lastUserAgent: varchar("last_user_agent", { length: userAgentMaxLength }),
   lastFingerprint: varchar("last_fingerprint", { length: 255 }),
+  userMetadata: jsonb("user_metadata"),
   createdAt: timestamp("created_at").defaultNow()
 });
 

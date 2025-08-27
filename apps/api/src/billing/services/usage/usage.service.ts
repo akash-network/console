@@ -42,4 +42,16 @@ export class UsageService {
       averageDeploymentsPerDay: parseFloat(averageDeploymentsPerDay.toFixed(2))
     };
   }
+
+  async getTotalUsageData(address: string): Promise<{
+    totalAktSpent: number;
+    totalUsdcSpent: number;
+    totalUsdSpent: number;
+  }> {
+    return await this.usageRepository.getTotalUsageData(address);
+  }
+
+  async getActiveLeasesCount(address: string): Promise<number> {
+    return await this.usageRepository.getActiveLeasesCount(address);
+  }
 }

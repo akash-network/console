@@ -74,7 +74,7 @@ import {
 import { Scheduler } from "./scheduler";
 import { templatesRouter } from "./template";
 import { transactionsRouter } from "./transaction";
-import { createAnonymousUserRouter, getAnonymousUserRouter, getCurrentUserRouter, registerUserRouter } from "./user";
+import { adminUserDataRouter, createAnonymousUserRouter, getAnonymousUserRouter, getCurrentUserRouter, registerUserRouter } from "./user";
 import { validatorsRouter } from "./validator";
 
 const appHono = new Hono<AppEnv>();
@@ -126,6 +126,7 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   getAnonymousUserRouter,
   registerUserRouter,
   getCurrentUserRouter,
+  adminUserDataRouter,
   sendVerificationEmailRouter,
   deploymentSettingRouter,
   deploymentsRouter,

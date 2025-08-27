@@ -28,3 +28,15 @@ jobs:
       - node
       - dist/console.js
       - cleanup-stale-anonymous-users
+  - name: user-snapshot
+    schedule: "0 2 * * *" # 2:00 AM every day
+    command:
+      - node
+      - dist/console.js
+      - user-snapshot
+  - name: snapshot-cleanup
+    schedule: "0 3 * * 0" # 3:00 AM every Sunday
+    command:
+      - node
+      - dist/console.js
+      - snapshot-cleanup

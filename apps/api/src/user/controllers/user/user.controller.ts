@@ -10,6 +10,7 @@ import { UserRepository } from "@src/user/repositories";
 import type { GetUserParams } from "@src/user/routes/get-anonymous-user/get-anonymous-user.router";
 import type { RegisterUserInput, RegisterUserResponse } from "@src/user/routes/register-user/register-user.router";
 import { AnonymousUserResponseOutput, GetUserResponseOutput, UserSchema } from "@src/user/schemas/user.schema";
+import { type AdminUserDataQuery, type AdminUserDataResponse, AdminUserDataService } from "@src/user/services/admin-user-data/admin-user-data.service";
 import {
   StaleAnonymousUsersCleanerOptions,
   StaleAnonymousUsersCleanerService
@@ -25,7 +26,8 @@ export class UserController {
     private readonly staleAnonymousUsersCleanerService: StaleAnonymousUsersCleanerService,
     private readonly executionContextService: ExecutionContextService,
     private readonly userService: UserService,
-    private readonly userAuthTokenService: UserAuthTokenService
+    private readonly userAuthTokenService: UserAuthTokenService,
+    private readonly adminUserDataService: AdminUserDataService
   ) {}
 
   get httpContext(): Context {
@@ -72,7 +74,8 @@ export class UserController {
       subscribedToNewsletter: !!data.subscribedToNewsletter,
       ip: httpVars.clientInfo?.ip,
       userAgent: httpVars.clientInfo?.userAgent,
-      fingerprint: httpVars.clientInfo?.fingerprint
+      fingerprint: httpVars.clientInfo?.fingerprint,
+      userMetadata: data.userMetadata
     });
     return { data: user };
   }
@@ -82,5 +85,10 @@ export class UserController {
     assert(this.authService.currentUser, 401);
 
     return { data: this.authService.currentUser as UserSchema };
+  }
+
+  // @Protected([{ action: "manage", subject: "all" }])
+  async getAdminUserData(query: AdminUserDataQuery): Promise<AdminUserDataResponse> {
+    return await this.adminUserDataService.getAdminUserData(query);
   }
 }

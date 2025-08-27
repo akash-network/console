@@ -39,7 +39,8 @@ export class UserSeeder {
       lastUserAgent,
       lastFingerprint,
       createdAt,
-      trial
+      trial,
+      userMetadata: {}
     };
   }
 }

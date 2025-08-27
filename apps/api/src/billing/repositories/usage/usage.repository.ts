@@ -108,4 +108,89 @@ export class UsageRepository {
       totalUsdSpent: parseFloat(String(row.totalUsdSpent))
     }));
   }
+
+  async getTotalUsageData(address: string): Promise<{
+    totalAktSpent: number;
+    totalUsdcSpent: number;
+    totalUsdSpent: number;
+  }> {
+    const query = `
+      WITH current_block AS (
+        SELECT MAX(height) as height 
+        FROM block
+      ),
+      active_leases AS (
+        SELECT 
+          l.id,
+          l.owner,
+          l.denom,
+          l.price,
+          l."createdHeight",
+          LEAST((SELECT height FROM current_block), COALESCE(l."closedHeight", l."predictedClosedHeight")) as end_height,
+          d."aktPrice"
+        FROM lease l
+        INNER JOIN block b ON b.height = l."createdHeight"
+        INNER JOIN day d ON d.id = b."dayId"
+        WHERE l.owner = :address
+      ),
+      lease_costs AS (
+        SELECT 
+          ROUND(CAST(SUM(CASE 
+            WHEN denom = 'uakt' 
+            THEN (end_height - "createdHeight") * price / 1000000.0
+            ELSE 0 
+          END) as numeric), 2) as total_akt_spent,
+          ROUND(CAST(SUM(CASE 
+            WHEN denom = 'uusdc' 
+            THEN (end_height - "createdHeight") * price / 1000000.0
+            ELSE 0 
+          END) as numeric), 2) as total_usdc_spent,
+          ROUND(CAST(SUM(CASE 
+            WHEN denom = 'uakt' 
+            THEN (end_height - "createdHeight") * price * "aktPrice" / 1000000.0
+            WHEN denom = 'uusdc' 
+            THEN (end_height - "createdHeight") * price / 1000000.0
+            ELSE 0 
+          END) as numeric), 2) as total_usd_spent
+        FROM active_leases
+      )
+      SELECT 
+        COALESCE(total_akt_spent, 0.00) as total_akt_spent,
+        COALESCE(total_usdc_spent, 0.00) as total_usdc_spent,
+        COALESCE(total_usd_spent, 0.00) as total_usd_spent
+      FROM lease_costs
+    `;
+
+    const results = await chainDb.query<{
+      total_akt_spent: string;
+      total_usdc_spent: string;
+      total_usd_spent: string;
+    }>(query, {
+      type: QueryTypes.SELECT,
+      replacements: { address }
+    });
+
+    const result = results[0] || { total_akt_spent: "0.00", total_usdc_spent: "0.00", total_usd_spent: "0.00" };
+
+    return {
+      totalAktSpent: parseFloat(result.total_akt_spent),
+      totalUsdcSpent: parseFloat(result.total_usdc_spent),
+      totalUsdSpent: parseFloat(result.total_usd_spent)
+    };
+  }
+
+  async getActiveLeasesCount(address: string): Promise<number> {
+    const query = `
+      SELECT COUNT(*) as count
+      FROM lease
+      WHERE owner = :address AND "closedHeight" IS NULL
+    `;
+
+    const results = await chainDb.query<{ count: string }>(query, {
+      type: QueryTypes.SELECT,
+      replacements: { address }
+    });
+
+    return parseInt(results[0]?.count || "0", 10);
+  }
 }
