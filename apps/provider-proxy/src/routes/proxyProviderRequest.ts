@@ -64,6 +64,7 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
     providerAddress,
     timeout
   });
+  const clientAbortSignal = ctx.req.raw.signal;
   const proxyResult = await httpRetry(
     () =>
       ctx.get("container").providerProxy.connect(url, {
@@ -73,17 +74,22 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
         key: keyPem,
         network,
         providerAddress,
-        timeout: Number(timeout || DEFAULT_TIMEOUT) || DEFAULT_TIMEOUT
+        timeout: Number(timeout || DEFAULT_TIMEOUT) || DEFAULT_TIMEOUT,
+        signal: clientAbortSignal
       }),
     {
       retryIf(result) {
         const isServerError = result.ok && (!result.response.statusCode || result.response.statusCode >= 500);
         const isConnectionError = result.ok === false && result.code === "connectionError" && canRetryOnError(result.error);
-        return isServerError || isConnectionError;
+        return !clientAbortSignal.aborted && (isServerError || isConnectionError);
       },
       logger: ctx.get("container").appLogger
     }
   );
+
+  if (clientAbortSignal.aborted) {
+    return ctx.text("Request aborted", 499 as ClientErrorStatusCode);
+  }
 
   if (proxyResult.ok === false && proxyResult.code === "insecureConnection") {
     return ctx.text("Could not establish tls connection since server responded with non-tls response", 400);
@@ -163,7 +169,7 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
   }
 
   return new Response(Readable.toWeb(proxyResult.response) as RequestInit["body"], {
-    status: proxyResult.response.statusCode,
+    status: proxyResult.response.statusCode ?? 502,
     statusText: proxyResult.response.statusMessage,
     headers
   });

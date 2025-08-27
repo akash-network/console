@@ -66,7 +66,9 @@ export class ProviderProxy {
             const didHandshake = !!serverCert;
 
             if (didHandshake && options.network && options.providerAddress) {
+              res.pause();
               const validationResult = await this.certificateValidator.validate(serverCert, options.network, options.providerAddress);
+
               if (validationResult.ok === false) {
                 // remove agent from cache to destroy TLS session to force TLS handshake on the next call
                 this.agentsCache.delete(genAgentsCacheKey(agentOptions));
@@ -77,6 +79,8 @@ export class ProviderProxy {
                 agent.destroy();
                 return;
               }
+
+              res.resume();
             }
 
             resolve({ ok: true, response: res });
@@ -85,6 +89,16 @@ export class ProviderProxy {
           }
         })
       );
+
+      if (options.signal) {
+        options.signal.addEventListener(
+          "abort",
+          () => {
+            req.destroy();
+          },
+          { once: true }
+        );
+      }
 
       if (!req.reusedSocket) {
         req.on(
@@ -134,6 +148,7 @@ export interface ProxyConnectOptions extends Pick<RequestOptions, "cert" | "key"
   timeout?: number;
   /** provider wallet address */
   providerAddress: string;
+  signal?: AbortSignal;
 }
 
 export type ProxyConnectionResult = ProxyConnectionResultSuccess | ProxyConnectionResultError;
