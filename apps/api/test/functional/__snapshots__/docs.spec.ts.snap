@@ -11013,6 +11013,61 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/stripe/transactions/export": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "timezone",
+            "required": true,
+            "schema": {
+              "description": "Timezone for date formatting in the CSV",
+              "example": "America/New_York",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": true,
+            "schema": {
+              "description": "Start date for filtering transactions (inclusive)",
+              "example": "2025-01-01T00:00:00Z",
+              "format": "date-time",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": true,
+            "schema": {
+              "description": "End date for filtering transactions (inclusive)",
+              "example": "2025-01-02T00:00:00Z",
+              "format": "date-time",
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string",
+                },
+              },
+            },
+            "description": "CSV file with transaction data",
+          },
+        },
+        "summary": "Export transaction history as CSV for the current customer",
+        "tags": [
+          "Payment",
+        ],
+      },
+    },
     "/v1/templates": {
       "get": {
         "responses": {
