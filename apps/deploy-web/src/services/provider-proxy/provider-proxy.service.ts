@@ -1,13 +1,17 @@
-import type { AxiosInstance, AxiosResponse } from "axios";
+import type { HttpClient } from "@akashnetwork/http-sdk";
+import type { LoggerService } from "@akashnetwork/logging";
+import type { AxiosResponse } from "axios";
 
 import type { ApiProviderList } from "@src/types/provider";
 import type { SendManifestToProviderOptions } from "@src/utils/deploymentUtils";
 import { wait } from "@src/utils/timer";
 
 export class ProviderProxyService {
+  static readonly BEFORE_SEND_MANIFEST_DELAY = 5000;
+
   constructor(
-    private readonly axios: AxiosInstance,
-    private readonly logger = console
+    private readonly axios: HttpClient,
+    private readonly logger: Pick<LoggerService, "info"> = console
   ) {}
 
   fetchProviderUrl<T>(url: string, options: ProviderProxyPayload): Promise<AxiosResponse<T>> {
@@ -29,10 +33,16 @@ export class ProviderProxyService {
     if (!providerInfo) return;
     this.logger.info(`Sending manifest to ${providerInfo?.owner}`);
 
-    const jsonStr = JSON.stringify(manifest).replaceAll('"quantity":{"val', '"size":{"val');
+    const jsonStr = JSON.stringify(manifest, (_, value) => {
+      if (typeof value !== "object" || value === null || !("quantity" in value)) return value;
+
+      const { quantity, ...rest } = value;
+      if (typeof quantity !== "object" || quantity === null || !("val" in quantity)) return value;
+      return { ...rest, size: quantity };
+    });
 
     // Waiting for provider to have lease
-    await wait(5000);
+    await wait(ProviderProxyService.BEFORE_SEND_MANIFEST_DELAY);
 
     let response: AxiosResponse | undefined;
 
@@ -53,7 +63,7 @@ export class ProviderProxyService {
       } catch (err) {
         if (typeof err === "string" && err.indexOf("no lease for deployment") !== -1 && i < 3) {
           this.logger.info("Lease not found, retrying...");
-          await wait(6000);
+          await wait(ProviderProxyService.BEFORE_SEND_MANIFEST_DELAY + 1000);
         } else {
           throw err;
         }
