@@ -150,4 +150,13 @@ export class StripeController {
     const response = await this.stripe.getCustomerTransactions(currentUser.stripeCustomerId, options);
     return { data: response };
   }
+
+  @Protected([{ action: "read", subject: "StripePayment" }])
+  async exportTransactionsCsvStream(options: { startDate: string; endDate: string; timezone: string }): Promise<AsyncIterable<string>> {
+    const { currentUser } = this.authService;
+
+    assert(currentUser.stripeCustomerId, 403, "Payments are not configured. Please start with a trial first");
+
+    return this.stripe.exportTransactionsCsvStream(currentUser.stripeCustomerId, options);
+  }
 }
