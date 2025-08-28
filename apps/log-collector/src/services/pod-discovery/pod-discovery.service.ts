@@ -64,7 +64,7 @@ export class PodDiscoveryService {
    *
    * This method:
    * 1. Determines the current namespace from config or kubeconfig
-   * 2. Lists all pods in the namespace using the Kubernetes API
+   * 2. Lists all pods in the namespace using the Kubernetes API with optional label filtering
    * 3. Maps raw pod objects to simplified PodInfo structures
    * 4. Filters out the current pod to prevent self-collection
    * 5. Logs discovery statistics
@@ -77,7 +77,11 @@ export class PodDiscoveryService {
 
     this.loggerService.info({ message: "Discovering pods in namespace", namespace });
 
-    const { items: podsRaw } = await this.k8sClient.listNamespacedPod({ namespace });
+    const { items: podsRaw } = await this.k8sClient.listNamespacedPod({
+      namespace,
+      labelSelector: this.config.get("POD_LABEL_SELECTOR")
+    });
+
     const pods = podsRaw.map(pod => this.mapPodToInfo(pod, namespace));
 
     const currentPodName = this.config.get("HOSTNAME");
