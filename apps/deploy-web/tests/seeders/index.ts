@@ -12,3 +12,4 @@ export * from "./provider";
 export * from "./usage";
 export * from "./user";
 export * from "./wallet";
+export * from "./sdlService";
