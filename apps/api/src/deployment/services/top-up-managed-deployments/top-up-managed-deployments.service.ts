@@ -88,6 +88,15 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
             this.cachedBalanceService.get(address),
             this.drainingDeploymentService.calculateTopUpAmount(deployment)
           ]);
+          if (desiredAmount <= 0) {
+            this.logger.warn({
+              event: "TOP_UP_AMOUNT_NON_POSITIVE",
+              desiredAmount,
+              dseq: deployment.dseq,
+              address: deployment.address,
+              blockRate: deployment.blockRate
+            });
+          }
           const sufficientAmount = balance.reserveSufficientAmount(desiredAmount);
 
           const messageInput: DepositDeploymentMsgOptions = {
