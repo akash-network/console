@@ -45,6 +45,7 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
   akash: {
     code: "akash",
     rpcNodes: [
+      "https://rpc.akt.dev/rpc",
       "http://akash.c29r3.xyz/rpc",
       "https://akash-rpc.lavenderfive.com",
       "https://rpc-akash.ecostake.com",
