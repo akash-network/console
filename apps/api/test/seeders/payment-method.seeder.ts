@@ -2,13 +2,19 @@ import { faker } from "@faker-js/faker";
 
 import type { PaymentMethod } from "@src/billing/services/stripe/stripe.service";
 
-export function generatePaymentMethod(): PaymentMethod {
+type PaymentMethodInput = {
+  type?: string;
+  cardBrand?: string | null;
+  cardLast4?: string;
+};
+
+export function generatePaymentMethod(input: PaymentMethodInput = {}): PaymentMethod {
   return {
     id: faker.string.uuid(),
-    type: faker.finance.transactionType(),
+    type: input.type || faker.finance.transactionType(),
     card: {
-      brand: faker.helpers.arrayElement(["Visa", "MasterCard", "American Express", null]),
-      last4: faker.finance.creditCardNumber().slice(-4),
+      brand: input.cardBrand || faker.helpers.arrayElement(["Visa", "MasterCard", "American Express", null]),
+      last4: input.cardLast4 || faker.finance.creditCardNumber().slice(-4),
       exp_month: faker.number.int({ min: 1, max: 12 }),
       exp_year: faker.number.int({ min: new Date().getFullYear(), max: new Date().getFullYear() + 5 }),
       funding: faker.helpers.arrayElement(["credit", "debit", null]),

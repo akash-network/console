@@ -74,6 +74,7 @@
     "bcryptjs": "^2.4.3",
     "commander": "^12.1.0",
     "cosmjs-types": "^0.9.0",
+    "csv-stringify": "^6.6.0",
     "dataloader": "^2.2.2",
     "date-fns": "^2.29.2",
     "date-fns-tz": "^1.3.6",
