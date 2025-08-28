@@ -168,7 +168,8 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
     const remove = useCallback(
       (index: number) => {
         const ownLogCollectorServiceIndex = findOwnLogCollectorServiceIndex(formServices[index], formServices);
-        removeService(ownLogCollectorServiceIndex === -1 ? index : [index, ownLogCollectorServiceIndex]);
+        const indexes = (ownLogCollectorServiceIndex === -1 ? [index] : [index, ownLogCollectorServiceIndex]).sort((a, b) => b - a);
+        removeService(indexes);
       },
       [formServices, removeService]
     );

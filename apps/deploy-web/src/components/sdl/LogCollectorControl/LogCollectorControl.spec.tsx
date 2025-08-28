@@ -17,7 +17,7 @@ describe(LogCollectorControl.name, () => {
     const formValues = form.getValues();
 
     expect(formValues.services).toHaveLength(2);
-    const logCollectorService = formValues.services.find((service: any) => service.title === `${targetService.title}-log-collector`);
+    const logCollectorService = formValues.services.find(service => service.title === `${targetService.title}-log-collector`);
     expect(logCollectorService).toBeDefined();
     expect(logCollectorService?.image).toMatch(/ghcr\.io\/akash-network\/log-collector:\d+\.\d+\.\d+/);
     expect(logCollectorService?.placement).toMatchObject(targetService.placement);
@@ -32,7 +32,7 @@ describe(LogCollectorControl.name, () => {
     const formValues = form.getValues();
 
     expect(formValues.services).toHaveLength(1);
-    const logCollectorService = formValues.services.find((service: any) => service.title === `${targetService.title}-log-collector`);
+    const logCollectorService = formValues.services.find(service => service.title === `${targetService.title}-log-collector`);
     expect(logCollectorService).toBeUndefined();
   });
 

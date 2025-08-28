@@ -25,7 +25,7 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex }) => {
   const allServices = watch(`services`);
   const targetService = allServices[serviceIndex];
   const logCollectorServiceIndex = useMemo(
-    () => allServices.findIndex(service => service?.title === toLogCollectorTitle(targetService)),
+    () => allServices.findIndex(service => targetService && service?.title === toLogCollectorTitle(targetService)),
     [allServices, targetService]
   );
   const logCollectorService = useMemo(() => allServices[logCollectorServiceIndex], [allServices, logCollectorServiceIndex]);
