@@ -142,17 +142,28 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
       }
     };
 
-    const calcNextServiceTitleIndex = useCallback(() => {
+    const calcNextServiceTitle = useCallback(() => {
       const visibleServices = formServices.filter(service => !isLogCollectorService(service));
       const lastService = visibleServices[visibleServices.length - 1];
       const lastServiceIndex = lastService?.title?.match(/service-(\d+)/)?.[1];
 
-      return lastServiceIndex ? parseInt(lastServiceIndex) + 1 : visibleServices.length + 1;
+      let nextIndex = lastServiceIndex ? parseInt(lastServiceIndex) + 1 : visibleServices.length + 1;
+      let hasDuplicate = false;
+
+      do {
+        hasDuplicate = visibleServices.some(service => service.title === `service-${nextIndex}`);
+
+        if (hasDuplicate) {
+          nextIndex++;
+        }
+      } while (hasDuplicate);
+
+      return `service-${nextIndex}`;
     }, [formServices]);
 
     const add = useCallback(() => {
-      appendService({ ...defaultService, id: nanoid(), title: `service-${calcNextServiceTitleIndex()}` });
-    }, [appendService, calcNextServiceTitleIndex]);
+      appendService({ ...defaultService, id: nanoid(), title: calcNextServiceTitle() });
+    }, [appendService, calcNextServiceTitle]);
 
     const remove = useCallback(
       (index: number) => {
