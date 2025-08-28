@@ -149,12 +149,16 @@ describe("Lease Flow", () => {
     const initialTotal = initialBalances.total;
 
     // 3. Create certificate
-    const certResponse = await app.request("/v1/certificates", {
-      method: "POST",
-      headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
-    });
-    expect(certResponse.status).toBe(200);
-    const { certPem, encryptedKey } = ((await certResponse.json()) as any).data;
+    let certPem: string | undefined;
+    let encryptedKey: string | undefined;
+    if (includeCertificate) {
+      const certResponse = await app.request("/v1/certificates", {
+        method: "POST",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
+      });
+      expect(certResponse.status).toBe(200);
+      ({ certPem, encryptedKey } = ((await certResponse.json()) as any).data);
+    }
 
     // 4. Create deployment
     const deployResponse = await app.request("/v1/deployments", {
@@ -260,7 +264,17 @@ describe("Lease Flow", () => {
     const updateResponse = await app.request(`/v1/deployments/${dseq}`, {
       method: "PUT",
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey }),
-      body: JSON.stringify({ data: { sdl: ymlUpdate, certificate: { certPem, keyPem: encryptedKey } } })
+      body: JSON.stringify({
+        data: {
+          sdl: ymlUpdate,
+          certificate: includeCertificate
+            ? {
+                certPem,
+                keyPem: encryptedKey
+              }
+            : undefined
+        }
+      })
     });
     expect(updateResponse.status).toBe(200);
     const updateResult = (await updateResponse.json()) as any;

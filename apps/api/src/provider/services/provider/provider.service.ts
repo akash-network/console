@@ -72,19 +72,21 @@ export class ProviderService {
           timeout: 60000
         });
 
-        if (result) return result;
-      } catch (err: any) {
-        if (err.message?.includes("no lease for deployment") && i < this.MANIFEST_SEND_MAX_RETRIES) {
+        if (result) {
+          return result;
+        }
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message?.includes("no lease for deployment") && i < this.MANIFEST_SEND_MAX_RETRIES) {
           await delay(this.MANIFEST_SEND_RETRY_DELAY);
           continue;
         }
 
-        const providerError = err instanceof AxiosError && err.response?.data;
+        const providerError = error instanceof AxiosError && error.response?.data;
         if (typeof providerError === "string") {
-          assert(!providerError.toLowerCase().includes("invalid manifest"), 400, err?.response?.data);
+          assert(!providerError.toLowerCase().includes("invalid manifest"), 400, providerError);
         }
 
-        throw new Error(providerError || err);
+        throw new Error(providerError || error);
       }
     }
   }
