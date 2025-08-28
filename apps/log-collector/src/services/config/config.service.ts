@@ -19,7 +19,8 @@ export class ConfigService {
       .number({ coerce: true })
       .optional()
       .default(10 * 1024 * 1024),
-    LOG_MAX_ROTATED_FILES: z.number({ coerce: true }).optional().default(5)
+    LOG_MAX_ROTATED_FILES: z.number({ coerce: true }).optional().default(5),
+    POD_LABEL_SELECTOR: z.string().optional()
   });
 
   /** Validated and transformed environment configuration */

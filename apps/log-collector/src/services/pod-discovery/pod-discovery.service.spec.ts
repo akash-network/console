@@ -52,6 +52,11 @@ describe(PodDiscoveryService.name, () => {
     expect(result.find(pod => pod.podName === "log-collector-c5f7d6bc5-d8nrl")).toBeUndefined();
     expect(result.find(pod => pod.podName === "log-collector-xyz789-abc123")).toBeUndefined();
 
+    expect(k8sClient.listNamespacedPod).toHaveBeenCalledWith({
+      namespace,
+      labelSelector: undefined
+    });
+
     expect(loggerService.info).toHaveBeenCalledWith({
       message: "Discovering pods in namespace",
       namespace
@@ -76,7 +81,10 @@ describe(PodDiscoveryService.name, () => {
 
     await podDiscoveryService.discoverPodsInNamespace();
 
-    expect(k8sClient.listNamespacedPod).toHaveBeenCalledWith({ namespace: overrideNamespace });
+    expect(k8sClient.listNamespacedPod).toHaveBeenCalledWith({
+      namespace: overrideNamespace,
+      labelSelector: undefined
+    });
   });
 
   it("should get namespace from kubeconfig when no override provided", async () => {
@@ -97,7 +105,10 @@ describe(PodDiscoveryService.name, () => {
 
     expect(kubeConfig.getCurrentContext).toHaveBeenCalled();
     expect(kubeConfig.getContextObject).toHaveBeenCalledWith(currentContext);
-    expect(k8sClient.listNamespacedPod).toHaveBeenCalledWith({ namespace: kubeconfigNamespace });
+    expect(k8sClient.listNamespacedPod).toHaveBeenCalledWith({
+      namespace: kubeconfigNamespace,
+      labelSelector: undefined
+    });
   });
 
   it("should throw error when kubeconfig context not found", async () => {
@@ -325,6 +336,24 @@ describe(PodDiscoveryService.name, () => {
     });
   });
 
+  it("should use label selector when POD_LABEL_SELECTOR is configured", async () => {
+    const namespace = faker.internet.domainWord();
+    const labelSelector = "app=web,environment=production";
+    const { podDiscoveryService, k8sClient } = setup({
+      KUBERNETES_NAMESPACE_OVERRIDE: namespace,
+      POD_LABEL_SELECTOR: labelSelector
+    });
+
+    k8sClient.listNamespacedPod.mockResolvedValue({ items: [] });
+
+    await podDiscoveryService.discoverPodsInNamespace();
+
+    expect(k8sClient.listNamespacedPod).toHaveBeenCalledWith({
+      namespace,
+      labelSelector
+    });
+  });
+
   function setup(envOverrides: Record<string, string> = {}) {
     container.clearInstances();
 
@@ -334,6 +363,7 @@ describe(PodDiscoveryService.name, () => {
     const testEnv = {
       HOSTNAME: "log-collector-6bdb59678c-w9jww",
       KUBERNETES_NAMESPACE_OVERRIDE: "",
+      POD_LABEL_SELECTOR: undefined,
       LOG_DIR: "./test-log",
       ...envOverrides
     };
