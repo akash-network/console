@@ -169,7 +169,7 @@ describe(StripeWebhookService.name, () => {
       await service.tryToTopUpWalletFromPaymentIntent(mockEvent);
 
       expect(stripeService.consumeActiveDiscount).toHaveBeenCalledWith("cus_test");
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(2000, user.id); // Uses actual charged amount
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(3000, user.id); // Uses original amount
     });
 
     it("processes payment intent without discount", async () => {
