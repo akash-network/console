@@ -7,7 +7,7 @@ import type { StripeService } from "@src/billing/services/stripe/stripe.service"
 import type { UserRepository } from "@src/user/repositories";
 import { StripeWebhookService } from "./stripe-webhook.service";
 
-import { create as StripeSeederCreate } from "@test/seeders/stripe.seeder";
+import { StripeSeeder } from "@test/seeders/stripe.seeder";
 import {
   createCheckoutSessionCompletedEvent,
   createCustomerDiscountCreatedEvent,
@@ -374,7 +374,7 @@ describe(StripeWebhookService.name, () => {
   describe("recordPaymentIntentTransaction", () => {
     it("creates transaction record when it doesn't exist", async () => {
       const { service, stripeTransactionRepository } = setup();
-      const paymentIntent = StripeSeederCreate().paymentIntent;
+      const paymentIntent = StripeSeeder.create().paymentIntent;
       const userId = "user-123";
       const customerId = "cus_123";
       const amount = 2000;
@@ -397,7 +397,7 @@ describe(StripeWebhookService.name, () => {
 
     it("skips creation when transaction already exists", async () => {
       const { service, stripeTransactionRepository } = setup();
-      const paymentIntent = StripeSeederCreate().paymentIntent;
+      const paymentIntent = StripeSeeder.create().paymentIntent;
       const userId = "user-123";
       const customerId = "cus_123";
       const amount = 2000;

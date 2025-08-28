@@ -8,7 +8,7 @@ import type { UserRepository } from "@src/user/repositories";
 import { StripeService } from "./stripe.service";
 
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
-import { create as StripeSeederCreate } from "@test/seeders/stripe.seeder";
+import { StripeSeeder } from "@test/seeders/stripe.seeder";
 import { StripeTransactionSeeder } from "@test/seeders/stripe-transaction.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { stub } from "@test/services/stub";
@@ -34,10 +34,10 @@ describe(StripeService.name, () => {
       });
       expect(userRepository.updateBy).toHaveBeenCalledWith(
         { id: user.id, stripeCustomerId: null },
-        { stripeCustomerId: StripeSeederCreate().customer.id },
+        { stripeCustomerId: StripeSeeder.create().customer.id },
         { returning: true }
       );
-      expect(result).toEqual(StripeSeederCreate().customer.id);
+      expect(result).toEqual(StripeSeeder.create().customer.id);
     });
   });
 
@@ -67,7 +67,7 @@ describe(StripeService.name, () => {
       });
       expect(result).toEqual({
         success: true,
-        paymentIntentId: StripeSeederCreate().paymentIntent.id
+        paymentIntentId: StripeSeeder.create().paymentIntent.id
       });
     });
 
@@ -87,7 +87,7 @@ describe(StripeService.name, () => {
         }
         return undefined;
       });
-      const stripeData = StripeSeederCreate();
+      const stripeData = StripeSeeder.create();
       jest.spyOn(service, "getCustomerDiscounts").mockResolvedValue([
         {
           type: "promotion_code",
@@ -547,7 +547,7 @@ describe(StripeService.name, () => {
   describe("applyCoupon", () => {
     it("applies promotion code successfully and tops up wallet", async () => {
       const { service, refillService } = setup();
-      const stripeData = StripeSeederCreate();
+      const stripeData = StripeSeeder.create();
       const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPromotionCode = {
         ...stripeData.promotionCode,
@@ -580,7 +580,7 @@ describe(StripeService.name, () => {
     it("rejects percentage-based promotion codes", async () => {
       const { service } = setup();
       const mockUser = UserSeeder.create({ stripeCustomerId: "cus_123" });
-      const stripeData = StripeSeederCreate();
+      const stripeData = StripeSeeder.create();
       const mockPromotionCode = {
         ...stripeData.promotionCode,
         coupon: {
@@ -600,7 +600,7 @@ describe(StripeService.name, () => {
     it("rejects promotion codes without amount_off", async () => {
       const { service } = setup();
       const mockUser = UserSeeder.create({ stripeCustomerId: "cus_123" });
-      const stripeData = StripeSeederCreate();
+      const stripeData = StripeSeeder.create();
       const mockPromotionCode = {
         ...stripeData.promotionCode,
         coupon: {
@@ -618,7 +618,7 @@ describe(StripeService.name, () => {
     it("rejects percentage-based coupons", async () => {
       const { service } = setup();
       const mockUser = UserSeeder.create({ stripeCustomerId: "cus_123" });
-      const stripeData = StripeSeederCreate();
+      const stripeData = StripeSeeder.create();
       const mockCoupon = {
         ...stripeData.promotionCode.coupon,
         percent_off: 20,
@@ -636,7 +636,7 @@ describe(StripeService.name, () => {
     it("rejects coupons without amount_off", async () => {
       const { service } = setup();
       const mockUser = UserSeeder.create({ stripeCustomerId: "cus_123" });
-      const stripeData = StripeSeederCreate();
+      const stripeData = StripeSeeder.create();
       const mockCoupon = {
         ...stripeData.promotionCode.coupon,
         percent_off: null as any,
@@ -661,7 +661,7 @@ describe(StripeService.name, () => {
     it("rolls back coupon application when topUpWallet fails", async () => {
       const { service, refillService } = setup();
       // Use a fixed-amount coupon, not a percent-off
-      const basePromotionCode = StripeSeederCreate().promotionCode;
+      const basePromotionCode = StripeSeeder.create().promotionCode;
       const mockPromotionCode = {
         ...basePromotionCode,
         coupon: { ...basePromotionCode.coupon, amount_off: 1000, percent_off: null as number | null, valid: true }
@@ -690,7 +690,7 @@ describe(StripeService.name, () => {
   describe("createSetupIntent", () => {
     it("creates setup intent with correct parameters", async () => {
       const { service } = setup();
-      const stripeData = StripeSeederCreate();
+      const stripeData = StripeSeeder.create();
       jest.spyOn(service.setupIntents, "create").mockResolvedValue(stub(stripeData.setupIntent));
 
       const result = await service.createSetupIntent("cus_123");
@@ -706,7 +706,7 @@ describe(StripeService.name, () => {
   describe("startCheckoutSession", () => {
     it("creates checkout session with custom amount", async () => {
       const { service } = setup();
-      const stripeData = StripeSeederCreate();
+      const stripeData = StripeSeeder.create();
       const mockPrice = { id: "price_123", unit_amount: 2000 };
 
       jest.spyOn(service.prices, "list").mockResolvedValue(stub({ data: [mockPrice] }));
@@ -731,7 +731,7 @@ describe(StripeService.name, () => {
 
     it("creates checkout session without amount", async () => {
       const { service } = setup();
-      const stripeData = StripeSeederCreate();
+      const stripeData = StripeSeeder.create();
       const mockPrice = { id: "price_123", custom_unit_amount: true };
 
       jest.spyOn(service.prices, "list").mockResolvedValue(stub({ data: [mockPrice] }));
@@ -806,7 +806,7 @@ describe(StripeService.name, () => {
   describe("listPromotionCodes", () => {
     it("returns promotion codes with expanded coupons", async () => {
       const { service } = setup();
-      const stripeData = StripeSeederCreate();
+      const stripeData = StripeSeeder.create();
       const mockPromotionCodes = [stripeData.promotionCode, { id: "promo_456", code: "TEST100", coupon: { id: "coupon_456" } }];
       jest.spyOn(service.promotionCodes, "list").mockResolvedValue(stub({ data: mockPromotionCodes }));
 
@@ -981,7 +981,7 @@ function setup() {
   const paymentMethodRepository = mock<PaymentMethodRepository>();
 
   const service = new StripeService(billingConfig, userRepository, refillService, paymentMethodRepository);
-  const stripeData = StripeSeederCreate();
+  const stripeData = StripeSeeder.create();
 
   // Store the last user for correct mocking
   let lastUser: any = null;
