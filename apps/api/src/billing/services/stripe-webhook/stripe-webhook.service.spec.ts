@@ -158,25 +158,27 @@ describe(StripeWebhookService.name, () => {
 
   describe("tryToTopUpWalletFromPaymentIntent", () => {
     it("processes payment intent successfully with discount", async () => {
-      const { service, userRepository, refillService, stripeService } = setup();
+      const { service, userRepository, refillService, stripeService, stripeTransactionRepository } = setup();
       const mockEvent = createPaymentIntentWithDiscount(3000);
       const user = UserSeeder.create({ stripeCustomerId: "cus_test" });
 
       userRepository.findOneBy.mockResolvedValue(user);
       stripeService.consumeActiveDiscount.mockResolvedValue(true);
+      stripeTransactionRepository.findByStripeTransactionId.mockResolvedValue(undefined);
 
       await service.tryToTopUpWalletFromPaymentIntent(mockEvent);
 
       expect(stripeService.consumeActiveDiscount).toHaveBeenCalledWith("cus_test");
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(3000, user.id);
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(2000, user.id); // Uses actual charged amount
     });
 
     it("processes payment intent without discount", async () => {
-      const { service, userRepository, refillService } = setup();
+      const { service, userRepository, refillService, stripeTransactionRepository } = setup();
       const mockEvent = createPaymentIntentWithoutDiscount();
       const user = UserSeeder.create({ stripeCustomerId: "cus_test" });
 
       userRepository.findOneBy.mockResolvedValue(user);
+      stripeTransactionRepository.findByStripeTransactionId.mockResolvedValue(undefined);
 
       await service.tryToTopUpWalletFromPaymentIntent(mockEvent);
 
@@ -209,6 +211,33 @@ describe(StripeWebhookService.name, () => {
       await service.tryToTopUpWalletFromPaymentIntent(mockEvent);
 
       expect(service["recordPaymentIntentTransaction"]).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+    });
+
+    it("skips wallet top-up when transaction already exists (idempotency)", async () => {
+      const { service, userRepository, refillService, stripeTransactionRepository } = setup();
+      const mockEvent = createPaymentIntentSucceededEvent();
+      const user = UserSeeder.create({ stripeCustomerId: "cus_test" });
+      const existingTransaction = {
+        id: "existing-transaction",
+        userId: user.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        stripeCreatedAt: new Date(),
+        stripeTransactionId: mockEvent.data.object.id,
+        amount: "2000",
+        currency: mockEvent.data.object.currency,
+        status: mockEvent.data.object.status,
+        description: mockEvent.data.object.description,
+        metadata: mockEvent.data.object.metadata
+      };
+
+      userRepository.findOneBy.mockResolvedValue(user);
+      stripeTransactionRepository.findByStripeTransactionId.mockResolvedValue(existingTransaction);
+
+      await service.tryToTopUpWalletFromPaymentIntent(mockEvent);
+
+      expect(service["recordPaymentIntentTransaction"]).toHaveBeenCalledWith(mockEvent.data.object, user.id);
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
     });
   });
@@ -376,17 +405,16 @@ describe(StripeWebhookService.name, () => {
       const { service, stripeTransactionRepository } = setup();
       const paymentIntent = StripeSeeder.create().paymentIntent;
       const userId = "user-123";
-      const customerId = "cus_123";
-      const amount = 2000;
 
       stripeTransactionRepository.findByStripeTransactionId.mockResolvedValue(undefined);
 
-      await service["recordPaymentIntentTransaction"](paymentIntent, userId, customerId, amount);
+      const result = await service["recordPaymentIntentTransaction"](paymentIntent, userId);
 
+      expect(result).toBe(true);
       expect(stripeTransactionRepository.create).toHaveBeenCalledWith({
         stripeTransactionId: paymentIntent.id,
         userId,
-        amount: "2000",
+        amount: paymentIntent.amount.toString(),
         currency: paymentIntent.currency,
         status: paymentIntent.status,
         description: paymentIntent.description,
@@ -399,8 +427,6 @@ describe(StripeWebhookService.name, () => {
       const { service, stripeTransactionRepository } = setup();
       const paymentIntent = StripeSeeder.create().paymentIntent;
       const userId = "user-123";
-      const customerId = "cus_123";
-      const amount = 2000;
       const existingTransaction = {
         id: "existing-transaction",
         userId,
@@ -417,8 +443,9 @@ describe(StripeWebhookService.name, () => {
 
       stripeTransactionRepository.findByStripeTransactionId.mockResolvedValue(existingTransaction);
 
-      await service["recordPaymentIntentTransaction"](paymentIntent, userId, customerId, amount);
+      const result = await service["recordPaymentIntentTransaction"](paymentIntent, userId);
 
+      expect(result).toBe(false);
       expect(stripeTransactionRepository.create).not.toHaveBeenCalled();
     });
   });

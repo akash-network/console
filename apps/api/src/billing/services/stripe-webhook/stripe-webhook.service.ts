@@ -142,10 +142,31 @@ export class StripeWebhookService {
       }
     }
 
-    await this.recordPaymentIntentTransaction(paymentIntent, user.id, customerId, originalAmount);
+    const transactionCreated = await this.recordPaymentIntentTransaction(paymentIntent, user.id);
 
-    // Use the original amount for the wallet top-up
-    await this.refillService.topUpWallet(originalAmount, user.id);
+    if (transactionCreated) {
+      try {
+        await this.refillService.topUpWallet(originalAmount, user.id);
+
+        this.logger.info({
+          event: "WALLET_TOP_UP_SUCCESS",
+          paymentIntentId: paymentIntent.id,
+          userId: user.id,
+          amount: paymentIntent.amount
+        });
+      } catch (error) {
+        this.logger.error({
+          event: "WALLET_TOP_UP_FAILED",
+          paymentIntentId: paymentIntent.id,
+          userId: user.id,
+          amount: paymentIntent.amount,
+          error
+        });
+
+        // Re-throw the error to trigger webhook retry
+        throw error;
+      }
+    }
   }
 
   @WithTransaction()
@@ -242,7 +263,7 @@ export class StripeWebhookService {
     });
   }
 
-  private async recordPaymentIntentTransaction(paymentIntent: Stripe.PaymentIntent, userId: string, customerId: string, amount: number) {
+  private async recordPaymentIntentTransaction(paymentIntent: Stripe.PaymentIntent, userId: string): Promise<boolean> {
     // Check if transaction already exists
     const existingTransaction = await this.stripeTransactionRepository.findByStripeTransactionId(paymentIntent.id);
     if (existingTransaction) {
@@ -251,13 +272,13 @@ export class StripeWebhookService {
         paymentIntentId: paymentIntent.id,
         userId
       });
-      return;
+      return false;
     }
 
     await this.stripeTransactionRepository.create({
       stripeTransactionId: paymentIntent.id,
       userId,
-      amount: amount.toString(),
+      amount: paymentIntent.amount.toString(),
       currency: paymentIntent.currency,
       status: paymentIntent.status,
       description: paymentIntent.description,
@@ -269,9 +290,11 @@ export class StripeWebhookService {
       event: "PAYMENT_INTENT_TRANSACTION_RECORDED",
       paymentIntentId: paymentIntent.id,
       userId,
-      amount,
+      amount: paymentIntent.amount,
       currency: paymentIntent.currency
     });
+
+    return true;
   }
 
   @WithTransaction()

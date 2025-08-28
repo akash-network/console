@@ -1,15 +1,17 @@
+import type Stripe from "stripe";
+
 export type StripeWebhookEventData = {
-  checkoutSessionCompleted: any;
-  checkoutSessionAsyncPaymentSucceeded: any;
-  paymentIntentSucceeded: any;
-  paymentMethodAttached: any;
-  paymentMethodDetached: any;
-  customerDiscountCreated: any;
+  checkoutSessionCompleted: Stripe.CheckoutSessionCompletedEvent;
+  checkoutSessionAsyncPaymentSucceeded: Stripe.CheckoutSessionAsyncPaymentSucceededEvent;
+  paymentIntentSucceeded: Stripe.PaymentIntentSucceededEvent;
+  paymentMethodAttached: Stripe.PaymentMethodAttachedEvent;
+  paymentMethodDetached: Stripe.PaymentMethodDetachedEvent;
+  customerDiscountCreated: Stripe.CustomerDiscountCreatedEvent;
 };
 
 const baseEvent = {
   id: "evt_test",
-  object: "event",
+  object: "event" as const,
   api_version: "2020-08-27",
   created: Math.floor(Date.now() / 1000),
   livemode: false,
@@ -48,9 +50,9 @@ export function create(overrides?: Partial<StripeWebhookEventData>): StripeWebho
           subscription: null,
           total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 0 },
           url: "https://checkout.stripe.com/test"
-        }
+        } as Stripe.Checkout.Session
       }
-    },
+    } as Stripe.CheckoutSessionCompletedEvent,
 
     checkoutSessionAsyncPaymentSucceeded: {
       ...baseEvent,
@@ -81,9 +83,9 @@ export function create(overrides?: Partial<StripeWebhookEventData>): StripeWebho
           subscription: null,
           total_details: { amount_discount: 0, amount_shipping: 0, amount_tax: 0 },
           url: "https://checkout.stripe.com/test"
-        }
+        } as Stripe.Checkout.Session
       }
-    },
+    } as Stripe.CheckoutSessionAsyncPaymentSucceededEvent,
 
     paymentIntentSucceeded: {
       ...baseEvent,
@@ -122,9 +124,9 @@ export function create(overrides?: Partial<StripeWebhookEventData>): StripeWebho
           payment_method_options: {},
           processing: null,
           review: null
-        }
+        } as Stripe.PaymentIntent
       }
-    },
+    } as Stripe.PaymentIntentSucceededEvent,
 
     paymentMethodAttached: {
       ...baseEvent,
@@ -159,9 +161,9 @@ export function create(overrides?: Partial<StripeWebhookEventData>): StripeWebho
             name: null,
             phone: null
           }
-        }
+        } as Stripe.PaymentMethod
       }
-    },
+    } as Stripe.PaymentMethodAttachedEvent,
 
     paymentMethodDetached: {
       ...baseEvent,
@@ -196,10 +198,10 @@ export function create(overrides?: Partial<StripeWebhookEventData>): StripeWebho
             name: null,
             phone: null
           }
-        },
+        } as Stripe.PaymentMethod,
         previous_attributes: {}
       }
-    },
+    } as Stripe.PaymentMethodDetachedEvent,
 
     customerDiscountCreated: {
       ...baseEvent,
@@ -224,7 +226,7 @@ export function create(overrides?: Partial<StripeWebhookEventData>): StripeWebho
             redeem_by: null,
             times_redeemed: 0,
             valid: true,
-            amount_off: null
+            amount_off: 0
           },
           created: Math.floor(Date.now() / 1000),
           livemode: false,
@@ -234,76 +236,82 @@ export function create(overrides?: Partial<StripeWebhookEventData>): StripeWebho
           end: null,
           subscription: null,
           subscription_item: null
-        }
+        } as unknown as Stripe.Discount
       }
-    }
+    } as Stripe.CustomerDiscountCreatedEvent
   };
 
   return { ...defaultData, ...overrides };
 }
 
 // Helper functions for specific event types
-export function createCheckoutSessionCompletedEvent(overrides?: Partial<any>): any {
+export function createCheckoutSessionCompletedEvent(overrides?: Partial<Stripe.CheckoutSessionCompletedEvent>): Stripe.CheckoutSessionCompletedEvent {
   const data = create();
   return { ...data.checkoutSessionCompleted, ...overrides };
 }
 
-export function createPaymentIntentSucceededEvent(overrides?: Partial<any>): any {
+export function createPaymentIntentSucceededEvent(overrides?: Partial<Stripe.PaymentIntentSucceededEvent>): Stripe.PaymentIntentSucceededEvent {
   const data = create();
   return { ...data.paymentIntentSucceeded, ...overrides };
 }
 
-export function createPaymentMethodAttachedEvent(overrides?: Partial<any>): any {
+export function createPaymentMethodAttachedEvent(overrides?: Partial<Stripe.PaymentMethodAttachedEvent>): Stripe.PaymentMethodAttachedEvent {
   const data = create();
   return { ...data.paymentMethodAttached, ...overrides };
 }
 
-export function createPaymentMethodDetachedEvent(overrides?: Partial<any>): any {
+export function createPaymentMethodDetachedEvent(overrides?: Partial<Stripe.PaymentMethodDetachedEvent>): Stripe.PaymentMethodDetachedEvent {
   const data = create();
   return { ...data.paymentMethodDetached, ...overrides };
 }
 
-export function createCustomerDiscountCreatedEvent(overrides?: Partial<any>): any {
+export function createCustomerDiscountCreatedEvent(overrides?: Partial<Stripe.CustomerDiscountCreatedEvent>): Stripe.CustomerDiscountCreatedEvent {
   const data = create();
   return { ...data.customerDiscountCreated, ...overrides };
 }
 
 // Helper for creating events with specific metadata
-export function createPaymentIntentWithDiscount(originalAmount: number = 3000): any {
-  return createPaymentIntentSucceededEvent({
+export function createPaymentIntentWithDiscount(originalAmount: number = 3000): Stripe.PaymentIntentSucceededEvent {
+  const data = create();
+  return {
+    ...data.paymentIntentSucceeded,
     data: {
       object: {
-        ...create().paymentIntentSucceeded.data.object,
+        ...data.paymentIntentSucceeded.data.object,
         metadata: {
           original_amount: originalAmount.toString(),
           discount_applied: "true"
         }
       }
     }
-  });
+  };
 }
 
-export function createPaymentIntentWithoutDiscount(): any {
-  return createPaymentIntentSucceededEvent({
+export function createPaymentIntentWithoutDiscount(): Stripe.PaymentIntentSucceededEvent {
+  const data = create();
+  return {
+    ...data.paymentIntentSucceeded,
     data: {
       object: {
-        ...create().paymentIntentSucceeded.data.object,
+        ...data.paymentIntentSucceeded.data.object,
         metadata: {}
       }
     }
-  });
+  };
 }
 
-export function createCustomerDiscountWithAmount(amountOff: number = 2000): any {
-  return createCustomerDiscountCreatedEvent({
+export function createCustomerDiscountWithAmount(amountOff: number = 2000): Stripe.CustomerDiscountCreatedEvent {
+  const data = create();
+  return {
+    ...data.customerDiscountCreated,
     data: {
       object: {
-        ...create().customerDiscountCreated.data.object,
+        ...data.customerDiscountCreated.data.object,
         coupon: {
-          ...create().customerDiscountCreated.data.object.coupon,
+          ...data.customerDiscountCreated.data.object.coupon,
           amount_off: amountOff
         }
       }
     }
-  });
+  };
 }
