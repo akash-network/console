@@ -1,4 +1,4 @@
-import { addDays } from "date-fns";
+import { addDays, subDays } from "date-fns";
 import { mock } from "jest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -18,7 +18,7 @@ describe(TrialStartedHandler.name, () => {
         findUserById: jest.fn().mockResolvedValue(null)
       });
 
-      await handler.handle({ userId: "non-existent-user" });
+      await handler.handle({ userId: "non-existent-user", version: 1 });
 
       expect(userRepository.findById).toHaveBeenCalledWith("non-existent-user");
       expect(notificationService.createNotification).not.toHaveBeenCalled();
@@ -39,7 +39,7 @@ describe(TrialStartedHandler.name, () => {
         trialExpirationDays: 30
       });
 
-      await handler.handle({ userId: user.id });
+      await handler.handle({ userId: user.id, version: 1 });
 
       expect(userRepository.findById).toHaveBeenCalledWith(user.id);
       expect(notificationService.createNotification).not.toHaveBeenCalled();
@@ -60,7 +60,7 @@ describe(TrialStartedHandler.name, () => {
         trialExpirationDays: 30
       });
 
-      await handler.handle({ userId: user.id });
+      await handler.handle({ userId: user.id, version: 1 });
 
       expect(userRepository.findById).toHaveBeenCalledWith(user.id);
       expect(logger.info).toHaveBeenCalledWith({
@@ -86,36 +86,34 @@ describe(TrialStartedHandler.name, () => {
     });
 
     it("enqueues all notification jobs with correct timing and data", async () => {
-      const currentDate = new Date("2023-10-15T12:00:00Z");
       const user = UserSeeder.create({
         id: "user-123",
         email: "user@example.com",
         emailVerified: true,
         subscribedToNewsletter: true,
-        createdAt: currentDate
+        createdAt: new Date("2023-10-15T12:00:00Z")
       });
 
-      const trialDays = 14;
-      const trialEndsAt = addDays(currentDate, trialDays).toISOString();
-      jest.useFakeTimers({ now: currentDate });
+      const trialDays = 30;
+      const trialEndsAt = addDays(user.createdAt!, trialDays);
 
       const { handler, jobQueueManager } = setup({
         findUserById: jest.fn().mockResolvedValue(user),
         trialExpirationDays: trialDays
       });
 
-      await handler.handle({ userId: user.id });
+      await handler.handle({ userId: user.id, version: 1 });
 
       expect(jobQueueManager.enqueue).toHaveBeenCalledWith(
         new NotificationJob({
           template: "beforeTrialEnds",
           userId: user.id,
           conditions: { trial: true },
-          vars: { trialEndsAt }
+          vars: { trialEndsAt: trialEndsAt.toISOString() }
         }),
         {
-          singletonKey: `beforeTrialEnds.${user.id}.${trialDays - 7}`,
-          startAfter: addDays(currentDate, trialDays - 7)
+          singletonKey: `notification.beforeTrialEnds.${user.id}.${trialDays - 7}`,
+          startAfter: subDays(trialEndsAt, 7).toISOString()
         }
       );
 
@@ -124,11 +122,11 @@ describe(TrialStartedHandler.name, () => {
           template: "beforeTrialEnds",
           userId: user.id,
           conditions: { trial: true },
-          vars: { trialEndsAt }
+          vars: { trialEndsAt: trialEndsAt.toISOString() }
         }),
         {
-          singletonKey: `beforeTrialEnds.${user.id}.${trialDays - 1}`,
-          startAfter: addDays(currentDate, trialDays - 1)
+          singletonKey: `notification.beforeTrialEnds.${user.id}.${trialDays - 1}`,
+          startAfter: subDays(trialEndsAt, 1).toISOString()
         }
       );
 
@@ -139,8 +137,8 @@ describe(TrialStartedHandler.name, () => {
           conditions: { trial: true }
         }),
         {
-          singletonKey: `trialEnded.${user.id}`,
-          startAfter: addDays(currentDate, trialDays)
+          singletonKey: `notification.trialEnded.${user.id}`,
+          startAfter: trialEndsAt.toISOString()
         }
       );
 
@@ -151,12 +149,10 @@ describe(TrialStartedHandler.name, () => {
           conditions: { trial: true }
         }),
         {
-          singletonKey: `afterTrialEnds.${user.id}`,
-          startAfter: addDays(currentDate, trialDays + 7)
+          singletonKey: `notification.afterTrialEnds.${user.id}.${trialDays + 7}`,
+          startAfter: addDays(trialEndsAt, 7).toISOString()
         }
       );
-
-      jest.useRealTimers();
     });
 
     it("handles different trial expiration days configuration", async () => {
@@ -164,31 +160,36 @@ describe(TrialStartedHandler.name, () => {
         id: "user-123",
         email: "user@example.com",
         emailVerified: true,
-        subscribedToNewsletter: true
+        subscribedToNewsletter: true,
+        createdAt: new Date("2023-10-15T12:00:00Z")
       });
 
-      const trialDays = 7;
-      const currentDate = new Date("2023-10-15T12:00:00Z");
-      jest.useFakeTimers({ now: currentDate });
+      const trialDays = 10;
+      const trialEndsAt = addDays(user.createdAt!, trialDays);
 
       const { handler, jobQueueManager } = setup({
         findUserById: jest.fn().mockResolvedValue(user),
         trialExpirationDays: trialDays
       });
 
-      await handler.handle({ userId: user.id });
+      await handler.handle({ userId: user.id, version: 1 });
 
       expect(jobQueueManager.enqueue).toHaveBeenCalledWith(expect.any(NotificationJob), {
-        singletonKey: `beforeTrialEnds.${user.id}.0`,
-        startAfter: addDays(currentDate, 0) // Same day
+        singletonKey: `notification.beforeTrialEnds.${user.id}.3`,
+        startAfter: subDays(trialEndsAt, 7).toISOString()
       });
-
       expect(jobQueueManager.enqueue).toHaveBeenCalledWith(expect.any(NotificationJob), {
-        singletonKey: `beforeTrialEnds.${user.id}.6`,
-        startAfter: addDays(currentDate, 6)
+        singletonKey: `notification.beforeTrialEnds.${user.id}.9`,
+        startAfter: subDays(trialEndsAt, 1).toISOString()
       });
-
-      jest.useRealTimers();
+      expect(jobQueueManager.enqueue).toHaveBeenCalledWith(expect.any(NotificationJob), {
+        singletonKey: `notification.trialEnded.${user.id}`,
+        startAfter: trialEndsAt.toISOString()
+      });
+      expect(jobQueueManager.enqueue).toHaveBeenCalledWith(expect.any(NotificationJob), {
+        singletonKey: `notification.afterTrialEnds.${user.id}.17`,
+        startAfter: addDays(trialEndsAt, 7).toISOString()
+      });
     });
   });
 
