@@ -32,6 +32,7 @@ import { SSHKeyFormControl } from "@src/components/sdl/SSHKeyFromControl";
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
 import { udenomToDenom } from "@src/utils/mathHelpers";
@@ -39,6 +40,7 @@ import { getAvgCostPerMonth } from "@src/utils/priceUtils";
 import { LeaseSpecDetail } from "../shared/LeaseSpecDetail";
 import { PriceValue } from "../shared/PriceValue";
 import { EnvFormModal } from "./EnvFormModal/EnvFormModal";
+import { isLogCollectorService, LogCollectorControl } from "./LogCollectorControl/LogCollectorControl";
 import { CommandFormModal } from "./CommandFormModal";
 import { CommandList } from "./CommandList";
 import { CpuFormControl } from "./CpuFormControl";
@@ -100,6 +102,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
   const _isGhcr = _credentials?.host === "ghcr.io";
   const { imageList, hasComponent, toggleCmp } = useSdlBuilder();
   const wallet = useWallet();
+  const isLogCollectorEnabled = useFlag("ui_sdl_log_collector_enabled");
   const onExpandClick = () => {
     setServiceCollapsed(prev => {
       if (expanded) {
@@ -120,7 +123,7 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
     keyName: "id"
   });
 
-  if (!currentService) return null;
+  if (!currentService || isLogCollectorService(currentService)) return null;
 
   return (
     <Collapsible open={expanded} onOpenChange={onExpandClick}>
@@ -158,7 +161,6 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
               placement={currentService.placement}
             />
           )}
-
           <div
             className={cn(
               "flex justify-between p-4",
@@ -226,7 +228,6 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
               </CollapsibleTrigger>
             </div>
           </div>
-
           <CollapsibleContent>
             <div className="p-4">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -426,6 +427,14 @@ export const SimpleServiceFormControl: React.FunctionComponent<Props> = ({
                   {!wallet?.isManaged && (
                     <div className="mt-4">
                       <TokenFormControl control={control} name={`services.${serviceIndex}.placement.pricing.denom`} />
+                    </div>
+                  )}
+
+                  {isLogCollectorEnabled && (
+                    <div className="mt-4">
+                      <FormPaper>
+                        <LogCollectorControl serviceIndex={serviceIndex} />
+                      </FormPaper>
                     </div>
                   )}
                 </div>
