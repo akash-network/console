@@ -132,11 +132,20 @@ describe(NotificationHandler.name, () => {
     await handler.handle({
       template: "startTrial",
       userId: user.id,
-      version: 1
+      version: 1,
+      vars: {
+        trialEndsAt: "2023-11-13T12:00:00Z",
+        deploymentLifetimeInHours: 24
+      }
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
-    expect(notificationService.createNotification).toHaveBeenCalledWith(startTrialNotification(user));
+    expect(notificationService.createNotification).toHaveBeenCalledWith(
+      startTrialNotification(user, {
+        trialEndsAt: "2023-11-13T12:00:00Z",
+        deploymentLifetimeInHours: 24
+      })
+    );
   });
 
   it("creates beforeTrialEnds notification with correct days calculation", async () => {

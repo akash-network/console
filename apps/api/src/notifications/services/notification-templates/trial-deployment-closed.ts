@@ -1,12 +1,12 @@
 import type { UserOutput } from "@src/user/repositories";
 import type { CreateNotificationInput } from "../notification/notification.service";
 
-export function trialDeploymentClosed(user: UserOutput, vars: { dseq: string; owner: string }): CreateNotificationInput {
+export function trialDeploymentClosed(user: UserOutput, vars: { dseq: string; owner: string; deploymentLifetimeInHours: number }): CreateNotificationInput {
   return {
     notificationId: `trialDeploymentClosed.${vars.dseq}.${vars.owner}`,
     payload: {
-      summary: "Your trial deployment has been closed",
-      description: `Your trial deployment with dseq "${vars.dseq}" has been closed`
+      summary: "Your Trial Deployment Has Been Closed",
+      description: `Your trial deployment (dseq: ${vars.dseq}) has been closed by the system after reaching the ${vars.deploymentLifetimeInHours}-hour limit. To keep your deployment running, please add a payment method and top up your account.`
     },
     user: {
       id: user.id,

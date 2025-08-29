@@ -33,15 +33,21 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
       return;
     }
 
+    const TRIAL_ALLOWANCE_EXPIRATION_DAYS = this.coreConfig.get("TRIAL_ALLOWANCE_EXPIRATION_DAYS");
+    const trialEndsAt = addDays(user.createdAt!, TRIAL_ALLOWANCE_EXPIRATION_DAYS);
+
     if (user.email) {
       this.logger.info({ event: "START_TRIAL_NOTIFICATION_SENDING", userId: user.id });
-      await this.notificationService.createNotification(startTrialNotification(user));
+      await this.notificationService.createNotification(
+        startTrialNotification(user, {
+          deploymentLifetimeInHours: this.coreConfig.get("TRIAL_DEPLOYMENT_CLEANUP_HOURS"),
+          trialEndsAt: trialEndsAt.toISOString()
+        })
+      );
       this.logger.info({ event: "START_TRIAL_NOTIFICATION_SENT", userId: user.id });
     }
 
     const notificationConditions = { trial: true };
-    const TRIAL_ALLOWANCE_EXPIRATION_DAYS = this.coreConfig.get("TRIAL_ALLOWANCE_EXPIRATION_DAYS");
-    const trialEndsAt = addDays(user.createdAt!, TRIAL_ALLOWANCE_EXPIRATION_DAYS);
     const vars = { trialEndsAt: trialEndsAt.toISOString() };
     await Promise.all([
       this.jobQueueManager.enqueue(

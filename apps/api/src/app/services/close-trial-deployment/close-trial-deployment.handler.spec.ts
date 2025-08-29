@@ -1,6 +1,7 @@
 import { mock } from "jest-mock-extended";
 
 import type { UserWalletRepository } from "@src/billing/repositories";
+import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import { JOB_NAME, type JobPayload, type JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
@@ -77,7 +78,8 @@ describe(CloseTrialDeploymentHandler.name, () => {
     });
 
     const { handler, userWalletRepository, jobQueueService, logger, deploymentWriterService } = setup({
-      findWalletById: jest.fn().mockResolvedValue(wallet)
+      findWalletById: jest.fn().mockResolvedValue(wallet),
+      trialDeploymentLifetimeInHours: 24
     });
 
     const payload: JobPayload<CloseTrialDeployment> = {
@@ -97,7 +99,8 @@ describe(CloseTrialDeploymentHandler.name, () => {
         userId: wallet.userId!,
         vars: {
           dseq: payload.dseq,
-          owner: wallet.address!
+          owner: wallet.address!,
+          deploymentLifetimeInHours: 24
         }
       }),
       {
@@ -114,6 +117,7 @@ describe(CloseTrialDeploymentHandler.name, () => {
     findWalletById?: UserWalletRepository["findById"];
     enqueueJob?: JobQueueService["enqueue"];
     closeDeployment?: DeploymentWriterService["close"];
+    trialDeploymentLifetimeInHours?: number;
   }) {
     const mocks = {
       userWalletRepository: mock<UserWalletRepository>({
@@ -125,10 +129,19 @@ describe(CloseTrialDeploymentHandler.name, () => {
       }),
       deploymentWriterService: mock<DeploymentWriterService>({
         close: input?.closeDeployment ?? jest.fn().mockResolvedValue(undefined)
+      }),
+      billingConfig: mock<BillingConfigService>({
+        get: jest.fn().mockReturnValue(input?.trialDeploymentLifetimeInHours ?? 24)
       })
     };
 
-    const handler = new CloseTrialDeploymentHandler(mocks.userWalletRepository, mocks.logger, mocks.jobQueueService, mocks.deploymentWriterService);
+    const handler = new CloseTrialDeploymentHandler(
+      mocks.userWalletRepository,
+      mocks.logger,
+      mocks.jobQueueService,
+      mocks.deploymentWriterService,
+      mocks.billingConfig
+    );
 
     return { handler, ...mocks };
   }
