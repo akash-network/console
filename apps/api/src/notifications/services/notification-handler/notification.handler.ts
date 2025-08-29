@@ -11,6 +11,7 @@ import { beforeTrialEndsNotification } from "../notification-templates/before-tr
 import { startTrialNotification } from "../notification-templates/start-trial-notification";
 import { trialDeploymentClosedNotification } from "../notification-templates/trial-deployment-closed";
 import { trialEndedNotification } from "../notification-templates/trial-ended-notification";
+import { trialFirstDeploymentLeaseCreatedNotification } from "../notification-templates/trial-first-deployment-lease-created-notification";
 
 const notificationTemplates = {
   trialEnded: trialEndedNotification,
@@ -18,7 +19,8 @@ const notificationTemplates = {
   afterTrialEnds: afterTrialEndsNotification,
   startTrial: startTrialNotification,
   beforeCloseTrialDeployment: beforeCloseTrialDeploymentNotification,
-  trialDeploymentClosed: trialDeploymentClosedNotification
+  trialDeploymentClosed: trialDeploymentClosedNotification,
+  trialFirstDeploymentLeaseCreated: trialFirstDeploymentLeaseCreatedNotification
 };
 
 type NotificationTemplates = typeof notificationTemplates;

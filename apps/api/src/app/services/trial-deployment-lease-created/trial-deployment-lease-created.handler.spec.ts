@@ -24,7 +24,8 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
       walletId: 123,
       dseq: "test-dseq",
       createdAt: new Date().toISOString(),
-      version: 1
+      version: 1,
+      isFirstLease: false
     };
 
     await handler.handle(payload);
@@ -55,7 +56,8 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
       walletId: wallet.id,
       dseq: "test-dseq",
       createdAt: new Date().toISOString(),
-      version: 1
+      version: 1,
+      isFirstLease: false
     };
 
     await handler.handle(payload);
@@ -91,7 +93,8 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
       walletId: wallet.id,
       dseq: "test-dseq",
       createdAt: deploymentCreatedAt.toISOString(),
-      version: 1
+      version: 1,
+      isFirstLease: false
     };
 
     await handler.handle(payload);
@@ -144,7 +147,8 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
       walletId: wallet.id,
       dseq: "test-dseq-3",
       createdAt: new Date().toISOString(),
-      version: 1
+      version: 1,
+      isFirstLease: false
     };
 
     await handler.handle(payload);
@@ -158,6 +162,44 @@ describe(TrialDeploymentLeaseCreatedHandler.name, () => {
       walletId: payload.walletId
     });
     expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("enqueues additional notification when it's the first lease", async () => {
+    const wallet = UserWalletSeeder.create({
+      id: 123,
+      userId: "user-123",
+      address: "akash1test",
+      isTrialing: true
+    });
+
+    const { handler, jobQueueService } = setup({
+      findWalletById: jest.fn().mockResolvedValue(wallet)
+    });
+
+    const payload: EventPayload<TrialDeploymentLeaseCreated> = {
+      walletId: wallet.id,
+      dseq: "test-dseq-4",
+      createdAt: new Date().toISOString(),
+      version: 1,
+      isFirstLease: true
+    };
+
+    await handler.handle(payload);
+
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+      new NotificationJob({
+        template: "trialFirstDeploymentLeaseCreated",
+        userId: wallet.userId!,
+        vars: {
+          dseq: payload.dseq,
+          owner: wallet.address!
+        },
+        conditions: { trial: true }
+      }),
+      {
+        singletonKey: `notification.trialFirstDeploymentLeaseCreated.${wallet.id}`
+      }
+    );
   });
 
   function setup(input?: {

@@ -74,7 +74,7 @@ export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeplo
         singletonKey: `notification.beforeCloseTrialDeployment.${payload.dseq}.${wallet.id}`
       }
     );
-    this.jobQueueService.enqueue(
+    await this.jobQueueService.enqueue(
       new CloseTrialDeployment({
         walletId: wallet.id,
         dseq: payload.dseq
@@ -84,5 +84,22 @@ export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeplo
         startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString()
       }
     );
+
+    if (payload.isFirstLease) {
+      await this.jobQueueService.enqueue(
+        new NotificationJob({
+          template: "trialFirstDeploymentLeaseCreated",
+          userId: wallet.userId!,
+          conditions: { trial: true },
+          vars: {
+            dseq: payload.dseq,
+            owner: wallet.address!
+          }
+        }),
+        {
+          singletonKey: `notification.trialFirstDeploymentLeaseCreated.${wallet.id}`
+        }
+      );
+    }
   }
 }

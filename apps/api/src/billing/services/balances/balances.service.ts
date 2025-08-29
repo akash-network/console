@@ -81,7 +81,7 @@ export class BalancesService {
    * @returns Total escrow balance
    */
   async calculateDeploymentEscrowBalance(address: string): Promise<number> {
-    const activeDeploymentsResponse = await this.deploymentHttpService.loadDeploymentList(address, "active");
+    const activeDeploymentsResponse = await this.deploymentHttpService.findAll({ owner: address, state: "active" });
     const activeDeployments = activeDeploymentsResponse.deployments;
 
     const deploymentEscrowBalance = activeDeployments.reduce((total: number, deployment: DeploymentInfo) => {
