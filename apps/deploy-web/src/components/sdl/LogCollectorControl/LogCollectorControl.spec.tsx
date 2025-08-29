@@ -1,5 +1,6 @@
 import { FormProvider, useForm } from "react-hook-form";
 import { TooltipProvider } from "@akashnetwork/ui/components";
+import { mock } from "jest-mock-extended";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { LogCollectorControl } from "./LogCollectorControl";
@@ -9,6 +10,10 @@ import userEvent from "@testing-library/user-event";
 import { buildSDLService } from "@tests/seeders/sdlService";
 
 describe(LogCollectorControl.name, () => {
+  beforeAll(() => {
+    global.ResizeObserver = jest.fn().mockImplementation(() => mock<ResizeObserver>());
+  });
+
   it("adds log-collector service when checkbox is checked", async () => {
     const { user, form, targetService } = await setup();
     const checkbox = screen.getByRole("checkbox");

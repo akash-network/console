@@ -18,7 +18,7 @@ type Props = {
 };
 
 export const DatadogEnvConfig: FC<Props> = ({ serviceIndex, dependencies: d = { useSdlEnv } }) => {
-  const env = d.useSdlEnv(serviceIndex, datadogEnvSchema);
+  const env = d.useSdlEnv({ serviceIndex, schema: datadogEnvSchema });
 
   return (
     <>

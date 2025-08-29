@@ -5,7 +5,7 @@ import { datadogEnvSchema } from "@src/components/sdl/DatadogEnvConfig/DatadogEn
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import { memoryUnits, storageUnits, validationConfig } from "@src/utils/akash/units";
 import { ENDPOINT_NAME_VALIDATION_REGEX } from "@src/utils/deploymentData/v1beta3";
-import { kvArrayToObject } from "@src/utils/keyValue";
+import { kvArrayToObject } from "@src/utils/keyValue/keyValue";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
 
