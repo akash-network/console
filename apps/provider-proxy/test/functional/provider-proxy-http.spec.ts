@@ -497,4 +497,96 @@ describe("Provider HTTP proxy", () => {
       })
     );
   });
+
+  it("aborts request if client closes connection before response is received", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = createX509CertPair({
+      commonName: providerAddress
+    });
+    await startChainApiServer([validCertPair.cert]);
+
+    const providerStreamingBegun = Promise.withResolvers<void>();
+    const providerResponseEnded = jest.fn();
+    const { providerUrl } = await startProviderServer({
+      certPair: validCertPair,
+      handlers: {
+        "/long-response"(_, res) {
+          res.writeHead(200);
+          res.write("Hello");
+          providerStreamingBegun.resolve();
+
+          const timerId = setTimeout(() => {
+            providerResponseEnded();
+            res.end("World!");
+          }, 500);
+
+          return () => clearTimeout(timerId);
+        }
+      }
+    });
+
+    const requestController = new AbortController();
+    const responsePromise = request("/", {
+      method: "POST",
+      body: JSON.stringify({
+        method: "GET",
+        url: `${providerUrl}/long-response`,
+        providerAddress,
+        network,
+        certPem: validCertPair.cert.toString(),
+        keyPem: validCertPair.key
+      }),
+      signal: requestController.signal
+    }).catch(error => ({ error }));
+
+    await providerStreamingBegun.promise;
+    await wait(200); // wait for certificate validation to complete
+    requestController.abort();
+    await responsePromise;
+
+    expect(providerResponseEnded).not.toHaveBeenCalled();
+  });
+
+  it("does not crash if client closes connection after reading response", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = createX509CertPair({
+      commonName: providerAddress
+    });
+    await startChainApiServer([validCertPair.cert]);
+
+    const { providerUrl } = await startProviderServer({
+      certPair: validCertPair,
+      handlers: {
+        "/long-response"(_, res) {
+          res.writeHead(200);
+          res.write("Hello");
+
+          const timerId = setTimeout(() => {
+            res.end("World!");
+          }, 500);
+
+          return () => clearTimeout(timerId);
+        }
+      }
+    });
+
+    const requestController = new AbortController();
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({
+        method: "GET",
+        url: `${providerUrl}/long-response`,
+        providerAddress,
+        network,
+        certPem: validCertPair.cert.toString(),
+        keyPem: validCertPair.key
+      }),
+      signal: requestController.signal
+    });
+
+    const chunk = await response.body?.getReader().read();
+    expect(new TextDecoder().decode(chunk?.value)).toBe("Hello");
+
+    requestController.abort();
+  });
 });

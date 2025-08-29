@@ -1,5 +1,12 @@
 
 
+## [1.23.0](https://github.com/akash-network/console/compare/provider-console/v1.22.0...provider-console/v1.23.0) (2025-08-28)
+
+
+### Features
+
+* **billing:** implement charges csv export  ([cbb3570](https://github.com/akash-network/console/commit/cbb3570a50876908c01006582a930590cf87f87d))
+
 ## [1.22.0](https://github.com/akash-network/console/compare/provider-console/v1.21.1...provider-console/v1.22.0) (2025-08-26)
 
 
