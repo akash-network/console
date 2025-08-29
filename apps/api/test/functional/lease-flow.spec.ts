@@ -115,7 +115,22 @@ describe("Lease Flow", () => {
     throw new Error("No bids received after maximum attempts");
   }
 
-  it("should execute complete lease lifecycle", async () => {
+  [
+    {
+      name: "should execute complete lease lifecycle without a certificate provided",
+      includeCertificate: false
+    },
+    {
+      name: "should execute complete lease lifecycle with a certificate provided",
+      includeCertificate: true
+    }
+  ].forEach(({ name, includeCertificate }) => {
+    it(name, async () => {
+      await runLifecycle(includeCertificate);
+    });
+  });
+
+  const runLifecycle = async (includeCertificate: boolean) => {
     // 1. Setup user and get authentication
     const { apiKey, wallet } = await createTestUser();
 
@@ -134,12 +149,16 @@ describe("Lease Flow", () => {
     const initialTotal = initialBalances.total;
 
     // 3. Create certificate
-    const certResponse = await app.request("/v1/certificates", {
-      method: "POST",
-      headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
-    });
-    expect(certResponse.status).toBe(200);
-    const { certPem, encryptedKey } = ((await certResponse.json()) as any).data;
+    let certPem: string | undefined;
+    let encryptedKey: string | undefined;
+    if (includeCertificate) {
+      const certResponse = await app.request("/v1/certificates", {
+        method: "POST",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey })
+      });
+      expect(certResponse.status).toBe(200);
+      ({ certPem, encryptedKey } = ((await certResponse.json()) as any).data);
+    }
 
     // 4. Create deployment
     const deployResponse = await app.request("/v1/deployments", {
@@ -182,10 +201,12 @@ describe("Lease Flow", () => {
 
     const body = {
       manifest,
-      certificate: {
-        certPem,
-        keyPem: encryptedKey
-      },
+      certificate: includeCertificate
+        ? {
+            certPem,
+            keyPem: encryptedKey
+          }
+        : undefined,
       leases: [
         {
           dseq,
@@ -243,7 +264,17 @@ describe("Lease Flow", () => {
     const updateResponse = await app.request(`/v1/deployments/${dseq}`, {
       method: "PUT",
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": apiKey }),
-      body: JSON.stringify({ data: { sdl: ymlUpdate, certificate: { certPem, keyPem: encryptedKey } } })
+      body: JSON.stringify({
+        data: {
+          sdl: ymlUpdate,
+          certificate: includeCertificate
+            ? {
+                certPem,
+                keyPem: encryptedKey
+              }
+            : undefined
+        }
+      })
     });
     expect(updateResponse.status).toBe(200);
     const updateResult = (await updateResponse.json()) as any;
@@ -277,5 +308,5 @@ describe("Lease Flow", () => {
     expect(finalBalances.deployments).toBeLessThan(afterDepositBalances.deployments);
     // Total should be less than initial total due to fees
     expect(finalBalances.total).toBeLessThan(initialTotal);
-  });
+  };
 });
