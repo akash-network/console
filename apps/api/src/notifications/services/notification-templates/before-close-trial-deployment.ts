@@ -9,8 +9,8 @@ export function beforeCloseTrialDeployment(user: UserOutput, vars: { deploymentC
   return {
     notificationId: `beforeCloseTrialDeployment.${timeLeft}.${user.id}`,
     payload: {
-      summary: "Your Trial Deployment is Closing Soon",
-      description: `Your trial deployment of Akash Network is closing in ${timeLeft} hours`
+      summary: "Your Trial Deployment Ends Soon",
+      description: `Your trial deployment will end in ${timeLeft} hours. To keep your deployment running, please add a payment method and top up your account before then.`
     },
     user: {
       id: user.id,

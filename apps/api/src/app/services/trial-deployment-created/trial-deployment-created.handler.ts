@@ -81,7 +81,7 @@ export class TrialDeploymentCreatedHandler implements JobHandler<TrialDeployment
       }),
       {
         singletonKey: `closeTrialDeployment.${payload.dseq}.${wallet.id}`,
-        startAfter: addHours(new Date(), this.billingConfig.get("TRIAL_DEPLOYMENT_CLEANUP_HOURS")).toISOString()
+        startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString()
       }
     );
   }

@@ -1,6 +1,7 @@
 import { singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { Job, JOB_NAME, JobHandler, JobPayload, JobQueueService, LoggerService } from "@src/core";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
@@ -28,7 +29,8 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
     private readonly userWalletRepository: UserWalletRepository,
     private readonly logger: LoggerService,
     private readonly jobQueueService: JobQueueService,
-    private readonly deploymentWriterService: DeploymentWriterService
+    private readonly deploymentWriterService: DeploymentWriterService,
+    private readonly billingConfig: BillingConfigService
   ) {}
 
   async handle(payload: JobPayload<CloseTrialDeployment>): Promise<void> {
@@ -64,7 +66,8 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
         userId: wallet.userId!,
         vars: {
           dseq: payload.dseq,
-          owner: wallet.address!
+          owner: wallet.address!,
+          deploymentLifetimeInHours: this.billingConfig.get("TRIAL_DEPLOYMENT_CLEANUP_HOURS")
         }
       }),
       {

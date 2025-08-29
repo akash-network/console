@@ -70,8 +70,8 @@ describe(TrialStartedHandler.name, () => {
       expect(notificationService.createNotification).toHaveBeenCalledWith({
         notificationId: `startTrial.${user.id}`,
         payload: {
-          summary: "Start Trial",
-          description: "You have started a trial of Akash Network"
+          summary: expect.stringMatching(/free trial/i),
+          description: expect.stringMatching(/trial with Akash Network has started/i)
         },
         user: {
           id: user.id,

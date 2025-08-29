@@ -121,7 +121,7 @@ describe(TrialDeploymentCreatedHandler.name, () => {
       }),
       {
         singletonKey: `closeTrialDeployment.${payload.dseq}.${wallet.id}`,
-        startAfter: addHours(new Date(), trialDeploymentLifetimeInHours).toISOString()
+        startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetimeInHours).toISOString()
       }
     );
 
