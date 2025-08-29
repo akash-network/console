@@ -1,8 +1,11 @@
 import type { IssueData } from "zod";
 import { z } from "zod";
 
+import { datadogEnvSchema } from "@src/components/sdl/DatadogEnvConfig/DatadogEnvConfig";
+import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import { memoryUnits, storageUnits, validationConfig } from "@src/utils/akash/units";
 import { ENDPOINT_NAME_VALIDATION_REGEX } from "@src/utils/deploymentData/v1beta3";
+import { kvArrayToObject } from "@src/utils/keyValue";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
 
@@ -350,6 +353,12 @@ const SSHKey = z.object({
   hasSSHKey: z.boolean().optional()
 });
 
+const logProviderVars = z.discriminatedUnion("PROVIDER", [
+  datadogEnvSchema.extend({
+    PROVIDER: z.literal("DATADOG")
+  })
+]);
+
 export const SdlBuilderFormValuesSchema = z
   .object({ services: z.array(ServiceSchema) })
   .merge(ImageList)
@@ -394,6 +403,23 @@ export const SdlBuilderFormValuesSchema = z
             fatal: true
           });
           return z.NEVER;
+        }
+      }
+    }
+
+    for (let i = 0; i < data.services.length; i++) {
+      if (isLogCollectorService(data.services[i])) {
+        const service = data.services[i];
+        const env = kvArrayToObject(service.env || []);
+        const result = logProviderVars.safeParse(env);
+
+        if (!result.success) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Invalid log provider configuration.",
+            path: ["services", i, "env"],
+            fatal: true
+          });
         }
       }
     }
