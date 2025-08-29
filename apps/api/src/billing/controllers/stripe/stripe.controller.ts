@@ -1,9 +1,11 @@
 import assert from "http-assert";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
+import type { infer as ZodInfer } from "zod";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
+import { CustomerTransactionsCsvExportQuerySchema } from "@src/billing/http-schemas/stripe.schema";
 import { ApplyCouponRequest, ConfirmPaymentRequest, Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import { PaymentMethod, StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
@@ -152,7 +154,7 @@ export class StripeController {
   }
 
   @Protected([{ action: "read", subject: "StripePayment" }])
-  async exportTransactionsCsvStream(options: { startDate: string; endDate: string; timezone: string }): Promise<AsyncIterable<string>> {
+  async exportTransactionsCsvStream(options: ZodInfer<typeof CustomerTransactionsCsvExportQuerySchema>): Promise<AsyncIterable<string>> {
     const { currentUser } = this.authService;
 
     assert(currentUser.stripeCustomerId, 403, "Payments are not configured. Please start with a trial first");

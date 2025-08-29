@@ -9,7 +9,7 @@ import { StripeService } from "./stripe.service";
 
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { create as StripeSeederCreate } from "@test/seeders/stripe.seeder";
-import { StripeTransactionSeeder } from "@test/seeders/stripe-transaction.seeder";
+import { createStripeTransaction } from "@test/seeders/stripe-transaction.seeder";
 import { UserSeeder } from "@test/seeders/user.seeder";
 import { stub } from "@test/services/stub";
 
@@ -370,7 +370,7 @@ describe(StripeService.name, () => {
     it("streams transactions for a single page", async () => {
       const { service } = setup();
       const mockTransactions = [
-        StripeTransactionSeeder.create({
+        createStripeTransaction({
           id: "ch_123",
           amount: 1000,
           created: 1640995200,
@@ -412,7 +412,7 @@ describe(StripeService.name, () => {
       const { service } = setup();
 
       const firstPageTransactions = [
-        StripeTransactionSeeder.create({
+        createStripeTransaction({
           id: "ch_001",
           amount: 1000,
           created: 1640995200,
@@ -426,7 +426,7 @@ describe(StripeService.name, () => {
       ];
 
       const secondPageTransactions = [
-        StripeTransactionSeeder.create({
+        createStripeTransaction({
           id: "ch_002",
           amount: 2000,
           created: 1641081600,
@@ -509,7 +509,7 @@ describe(StripeService.name, () => {
     it("handles transactions with null payment methods", async () => {
       const { service } = setup();
       const mockTransactions = [
-        StripeTransactionSeeder.create({
+        createStripeTransaction({
           id: "ch_123",
           amount: 1000,
           currency: "usd",
@@ -541,6 +541,49 @@ describe(StripeService.name, () => {
       expect(fullCsv).toContain("ch_123");
       expect(fullCsv).toContain("No payment method");
       expect(fullCsv).toMatch(/ch_123,"[^"]*",[^,]*,[^,]*,[^,]*,,,,No payment method,/);
+    });
+
+    it("handles error during streaming gracefully", async () => {
+      const { service } = setup();
+      const mockTransactions = [
+        createStripeTransaction({
+          id: "ch_123",
+          amount: 1000,
+          created: 1640995200,
+          paymentMethod: generatePaymentMethod({
+            type: "card",
+            cardBrand: "visa",
+            cardLast4: "4242"
+          })
+        })
+      ];
+
+      jest
+        .spyOn(service, "getCustomerTransactions")
+        .mockResolvedValueOnce({
+          transactions: mockTransactions,
+          hasMore: true,
+          nextPage: "ch_123",
+          prevPage: null
+        })
+        .mockRejectedValueOnce(new Error("Stripe API error"));
+
+      const csvStream = service.exportTransactionsCsvStream("cus_123", {
+        startDate: "2022-01-01T00:00:00Z",
+        endDate: "2022-01-31T23:59:59Z",
+        timezone: "America/New_York"
+      });
+
+      const chunks = [];
+      for await (const chunk of csvStream) {
+        chunks.push(chunk);
+      }
+
+      const fullCsv = chunks.join("");
+
+      expect(fullCsv).toContain("Transaction ID,Date (America/New_York),Amount,Currency,Status,Payment Method,Card Brand,Card Last 4,Description,Receipt URL");
+      expect(fullCsv).toContain("ch_123");
+      expect(fullCsv).toContain("Error: Stripe API error");
     });
   });
 
