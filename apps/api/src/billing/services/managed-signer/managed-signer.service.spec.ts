@@ -1,7 +1,7 @@
 import type { MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
-import type { EncodeObject } from "@cosmjs/proto-signing";
+import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { mock } from "jest-mock-extended";
 import Long from "long";
 
@@ -255,8 +255,11 @@ describe(ManagedSignerService.name, () => {
       const deploymentMessage: EncodeObject = {
         typeUrl: "/akash.deployment.v1beta3.MsgCreateDeployment",
         value: {
-          id: { dseq: BigInt(123) }
-        } as any
+          id: {
+            dseq: Long.fromNumber(123),
+            owner: wallet.address
+          }
+        }
       };
 
       const { service, domainEvents } = setup({
@@ -387,7 +390,7 @@ describe(ManagedSignerService.name, () => {
 
     const service = new ManagedSignerService(
       mocks.config,
-      {} as any, // registry - not used in this method
+      mock<Registry>(),
       mocks.userWalletRepository,
       mocks.userRepository,
       mocks.balancesService,

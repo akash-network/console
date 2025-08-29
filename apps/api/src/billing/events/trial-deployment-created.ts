@@ -16,7 +16,5 @@ export class TrialDeploymentCreated implements DomainEvent {
        */
       createdAt: string;
     }
-  ) {
-    this.data = data;
-  }
+  ) {}
 }

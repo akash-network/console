@@ -7,7 +7,7 @@ export function afterTrialEndsNotification(user: UserOutput): CreateNotification
     payload: {
       summary: "Your Free Trial is Over",
       description:
-        "Your trial period with Akash Network has ended. To keep using the platform and access all features, please add fund payment method and top up your account."
+        "Your trial period with Akash Network has ended. To keep using the platform and access all features, please add a payment method and top up your account."
     },
     user: {
       id: user.id,
