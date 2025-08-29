@@ -1,7 +1,10 @@
 import type { UserOutput } from "@src/user/repositories";
 import type { CreateNotificationInput } from "../notification/notification.service";
 
-export function trialDeploymentClosed(user: UserOutput, vars: { dseq: string; owner: string; deploymentLifetimeInHours: number }): CreateNotificationInput {
+export function trialDeploymentClosedNotification(
+  user: UserOutput,
+  vars: { dseq: string; owner: string; deploymentLifetimeInHours: number }
+): CreateNotificationInput {
   return {
     notificationId: `trialDeploymentClosed.${vars.dseq}.${vars.owner}`,
     payload: {

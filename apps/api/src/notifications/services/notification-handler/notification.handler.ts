@@ -6,10 +6,10 @@ import { Job, JOB_NAME, JobHandler, JobPayload } from "@src/core/services/job-qu
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { CreateNotificationInput, NotificationService } from "../notification/notification.service";
 import { afterTrialEndsNotification } from "../notification-templates/after-trial-ends-notification";
-import { beforeCloseTrialDeployment } from "../notification-templates/before-close-trial-deployment";
+import { beforeCloseTrialDeploymentNotification } from "../notification-templates/before-close-trial-deployment";
 import { beforeTrialEndsNotification } from "../notification-templates/before-trial-ends-notification";
 import { startTrialNotification } from "../notification-templates/start-trial-notification";
-import { trialDeploymentClosed } from "../notification-templates/trial-deployment-closed";
+import { trialDeploymentClosedNotification } from "../notification-templates/trial-deployment-closed";
 import { trialEndedNotification } from "../notification-templates/trial-ended-notification";
 
 const notificationTemplates = {
@@ -17,8 +17,8 @@ const notificationTemplates = {
   beforeTrialEnds: beforeTrialEndsNotification,
   afterTrialEnds: afterTrialEndsNotification,
   startTrial: startTrialNotification,
-  beforeCloseTrialDeployment,
-  trialDeploymentClosed
+  beforeCloseTrialDeployment: beforeCloseTrialDeploymentNotification,
+  trialDeploymentClosed: trialDeploymentClosedNotification
 };
 
 type NotificationTemplates = typeof notificationTemplates;
