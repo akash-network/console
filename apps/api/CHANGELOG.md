@@ -1,5 +1,17 @@
 
 
+## [2.115.0](https://github.com/akash-network/console/compare/console-api/v2.114.0...console-api/v2.115.0) (2025-08-28)
+
+
+### Features
+
+* **billing:** implement charges csv export  ([cbb3570](https://github.com/akash-network/console/commit/cbb3570a50876908c01006582a930590cf87f87d))
+
+
+### Bug Fixes
+
+* log when calculated top-up-amount is not a positive value ([#1861](https://github.com/akash-network/console/issues/1861)) ([5090f75](https://github.com/akash-network/console/commit/5090f750c5898dc5f0a020cabac54d05f70fe2a7)), closes [#1841](https://github.com/akash-network/console/issues/1841)
+
 ## [2.114.0](https://github.com/akash-network/console/compare/console-api/v2.113.0...console-api/v2.114.0) (2025-08-26)
 
 

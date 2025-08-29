@@ -1,5 +1,12 @@
 
 
+## [1.17.1](https://github.com/akash-network/console/compare/provider-proxy/v1.17.0...provider-proxy/v1.17.1) (2025-08-28)
+
+
+### Bug Fixes
+
+* upgrade hono/node-server in provider-proxy to fix crash ([#1853](https://github.com/akash-network/console/issues/1853)) ([571cef2](https://github.com/akash-network/console/commit/571cef2ddcf6b077f9d1e57dc6278c43013e00f7))
+
 ## [1.17.0](https://github.com/akash-network/console/compare/provider-proxy/v1.16.0...provider-proxy/v1.17.0) (2025-08-26)
 
 
