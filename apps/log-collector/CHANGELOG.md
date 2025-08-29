@@ -1,5 +1,13 @@
 
 
+## [1.8.0](https://github.com/akash-network/console/compare/log-collector/v1.7.0...log-collector/v1.8.0) (2025-08-28)
+
+
+### Features
+
+* **billing:** implement charges csv export  ([cbb3570](https://github.com/akash-network/console/commit/cbb3570a50876908c01006582a930590cf87f87d))
+* **log-collector:** adds optional pod label filtering ([66b9021](https://github.com/akash-network/console/commit/66b9021dc8e801a44f5440c2fe969770e68787e5))
+
 ## [1.7.0](https://github.com/akash-network/console/compare/log-collector/v1.6.0...log-collector/v1.7.0) (2025-08-26)
 
 

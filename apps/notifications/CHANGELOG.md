@@ -1,5 +1,12 @@
 
 
+## [1.25.0](https://github.com/akash-network/console/compare/notifications/v1.24.1...notifications/v1.25.0) (2025-08-28)
+
+
+### Features
+
+* **billing:** implement charges csv export  ([cbb3570](https://github.com/akash-network/console/commit/cbb3570a50876908c01006582a930590cf87f87d))
+
 ## [1.24.1](https://github.com/akash-network/console/compare/notifications/v1.24.0...notifications/v1.24.1) (2025-08-26)
 
 

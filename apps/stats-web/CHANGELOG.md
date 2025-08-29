@@ -1,5 +1,12 @@
 
 
+## [0.36.0](https://github.com/akash-network/console/compare/stats-web/v0.35.0...stats-web/v0.36.0) (2025-08-28)
+
+
+### Features
+
+* **billing:** implement charges csv export  ([cbb3570](https://github.com/akash-network/console/commit/cbb3570a50876908c01006582a930590cf87f87d))
+
 ## [0.35.0](https://github.com/akash-network/console/compare/stats-web/v0.34.1...stats-web/v0.35.0) (2025-08-26)
 
 

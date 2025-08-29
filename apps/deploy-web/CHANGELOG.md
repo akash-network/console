@@ -1,5 +1,17 @@
 
 
+## [2.103.0](https://github.com/akash-network/console/compare/console-web/v2.102.1...console-web/v2.103.0) (2025-08-28)
+
+
+### Features
+
+* **billing:** implement charges csv export  ([cbb3570](https://github.com/akash-network/console/commit/cbb3570a50876908c01006582a930590cf87f87d))
+
+
+### Bug Fixes
+
+* properly renames quantity to size during manifest submission ([#1854](https://github.com/akash-network/console/issues/1854)) ([2bf44f7](https://github.com/akash-network/console/commit/2bf44f7aef6202659efef70968d8080b466b02ba))
+
 ## [2.102.1](https://github.com/akash-network/console/compare/console-web/v2.102.0...console-web/v2.102.1) (2025-08-26)
 
 
