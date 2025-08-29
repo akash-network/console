@@ -1,12 +1,17 @@
 import { useMemo } from "react";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import get from "lodash/get";
-import type { ZodObject, ZodRawShape } from "zod";
+import type { z, ZodObject, ZodRawShape } from "zod";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
-import { kvArrayToObject } from "@src/utils/keyValue";
+import { kvArrayToObject } from "@src/utils/keyValue/keyValue";
 
-export const useSdlEnv = (serviceIndex: number, schema: ZodObject<ZodRawShape>) => {
+type Props<T extends ZodObject<ZodRawShape>> = {
+  serviceIndex: number;
+  schema: T;
+};
+
+export const useSdlEnv = <T extends ZodObject<ZodRawShape>>({ serviceIndex, schema }: Props<T>) => {
   const { control, formState } = useFormContext<SdlBuilderFormValuesType>();
   const { fields, append, update, remove } = useFieldArray({
     control,
@@ -25,8 +30,10 @@ export const useSdlEnv = (serviceIndex: number, schema: ZodObject<ZodRawShape>) 
   }, [fields]);
 
   const env = useMemo(() => kvArrayToObject(fields), [fields]);
+
+  const hasErrors = get(formState.errors, `services.${serviceIndex}.env`);
   const errors = useMemo(() => {
-    if (!get(formState.errors, `services.${serviceIndex}.env`)) {
+    if (!hasErrors) {
       return {};
     }
 
@@ -43,25 +50,25 @@ export const useSdlEnv = (serviceIndex: number, schema: ZodObject<ZodRawShape>) 
       },
       {} as Record<string, string>
     );
-  }, [env, formState.errors, schema, serviceIndex]);
+  }, [env, hasErrors, schema]);
 
   return useMemo(
     () => ({
-      getValue: (key: string) => (key in indexes ? fields[indexes[key]].value : ""),
-      setValue: (key: string, value: string) => {
+      getValue: (key: keyof z.infer<T>) => (key in indexes ? fields[indexes[key as string]].value : ""),
+      setValue: (key: keyof z.infer<T>, value: string) => {
         const hasKey = key in indexes;
         if (hasKey && value) {
-          update(indexes[key], {
-            key,
+          update(indexes[key as string], {
+            key: key as string,
             value
           });
         } else if (hasKey) {
-          remove(indexes[key]);
+          remove(indexes[key as string]);
         } else {
-          append({ key, value });
+          append({ key: key as string, value });
         }
       },
-      errors
+      errors: errors as Partial<Record<keyof z.infer<T>, string>>
     }),
     [append, errors, fields, indexes, remove, update]
   );
