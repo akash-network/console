@@ -29,7 +29,7 @@ type Props = {
   serviceIndex: number;
   children?: ReactNode;
   control: Control<SdlBuilderFormValuesType | RentGpusFormValuesType, any>;
-  appendStorage: UseFieldArrayAppend<SdlBuilderFormValuesType | RentGpusFormValuesType, `services.${number}.profile.storage`>;
+  appendStorage?: UseFieldArrayAppend<SdlBuilderFormValuesType | RentGpusFormValuesType, `services.${number}.profile.storage`>;
 };
 
 export const EphemeralStorageFormControl: React.FunctionComponent<Props> = ({ control, services, serviceIndex, appendStorage }) => {
@@ -116,7 +116,9 @@ export const EphemeralStorageFormControl: React.FunctionComponent<Props> = ({ co
 
             <FormMessage />
           </FormItem>
-          <AddStorageButton services={services} serviceIndex={serviceIndex} control={control} storageIndex={0} appendStorage={appendStorage} />
+          {appendStorage && (
+            <AddStorageButton services={services} serviceIndex={serviceIndex} control={control} storageIndex={0} appendStorage={appendStorage} />
+          )}
         </FormPaper>
       )}
     />
