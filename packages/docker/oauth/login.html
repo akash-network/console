@@ -12,30 +12,63 @@
       crossorigin="anonymous"
     />
     <script type="module">
-      import { faker } from "https://cdn.skypack.dev/@faker-js/faker";
+      import("https://cdn.jsdelivr.net/npm/@faker-js/faker@10.0.0/+esm")
+        .catch(() => ({
+          faker: {
+            string: {
+              uuid: () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                let r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+              })
+            },
+            person: {
+              firstName: () => 'John',
+              lastName: () => 'Doe',
+              fullName: (params = {}) => `${params.firstName} ${params.lastName}`
+            },
+            internet: {
+              email: (params = {}) => `${params.firstName}.${params.lastName}@example.com`
+            },
+            lorem: {
+              paragraph: () => 'Lorem ipsum dolor sit amet'
+            },
+            image: {
+              avatar: () => 'https://i.pravatar.cc/300'
+            },
+            date: {
+              recent: () => new Date()
+            }
+          }
+        }))
+        .then(({ faker }) => {
+          console.log(faker)
+          const username = document.getElementById("username");
+          const claims = document.getElementById("claims");
 
-      const username = document.getElementById("username");
-      const claims = document.getElementById("claims");
+          const firstName = faker.person.firstName();
+          const lastName = faker.person.lastName();
+          const email = faker.internet.email({ firstName, lastName });
+          const fullName = faker.person.fullName({ firstName, lastName });
 
-      const firstName = faker.person.firstName();
-      const lastName = faker.person.lastName();
-      const email = faker.internet.email({ firstName, lastName });
-      const fullName = faker.person.fullName({ firstName, lastName });
-
-      username.value = fullName;
-      claims.value = JSON.stringify(
-        {
-          sub: faker.string.uuid(),
-          email: email,
-          email_verified: true,
-          name: fullName,
-          nickname: firstName,
-          picture: faker.image.avatar(),
-          updated_at: faker.date.recent().toISOString()
-        },
-        null,
-        2
-      );
+          username.value = fullName;
+          claims.value = JSON.stringify(
+            {
+              sub: faker.string.uuid(),
+              email: email,
+              email_verified: true,
+              name: fullName,
+              nickname: firstName,
+              picture: faker.image.avatar(),
+              updated_at: faker.date.recent().toISOString()
+            },
+            null,
+            2
+          );
+        })
+        .catch((error) => {
+          console.error(`Failed to generate user claims`);
+          console.error(error);
+        });
     </script>
   </head>
 
