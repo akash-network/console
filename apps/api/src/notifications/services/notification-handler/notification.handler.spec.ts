@@ -1,6 +1,7 @@
 import { mock } from "jest-mock-extended";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";
+import type { JobPayload } from "@src/core/services/job-queue/job-queue.service";
 import type { UserRepository } from "@src/user/repositories";
 import type { NotificationService } from "../notification/notification.service";
 import { afterTrialEndsNotification } from "../notification-templates/after-trial-ends-notification";
@@ -18,8 +19,9 @@ describe(NotificationHandler.name, () => {
 
     await handler.handle({
       template: "unknownTemplate",
-      userId: "user-123"
-    } as unknown as NotificationJob["data"]);
+      userId: "user-123",
+      version: 1
+    } as unknown as JobPayload<NotificationJob>);
 
     expect(logger.error).toHaveBeenCalledWith({
       event: "UNKNOWN_NOTIFICATION_TYPE",
@@ -35,7 +37,8 @@ describe(NotificationHandler.name, () => {
 
     await handler.handle({
       template: "trialEnded",
-      userId: "non-existent-user"
+      userId: "non-existent-user",
+      version: 1
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith("non-existent-user");
@@ -59,7 +62,8 @@ describe(NotificationHandler.name, () => {
 
     await handler.handle({
       template: "trialEnded",
-      userId: user.id
+      userId: user.id,
+      version: 1
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
@@ -85,7 +89,8 @@ describe(NotificationHandler.name, () => {
     await handler.handle({
       template: "trialEnded",
       userId: user.id,
-      conditions: { trial: true } // User doesn't have trial: true
+      conditions: { trial: true }, // User doesn't have trial: true
+      version: 1
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
@@ -106,7 +111,8 @@ describe(NotificationHandler.name, () => {
     await handler.handle({
       template: "trialEnded",
       userId: user.id,
-      conditions: { trial: true }
+      conditions: { trial: true },
+      version: 1
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
@@ -125,11 +131,21 @@ describe(NotificationHandler.name, () => {
 
     await handler.handle({
       template: "startTrial",
-      userId: user.id
+      userId: user.id,
+      version: 1,
+      vars: {
+        trialEndsAt: "2023-11-13T12:00:00Z",
+        deploymentLifetimeInHours: 24
+      }
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
-    expect(notificationService.createNotification).toHaveBeenCalledWith(startTrialNotification(user));
+    expect(notificationService.createNotification).toHaveBeenCalledWith(
+      startTrialNotification(user, {
+        trialEndsAt: "2023-11-13T12:00:00Z",
+        deploymentLifetimeInHours: 24
+      })
+    );
   });
 
   it("creates beforeTrialEnds notification with correct days calculation", async () => {
@@ -154,7 +170,8 @@ describe(NotificationHandler.name, () => {
       template: "beforeTrialEnds",
       userId: user.id,
       vars: { trialEndsAt },
-      conditions: { trial: true }
+      conditions: { trial: true },
+      version: 1
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
@@ -177,7 +194,8 @@ describe(NotificationHandler.name, () => {
     await handler.handle({
       template: "afterTrialEnds",
       userId: user.id,
-      conditions: { trial: true }
+      conditions: { trial: true },
+      version: 1
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
@@ -202,7 +220,8 @@ describe(NotificationHandler.name, () => {
       conditions: {
         trial: true,
         emailVerified: true
-      }
+      },
+      version: 1
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
@@ -227,7 +246,8 @@ describe(NotificationHandler.name, () => {
       conditions: {
         trial: true,
         emailVerified: true
-      }
+      },
+      version: 1
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
