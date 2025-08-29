@@ -1,4 +1,10 @@
 [
+  
+  {
+    "id": "akt.dev",
+    "api": "https://rpc.akt.dev/rest",
+    "rpc": "https://rpc.akt.dev/rpc"
+  },
   {
     "id": "akashnet.net",
     "api": "https://consoleapi.akashnet.net:443",
