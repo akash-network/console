@@ -58,31 +58,53 @@ export class TrialDeploymentCreatedHandler implements JobHandler<TrialDeployment
 
     const deploymentCreatedAt = new Date(payload.createdAt);
     const trialDeploymentLifetime = this.billingConfig.get("TRIAL_DEPLOYMENT_CLEANUP_HOURS");
-    await this.jobQueueService.enqueue(
-      new NotificationJob({
-        template: "beforeCloseTrialDeployment",
-        userId: wallet.userId!,
-        conditions: { trial: true },
-        vars: {
-          deploymentClosedAt: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString(),
-          dseq: payload.dseq,
-          owner: wallet.address!
+
+    const jobs: Promise<unknown>[] = [
+      this.jobQueueService.enqueue(
+        new NotificationJob({
+          template: "beforeCloseTrialDeployment",
+          userId: wallet.userId!,
+          conditions: { trial: true },
+          vars: {
+            deploymentClosedAt: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString(),
+            dseq: payload.dseq,
+            owner: wallet.address!
+          }
+        }),
+        {
+          startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetime - 1).toISOString(),
+          singletonKey: `notification.beforeCloseTrialDeployment.${payload.dseq}.${wallet.id}`
         }
-      }),
-      {
-        startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetime - 1).toISOString(),
-        singletonKey: `notification.beforeCloseTrialDeployment.${payload.dseq}.${wallet.id}`
-      }
-    );
-    this.jobQueueService.enqueue(
-      new CloseTrialDeployment({
-        walletId: wallet.id,
-        dseq: payload.dseq
-      }),
-      {
-        singletonKey: `closeTrialDeployment.${payload.dseq}.${wallet.id}`,
-        startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString()
-      }
-    );
+      ),
+      this.jobQueueService.enqueue(
+        new CloseTrialDeployment({
+          walletId: wallet.id,
+          dseq: payload.dseq
+        }),
+        {
+          singletonKey: `closeTrialDeployment.${payload.dseq}.${wallet.id}`,
+          startAfter: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString()
+        }
+      )
+    ];
+
+    if (payload.isFirstDeployment) {
+      jobs.push(
+        this.jobQueueService.enqueue(
+          new NotificationJob({
+            template: "firstTrialDeployment",
+            userId: wallet.userId!,
+            conditions: { trial: true },
+            vars: {
+              deploymentClosedAt: addHours(deploymentCreatedAt, trialDeploymentLifetime).toISOString(),
+              dseq: payload.dseq,
+              owner: wallet.address!
+            }
+          })
+        )
+      );
+    }
+
+    await Promise.all(jobs);
   }
 }

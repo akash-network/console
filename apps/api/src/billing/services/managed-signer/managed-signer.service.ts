@@ -15,6 +15,7 @@ import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositorie
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { UserRepository } from "@src/user/repositories";
 import { BalancesService } from "../balances/balances.service";
 import { BillingConfigService } from "../billing-config/billing-config.service";
@@ -40,7 +41,8 @@ export class ManagedSignerService {
     private readonly featureFlagsService: FeatureFlagsService,
     @InjectSigningClient("MANAGED") private readonly masterSigningClientService: BatchSigningClientService,
     private readonly dedupeSigningClientService: DedupeSigningClientService,
-    private readonly domainEvents: DomainEventsService
+    private readonly domainEvents: DomainEventsService,
+    private readonly deploymentReaderService: DeploymentReaderService
   ) {}
 
   async executeManagedTx(walletIndex: number, messages: readonly EncodeObject[]) {
@@ -94,15 +96,20 @@ export class ManagedSignerService {
       );
     }
 
+    const hasTrialDeploymentMessage =
+      userWallet.isTrialing && !!createDeploymentMessage && !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL);
+    const hasDeployments = hasTrialDeploymentMessage ? await this.deploymentReaderService.hasDeployments(userWallet.address!) : null;
+
     try {
       const tx = await this.executeManagedTx(userWallet.id, messages);
 
-      if (userWallet.isTrialing && createDeploymentMessage && !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
+      if (hasTrialDeploymentMessage) {
         await this.domainEvents.publish(
           new TrialDeploymentCreated({
             walletId: userWallet.id,
             dseq: createDeploymentMessage.value.id!.dseq.toString(),
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            isFirstDeployment: !hasDeployments
           })
         );
       }

@@ -83,7 +83,7 @@ export class DeploymentReaderService {
     { skip, limit }: { skip?: number; limit?: number }
   ): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
     const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
-    const deploymentReponse = await this.deploymentHttpService.loadDeploymentList(owner, "active", pagination);
+    const deploymentReponse = await this.deploymentHttpService.findAll({ owner, state: "active", pagination });
     const deployments = deploymentReponse.deployments;
     const total = parseInt(deploymentReponse.pagination.total, 10);
 
@@ -121,11 +121,15 @@ export class DeploymentReaderService {
     limit?: number;
     reverseSorting?: boolean;
   }) {
-    const response = await this.deploymentHttpService.loadDeploymentList(address, status, {
-      offset: skip,
-      limit: limit,
-      reverse: reverseSorting,
-      countTotal: true
+    const response = await this.deploymentHttpService.findAll({
+      owner: address,
+      state: status,
+      pagination: {
+        offset: skip,
+        limit: limit,
+        reverse: reverseSorting,
+        countTotal: true
+      }
     });
     const leaseResponse = await this.leaseHttpService.list({ owner: address, state: "active" });
     const providers = response.deployments.length ? await this.providerService.getProviderList() : ([] as ProviderList[]);
@@ -280,5 +284,13 @@ export class DeploymentReaderService {
       events: relatedMessages || [],
       other: deploymentData
     };
+  }
+
+  async hasDeployments(address: string): Promise<boolean> {
+    const response = await this.deploymentHttpService.findAll({
+      owner: address,
+      pagination: { limit: 1 }
+    });
+    return response.deployments.length > 0 || !!response.pagination.next_key || Number(response.pagination.total) > 0;
   }
 }
