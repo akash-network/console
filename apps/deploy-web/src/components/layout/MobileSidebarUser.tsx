@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { UrlService } from "@src/utils/urlUtils";
+import { SignUpButton } from "../auth/SignUpButton/SignUpButton";
 import { SidebarRouteButton } from "./SidebarRouteButton";
 import { WalletStatus } from "./WalletStatus";
 
@@ -72,9 +73,7 @@ export const MobileSidebarUser: React.FunctionComponent = () => {
       ) : (
         <div className="p-2">
           <li>
-            <Link href={UrlService.signup()} className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")}>
-              Sign up
-            </Link>
+            <SignUpButton className={cn(buttonVariants({ variant: "default", size: "sm" }), "w-full")} />
           </li>
           <li>
             <Link href={UrlService.login()} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-full")}>

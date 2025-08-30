@@ -108,7 +108,7 @@ export function AccountMenu() {
                       <div className="w-full space-y-1">
                         <CustomDropdownLinkItem
                           className="justify-center bg-primary p-2 !text-white hover:bg-primary/80 hover:text-white focus:bg-primary/80"
-                          onClick={() => router.push(UrlService.signup())}
+                          onClick={() => authService.signup()}
                         >
                           Sign up
                         </CustomDropdownLinkItem>
