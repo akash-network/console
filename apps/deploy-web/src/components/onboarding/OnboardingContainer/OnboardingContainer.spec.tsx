@@ -6,7 +6,7 @@ import { mock } from "jest-mock-extended";
 import type { Router } from "next/router";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
-import type { AuthService } from "@src/services/auth/auth.service";
+import type { AuthService } from "@src/services/auth/auth/auth.service";
 import { UrlService } from "@src/utils/urlUtils";
 import { OnboardingContainer, OnboardingStepIndex } from "./OnboardingContainer";
 

@@ -2,12 +2,14 @@ import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { InternalAxiosRequestConfig } from "axios";
 
 import { ANONYMOUS_USER_TOKEN_KEY } from "@src/config/auth.config";
-import { ONBOARDING_STEP_KEY } from "../storage/keys";
+import { ONBOARDING_STEP_KEY } from "../../storage/keys";
 
 export class AuthService {
   constructor(
     private readonly urlService: AuthUrlService,
-    private readonly internalApiHttpClient: HttpClient
+    private readonly internalApiHttpClient: HttpClient,
+    private readonly location = window.location,
+    private readonly localStorage = window.localStorage
   ) {}
 
   async signup(options?: { returnTo?: string }): Promise<void> {
@@ -21,19 +23,19 @@ export class AuthService {
         redirect: "manual"
       }
     });
+    const queryParams = params.toString();
     // redirect user to the same url because it's impossible to read Location header in browser
-    window.location.href = `${this.urlService.signup()}?${params.toString()}`;
+    this.location.assign(this.urlService.signup() + (queryParams ? `?${queryParams}` : ""));
   }
 
   logout() {
-    if (typeof window === "undefined") return;
-    window.localStorage.removeItem(ANONYMOUS_USER_TOKEN_KEY);
-    window.localStorage.removeItem(ONBOARDING_STEP_KEY);
-    window.location.href = this.urlService.logout();
+    this.localStorage.removeItem(ANONYMOUS_USER_TOKEN_KEY);
+    this.localStorage.removeItem(ONBOARDING_STEP_KEY);
+    this.location.assign(this.urlService.logout());
   }
 }
 
-interface AuthUrlService {
+export interface AuthUrlService {
   signup(): string;
   logout(): string;
 }

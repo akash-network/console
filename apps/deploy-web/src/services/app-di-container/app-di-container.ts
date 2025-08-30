@@ -20,7 +20,7 @@ import { analyticsService } from "@src/services/analytics/analytics.service";
 import { customRegistry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
 import type { ApiUrlService } from "../api-url/api-url.service";
-import { withUserToken } from "../auth/auth.service";
+import { withUserToken } from "../auth/auth/interceptors";
 import { createContainer } from "../container/createContainer";
 import { ErrorHandlerService } from "../error-handler/error-handler.service";
 import { ManagedWalletHttpService } from "../managed-wallet-http/managed-wallet-http.service";

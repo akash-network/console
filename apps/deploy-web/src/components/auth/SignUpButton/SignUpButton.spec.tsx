@@ -3,7 +3,7 @@ import "@testing-library/jest-dom";
 import React from "react";
 import { mock } from "jest-mock-extended";
 
-import type { AuthService } from "@src/services/auth/auth.service";
+import type { AuthService } from "@src/services/auth/auth/auth.service";
 import { SignUpButton } from "./SignUpButton";
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
