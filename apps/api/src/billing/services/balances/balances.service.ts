@@ -1,10 +1,13 @@
 import { AuthzHttpService, DeploymentHttpService, DeploymentInfo } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
+import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
 import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { Memoize } from "@src/caching/helpers";
+import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
 export class BalancesService {
@@ -97,5 +100,18 @@ export class BalancesService {
     }, 0);
 
     return deploymentEscrowBalance;
+  }
+
+  @Memoize({ ttlInSeconds: averageBlockTime })
+  async getFullBalance(address: string): Promise<GetBalancesResponseOutput> {
+    const [balanceData, deploymentEscrowBalance] = await Promise.all([this.getFreshLimits({ address }), this.calculateDeploymentEscrowBalance(address)]);
+
+    return {
+      data: {
+        balance: balanceData.deployment,
+        deployments: deploymentEscrowBalance,
+        total: balanceData.deployment + deploymentEscrowBalance
+      }
+    };
   }
 }

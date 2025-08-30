@@ -14,10 +14,8 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import { Memoize } from "@src/caching/helpers";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import { averageBlockTime } from "@src/utils/constants";
 
 @scoped(Lifecycle.ResolutionScoped)
 export class WalletController {
@@ -60,7 +58,6 @@ export class WalletController {
     };
   }
 
-  @Memoize({ ttlInSeconds: averageBlockTime })
   async getBalances(address?: string): Promise<GetBalancesResponseOutput> {
     let currentAddress = address;
 
@@ -71,18 +68,7 @@ export class WalletController {
       currentAddress = userWallet.address;
     }
 
-    const [balanceData, deploymentEscrowBalance] = await Promise.all([
-      this.balancesService.getFreshLimits({ address: currentAddress }),
-      this.balancesService.calculateDeploymentEscrowBalance(currentAddress)
-    ]);
-
-    return {
-      data: {
-        balance: balanceData.deployment,
-        deployments: deploymentEscrowBalance,
-        total: balanceData.deployment + deploymentEscrowBalance
-      }
-    };
+    return this.balancesService.getFullBalance(currentAddress);
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
