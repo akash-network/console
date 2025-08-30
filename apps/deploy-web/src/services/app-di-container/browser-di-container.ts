@@ -1,10 +1,10 @@
 import { createAPIClient } from "@akashnetwork/react-query-sdk/notifications";
 import { requestFn } from "@openapi-qraft/react";
 
-import { ANONYMOUS_USER_TOKEN_KEY } from "@src/config/auth.config";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { ApiUrlService } from "@src/services/api-url/api-url.service";
 import networkStore from "@src/store/networkStore";
+import { AuthService, withAnonymousUserToken, withUserToken } from "../auth/auth.service";
 import { createChildContainer } from "../container/createContainer";
 import { BitbucketService } from "../remote-deploy/bitbucket-http.service";
 import { GitHubService } from "../remote-deploy/github-http.service";
@@ -31,24 +31,15 @@ export const services = createChildContainer(rootContainer, {
   gitlabService: () => new GitLabService(services.internalApiHttpClient, services.createAxios),
   internalApiHttpClient: () =>
     withInterceptors(services.createAxios(), {
-      request: [
-        config => {
-          const token = localStorage.getItem(ANONYMOUS_USER_TOKEN_KEY);
-
-          if (token) {
-            config.headers.set("authorization", `Bearer ${token}`);
-          }
-
-          return config;
-        }
-      ]
+      request: [withAnonymousUserToken]
     }),
   consoleApiHttpClient: () =>
     services.applyAxiosInterceptors(services.createAxios({ baseURL: services.appConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL }), {
-      request: [services.authService.withAnonymousUserHeader]
+      request: [withUserToken]
     }),
   /** TODO: https://github.com/akash-network/console/issues/1720 */
   publicConsoleApiHttpClient: () => services.applyAxiosInterceptors(services.createAxios()),
   networkStore: () => networkStore,
-  appConfig: () => browserEnvConfig
+  appConfig: () => browserEnvConfig,
+  authService: () => new AuthService(services.urlService, services.internalApiHttpClient)
 });

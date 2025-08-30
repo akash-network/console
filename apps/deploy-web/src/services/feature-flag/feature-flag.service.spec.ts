@@ -65,28 +65,6 @@ describe(FeatureFlagService.name, () => {
     });
   });
 
-  describe("showIfEnabled", () => {
-    it("returns props if flag is enabled", async () => {
-      const { service } = setup();
-      jest.spyOn(service, "isEnabledForCtx").mockResolvedValue(true);
-
-      const result = await service.showIfEnabled("my-flag")(createCtx(""));
-
-      expect(service.isEnabledForCtx).toHaveBeenCalledWith("my-flag", expect.anything());
-      expect(result).toEqual({ props: {} });
-    });
-
-    it("returns notFound if flag is disabled", async () => {
-      const { service } = setup();
-      jest.spyOn(service, "isEnabledForCtx").mockResolvedValue(false);
-
-      const result = await service.showIfEnabled("my-flag")(createCtx(""));
-
-      expect(service.isEnabledForCtx).toHaveBeenCalledWith("my-flag", expect.anything());
-      expect(result).toEqual({ notFound: true });
-    });
-  });
-
   function setup(options?: { enableAll?: boolean; isEnabled?: jest.Mock }): {
     service: FeatureFlagService;
     unleash: typeof unleashModule;
