@@ -1,5 +1,12 @@
 
 
+## [2.104.0](https://github.com/akash-network/console/compare/console-web/v2.103.0...console-web/v2.104.0) (2025-08-30)
+
+
+### Features
+
+* **log-collector:** implements basic log collector control in the sdl builder ([68e7fb7](https://github.com/akash-network/console/commit/68e7fb7321172de87d6193a40fa2d4e611ff7ba6))
+
 ## [2.103.0](https://github.com/akash-network/console/compare/console-web/v2.102.1...console-web/v2.103.0) (2025-08-28)
 
 
