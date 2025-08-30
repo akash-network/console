@@ -27,6 +27,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
+import { SignUpButton } from "@src/components/auth/SignUpButton/SignUpButton";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import type { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useServices } from "@src/context/ServicesProvider";
@@ -84,6 +85,7 @@ export const DEPENDENCIES = {
   BidCountdownTimer,
   AlertTitle,
   AlertDescription,
+  SignUpButton,
   useServices,
   useWallet,
   useCertificate,
@@ -575,11 +577,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
                   <Link href={UrlService.login()} className="font-bold underline">
                     Sign in
                   </Link>{" "}
-                  or{" "}
-                  <Link href={UrlService.signup()} className="font-bold underline">
-                    Sign up
-                  </Link>{" "}
-                  and buy credits to unlock all providers.
+                  or <d.SignUpButton className="font-bold underline" /> and buy credits to unlock all providers.
                 </p>
               </d.AlertDescription>
             </d.Alert>
@@ -602,9 +600,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
                   <d.Button onClick={() => handleCloseDeployment()} variant="outline" type="button" size="sm" className="mr-4">
                     Close Deployment
                   </d.Button>
-                  <d.Button onClick={() => router.push(UrlService.signup())} color="secondary" variant="default" type="button" size="sm">
-                    Sign Up
-                  </d.Button>
+                  <d.SignUpButton wrapper="button" color="secondary" variant="default" type="button" size="sm" />
                 </p>
               </div>
             </d.CardContent>
