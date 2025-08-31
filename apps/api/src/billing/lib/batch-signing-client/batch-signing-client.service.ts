@@ -201,7 +201,15 @@ export class BatchSigningClientService {
   private async executeTxBatch(inputs: ExecuteTxInput[]): Promise<IndexedTx[]> {
     return await withSpan("BatchSigningClientService.executeTxBatch", async () => {
       const client = await this.clientAsPromised;
-      const accountInfo = await this.getCachedAccountInfo();
+
+      // For RPC proxy scenarios, fetch account info once before the entire batch
+      // This ensures we get a consistent sequence number for all transactions in the batch
+      let accountInfo: ShortAccountInfo;
+      if (this.config.get("ALWAYS_FETCH_FRESH_ACCOUNT_INFO") === "true") {
+        accountInfo = await this.getFreshAccountInfo();
+      } else {
+        accountInfo = await this.getCachedAccountInfo();
+      }
 
       const txes: TxRaw[] = [];
       let txIndex: number = 0;
@@ -287,5 +295,24 @@ export class BatchSigningClientService {
 
   private async simulate(messages: readonly EncodeObject[], memo: string) {
     return (await this.clientAsPromised).simulate(await this.getCachedFirstAddress(), messages, memo);
+  }
+
+  private async getFreshAccountInfo(): Promise<ShortAccountInfo> {
+    const client = await this.clientAsPromised;
+    const address = await this.getCachedFirstAddress();
+    const account = await client.getAccount(address);
+
+    if (!account) {
+      throw new Error(`Account not found for address: ${address}. The account may not exist on the blockchain yet.`);
+    }
+
+    const accountInfo = {
+      accountNumber: account.accountNumber,
+      sequence: account.sequence,
+      address: address
+    };
+
+    this.cachedAccountInfo = accountInfo;
+    return accountInfo;
   }
 }
