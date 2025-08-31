@@ -5,7 +5,7 @@ export const envSchema = z.object({
   UAKT_TOP_UP_MASTER_WALLET_MNEMONIC: z.string(),
   USDC_TOP_UP_MASTER_WALLET_MNEMONIC: z.string(),
   NETWORK: z.enum(["mainnet", "testnet", "sandbox"]),
-  REST_API_NODE_URL: z.string(),
+  REST_API_NODE_URL: z.string().optional(),
   RPC_NODE_ENDPOINT: z.string(),
   TRIAL_ALLOWANCE_EXPIRATION_DAYS: z.number({ coerce: true }).default(30),
   TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: z.number({ coerce: true }),
