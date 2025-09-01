@@ -1,5 +1,13 @@
 
 
+## [2.115.1](https://github.com/akash-network/console/compare/console-api/v2.115.0...console-api/v2.115.1) (2025-09-01)
+
+
+### Bug Fixes
+
+* **billing:** fix cached balance ([#1874](https://github.com/akash-network/console/issues/1874)) ([676001c](https://github.com/akash-network/console/commit/676001c30bdd7f08483d20fa3046873148f92c8d))
+* **network:** sandbox for managed wallets staging ([#1879](https://github.com/akash-network/console/issues/1879)) ([e373bf9](https://github.com/akash-network/console/commit/e373bf979e06729726b2becbb6c046d11a351ac4))
+
 ## [2.115.0](https://github.com/akash-network/console/compare/console-api/v2.114.0...console-api/v2.115.0) (2025-08-28)
 
 
