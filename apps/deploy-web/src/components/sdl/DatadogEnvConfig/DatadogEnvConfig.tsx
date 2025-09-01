@@ -6,8 +6,8 @@ import { z } from "zod";
 import { useSdlEnv } from "@src/hooks/useSdlEnv/useSdlEnv";
 
 export const datadogEnvSchema = z.object({
-  DD_API_KEY: z.string({ message: "Datadog API key is required." }).min(1, { message: "Datadog API key is required." }),
-  DD_SITE: z.string({ message: "Datadog site is required." }).min(1, { message: "Datadog API key is required." })
+  DD_API_KEY: z.string({ message: "Datadog API key is required." }).min(1, { message: "Datadog API key is required." }).trim(),
+  DD_SITE: z.string({ message: "Datadog site is required." }).min(1, { message: "Datadog site key is required." }).trim()
 });
 
 type Props = {
@@ -39,7 +39,7 @@ export const DatadogEnvConfig: FC<Props> = ({ serviceIndex, dependencies: d = { 
         <Input
           value={env.getValue("DD_API_KEY")}
           onChange={e => env.setValue("DD_API_KEY", e.target.value)}
-          type="text"
+          type="password"
           label="API Key"
           className="w-full"
           placeholder="Paste your API key here"

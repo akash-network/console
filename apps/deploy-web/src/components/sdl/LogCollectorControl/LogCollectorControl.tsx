@@ -15,11 +15,13 @@ import {
 } from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 import { atom, useAtom } from "jotai";
+import { z } from "zod";
 
 import { CpuFormControl } from "@src/components/sdl/CpuFormControl";
 import { DatadogEnvConfig } from "@src/components/sdl/DatadogEnvConfig/DatadogEnvConfig";
 import { EphemeralStorageFormControl } from "@src/components/sdl/EphemeralStorageFormControl";
 import { MemoryFormControl } from "@src/components/sdl/MemoryFormControl";
+import { useSdlEnv } from "@src/hooks/useSdlEnv/useSdlEnv";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 
 const switchStore = atom<Record<string, boolean>>({});
@@ -30,9 +32,16 @@ const useSwitch = (key: string, initial: boolean): [boolean, (value: boolean) =>
 
 type Props = {
   serviceIndex: number;
+  dependencies?: {
+    useSdlEnv: typeof useSdlEnv;
+  };
 };
 
-export const LogCollectorControl: FC<Props> = ({ serviceIndex }) => {
+const logCollectorLabelSchema = z.object({
+  POD_LABEL_SELECTOR: z.string()
+});
+
+export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d = { useSdlEnv } }) => {
   const [isAdding, setIsAdding] = useState(false);
   const { watch, control } = useFormContext<SdlBuilderFormValuesType>();
   const { append, remove, update } = useFieldArray({ name: `services` });
@@ -44,6 +53,7 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex }) => {
   );
   const logCollectorService = useMemo(() => allServices[logCollectorServiceIndex], [allServices, logCollectorServiceIndex]);
   const [isEnabled, setIsEnabled] = useSwitch(targetService.title, logCollectorServiceIndex !== -1);
+  const env = d.useSdlEnv({ serviceIndex: logCollectorServiceIndex, schema: logCollectorLabelSchema });
 
   useEffect(
     function trackTargetNameAndPlacement() {
@@ -56,6 +66,7 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex }) => {
 
       if (logCollectorService.title !== nextTitle) {
         changes.title = nextTitle;
+        env.setValue("POD_LABEL_SELECTOR", `"akash.network/manifest-service=${nextTitle}"`);
       }
 
       if (targetService.placement.name !== logCollectorService.placement.name) {
