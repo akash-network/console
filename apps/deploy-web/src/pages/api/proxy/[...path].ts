@@ -23,7 +23,7 @@ export default defineApiHandler({
 
     const proxy = httpProxy.createProxyServer({
       changeOrigin: true,
-      target: services.config.BASE_API_MAINNET_URL,
+      target: services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID),
       secure: false,
       autoRewrite: false,
       headers: {
