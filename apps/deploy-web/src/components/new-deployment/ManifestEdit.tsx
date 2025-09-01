@@ -35,6 +35,7 @@ import { Timer } from "@src/utils/timer";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, handleDocClick, UrlService } from "@src/utils/urlUtils";
 import { useSettings } from "../../context/SettingsProvider";
+import { SignUpButton } from "../auth/SignUpButton/SignUpButton";
 import { DeploymentDepositModal } from "../deployments/DeploymentDepositModal";
 import { DeploymentMinimumEscrowAlertText } from "../sdl/DeploymentMinimumEscrowAlertText";
 import { TrialDeploymentBadge } from "../shared";
@@ -319,11 +320,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
                 <Link href={UrlService.login()} className="font-bold underline">
                   Sign in
                 </Link>{" "}
-                or{" "}
-                <Link href={UrlService.signup()} className="font-bold underline">
-                  Sign up
-                </Link>{" "}
-                to add funds and continue deploying.
+                or <SignUpButton className="font-bold underline" /> to add funds and continue deploying.
               </p>
             </AlertDescription>
           </Alert>

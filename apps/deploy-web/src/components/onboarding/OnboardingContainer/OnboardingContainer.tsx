@@ -44,7 +44,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const router = d.useRouter();
   const { user } = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
-  const { analyticsService, urlService } = d.useServices();
+  const { analyticsService, urlService, authService } = d.useServices();
 
   useEffect(() => {
     const savedStep = localStorage.getItem(ONBOARDING_STEP_KEY);
@@ -125,9 +125,7 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
 
     handleStepComplete(OnboardingStepIndex.FREE_TRIAL);
 
-    const returnUrl = `${window.location.origin}${urlService.onboarding(true)}`;
-    const signupUrl = `${urlService.signup()}?returnTo=${encodeURIComponent(returnUrl)}`;
-    window.location.href = signupUrl;
+    authService.signup({ returnTo: `${window.location.origin}${urlService.onboarding(true)}` });
   }, [analyticsService, handleStepComplete, urlService]);
 
   const handlePaymentMethodComplete = useCallback(() => {
