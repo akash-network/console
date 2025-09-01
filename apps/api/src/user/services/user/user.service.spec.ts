@@ -11,6 +11,7 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
+import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 
 describe(UserService.name, () => {
   describe("registerUser", () => {
@@ -307,7 +308,8 @@ describe(UserService.name, () => {
       logger,
       mock<NotificationService>({
         createDefaultChannel: input?.createDefaultNotificationChannel ?? (() => Promise.resolve())
-      })
+      }),
+      mock<Auth0Service>()
     );
 
     return { service, analyticsService, logger };

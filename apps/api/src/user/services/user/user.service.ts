@@ -1,6 +1,8 @@
+import assert from "http-assert";
 import randomInt from "lodash/random";
 import { singleton } from "tsyringe";
 
+import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { isUniqueViolation } from "@src/core/repositories/base.repository";
@@ -15,7 +17,8 @@ export class UserService {
     private readonly analyticsService: AnalyticsService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly logger: LoggerService,
-    private readonly notificationService: NotificationService
+    private readonly notificationService: NotificationService,
+    private readonly auth0: Auth0Service
   ) {}
 
   async registerUser(data: RegisterUserInput): Promise<{
@@ -118,6 +121,23 @@ export class UserService {
         throw error;
       }
     }
+  }
+
+  async syncEmailVerified({ email }: { email: string }) {
+    const auth0User = await this.auth0.getUserByEmail(email);
+    assert(auth0User, 404);
+
+    return await this.userRepository.updateBy(
+      {
+        email
+      },
+      {
+        emailVerified: auth0User.email_verified
+      },
+      {
+        returning: true
+      }
+    );
   }
 }
 

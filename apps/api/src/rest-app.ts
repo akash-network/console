@@ -9,6 +9,7 @@ import { cors } from "hono/cors";
 import { container } from "tsyringe";
 
 import packageJson from "../package.json";
+import { verifyEmailRouter } from "./auth/routes/verify-email/verify-email.router";
 import { AuthInterceptor } from "./auth/services/auth.interceptor";
 import { bidsRouter } from "./bid/routes/bids/bids.router";
 import { certificateRouter } from "./certificate/routes/certificate.router";
@@ -122,6 +123,7 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   registerUserRouter,
   getCurrentUserRouter,
   sendVerificationEmailRouter,
+  verifyEmailRouter,
   deploymentSettingRouter,
   deploymentsRouter,
   leasesRouter,
