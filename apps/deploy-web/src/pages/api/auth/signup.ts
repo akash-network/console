@@ -19,7 +19,7 @@ export default defineApiHandler({
         const isSecure = services.config.NODE_ENV === "production";
         res.setHeader(
           "Set-Cookie",
-          `${ANONYMOUS_HEADER_COOKIE_NAME}=${token.replace(/^Bearer\s+/i, "")}; HttpOnly; ${isSecure ? "Secure;" : ""} SameSite=Lax; Path=/api/auth/callback; Max-Age=${lifetime}`
+          `${ANONYMOUS_HEADER_COOKIE_NAME}=${encodeURIComponent(token.replace(/^Bearer\s+/i, ""))}; HttpOnly; ${isSecure ? "Secure;" : ""} SameSite=Lax; Path=/api/auth/callback; Max-Age=${lifetime}`
         );
         res.status(204).end();
         return;

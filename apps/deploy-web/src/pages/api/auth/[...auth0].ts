@@ -48,7 +48,7 @@ const authHandler = once((services: AppServices) =>
               const anonymousAuthorization = req.cookies[ANONYMOUS_HEADER_COOKIE_NAME];
 
               if (anonymousAuthorization) {
-                headers.set("x-anonymous-authorization", anonymousAuthorization);
+                headers.set("x-anonymous-authorization", decodeURIComponent(anonymousAuthorization));
               }
 
               const userSettings = await services.consoleApiHttpClient.post<{ data: UserSettings }>(
