@@ -2,10 +2,26 @@ import type { FC } from "react";
 import { useEffect, useState } from "react";
 import { useMemo } from "react";
 import { useFieldArray, useFormContext } from "react-hook-form";
-import { CheckboxWithLabel, CustomTooltip } from "@akashnetwork/ui/components";
+import {
+  CheckboxWithLabel,
+  CustomTooltip,
+  FormLabel,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@akashnetwork/ui/components";
 import { InfoCircle } from "iconoir-react";
 import { atom, useAtom } from "jotai";
+import { z } from "zod";
 
+import { CpuFormControl } from "@src/components/sdl/CpuFormControl";
+import { DatadogEnvConfig } from "@src/components/sdl/DatadogEnvConfig/DatadogEnvConfig";
+import { EphemeralStorageFormControl } from "@src/components/sdl/EphemeralStorageFormControl";
+import { MemoryFormControl } from "@src/components/sdl/MemoryFormControl";
+import { useSdlEnv } from "@src/hooks/useSdlEnv/useSdlEnv";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 
 const switchStore = atom<Record<string, boolean>>({});
@@ -16,11 +32,18 @@ const useSwitch = (key: string, initial: boolean): [boolean, (value: boolean) =>
 
 type Props = {
   serviceIndex: number;
+  dependencies?: {
+    useSdlEnv: typeof useSdlEnv;
+  };
 };
 
-export const LogCollectorControl: FC<Props> = ({ serviceIndex }) => {
+const logCollectorLabelSchema = z.object({
+  POD_LABEL_SELECTOR: z.string()
+});
+
+export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d = { useSdlEnv } }) => {
   const [isAdding, setIsAdding] = useState(false);
-  const { watch } = useFormContext<SdlBuilderFormValuesType>();
+  const { watch, control } = useFormContext<SdlBuilderFormValuesType>();
   const { append, remove, update } = useFieldArray({ name: `services` });
   const allServices = watch(`services`);
   const targetService = allServices[serviceIndex];
@@ -30,6 +53,7 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex }) => {
   );
   const logCollectorService = useMemo(() => allServices[logCollectorServiceIndex], [allServices, logCollectorServiceIndex]);
   const [isEnabled, setIsEnabled] = useSwitch(targetService.title, logCollectorServiceIndex !== -1);
+  const env = d.useSdlEnv({ serviceIndex: logCollectorServiceIndex, schema: logCollectorLabelSchema });
 
   useEffect(
     function trackTargetNameAndPlacement() {
@@ -42,6 +66,7 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex }) => {
 
       if (logCollectorService.title !== nextTitle) {
         changes.title = nextTitle;
+        env.setValue("POD_LABEL_SELECTOR", `"akash.network/manifest-service=${nextTitle}"`);
       }
 
       if (targetService.placement.name !== logCollectorService.placement.name) {
@@ -107,6 +132,42 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex }) => {
         className="ml-4"
         label="Enable log forwarding for this service"
       />{" "}
+      {!isAdding && logCollectorService && (
+        <div>
+          <div>
+            <FormLabel htmlFor="provider" className="mb-2 mt-4 flex items-center">
+              Provider
+              <CustomTooltip title={<>We are actively working on adding support for more providers.</>}>
+                <InfoCircle className="ml-2 text-xs text-muted-foreground" />
+              </CustomTooltip>
+            </FormLabel>
+            <Select value="DATADOG" disabled>
+              <SelectTrigger id="provider">
+                <SelectValue placeholder="Select Provider" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="DATADOG">Datadog</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DatadogEnvConfig serviceIndex={logCollectorServiceIndex} />
+
+          <div className="mt-4">
+            <CpuFormControl control={control} currentService={logCollectorService} serviceIndex={logCollectorServiceIndex} />
+          </div>
+
+          <div className="mt-4">
+            <MemoryFormControl control={control} serviceIndex={logCollectorServiceIndex} />
+          </div>
+
+          <div className="mt-4">
+            <EphemeralStorageFormControl services={allServices} control={control} serviceIndex={logCollectorServiceIndex} />
+          </div>
+        </div>
+      )}
     </>
   );
 };
@@ -127,13 +188,14 @@ function generateLogCollectorService<T extends ServiceType>(targetService: T): P
     title: toLogCollectorTitle(targetService),
     image: IMAGE,
     placement: targetService.placement,
+    env: [{ key: "PROVIDER", value: "DATADOG" }],
     profile: {
       cpu: 0.1,
       ram: 256,
       ramUnit: "Mi",
       storage: [
         {
-          size: 512,
+          size: 522,
           unit: "Mi",
           isPersistent: true
         }
