@@ -1,5 +1,17 @@
 
 
+## [2.105.0](https://github.com/akash-network/console/compare/console-web/v2.104.0...console-web/v2.105.0) (2025-09-02)
+
+
+### Features
+
+* **log-collector:** adds log collector configuration to sdl ([7b7fe50](https://github.com/akash-network/console/commit/7b7fe50cb1c248d3d4e10ab10b95832843226551))
+
+
+### Bug Fixes
+
+* **network:** api proxy correct network url ([#1881](https://github.com/akash-network/console/issues/1881)) ([d561658](https://github.com/akash-network/console/commit/d5616587752f007e5fb015e17a0d9fd68e4c2659))
+
 ## [2.104.0](https://github.com/akash-network/console/compare/console-web/v2.103.0...console-web/v2.104.0) (2025-09-01)
 
 
