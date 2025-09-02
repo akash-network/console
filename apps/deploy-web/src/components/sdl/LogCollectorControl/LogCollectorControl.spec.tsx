@@ -1,5 +1,6 @@
 import { FormProvider, useForm } from "react-hook-form";
 import { TooltipProvider } from "@akashnetwork/ui/components";
+import { mock } from "jest-mock-extended";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { LogCollectorControl } from "./LogCollectorControl";
@@ -9,6 +10,10 @@ import userEvent from "@testing-library/user-event";
 import { buildSDLService } from "@tests/seeders/sdlService";
 
 describe(LogCollectorControl.name, () => {
+  beforeAll(() => {
+    global.ResizeObserver = jest.fn().mockImplementation(() => mock<ResizeObserver>());
+  });
+
   it("adds log-collector service when checkbox is checked", async () => {
     const { user, form, targetService } = await setup();
     const checkbox = screen.getByRole("checkbox");
@@ -59,6 +64,17 @@ describe(LogCollectorControl.name, () => {
     expect(form.getValues("services.1")?.title).toBe(`new-title-log-collector`);
   });
 
+  it("updates log-collector pod selector label when target service title is changed", async () => {
+    const { user, form, sdlEnv } = await setup();
+    const checkbox = screen.getByRole("checkbox");
+    await user.click(checkbox);
+
+    await act(async () => {
+      form.setValue("services.0.title", "new-title");
+    });
+    expect(sdlEnv.setValue).toHaveBeenCalledWith("POD_LABEL_SELECTOR", '"akash.network/manifest-service=new-title-log-collector"');
+  });
+
   it("updates log-collector placement when target service placement is changed", async () => {
     const { user, form } = await setup();
     const checkbox = screen.getByRole("checkbox");
@@ -77,6 +93,12 @@ describe(LogCollectorControl.name, () => {
       services: [targetService]
     };
     let maybeForm: ReturnType<typeof useForm<SdlBuilderFormValuesType>>;
+    const sdlEnv = {
+      setValue: jest.fn(),
+      getValue: jest.fn(),
+      errors: {}
+    };
+    const useSdlEnv = () => sdlEnv;
 
     const TestWrapper = ({ children }: { children: React.ReactNode }) => {
       const methods = useForm<SdlBuilderFormValuesType>({
@@ -91,7 +113,7 @@ describe(LogCollectorControl.name, () => {
     const result = render(
       <TooltipProvider>
         <TestWrapper>
-          <LogCollectorControl serviceIndex={0} />
+          <LogCollectorControl serviceIndex={0} dependencies={{ useSdlEnv }} />
         </TestWrapper>
       </TooltipProvider>
     );
@@ -100,7 +122,8 @@ describe(LogCollectorControl.name, () => {
       ...result,
       user,
       form: await waitFor(() => maybeForm),
-      targetService
+      targetService,
+      sdlEnv
     };
   }
 });
