@@ -1,17 +1,15 @@
 "use client";
 import type { Dispatch } from "react";
-import { useCallback } from "react";
 import React, { useEffect, useRef, useState } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { Alert, Button, Form, Spinner } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import cloneDeep from "lodash/cloneDeep";
-import { nanoid } from "nanoid";
 
-import { findOwnLogCollectorServiceIndex, isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
+import { useSdlServiceManager } from "@src/hooks/useSdlServiceManager/useSdlServiceManager";
 import { useWhen } from "@src/hooks/useWhen";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -52,15 +50,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
       resolver: zodResolver(SdlBuilderFormValuesSchema)
     });
     const { control, trigger, watch, setValue } = form;
-    const {
-      fields: services,
-      remove: removeService,
-      append: appendService
-    } = useFieldArray({
-      control,
-      name: "services",
-      keyName: "id"
-    });
+    const serviceManager = useSdlServiceManager({ control });
 
     const { services: formServices = [] } = watch();
     const { data: gpuModels } = useGpuModels();
@@ -142,38 +132,6 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
       }
     };
 
-    const calcNextServiceTitle = useCallback(() => {
-      const visibleServices = formServices.filter(service => !isLogCollectorService(service));
-      const lastService = visibleServices[visibleServices.length - 1];
-      const lastServiceIndex = lastService?.title?.match(/service-(\d+)/)?.[1];
-
-      let nextIndex = lastServiceIndex ? parseInt(lastServiceIndex) + 1 : visibleServices.length + 1;
-      let hasDuplicate = false;
-
-      do {
-        hasDuplicate = visibleServices.some(service => service.title === `service-${nextIndex}`);
-
-        if (hasDuplicate) {
-          nextIndex++;
-        }
-      } while (hasDuplicate);
-
-      return `service-${nextIndex}`;
-    }, [formServices]);
-
-    const add = useCallback(() => {
-      appendService({ ...defaultService, id: nanoid(), title: calcNextServiceTitle() });
-    }, [appendService, calcNextServiceTitle]);
-
-    const remove = useCallback(
-      (index: number) => {
-        const ownLogCollectorServiceIndex = findOwnLogCollectorServiceIndex(formServices[index], formServices);
-        const indexes = (ownLogCollectorServiceIndex === -1 ? [index] : [index, ownLogCollectorServiceIndex]).sort((a, b) => b - a);
-        removeService(indexes);
-      },
-      [formServices, removeService]
-    );
-
     return (
       <div className="pb-8">
         {!isInit ? (
@@ -195,7 +153,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
             <Form {...form}>
               <form ref={formRef} autoComplete="off">
                 {formServices &&
-                  services.map((service, serviceIndex) => (
+                  formServices.map((service, serviceIndex) => (
                     <SimpleServiceFormControl
                       key={service.id}
                       serviceIndex={serviceIndex}
@@ -204,7 +162,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
                       _services={formServices as ServiceType[]}
                       control={control}
                       trigger={trigger}
-                      onRemoveService={remove}
+                      onRemoveService={serviceManager.remove}
                       serviceCollapsed={serviceCollapsed}
                       setServiceCollapsed={setServiceCollapsed}
                       hasSecretOption={false}
@@ -221,7 +179,7 @@ export const SdlBuilder = React.forwardRef<SdlBuilderRefType, Props>(
                 {!hasComponent("ssh") && !isGitProviderTemplate && (
                   <div className="flex items-center justify-end pt-4">
                     <div>
-                      <Button variant="default" size="sm" type="button" onClick={add}>
+                      <Button variant="default" size="sm" type="button" onClick={serviceManager.add}>
                         Add Service
                       </Button>
                     </div>

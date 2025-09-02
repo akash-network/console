@@ -7,7 +7,7 @@ export const buildSDLService = (overrides: Partial<ServiceType> = {}): ServiceTy
   title: faker.lorem.word(),
   image: faker.helpers.arrayElement(["nginx:latest", "node:18-alpine", "postgres:15", "redis:7-alpine", "python:3.11-slim"]),
   placement: {
-    name: faker.helpers.arrayElement(["default", "dcloud", "mainnet"]),
+    name: faker.lorem.word(),
     pricing: {
       amount: faker.number.int({ min: 100, max: 10000 }),
       denom: faker.helpers.arrayElement(["uakt", "uakt"])
