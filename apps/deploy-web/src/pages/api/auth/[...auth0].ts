@@ -52,7 +52,7 @@ const authHandler = once((services: AppServices) =>
               }
 
               const userSettings = await services.consoleApiHttpClient.post<{ data: UserSettings }>(
-                `${services.apiUrlService.getBaseApiUrlFor("mainnet")}/v1/register-user`,
+                `${services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)}/v1/register-user`,
                 {
                   wantedUsername: session.user.nickname,
                   email: session.user.email,
@@ -107,7 +107,7 @@ const authHandler = once((services: AppServices) =>
               });
 
               const userSettings = await services.consoleApiHttpClient.get<{ data: UserSettings }>(
-                `${services.apiUrlService.getBaseApiUrlFor("mainnet")}/v1/user/me`,
+                `${services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)}/v1/user/me`,
                 {
                   headers: headers.toJSON()
                 }
