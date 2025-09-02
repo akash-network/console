@@ -24,7 +24,9 @@ export const getServerSideProps = defineServerSideProps({
     })
   }),
   async handler({ params, services }): Promise<GetServerSidePropsResult<Props>> {
-    const { data: user } = await services.consoleApiHttpClient.get(`${services.apiUrlService.getBaseApiUrlFor("mainnet")}/user/byUsername/${params.username}`);
+    const { data: user } = await services.consoleApiHttpClient.get(
+      `${services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID)}/user/byUsername/${params.username}`
+    );
 
     return {
       props: {
