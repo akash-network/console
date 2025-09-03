@@ -1,7 +1,7 @@
 import { addHours } from "date-fns";
 import { singleton } from "tsyringe";
 
-import { TrialDeploymentCreated } from "@src/billing/events/trial-deployment-created";
+import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { DOMAIN_EVENT_NAME, EventPayload, JobHandler, JobQueueService, LoggerService } from "@src/core";
@@ -9,8 +9,8 @@ import { NotificationJob } from "@src/notifications/services/notification-handle
 import { CloseTrialDeployment } from "../close-trial-deployment/close-trial-deployment.handler";
 
 @singleton()
-export class TrialDeploymentCreatedHandler implements JobHandler<TrialDeploymentCreated> {
-  public readonly accepts = TrialDeploymentCreated;
+export class TrialDeploymentLeaseCreatedHandler implements JobHandler<TrialDeploymentLeaseCreated> {
+  public readonly accepts = TrialDeploymentLeaseCreated;
 
   public readonly concurrency = 5;
 
@@ -21,12 +21,12 @@ export class TrialDeploymentCreatedHandler implements JobHandler<TrialDeployment
     private readonly billingConfig: BillingConfigService
   ) {}
 
-  async handle(payload: EventPayload<TrialDeploymentCreated>): Promise<void> {
+  async handle(payload: EventPayload<TrialDeploymentLeaseCreated>): Promise<void> {
     const wallet = await this.userWalletRepository.findById(payload.walletId);
     if (!wallet) {
       this.logger.warn({
         event: "SKIP_TRIAL_DEPLOYMENT_CLOSING_TRIAL",
-        domainEvent: TrialDeploymentCreated[DOMAIN_EVENT_NAME],
+        domainEvent: TrialDeploymentLeaseCreated[DOMAIN_EVENT_NAME],
         walletId: payload.walletId,
         reason: "Cannot find wallet by id"
       });
@@ -36,7 +36,7 @@ export class TrialDeploymentCreatedHandler implements JobHandler<TrialDeployment
     if (!wallet.isTrialing) {
       this.logger.debug({
         event: "SKIP_TRIAL_DEPLOYMENT_CLOSING_TRIAL",
-        domainEvent: TrialDeploymentCreated[DOMAIN_EVENT_NAME],
+        domainEvent: TrialDeploymentLeaseCreated[DOMAIN_EVENT_NAME],
         userId: wallet.userId,
         walletId: payload.walletId,
         dseq: payload.dseq,
@@ -49,7 +49,7 @@ export class TrialDeploymentCreatedHandler implements JobHandler<TrialDeployment
       this.logger.warn({
         event: "SKIP_TRIAL_DEPLOYMENT_CLOSING_TRIAL",
         reason: "Wallet address is missing",
-        domainEvent: TrialDeploymentCreated[DOMAIN_EVENT_NAME],
+        domainEvent: TrialDeploymentLeaseCreated[DOMAIN_EVENT_NAME],
         dseq: payload.dseq,
         walletId: payload.walletId
       });

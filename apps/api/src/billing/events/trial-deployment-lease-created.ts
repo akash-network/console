@@ -1,10 +1,10 @@
 import type { DomainEvent } from "@src/core/services/domain-events/domain-events.service";
 import { DOMAIN_EVENT_NAME } from "@src/core/services/domain-events/domain-events.service";
 
-export class TrialDeploymentCreated implements DomainEvent {
-  static readonly [DOMAIN_EVENT_NAME] = "TrialDeploymentCreated";
+export class TrialDeploymentLeaseCreated implements DomainEvent {
+  static readonly [DOMAIN_EVENT_NAME] = "TrialDeploymentLeaseCreated";
 
-  public readonly name = TrialDeploymentCreated[DOMAIN_EVENT_NAME];
+  public readonly name = TrialDeploymentLeaseCreated[DOMAIN_EVENT_NAME];
   public readonly version = 1;
 
   constructor(

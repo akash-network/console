@@ -1,4 +1,5 @@
-import type { MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { MsgCreateLease } from "@akashnetwork/akash-api/v1beta4";
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
@@ -6,7 +7,7 @@ import { mock } from "jest-mock-extended";
 import Long from "long";
 
 import type { AuthService } from "@src/auth/services/auth.service";
-import { TrialDeploymentCreated } from "@src/billing/events/trial-deployment-created";
+import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import type { BatchSigningClientService } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
@@ -80,8 +81,8 @@ describe(ManagedSignerService.name, () => {
       });
       const user = UserSeeder.create({ userId: "user-123" });
       const deploymentMessage: EncodeObject = {
-        typeUrl: "/akash.deployment.v1beta3.MsgCreateDeployment",
-        value: {} as MsgCreateDeployment
+        typeUrl: MsgCreateDeployment.$type,
+        value: MsgCreateDeployment.fromPartial({})
       };
 
       const { service } = setup({
@@ -101,8 +102,8 @@ describe(ManagedSignerService.name, () => {
       const user = UserSeeder.create({ userId: "user-123" });
       const messages: EncodeObject[] = [
         {
-          typeUrl: "/akash.deployment.v1beta3.MsgCreateLease",
-          value: {}
+          typeUrl: MsgCreateLease.$type,
+          value: MsgCreateLease.fromPartial({})
         }
       ];
 
@@ -136,7 +137,7 @@ describe(ManagedSignerService.name, () => {
       const user = UserSeeder.create({ userId: "user-123" });
       const messages: EncodeObject[] = [
         {
-          typeUrl: "/akash.deployment.v1beta3.MsgCreateLease",
+          typeUrl: MsgCreateLease.$type,
           value: {}
         }
       ];
@@ -169,7 +170,7 @@ describe(ManagedSignerService.name, () => {
       const user = UserSeeder.create({ userId: "user-123" });
       const messages: EncodeObject[] = [
         {
-          typeUrl: "/akash.deployment.v1beta3.MsgCreateLease",
+          typeUrl: MsgCreateLease.$type,
           value: {}
         }
       ];
@@ -205,7 +206,7 @@ describe(ManagedSignerService.name, () => {
       });
     });
 
-    it("publishes TrialDeploymentCreated event for trialing wallet with deployment message when anonymous trial is disabled", async () => {
+    it("publishes TrialDeploymentLeaseCreated event for trialing wallet with deployment message when anonymous trial is disabled", async () => {
       const wallet = UserWalletSeeder.create({
         userId: "user-123",
         feeAllowance: 100,
@@ -214,13 +215,16 @@ describe(ManagedSignerService.name, () => {
       });
       const user = UserSeeder.create({ userId: "user-123" });
       const deploymentMessage: EncodeObject = {
-        typeUrl: "/akash.deployment.v1beta3.MsgCreateDeployment",
-        value: {
-          id: {
+        typeUrl: MsgCreateLease.$type,
+        value: MsgCreateLease.fromPartial({
+          bidId: {
             dseq: Long.fromNumber(123),
-            owner: "akash1test"
+            owner: "akash1test",
+            gseq: 1,
+            oseq: 1,
+            provider: "akash1test"
           }
-        } as MsgCreateDeployment
+        })
       };
 
       const { service, domainEvents } = setup({
@@ -238,8 +242,8 @@ describe(ManagedSignerService.name, () => {
 
       await service.executeDecodedTxByUserId("user-123", [deploymentMessage]);
 
-      expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(TrialDeploymentCreated));
-      const publishedEvent = (domainEvents.publish as jest.Mock).mock.calls[0][0] as TrialDeploymentCreated;
+      expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(TrialDeploymentLeaseCreated));
+      const publishedEvent = (domainEvents.publish as jest.Mock).mock.calls[0][0] as TrialDeploymentLeaseCreated;
       expect(publishedEvent.data.walletId).toBe(wallet.id);
       expect(publishedEvent.data.dseq).toBe("123");
     });
@@ -253,7 +257,7 @@ describe(ManagedSignerService.name, () => {
       });
       const user = UserSeeder.create({ userId: "user-123" });
       const deploymentMessage: EncodeObject = {
-        typeUrl: "/akash.deployment.v1beta3.MsgCreateDeployment",
+        typeUrl: MsgCreateDeployment.$type,
         value: {
           id: {
             dseq: Long.fromNumber(123),
@@ -289,7 +293,7 @@ describe(ManagedSignerService.name, () => {
       const user = UserSeeder.create({ userId: "user-123" });
       const messages: EncodeObject[] = [
         {
-          typeUrl: "/akash.deployment.v1beta3.MsgCreateLease",
+          typeUrl: MsgCreateLease.$type,
           value: {}
         }
       ];
@@ -312,7 +316,7 @@ describe(ManagedSignerService.name, () => {
       const wallet = UserWalletSeeder.create({ userId: "user-123", feeAllowance: 100 });
       const messages: EncodeObject[] = [
         {
-          typeUrl: "/akash.deployment.v1beta3.MsgCreateLease",
+          typeUrl: MsgCreateLease.$type,
           value: {}
         }
       ];

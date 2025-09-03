@@ -1,4 +1,4 @@
-import { MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { MsgCreateLease } from "@akashnetwork/akash-api/v1beta3";
 import { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { IndexedTx } from "@cosmjs/stargate";
 import assert from "http-assert";
@@ -6,7 +6,7 @@ import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { TrialDeploymentCreated } from "@src/billing/events/trial-deployment-created";
+import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import { BatchSigningClientService } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { InjectSigningClient } from "@src/billing/providers/signing-client.provider";
@@ -75,11 +75,9 @@ export class ManagedSignerService {
     assert(user, 404, "User Not Found");
     assert(userWallet.feeAllowance > 0, 403, "UserWallet has no fee allowance");
 
-    const createDeploymentMessage: (Omit<EncodeObject, "value"> & { value: MsgCreateDeployment }) | undefined = messages.find(message =>
-      message.typeUrl.endsWith(".MsgCreateDeployment")
-    );
+    const hasDeploymentMessage = messages.some(message => message.typeUrl.endsWith(".MsgCreateDeployment"));
 
-    if (createDeploymentMessage) {
+    if (hasDeploymentMessage) {
       assert(userWallet.deploymentAllowance > 0, 403, "UserWallet has no deployment allowance");
     }
 
@@ -97,11 +95,12 @@ export class ManagedSignerService {
     try {
       const tx = await this.executeManagedTx(userWallet.id, messages);
 
-      if (userWallet.isTrialing && createDeploymentMessage && !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
+      const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
+      if (userWallet.isTrialing && createLeaseMessage && !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
         await this.domainEvents.publish(
-          new TrialDeploymentCreated({
+          new TrialDeploymentLeaseCreated({
             walletId: userWallet.id,
-            dseq: createDeploymentMessage.value.id!.dseq.toString(),
+            dseq: createLeaseMessage.value.bidId!.dseq.toString(),
             createdAt: new Date().toISOString()
           })
         );

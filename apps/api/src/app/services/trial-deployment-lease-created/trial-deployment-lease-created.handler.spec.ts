@@ -1,7 +1,7 @@
 import { addHours } from "date-fns";
 import { mock } from "jest-mock-extended";
 
-import { TrialDeploymentCreated } from "@src/billing/events/trial-deployment-created";
+import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { EventPayload } from "@src/core";
@@ -10,17 +10,17 @@ import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { CloseTrialDeployment } from "../close-trial-deployment/close-trial-deployment.handler";
-import { TrialDeploymentCreatedHandler } from "./trial-deployment-created.handler";
+import { TrialDeploymentLeaseCreatedHandler } from "./trial-deployment-lease-created.handler";
 
 import { UserWalletSeeder } from "@test/seeders/user-wallet.seeder";
 
-describe(TrialDeploymentCreatedHandler.name, () => {
+describe(TrialDeploymentLeaseCreatedHandler.name, () => {
   it("logs a warning when wallet is not found", async () => {
     const { handler, userWalletRepository, jobQueueService, logger } = setup({
       findWalletById: jest.fn().mockResolvedValue(null)
     });
 
-    const payload: EventPayload<TrialDeploymentCreated> = {
+    const payload: EventPayload<TrialDeploymentLeaseCreated> = {
       walletId: 123,
       dseq: "test-dseq",
       createdAt: new Date().toISOString(),
@@ -34,7 +34,7 @@ describe(TrialDeploymentCreatedHandler.name, () => {
     expect(logger.warn).toHaveBeenCalledWith({
       event: "SKIP_TRIAL_DEPLOYMENT_CLOSING_TRIAL",
       reason: "Cannot find wallet by id",
-      domainEvent: TrialDeploymentCreated[DOMAIN_EVENT_NAME],
+      domainEvent: TrialDeploymentLeaseCreated[DOMAIN_EVENT_NAME],
       walletId: payload.walletId
     });
   });
@@ -51,7 +51,7 @@ describe(TrialDeploymentCreatedHandler.name, () => {
       findWalletById: jest.fn().mockResolvedValue(wallet)
     });
 
-    const payload: EventPayload<TrialDeploymentCreated> = {
+    const payload: EventPayload<TrialDeploymentLeaseCreated> = {
       walletId: wallet.id,
       dseq: "test-dseq",
       createdAt: new Date().toISOString(),
@@ -64,7 +64,7 @@ describe(TrialDeploymentCreatedHandler.name, () => {
     expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     expect(logger.debug).toHaveBeenCalledWith({
       event: "SKIP_TRIAL_DEPLOYMENT_CLOSING_TRIAL",
-      domainEvent: TrialDeploymentCreated[DOMAIN_EVENT_NAME],
+      domainEvent: TrialDeploymentLeaseCreated[DOMAIN_EVENT_NAME],
       userId: wallet.userId,
       walletId: payload.walletId,
       dseq: payload.dseq,
@@ -87,7 +87,7 @@ describe(TrialDeploymentCreatedHandler.name, () => {
       findWalletById: jest.fn().mockResolvedValue(wallet)
     });
 
-    const payload: EventPayload<TrialDeploymentCreated> = {
+    const payload: EventPayload<TrialDeploymentLeaseCreated> = {
       walletId: wallet.id,
       dseq: "test-dseq",
       createdAt: deploymentCreatedAt.toISOString(),
@@ -140,7 +140,7 @@ describe(TrialDeploymentCreatedHandler.name, () => {
       findWalletById: jest.fn().mockResolvedValue(wallet)
     });
 
-    const payload: EventPayload<TrialDeploymentCreated> = {
+    const payload: EventPayload<TrialDeploymentLeaseCreated> = {
       walletId: wallet.id,
       dseq: "test-dseq-3",
       createdAt: new Date().toISOString(),
@@ -153,7 +153,7 @@ describe(TrialDeploymentCreatedHandler.name, () => {
     expect(logger.warn).toHaveBeenCalledWith({
       event: "SKIP_TRIAL_DEPLOYMENT_CLOSING_TRIAL",
       reason: "Wallet address is missing",
-      domainEvent: TrialDeploymentCreated[DOMAIN_EVENT_NAME],
+      domainEvent: TrialDeploymentLeaseCreated[DOMAIN_EVENT_NAME],
       dseq: payload.dseq,
       walletId: payload.walletId
     });
@@ -178,7 +178,7 @@ describe(TrialDeploymentCreatedHandler.name, () => {
       })
     };
 
-    const handler = new TrialDeploymentCreatedHandler(mocks.userWalletRepository, mocks.logger, mocks.jobQueueService, mocks.billingConfig);
+    const handler = new TrialDeploymentLeaseCreatedHandler(mocks.userWalletRepository, mocks.logger, mocks.jobQueueService, mocks.billingConfig);
 
     return { handler, ...mocks };
   }
