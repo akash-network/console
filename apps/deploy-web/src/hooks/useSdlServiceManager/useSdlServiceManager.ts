@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import type { Control } from "react-hook-form";
 import { useFieldArray, useWatch } from "react-hook-form";
+import cloneDeep from "lodash/cloneDeep";
 import { nanoid } from "nanoid";
 
 import { findOwnLogCollectorServiceIndex, isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
@@ -41,7 +42,7 @@ export const useSdlServiceManager = ({ control }: Props) => {
   }, [services]);
 
   const add = useCallback(() => {
-    appendService({ ...defaultService, id: nanoid(), title: calcNextServiceTitle() });
+    appendService({ ...cloneDeep(defaultService), id: nanoid(), title: calcNextServiceTitle() });
   }, [appendService, calcNextServiceTitle]);
 
   const remove = useCallback(

@@ -1,7 +1,6 @@
 import { FormProvider, useForm } from "react-hook-form";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import { mock } from "jest-mock-extended";
-import { setTimeout as delay } from "timers/promises";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { LogCollectorControl } from "./LogCollectorControl";
@@ -58,7 +57,9 @@ describe(LogCollectorControl.name, () => {
     const { user, form } = await setup();
     const checkbox = screen.getByRole("checkbox");
     await user.click(checkbox);
-    form.setValue("services.0.title", "new-title");
+    await act(async () => {
+      form.setValue("services.0.title", "new-title");
+    });
 
     await waitFor(async () => {
       expect(form.getValues("services.1.title")).toBe(`new-title-log-collector`);
@@ -72,11 +73,12 @@ describe(LogCollectorControl.name, () => {
 
     await act(async () => {
       form.setValue("services.0.title", "new-title");
-      await delay(100);
     });
 
-    const selector = form.getValues("services.1.env")?.find(env => env.key === "POD_LABEL_SELECTOR");
-    expect(selector?.value).toBe('"akash.network/manifest-service=new-title"');
+    await waitFor(async () => {
+      const selector = form.getValues("services.1.env")?.find(env => env.key === "POD_LABEL_SELECTOR");
+      expect(selector?.value).toBe('"akash.network/manifest-service=new-title"');
+    });
   });
 
   it("updates log-collector placement when target service placement is changed", async () => {
@@ -85,7 +87,9 @@ describe(LogCollectorControl.name, () => {
     await user.click(checkbox);
 
     const newPlacement = buildSDLService().placement;
-    form.setValue("services.0.placement", newPlacement);
+    await act(async () => {
+      form.setValue("services.0.placement", newPlacement);
+    });
 
     await waitFor(() => {
       expect(form.getValues("services.1.placement.name")).toBe(newPlacement.name);
