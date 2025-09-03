@@ -24,7 +24,7 @@ export const DatadogEnvConfig: FC<Props> = ({ serviceIndex, dependencies: d = { 
     <>
       <div className="mt-4">
         <Input
-          value={env.getValue("DD_SITE")}
+          value={env.values.DD_SITE}
           onChange={e => env.setValue("DD_SITE", e.target.value)}
           type="text"
           label="Regional URL"
@@ -37,7 +37,7 @@ export const DatadogEnvConfig: FC<Props> = ({ serviceIndex, dependencies: d = { 
 
       <div className="mt-4">
         <Input
-          value={env.getValue("DD_API_KEY")}
+          value={env.values.DD_API_KEY}
           onChange={e => env.setValue("DD_API_KEY", e.target.value)}
           type="password"
           label="API Key"

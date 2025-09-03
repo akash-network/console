@@ -22,6 +22,7 @@ import { DatadogEnvConfig } from "@src/components/sdl/DatadogEnvConfig/DatadogEn
 import { EphemeralStorageFormControl } from "@src/components/sdl/EphemeralStorageFormControl";
 import { MemoryFormControl } from "@src/components/sdl/MemoryFormControl";
 import { useSdlEnv } from "@src/hooks/useSdlEnv/useSdlEnv";
+import { useThrottledEffect } from "@src/hooks/useThrottledEffect/useThrottledEffect";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 
 const switchStore = atom<Record<string, boolean>>({});
@@ -55,7 +56,7 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d =
   const [isEnabled, setIsEnabled] = useSwitch(targetService.title, logCollectorServiceIndex !== -1);
   const env = d.useSdlEnv({ serviceIndex: logCollectorServiceIndex, schema: logCollectorLabelSchema });
 
-  useEffect(
+  useThrottledEffect(
     function trackTargetNameAndPlacement() {
       if (logCollectorServiceIndex === -1) {
         return;
@@ -66,7 +67,6 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d =
 
       if (logCollectorService.title !== nextTitle) {
         changes.title = nextTitle;
-        env.setValue("POD_LABEL_SELECTOR", `"akash.network/manifest-service=${nextTitle}"`);
       }
 
       if (targetService.placement.name !== logCollectorService.placement.name) {
@@ -80,8 +80,15 @@ export const LogCollectorControl: FC<Props> = ({ serviceIndex, dependencies: d =
         });
       }
     },
-    [logCollectorService, logCollectorServiceIndex, targetService.placement.name, targetService.title, update]
+    [logCollectorService, logCollectorServiceIndex, targetService.placement.name, targetService.title, update, env]
   );
+
+  useThrottledEffect(() => {
+    const nextTitle = `"akash.network/manifest-service=${targetService.title}"`;
+    if (env.values.POD_LABEL_SELECTOR !== nextTitle) {
+      env.setValue("POD_LABEL_SELECTOR", nextTitle);
+    }
+  }, [env, targetService.title]);
 
   useEffect(
     function addWhenEnabledAndGenerated() {
@@ -195,7 +202,7 @@ function generateLogCollectorService<T extends ServiceType>(targetService: T): P
       ramUnit: "Mi",
       storage: [
         {
-          size: 522,
+          size: 512,
           unit: "Mi",
           isPersistent: true
         }
