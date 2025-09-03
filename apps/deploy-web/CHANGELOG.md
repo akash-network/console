@@ -1,5 +1,17 @@
 
 
+## [2.106.0](https://github.com/akash-network/console/compare/console-web/v2.105.0...console-web/v2.106.0) (2025-09-03)
+
+
+### Features
+
+* **log-collector:** integrate LogCollectorControl with SimpleSdlBuiderForm ([19a5180](https://github.com/akash-network/console/commit/19a51805fcb17dee3dd925c2c2e7d79b67bdb17e))
+
+
+### Bug Fixes
+
+* **log-collector:** ensures latest state updates in sdl env hook ([25afa73](https://github.com/akash-network/console/commit/25afa7319a739eee8545a325aa4986dc907b031d))
+
 ## [2.105.0](https://github.com/akash-network/console/compare/console-web/v2.104.0...console-web/v2.105.0) (2025-09-02)
 
 
