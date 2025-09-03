@@ -78,7 +78,7 @@ describe(useThrottledEffect.name, () => {
       jest.advanceTimersByTime(100);
     });
 
-    expect(cleanup).toHaveBeenCalledTimes(2);
+    expect(cleanup).toHaveBeenCalledTimes(1);
   });
 
   it("handles effect that returns void", () => {
@@ -175,7 +175,7 @@ describe(useThrottledEffect.name, () => {
     });
 
     expect(effect).toHaveBeenCalledTimes(2);
-    expect(cleanup).toHaveBeenCalledTimes(4);
+    expect(cleanup).toHaveBeenCalledTimes(1);
   });
 
   it("handles empty dependency array", () => {

@@ -195,7 +195,12 @@ function generateLogCollectorService<T extends ServiceType>(targetService: T): P
     title: toLogCollectorTitle(targetService),
     image: IMAGE,
     placement: targetService.placement,
-    env: [{ key: "PROVIDER", value: "DATADOG" }],
+    env: [
+      { key: "PROVIDER", value: "DATADOG" },
+      { key: "POD_LABEL_SELECTOR", value: `"akash.network/manifest-service=${targetService.title}"` },
+      { key: "DD_API_KEY", value: "" },
+      { key: "DD_SITE", value: "" }
+    ],
     profile: {
       cpu: 0.1,
       ram: 256,
