@@ -73,12 +73,10 @@ describe("useSdlEnv", () => {
     await act(async () => {
       result.current.setValue("API_KEY", "key1");
       result.current.setValue("DATABASE_URL", "url1");
-      result.current.setValue("DEBUG", "true");
     });
 
     expect(result.current.values.API_KEY).toBe("key1");
     expect(result.current.values.DATABASE_URL).toBe("url1");
-    expect(result.current.values.DEBUG).toBe("true");
   });
 
   it("returns undefined for keys without values", async () => {

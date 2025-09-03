@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
+import { type DependencyList, useEffect, useRef } from "react";
 
-export function useThrottledEffect(effect: () => void | (() => void), deps: React.DependencyList, delay = 100) {
+export function useThrottledEffect(effect: () => void | (() => void), deps: DependencyList, delay = 100) {
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cleanup = useRef<void | (() => void)>();
 
@@ -12,6 +12,7 @@ export function useThrottledEffect(effect: () => void | (() => void), deps: Reac
     timeout.current = setTimeout(() => {
       if (typeof cleanup.current === "function") {
         cleanup.current();
+        cleanup.current = undefined;
       }
       cleanup.current = effect();
       timeout.current = null;
@@ -24,6 +25,7 @@ export function useThrottledEffect(effect: () => void | (() => void), deps: Reac
       }
       if (typeof cleanup.current === "function") {
         cleanup.current();
+        cleanup.current = undefined;
       }
     };
   }, deps);
