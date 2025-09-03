@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useFieldArray, useFormContext } from "react-hook-form";
+import { useCallback, useMemo } from "react";
+import { useFormContext } from "react-hook-form";
 import get from "lodash/get";
 import type { z, ZodObject, ZodRawShape } from "zod";
 
@@ -11,25 +11,40 @@ type Props<T extends ZodObject<ZodRawShape>> = {
   schema: T;
 };
 
+type EnvField = NonNullable<SdlBuilderFormValuesType["services"][number]["env"]>[number];
+
 export const useSdlEnv = <T extends ZodObject<ZodRawShape>>({ serviceIndex, schema }: Props<T>) => {
-  const { control, formState } = useFormContext<SdlBuilderFormValuesType>();
-  const { fields, append, update, remove } = useFieldArray({
-    control,
-    name: `services.${serviceIndex}.env`,
-    keyName: "id"
-  });
+  const { formState, watch, setValue, getValues } = useFormContext<SdlBuilderFormValuesType>();
+  const { services } = watch();
+  const envValues = useMemo(() => (serviceIndex >= 0 && services[serviceIndex].env) || [], [serviceIndex, services]);
+  const append = useCallback(
+    (value: EnvField) => {
+      if (serviceIndex >= 0) {
+        const prev = getValues(`services.${serviceIndex}.env`) || [];
+        setValue(`services.${serviceIndex}.env`, [...prev, value]);
+      }
+    },
+    [getValues, serviceIndex, setValue]
+  );
+  const update = useCallback(
+    (index: number, value: EnvField) => {
+      if (serviceIndex >= 0) {
+        setValue(`services.${serviceIndex}.env.${index}`, value);
+      }
+    },
+    [serviceIndex, setValue]
+  );
+  const remove = useCallback(
+    (index: number) => {
+      if (serviceIndex >= 0) {
+        const newFields = envValues.splice(index, 1);
+        setValue(`services.${serviceIndex}.env`, newFields);
+      }
+    },
+    [envValues, setValue, serviceIndex]
+  );
 
-  const indexes = useMemo(() => {
-    return fields.reduce(
-      (acc, env, index) => {
-        acc[env.key] = index;
-        return acc;
-      },
-      {} as Record<string, number>
-    );
-  }, [fields]);
-
-  const env = useMemo(() => kvArrayToObject(fields), [fields]);
+  const env = useMemo(() => kvArrayToObject(envValues) as z.infer<T>, [envValues]);
 
   const hasErrors = get(formState.errors, `services.${serviceIndex}.env`);
   const errors = useMemo(() => {
@@ -54,22 +69,24 @@ export const useSdlEnv = <T extends ZodObject<ZodRawShape>>({ serviceIndex, sche
 
   return useMemo(
     () => ({
-      getValue: (key: keyof z.infer<T>) => (key in indexes ? fields[indexes[key as string]].value : ""),
+      values: env,
       setValue: (key: keyof z.infer<T>, value: string) => {
-        const hasKey = key in indexes;
+        const index = envValues.findIndex(env => env.key === key);
+        const hasKey = index >= 0;
+
         if (hasKey && value) {
-          update(indexes[key as string], {
+          update(index, {
             key: key as string,
             value
           });
         } else if (hasKey) {
-          remove(indexes[key as string]);
+          remove(index);
         } else {
           append({ key: key as string, value });
         }
       },
       errors: errors as Partial<Record<keyof z.infer<T>, string>>
     }),
-    [append, errors, fields, indexes, remove, update]
+    [append, env, envValues, errors, remove, update]
   );
 };

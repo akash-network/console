@@ -9,3 +9,12 @@ export function kvArrayToObject<T extends string, V>(arr: { key: T; value?: V }[
     {} as Record<T, V | undefined>
   );
 }
+
+export function objectToKvArray<T extends string, V>(obj: Record<T, V>): { key: T; value: V }[];
+export function objectToKvArray<T extends string, V>(obj: Record<T, V | undefined>): { key: T; value?: V }[];
+export function objectToKvArray<T extends string, V>(obj: Record<T, V | undefined>): { key: T; value?: V }[] {
+  return Object.entries(obj).map(([key, value]) => ({
+    key: key as T,
+    value: value as V | undefined
+  }));
+}

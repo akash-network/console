@@ -11,8 +11,9 @@ import { buildSDLService } from "@tests/seeders/sdlService";
 describe("useSdlEnv", () => {
   it("initializes with empty environment variables", async () => {
     const { result } = await setup();
-    expect(result.current.getValue("API_KEY")).toBe("");
-    expect(result.current.getValue("DATABASE_URL")).toBe("");
+
+    expect(result.current.values.API_KEY).toBeUndefined();
+    expect(result.current.values.DATABASE_URL).toBeUndefined();
     expect(result.current.errors).toEqual({});
   });
 
@@ -23,8 +24,8 @@ describe("useSdlEnv", () => {
       result.current.setValue("DATABASE_URL", "postgresql://localhost:5432/mydb");
     });
 
-    expect(result.current.getValue("API_KEY")).toBe("secret-key-123");
-    expect(result.current.getValue("DATABASE_URL")).toBe("postgresql://localhost:5432/mydb");
+    expect(result.current.values.API_KEY).toBe("secret-key-123");
+    expect(result.current.values.DATABASE_URL).toBe("postgresql://localhost:5432/mydb");
   });
 
   it("removes environment variable when value is empty", async () => {
@@ -34,7 +35,7 @@ describe("useSdlEnv", () => {
       result.current.setValue("API_KEY", "");
     });
 
-    expect(result.current.getValue("API_KEY")).toBe("");
+    expect(result.current.values.API_KEY).toBe("");
   });
 
   it("updates existing environment variable", async () => {
@@ -44,7 +45,7 @@ describe("useSdlEnv", () => {
       result.current.setValue("API_KEY", "new-key");
     });
 
-    expect(result.current.getValue("API_KEY")).toBe("new-key");
+    expect(result.current.values.API_KEY).toBe("new-key");
   });
 
   it("handles validation errors from schema", async () => {
@@ -75,14 +76,14 @@ describe("useSdlEnv", () => {
       result.current.setValue("DEBUG", "true");
     });
 
-    expect(result.current.getValue("API_KEY")).toBe("key1");
-    expect(result.current.getValue("DATABASE_URL")).toBe("url1");
-    expect(result.current.getValue("DEBUG")).toBe("true");
+    expect(result.current.values.API_KEY).toBe("key1");
+    expect(result.current.values.DATABASE_URL).toBe("url1");
+    expect(result.current.values.DEBUG).toBe("true");
   });
 
-  it("returns empty string for keys without values", async () => {
+  it("returns undefined for keys without values", async () => {
     const { result } = await setup();
-    expect(result.current.getValue("DEBUG")).toBe("");
+    expect(result.current.values.DEBUG).toBeUndefined();
   });
 
   async function setup() {
