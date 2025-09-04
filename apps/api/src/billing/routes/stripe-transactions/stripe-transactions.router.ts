@@ -7,7 +7,8 @@ import {
   ConfirmPaymentRequestSchema,
   CustomerTransactionsCsvExportQuerySchema,
   CustomerTransactionsQuerySchema,
-  CustomerTransactionsResponseSchema
+  CustomerTransactionsResponseSchema,
+  TestChargeRequestSchema
 } from "@src/billing/http-schemas/stripe.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
@@ -75,6 +76,30 @@ const exportTransactionsCsvRoute = createRoute({
   }
 });
 
+const testChargeRoute = createRoute({
+  method: "post",
+  path: "/v1/stripe/transactions/test-charge",
+  summary: "Perform a test charge of $1 to validate a credit card",
+  tags: ["Payment"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: TestChargeRequestSchema
+        }
+      }
+    }
+  },
+  responses: {
+    200: {
+      description: "Test charge successful - card is valid"
+    },
+    400: {
+      description: "Test charge failed - card is invalid"
+    }
+  }
+});
+
 export const stripeTransactionsRouter = new OpenApiHonoHandler();
 
 stripeTransactionsRouter.openapi(confirmPaymentRoute, async function confirmPayment(c) {
@@ -120,4 +145,13 @@ stripeTransactionsRouter.openapi(exportTransactionsCsvRoute, async function expo
       "Transfer-Encoding": "chunked"
     }
   });
+});
+
+stripeTransactionsRouter.openapi(testChargeRoute, async function testCharge(c) {
+  const { data } = c.req.valid("json");
+  await container.resolve(StripeController).testCharge({
+    userId: data.userId,
+    paymentMethodId: data.paymentMethodId
+  });
+  return c.body(null, 200);
 });

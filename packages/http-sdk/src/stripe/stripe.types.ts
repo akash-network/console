@@ -103,3 +103,8 @@ export interface ExportTransactionsCsvParams {
   endDate: Date;
   timezone: string;
 }
+
+export interface TestChargeParams {
+  userId: string;
+  paymentMethodId: string;
+}

@@ -100,9 +100,23 @@ export const usePaymentMutations = () => {
     }
   });
 
+  const testCharge = useMutation({
+    mutationFn: async ({ userId, paymentMethodId }: { userId: string; paymentMethodId: string }) => {
+      await stripe.testCharge({
+        userId,
+        paymentMethodId
+      });
+    },
+    onSuccess: () => {
+      // Invalidate payment methods after successful test charge
+      queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
+    }
+  });
+
   return {
     confirmPayment,
     applyCoupon,
-    removePaymentMethod
+    removePaymentMethod,
+    testCharge
   };
 };

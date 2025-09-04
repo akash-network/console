@@ -159,4 +159,32 @@ export class StripeController {
 
     return this.stripe.exportTransactionsCsvStream(currentUser.stripeCustomerId, options);
   }
+
+  @Semaphore()
+  @Protected([{ action: "create", subject: "StripePayment" }])
+  async testCharge(params: { userId: string; paymentMethodId: string }): Promise<void> {
+    const { currentUser } = this.authService;
+
+    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
+
+    try {
+      const paymentMethod = await this.stripe.paymentMethods.retrieve(params.paymentMethodId);
+      const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
+      assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
+
+      // Create a test charge of $1 to validate the card
+      const { success } = await this.stripe.createTestCharge({
+        customer: currentUser.stripeCustomerId,
+        payment_method: params.paymentMethodId
+      });
+
+      assert(success, 402, "Card validation failed");
+    } catch (error: unknown) {
+      if (this.stripeErrorService.isKnownError(error, "payment")) {
+        throw this.stripeErrorService.toAppError(error, "payment");
+      }
+
+      throw error;
+    }
+  }
 }

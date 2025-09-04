@@ -1,11 +1,9 @@
 "use client";
-import type { FC, ReactNode } from "react";
-import React, { useEffect, useState } from "react";
-import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import React, { type FC, useEffect, useState } from "react";
 
 import { useWallet } from "@src/context/WalletProvider";
+import { useValidatedPaymentMethods } from "@src/hooks/useValidatedPaymentMethods";
 import { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries/usePaymentQueries";
-import type { AppError } from "@src/types";
 
 const DEPENDENCIES = {
   useWallet,
@@ -16,15 +14,15 @@ const DEPENDENCIES = {
 
 export type PaymentMethodContainerProps = {
   children: (props: {
-    setupIntent: SetupIntentResponse | undefined;
-    paymentMethods: PaymentMethod[];
+    setupIntent: any;
+    paymentMethods: any[];
     showAddForm: boolean;
     showDeleteConfirmation: boolean;
     cardToDelete?: string;
     isConnectingWallet: boolean;
     isLoading: boolean;
     isRemoving: boolean;
-    managedWalletError?: AppError;
+    managedWalletError?: any;
     onSuccess: () => void;
     onRemovePaymentMethod: (paymentMethodId: string) => void;
     onConfirmRemovePaymentMethod: () => Promise<void>;
@@ -33,7 +31,8 @@ export type PaymentMethodContainerProps = {
     onShowDeleteConfirmation: (show: boolean) => void;
     onSetCardToDelete: (cardId?: string) => void;
     refetchPaymentMethods: () => void;
-  }) => ReactNode;
+    hasValidatedCard: boolean;
+  }) => React.ReactNode;
   onComplete: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
@@ -43,6 +42,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
   const { data: paymentMethods = [], refetch: refetchPaymentMethods } = d.usePaymentMethodsQuery();
   const { removePaymentMethod } = d.usePaymentMutations();
   const { connectManagedWallet, isWalletLoading, hasManagedWallet, managedWalletError } = d.useWallet();
+  const { data: validatedPaymentMethods = [] } = useValidatedPaymentMethods();
   const [showAddForm, setShowAddForm] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [cardToDelete, setCardToDelete] = useState<string>();
@@ -96,12 +96,19 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       return;
     }
 
+    // Check if user has validated payment methods before allowing trial
+    if (validatedPaymentMethods.length === 0) {
+      // User doesn't have validated payment methods, they need to complete validation first
+      return;
+    }
+
     setIsConnectingWallet(true);
     // Start the trial
     connectManagedWallet();
   };
 
   const isLoading = isConnectingWallet || isWalletLoading;
+  const hasValidatedCard = validatedPaymentMethods.length > 0;
 
   return (
     <>
@@ -122,7 +129,8 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
         onShowAddForm: setShowAddForm,
         onShowDeleteConfirmation: setShowDeleteConfirmation,
         onSetCardToDelete: setCardToDelete,
-        refetchPaymentMethods
+        refetchPaymentMethods,
+        hasValidatedCard
       })}
     </>
   );

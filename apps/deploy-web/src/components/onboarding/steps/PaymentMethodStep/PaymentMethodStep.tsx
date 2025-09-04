@@ -1,10 +1,12 @@
 "use client";
-import React from "react";
+import React, { useMemo } from "react";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import { Alert, AlertDescription, AlertTitle, Popup } from "@akashnetwork/ui/components";
+import { Elements } from "@stripe/react-stripe-js";
 import { CreditCard } from "iconoir-react";
 
 import { Title } from "@src/components/shared/Title";
+import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import type { AppError } from "@src/types";
 import { PaymentMethodsDisplay } from "../PaymentMethodsDisplay/PaymentMethodsDisplay";
 import { PaymentVerificationCard } from "../PaymentVerificationCard/PaymentVerificationCard";
@@ -42,22 +44,46 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
   onShowDeleteConfirmation,
   onSetCardToDelete
 }) => {
+  const { stripeService } = useServices();
+  const stripePromise = useMemo(() => stripeService.getStripe(), [stripeService]);
+
+  // Render payment form states
+  if (paymentMethods.length === 0 || showAddForm) {
+    return (
+      <div className="space-y-6 text-center">
+        {setupIntent?.clientSecret && (
+          <Elements
+            stripe={stripePromise}
+            options={{
+              clientSecret: setupIntent.clientSecret,
+              appearance: {
+                variables: {
+                  colorPrimary: "#ff424c",
+                  colorSuccess: "#ff424c"
+                }
+              }
+            }}
+          >
+            <PaymentVerificationCard setupIntent={setupIntent} onSuccess={onSuccess} />
+          </Elements>
+        )}
+      </div>
+    );
+  }
+
+  // Render existing payment methods
   return (
     <div className="space-y-6 text-center">
       <Title>Add Payment Method</Title>
 
-      {paymentMethods.length > 0 && !showAddForm && (
-        <PaymentMethodsDisplay
-          paymentMethods={paymentMethods}
-          onRemovePaymentMethod={onRemovePaymentMethod}
-          onStartTrial={onNext}
-          isLoading={isLoading}
-          isRemoving={isRemoving}
-          managedWalletError={managedWalletError}
-        />
-      )}
-
-      {(paymentMethods.length === 0 || showAddForm) && <PaymentVerificationCard setupIntent={setupIntent} onSuccess={onSuccess} />}
+      <PaymentMethodsDisplay
+        paymentMethods={paymentMethods}
+        onRemovePaymentMethod={onRemovePaymentMethod}
+        onStartTrial={onNext}
+        isLoading={isLoading}
+        isRemoving={isRemoving}
+        managedWalletError={managedWalletError}
+      />
 
       {paymentMethods.length === 0 && !showAddForm && (
         <Alert className="mx-auto max-w-md text-left" variant="warning">
@@ -67,7 +93,9 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
             </div>
             <div>
               <AlertTitle>Payment Method Required</AlertTitle>
-              <AlertDescription>You must add a payment method to continue to the next step.</AlertDescription>
+              <AlertDescription>
+                You must add a payment method to continue to the next step. A $1 test charge will be made and immediately refunded to validate your card.
+              </AlertDescription>
             </div>
           </div>
         </Alert>

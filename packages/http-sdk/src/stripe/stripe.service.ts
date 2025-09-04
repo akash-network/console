@@ -81,6 +81,10 @@ export class StripeService extends ApiHttpService {
     );
   }
 
+  async testCharge(params: { userId: string; paymentMethodId: string }): Promise<void> {
+    return this.extractApiData(await this.post("/v1/stripe/transactions/test-charge", { data: params }));
+  }
+
   // Prices (legacy endpoint)
   async findPrices(config?: AxiosRequestConfig): Promise<StripePrice[]> {
     return this.extractApiData(await this.get("/v1/stripe/prices", config));
