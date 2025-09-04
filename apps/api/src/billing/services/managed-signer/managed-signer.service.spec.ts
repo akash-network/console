@@ -103,7 +103,11 @@ describe(ManagedSignerService.name, () => {
       const messages: EncodeObject[] = [
         {
           typeUrl: MsgCreateLease.$type,
-          value: MsgCreateLease.fromPartial({})
+          value: MsgCreateLease.fromPartial({
+            bidId: {
+              dseq: Long.fromNumber(123)
+            }
+          })
         }
       ];
 
@@ -138,7 +142,11 @@ describe(ManagedSignerService.name, () => {
       const messages: EncodeObject[] = [
         {
           typeUrl: MsgCreateLease.$type,
-          value: {}
+          value: MsgCreateLease.fromPartial({
+            bidId: {
+              dseq: Long.fromNumber(123)
+            }
+          })
         }
       ];
 
@@ -171,7 +179,11 @@ describe(ManagedSignerService.name, () => {
       const messages: EncodeObject[] = [
         {
           typeUrl: MsgCreateLease.$type,
-          value: {}
+          value: MsgCreateLease.fromPartial({
+            bidId: {
+              dseq: Long.fromNumber(123)
+            }
+          })
         }
       ];
 
@@ -294,16 +306,20 @@ describe(ManagedSignerService.name, () => {
       const messages: EncodeObject[] = [
         {
           typeUrl: MsgCreateLease.$type,
-          value: {}
+          value: MsgCreateLease.fromPartial({
+            bidId: {
+              dseq: Long.fromNumber(123)
+            }
+          })
         }
       ];
-      const chainError = new Error("Chain error");
+      const chainError = new Error("Chain test error");
 
       const { service, chainErrorService } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
         executeManagedTx: jest.fn().mockRejectedValue(chainError),
-        toAppError: jest.fn().mockResolvedValue(new Error("App error"))
+        transformChainError: jest.fn().mockResolvedValue(new Error("App error"))
       });
 
       await expect(service.executeDecodedTxByUserId("user-123", messages)).rejects.toThrow("App error");
@@ -317,7 +333,11 @@ describe(ManagedSignerService.name, () => {
       const messages: EncodeObject[] = [
         {
           typeUrl: MsgCreateLease.$type,
-          value: {}
+          value: MsgCreateLease.fromPartial({
+            bidId: {
+              dseq: Long.fromNumber(123)
+            }
+          })
         }
       ];
 
@@ -348,7 +368,7 @@ describe(ManagedSignerService.name, () => {
     executeManagedTx?: DedupeSigningClientService["executeManagedTx"];
     refreshUserWalletLimits?: BalancesService["refreshUserWalletLimits"];
     publish?: DomainEventsService["publish"];
-    toAppError?: ChainErrorService["toAppError"];
+    transformChainError?: ChainErrorService["toAppError"];
   }) {
     const mocks = {
       config: mock<BillingConfigService>({
@@ -374,7 +394,7 @@ describe(ManagedSignerService.name, () => {
         ability: createMongoAbility<MongoAbility>()
       }),
       chainErrorService: mock<ChainErrorService>({
-        toAppError: input?.toAppError ?? jest.fn()
+        toAppError: input?.transformChainError ?? jest.fn(async e => e)
       }),
       anonymousValidateService: mock<TrialValidationService>({
         validateLeaseProviders: input?.validateLeaseProviders ?? jest.fn(),
