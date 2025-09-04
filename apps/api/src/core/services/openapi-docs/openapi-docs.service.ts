@@ -10,7 +10,7 @@ export class OpenApiDocsService {
     const version = "v1";
     const docs = {
       openapi: "3.0.0",
-      servers: [{ url: `${env.SERVER_ORIGIN}/${version}` }],
+      servers: [{ url: `${env.SERVER_ORIGIN}` }],
       info: {
         title: "Akash Network Console API",
         description: "API providing data to the Akash Network Console",
