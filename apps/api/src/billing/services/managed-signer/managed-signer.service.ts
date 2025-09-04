@@ -1,3 +1,4 @@
+import { MsgCreateLease } from "@akashnetwork/akash-api/v1beta3";
 import { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { IndexedTx } from "@cosmjs/stargate";
 import assert from "http-assert";
@@ -5,11 +6,13 @@ import pick from "lodash/pick";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { TrialDeploymentLeaseCreated } from "@src/billing/events/trial-deployment-lease-created";
 import { BatchSigningClientService } from "@src/billing/lib/batch-signing-client/batch-signing-client.service";
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { InjectSigningClient } from "@src/billing/providers/signing-client.provider";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
+import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { UserRepository } from "@src/user/repositories";
@@ -36,7 +39,8 @@ export class ManagedSignerService {
     private readonly anonymousValidateService: TrialValidationService,
     private readonly featureFlagsService: FeatureFlagsService,
     @InjectSigningClient("MANAGED") private readonly masterSigningClientService: BatchSigningClientService,
-    private readonly dedupeSigningClientService: DedupeSigningClientService
+    private readonly dedupeSigningClientService: DedupeSigningClientService,
+    private readonly domainEvents: DomainEventsService
   ) {}
 
   async executeManagedTx(walletIndex: number, messages: readonly EncodeObject[]) {
@@ -71,7 +75,9 @@ export class ManagedSignerService {
     assert(user, 404, "User Not Found");
     assert(userWallet.feeAllowance > 0, 403, "UserWallet has no fee allowance");
 
-    if (messages.some(message => message.typeUrl === "/akash.deployment.v1beta3.MsgCreateDeployment")) {
+    const hasDeploymentMessage = messages.some(message => message.typeUrl.endsWith(".MsgCreateDeployment"));
+
+    if (hasDeploymentMessage) {
       assert(userWallet.deploymentAllowance > 0, 403, "UserWallet has no deployment allowance");
     }
 
@@ -88,6 +94,17 @@ export class ManagedSignerService {
 
     try {
       const tx = await this.executeManagedTx(userWallet.id, messages);
+
+      const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
+      if (userWallet.isTrialing && createLeaseMessage && !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
+        await this.domainEvents.publish(
+          new TrialDeploymentLeaseCreated({
+            walletId: userWallet.id,
+            dseq: createLeaseMessage.value.bidId!.dseq.toString(),
+            createdAt: new Date().toISOString()
+          })
+        );
+      }
 
       await this.balancesService.refreshUserWalletLimits(userWallet);
 

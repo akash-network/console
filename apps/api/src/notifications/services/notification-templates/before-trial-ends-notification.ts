@@ -9,8 +9,8 @@ export function beforeTrialEndsNotification(user: UserOutput, vars: { trialEndsA
   return {
     notificationId: `beforeTrialEnds.${daysLeft}.${user.id}`,
     payload: {
-      summary: "Your Trial Ends Soon",
-      description: `Your trial of Akash Network is ending in ${daysLeft} days`
+      summary: "Your Free Trial is Ending Soon",
+      description: `Your free trial with Akash Network will end in ${daysLeft} days. To continue using the platform without interruption, please add a payment method and top up your account.`
     },
     user: {
       id: user.id,

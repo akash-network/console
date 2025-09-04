@@ -34,9 +34,7 @@ describe(JobQueueService.name, () => {
 
       class AnotherHandler implements JobHandler<AnotherTestJob> {
         readonly accepts = AnotherTestJob;
-        async handle(data: AnotherTestJob["data"]): Promise<void> {
-          return handleFn2(data);
-        }
+        readonly handle: JobHandler<AnotherTestJob>["handle"] = handleFn2;
       }
 
       const handler1 = new TestHandler(handleFn1);
@@ -119,7 +117,7 @@ describe(JobQueueService.name, () => {
       });
 
       await service.registerHandlers([handler]);
-      await service.startWorkers({ batchSize: 5 });
+      await service.startWorkers({ concurrency: 5 });
 
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
         name: "test",
@@ -153,7 +151,7 @@ describe(JobQueueService.name, () => {
       });
 
       await service.registerHandlers([handler]);
-      const [result] = await Promise.allSettled([service.startWorkers({ batchSize: 1 })]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
 
       expect(result.status).toBe("rejected");
       expect((result as PromiseRejectedResult).reason).toBe(error);
@@ -178,7 +176,7 @@ describe(JobQueueService.name, () => {
       await service.registerHandlers([handler]);
       await service.startWorkers();
 
-      expect(handleFn).toHaveBeenCalledTimes(10);
+      expect(handleFn).toHaveBeenCalledTimes(2);
       expect(pgBoss.work).toHaveBeenCalledWith("test", { batchSize: 1 }, expect.any(Function));
     });
   });
@@ -276,11 +274,6 @@ describe(JobQueueService.name, () => {
 
   class TestHandler implements JobHandler<TestJob> {
     readonly accepts = TestJob;
-
-    constructor(private readonly handleFn: jest.MockedFunction<(data: TestJob["data"]) => Promise<void>>) {}
-
-    async handle(data: TestJob["data"]): Promise<void> {
-      return this.handleFn(data);
-    }
+    constructor(public readonly handle: JobHandler<TestJob>["handle"]) {}
   }
 });
