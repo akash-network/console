@@ -39,10 +39,14 @@ export class WalletController {
       assert(currentUser.emailVerified, 400, "Email not verified");
       assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
 
-      const paymentMethods = await this.stripeService.getPaymentMethods(currentUser.stripeCustomerId);
-      assert(paymentMethods.length > 0, 400, "Payment method required. Please add a payment method to your account before starting a trial.");
+      const validatedPaymentMethods = await this.stripeService.getValidatedPaymentMethods(currentUser.stripeCustomerId);
+      assert(
+        validatedPaymentMethods.length > 0,
+        400,
+        "You must have a validated payment method to start a trial. Please complete the card validation process first."
+      );
 
-      const hasDuplicateTrialAccount = await this.stripeService.hasDuplicateTrialAccount(paymentMethods, currentUser.id);
+      const hasDuplicateTrialAccount = await this.stripeService.hasDuplicateTrialAccount(validatedPaymentMethods, currentUser.id);
       assert(!hasDuplicateTrialAccount, 400, "This payment method is already associated with another trial account. Please use a different payment method.");
     }
 

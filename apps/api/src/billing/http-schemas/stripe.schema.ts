@@ -198,6 +198,13 @@ export const ErrorResponseSchema = z.object({
   type: z.string().optional()
 });
 
+export const TestChargeRequestSchema = z.object({
+  data: z.object({
+    userId: z.string(),
+    paymentMethodId: z.string()
+  })
+});
+
 export type SetupIntentResponse = z.infer<typeof SetupIntentResponseSchema>;
 export type PaymentMethod = z.infer<typeof PaymentMethodSchema>;
 export type PaymentMethodsResponse = z.infer<typeof PaymentMethodsResponseSchema>;

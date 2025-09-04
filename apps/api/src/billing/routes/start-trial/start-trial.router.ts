@@ -27,9 +27,24 @@ const route = createRoute({
           schema: WalletResponseOutputSchema
         }
       }
+    },
+    400: {
+      description: "User must have a validated payment method to start trial",
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              error: { type: "string" },
+              message: { type: "string" }
+            }
+          }
+        }
+      }
     }
   }
 });
+
 export const startTrialRouter = new OpenApiHonoHandler();
 
 startTrialRouter.openapi(route, async function routeStartTrial(c) {

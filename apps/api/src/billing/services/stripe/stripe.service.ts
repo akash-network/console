@@ -97,9 +97,66 @@ export class StripeService extends Stripe {
 
   async getPaymentMethods(customerId: string): Promise<PaymentMethod[]> {
     const paymentMethods = await this.paymentMethods.list({
-      customer: customerId
+      customer: customerId,
+      type: "card"
     });
-    return paymentMethods.data;
+
+    return paymentMethods.data.map(paymentMethod => ({
+      type: paymentMethod.type,
+      id: paymentMethod.id,
+      card: paymentMethod.card
+        ? {
+            brand: paymentMethod.card.brand,
+            last4: paymentMethod.card.last4,
+            exp_month: paymentMethod.card.exp_month,
+            exp_year: paymentMethod.card.exp_year,
+            funding: paymentMethod.card.funding,
+            country: paymentMethod.card.country,
+            networks: paymentMethod.card.networks,
+            fingerprint: paymentMethod.card.fingerprint,
+            three_d_secure_usage: paymentMethod.card.three_d_secure_usage
+          }
+        : null,
+      billing_details: paymentMethod.billing_details
+    }));
+  }
+
+  async getValidatedPaymentMethods(customerId: string): Promise<PaymentMethod[]> {
+    // Get payment methods from our database that have been validated
+    const validatedPaymentMethods = await this.paymentMethodRepository.findValidatedByUserId(customerId);
+
+    if (validatedPaymentMethods.length === 0) {
+      return [];
+    }
+
+    // Get the full payment method details from Stripe for validated methods
+    const paymentMethodIds = validatedPaymentMethods.map(pm => pm.paymentMethodId);
+    const stripePaymentMethods = await this.paymentMethods.list({
+      customer: customerId,
+      type: "card"
+    });
+
+    // Filter to only include validated payment methods
+    const validatedStripeMethods = stripePaymentMethods.data.filter(pm => paymentMethodIds.includes(pm.id));
+
+    return validatedStripeMethods.map(paymentMethod => ({
+      type: paymentMethod.type,
+      id: paymentMethod.id,
+      card: paymentMethod.card
+        ? {
+            brand: paymentMethod.card.brand,
+            last4: paymentMethod.card.last4,
+            exp_month: paymentMethod.card.exp_month,
+            exp_year: paymentMethod.card.exp_year,
+            funding: paymentMethod.card.funding,
+            country: paymentMethod.card.country,
+            networks: paymentMethod.card.networks,
+            fingerprint: paymentMethod.card.fingerprint,
+            three_d_secure_usage: paymentMethod.card.three_d_secure_usage
+          }
+        : null,
+      billing_details: paymentMethod.billing_details
+    }));
   }
 
   private calculateDiscountedAmount(amountCents: number, discount: Discount): number {
@@ -572,6 +629,163 @@ export class StripeService extends Stripe {
     const otherPaymentMethods = await this.paymentMethodRepository.findOtherByFingerprint(fingerprints, currentUserId);
 
     return !!otherPaymentMethods;
+  }
+
+  async createTestCharge(params: { customer: string; payment_method: string }): Promise<{ success: boolean; paymentIntentId?: string }> {
+    // Create a test charge of $1 to validate the card
+    // This will be immediately refunded to avoid actual charges
+    const testAmountCents = 100; // $1.00
+
+    // Generate idempotency key to prevent duplicate charges
+    const idempotencyKey = `test_charge_${params.customer}_${params.payment_method}_${Date.now()}`;
+
+    let paymentIntent: Stripe.PaymentIntent;
+
+    try {
+      paymentIntent = await this.paymentIntents.create(
+        {
+          customer: params.customer,
+          payment_method: params.payment_method,
+          amount: testAmountCents,
+          currency: "usd",
+          confirm: true,
+          metadata: {
+            type: "test_charge",
+            description: "Card validation test charge"
+          },
+          automatic_payment_methods: {
+            enabled: true,
+            allow_redirects: "never"
+          }
+        },
+        {
+          idempotencyKey
+        }
+      );
+    } catch (error) {
+      // If this is an idempotency error, try to retrieve the existing payment intent
+      if (error instanceof Stripe.errors.StripeError && error.code === "idempotency_key_in_use") {
+        // Wait a moment and try to retrieve the payment intent
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Get the user to find any existing test charges
+        const user = await this.userRepository.findOneBy({ stripeCustomerId: params.customer });
+        if (user) {
+          // Check if payment method is already validated
+          const existingValidation = await this.paymentMethodRepository.findValidatedByUserId(user.id);
+          if (existingValidation.some(pm => pm.paymentMethodId === params.payment_method)) {
+            logger.info({
+              event: "PAYMENT_METHOD_ALREADY_VALIDATED",
+              customerId: params.customer,
+              userId: user.id,
+              paymentMethodId: params.payment_method
+            });
+            return { success: true, paymentIntentId: "already_validated" };
+          }
+        }
+
+        throw new Error("Duplicate test charge request detected. Please wait before retrying.");
+      }
+      throw error;
+    }
+
+    // If the payment succeeds, immediately refund it and mark the payment method as validated
+    if (paymentIntent.status === "succeeded") {
+      await this.ensureRefund(paymentIntent, params.customer, params.payment_method);
+    }
+
+    return { success: paymentIntent.status === "succeeded", paymentIntentId: paymentIntent.id };
+  }
+
+  private async ensureRefund(paymentIntent: Stripe.PaymentIntent, customerId: string, paymentMethodId: string): Promise<void> {
+    try {
+      // Check if refund already exists
+      const existingRefunds = await this.refunds.list({
+        payment_intent: paymentIntent.id
+      });
+
+      if (existingRefunds.data.length > 0) {
+        logger.info({
+          event: "REFUND_ALREADY_EXISTS",
+          customerId,
+          paymentIntentId: paymentIntent.id,
+          refundId: existingRefunds.data[0].id
+        });
+      } else {
+        // Create refund
+        await this.refunds.create({
+          payment_intent: paymentIntent.id,
+          metadata: {
+            type: "test_charge_refund",
+            description: "Refund for card validation test charge"
+          }
+        });
+
+        logger.info({
+          event: "TEST_CHARGE_REFUNDED",
+          customerId,
+          paymentIntentId: paymentIntent.id,
+          amount: paymentIntent.amount
+        });
+      }
+
+      // Mark the payment method as validated in our database
+      await this.markPaymentMethodAsValidated(customerId, paymentMethodId, paymentIntent.id);
+    } catch (refundError) {
+      logger.error({
+        event: "TEST_CHARGE_REFUND_FAILED",
+        customerId,
+        paymentIntentId: paymentIntent.id,
+        error: refundError instanceof Error ? refundError.message : String(refundError)
+      });
+
+      // Even if refund fails, we should still try to validate the payment method
+      // since the card was successfully charged
+      try {
+        await this.markPaymentMethodAsValidated(customerId, paymentMethodId, paymentIntent.id);
+      } catch (validationError) {
+        logger.error({
+          event: "PAYMENT_METHOD_VALIDATION_UPDATE_FAILED",
+          customerId,
+          paymentMethodId,
+          error: validationError instanceof Error ? validationError.message : String(validationError)
+        });
+      }
+
+      // Re-throw the refund error to inform the caller
+      throw new Error(`Test charge succeeded but refund failed: ${refundError instanceof Error ? refundError.message : String(refundError)}`);
+    }
+  }
+
+  private async markPaymentMethodAsValidated(customerId: string, paymentMethodId: string, paymentIntentId: string): Promise<void> {
+    try {
+      // Get the user ID from the customer ID
+      const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
+      if (user) {
+        await this.paymentMethodRepository.markAsValidated(paymentMethodId, user.id);
+        logger.info({
+          event: "PAYMENT_METHOD_VALIDATED",
+          customerId,
+          userId: user.id,
+          paymentMethodId,
+          paymentIntentId
+        });
+      } else {
+        logger.error({
+          event: "USER_NOT_FOUND_FOR_VALIDATION",
+          customerId,
+          paymentMethodId
+        });
+      }
+    } catch (validationError) {
+      logger.error({
+        event: "PAYMENT_METHOD_VALIDATION_UPDATE_FAILED",
+        customerId,
+        paymentMethodId,
+        error: validationError instanceof Error ? validationError.message : String(validationError)
+      });
+      // Don't fail the test charge if validation update fails - the card is still valid
+    }
   }
 }
 
