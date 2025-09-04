@@ -28,8 +28,7 @@ export const importSimpleSdl = (yamlStr: string) => {
     const services: ServiceType[] = [];
     if (!yamlJson.services) return services;
 
-    const sortedServicesNames = Object.keys(yamlJson.services).sort();
-    sortedServicesNames.forEach(svcName => {
+    Object.keys(yamlJson.services).forEach(svcName => {
       const svc = yamlJson.services[svcName];
 
       const service: Partial<ServiceType> = {
