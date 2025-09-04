@@ -156,7 +156,7 @@ describe("Lease Flow", () => {
     const { dseq, manifest } = ((await deployResponse.json()) as any).data;
 
     // Clear balance cache to ensure fresh balance data
-    clearCache("WalletController#getBalances");
+    clearCache("BalancesService#getFullBalance");
 
     // 5. Check balances after deployment creation
     const afterDeployBalancesResponse = await app.request("/v1/balances", {
@@ -215,7 +215,7 @@ describe("Lease Flow", () => {
     expect(depositResponse.status).toBe(200);
 
     // Clear balance cache to ensure fresh balance data after deposit
-    clearCache("WalletController#getBalances");
+    clearCache("BalancesService#getFullBalance");
 
     // 9. Check balances after deposit
     const afterDepositBalancesResponse = await app.request("/v1/balances", {
@@ -259,7 +259,7 @@ describe("Lease Flow", () => {
     expect(closeResult.data.success).toBe(true);
 
     // Clear balance cache to ensure fresh balance data after deployment closure
-    clearCache("WalletController#getBalances");
+    clearCache("BalancesService#getFullBalance");
 
     // 12. Check final balances
     const finalBalancesResponse = await app.request("/v1/balances", {
