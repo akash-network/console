@@ -24,17 +24,13 @@ container.register(CHAIN_API_HTTP_CLIENT, {
   useFactory: () => createHttpClient({ baseURL: apiNodeUrl })
 });
 
-const SERVICES = [BalanceHttpService, AuthzHttpService, BlockHttpService, BidHttpService, LeaseHttpService, ProviderHttpService];
-
+const SERVICES = [BalanceHttpService, AuthzHttpService, BlockHttpService, BidHttpService, ProviderHttpService];
 SERVICES.forEach(Service => container.register(Service, { useValue: new Service({ baseURL: apiNodeUrl }) }));
 
+const NON_AXIOS_SERVICES: Array<new (httpClient: HttpClient) => unknown> = [DeploymentHttpService, LeaseHttpService, CosmosHttpService];
+NON_AXIOS_SERVICES.forEach(Service => container.register(Service, { useFactory: c => new Service(c.resolve(CHAIN_API_HTTP_CLIENT)) }));
+
 container.register(GitHubHttpService, { useValue: new GitHubHttpService({ baseURL: "https://raw.githubusercontent.com" }) });
-container.register(DeploymentHttpService, {
-  useFactory: c => new DeploymentHttpService(c.resolve(CHAIN_API_HTTP_CLIENT))
-});
-container.register(CosmosHttpService, {
-  useFactory: c => new CosmosHttpService(c.resolve(CHAIN_API_HTTP_CLIENT))
-});
 container.register(CoinGeckoHttpService, {
   useFactory: () => new CoinGeckoHttpService(createHttpClient({ baseURL: "https://api.coingecko.com" }))
 });
