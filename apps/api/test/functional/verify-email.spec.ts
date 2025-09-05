@@ -1,0 +1,161 @@
+import { faker } from "@faker-js/faker";
+import type { GetUsers200ResponseOneOfInner } from "auth0";
+import { container } from "tsyringe";
+
+import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
+import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
+import { app } from "@src/rest-app";
+
+import { WalletTestingService } from "@test/services/wallet-testing.service";
+
+jest.setTimeout(30000);
+
+describe("Syncing 'email verified' from auth0", () => {
+  describe("POST /v1/verify-email", () => {
+    it("sets emailVerified to true when Auth0 responds with email_verified=true", async () => {
+      const { user, token } = await setup({ emailVerified: true });
+
+      const response = await app.request("/v1/verify-email", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          data: {
+            email: user.email
+          }
+        })
+      });
+
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result).toMatchObject({
+        data: {
+          emailVerified: true
+        }
+      });
+
+      await expectVerified(token, true);
+    });
+
+    it("sets emailVerified to false when Auth0 responds with email_verified=false", async () => {
+      const { user, token } = await setup({ emailVerified: false });
+
+      const response = await app.request("/v1/verify-email", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          data: {
+            email: user.email
+          }
+        })
+      });
+
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result).toMatchObject({
+        data: {
+          emailVerified: false
+        }
+      });
+
+      await expectVerified(token, false);
+    });
+
+    it("throws 404 when user is not found in auth0", async () => {
+      const { user, token } = await setup({ emailVerified: false });
+      const auth0Service = container.resolve(Auth0Service);
+      jest.spyOn(auth0Service, "getUserByEmail").mockResolvedValue(null);
+
+      const response = await app.request("/v1/verify-email", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          data: {
+            email: user.email
+          }
+        })
+      });
+
+      expect(response.status).toBe(404);
+    });
+
+    it("throws 401 if user is not authenticated", async () => {
+      const { user } = await setup({ emailVerified: false });
+
+      const response = await app.request("/v1/verify-email", {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            email: user.email
+          }
+        })
+      });
+
+      expect(response.status).toBe(401);
+    });
+
+    it("throws 403 when email is not the same as the current user's email", async () => {
+      const { token } = await setup({ emailVerified: false });
+
+      const response = await app.request("/v1/verify-email", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          data: {
+            email: faker.internet.email()
+          }
+        })
+      });
+
+      expect(response.status).toBe(403);
+    });
+  });
+
+  async function setup(input: { emailVerified: boolean }) {
+    const walletTestingService = new WalletTestingService(app);
+    const { user, token } = await walletTestingService.createRegisteredUser({
+      email_verified: input.emailVerified
+    });
+
+    const auth0Service = container.resolve(Auth0Service);
+    jest.spyOn(auth0Service, "getUserByEmail").mockImplementation(async (email: string) => {
+      if (email.toLowerCase() === user.email.toLowerCase()) {
+        return Promise.resolve({
+          user_id: user.userId,
+          email_verified: input.emailVerified
+        } as GetUsers200ResponseOneOfInner);
+      }
+
+      return Promise.resolve(null);
+    });
+
+    const userAuthTokenService = container.resolve(UserAuthTokenService);
+    jest.spyOn(userAuthTokenService, "getValidUserId").mockResolvedValue(user.userId);
+
+    return { user, token };
+  }
+
+  async function expectVerified(token: string, emailVerified: boolean) {
+    const currentUserResponse = await app.request("/v1/user/me", {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json"
+      }
+    });
+    const body = (await currentUserResponse.json()) as { data: { emailVerified: boolean } };
+
+    expect(body.data.emailVerified).toBe(emailVerified);
+  }
+});

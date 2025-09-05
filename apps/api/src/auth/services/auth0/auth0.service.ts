@@ -1,4 +1,4 @@
-import { ManagementClient } from "auth0";
+import { GetUsers200ResponseOneOfInner, ManagementClient } from "auth0";
 import { singleton } from "tsyringe";
 
 import { AuthConfigService } from "@src/auth/services/auth-config/auth-config.service";
@@ -17,5 +17,14 @@ export class Auth0Service {
 
   async sendVerificationEmail(userId: string) {
     await this.managementClient.jobs.verifyEmail({ user_id: userId });
+  }
+
+  async getUserByEmail(email: string): Promise<GetUsers200ResponseOneOfInner | null> {
+    const { data: users } = await this.managementClient.usersByEmail.getByEmail({ email });
+    if (users.length === 0) {
+      return null;
+    }
+
+    return users[0];
   }
 }

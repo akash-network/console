@@ -90,7 +90,7 @@ export class WalletTestingService<T extends Hono<any>> {
         username: claims.username ?? faker.internet.displayName(),
         claims: JSON.stringify({
           sub: claims.sub ?? faker.string.uuid(),
-          email: claims.email ?? faker.internet.email(),
+          email: claims.email ?? faker.internet.email().toLowerCase(),
           email_verified: claims.email_verified ?? true,
           name: claims.name ?? faker.person.fullName(),
           nickname: claims.nickname ?? faker.person.firstName(),
