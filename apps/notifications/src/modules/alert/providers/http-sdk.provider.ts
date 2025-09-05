@@ -1,26 +1,26 @@
+import type { HttpClient } from "@akashnetwork/http-sdk";
 import { createHttpClient, DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
-import type { Provider } from "@nestjs/common";
+import type { InjectionToken, Provider } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
 import type { AlertConfig } from "@src/modules/alert/config";
 
+export const CHAIN_API_HTTP_CLIENT_TOKEN: InjectionToken<HttpClient> = Symbol("CHAIN_API_HTTP_CLIENT");
+
 export const HTTP_SDK_PROVIDERS: Provider[] = [
   {
-    provide: DeploymentHttpService,
+    provide: CHAIN_API_HTTP_CLIENT_TOKEN,
     inject: [ConfigService],
-    useFactory: (configService: ConfigService<AlertConfig>) =>
-      new DeploymentHttpService(
-        createHttpClient({
-          baseURL: configService.getOrThrow("alert.API_NODE_ENDPOINT")
-        })
-      )
+    useFactory: (configService: ConfigService<AlertConfig>) => createHttpClient({ baseURL: configService.getOrThrow("alert.API_NODE_ENDPOINT") })
+  },
+  {
+    provide: DeploymentHttpService,
+    inject: [CHAIN_API_HTTP_CLIENT_TOKEN],
+    useFactory: (httpClient: HttpClient) => new DeploymentHttpService(httpClient)
   },
   {
     provide: LeaseHttpService,
-    inject: [ConfigService],
-    useFactory: (configService: ConfigService<AlertConfig>) =>
-      new LeaseHttpService({
-        baseURL: configService.getOrThrow("alert.API_NODE_ENDPOINT")
-      })
+    inject: [CHAIN_API_HTTP_CLIENT_TOKEN],
+    useFactory: (httpClient: HttpClient) => new LeaseHttpService(httpClient)
   }
 ];
