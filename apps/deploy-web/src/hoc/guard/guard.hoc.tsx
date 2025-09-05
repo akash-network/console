@@ -11,7 +11,7 @@ export const Guard = <P extends object>(Component: React.ComponentType<P>, useCh
     const { canVisit, isLoading } = useCheck();
 
     if (isLoading) {
-      return <Loading text="Please wait..." />;
+      return <Loading text="" />;
     }
 
     if (canVisit) {
