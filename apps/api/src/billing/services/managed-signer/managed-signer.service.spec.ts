@@ -1,5 +1,6 @@
 import { MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
 import { MsgCreateLease } from "@akashnetwork/akash-api/v1beta4";
+import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
@@ -239,6 +240,7 @@ describe(ManagedSignerService.name, () => {
         })
       };
 
+      const hasLeases = jest.fn();
       const { service, domainEvents } = setup({
         findOneByUserId: jest.fn().mockResolvedValue(wallet),
         findById: jest.fn().mockResolvedValue(user),
@@ -249,15 +251,32 @@ describe(ManagedSignerService.name, () => {
           rawLog: "success"
         }),
         refreshUserWalletLimits: jest.fn().mockResolvedValue(undefined),
-        publish: jest.fn().mockResolvedValue(undefined)
+        publish: jest.fn().mockResolvedValue(undefined),
+        hasLeases
       });
 
+      hasLeases.mockResolvedValue(false);
       await service.executeDecodedTxByUserId("user-123", [deploymentMessage]);
 
       expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(TrialDeploymentLeaseCreated));
-      const publishedEvent = (domainEvents.publish as jest.Mock).mock.calls[0][0] as TrialDeploymentLeaseCreated;
-      expect(publishedEvent.data.walletId).toBe(wallet.id);
-      expect(publishedEvent.data.dseq).toBe("123");
+      const publishedEvent = (domainEvents.publish as jest.Mock).mock.lastCall?.[0] as TrialDeploymentLeaseCreated;
+      expect(publishedEvent.data).toEqual({
+        walletId: wallet.id,
+        dseq: "123",
+        createdAt: expect.any(String),
+        isFirstLease: true
+      });
+
+      hasLeases.mockResolvedValue(true);
+      await service.executeDecodedTxByUserId("user-123", [deploymentMessage]);
+      expect(domainEvents.publish).toHaveBeenCalledWith(expect.any(TrialDeploymentLeaseCreated));
+      const anotherPublishedEvent = (domainEvents.publish as jest.Mock).mock.lastCall?.[0] as TrialDeploymentLeaseCreated;
+      expect(anotherPublishedEvent.data).toEqual({
+        walletId: wallet.id,
+        dseq: "123",
+        createdAt: expect.any(String),
+        isFirstLease: false
+      });
     });
 
     it("does not publish TrialDeploymentCreated event when anonymous trial is enabled", async () => {
@@ -369,6 +388,7 @@ describe(ManagedSignerService.name, () => {
     refreshUserWalletLimits?: BalancesService["refreshUserWalletLimits"];
     publish?: DomainEventsService["publish"];
     transformChainError?: ChainErrorService["toAppError"];
+    hasLeases?: LeaseHttpService["hasLeases"];
   }) {
     const mocks = {
       config: mock<BillingConfigService>({
@@ -409,6 +429,9 @@ describe(ManagedSignerService.name, () => {
       }),
       domainEvents: mock<DomainEventsService>({
         publish: input?.publish ?? jest.fn()
+      }),
+      leaseHttpService: mock<LeaseHttpService>({
+        hasLeases: input?.hasLeases ?? jest.fn(async () => false)
       })
     };
 
@@ -424,7 +447,8 @@ describe(ManagedSignerService.name, () => {
       mocks.featureFlagsService,
       mocks.masterSigningClientService,
       mocks.dedupeSigningClientService,
-      mocks.domainEvents
+      mocks.domainEvents,
+      mocks.leaseHttpService
     );
 
     return { service, ...mocks };
