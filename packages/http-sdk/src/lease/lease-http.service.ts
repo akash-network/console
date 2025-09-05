@@ -51,20 +51,34 @@ type LeaseListParams = {
   owner: string;
   dseq?: string;
   state?: "active" | "insufficient_funds" | "closed";
+  pagination?: {
+    limit?: number;
+    key?: string;
+  };
 };
 
 export class LeaseHttpService {
   constructor(private readonly httpClient: HttpClient) {}
 
-  public async list({ owner, dseq, state }: LeaseListParams): Promise<RestAkashLeaseListResponse> {
+  public async list({ owner, dseq, state, pagination }: LeaseListParams): Promise<RestAkashLeaseListResponse> {
     return extractData(
       await this.httpClient.get<RestAkashLeaseListResponse>("/akash/market/v1beta4/leases/list", {
         params: {
           "filters.owner": owner,
           "filters.dseq": dseq,
-          "filters.state": state
+          "filters.state": state,
+          "pagination.limit": pagination?.limit,
+          "pagination.key": pagination?.key
         }
       })
     );
+  }
+
+  async hasLeases(address: string): Promise<boolean> {
+    const response = await this.list({
+      owner: address,
+      pagination: { limit: 1 }
+    });
+    return response.leases.length > 0 || !!response.pagination.next_key || Number(response.pagination.total) > 0;
   }
 }

@@ -79,21 +79,11 @@ export class JobQueueService implements Disposable {
       job
     });
 
-    try {
-      return await this.pgBoss.send({
-        name: job.name,
-        data: { ...job.data, version: job.version },
-        options
-      });
-    } catch (error) {
-      this.logger.error({
-        event: "JOB_ENQUEUE_FAILED",
-        job,
-        options,
-        error
-      });
-      return null;
-    }
+    return await this.pgBoss.send({
+      name: job.name,
+      data: { ...job.data, version: job.version },
+      options
+    });
   }
 
   /** Starts jobs processing */

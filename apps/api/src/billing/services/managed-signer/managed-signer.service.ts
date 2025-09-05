@@ -1,4 +1,5 @@
-import { MsgCreateLease } from "@akashnetwork/akash-api/v1beta3";
+import { MsgCreateLease } from "@akashnetwork/akash-api/v1beta4";
+import { LeaseHttpService } from "@akashnetwork/http-sdk";
 import { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { IndexedTx } from "@cosmjs/stargate";
 import assert from "http-assert";
@@ -40,7 +41,8 @@ export class ManagedSignerService {
     private readonly featureFlagsService: FeatureFlagsService,
     @InjectSigningClient("MANAGED") private readonly masterSigningClientService: BatchSigningClientService,
     private readonly dedupeSigningClientService: DedupeSigningClientService,
-    private readonly domainEvents: DomainEventsService
+    private readonly domainEvents: DomainEventsService,
+    private readonly leaseHttpService: LeaseHttpService
   ) {}
 
   async executeManagedTx(walletIndex: number, messages: readonly EncodeObject[]) {
@@ -92,16 +94,20 @@ export class ManagedSignerService {
       );
     }
 
+    const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
+    const hasCreateTrialLeaseMessage = userWallet.isTrialing && !!createLeaseMessage && !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL);
+    const hasLeases = hasCreateTrialLeaseMessage ? await this.leaseHttpService.hasLeases(userWallet.address!) : null;
+
     try {
       const tx = await this.executeManagedTx(userWallet.id, messages);
 
-      const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
       if (userWallet.isTrialing && createLeaseMessage && !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
         await this.domainEvents.publish(
           new TrialDeploymentLeaseCreated({
             walletId: userWallet.id,
             dseq: createLeaseMessage.value.bidId!.dseq.toString(),
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            isFirstLease: !hasLeases
           })
         );
       }

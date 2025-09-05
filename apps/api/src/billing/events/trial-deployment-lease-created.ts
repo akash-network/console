@@ -15,6 +15,7 @@ export class TrialDeploymentLeaseCreated implements DomainEvent {
        * The date and time the deployment was created in ISO string format.
        */
       createdAt: string;
+      isFirstLease: boolean;
     }
   ) {}
 }
