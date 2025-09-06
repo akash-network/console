@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 
-import type { PaymentMethod } from "@src/billing/services/stripe/stripe.service";
+import type { PaymentMethod } from "@src/billing/types/payment-method.type";
 
 type PaymentMethodInput = {
   type?: string;

@@ -26,7 +26,10 @@ export function useCreateManagedWalletMutation() {
   return useMutation({
     mutationFn: async (userId: string) => await managedWalletService.createWallet(userId),
     onSuccess: response => {
-      queryClient.setQueryData([MANAGED_WALLET, response.userId], () => response);
+      // Only update cache if it's a wallet response, not a 3D Secure response
+      if (!response.requires3DS) {
+        queryClient.setQueryData([MANAGED_WALLET, response.userId], () => response);
+      }
     }
   });
 }

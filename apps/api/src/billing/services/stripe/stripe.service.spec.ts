@@ -795,7 +795,7 @@ describe(StripeService.name, () => {
       ];
       jest.spyOn(service.paymentMethods, "list").mockResolvedValue(stub({ data: mockPaymentMethods }));
 
-      const result = await service.getPaymentMethods("cus_123");
+      const result = await service.getPaymentMethods("user_123", "cus_123");
       expect(service.paymentMethods.list).toHaveBeenCalledWith({
         customer: "cus_123",
         type: "card"
@@ -881,7 +881,7 @@ describe(StripeService.name, () => {
   });
 
   describe("hasDuplicateTrialAccount", () => {
-    it("should return true when duplicate payment method fingerprints are found", async () => {
+    it("should return true when duplicate payment method fingerprints in trialing wallets are found", async () => {
       const { service, paymentMethodRepository } = setup();
       const currentUserId = "user_123";
       const paymentMethods = [
@@ -897,23 +897,25 @@ describe(StripeService.name, () => {
         }
       ] as Stripe.PaymentMethod[];
 
-      paymentMethodRepository.findOtherByFingerprint.mockResolvedValue({
-        id: "existing_pm",
-        userId: "other_user",
-        fingerprint: "fp_123",
-        paymentMethodId: "pm_existing",
-        is_validated: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
+      paymentMethodRepository.findOthersByFingerprint.mockResolvedValue([
+        {
+          id: "existing_pm",
+          userId: "other_user",
+          fingerprint: "fp_123",
+          paymentMethodId: "pm_existing",
+          is_validated: true,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ]);
 
       const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
 
       expect(result).toBe(true);
-      expect(paymentMethodRepository.findOtherByFingerprint).toHaveBeenCalledWith(["fp_123", "fp_456"], currentUserId);
+      expect(paymentMethodRepository.findOthersByFingerprint).toHaveBeenCalledWith(["fp_123", "fp_456"], currentUserId);
     });
 
-    it("should return false when no duplicate payment method fingerprints are found", async () => {
+    it("should return false when no duplicate payment method fingerprints in trialing wallets are found", async () => {
       const { service, paymentMethodRepository } = setup();
       const currentUserId = "user_123";
       const paymentMethods = [
@@ -924,15 +926,15 @@ describe(StripeService.name, () => {
         }
       ] as Stripe.PaymentMethod[];
 
-      paymentMethodRepository.findOtherByFingerprint.mockResolvedValue(undefined);
+      paymentMethodRepository.findOthersByFingerprint.mockResolvedValue(undefined);
 
       const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
 
       expect(result).toBe(false);
-      expect(paymentMethodRepository.findOtherByFingerprint).toHaveBeenCalledWith(["fp_123"], currentUserId);
+      expect(paymentMethodRepository.findOthersByFingerprint).toHaveBeenCalledWith(["fp_123"], currentUserId);
     });
 
-    it("should filter out payment methods without fingerprints", async () => {
+    it("should filter out payment methods without fingerprints in trialing wallets", async () => {
       const { service, paymentMethodRepository } = setup();
       const currentUserId = "user_123";
       const paymentMethods = [
@@ -953,25 +955,25 @@ describe(StripeService.name, () => {
         }
       ] as Stripe.PaymentMethod[];
 
-      paymentMethodRepository.findOtherByFingerprint.mockResolvedValue(undefined);
+      paymentMethodRepository.findOthersByFingerprint.mockResolvedValue(undefined);
 
       const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
 
       expect(result).toBe(false);
-      expect(paymentMethodRepository.findOtherByFingerprint).toHaveBeenCalledWith(["fp_123"], currentUserId);
+      expect(paymentMethodRepository.findOthersByFingerprint).toHaveBeenCalledWith(["fp_123"], currentUserId);
     });
 
-    it("should handle empty payment methods array", async () => {
+    it("should handle empty payment methods array in trialing wallets", async () => {
       const { service, paymentMethodRepository } = setup();
       const currentUserId = "user_123";
       const paymentMethods: Stripe.PaymentMethod[] = [];
 
-      paymentMethodRepository.findOtherByFingerprint.mockResolvedValue(undefined);
+      paymentMethodRepository.findOthersByFingerprint.mockResolvedValue(undefined);
 
       const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
 
       expect(result).toBe(false);
-      expect(paymentMethodRepository.findOtherByFingerprint).toHaveBeenCalledWith([], currentUserId);
+      expect(paymentMethodRepository.findOthersByFingerprint).toHaveBeenCalledWith([], currentUserId);
     });
   });
 
@@ -981,13 +983,13 @@ describe(StripeService.name, () => {
       payment_method: "pm_123"
     };
 
-    it("creates test charge successfully and refunds it", async () => {
+    it("creates $0 authorization successfully for card validation in trialing wallets", async () => {
       const { service, paymentMethodRepository, userRepository } = setup();
       const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPaymentIntent = {
         id: "pi_test_123",
         status: "succeeded",
-        amount: 100
+        amount: 0
       } as Stripe.PaymentIntent;
 
       // Mock user lookup
@@ -995,12 +997,6 @@ describe(StripeService.name, () => {
 
       // Mock payment intent creation
       jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
-
-      // Mock refund creation
-      jest.spyOn(service.refunds, "create").mockResolvedValue({} as any);
-
-      // Mock refund list (no existing refunds)
-      jest.spyOn(service.refunds, "list").mockResolvedValue({ data: [] } as any);
 
       // Mock payment method validation
       paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
@@ -1011,35 +1007,71 @@ describe(StripeService.name, () => {
         {
           customer: mockParams.customer,
           payment_method: mockParams.payment_method,
-          amount: 100,
+          amount: 0,
           currency: "usd",
+          capture_method: "manual",
           confirm: true,
           metadata: {
-            type: "test_charge",
-            description: "Card validation test charge"
+            type: "card_validation",
+            description: "Card validation authorization"
           },
+          payment_method_types: ["card"],
           automatic_payment_methods: {
             enabled: true,
             allow_redirects: "never"
           }
         },
         {
-          idempotencyKey: expect.stringMatching(/^test_charge_cus_123_pm_123_\d+$/)
+          idempotencyKey: expect.stringMatching(/^card_validation_cus_123_pm_123_\d+$/)
         }
       );
-
-      expect(service.refunds.create).toHaveBeenCalledWith({
-        payment_intent: mockPaymentIntent.id,
-        metadata: {
-          type: "test_charge_refund",
-          description: "Refund for card validation test charge"
-        }
-      });
 
       expect(paymentMethodRepository.markAsValidated).toHaveBeenCalledWith(mockParams.payment_method, mockUser.id);
 
       expect(result).toEqual({
         success: true,
+        paymentIntentId: mockPaymentIntent.id
+      });
+    });
+
+    it("handles 3D Secure authentication requirement in trialing wallets", async () => {
+      const { service } = setup();
+      const mockPaymentIntent = {
+        id: "pi_test_123",
+        status: "requires_action",
+        client_secret: "pi_test_123_secret_abc123"
+      } as Stripe.PaymentIntent;
+
+      // Mock payment intent creation
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
+
+      const result = await service.createTestCharge(mockParams);
+
+      expect(result).toEqual({
+        success: false,
+        paymentIntentId: mockPaymentIntent.id,
+        requiresAction: true,
+        clientSecret: mockPaymentIntent.client_secret
+      });
+    });
+
+    it("handles card decline", async () => {
+      const { service } = setup();
+      const mockPaymentIntent = {
+        id: "pi_test_123",
+        status: "requires_payment_method",
+        last_payment_error: {
+          message: "Your card was declined."
+        }
+      } as Stripe.PaymentIntent;
+
+      // Mock payment intent creation
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
+
+      const result = await service.createTestCharge(mockParams);
+
+      expect(result).toEqual({
+        success: false,
         paymentIntentId: mockPaymentIntent.id
       });
     });
@@ -1063,283 +1095,6 @@ describe(StripeService.name, () => {
       jest.spyOn(service.paymentIntents, "create").mockRejectedValue(creationError);
 
       await expect(service.createTestCharge(mockParams)).rejects.toThrow("Payment failed");
-    });
-
-    it("handles refund failure but still validates payment method", async () => {
-      const { service, paymentMethodRepository, userRepository } = setup();
-      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
-      const mockPaymentIntent = {
-        id: "pi_test_123",
-        status: "succeeded",
-        amount: 100
-      } as Stripe.PaymentIntent;
-
-      // Mock user lookup
-      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
-
-      // Mock payment intent creation
-      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
-
-      // Mock refund list (no existing refunds)
-      jest.spyOn(service.refunds, "list").mockResolvedValue({ data: [] } as any);
-
-      // Mock refund creation to fail
-      jest.spyOn(service.refunds, "create").mockRejectedValue(new Error("Refund failed"));
-
-      // Mock payment method validation
-      paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
-
-      await expect(service.createTestCharge(mockParams)).rejects.toThrow("Test charge succeeded but refund failed: Refund failed");
-
-      // Payment method should still be validated even if refund fails
-      expect(paymentMethodRepository.markAsValidated).toHaveBeenCalledWith(mockParams.payment_method, mockUser.id);
-    });
-
-    it("skips refund if payment intent status is not succeeded", async () => {
-      const { service } = setup();
-      const mockPaymentIntent = {
-        id: "pi_test_123",
-        status: "requires_payment_method",
-        amount: 100
-      } as Stripe.PaymentIntent;
-
-      // Mock payment intent creation
-      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
-
-      // Mock refund methods (should not be called)
-      jest.spyOn(service.refunds, "list").mockResolvedValue({ data: [] } as any);
-      jest.spyOn(service.refunds, "create").mockResolvedValue({} as any);
-
-      const result = await service.createTestCharge(mockParams);
-
-      expect(service.refunds.create).not.toHaveBeenCalled();
-      expect(result).toEqual({
-        success: false,
-        paymentIntentId: mockPaymentIntent.id
-      });
-    });
-
-    it("handles existing refund gracefully", async () => {
-      const { service, paymentMethodRepository, userRepository } = setup();
-      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
-      const mockPaymentIntent = {
-        id: "pi_test_123",
-        status: "succeeded",
-        amount: 100
-      } as Stripe.PaymentIntent;
-      const existingRefund = { id: "re_123" } as Stripe.Refund;
-
-      // Mock user lookup
-      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
-
-      // Mock payment intent creation
-      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
-
-      // Mock refund list to return existing refund
-      jest.spyOn(service.refunds, "list").mockResolvedValue({ data: [existingRefund] } as any);
-
-      // Mock payment method validation
-      paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
-
-      const result = await service.createTestCharge(mockParams);
-
-      // Should not create a new refund
-      expect(service.refunds.create).not.toHaveBeenCalled();
-
-      // Should still validate the payment method
-      expect(paymentMethodRepository.markAsValidated).toHaveBeenCalledWith(mockParams.payment_method, mockUser.id);
-
-      expect(result).toEqual({
-        success: true,
-        paymentIntentId: mockPaymentIntent.id
-      });
-    });
-  });
-
-  describe("getValidatedPaymentMethods", () => {
-    it("returns validated payment methods from database and Stripe", async () => {
-      const { service, paymentMethodRepository } = setup();
-      const customerId = "cus_123";
-
-      // Mock validated payment methods from database
-      const validatedDbMethods = [
-        {
-          id: "pm_123",
-          userId: "user_123",
-          paymentMethodId: "pm_123",
-          fingerprint: "fp_123",
-          is_validated: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          id: "pm_456",
-          userId: "user_123",
-          paymentMethodId: "pm_456",
-          fingerprint: "fp_456",
-          is_validated: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      ];
-
-      paymentMethodRepository.findValidatedByUserId.mockResolvedValue(validatedDbMethods);
-
-      // Mock Stripe payment methods
-      const stripePaymentMethods = {
-        data: [
-          {
-            id: "pm_123",
-            type: "card",
-            card: {
-              brand: "visa",
-              last4: "4242",
-              exp_month: 12,
-              exp_year: 2025,
-              funding: "credit",
-              country: "US",
-              networks: { preferred: "visa" },
-              fingerprint: "fp_123",
-              three_d_secure_usage: { supported: true }
-            },
-            billing_details: { name: "John Doe" }
-          },
-          {
-            id: "pm_456",
-            type: "card",
-            card: {
-              brand: "mastercard",
-              last4: "5555",
-              exp_month: 6,
-              exp_year: 2026,
-              funding: "debit",
-              country: "CA",
-              networks: { preferred: "mastercard" },
-              fingerprint: "fp_456",
-              three_d_secure_usage: { supported: false }
-            },
-            billing_details: { name: "Jane Smith" }
-          },
-          {
-            id: "pm_789",
-            type: "card",
-            card: {
-              brand: "amex",
-              last4: "1234",
-              exp_month: 3,
-              exp_year: 2027,
-              funding: "credit",
-              country: "GB",
-              networks: { preferred: "amex" },
-              fingerprint: "fp_789",
-              three_d_secure_usage: { supported: true }
-            },
-            billing_details: { name: "Bob Wilson" }
-          }
-        ]
-      };
-
-      jest.spyOn(service.paymentMethods, "list").mockResolvedValue(stripePaymentMethods as any);
-
-      const result = await service.getValidatedPaymentMethods(customerId);
-
-      expect(paymentMethodRepository.findValidatedByUserId).toHaveBeenCalledWith(customerId);
-      expect(service.paymentMethods.list).toHaveBeenCalledWith({
-        customer: customerId,
-        type: "card"
-      });
-
-      // Should only return validated methods (pm_123 and pm_456)
-      expect(result).toHaveLength(2);
-      expect(result[0].id).toBe("pm_123");
-      expect(result[0].card?.brand).toBe("visa");
-      expect(result[0].card?.last4).toBe("4242");
-      expect(result[1].id).toBe("pm_456");
-      expect(result[1].card?.brand).toBe("mastercard");
-      expect(result[1].card?.last4).toBe("5555");
-
-      // Should not include pm_789 (not validated)
-      expect(result.find(pm => pm.id === "pm_789")).toBeUndefined();
-    });
-
-    it("returns empty array when no validated payment methods exist", async () => {
-      const { service, paymentMethodRepository } = setup();
-      const customerId = "cus_123";
-
-      // Mock no validated payment methods
-      paymentMethodRepository.findValidatedByUserId.mockResolvedValue([]);
-
-      const result = await service.getValidatedPaymentMethods(customerId);
-
-      expect(paymentMethodRepository.findValidatedByUserId).toHaveBeenCalledWith(customerId);
-      expect(result).toEqual([]);
-    });
-
-    it("filters out payment methods without cards", async () => {
-      const { service, paymentMethodRepository } = setup();
-      const customerId = "cus_123";
-
-      // Mock validated payment methods from database
-      const validatedDbMethods = [
-        {
-          id: "pm_123",
-          userId: "user_123",
-          paymentMethodId: "pm_123",
-          fingerprint: "fp_123",
-          is_validated: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          id: "pm_456",
-          userId: "user_123",
-          paymentMethodId: "pm_456",
-          fingerprint: "fp_456",
-          is_validated: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      ];
-
-      paymentMethodRepository.findValidatedByUserId.mockResolvedValue(validatedDbMethods);
-
-      // Mock Stripe payment methods (one without card)
-      const stripePaymentMethods = {
-        data: [
-          {
-            id: "pm_123",
-            type: "card",
-            card: {
-              brand: "visa",
-              last4: "4242",
-              exp_month: 12,
-              exp_year: 2025,
-              funding: "credit",
-              country: "US",
-              networks: { preferred: "visa" },
-              fingerprint: "fp_123",
-              three_d_secure_usage: { supported: true }
-            },
-            billing_details: { name: "John Doe" }
-          },
-          {
-            id: "pm_456",
-            type: "card",
-            card: null,
-            billing_details: { name: "Jane Smith" }
-          }
-        ]
-      };
-
-      jest.spyOn(service.paymentMethods, "list").mockResolvedValue(stripePaymentMethods as any);
-
-      const result = await service.getValidatedPaymentMethods(customerId);
-
-      expect(result).toHaveLength(2);
-      expect(result[0].id).toBe("pm_123");
-      expect(result[0].card).toBeDefined();
-      expect(result[1].id).toBe("pm_456");
-      expect(result[1].card).toBeNull();
     });
   });
 });

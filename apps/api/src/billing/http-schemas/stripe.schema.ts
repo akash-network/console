@@ -9,6 +9,7 @@ export const SetupIntentResponseSchema = z.object({
 
 export const PaymentMethodSchema = z.object({
   type: z.string(),
+  validated: z.boolean().optional(),
   card: z
     .object({
       brand: z.string().nullable(),
@@ -192,17 +193,21 @@ export const CustomerTransactionsCsvExportQuerySchema = z
     message: dateRangeErrorMessage
   });
 
+export const MarkPaymentMethodValidatedRequestSchema = z.object({
+  data: z.object({
+    paymentMethodId: z.string().openapi({}),
+    paymentIntentId: z.string().openapi({})
+  })
+});
+
+export const MarkPaymentMethodValidatedResponseSchema = z.object({
+  success: z.boolean()
+});
+
 export const ErrorResponseSchema = z.object({
   message: z.string(),
   code: z.string().optional(),
   type: z.string().optional()
-});
-
-export const TestChargeRequestSchema = z.object({
-  data: z.object({
-    userId: z.string(),
-    paymentMethodId: z.string()
-  })
 });
 
 export type SetupIntentResponse = z.infer<typeof SetupIntentResponseSchema>;
@@ -217,3 +222,5 @@ export type CustomerDiscountsResponse = z.infer<typeof CustomerDiscountsResponse
 export type Transaction = z.infer<typeof TransactionSchema>;
 export type CustomerTransactionsResponse = z.infer<typeof CustomerTransactionsResponseSchema>;
 export type CustomerTransactionsQuery = z.infer<typeof CustomerTransactionsQuerySchema>;
+export type MarkPaymentMethodValidatedRequest = z.infer<typeof MarkPaymentMethodValidatedRequestSchema>;
+export type MarkPaymentMethodValidatedResponse = z.infer<typeof MarkPaymentMethodValidatedResponseSchema>;

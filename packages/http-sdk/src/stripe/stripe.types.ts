@@ -35,6 +35,7 @@ export interface PaymentMethod {
   id: string;
   type: string;
   created: number;
+  validated: boolean;
   card?: {
     brand: string;
     last4: string;

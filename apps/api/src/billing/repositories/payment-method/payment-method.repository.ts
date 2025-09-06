@@ -23,11 +23,27 @@ export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethod
     return new PaymentMethodRepository(this.pg, this.table, this.txManager).withAbility(...abilityParams) as this;
   }
 
-  async findOtherByFingerprint(fingerprints: string[], userId: string) {
-    const item = await this.cursor.query.PaymentMethods.findFirst({
-      where: this.whereAccessibleBy(and(inArray(this.table.fingerprint, fingerprints), ne(this.table.userId, userId)))
+  async findOthersByFingerprint(fingerprints: string[], userId: string) {
+    const item = await this.cursor.query.PaymentMethods.findMany({
+      where: this.whereAccessibleBy(and(inArray(this.table.fingerprint, fingerprints), ne(this.table.userId, userId))),
+      with: {
+        user: {
+          with: {
+            userWallets: {
+              columns: {
+                isTrialing: true
+              }
+            }
+          }
+        }
+      }
     });
-    return item ? this.toOutput(item) : undefined;
+
+    if (item && item.some(item => item.user?.userWallets?.isTrialing)) {
+      return this.toOutputList(item);
+    }
+
+    return undefined;
   }
 
   async findByUserId(userId: PaymentMethodOutput["userId"]) {

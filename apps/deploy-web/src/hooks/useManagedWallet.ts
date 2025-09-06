@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import type { ApiManagedWalletOutput } from "@akashnetwork/http-sdk";
 import { useAtom } from "jotai";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -19,7 +20,7 @@ export const useManagedWallet = () => {
   const [selectedWalletType, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
   const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined);
   const { mutate: create, data: created, isPending: isCreating, isSuccess: isCreated, error: createError } = useCreateManagedWalletMutation();
-  const wallet = useMemo(() => queried || created, [queried, created]);
+  const wallet = useMemo(() => (queried || created) as ApiManagedWalletOutput, [queried, created]);
   const isLoading = isFetching || isCreating;
   const [, setIsSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const selected = getSelectedStorageWallet();

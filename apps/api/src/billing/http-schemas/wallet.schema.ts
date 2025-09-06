@@ -8,12 +8,26 @@ const WalletOutputSchema = z.object({
   isTrialing: z.boolean()
 });
 
+const ThreeDSecureAuthSchema = z.object({
+  requires3DS: z.boolean(),
+  clientSecret: z.string(),
+  paymentIntentId: z.string(),
+  paymentMethodId: z.string()
+});
+
+const WalletWithOptional3DSSchema = WalletOutputSchema.extend({
+  requires3DS: z.boolean().optional(),
+  clientSecret: z.string().optional(),
+  paymentIntentId: z.string().optional(),
+  paymentMethodId: z.string().optional()
+});
+
 export const WalletResponseOutputSchema = z.object({
-  data: WalletOutputSchema
+  data: WalletWithOptional3DSSchema
 });
 
 export const WalletListResponseOutputSchema = z.object({
-  data: z.array(WalletOutputSchema)
+  data: z.array(WalletWithOptional3DSSchema)
 });
 
 export const StartTrialRequestInputSchema = z.object({
@@ -22,6 +36,9 @@ export const StartTrialRequestInputSchema = z.object({
   })
 });
 
+export type WalletOutput = z.infer<typeof WalletOutputSchema>;
+export type ThreeDSecureAuth = z.infer<typeof ThreeDSecureAuthSchema>;
+export type WalletWithOptional3DS = z.infer<typeof WalletWithOptional3DSSchema>;
 export type WalletOutputResponse = z.infer<typeof WalletResponseOutputSchema>;
 export type WalletListOutputResponse = z.infer<typeof WalletListResponseOutputSchema>;
 export type StartTrialRequestInput = z.infer<typeof StartTrialRequestInputSchema>;

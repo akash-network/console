@@ -61,7 +61,7 @@ describe("PaymentMethodsDisplay", () => {
     });
 
     it("disables start trial button when no payment methods", () => {
-      setup({ paymentMethods: [] });
+      setup({ paymentMethods: [], hasPaymentMethod: false });
 
       const startTrialButton = screen.getByRole("button", { name: "Start Trial" });
       expect(startTrialButton).toBeDisabled();
@@ -319,6 +319,7 @@ describe("PaymentMethodsDisplay", () => {
       isLoading?: boolean;
       isRemoving?: boolean;
       managedWalletError?: AppError;
+      hasPaymentMethod?: boolean;
     } = {}
   ) {
     const mockPaymentMethods = [
@@ -347,7 +348,8 @@ describe("PaymentMethodsDisplay", () => {
       onRemovePaymentMethod: jest.fn(),
       onStartTrial: jest.fn(),
       isLoading: false,
-      isRemoving: false
+      isRemoving: false,
+      hasPaymentMethod: true
     };
 
     jest.clearAllMocks();
