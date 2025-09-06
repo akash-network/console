@@ -2,7 +2,12 @@ import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { StripeController } from "@src/billing/controllers/stripe/stripe.controller";
-import { PaymentMethodsResponseSchema, SetupIntentResponseSchema } from "@src/billing/http-schemas/stripe.schema";
+import {
+  MarkPaymentMethodValidatedRequestSchema,
+  MarkPaymentMethodValidatedResponseSchema,
+  PaymentMethodsResponseSchema,
+  SetupIntentResponseSchema
+} from "@src/billing/http-schemas/stripe.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
 const setupIntentRoute = createRoute({
@@ -63,6 +68,32 @@ const removePaymentMethodRoute = createRoute({
   }
 });
 
+const markPaymentMethodValidatedRoute = createRoute({
+  method: "post",
+  path: "/v1/stripe/payment-methods/mark-validated",
+  summary: "Marks a payment method as validated after 3D Secure authentication",
+  tags: ["Payment"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: MarkPaymentMethodValidatedRequestSchema
+        }
+      }
+    }
+  },
+  responses: {
+    200: {
+      description: "Payment method marked as validated successfully",
+      content: {
+        "application/json": {
+          schema: MarkPaymentMethodValidatedResponseSchema
+        }
+      }
+    }
+  }
+});
+
 export const stripePaymentMethodsRouter = new OpenApiHonoHandler();
 
 stripePaymentMethodsRouter.openapi(setupIntentRoute, async function createSetupIntent(c) {
@@ -79,4 +110,8 @@ stripePaymentMethodsRouter.openapi(removePaymentMethodRoute, async function remo
   const { paymentMethodId } = c.req.param();
   await container.resolve(StripeController).removePaymentMethod(paymentMethodId);
   return c.body(null, 204);
+});
+
+stripePaymentMethodsRouter.openapi(markPaymentMethodValidatedRoute, async function markPaymentMethodValidated(c) {
+  return c.json(await container.resolve(StripeController).markPaymentMethodValidatedAfter3DS(c.req.valid("json")), 200);
 });

@@ -1,16 +1,15 @@
 import React from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
-import { Button, Card, CardDescription, CardHeader, CardTitle } from "@akashnetwork/ui/components";
-import { CreditCard } from "iconoir-react";
+import { Badge, Button, Card, CardDescription, CardHeader, CardTitle } from "@akashnetwork/ui/components";
+import { CheckCircle, CreditCard } from "iconoir-react";
 
 interface PaymentMethodCardProps {
   method: PaymentMethod;
-  isValidated: boolean;
   isRemoving: boolean;
   onRemove: (paymentMethodId: string) => void;
 }
 
-export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({ method, isValidated, isRemoving, onRemove }) => (
+export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({ method, isRemoving, onRemove }) => (
   <Card className="relative">
     <CardHeader className="pb-3">
       <div className="flex items-center justify-between">
@@ -28,8 +27,12 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({ method, is
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {isValidated && <div className="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">Validated</div>}
-          <Button onClick={() => onRemove(method.id)} variant="ghost" size="sm" disabled={isRemoving} className="text-destructive hover:text-destructive/80">
+          {method.validated && (
+            <Badge variant="success" className="flex items-center p-1">
+              <CheckCircle className="h-4 w-4" />
+            </Badge>
+          )}
+          <Button onClick={() => onRemove(method.id)} variant="ghost" size="sm" disabled={isRemoving} className="text-muted-foreground">
             Remove
           </Button>
         </div>

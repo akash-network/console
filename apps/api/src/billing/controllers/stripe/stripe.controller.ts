@@ -5,8 +5,10 @@ import { singleton } from "tsyringe";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
 import { ApplyCouponRequest, ConfirmPaymentRequest, Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
-import { PaymentMethod, StripeService } from "@src/billing/services/stripe/stripe.service";
+import { UserWalletRepository } from "@src/billing/repositories";
+import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
+import type { PaymentMethod } from "@src/billing/types/payment-method.type";
 import { Semaphore } from "@src/core/lib/semaphore.decorator";
 
 @singleton()
@@ -14,7 +16,8 @@ export class StripeController {
   constructor(
     private readonly stripe: StripeService,
     private readonly authService: AuthService,
-    private readonly stripeErrorService: StripeErrorService
+    private readonly stripeErrorService: StripeErrorService,
+    private readonly userWalletRepository: UserWalletRepository
   ) {}
 
   @Protected([{ action: "read", subject: "StripePayment" }])
@@ -40,7 +43,7 @@ export class StripeController {
       return { data: [] };
     }
 
-    const paymentMethods = await this.stripe.getPaymentMethods(currentUser.stripeCustomerId);
+    const paymentMethods = await this.stripe.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId);
     return { data: paymentMethods };
   }
 
@@ -102,8 +105,10 @@ export class StripeController {
   async removePaymentMethod(paymentMethodId: string): Promise<void> {
     const { currentUser } = this.authService;
 
+    const userWallet = await this.userWalletRepository.findOneByUserId(currentUser.id);
+
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
-    assert(!currentUser.trial, 403, "Cannot remove payment method during trial. Please contact support.");
+    assert(!(userWallet && userWallet.isTrialing), 403, "Cannot remove payment method during trial. Please contact support.");
 
     try {
       // Verify payment method ownership
@@ -160,31 +165,18 @@ export class StripeController {
     return this.stripe.exportTransactionsCsvStream(currentUser.stripeCustomerId, options);
   }
 
-  @Semaphore()
   @Protected([{ action: "create", subject: "StripePayment" }])
-  async testCharge(params: { userId: string; paymentMethodId: string }): Promise<void> {
+  async markPaymentMethodValidatedAfter3DS({
+    data: { paymentMethodId, paymentIntentId }
+  }: {
+    data: { paymentMethodId: string; paymentIntentId: string };
+  }): Promise<{ success: boolean }> {
     const { currentUser } = this.authService;
 
-    assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
+    assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
 
-    try {
-      const paymentMethod = await this.stripe.paymentMethods.retrieve(params.paymentMethodId);
-      const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
-      assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
+    await this.stripe.markPaymentMethodAsValidatedAfter3DS(currentUser.stripeCustomerId, paymentMethodId, paymentIntentId);
 
-      // Create a test charge of $1 to validate the card
-      const { success } = await this.stripe.createTestCharge({
-        customer: currentUser.stripeCustomerId,
-        payment_method: params.paymentMethodId
-      });
-
-      assert(success, 402, "Card validation failed");
-    } catch (error: unknown) {
-      if (this.stripeErrorService.isKnownError(error, "payment")) {
-        throw this.stripeErrorService.toAppError(error, "payment");
-      }
-
-      throw error;
-    }
+    return { success: true };
   }
 }

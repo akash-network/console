@@ -157,9 +157,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }
 
   function connectManagedWallet() {
-    // Note: Backend will validate payment methods before allowing trial activation
-    // This ensures security even if frontend validation is bypassed
-
     if (!managedWallet) {
       createManagedWallet();
     }
