@@ -45,49 +45,41 @@ export class WalletController {
       assert(paymentMethods.length > 0, 400, "You must have a payment method to start a trial.");
 
       // Check for duplicate trial accounts using existing validated payment methods
-      const validatedPaymentMethods = paymentMethods.filter(method => method.validated);
-      if (validatedPaymentMethods.length > 0) {
-        const hasDuplicateTrialAccount = await this.stripeService.hasDuplicateTrialAccount(validatedPaymentMethods, currentUser.id);
+      if (paymentMethods.length > 0) {
+        const hasDuplicateTrialAccount = await this.stripeService.hasDuplicateTrialAccount(paymentMethods, currentUser.id);
         assert(!hasDuplicateTrialAccount, 400, "This payment method is already associated with another trial account. Please use a different payment method.");
       }
 
-      // If no validated payment methods exist, validate the most recent one during trial start
-      if (validatedPaymentMethods.length === 0) {
-        const latestPaymentMethod = paymentMethods[0]; // Assuming they're ordered by creation date
-        try {
-          const validationResult = await this.stripeService.createTestCharge({
-            customer: currentUser.stripeCustomerId,
-            payment_method: latestPaymentMethod.id
-          });
+      const latestPaymentMethod = paymentMethods[0]; // Assuming they're ordered by creation date
+      try {
+        const validationResult = await this.stripeService.validatePaymentMethodForTrial({
+          customer: currentUser.stripeCustomerId,
+          payment_method: latestPaymentMethod.id,
+          userId: currentUser.id
+        });
 
-          // If the card requires 3D Secure authentication, return the necessary information
-          if (validationResult.requiresAction) {
-            return {
-              data: {
-                id: 0, // Temporary ID for 3D Secure response
-                userId: currentUser.id,
-                address: null,
-                creditAmount: 0,
-                isTrialing: false,
-                requires3DS: true,
-                clientSecret: validationResult.clientSecret || "",
-                paymentIntentId: validationResult.paymentIntentId || "",
-                paymentMethodId: latestPaymentMethod.id
-              }
-            };
-          }
-
-          if (!validationResult.success) {
-            const error = new Error("Card validation failed. Please ensure your payment method is valid and try again.");
-            throw this.stripeErrorService.toAppError(error, "payment");
-          }
-        } catch (error: unknown) {
-          if (this.stripeErrorService.isKnownError(error, "payment")) {
-            throw this.stripeErrorService.toAppError(error, "payment");
-          }
-
-          throw error;
+        // If the card requires 3D Secure authentication, return the necessary information
+        if (validationResult.requires3DS) {
+          return {
+            data: {
+              id: 0, // Temporary ID for 3D Secure response
+              userId: currentUser.id,
+              address: null,
+              creditAmount: 0,
+              isTrialing: false,
+              requires3DS: true,
+              clientSecret: validationResult.clientSecret || "",
+              paymentIntentId: validationResult.paymentIntentId || "",
+              paymentMethodId: validationResult.paymentMethodId || ""
+            }
+          };
         }
+      } catch (error: unknown) {
+        if (this.stripeErrorService.isKnownError(error, "payment")) {
+          throw this.stripeErrorService.toAppError(error, "payment");
+        }
+
+        throw error;
       }
     }
 

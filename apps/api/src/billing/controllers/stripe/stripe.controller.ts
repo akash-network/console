@@ -4,7 +4,7 @@ import { singleton } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
-import { ApplyCouponRequest, ConfirmPaymentRequest, Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
+import { ApplyCouponRequest, ConfirmPaymentRequest, ConfirmPaymentResponse, Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
@@ -49,7 +49,7 @@ export class StripeController {
 
   @Semaphore()
   @Protected([{ action: "create", subject: "StripePayment" }])
-  async confirmPayment(params: ConfirmPaymentRequest["data"]): Promise<void> {
+  async confirmPayment(params: ConfirmPaymentRequest["data"]): Promise<ConfirmPaymentResponse> {
     const { currentUser } = this.authService;
 
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
@@ -60,7 +60,7 @@ export class StripeController {
       const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
       assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
 
-      const { success } = await this.stripe.createPaymentIntent({
+      const result = await this.stripe.createPaymentIntent({
         customer: currentUser.stripeCustomerId,
         payment_method: params.paymentMethodId,
         amount: params.amount,
@@ -68,7 +68,24 @@ export class StripeController {
         confirm: true
       });
 
-      assert(success, 402, "Payment not successful");
+      // Handle 3D Secure authentication requirement
+      if (result.requiresAction && result.clientSecret && result.paymentIntentId) {
+        return {
+          data: {
+            success: false,
+            requiresAction: true,
+            clientSecret: result.clientSecret,
+            paymentIntentId: result.paymentIntentId
+          }
+        };
+      }
+
+      // If payment was not successful and it's not a 3D Secure case, throw an error
+      if (!result.success) {
+        throw new Error("Payment not successful");
+      }
+
+      return { data: { success: true } };
     } catch (error: unknown) {
       if (this.stripeErrorService.isKnownError(error, "payment")) {
         throw this.stripeErrorService.toAppError(error, "payment");

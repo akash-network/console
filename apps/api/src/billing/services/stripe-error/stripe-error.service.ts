@@ -36,6 +36,10 @@ export class StripeErrorService {
   };
 
   private readonly PAYMENT_ERRORS = {
+    "Amount must be greater than $0": {
+      code: 400,
+      message: "Amount must be greater than $0"
+    },
     "Final amount after discount must be at least $1": {
       code: 400,
       message: "Final amount after discount must be at least $1"
@@ -67,6 +71,10 @@ export class StripeErrorService {
     "Card validation failed. Please ensure your payment method is valid and try again.": {
       code: 400,
       message: "Card validation failed. Please ensure your payment method is valid and try again."
+    },
+    "Payment method was declined. Please try a different card.": {
+      code: 402,
+      message: "Payment method was declined. Please try a different card."
     }
   };
 
