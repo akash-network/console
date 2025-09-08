@@ -1,8 +1,9 @@
+import { VerifyEmailResponseSchema } from "@akashnetwork/http-sdk";
 import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { AuthController } from "@src/auth/controllers/auth/auth.controller";
-import { VerifyEmailRequestSchema, VerifyEmailResponseSchema } from "@src/auth/http-schemas/verify-email.schema";
+import { VerifyEmailRequestSchema } from "@src/auth/http-schemas/verify-email.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
 export const verifyEmailRouter = new OpenApiHonoHandler();
