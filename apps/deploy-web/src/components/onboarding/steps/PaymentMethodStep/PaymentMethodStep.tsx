@@ -8,12 +8,12 @@ import { Elements } from "@stripe/react-stripe-js";
 import { CreditCard } from "iconoir-react";
 import { useTheme } from "next-themes";
 
+import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
 import { Title } from "@src/components/shared/Title";
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import type { AppError } from "@src/types";
 import { PaymentMethodsDisplay } from "../PaymentMethodsDisplay/PaymentMethodsDisplay";
 import { PaymentVerificationCard } from "../PaymentVerificationCard/PaymentVerificationCard";
-import { ThreeDSecureAuth } from "../ThreeDSecureAuth/ThreeDSecureAuth";
 
 interface PaymentMethodStepProps {
   setupIntent: SetupIntentResponse | undefined;
@@ -64,11 +64,16 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
   // Render 3D Secure authentication if required
   if (threeDSecureData && threeDSecureData.clientSecret && threeDSecureData.paymentIntentId) {
     return (
-      <ThreeDSecureAuth
-        clientSecret={threeDSecureData.clientSecret}
-        paymentIntentId={threeDSecureData.paymentIntentId}
+      <ThreeDSecurePopup
+        isOpen
         onSuccess={on3DSecureSuccess}
         onError={on3DSecureError}
+        clientSecret={threeDSecureData.clientSecret}
+        paymentIntentId={threeDSecureData.paymentIntentId}
+        title="Card Authentication"
+        description="Your bank requires additional verification for this transaction."
+        successMessage="Your card has been verified. Proceeding to start your trial..."
+        errorMessage="Please try again or use a different payment method."
       />
     );
   }

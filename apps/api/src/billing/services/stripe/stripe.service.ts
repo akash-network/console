@@ -5,7 +5,7 @@ import { Readable } from "stream";
 import Stripe from "stripe";
 import { singleton } from "tsyringe";
 
-import { Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
+import { Discount, PaymentIntentResult, PaymentMethodValidationResult, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import { PaymentMethodRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
@@ -15,6 +15,8 @@ import { TransactionCsvRow } from "@src/types/transactions";
 import { UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
 
 const logger = LoggerService.forContext("StripeService");
+
+const MINIMUM_PAYMENT_AMOUNT = 20;
 
 interface CheckoutOptions {
   customerId: string;
@@ -103,25 +105,28 @@ export class StripeService extends Stripe {
     });
     const dbPaymentMethods = await this.paymentMethodRepository.findByUserId(userId);
 
-    return paymentMethods.data.map(paymentMethod => ({
-      type: paymentMethod.type,
-      id: paymentMethod.id,
-      validated: dbPaymentMethods.some(pm => pm.paymentMethodId === paymentMethod.id && pm.is_validated),
-      card: paymentMethod.card
-        ? {
-            brand: paymentMethod.card.brand,
-            last4: paymentMethod.card.last4,
-            exp_month: paymentMethod.card.exp_month,
-            exp_year: paymentMethod.card.exp_year,
-            funding: paymentMethod.card.funding,
-            country: paymentMethod.card.country,
-            networks: paymentMethod.card.networks,
-            fingerprint: paymentMethod.card.fingerprint,
-            three_d_secure_usage: paymentMethod.card.three_d_secure_usage
-          }
-        : null,
-      billing_details: paymentMethod.billing_details
-    }));
+    return paymentMethods.data
+      .map(paymentMethod => ({
+        type: paymentMethod.type,
+        id: paymentMethod.id,
+        created: paymentMethod.created,
+        validated: dbPaymentMethods.some(pm => pm.paymentMethodId === paymentMethod.id && pm.is_validated),
+        card: paymentMethod.card
+          ? {
+              brand: paymentMethod.card.brand,
+              last4: paymentMethod.card.last4,
+              exp_month: paymentMethod.card.exp_month,
+              exp_year: paymentMethod.card.exp_year,
+              funding: paymentMethod.card.funding,
+              country: paymentMethod.card.country,
+              networks: paymentMethod.card.networks,
+              fingerprint: paymentMethod.card.fingerprint,
+              three_d_secure_usage: paymentMethod.card.three_d_secure_usage
+            }
+          : null,
+        billing_details: paymentMethod.billing_details
+      }))
+      .sort((a, b) => b.created - a.created);
   }
 
   private calculateDiscountedAmount(amountCents: number, discount: Discount): number {
@@ -164,8 +169,19 @@ export class StripeService extends Stripe {
     currency: string;
     confirm: boolean;
     metadata?: Record<string, string>;
-  }): Promise<{ success: boolean; paymentIntentId?: string }> {
+  }): Promise<PaymentIntentResult> {
+    // Validate original amount first
+    if (params.amount <= 0) {
+      throw new Error("Amount must be greater than $0");
+    }
+
     const discounts = await this.getCustomerDiscounts(params.customer);
+
+    // Check minimum amount before applying discounts
+    if (!discounts.length && params.amount < MINIMUM_PAYMENT_AMOUNT) {
+      throw new Error(`Minimum payment amount is $${MINIMUM_PAYMENT_AMOUNT} (before any discounts)`);
+    }
+
     // Convert amount to cents immediately for stripe
     let finalAmountCents = Math.round(params.amount * 100);
     let discountApplied = false;
@@ -195,8 +211,6 @@ export class StripeService extends Stripe {
     const finalAmountDollars = finalAmountCents / 100;
     if (finalAmountDollars > 0 && finalAmountDollars < 1) {
       throw new Error("Final amount after discount must be at least $1");
-    } else if (!discounts.length && finalAmountDollars > 0 && finalAmountDollars < 20) {
-      throw new Error("Minimum payment amount is $20 (before any discounts)");
     }
 
     const paymentIntent = await this.paymentIntents.create({
@@ -212,7 +226,30 @@ export class StripeService extends Stripe {
       }
     });
 
-    return { success: paymentIntent.status === "succeeded", paymentIntentId: paymentIntent.id };
+    // Handle different payment intent statuses
+    switch (paymentIntent.status) {
+      case "succeeded":
+        return { success: true, paymentIntentId: paymentIntent.id };
+
+      case "requires_capture":
+        return { success: true, paymentIntentId: paymentIntent.id };
+
+      case "requires_action":
+        // Card requires 3D Secure authentication
+        return {
+          success: false,
+          paymentIntentId: paymentIntent.id,
+          requiresAction: true,
+          clientSecret: paymentIntent.client_secret || undefined
+        };
+
+      case "requires_payment_method":
+        // Card was declined
+        throw new Error("Payment method was declined. Please try a different card.");
+
+      default:
+        throw new Error(`Payment failed with status: ${paymentIntent.status}`);
+    }
   }
 
   async listPromotionCodes() {
@@ -766,6 +803,50 @@ export class StripeService extends Stripe {
       });
       throw error;
     }
+  }
+
+  async validatePaymentMethodForTrial(params: { customer: string; payment_method: string; userId: string }): Promise<PaymentMethodValidationResult> {
+    const validationResult = await this.createTestCharge({
+      customer: params.customer,
+      payment_method: params.payment_method
+    });
+
+    // If the card requires 3D Secure authentication, create a new payment intent for 3DS
+    if (validationResult.requiresAction) {
+      // Create a new payment intent specifically for 3D Secure authentication
+      const threeDSPaymentIntent = await this.paymentIntents.create({
+        amount: 100, // $1.00 USD in cents
+        currency: "usd",
+        customer: params.customer,
+        payment_method: params.payment_method,
+        confirm: true,
+        capture_method: "manual",
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: "never"
+        },
+        metadata: {
+          type: "payment_method_validation_3ds",
+          description: "Payment method validation with 3D Secure"
+        }
+      });
+
+      return {
+        success: false,
+        requires3DS: true,
+        clientSecret: threeDSPaymentIntent.client_secret || "",
+        paymentIntentId: threeDSPaymentIntent.id,
+        paymentMethodId: params.payment_method
+      };
+    }
+
+    if (!validationResult.success) {
+      throw new Error("Card validation failed. Please ensure your payment method is valid and try again.");
+    }
+
+    return {
+      success: true
+    };
   }
 
   private async markPaymentMethodAsValidated(customerId: string, paymentMethodId: string, paymentIntentId: string): Promise<void> {

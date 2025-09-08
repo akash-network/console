@@ -109,3 +109,15 @@ export interface TestChargeParams {
   userId: string;
   paymentMethodId: string;
 }
+
+export interface ConfirmPaymentResponse {
+  success: boolean;
+  requiresAction?: boolean;
+  clientSecret?: string;
+  paymentIntentId?: string;
+}
+
+export interface ThreeDSecureAuthParams {
+  paymentMethodId: string;
+  paymentIntentId: string;
+}
