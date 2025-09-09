@@ -123,18 +123,11 @@ describe(Auth0Service.name, () => {
         });
       }
 
-      const auth0Service = new (class extends Auth0Service {
-        constructor() {
-          super(mockAuthConfig);
-          // Override the managementClient property
-          Object.assign(this, { managementClient: mockManagementClient });
-        }
-      })();
+      const auth0Service = new Auth0Service(mockManagementClient);
 
       return {
         auth0Service,
         mockGetByEmail,
-        mockAuthConfig,
         mockManagementClient
       };
     }
