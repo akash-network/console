@@ -5,18 +5,16 @@ import { mock } from "jest-mock-extended";
 import type { AuthConfigService } from "@src/auth/services/auth-config/auth-config.service";
 import { Auth0Service } from "./auth0.service";
 
+import { Auth0UserSeeder } from "@test/seeders";
+
 describe(Auth0Service.name, () => {
   describe("getUserByEmail", () => {
     it("should return user when user is found", async () => {
       const email = faker.internet.email();
-      const mockUser: Partial<GetUsers200ResponseOneOfInner> = {
-        user_id: faker.string.uuid(),
+      const mockUser: Partial<GetUsers200ResponseOneOfInner> = Auth0UserSeeder.create({
         email: email,
-        email_verified: true,
-        name: faker.person.fullName(),
-        created_at: faker.date.past().toISOString(),
-        updated_at: faker.date.recent().toISOString()
-      };
+        email_verified: true
+      });
 
       const { auth0Service, mockGetByEmail } = setup({
         mockUsers: [mockUser as GetUsers200ResponseOneOfInner]
@@ -44,22 +42,14 @@ describe(Auth0Service.name, () => {
     it("should return first user when multiple users are found", async () => {
       const email = faker.internet.email();
       const mockUsers: Partial<GetUsers200ResponseOneOfInner>[] = [
-        {
-          user_id: faker.string.uuid(),
-          email: email,
-          email_verified: true,
-          name: faker.person.fullName(),
-          created_at: faker.date.past().toISOString(),
-          updated_at: faker.date.recent().toISOString()
-        },
-        {
-          user_id: faker.string.uuid(),
-          email: email,
-          email_verified: false,
-          name: faker.person.fullName(),
-          created_at: faker.date.past().toISOString(),
-          updated_at: faker.date.recent().toISOString()
-        }
+        Auth0UserSeeder.create({
+          email,
+          email_verified: true
+        }),
+        Auth0UserSeeder.create({
+          email,
+          email_verified: false
+        })
       ];
 
       const { auth0Service, mockGetByEmail } = setup({
