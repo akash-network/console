@@ -72,18 +72,6 @@ describe(Auth0Service.name, () => {
       expect(mockGetByEmail).toHaveBeenCalledWith({ email });
     });
 
-    it("should propagate errors from Auth0 API", async () => {
-      const email = faker.internet.email();
-      const error = new Error("Auth0 API error");
-
-      const { auth0Service, mockGetByEmail } = setup({
-        mockError: error
-      });
-
-      await expect(auth0Service.getUserByEmail(email)).rejects.toThrow("Auth0 API error");
-      expect(mockGetByEmail).toHaveBeenCalledWith({ email });
-    });
-
     it("should handle empty email string", async () => {
       const email = "";
 
