@@ -8,6 +8,7 @@ import { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargat
 import { Wallet } from "@src/billing/lib/wallet/wallet";
 import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { ChainErrorService } from "../chain-error/chain-error.service";
 
 type CachedClient = {
   key: string;
@@ -22,7 +23,8 @@ export class DedupeSigningClientService {
 
   constructor(
     private readonly config: BillingConfigService,
-    @InjectTypeRegistry() private readonly registry: Registry
+    @InjectTypeRegistry() private readonly registry: Registry,
+    private readonly chainErrorService: ChainErrorService
   ) {}
 
   async executeManagedTx(mnemonic: string, walletIndex: number, messages: readonly EncodeObject[], options?: ExecuteTxOptions) {
@@ -49,7 +51,8 @@ export class DedupeSigningClientService {
           this.config,
           new Wallet(mnemonic, addressIndex),
           this.registry,
-          SyncSigningStargateClient.connectWithSigner.bind(SyncSigningStargateClient)
+          SyncSigningStargateClient.connectWithSigner.bind(SyncSigningStargateClient),
+          this.chainErrorService
         )
       });
     }

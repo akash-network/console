@@ -13,6 +13,7 @@ import assert from "http-assert";
 import type { SyncSigningStargateClient } from "@src/billing/lib/sync-signing-stargate-client/sync-signing-stargate-client";
 import type { Wallet } from "@src/billing/lib/wallet/wallet";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { withSpan } from "@src/core/services/tracing/tracing.service";
 
 interface ShortAccountInfo {
@@ -63,6 +64,7 @@ export class BatchSigningClientService {
     private readonly wallet: Wallet,
     private readonly registry: Registry,
     private readonly connectWithSigner: ConnectWithSignerFn,
+    private readonly chainErrorService: ChainErrorService,
     private readonly loggerContext = BatchSigningClientService.name
   ) {
     this.clientAsPromised = this.initClient();
@@ -207,15 +209,20 @@ export class BatchSigningClientService {
       let txIndex: number = 0;
       while (txIndex < inputs.length) {
         const { messages, options } = inputs[txIndex];
-        const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee?.granter);
+        try {
+          const fee = await this.estimateFee(messages, this.FEES_DENOM, options?.fee?.granter);
 
-        txes.push(
-          await client.sign(accountInfo.address, messages, fee, "", {
-            accountNumber: accountInfo.accountNumber,
-            sequence: accountInfo.sequence,
-            chainId: this.chainId!
-          })
-        );
+          txes.push(
+            await client.sign(accountInfo.address, messages, fee, "", {
+              accountNumber: accountInfo.accountNumber,
+              sequence: accountInfo.sequence,
+              chainId: this.chainId!
+            })
+          );
+        } catch (error: unknown) {
+          throw await this.chainErrorService.toAppError(error as Error, messages);
+        }
+
         this.incrementSequence();
         txIndex++;
       }
