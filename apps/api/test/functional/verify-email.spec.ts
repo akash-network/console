@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
-import type { GetUsers200ResponseOneOfInner } from "auth0";
+import type { ApiResponse, GetUsers200ResponseOneOfInner, GetUsersByEmailRequest } from "auth0";
+import { ManagementClient } from "auth0";
 import { container } from "tsyringe";
 
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
@@ -128,17 +129,23 @@ describe("Syncing 'email verified' from auth0", () => {
       email_verified: input.emailVerified
     });
 
-    const auth0Service = container.resolve(Auth0Service);
-    jest.spyOn(auth0Service, "getUserByEmail").mockImplementation(async (email: string) => {
-      if (email.toLowerCase() === user.email.toLowerCase()) {
-        return Promise.resolve({
-          user_id: user.userId,
-          email_verified: input.emailVerified
-        } as GetUsers200ResponseOneOfInner);
-      }
+    const managementClient = container.resolve(ManagementClient);
+    jest
+      .spyOn(managementClient.usersByEmail, "getByEmail")
+      .mockImplementation(async ({ email }: GetUsersByEmailRequest): Promise<ApiResponse<GetUsers200ResponseOneOfInner[]>> => {
+        if (email.toLowerCase() === user.email.toLowerCase()) {
+          return Promise.resolve({
+            data: [
+              {
+                user_id: user.userId,
+                email_verified: input.emailVerified
+              }
+            ]
+          } as ApiResponse<GetUsers200ResponseOneOfInner[]>);
+        }
 
-      return Promise.resolve(null);
-    });
+        return Promise.resolve({ data: [] as GetUsers200ResponseOneOfInner[] } as ApiResponse<GetUsers200ResponseOneOfInner[]>);
+      });
 
     const userAuthTokenService = container.resolve(UserAuthTokenService);
     jest.spyOn(userAuthTokenService, "getValidUserId").mockResolvedValue(user.userId);

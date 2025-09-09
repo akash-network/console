@@ -1,11 +1,9 @@
 import { GetUsers200ResponseOneOfInner, ManagementClient } from "auth0";
-import { inject, singleton } from "tsyringe";
-
-import { AUTH0_MANAGEMENT_CLIENT } from "@src/core/providers/auth.provider";
+import { singleton } from "tsyringe";
 
 @singleton()
 export class Auth0Service {
-  constructor(@inject(AUTH0_MANAGEMENT_CLIENT) private readonly managementClient: ManagementClient) {}
+  constructor(private readonly managementClient: ManagementClient) {}
 
   async sendVerificationEmail(userId: string) {
     await this.managementClient.jobs.verifyEmail({ user_id: userId });
