@@ -107,7 +107,7 @@ const REFRESH_BIDS_INTERVAL = 7000;
 const MAX_NUM_OF_BID_REQUESTS = Math.floor((5.5 * 60 * 1000) / REFRESH_BIDS_INTERVAL);
 // Show a warning after 1 minute
 const WARNING_NUM_OF_BID_REQUESTS = Math.round((60 * 1000) / REFRESH_BIDS_INTERVAL);
-const TRIAL_SIGNUP_WARNING_TIMEOUT = 33000;
+const TRIAL_SIGNUP_WARNING_TIMEOUT = 33_000;
 
 export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies: d = DEPENDENCIES }) => {
   const { providerProxy, analyticsService, errorHandler, networkStore } = d.useServices();
@@ -276,9 +276,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
   }, [search, bids, providers, isFilteringFavorites, isFilteringAudited, favoriteProviders]);
 
   const [zeroBidsForTrialWarningDisplayed, setZeroBidsForTrialWarningDisplayed] = useState(false);
-  const { data: block } = d.useBlock(dseq, {
-    disabled: true
-  });
+  const { data: block } = d.useBlock(dseq);
 
   useEffect(() => {
     if (!isTrialing || numberOfRequests === 0 || (bids && bids.length > 0)) {
@@ -286,15 +284,14 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
       return;
     }
 
-    const intervalId = setInterval(() => {
-      const blockTime = new Date(block.block.header.time).getTime();
-      const now = new Date().getTime();
-
-      setZeroBidsForTrialWarningDisplayed(now - blockTime > TRIAL_SIGNUP_WARNING_TIMEOUT);
-      clearInterval(intervalId);
+    const timerId = setTimeout(() => {
+      if (block) {
+        const blockTime = new Date(block.block.header.time).getTime();
+        setZeroBidsForTrialWarningDisplayed(Date.now() - blockTime > TRIAL_SIGNUP_WARNING_TIMEOUT);
+      }
     }, 1000);
 
-    return () => clearInterval(intervalId);
+    return () => clearTimeout(timerId);
   }, [block, bids, isTrialing, numberOfRequests]);
 
   const selectBid = (bid: BidDto) => {
