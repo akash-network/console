@@ -1,5 +1,23 @@
 
 
+## [2.107.0](https://github.com/akash-network/console/compare/console-web/v2.106.0...console-web/v2.107.0) (2025-09-10)
+
+
+### Features
+
+* adds notification on first trial deployment ([#1872](https://github.com/akash-network/console/issues/1872)) ([3f2041f](https://github.com/akash-network/console/commit/3f2041f71fb1d5a2898aa78be36ba513c47f3fdd))
+
+
+### Bug Fixes
+
+* ensure that error is not thrown on undefined block ([#1892](https://github.com/akash-network/console/issues/1892)) ([9425d3b](https://github.com/akash-network/console/commit/9425d3b2b23e4223d29854e0458d39514108b03a))
+* keep order of services when switching from yaml to editor ([68c3c67](https://github.com/akash-network/console/commit/68c3c670779c3f3859cdcc3da2845efd609309d3)), closes [#1862](https://github.com/akash-network/console/issues/1862)
+
+
+### Code Refactoring
+
+* changes LeaseHttpService to accept http client ([#1888](https://github.com/akash-network/console/issues/1888)) ([4a13f24](https://github.com/akash-network/console/commit/4a13f24f9119d7332ae27d0a4ec6a9c35b16e93a))
+
 ## [2.106.0](https://github.com/akash-network/console/compare/console-web/v2.105.0...console-web/v2.106.0) (2025-09-03)
 
 
