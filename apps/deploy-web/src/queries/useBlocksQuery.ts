@@ -6,7 +6,7 @@ import type { Block } from "@src/types";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
-export function useBlock(id: string, options = {}) {
+export function useBlock(id: string, options: Omit<UseQueryOptions<Block, Error, any, QueryKey>, "queryKey" | "queryFn"> = {}) {
   const { chainApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getBlockKey(id),

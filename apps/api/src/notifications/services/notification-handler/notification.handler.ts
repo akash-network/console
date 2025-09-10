@@ -2,19 +2,25 @@ import { guard, MongoQuery } from "@ucast/mongo2js";
 import { singleton } from "tsyringe";
 
 import { LoggerService } from "@src/core/providers/logging.provider";
-import { Job, JOB_NAME, JobHandler } from "@src/core/services/job-queue/job-queue.service";
+import { Job, JOB_NAME, JobHandler, JobPayload } from "@src/core/services/job-queue/job-queue.service";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { CreateNotificationInput, NotificationService } from "../notification/notification.service";
 import { afterTrialEndsNotification } from "../notification-templates/after-trial-ends-notification";
+import { beforeCloseTrialDeploymentNotification } from "../notification-templates/before-close-trial-deployment";
 import { beforeTrialEndsNotification } from "../notification-templates/before-trial-ends-notification";
 import { startTrialNotification } from "../notification-templates/start-trial-notification";
+import { trialDeploymentClosedNotification } from "../notification-templates/trial-deployment-closed";
 import { trialEndedNotification } from "../notification-templates/trial-ended-notification";
+import { trialFirstDeploymentLeaseCreatedNotification } from "../notification-templates/trial-first-deployment-lease-created-notification";
 
 const notificationTemplates = {
   trialEnded: trialEndedNotification,
   beforeTrialEnds: beforeTrialEndsNotification,
   afterTrialEnds: afterTrialEndsNotification,
-  startTrial: startTrialNotification
+  startTrial: startTrialNotification,
+  beforeCloseTrialDeployment: beforeCloseTrialDeploymentNotification,
+  trialDeploymentClosed: trialDeploymentClosedNotification,
+  trialFirstDeploymentLeaseCreated: trialFirstDeploymentLeaseCreatedNotification
 };
 
 type NotificationTemplates = typeof notificationTemplates;
@@ -44,7 +50,7 @@ export class NotificationHandler implements JobHandler<NotificationJob> {
     private readonly userRepository: UserRepository
   ) {}
 
-  async handle<T extends keyof NotificationTemplates>(payload: NotificationJob<T>["data"]): Promise<void> {
+  async handle<T extends keyof NotificationTemplates>(payload: JobPayload<NotificationJob<T>>): Promise<void> {
     const notificationTemplate = notificationTemplates[payload.template] as GenericNotificationTemplate;
     if (!notificationTemplate) {
       this.logger.error({

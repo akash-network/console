@@ -1,5 +1,6 @@
 import { FormProvider, useForm } from "react-hook-form";
 import { TooltipProvider } from "@akashnetwork/ui/components";
+import { mock } from "jest-mock-extended";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { LogCollectorControl } from "./LogCollectorControl";
@@ -9,6 +10,10 @@ import userEvent from "@testing-library/user-event";
 import { buildSDLService } from "@tests/seeders/sdlService";
 
 describe(LogCollectorControl.name, () => {
+  beforeAll(() => {
+    global.ResizeObserver = jest.fn().mockImplementation(() => mock<ResizeObserver>());
+  });
+
   it("adds log-collector service when checkbox is checked", async () => {
     const { user, form, targetService } = await setup();
     const checkbox = screen.getByRole("checkbox");
@@ -52,11 +57,28 @@ describe(LogCollectorControl.name, () => {
     const { user, form } = await setup();
     const checkbox = screen.getByRole("checkbox");
     await user.click(checkbox);
+    await act(async () => {
+      form.setValue("services.0.title", "new-title");
+    });
+
+    await waitFor(async () => {
+      expect(form.getValues("services.1.title")).toBe(`new-title-log-collector`);
+    });
+  });
+
+  it("updates log-collector pod selector label when target service title is changed", async () => {
+    const { user, form } = await setup();
+    const checkbox = screen.getByRole("checkbox");
+    await user.click(checkbox);
 
     await act(async () => {
       form.setValue("services.0.title", "new-title");
     });
-    expect(form.getValues("services.1")?.title).toBe(`new-title-log-collector`);
+
+    await waitFor(async () => {
+      const selector = form.getValues("services.1.env")?.find(env => env.key === "POD_LABEL_SELECTOR");
+      expect(selector?.value).toBe('"akash.network/manifest-service=new-title"');
+    });
   });
 
   it("updates log-collector placement when target service placement is changed", async () => {
@@ -68,7 +90,10 @@ describe(LogCollectorControl.name, () => {
     await act(async () => {
       form.setValue("services.0.placement", newPlacement);
     });
-    expect(form.getValues("services.1")?.placement?.name).toBe(newPlacement.name);
+
+    await waitFor(() => {
+      expect(form.getValues("services.1.placement.name")).toBe(newPlacement.name);
+    });
   });
 
   async function setup() {

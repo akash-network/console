@@ -27,6 +27,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
+import { SignUpButton } from "@src/components/auth/SignUpButton/SignUpButton";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import type { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useServices } from "@src/context/ServicesProvider";
@@ -84,6 +85,7 @@ export const DEPENDENCIES = {
   BidCountdownTimer,
   AlertTitle,
   AlertDescription,
+  SignUpButton,
   useServices,
   useWallet,
   useCertificate,
@@ -105,7 +107,7 @@ const REFRESH_BIDS_INTERVAL = 7000;
 const MAX_NUM_OF_BID_REQUESTS = Math.floor((5.5 * 60 * 1000) / REFRESH_BIDS_INTERVAL);
 // Show a warning after 1 minute
 const WARNING_NUM_OF_BID_REQUESTS = Math.round((60 * 1000) / REFRESH_BIDS_INTERVAL);
-const TRIAL_SIGNUP_WARNING_TIMEOUT = 33000;
+const TRIAL_SIGNUP_WARNING_TIMEOUT = 33_000;
 
 export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies: d = DEPENDENCIES }) => {
   const { providerProxy, analyticsService, errorHandler, networkStore } = d.useServices();
@@ -274,9 +276,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
   }, [search, bids, providers, isFilteringFavorites, isFilteringAudited, favoriteProviders]);
 
   const [zeroBidsForTrialWarningDisplayed, setZeroBidsForTrialWarningDisplayed] = useState(false);
-  const { data: block } = d.useBlock(dseq, {
-    disabled: true
-  });
+  const { data: block } = d.useBlock(dseq);
 
   useEffect(() => {
     if (!isTrialing || numberOfRequests === 0 || (bids && bids.length > 0)) {
@@ -284,15 +284,14 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
       return;
     }
 
-    const intervalId = setInterval(() => {
-      const blockTime = new Date(block.block.header.time).getTime();
-      const now = new Date().getTime();
-
-      setZeroBidsForTrialWarningDisplayed(now - blockTime > TRIAL_SIGNUP_WARNING_TIMEOUT);
-      clearInterval(intervalId);
+    const timerId = setTimeout(() => {
+      if (block) {
+        const blockTime = new Date(block.block.header.time).getTime();
+        setZeroBidsForTrialWarningDisplayed(Date.now() - blockTime > TRIAL_SIGNUP_WARNING_TIMEOUT);
+      }
     }, 1000);
 
-    return () => clearInterval(intervalId);
+    return () => clearTimeout(timerId);
   }, [block, bids, isTrialing, numberOfRequests]);
 
   const selectBid = (bid: BidDto) => {
@@ -575,11 +574,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
                   <Link href={UrlService.login()} className="font-bold underline">
                     Sign in
                   </Link>{" "}
-                  or{" "}
-                  <Link href={UrlService.signup()} className="font-bold underline">
-                    Sign up
-                  </Link>{" "}
-                  and buy credits to unlock all providers.
+                  or <d.SignUpButton className="font-bold underline" /> and buy credits to unlock all providers.
                 </p>
               </d.AlertDescription>
             </d.Alert>
@@ -602,9 +597,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
                   <d.Button onClick={() => handleCloseDeployment()} variant="outline" type="button" size="sm" className="mr-4">
                     Close Deployment
                   </d.Button>
-                  <d.Button onClick={() => router.push(UrlService.signup())} color="secondary" variant="default" type="button" size="sm">
-                    Sign Up
-                  </d.Button>
+                  <d.SignUpButton wrapper="button" color="secondary" variant="default" type="button" size="sm" />
                 </p>
               </div>
             </d.CardContent>

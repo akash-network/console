@@ -2,7 +2,11 @@ import "@testing-library/jest-dom";
 
 import React from "react";
 import { act } from "react-dom/test-utils";
+import { mock } from "jest-mock-extended";
+import type { Router } from "next/router";
 
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
+import type { AuthService } from "@src/services/auth/auth/auth.service";
 import { UrlService } from "@src/utils/urlUtils";
 import { OnboardingContainer, OnboardingStepIndex } from "./OnboardingContainer";
 
@@ -60,7 +64,7 @@ describe("OnboardingContainer", () => {
   });
 
   it("should track analytics and redirect when starting trial", async () => {
-    const { child, mockAnalyticsService, mockUrlService } = setup();
+    const { child, mockAnalyticsService, mockUrlService, authService } = setup();
 
     (mockUrlService.onboarding as jest.Mock).mockReturnValue("/onboarding");
     (mockUrlService.signup as jest.Mock).mockReturnValue("/signup");
@@ -74,7 +78,7 @@ describe("OnboardingContainer", () => {
       category: "onboarding"
     });
     expect(mockUrlService.onboarding).toHaveBeenCalledWith(true);
-    expect(mockUrlService.signup).toHaveBeenCalled();
+    expect(authService.signup).toHaveBeenCalledWith({ returnTo: expect.stringContaining("/onboarding") });
   });
 
   it("should track analytics when payment method is completed", async () => {
@@ -168,26 +172,22 @@ describe("OnboardingContainer", () => {
       });
     }
 
-    // Create mock objects
-    const mockAnalyticsService = {
-      track: jest.fn()
-    };
-    const mockRouter = {
-      push: jest.fn()
-    };
+    const mockAnalyticsService = mock<AnalyticsService>();
+    const mockRouter = mock<Router>();
+    const authService = mock<AuthService>();
 
-    // Create a mock UrlService with all required methods
     const mockUrlService = {
       ...UrlService,
-      onboarding: jest.fn(),
-      signup: jest.fn()
-    } as unknown as typeof UrlService;
+      onboarding: jest.fn(() => "/onboarding"),
+      signup: jest.fn(() => "/signup")
+    };
 
     const mockUseUser = jest.fn().mockReturnValue(input.user || { emailVerified: false });
     const mockUsePaymentMethodsQuery = jest.fn().mockReturnValue({ data: input.paymentMethods || [] });
     const mockUseServices = jest.fn().mockReturnValue({
       analyticsService: mockAnalyticsService,
-      urlService: mockUrlService
+      urlService: mockUrlService,
+      authService
     });
     const mockUseRouter = jest.fn().mockReturnValue(mockRouter);
 
@@ -220,6 +220,7 @@ describe("OnboardingContainer", () => {
       mockAnalyticsService,
       mockRouter,
       mockUrlService,
+      authService,
       mockUseUser,
       mockUsePaymentMethodsQuery,
       mockUseServices,

@@ -1,11 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { Alert, Button, Form, Snackbar, Spinner } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { NavArrowRight } from "iconoir-react";
 import { useAtom } from "jotai";
-import { nanoid } from "nanoid";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
@@ -14,6 +13,7 @@ import { SimpleServiceFormControl } from "@src/components/sdl/SimpleServiceFormC
 import { USER_TEMPLATE_CODE } from "@src/config/deploy.config";
 import { useServices } from "@src/context/ServicesProvider";
 import useFormPersist from "@src/hooks/useFormPersist";
+import { useSdlServiceManager } from "@src/hooks/useSdlServiceManager/useSdlServiceManager";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { ITemplate, SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -57,16 +57,8 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
     defaultValues: DEFAULT_SERVICES,
     storage: typeof window === "undefined" ? undefined : window.localStorage
   });
-  const {
-    fields: services,
-    remove: removeService,
-    append: appendService
-  } = useFieldArray({
-    control,
-    name: "services",
-    keyName: "id"
-  });
   const { services: _services } = watch();
+  const serviceManager = useSdlServiceManager({ control });
   const router = useRouter();
   const searchParams = useSearchParams();
   const templateQueryId = searchParams?.get("id");
@@ -115,14 +107,6 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
 
       setIsLoadingTemplate(false);
     }
-  };
-
-  const onAddService = () => {
-    appendService({ ...defaultService, id: nanoid(), title: `service-${services.length + 1}` });
-  };
-
-  const onRemoveService = (index: number) => {
-    removeService(index);
   };
 
   const onSubmit = async (data: SdlBuilderFormValuesType) => {
@@ -303,7 +287,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
               setValue={setValue}
               control={control}
               trigger={trigger}
-              onRemoveService={onRemoveService}
+              onRemoveService={serviceManager.remove}
               serviceCollapsed={serviceCollapsed}
               setServiceCollapsed={setServiceCollapsed}
               gpuModels={gpuModels}
@@ -318,7 +302,7 @@ export const SimpleSDLBuilderForm: React.FunctionComponent = () => {
 
           <div className="flex items-center justify-end pt-4">
             <div>
-              <Button color="secondary" variant="default" onClick={onAddService} type="button">
+              <Button color="secondary" variant="default" onClick={serviceManager.add} type="button">
                 Add Service
               </Button>
             </div>

@@ -1,0 +1,57 @@
+---
+version: "2.0"
+services:
+  web:
+    image: baktun/hello-akash-world:1.0.0
+    expose:
+      - port: 3000
+        as: 80
+        to:
+          - global: true
+    env:
+      - NEW_FEATURE=enabled
+  service-2:
+    image: ""
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          - size: 512Mi
+    service-2:
+      resources:
+        cpu:
+          units: 0.1
+        memory:
+          size: 512Mi
+        storage:
+          - size: 1Gi
+  placement:
+    dcloud:
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+        service-2:
+          denom: uakt
+          amount: 100000
+      attributes:
+        console/trials: "true"
+deployment:
+  web:
+    dcloud:
+      profile: web
+      count: 1
+  service-2:
+    dcloud:
+      profile: service-2
+      count: 1

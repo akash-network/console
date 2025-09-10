@@ -64,7 +64,10 @@ export const serverEnvSchema = browserEnvSchema.extend({
   GITLAB_CLIENT_SECRET: z.string(),
   NEXT_PUBLIC_CI_CD_IMAGE_NAME: z.string(),
   NEXT_PUBLIC_PROVIDER_PROXY_URL: z.string(),
-  NEXT_PUBLIC_UNLEASH_ENABLE_ALL: coercedBoolean().optional().default("false")
+  NEXT_PUBLIC_UNLEASH_ENABLE_ALL: coercedBoolean().optional().default("false"),
+  NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID: networkId.optional().default("mainnet"),
+  NEXT_PUBLIC_DEFAULT_NETWORK_ID: networkId.optional().default("mainnet"),
+  NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development")
 });
 
 export type BrowserEnvConfig = z.infer<typeof browserEnvSchema>;

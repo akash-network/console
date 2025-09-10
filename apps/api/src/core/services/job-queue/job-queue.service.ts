@@ -87,7 +87,7 @@ export class JobQueueService implements Disposable {
   }
 
   /** Starts jobs processing */
-  async startWorkers(options: ProcessOptions = {}): Promise<void> {
+  async startWorkers({ concurrency, ...options }: ProcessOptions = {}): Promise<void> {
     if (!this.handlers) throw new Error("Handlers not registered. Register handlers first.");
 
     const workerOptions = {
@@ -96,8 +96,8 @@ export class JobQueueService implements Disposable {
     };
     const jobs = this.handlers.map(async handler => {
       const queueName = handler.accepts[JOB_NAME];
-      const workersPromises = Array.from({ length: options.batchSize ?? 10 }).map(() =>
-        this.pgBoss.work<Job["data"]>(queueName, workerOptions, async ([job]) => {
+      const workersPromises = Array.from({ length: handler.concurrency ?? concurrency ?? 2 }).map(() =>
+        this.pgBoss.work<JobPayload<Job>>(queueName, workerOptions, async ([job]) => {
           this.logger.info({
             event: "JOB_STARTED",
             jobId: job.id
@@ -148,10 +148,16 @@ export class JobQueueService implements Disposable {
 }
 
 export interface Job {
+  /**
+   * Version must be changed only if the job data structure changes in a way that would cause a backwards incompatible change.
+   * Corresponding job handler must be updated to support the new version of Job payload.
+   */
   version: number;
   name: string;
   data: Record<string, unknown>;
 }
+
+export type JobPayload<T extends Job> = T["data"] & { version: T["version"] };
 
 export const JOB_NAME = Symbol("name");
 
@@ -162,8 +168,15 @@ export type JobType<T extends Job> = {
 
 export interface JobHandler<T extends Job> {
   accepts: JobType<T>;
-  handle(job: T["data"]): Promise<void>;
+  concurrency?: ProcessOptions["concurrency"];
+  handle(payload: JobPayload<T>): Promise<void>;
 }
 
 export type EnqueueOptions = PgBoss.SendOptions;
-export type ProcessOptions = PgBoss.WorkOptions;
+export interface ProcessOptions extends Omit<PgBoss.WorkOptions, "batchSize"> {
+  /**
+   * The number of workers to start. Defaults to 2.
+   * Specify higher concurrency to process jobs faster. Specify 1 to process jobs one by one.
+   */
+  concurrency?: number;
+}

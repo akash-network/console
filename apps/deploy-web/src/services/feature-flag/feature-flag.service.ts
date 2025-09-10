@@ -1,6 +1,6 @@
 import type * as unleashModule from "@unleash/nextjs";
 import type { Context } from "@unleash/nextjs";
-import type { GetServerSideProps, GetServerSidePropsContext } from "next";
+import type { GetServerSidePropsContext } from "next";
 
 import type { ServerEnvConfig } from "@src/config/env-config.schema";
 
@@ -25,24 +25,17 @@ export class FeatureFlagService {
     return flags.isEnabled(name);
   }
 
-  extractSessionId(ctx: GetServerSidePropsContext): string | undefined {
+  extractSessionId(ctx: Pick<GetServerSidePropsContext, "req">): string | undefined {
     const cookies = ctx.req.headers.cookie?.split(";").map(c => c.trim());
     const unleashCookie = cookies?.find(c => c.startsWith(this.UNLEASH_COOKIE_KEY));
     return unleashCookie?.replace(this.UNLEASH_COOKIE_KEY, "");
   }
 
-  async isEnabledForCtx(name: string, ctx: GetServerSidePropsContext, extraContext: Context = {}): Promise<boolean> {
+  async isEnabledForCtx(name: string, ctx: Pick<GetServerSidePropsContext, "req">, extraContext: Context = {}): Promise<boolean> {
     if (this.config.NEXT_PUBLIC_UNLEASH_ENABLE_ALL) return true;
 
     const sessionId = this.extractSessionId(ctx);
 
     return await this.getFlag(name, { sessionId, ...extraContext });
-  }
-
-  showIfEnabled(name: string): GetServerSideProps {
-    return async ctx => {
-      const isEnabled = await this.isEnabledForCtx(name, ctx);
-      return isEnabled ? { props: {} } : { notFound: true };
-    };
   }
 }

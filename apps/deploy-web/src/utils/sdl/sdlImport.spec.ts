@@ -1,4 +1,7 @@
-import { parseSvcCommand } from "./sdlImport";
+import * as fs from "node:fs";
+import * as path from "node:path";
+
+import { importSimpleSdl, parseSvcCommand } from "./sdlImport";
 
 describe("sdlImport", () => {
   describe("parseSvcCommand", () => {
@@ -36,6 +39,16 @@ describe("sdlImport", () => {
 
     it("returns rest of command as string if command is array of strings with sh -c, drops empty lines", () => {
       expect(parseSvcCommand(["sh", "-c", "echo 'foo'", "", "echo 'bar'"])).toEqual("echo 'foo'\necho 'bar'");
+    });
+  });
+
+  describe("importSimpleSdl", () => {
+    it("returns services in the same order as in the SDL YAML", () => {
+      const yml = fs.readFileSync(path.resolve(__dirname, "../../../tests/mocks/two-services-sdl.yml"), "utf8");
+
+      const services = importSimpleSdl(yml);
+
+      expect(services.map(service => service.title)).toEqual(["web", "service-2"]);
     });
   });
 });

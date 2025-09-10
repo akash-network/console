@@ -1,5 +1,60 @@
 
 
+## [2.107.0](https://github.com/akash-network/console/compare/console-web/v2.106.0...console-web/v2.107.0) (2025-09-10)
+
+
+### Features
+
+* adds notification on first trial deployment ([#1872](https://github.com/akash-network/console/issues/1872)) ([3f2041f](https://github.com/akash-network/console/commit/3f2041f71fb1d5a2898aa78be36ba513c47f3fdd))
+
+
+### Bug Fixes
+
+* ensure that error is not thrown on undefined block ([#1892](https://github.com/akash-network/console/issues/1892)) ([9425d3b](https://github.com/akash-network/console/commit/9425d3b2b23e4223d29854e0458d39514108b03a))
+* keep order of services when switching from yaml to editor ([68c3c67](https://github.com/akash-network/console/commit/68c3c670779c3f3859cdcc3da2845efd609309d3)), closes [#1862](https://github.com/akash-network/console/issues/1862)
+
+
+### Code Refactoring
+
+* changes LeaseHttpService to accept http client ([#1888](https://github.com/akash-network/console/issues/1888)) ([4a13f24](https://github.com/akash-network/console/commit/4a13f24f9119d7332ae27d0a4ec6a9c35b16e93a))
+
+## [2.106.0](https://github.com/akash-network/console/compare/console-web/v2.105.0...console-web/v2.106.0) (2025-09-03)
+
+
+### Features
+
+* **log-collector:** integrate LogCollectorControl with SimpleSdlBuiderForm ([19a5180](https://github.com/akash-network/console/commit/19a51805fcb17dee3dd925c2c2e7d79b67bdb17e))
+
+
+### Bug Fixes
+
+* **log-collector:** ensures latest state updates in sdl env hook ([25afa73](https://github.com/akash-network/console/commit/25afa7319a739eee8545a325aa4986dc907b031d))
+
+## [2.105.0](https://github.com/akash-network/console/compare/console-web/v2.104.0...console-web/v2.105.0) (2025-09-02)
+
+
+### Features
+
+* **log-collector:** adds log collector configuration to sdl ([7b7fe50](https://github.com/akash-network/console/commit/7b7fe50cb1c248d3d4e10ab10b95832843226551))
+
+
+### Bug Fixes
+
+* **network:** api proxy correct network url ([#1881](https://github.com/akash-network/console/issues/1881)) ([d561658](https://github.com/akash-network/console/commit/d5616587752f007e5fb015e17a0d9fd68e4c2659))
+
+## [2.104.0](https://github.com/akash-network/console/compare/console-web/v2.103.0...console-web/v2.104.0) (2025-09-01)
+
+
+### Features
+
+* **log-collector:** implements basic log collector control in the sdl builder ([68e7fb7](https://github.com/akash-network/console/commit/68e7fb7321172de87d6193a40fa2d4e611ff7ba6))
+
+
+### Bug Fixes
+
+* anonymous user reassignment ([#1877](https://github.com/akash-network/console/issues/1877)) ([cde7e41](https://github.com/akash-network/console/commit/cde7e417cbbe279a98b856de532a69f6fe16cad7))
+* **network:** sandbox for managed wallets staging ([#1879](https://github.com/akash-network/console/issues/1879)) ([e373bf9](https://github.com/akash-network/console/commit/e373bf979e06729726b2becbb6c046d11a351ac4))
+
 ## [2.103.0](https://github.com/akash-network/console/compare/console-web/v2.102.1...console-web/v2.103.0) (2025-08-28)
 
 

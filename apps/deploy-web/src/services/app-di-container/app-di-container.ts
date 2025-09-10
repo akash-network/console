@@ -3,6 +3,7 @@ import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import {
   ApiKeyHttpService,
   AuthHttpService,
+  createHttpClient,
   DeploymentSettingHttpService,
   TemplateHttpService,
   TxHttpService,
@@ -14,13 +15,12 @@ import { LoggerService } from "@akashnetwork/logging";
 import { getTraceData } from "@sentry/nextjs";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { Axios, AxiosInstance, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
-import axios from "axios";
 
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import { customRegistry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
 import type { ApiUrlService } from "../api-url/api-url.service";
-import { AuthService } from "../auth/auth.service";
+import { withUserToken } from "../auth/auth/interceptors";
 import { createContainer } from "../container/createContainer";
 import { ErrorHandlerService } from "../error-handler/error-handler.service";
 import { ManagedWalletHttpService } from "../managed-wallet-http/managed-wallet-http.service";
@@ -45,10 +45,9 @@ export const createAppRootContainer = (config: ServicesConfig) => {
           response: [...(interceptors?.response || [])]
         });
     },
-    authService: () => new AuthService(container.urlService),
     user: () =>
       container.applyAxiosInterceptors(new UserHttpService(apiConfig), {
-        request: [container.authService.withAnonymousUserHeader],
+        request: [withUserToken],
         response: [
           response => {
             if (response.config.url?.startsWith("/v1/anonymous-users") && response.config.method === "post" && response.status === 200) {
@@ -60,30 +59,30 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       }),
     stripe: () =>
       container.applyAxiosInterceptors(new HttpStripeService(apiConfig), {
-        request: [container.authService.withAnonymousUserHeader]
+        request: [withUserToken]
       }),
     stripeService: () => new StripeService(),
     tx: () =>
       container.applyAxiosInterceptors(new TxHttpService(customRegistry, apiConfig), {
-        request: [container.authService.withAnonymousUserHeader]
+        request: [withUserToken]
       }),
     template: () => container.applyAxiosInterceptors(new TemplateHttpService(apiConfig)),
     usage: () =>
       container.applyAxiosInterceptors(new UsageHttpService(apiConfig), {
-        request: [container.authService.withAnonymousUserHeader]
+        request: [withUserToken]
       }),
     auth: () =>
       container.applyAxiosInterceptors(new AuthHttpService(apiConfig), {
-        request: [container.authService.withAnonymousUserHeader]
+        request: [withUserToken]
       }),
     providerProxy: () => new ProviderProxyService(container.applyAxiosInterceptors(container.createAxios({ baseURL: config.BASE_PROVIDER_PROXY_URL }), {})),
     deploymentSetting: () =>
       container.applyAxiosInterceptors(new DeploymentSettingHttpService(apiConfig), {
-        request: [container.authService.withAnonymousUserHeader]
+        request: [withUserToken]
       }),
     apiKey: () =>
       container.applyAxiosInterceptors(new ApiKeyHttpService(apiConfig), {
-        request: [container.authService.withAnonymousUserHeader]
+        request: [withUserToken]
       }),
     externalApiHttpClient: () =>
       container.createAxios({
@@ -95,7 +94,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
     createAxios:
       () =>
       (options?: CreateAxiosDefaults): AxiosInstance =>
-        withInterceptors(axios.create({ ...options, adapter: "fetch" }), {
+        withInterceptors(createHttpClient({ ...options, adapter: "fetch" }), {
           request: [config.globalRequestMiddleware]
         }),
     certificateManager: () => certificateManager,
@@ -111,7 +110,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
           container.analyticsService
         ),
         {
-          request: [container.authService.withAnonymousUserHeader],
+          request: [withUserToken],
           response: [
             response => {
               if (response.config.url === "v1/start-trial" && response.config.method === "post" && response.status === 200) {
