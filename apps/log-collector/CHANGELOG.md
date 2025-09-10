@@ -1,5 +1,17 @@
 
 
+## [1.9.0](https://github.com/akash-network/console/compare/log-collector/v1.8.0...log-collector/v1.9.0) (2025-09-10)
+
+
+### Features
+
+* adds notification on first trial deployment ([#1872](https://github.com/akash-network/console/issues/1872)) ([3f2041f](https://github.com/akash-network/console/commit/3f2041f71fb1d5a2898aa78be36ba513c47f3fdd))
+
+
+### Code Refactoring
+
+* changes LeaseHttpService to accept http client ([#1888](https://github.com/akash-network/console/issues/1888)) ([4a13f24](https://github.com/akash-network/console/commit/4a13f24f9119d7332ae27d0a4ec6a9c35b16e93a))
+
 ## [1.8.0](https://github.com/akash-network/console/compare/log-collector/v1.7.0...log-collector/v1.8.0) (2025-08-28)
 
 
