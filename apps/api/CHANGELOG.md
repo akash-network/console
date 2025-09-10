@@ -1,5 +1,23 @@
 
 
+## [2.116.0](https://github.com/akash-network/console/compare/console-api/v2.115.1...console-api/v2.116.0) (2025-09-10)
+
+
+### Features
+
+* adds notification on first trial deployment ([#1872](https://github.com/akash-network/console/issues/1872)) ([3f2041f](https://github.com/akash-network/console/commit/3f2041f71fb1d5a2898aa78be36ba513c47f3fdd))
+
+
+### Bug Fixes
+
+* **billing:** lease flow test ([#1890](https://github.com/akash-network/console/issues/1890)) ([3343c6a](https://github.com/akash-network/console/commit/3343c6aef70bad640d2c44b28224dea0a66a6f77))
+
+
+### Code Refactoring
+
+* changes LeaseHttpService to accept http client ([#1888](https://github.com/akash-network/console/issues/1888)) ([4a13f24](https://github.com/akash-network/console/commit/4a13f24f9119d7332ae27d0a4ec6a9c35b16e93a))
+* handles close/notification for trial deployments via background job ([#1868](https://github.com/akash-network/console/issues/1868)) ([04736c8](https://github.com/akash-network/console/commit/04736c8ea55962b1961fc7719b29da12c9ff568b))
+
 ## [2.115.1](https://github.com/akash-network/console/compare/console-api/v2.115.0...console-api/v2.115.1) (2025-09-01)
 
 
