@@ -3,6 +3,7 @@ import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
 import {
   ApiKeyHttpService,
   AuthHttpService,
+  createHttpClient,
   DeploymentSettingHttpService,
   TemplateHttpService,
   TxHttpService,
@@ -14,7 +15,6 @@ import { LoggerService } from "@akashnetwork/logging";
 import { getTraceData } from "@sentry/nextjs";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { Axios, AxiosInstance, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
-import axios from "axios";
 
 import { analyticsService } from "@src/services/analytics/analytics.service";
 import { customRegistry } from "@src/utils/customRegistry";
@@ -94,7 +94,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
     createAxios:
       () =>
       (options?: CreateAxiosDefaults): AxiosInstance =>
-        withInterceptors(axios.create({ ...options, adapter: "fetch" }), {
+        withInterceptors(createHttpClient({ ...options, adapter: "fetch" }), {
           request: [config.globalRequestMiddleware]
         }),
     certificateManager: () => certificateManager,

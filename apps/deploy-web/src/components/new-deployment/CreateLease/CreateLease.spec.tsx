@@ -15,6 +15,7 @@ import { CreateLease, DEPENDENCIES as CREATE_LEASE_DEPENDENCIES } from "./Create
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildRpcBid } from "@tests/seeders/bid";
+import type { BlockDetail } from "@tests/seeders/block";
 import { buildBlockDetail } from "@tests/seeders/block";
 import { helloWorldManifest } from "@tests/seeders/manifest";
 import { buildProvider } from "@tests/seeders/provider";
@@ -129,6 +130,22 @@ describe(CreateLease.name, () => {
       expect(getByRole("button", { name: /Close Deployment/i })).toBeInTheDocument();
       expect(queryByRole("button", { name: /Accept Bid/i })).not.toBeInTheDocument();
     });
+  });
+
+  it("doesn't throw error if block is null-ish", async () => {
+    jest.useFakeTimers();
+    const { getByText } = setup({
+      bids: [],
+      isTrialWallet: true,
+      getBlock: async () => null as any
+    });
+    await act(() => jest.runOnlyPendingTimersAsync());
+
+    await waitFor(() => {
+      expect(getByText(/Waiting for bids/i)).toBeInTheDocument();
+    });
+
+    jest.useRealTimers();
   });
 
   describe("lease creation", () => {
@@ -343,6 +360,8 @@ describe(CreateLease.name, () => {
     providers?: ApiProviderDetail[];
     genNewCertificateIfLocalIsInvalid?: () => Promise<CertificatePem | null>;
     updateSelectedCertificate?: (cert: CertificatePem) => Promise<LocalCert>;
+    isTrialWallet?: boolean;
+    getBlock?: () => Promise<BlockDetail>;
   }) {
     const favoriteProviders: string[] = [];
     const useLocalNotes = (() => ({
@@ -385,7 +404,7 @@ describe(CreateLease.name, () => {
 
                 if (url.includes("/blocks/")) {
                   return {
-                    data: buildBlockDetail()
+                    data: input?.getBlock ? await input.getBlock() : buildBlockDetail()
                   };
                 }
 
@@ -417,6 +436,7 @@ describe(CreateLease.name, () => {
               walletName: "test",
               isWalletConnected: true,
               isWalletLoaded: true,
+              isTrialing: input?.isTrialWallet ?? false,
               signAndBroadcastTx: input?.signAndBroadcastTx ?? (() => Promise.resolve({}))
             })) as unknown as (typeof CREATE_LEASE_DEPENDENCIES)["useWallet"],
             useCertificate: () =>
