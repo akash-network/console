@@ -12,10 +12,13 @@ export default defineApiHandler({
     services.logger.info({ event: "PROXY_API_REQUEST", url: req.url });
     const session = await getSession(req, res);
 
-    // Extract and forward only cf_clearance cookie if present
+    // Extract and forward cf_clearance and unleash-session-id cookies
     const cookies = req.headers.cookie?.split(";").map(c => c.trim());
     const cfClearance = cookies?.find(c => c.startsWith("cf_clearance="));
-    req.headers.cookie = cfClearance || "";
+    const unleashSessionId = cookies?.find(c => c.startsWith("unleash-session-id="));
+
+    const cookiesToForward = [cfClearance, unleashSessionId].filter(Boolean);
+    req.headers.cookie = cookiesToForward.join("; ");
 
     if (session?.accessToken) {
       req.headers.authorization = `Bearer ${session.accessToken}`;

@@ -101,6 +101,48 @@ describe(FeatureFlagsService.name, () => {
         currentTime: expect.any(Date),
         remoteAddress: httpClientInfo.ip,
         userId: currentUser.id,
+        sessionId: undefined,
+        environment: config.DEPLOYMENT_ENV,
+        properties: {
+          userAgent: httpClientInfo.userAgent,
+          fingerprint: httpClientInfo.fingerprint,
+          nodeEnv: config.NODE_ENV,
+          chainNetwork: config.NETWORK
+        }
+      });
+    });
+
+    it("includes sessionId from Unleash cookie in context", async () => {
+      const client = createUnleashMockClient({
+        isEnabledFeatureFlag: jest.fn(() => false)
+      });
+      const createClient = jest.fn(() => client);
+      const currentUser = { id: "123" };
+      const httpClientInfo: ClientInfoContextVariables["clientInfo"] = {
+        ip: "127.0.0.1",
+        userAgent: "test",
+        fingerprint: "test"
+      };
+      const config = {
+        DEPLOYMENT_ENV: "development",
+        NODE_ENV: "development",
+        NETWORK: "mainnet"
+      } as const;
+      const service = await setup({
+        config,
+        createClient,
+        currentUser,
+        httpClientInfo,
+        unleashSessionId: "test-session-123"
+      });
+
+      service.isEnabled(FeatureFlags.NOTIFICATIONS_ALERT_CREATE);
+
+      expect(client.isEnabled).toHaveBeenCalledWith(FeatureFlags.NOTIFICATIONS_ALERT_CREATE, {
+        currentTime: expect.any(Date),
+        remoteAddress: httpClientInfo.ip,
+        userId: currentUser.id,
+        sessionId: "test-session-123",
         environment: config.DEPLOYMENT_ENV,
         properties: {
           userAgent: httpClientInfo.userAgent,
@@ -146,6 +188,7 @@ describe(FeatureFlagsService.name, () => {
     createClient?: (config: UnleashConfig) => Unleash;
     currentUser?: { id: string };
     httpClientInfo?: ClientInfoContextVariables["clientInfo"];
+    unleashSessionId?: string;
     skipInitialization?: boolean;
   }) {
     const service = new FeatureFlagsService(
@@ -174,7 +217,15 @@ describe(FeatureFlagsService.name, () => {
                     ({
                       clientInfo: input.httpClientInfo
                     }) as Record<string, unknown>
-                  )[key]
+                  )[key],
+                req: {
+                  header: (headerName: string) => {
+                    if (headerName === "cookie" && input.unleashSessionId) {
+                      return `unleash-session-id=${input.unleashSessionId}`;
+                    }
+                    return undefined;
+                  }
+                }
               }
             }) as any
           )[key]
