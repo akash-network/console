@@ -5,6 +5,8 @@ import { z } from "zod";
 import { AuthController } from "@src/auth/controllers/auth/auth.controller";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
+export const sendVerificationEmailRouter = new OpenApiHonoHandler();
+
 const SendVerificationEmailRequestInputSchema = z.object({
   data: z.object({
     userId: z.string()
@@ -35,7 +37,6 @@ const route = createRoute({
     }
   }
 });
-export const sendVerificationEmailRouter = new OpenApiHonoHandler();
 
 sendVerificationEmailRouter.openapi(route, async function verifyEmail(c) {
   await container.resolve(AuthController).sendVerificationEmail(c.req.valid("json"));
