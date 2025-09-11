@@ -1,5 +1,12 @@
 
 
+## [2.116.1](https://github.com/akash-network/console/compare/console-api/v2.116.0...console-api/v2.116.1) (2025-09-11)
+
+
+### Bug Fixes
+
+* sync email_verified from auth0 on demand  ([436e41a](https://github.com/akash-network/console/commit/436e41a6a1dc2c39552192d2ae648b011ccb44e2))
+
 ## [2.116.0](https://github.com/akash-network/console/compare/console-api/v2.115.1...console-api/v2.116.0) (2025-09-10)
 
 
