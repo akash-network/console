@@ -1,10 +1,16 @@
 "use client";
-import React from "react";
+import React, { useMemo } from "react";
+import { ErrorBoundary } from "react-error-boundary";
+import type { ApiWalletWithOptional3DS } from "@akashnetwork/http-sdk";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import { Alert, AlertDescription, AlertTitle, Popup } from "@akashnetwork/ui/components";
+import { Elements } from "@stripe/react-stripe-js";
 import { CreditCard } from "iconoir-react";
+import { useTheme } from "next-themes";
 
+import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
 import { Title } from "@src/components/shared/Title";
+import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 import type { AppError } from "@src/types";
 import { PaymentMethodsDisplay } from "../PaymentMethodsDisplay/PaymentMethodsDisplay";
 import { PaymentVerificationCard } from "../PaymentVerificationCard/PaymentVerificationCard";
@@ -24,6 +30,10 @@ interface PaymentMethodStepProps {
   onNext: () => void;
   onShowDeleteConfirmation: (show: boolean) => void;
   onSetCardToDelete: (cardId?: string) => void;
+  hasPaymentMethod: boolean;
+  threeDSecureData: ApiWalletWithOptional3DS | null;
+  on3DSecureSuccess: () => void;
+  on3DSecureError: (error: string) => void;
 }
 
 export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> = ({
@@ -40,24 +50,81 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
   onConfirmRemovePaymentMethod,
   onNext,
   onShowDeleteConfirmation,
-  onSetCardToDelete
+  onSetCardToDelete,
+  hasPaymentMethod,
+  threeDSecureData,
+  on3DSecureSuccess,
+  on3DSecureError
 }) => {
+  const { stripeService } = useServices();
+  const stripePromise = useMemo(() => stripeService.getStripe(), [stripeService]);
+  const { resolvedTheme } = useTheme();
+  const isDarkMode = resolvedTheme === "dark";
+
+  // Render 3D Secure authentication if required
+  if (threeDSecureData && threeDSecureData.clientSecret && threeDSecureData.paymentIntentId) {
+    return (
+      <ThreeDSecurePopup
+        isOpen
+        onSuccess={on3DSecureSuccess}
+        onError={on3DSecureError}
+        clientSecret={threeDSecureData.clientSecret}
+        paymentIntentId={threeDSecureData.paymentIntentId}
+        title="Card Authentication"
+        description="Your bank requires additional verification for this transaction."
+        successMessage="Your card has been verified. Proceeding to start your trial..."
+        errorMessage="Please try again or use a different payment method."
+      />
+    );
+  }
+
+  // Render payment form states
+  if (paymentMethods.length === 0 || showAddForm) {
+    return (
+      <div className="space-y-6 text-center">
+        {setupIntent?.clientSecret && (
+          <ErrorBoundary fallback={<div>Failed to load payment form</div>}>
+            {stripePromise ? (
+              <Elements
+                stripe={stripePromise}
+                options={{
+                  clientSecret: setupIntent.clientSecret,
+                  appearance: {
+                    theme: isDarkMode ? "night" : "stripe",
+                    variables: {
+                      colorPrimary: "#ff424c",
+                      colorSuccess: "#ff424c"
+                    }
+                  }
+                }}
+              >
+                <PaymentVerificationCard setupIntent={setupIntent} onSuccess={onSuccess} />
+              </Elements>
+            ) : (
+              <div className="p-4 text-center text-muted-foreground">
+                Payment processing is not available at this time. Please try again later or contact support if the issue persists.
+              </div>
+            )}
+          </ErrorBoundary>
+        )}
+      </div>
+    );
+  }
+
+  // Render existing payment methods
   return (
     <div className="space-y-6 text-center">
       <Title>Add Payment Method</Title>
 
-      {paymentMethods.length > 0 && !showAddForm && (
-        <PaymentMethodsDisplay
-          paymentMethods={paymentMethods}
-          onRemovePaymentMethod={onRemovePaymentMethod}
-          onStartTrial={onNext}
-          isLoading={isLoading}
-          isRemoving={isRemoving}
-          managedWalletError={managedWalletError}
-        />
-      )}
-
-      {(paymentMethods.length === 0 || showAddForm) && <PaymentVerificationCard setupIntent={setupIntent} onSuccess={onSuccess} />}
+      <PaymentMethodsDisplay
+        paymentMethods={paymentMethods}
+        onRemovePaymentMethod={onRemovePaymentMethod}
+        onStartTrial={onNext}
+        isLoading={isLoading}
+        isRemoving={isRemoving}
+        managedWalletError={managedWalletError}
+        hasPaymentMethod={hasPaymentMethod}
+      />
 
       {paymentMethods.length === 0 && !showAddForm && (
         <Alert className="mx-auto max-w-md text-left" variant="warning">
@@ -67,7 +134,9 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
             </div>
             <div>
               <AlertTitle>Payment Method Required</AlertTitle>
-              <AlertDescription>You must add a payment method to continue to the next step.</AlertDescription>
+              <AlertDescription>
+                You must add a payment method to continue to the next step. Your card will be validated during the trial start process.
+              </AlertDescription>
             </div>
           </div>
         </Alert>

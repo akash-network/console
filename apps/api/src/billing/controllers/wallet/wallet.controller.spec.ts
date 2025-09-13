@@ -158,7 +158,7 @@ describe("WalletController", () => {
       useValue: mock<StripeService>({
         getPaymentMethods: jest.fn(async () => {
           if (!input?.hasPaymentMethods) return [];
-          return [generatePaymentMethod()];
+          return [{ ...generatePaymentMethod(), validated: true }];
         }),
         hasDuplicateTrialAccount: jest.fn().mockResolvedValue(input?.hasDuplicateTrialAccount ?? false)
       })
