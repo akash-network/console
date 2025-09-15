@@ -14,11 +14,12 @@ export function startTrialNotification(user: UserOutput, vars: { trialEndsAt: st
   return {
     notificationId: `startTrial.${user.id}`,
     payload: {
-      summary: "Welcome to Your Free Trial!",
+      summary: "Welcome - here's <insert var for credit amount> on the house!",
       description:
-        `Your free trial with Akash Network has started! You now have access to all platform features. ` +
-        `Trial deployments are limited to ${vars.deploymentLifetimeInHours} hours, and your trial will end on ${trialEndsAt} by UTC. ` +
-        `Explore and deploy on the decentralized cloud infrastructure.`
+        `Welcome to the Akash Supercloud - to get you going, we have loaded your account with <insert var for credit amount> in trial credits! ` +
+        `Your trial will end at ${trialEndsAt} UTC` +
+        `To ensure that all free trials get fair access to resources, trial deployments are limited to ${vars.deploymentLifetimeInHours} hours,  ` +
+        `Get started by deploying your first application today.`
     },
     user: {
       id: user.id,
