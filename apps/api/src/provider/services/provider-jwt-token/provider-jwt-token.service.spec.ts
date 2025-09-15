@@ -18,40 +18,40 @@ describe(ProviderJwtTokenService.name, () => {
 
   describe("generateJwtToken", () => {
     it("should generate a JWT token successfully", async () => {
-      const { providerJwtTokenService, mockWalletId, mockWallet, leases } = setup();
+      const { providerJwtTokenService, mockWalletId, mockWallet, accessRules } = setup();
 
       const now = Math.floor(Date.now() / 1000);
       jest.spyOn(Date, "now").mockReturnValue(now * 1000);
 
-      const result = JSON.parse(await providerJwtTokenService.generateJwtToken({ walletId: mockWalletId, leases }));
+      const result = JSON.parse(await providerJwtTokenService.generateJwtToken({ walletId: mockWalletId, leases: accessRules }));
 
-      expect(result.leases).toEqual(leases);
+      expect(result.leases).toEqual(accessRules);
       expect(WalletModule.Wallet).toHaveBeenCalledWith(mockMnemonic, mockWalletId);
       expect(mockWallet.getInstance).toHaveBeenCalled();
     });
 
     it("generates a JWT token with 30 seconds of a TTL by default", async () => {
-      const { providerJwtTokenService, mockWalletId, leases } = setup();
+      const { providerJwtTokenService, mockWalletId, accessRules } = setup();
 
-      const result = JSON.parse(await providerJwtTokenService.generateJwtToken({ walletId: mockWalletId, leases }));
+      const result = JSON.parse(await providerJwtTokenService.generateJwtToken({ walletId: mockWalletId, leases: accessRules }));
 
       expect(result.exp).toBe(result.iat + 30);
     });
 
     it("can generate a JWT token with a custom TTL", async () => {
-      const { providerJwtTokenService, mockWalletId, leases } = setup();
+      const { providerJwtTokenService, mockWalletId, accessRules } = setup();
       const ttl = 100;
 
-      const result = JSON.parse(await providerJwtTokenService.generateJwtToken({ walletId: mockWalletId, leases, ttl }));
+      const result = JSON.parse(await providerJwtTokenService.generateJwtToken({ walletId: mockWalletId, leases: accessRules, ttl }));
 
       expect(result.exp).toBe(result.iat + ttl);
     });
 
     it("memoizes JWT Token generation", async () => {
-      const { providerJwtTokenService, mockWalletId, leases } = setup();
+      const { providerJwtTokenService, mockWalletId, accessRules } = setup();
 
-      await providerJwtTokenService.generateJwtToken({ walletId: mockWalletId, leases });
-      await providerJwtTokenService.generateJwtToken({ walletId: mockWalletId, leases });
+      await providerJwtTokenService.generateJwtToken({ walletId: mockWalletId, leases: accessRules });
+      await providerJwtTokenService.generateJwtToken({ walletId: mockWalletId, leases: accessRules });
 
       expect(WalletModule.Wallet).toHaveBeenCalledTimes(1);
       expect(JwtModule.createSignArbitraryAkashWallet).toHaveBeenCalledTimes(1);
@@ -59,12 +59,12 @@ describe(ProviderJwtTokenService.name, () => {
     });
 
     it("should generate unique jti for each token", async () => {
-      const { providerJwtTokenService, mockWalletId, leases } = setup();
+      const { providerJwtTokenService, mockWalletId, accessRules } = setup();
 
       const tokens = (
         await Promise.all([
-          providerJwtTokenService.generateJwtToken({ walletId: mockWalletId, leases }),
-          providerJwtTokenService.generateJwtToken({ walletId: mockWalletId, leases })
+          providerJwtTokenService.generateJwtToken({ walletId: mockWalletId, leases: accessRules }),
+          providerJwtTokenService.generateJwtToken({ walletId: mockWalletId, leases: accessRules })
         ])
       ).map(token => JSON.parse(token));
 
@@ -72,10 +72,10 @@ describe(ProviderJwtTokenService.name, () => {
     });
 
     it("should work with different wallet IDs", async () => {
-      const { providerJwtTokenService, leases } = setup();
+      const { providerJwtTokenService, accessRules } = setup();
 
-      await providerJwtTokenService.generateJwtToken({ walletId: 1, leases });
-      await providerJwtTokenService.generateJwtToken({ walletId: 999, leases });
+      await providerJwtTokenService.generateJwtToken({ walletId: 1, leases: accessRules });
+      await providerJwtTokenService.generateJwtToken({ walletId: 999, leases: accessRules });
 
       expect(WalletModule.Wallet).toHaveBeenCalledWith(mockMnemonic, 1);
       expect(WalletModule.Wallet).toHaveBeenCalledWith(mockMnemonic, 999);
@@ -107,7 +107,7 @@ describe(ProviderJwtTokenService.name, () => {
     mockBillingConfig: MockProxy<BillingConfig>;
     mockWalletId: number;
     mockWallet: MockProxy<WalletModule.Wallet>;
-    leases: JwtTokenPayload["leases"];
+    accessRules: JwtTokenPayload["leases"];
   } {
     jest.clearAllMocks();
     const mockWalletId = faker.number.int({ min: 1, max: 10000 });
@@ -141,7 +141,7 @@ describe(ProviderJwtTokenService.name, () => {
 
     const providerJwtTokenService = new ProviderJwtTokenService(mockBillingConfig);
 
-    const leases: JwtTokenPayload["leases"] = {
+    const accessRules: JwtTokenPayload["leases"] = {
       access: "granular",
       permissions: [
         {
@@ -156,7 +156,7 @@ describe(ProviderJwtTokenService.name, () => {
       mockBillingConfig,
       mockWalletId,
       mockWallet,
-      leases
+      accessRules
     };
   }
 });
