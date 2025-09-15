@@ -16,8 +16,8 @@ import { ProviderList } from "@src/types/provider";
 import { toUTC } from "@src/utils";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { AuditorService } from "../auditors/auditors.service";
-import { JwtTokenService } from "../jwt-token/jwt-token.service";
 import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
+import { ProviderJwtTokenService } from "../provider-jwt-token/provider-jwt-token.service";
 
 @singleton()
 export class ProviderService {
@@ -30,7 +30,7 @@ export class ProviderService {
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
     @InjectBillingConfig() private readonly config: BillingConfig,
-    private readonly jwtTokenService: JwtTokenService
+    private readonly jwtTokenService: ProviderJwtTokenService
   ) {
     this.chainNetwork = this.config.NETWORK as SupportedChainNetworks;
   }
