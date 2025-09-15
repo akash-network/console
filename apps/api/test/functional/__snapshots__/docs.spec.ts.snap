@@ -10145,6 +10145,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
     },
     "/v1/start-trial": {
       "post": {
+        "description": "Creates a managed wallet for a user and initiates a trial period. This endpoint handles payment method validation and may require 3D Secure authentication for certain payment methods. Returns wallet information and trial status.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -10182,6 +10183,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "string",
                         },
+                        "clientSecret": {
+                          "type": "string",
+                        },
                         "creditAmount": {
                           "type": "number",
                         },
@@ -10189,6 +10193,15 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "type": "number",
                         },
                         "isTrialing": {
+                          "type": "boolean",
+                        },
+                        "paymentIntentId": {
+                          "type": "string",
+                        },
+                        "paymentMethodId": {
+                          "type": "string",
+                        },
+                        "requires3DS": {
                           "type": "boolean",
                         },
                         "userId": {
@@ -10213,10 +10226,66 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "Returns a created wallet",
+            "description": "Trial started successfully and wallet created",
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "address": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "clientSecret": {
+                          "type": "string",
+                        },
+                        "creditAmount": {
+                          "type": "number",
+                        },
+                        "id": {
+                          "type": "number",
+                        },
+                        "isTrialing": {
+                          "type": "boolean",
+                        },
+                        "paymentIntentId": {
+                          "type": "string",
+                        },
+                        "paymentMethodId": {
+                          "type": "string",
+                        },
+                        "requires3DS": {
+                          "type": "boolean",
+                        },
+                        "userId": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "creditAmount",
+                        "address",
+                        "isTrialing",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "3D Secure authentication required to complete trial setup",
           },
         },
-        "summary": "Creates a managed wallet for a user",
+        "summary": "Start a trial period for a user",
         "tags": [
           "Wallet",
         ],
@@ -10457,6 +10526,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
     },
     "/v1/stripe/payment-methods": {
       "get": {
+        "description": "Retrieves all saved payment methods associated with the current user's account, including card details, validation status, and billing information.",
         "responses": {
           "200": {
             "content": {
@@ -10572,6 +10642,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                           "type": {
                             "type": "string",
                           },
+                          "validated": {
+                            "type": "boolean",
+                          },
                         },
                         "required": [
                           "type",
@@ -10599,8 +10672,10 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
     },
     "/v1/stripe/payment-methods/:paymentMethodId": {
       "delete": {
+        "description": "Permanently removes a saved payment method from the user's account. This action cannot be undone.",
         "parameters": [
           {
+            "description": "The unique identifier of the payment method to remove",
             "in": "path",
             "name": "paymentMethodId",
             "required": true,
@@ -10610,7 +10685,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
           },
         ],
         "responses": {
-          "200": {
+          "204": {
             "description": "Payment method removed successfully",
           },
         },
@@ -10622,6 +10697,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
     },
     "/v1/stripe/payment-methods/setup": {
       "post": {
+        "description": "Creates a Stripe SetupIntent that allows users to securely add payment methods to their account. The SetupIntent provides a client secret that can be used with Stripe's frontend SDKs to collect payment method details.",
         "responses": {
           "200": {
             "content": {
@@ -10648,7 +10724,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "SetupIntent created successfully",
+            "description": "SetupIntent created successfully with client secret",
           },
         },
         "summary": "Create a Stripe SetupIntent for adding a payment method",
@@ -10657,8 +10733,67 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/stripe/payment-methods/validate": {
+      "post": {
+        "description": "Completes the validation process for a payment method that required 3D Secure authentication. This endpoint should be called after the user completes the 3D Secure challenge.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "paymentIntentId": {
+                        "type": "string",
+                      },
+                      "paymentMethodId": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "paymentMethodId",
+                      "paymentIntentId",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "success",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Payment method validated successfully",
+          },
+        },
+        "summary": "Validates a payment method after 3D Secure authentication",
+        "tags": [
+          "Payment",
+        ],
+      },
+    },
     "/v1/stripe/prices": {
       "get": {
+        "description": "Retrieves the list of available pricing options for wallet top-ups, including custom amounts and standard pricing tiers",
         "responses": {
           "200": {
             "content": {
@@ -10695,10 +10830,10 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "",
+            "description": "Available pricing options retrieved successfully",
           },
         },
-        "summary": "",
+        "summary": "Get available Stripe pricing options",
         "tags": [
           "Payment",
         ],
@@ -10913,6 +11048,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "type": {
                                     "type": "string",
                                   },
+                                  "validated": {
+                                    "type": "boolean",
+                                  },
                                 },
                                 "required": [
                                   "type",
@@ -10965,6 +11103,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
     },
     "/v1/stripe/transactions/confirm": {
       "post": {
+        "description": "Processes a payment using a previously saved payment method. This endpoint handles wallet top-ups and may require 3D Secure authentication for certain payment methods or amounts.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -11005,7 +11144,74 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         },
         "responses": {
           "200": {
-            "description": "Payment processed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "clientSecret": {
+                          "type": "string",
+                        },
+                        "paymentIntentId": {
+                          "type": "string",
+                        },
+                        "requiresAction": {
+                          "type": "boolean",
+                        },
+                        "success": {
+                          "type": "boolean",
+                        },
+                      },
+                      "required": [
+                        "success",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Payment processed successfully",
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "clientSecret": {
+                          "type": "string",
+                        },
+                        "paymentIntentId": {
+                          "type": "string",
+                        },
+                        "requiresAction": {
+                          "type": "boolean",
+                        },
+                        "success": {
+                          "type": "boolean",
+                        },
+                      },
+                      "required": [
+                        "success",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "3D Secure authentication required to complete payment",
           },
         },
         "summary": "Confirm a payment using a saved payment method",
@@ -12123,6 +12329,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "nullable": true,
                             "type": "string",
                           },
+                          "clientSecret": {
+                            "type": "string",
+                          },
                           "creditAmount": {
                             "type": "number",
                           },
@@ -12130,6 +12339,15 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "type": "number",
                           },
                           "isTrialing": {
+                            "type": "boolean",
+                          },
+                          "paymentIntentId": {
+                            "type": "string",
+                          },
+                          "paymentMethodId": {
+                            "type": "string",
+                          },
+                          "requires3DS": {
                             "type": "boolean",
                           },
                           "userId": {

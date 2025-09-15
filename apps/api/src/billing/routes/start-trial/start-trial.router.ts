@@ -8,7 +8,9 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 const route = createRoute({
   method: "post",
   path: "/v1/start-trial",
-  summary: "Creates a managed wallet for a user",
+  summary: "Start a trial period for a user",
+  description:
+    "Creates a managed wallet for a user and initiates a trial period. This endpoint handles payment method validation and may require 3D Secure authentication for certain payment methods. Returns wallet information and trial status.",
   tags: ["Wallet"],
   request: {
     body: {
@@ -21,7 +23,7 @@ const route = createRoute({
   },
   responses: {
     200: {
-      description: "Returns a created wallet or 3D Secure authentication info",
+      description: "Trial started successfully and wallet created",
       content: {
         "application/json": {
           schema: WalletResponseOutputSchema
@@ -29,7 +31,7 @@ const route = createRoute({
       }
     },
     202: {
-      description: "3D Secure authentication required",
+      description: "3D Secure authentication required to complete trial setup",
       content: {
         "application/json": {
           schema: WalletResponseOutputSchema

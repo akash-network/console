@@ -16,6 +16,8 @@ const confirmPaymentRoute = createRoute({
   method: "post",
   path: "/v1/stripe/transactions/confirm",
   summary: "Confirm a payment using a saved payment method",
+  description:
+    "Processes a payment using a previously saved payment method. This endpoint handles wallet top-ups and may require 3D Secure authentication for certain payment methods or amounts.",
   tags: ["Payment"],
   request: {
     body: {
@@ -36,7 +38,7 @@ const confirmPaymentRoute = createRoute({
       }
     },
     202: {
-      description: "3D Secure authentication required",
+      description: "3D Secure authentication required to complete payment",
       content: {
         "application/json": {
           schema: ConfirmPaymentResponseSchema
