@@ -7,6 +7,7 @@ import type { RefillService } from "@src/billing/services/refill/refill.service"
 import type { UserRepository } from "@src/user/repositories";
 import { StripeService } from "./stripe.service";
 
+import { generateDatabasePaymentMethod } from "@test/seeders/database-payment-method.seeder";
 import { generatePaymentMethod } from "@test/seeders/payment-method.seeder";
 import { create as StripeSeederCreate } from "@test/seeders/stripe.seeder";
 import { StripeTransactionSeeder } from "@test/seeders/stripe-transaction.seeder";
@@ -907,15 +908,13 @@ describe(StripeService.name, () => {
       ];
 
       paymentMethodRepository.findOthersTrialingByFingerprint.mockResolvedValue([
-        {
+        generateDatabasePaymentMethod({
           id: "existing_pm",
           userId: "other_user",
           fingerprint: "fp_123",
           paymentMethodId: "pm_existing",
-          createdAt: new Date(),
-          updatedAt: new Date(),
           isValidated: true
-        }
+        })
       ]);
 
       const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
