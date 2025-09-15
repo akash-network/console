@@ -72,6 +72,28 @@ describe(StripeService.name, () => {
       });
     });
 
+    it("throws error for zero amount payment", async () => {
+      const { service } = setup();
+
+      await expect(
+        service.createPaymentIntent({
+          ...mockPaymentParams,
+          amount: 0
+        })
+      ).rejects.toThrow("Amount must be greater than $0");
+    });
+
+    it("throws error for negative amount payment", async () => {
+      const { service } = setup();
+
+      await expect(
+        service.createPaymentIntent({
+          ...mockPaymentParams,
+          amount: -10
+        })
+      ).rejects.toThrow("Amount must be greater than $0");
+    });
+
     it("handles zero amount payment with discount", async () => {
       const { service, refillService, userRepository } = setup();
       // Create a user with a unique id and stripeCustomerId
@@ -559,8 +581,10 @@ describe(StripeService.name, () => {
           created: 1640995200,
           paymentMethod: generatePaymentMethod({
             type: "card",
-            cardBrand: "visa",
-            cardLast4: "4242"
+            card: {
+              brand: "visa",
+              last4: "4242"
+            }
           })
         })
       ];

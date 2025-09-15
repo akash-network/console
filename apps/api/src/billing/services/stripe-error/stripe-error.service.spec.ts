@@ -78,6 +78,15 @@ describe(StripeErrorService.name, () => {
     });
 
     describe("payment errors", () => {
+      it("should handle 'Amount must be greater than $0'", () => {
+        const { service } = setup();
+        const error = new Error("Amount must be greater than $0");
+        const result = service.toAppError(error, "payment");
+
+        expect(result).toHaveProperty("status", 400);
+        expect(result).toHaveProperty("message", "Amount must be greater than $0");
+      });
+
       it("should handle 'Final amount after discount must be at least $1'", () => {
         const { service } = setup();
         const error = new Error("Final amount after discount must be at least $1");
