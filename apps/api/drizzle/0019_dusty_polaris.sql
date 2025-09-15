@@ -1,0 +1,2 @@
+ALTER TABLE "payment_methods" ADD COLUMN "is_validated" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "payment_methods_user_id_is_validated_idx" ON "payment_methods" USING btree ("user_id","is_validated");
