@@ -21,7 +21,15 @@ const route = createRoute({
   },
   responses: {
     200: {
-      description: "Returns a created wallet",
+      description: "Returns a created wallet or 3D Secure authentication info",
+      content: {
+        "application/json": {
+          schema: WalletResponseOutputSchema
+        }
+      }
+    },
+    202: {
+      description: "3D Secure authentication required",
       content: {
         "application/json": {
           schema: WalletResponseOutputSchema
@@ -30,8 +38,15 @@ const route = createRoute({
     }
   }
 });
+
 export const startTrialRouter = new OpenApiHonoHandler();
 
 startTrialRouter.openapi(route, async function routeStartTrial(c) {
-  return c.json(await container.resolve(WalletController).create(c.req.valid("json")), 200);
+  const result = await container.resolve(WalletController).create(c.req.valid("json"));
+
+  if (result.data.requires3DS) {
+    return c.json(result, 202);
+  }
+
+  return c.json(result, 200);
 });

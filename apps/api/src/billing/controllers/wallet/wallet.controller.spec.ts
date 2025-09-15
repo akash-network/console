@@ -89,7 +89,7 @@ describe("WalletController", () => {
             userId: user.id
           }
         })
-      ).rejects.toThrow(/payment method required/i);
+      ).rejects.toThrow(/You must have a payment method to start a trial/i);
       expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
     });
 
@@ -132,9 +132,97 @@ describe("WalletController", () => {
       });
       expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).toHaveBeenCalledWith(user.id);
     });
+
+    it("handles 3DS required scenario in controller", async () => {
+      const user = UserSeeder.create({
+        emailVerified: true,
+        stripeCustomerId: faker.string.uuid()
+      });
+      const container = setup({
+        user,
+        hasPaymentMethods: true,
+        hasDuplicateTrialAccount: false,
+        requires3DS: true
+      });
+      const walletController = container.resolve(WalletController);
+      const result = await walletController.create({
+        data: {
+          userId: user.id
+        }
+      });
+
+      expect(result).toEqual({
+        data: {
+          id: 0,
+          userId: user.id,
+          address: null,
+          creditAmount: 0,
+          isTrialing: false,
+          requires3DS: true,
+          clientSecret: "test_client_secret",
+          paymentIntentId: "test_payment_intent_id",
+          paymentMethodId: "test_payment_method_id"
+        }
+      });
+      expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
+    });
+
+    it("handles validation failure in controller", async () => {
+      const user = UserSeeder.create({
+        emailVerified: true,
+        stripeCustomerId: faker.string.uuid()
+      });
+      const container = setup({
+        user,
+        hasPaymentMethods: true,
+        hasDuplicateTrialAccount: false,
+        validationFails: true
+      });
+      const walletController = container.resolve(WalletController);
+
+      await expect(() =>
+        walletController.create({
+          data: {
+            userId: user.id
+          }
+        })
+      ).rejects.toThrow("Card validation failed");
+      expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
+    });
+
+    it("handles stripe error in controller", async () => {
+      const user = UserSeeder.create({
+        emailVerified: true,
+        stripeCustomerId: faker.string.uuid()
+      });
+      const container = setup({
+        user,
+        hasPaymentMethods: true,
+        hasDuplicateTrialAccount: false,
+        stripeError: true
+      });
+      const walletController = container.resolve(WalletController);
+
+      await expect(() =>
+        walletController.create({
+          data: {
+            userId: user.id
+          }
+        })
+      ).rejects.toThrow("Stripe error occurred");
+      expect(container.resolve(WalletInitializerService).initializeAndGrantTrialLimits).not.toHaveBeenCalled();
+    });
   });
 
-  function setup(input?: { user?: UserOutput; enabledFeatures?: FeatureFlagValue[]; hasPaymentMethods?: boolean; hasDuplicateTrialAccount?: boolean }) {
+  function setup(input?: {
+    user?: UserOutput;
+    enabledFeatures?: FeatureFlagValue[];
+    hasPaymentMethods?: boolean;
+    hasDuplicateTrialAccount?: boolean;
+    requires3DS?: boolean;
+    validationFails?: boolean;
+    stripeError?: boolean;
+  }) {
     rootContainer.register(AuthService, {
       useValue: mock<AuthService>({
         ability: createMongoAbility<MongoAbility>([
@@ -158,9 +246,30 @@ describe("WalletController", () => {
       useValue: mock<StripeService>({
         getPaymentMethods: jest.fn(async () => {
           if (!input?.hasPaymentMethods) return [];
-          return [generatePaymentMethod()];
+          return [{ ...generatePaymentMethod(), validated: true }];
         }),
-        hasDuplicateTrialAccount: jest.fn().mockResolvedValue(input?.hasDuplicateTrialAccount ?? false)
+        hasDuplicateTrialAccount: jest.fn().mockResolvedValue(input?.hasDuplicateTrialAccount ?? false),
+        validatePaymentMethodForTrial: jest.fn().mockImplementation(() => {
+          if (input?.validationFails) {
+            throw new Error("Card validation failed");
+          }
+          if (input?.stripeError) {
+            throw new Error("Stripe error occurred");
+          }
+          if (input?.requires3DS) {
+            return Promise.resolve({
+              success: false,
+              requires3DS: true,
+              clientSecret: "test_client_secret",
+              paymentIntentId: "test_payment_intent_id",
+              paymentMethodId: "test_payment_method_id"
+            });
+          }
+          return Promise.resolve({
+            success: true,
+            requires3DS: false
+          });
+        })
       })
     });
 
