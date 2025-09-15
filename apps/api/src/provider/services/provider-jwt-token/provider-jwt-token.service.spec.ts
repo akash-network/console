@@ -14,7 +14,7 @@ import { createAkashAddress } from "@test/seeders";
 
 describe(ProviderJwtTokenService.name, () => {
   const mockMnemonic = "test mnemonic phrase for testing purposes only";
-  const mockAddress = "akash1testaddress123456789";
+  const mockAddress = createAkashAddress();
 
   describe("generateJwtToken", () => {
     it("should generate a JWT token successfully", async () => {
