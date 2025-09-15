@@ -9,6 +9,7 @@ import { singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
@@ -84,15 +85,16 @@ export class DeploymentReaderService {
       .process(async deployment => this.leaseHttpService.list({ owner, dseq: deployment.deployment.deployment_id.dseq }));
 
     const wallet = await this.getWalletByAddress(owner);
-    const leaseStatuses = await Promise.all(
-      leaseResults.map(async ({ leases }) => {
-        return await Promise.all(
+    const leaseStatuses: LeaseStatusResponse[][] = [];
+    await PromisePool.withConcurrency(100)
+      .for(leaseResults)
+      .process(async ({ leases }, index) => {
+        leaseStatuses[index] = await Promise.all(
           leases.map(async ({ lease }) => {
             return await this.providerService.getLeaseStatus(lease.lease_id.provider, lease.lease_id.dseq, lease.lease_id.gseq, lease.lease_id.oseq, wallet.id);
           })
         );
-      })
-    );
+      });
 
     const deploymentsWithLeases = deployments.map((deployment, deploymentIndex) => ({
       deployment: deployment.deployment,
