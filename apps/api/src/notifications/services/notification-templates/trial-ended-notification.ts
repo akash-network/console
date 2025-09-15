@@ -7,7 +7,7 @@ export function trialEndedNotification(user: UserOutput): CreateNotificationInpu
     payload: {
       summary: "Your Free Trial Has Ended",
       description:
-        "Your free trial with Akash Network has ended. To continue using the platform and accessing all features, please add a payment method and upgrade your account."
+        "Your free trial with Akash Network has ended. To continue using the platform and accessing all features, please add a payment method and purchase some credits by visiting <insert link to payment page>."
     },
     user: {
       id: user.id,
