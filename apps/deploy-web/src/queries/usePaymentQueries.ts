@@ -86,9 +86,9 @@ export const usePaymentMutations = () => {
     }
   });
 
-  const markPaymentMethodValidatedAfter3DS = useMutation({
+  const validatePaymentMethodAfter3DS = useMutation({
     mutationFn: async ({ paymentMethodId, paymentIntentId }: ThreeDSecureAuthParams) => {
-      return await stripe.markPaymentMethodValidatedAfter3DS({
+      return await stripe.validatePaymentMethodAfter3DS({
         paymentMethodId,
         paymentIntentId
       });
@@ -123,7 +123,7 @@ export const usePaymentMutations = () => {
 
   return {
     confirmPayment,
-    markPaymentMethodValidatedAfter3DS,
+    validatePaymentMethodAfter3DS,
     applyCoupon,
     removePaymentMethod
   };

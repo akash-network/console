@@ -212,14 +212,14 @@ export const CustomerTransactionsCsvExportQuerySchema = z
     message: dateRangeErrorMessage
   });
 
-export const MarkPaymentMethodValidatedRequestSchema = z.object({
+export const ValidatePaymentMethodRequestSchema = z.object({
   data: z.object({
     paymentMethodId: z.string().openapi({}),
     paymentIntentId: z.string().openapi({})
   })
 });
 
-export const MarkPaymentMethodValidatedResponseSchema = z.object({
+export const ValidatePaymentMethodResponseSchema = z.object({
   success: z.boolean()
 });
 
@@ -244,5 +244,5 @@ export type CustomerDiscountsResponse = z.infer<typeof CustomerDiscountsResponse
 export type Transaction = z.infer<typeof TransactionSchema>;
 export type CustomerTransactionsResponse = z.infer<typeof CustomerTransactionsResponseSchema>;
 export type CustomerTransactionsQuery = z.infer<typeof CustomerTransactionsQuerySchema>;
-export type MarkPaymentMethodValidatedRequest = z.infer<typeof MarkPaymentMethodValidatedRequestSchema>;
-export type MarkPaymentMethodValidatedResponse = z.infer<typeof MarkPaymentMethodValidatedResponseSchema>;
+export type ValidatePaymentMethodRequest = z.infer<typeof ValidatePaymentMethodRequestSchema>;
+export type ValidatePaymentMethodResponse = z.infer<typeof ValidatePaymentMethodResponseSchema>;

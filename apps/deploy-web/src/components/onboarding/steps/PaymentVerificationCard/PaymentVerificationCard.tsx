@@ -20,15 +20,12 @@ export const PaymentVerificationCard: React.FunctionComponent<PaymentVerificatio
   });
 
   const handleCardAdded = async () => {
-    // Refetch payment methods to get the newly added one
     if (user?.stripeCustomerId) {
       await refetchPaymentMethods();
     }
-    // Immediately call onSuccess to close the form and show updated payment methods
     onSuccess();
   };
 
-  // Render payment form
   return (
     <div className="space-y-6 text-center">
       <Title>Add Payment Method</Title>

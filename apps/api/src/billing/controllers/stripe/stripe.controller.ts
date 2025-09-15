@@ -183,7 +183,7 @@ export class StripeController {
   }
 
   @Protected([{ action: "create", subject: "StripePayment" }])
-  async markPaymentMethodValidatedAfter3DS({
+  async validatePaymentMethodAfter3DS({
     data: { paymentMethodId, paymentIntentId }
   }: {
     data: { paymentMethodId: string; paymentIntentId: string };
@@ -192,7 +192,7 @@ export class StripeController {
 
     assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
 
-    await this.stripe.markPaymentMethodAsValidatedAfter3DS(currentUser.stripeCustomerId, paymentMethodId, paymentIntentId);
+    await this.stripe.validatePaymentMethodAfter3DS(currentUser.stripeCustomerId, paymentMethodId, paymentIntentId);
 
     return { success: true };
   }

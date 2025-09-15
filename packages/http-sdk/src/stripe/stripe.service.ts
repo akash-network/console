@@ -47,8 +47,8 @@ export class StripeService extends ApiHttpService {
     return this.extractApiData(await this.post("/v1/stripe/transactions/confirm", { data: params }));
   }
 
-  async markPaymentMethodValidatedAfter3DS(params: ThreeDSecureAuthParams): Promise<{ success: boolean }> {
-    return this.extractApiData(await this.post("/v1/stripe/payment-methods/mark-validated", { data: params }));
+  async validatePaymentMethodAfter3DS(params: ThreeDSecureAuthParams): Promise<{ success: boolean }> {
+    return this.extractApiData(await this.post("/v1/stripe/payment-methods/validate", { data: params }));
   }
 
   async getCustomerTransactions(options?: CustomerTransactionsParams): Promise<CustomerTransactionsResponse> {

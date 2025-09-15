@@ -35,10 +35,10 @@ export class ManagedWalletHttpService extends ApiHttpService {
     return wallet ? this.addWalletEssentials(wallet) : null;
   }
 
-  async markPaymentMethodValidatedAfter3DS(paymentMethodId: string, paymentIntentId: string): Promise<{ success: boolean }> {
+  async validatePaymentMethodAfter3DS(paymentMethodId: string, paymentIntentId: string): Promise<{ success: boolean }> {
     return this.extractApiData(
       await this.post<{ success: boolean }>(
-        "v1/stripe/payment-methods/mark-validated",
+        "v1/stripe/payment-methods/validate",
         {
           data: { paymentMethodId, paymentIntentId }
         },

@@ -99,18 +99,19 @@ export class StripeService extends Stripe {
   }
 
   async getPaymentMethods(userId: string, customerId: string): Promise<(PaymentMethod & { validated: boolean })[]> {
-    const paymentMethods = await this.paymentMethods.list({
-      customer: customerId,
-      type: "card"
-    });
-    const dbPaymentMethods = await this.paymentMethodRepository.findByUserId(userId);
+    const [paymentMethods, dbPaymentMethods] = await Promise.all([
+      this.paymentMethods.list({
+        customer: customerId
+      }),
+      this.paymentMethodRepository.findByUserId(userId)
+    ]);
 
     return paymentMethods.data
       .map(paymentMethod => ({
         type: paymentMethod.type,
         id: paymentMethod.id,
         created: paymentMethod.created,
-        validated: dbPaymentMethods.some(pm => pm.paymentMethodId === paymentMethod.id && pm.is_validated),
+        validated: dbPaymentMethods?.some(pm => pm.paymentMethodId === paymentMethod.id && pm.is_validated),
         card: paymentMethod.card
           ? {
               brand: paymentMethod.card.brand,
@@ -170,14 +171,12 @@ export class StripeService extends Stripe {
     confirm: boolean;
     metadata?: Record<string, string>;
   }): Promise<PaymentIntentResult> {
-    // Validate original amount first
     if (params.amount <= 0) {
       throw new Error("Amount must be greater than $0");
     }
 
     const discounts = await this.getCustomerDiscounts(params.customer);
 
-    // Check minimum amount before applying discounts
     if (!discounts.length && params.amount < MINIMUM_PAYMENT_AMOUNT) {
       throw new Error(`Minimum payment amount is $${MINIMUM_PAYMENT_AMOUNT} (before any discounts)`);
     }
@@ -226,11 +225,8 @@ export class StripeService extends Stripe {
       }
     });
 
-    // Handle different payment intent statuses
     switch (paymentIntent.status) {
       case "succeeded":
-        return { success: true, paymentIntentId: paymentIntent.id };
-
       case "requires_capture":
         return { success: true, paymentIntentId: paymentIntent.id };
 
@@ -640,8 +636,8 @@ export class StripeService extends Stripe {
     const user = await this.userRepository.findOneBy({ stripeCustomerId: params.customer });
 
     if (user) {
-      const existingValidation = await this.paymentMethodRepository.findValidatedByUserId(user.id);
-      if (existingValidation.some(pm => pm.paymentMethodId === params.payment_method)) {
+      const validatedPaymentMethods = await this.paymentMethodRepository.findValidatedByUserId(user.id);
+      if (validatedPaymentMethods.some(pm => pm.paymentMethodId === params.payment_method)) {
         logger.info({
           event: "PAYMENT_METHOD_ALREADY_VALIDATED",
           customerId: params.customer,
@@ -706,20 +702,9 @@ export class StripeService extends Stripe {
     // Handle different payment intent statuses
     switch (paymentIntent.status) {
       case "succeeded":
-        // For manual capture, succeeded means the authorization was successful
-        // We don't need to cancel it since it's not captured yet
-        logger.info({
-          event: "CARD_VALIDATION_AUTHORIZATION_SUCCESSFUL",
-          customerId: params.customer,
-          paymentMethodId: params.payment_method,
-          paymentIntentId: paymentIntent.id
-        });
-
-        await this.markPaymentMethodAsValidated(params.customer, params.payment_method, paymentIntent.id);
-        return { success: true, paymentIntentId: paymentIntent.id };
-
       case "requires_capture":
-        // Card is valid and authorized, but not captured yet - this is what we want
+        // For manual capture, both succeeded and requires_capture mean the authorization was successful
+        // We don't need to cancel it since it's not captured yet
         logger.info({
           event: "CARD_VALIDATION_AUTHORIZATION_SUCCESSFUL",
           customerId: params.customer,
@@ -769,8 +754,7 @@ export class StripeService extends Stripe {
     }
   }
 
-  async markPaymentMethodAsValidatedAfter3DS(customerId: string, paymentMethodId: string, paymentIntentId: string): Promise<void> {
-    // Check if the payment intent was successfully authenticated
+  async validatePaymentMethodAfter3DS(customerId: string, paymentMethodId: string, paymentIntentId: string): Promise<void> {
     try {
       const paymentIntent = await this.paymentIntents.retrieve(paymentIntentId);
 
@@ -851,7 +835,6 @@ export class StripeService extends Stripe {
 
   private async markPaymentMethodAsValidated(customerId: string, paymentMethodId: string, paymentIntentId: string): Promise<void> {
     try {
-      // Get the user ID from the customer ID
       const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
       if (user) {
         await this.paymentMethodRepository.markAsValidated(paymentMethodId, user.id);

@@ -42,16 +42,13 @@ const PayPage: React.FunctionComponent = () => {
     applyCoupon: { isPending: isApplyingCoupon, mutateAsync: applyCoupon },
     removePaymentMethod
   } = usePaymentMutations();
-
-  // 3D Secure hook
   const threeDSecure = use3DSecure({
     onSuccess: () => {
-      console.log("3D Secure onSuccess callback called, showing payment success animation");
       setShowPaymentSuccess({ amount, show: true });
       setAmount("");
       setCoupon("");
     },
-    showSuccessMessage: false // Disable success message from hook since we show our own
+    showSuccessMessage: false
   });
 
   const isLoading = isLoadingPaymentMethods || isLoadingDiscounts;
@@ -101,14 +98,12 @@ const PayPage: React.FunctionComponent = () => {
       });
 
       if (response && response.requiresAction && response.clientSecret && response.paymentIntentId) {
-        // 3D Secure authentication required
         threeDSecure.start3DSecure({
           clientSecret: response.clientSecret,
           paymentIntentId: response.paymentIntentId,
           paymentMethodId
         });
       } else if (response.success) {
-        // Payment successful without 3D Secure
         setShowPaymentSuccess({ amount, show: true });
         setAmount("");
         setCoupon("");

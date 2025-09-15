@@ -17,12 +17,10 @@ interface Use3DSecureOptions {
 }
 
 interface Use3DSecureReturn {
-  // State
   isOpen: boolean;
   threeDSData: ThreeDSecureData | null;
   isLoading: boolean;
 
-  // Actions
   start3DSecure: (data: ThreeDSecureData) => void;
   close3DSecure: () => void;
   handle3DSSuccess: () => Promise<void>;
@@ -35,7 +33,7 @@ export const use3DSecure = (options: Use3DSecureOptions = {}): Use3DSecureReturn
   const [isOpen, setIsOpen] = useState(false);
   const [threeDSData, setThreeDSData] = useState<ThreeDSecureData | null>(null);
   const { enqueueSnackbar } = useSnackbar();
-  const { markPaymentMethodValidatedAfter3DS } = usePaymentMutations();
+  const { validatePaymentMethodAfter3DS } = usePaymentMutations();
 
   const start3DSecure = useCallback((data: ThreeDSecureData) => {
     setThreeDSData(data);
@@ -70,7 +68,7 @@ export const use3DSecure = (options: Use3DSecureOptions = {}): Use3DSecureReturn
         paymentIntentId: threeDSData.paymentIntentId
       });
 
-      await markPaymentMethodValidatedAfter3DS.mutateAsync({
+      await validatePaymentMethodAfter3DS.mutateAsync({
         paymentMethodId: threeDSData.paymentMethodId,
         paymentIntentId: threeDSData.paymentIntentId
       });
@@ -90,7 +88,7 @@ export const use3DSecure = (options: Use3DSecureOptions = {}): Use3DSecureReturn
     console.log("Calling onSuccess callback...");
     onSuccess?.();
     close3DSecure();
-  }, [threeDSData, markPaymentMethodValidatedAfter3DS, onSuccess, onError, showSuccessMessage, showErrorMessage, enqueueSnackbar, close3DSecure]);
+  }, [threeDSData, validatePaymentMethodAfter3DS, onSuccess, onError, showSuccessMessage, showErrorMessage, enqueueSnackbar, close3DSecure]);
 
   const handle3DSError = useCallback(
     (error: string) => {
@@ -119,7 +117,7 @@ export const use3DSecure = (options: Use3DSecureOptions = {}): Use3DSecureReturn
   return {
     isOpen,
     threeDSData,
-    isLoading: markPaymentMethodValidatedAfter3DS.isPending,
+    isLoading: validatePaymentMethodAfter3DS.isPending,
     start3DSecure,
     close3DSecure,
     handle3DSSuccess,

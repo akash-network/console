@@ -1,7 +1,6 @@
 "use client";
 import React, { useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import type { ApiWalletWithOptional3DS } from "@akashnetwork/http-sdk";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import { Alert, AlertDescription, AlertTitle, Popup } from "@akashnetwork/ui/components";
 import { Elements } from "@stripe/react-stripe-js";
@@ -31,9 +30,12 @@ interface PaymentMethodStepProps {
   onShowDeleteConfirmation: (show: boolean) => void;
   onSetCardToDelete: (cardId?: string) => void;
   hasPaymentMethod: boolean;
-  threeDSecureData: ApiWalletWithOptional3DS | null;
-  on3DSecureSuccess: () => void;
-  on3DSecureError: (error: string) => void;
+  threeDSecure: {
+    isOpen: boolean;
+    threeDSData: { clientSecret: string; paymentIntentId: string; paymentMethodId: string } | null;
+    handle3DSSuccess: () => Promise<void>;
+    handle3DSError: (error: string) => void;
+  };
 }
 
 export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> = ({
@@ -52,24 +54,21 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
   onShowDeleteConfirmation,
   onSetCardToDelete,
   hasPaymentMethod,
-  threeDSecureData,
-  on3DSecureSuccess,
-  on3DSecureError
+  threeDSecure
 }) => {
   const { stripeService } = useServices();
   const stripePromise = useMemo(() => stripeService.getStripe(), [stripeService]);
   const { resolvedTheme } = useTheme();
   const isDarkMode = resolvedTheme === "dark";
 
-  // Render 3D Secure authentication if required
-  if (threeDSecureData && threeDSecureData.clientSecret && threeDSecureData.paymentIntentId) {
+  if (threeDSecure.isOpen && threeDSecure.threeDSData) {
     return (
       <ThreeDSecurePopup
-        isOpen
-        onSuccess={on3DSecureSuccess}
-        onError={on3DSecureError}
-        clientSecret={threeDSecureData.clientSecret}
-        paymentIntentId={threeDSecureData.paymentIntentId}
+        isOpen={threeDSecure.isOpen}
+        onSuccess={threeDSecure.handle3DSSuccess}
+        onError={threeDSecure.handle3DSError}
+        clientSecret={threeDSecure.threeDSData.clientSecret}
+        paymentIntentId={threeDSecure.threeDSData.paymentIntentId}
         title="Card Authentication"
         description="Your bank requires additional verification for this transaction."
         successMessage="Your card has been verified. Proceeding to start your trial..."
@@ -78,7 +77,6 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
     );
   }
 
-  // Render payment form states
   if (paymentMethods.length === 0 || showAddForm) {
     return (
       <div className="space-y-6 text-center">

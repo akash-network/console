@@ -797,8 +797,7 @@ describe(StripeService.name, () => {
 
       const result = await service.getPaymentMethods("user_123", "cus_123");
       expect(service.paymentMethods.list).toHaveBeenCalledWith({
-        customer: "cus_123",
-        type: "card"
+        customer: "cus_123"
       });
       expect(result).toEqual(mockPaymentMethods);
     });
@@ -995,6 +994,9 @@ describe(StripeService.name, () => {
       // Mock user lookup
       jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
 
+      // Mock payment method validation check
+      paymentMethodRepository.findValidatedByUserId.mockResolvedValue([]);
+
       // Mock payment intent creation
       jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
 
@@ -1007,22 +1009,18 @@ describe(StripeService.name, () => {
         {
           customer: mockParams.customer,
           payment_method: mockParams.payment_method,
-          amount: 0,
+          amount: 100,
           currency: "usd",
           capture_method: "manual",
           confirm: true,
           metadata: {
-            type: "card_validation",
-            description: "Card validation authorization"
+            type: "payment_method_validation",
+            description: "Payment method validation charge"
           },
-          payment_method_types: ["card"],
-          automatic_payment_methods: {
-            enabled: true,
-            allow_redirects: "never"
-          }
+          payment_method_types: ["card", "link"]
         },
         {
-          idempotencyKey: expect.stringMatching(/^card_validation_cus_123_pm_123_\d+$/)
+          idempotencyKey: expect.stringMatching(/^card_validation_cus_123_pm_123$/)
         }
       );
 
@@ -1035,12 +1033,19 @@ describe(StripeService.name, () => {
     });
 
     it("handles 3D Secure authentication requirement in trialing wallets", async () => {
-      const { service } = setup();
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPaymentIntent = {
         id: "pi_test_123",
         status: "requires_action",
         client_secret: "pi_test_123_secret_abc123"
       } as Stripe.PaymentIntent;
+
+      // Mock user lookup
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
+
+      // Mock payment method validation check
+      paymentMethodRepository.findValidatedByUserId.mockResolvedValue([]);
 
       // Mock payment intent creation
       jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
@@ -1056,7 +1061,8 @@ describe(StripeService.name, () => {
     });
 
     it("handles card decline", async () => {
-      const { service } = setup();
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPaymentIntent = {
         id: "pi_test_123",
         status: "requires_payment_method",
@@ -1064,6 +1070,12 @@ describe(StripeService.name, () => {
           message: "Your card was declined."
         }
       } as Stripe.PaymentIntent;
+
+      // Mock user lookup
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
+
+      // Mock payment method validation check
+      paymentMethodRepository.findValidatedByUserId.mockResolvedValue([]);
 
       // Mock payment intent creation
       jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
@@ -1076,25 +1088,388 @@ describe(StripeService.name, () => {
       });
     });
 
-    it("handles idempotency key conflict gracefully", async () => {
-      // For now, skip this test as it requires complex error mocking
-      // TODO: Implement proper Stripe error mocking
+    it("handles payment intent with requires_capture status", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockPaymentIntent = {
+        id: "pi_test_123",
+        status: "requires_capture",
+        amount: 100
+      } as Stripe.PaymentIntent;
+
+      // Mock user lookup
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
+
+      // Mock payment method validation check
+      paymentMethodRepository.findValidatedByUserId.mockResolvedValue([]);
+
+      // Mock payment intent creation
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
+
+      // Mock payment method validation
+      paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
+
+      const result = await service.createTestCharge(mockParams);
+
+      expect(result).toEqual({
+        success: true,
+        paymentIntentId: mockPaymentIntent.id
+      });
+      expect(paymentMethodRepository.markAsValidated).toHaveBeenCalledWith(mockParams.payment_method, mockUser.id);
+    });
+
+    it("handles payment intent with unexpected status", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockPaymentIntent = {
+        id: "pi_test_123",
+        status: "processing",
+        amount: 100
+      } as Stripe.PaymentIntent;
+
+      // Mock user lookup
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
+
+      // Mock payment method validation check
+      paymentMethodRepository.findValidatedByUserId.mockResolvedValue([]);
+
+      // Mock payment intent creation
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
+
+      const result = await service.createTestCharge(mockParams);
+
+      expect(result).toEqual({
+        success: false,
+        paymentIntentId: mockPaymentIntent.id
+      });
+    });
+
+    it("handles user not found scenario", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockPaymentIntent = {
+        id: "pi_test_123",
+        status: "succeeded",
+        amount: 100
+      } as Stripe.PaymentIntent;
+
+      // Mock user lookup to return null
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(undefined);
+
+      // Mock payment intent creation
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
+
+      const result = await service.createTestCharge(mockParams);
+
+      expect(result).toEqual({
+        success: true,
+        paymentIntentId: mockPaymentIntent.id
+      });
+      // Should not call markAsValidated when user is not found
+      expect(paymentMethodRepository.markAsValidated).not.toHaveBeenCalled();
+    });
+
+    it("handles payment method validation update failure gracefully", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockPaymentIntent = {
+        id: "pi_test_123",
+        status: "succeeded",
+        amount: 100
+      } as Stripe.PaymentIntent;
+
+      // Mock user lookup
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
+
+      // Mock payment method validation check
+      paymentMethodRepository.findValidatedByUserId.mockResolvedValue([]);
+
+      // Mock payment intent creation
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
+
+      // Mock payment method validation to fail
+      paymentMethodRepository.markAsValidated.mockRejectedValue(new Error("Database error"));
+
+      // Should not throw error even if validation update fails
+      const result = await service.createTestCharge(mockParams);
+
+      expect(result).toEqual({
+        success: true,
+        paymentIntentId: mockPaymentIntent.id
+      });
+    });
+
+    it("handles idempotency key conflict with existing validation", async () => {
+      // Skip this test as it requires complex Stripe error mocking
+      // TODO: Implement proper Stripe error mocking for idempotency scenarios
       expect(true).toBe(true);
     });
 
-    it("throws error for idempotency conflict when payment method not validated", async () => {
-      // For now, skip this test as it requires complex error mocking
-      // TODO: Implement proper Stripe error mocking
+    it("handles idempotency key conflict without existing validation", async () => {
+      // Skip this test as it requires complex Stripe error mocking
+      // TODO: Implement proper Stripe error mocking for idempotency scenarios
       expect(true).toBe(true);
     });
 
     it("handles payment intent creation failure", async () => {
-      const { service } = setup();
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
       const creationError = new Error("Payment failed");
+
+      // Mock user lookup
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
+
+      // Mock payment method validation check
+      paymentMethodRepository.findValidatedByUserId.mockResolvedValue([]);
 
       jest.spyOn(service.paymentIntents, "create").mockRejectedValue(creationError);
 
       await expect(service.createTestCharge(mockParams)).rejects.toThrow("Payment failed");
+    });
+  });
+
+  describe("validatePaymentMethodForTrial", () => {
+    const mockParams = {
+      customer: "cus_123",
+      payment_method: "pm_123",
+      userId: "user_123"
+    };
+
+    it("returns success when no 3DS required", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockPaymentIntent = {
+        id: "pi_test_123",
+        status: "succeeded",
+        amount: 100
+      } as Stripe.PaymentIntent;
+
+      // Mock user lookup
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
+
+      // Mock payment method validation check
+      paymentMethodRepository.findValidatedByUserId.mockResolvedValue([]);
+
+      // Mock payment intent creation
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
+
+      // Mock payment method validation
+      paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
+
+      const result = await service.validatePaymentMethodForTrial(mockParams);
+
+      expect(result).toEqual({
+        success: true
+      });
+    });
+
+    it("creates 3DS payment intent when requiresAction is true", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockPaymentIntent = {
+        id: "pi_test_123",
+        status: "requires_action",
+        client_secret: "pi_test_123_secret"
+      } as Stripe.PaymentIntent;
+      const mock3DSPaymentIntent = {
+        id: "pi_3ds_123",
+        client_secret: "pi_3ds_123_secret"
+      } as Stripe.PaymentIntent;
+
+      // Mock user lookup
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
+
+      // Mock payment method validation check
+      paymentMethodRepository.findValidatedByUserId.mockResolvedValue([]);
+
+      // Mock payment intent creation - first call returns requires_action, second call for 3DS
+      jest
+        .spyOn(service.paymentIntents, "create")
+        .mockResolvedValueOnce(mockPaymentIntent as any)
+        .mockResolvedValueOnce(mock3DSPaymentIntent as any);
+
+      const result = await service.validatePaymentMethodForTrial(mockParams);
+
+      expect(result).toEqual({
+        success: false,
+        requires3DS: true,
+        clientSecret: mock3DSPaymentIntent.client_secret,
+        paymentIntentId: mock3DSPaymentIntent.id,
+        paymentMethodId: mockParams.payment_method
+      });
+
+      // Verify 3DS payment intent was created with correct parameters
+      expect(service.paymentIntents.create).toHaveBeenCalledWith({
+        amount: 100,
+        currency: "usd",
+        customer: mockParams.customer,
+        payment_method: mockParams.payment_method,
+        confirm: true,
+        capture_method: "manual",
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: "never"
+        },
+        metadata: {
+          type: "payment_method_validation_3ds",
+          description: "Payment method validation with 3D Secure"
+        }
+      });
+    });
+
+    it("throws error when validation fails", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockPaymentIntent = {
+        id: "pi_test_123",
+        status: "requires_payment_method",
+        amount: 100
+      } as Stripe.PaymentIntent;
+
+      // Mock user lookup
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
+
+      // Mock payment method validation check
+      paymentMethodRepository.findValidatedByUserId.mockResolvedValue([]);
+
+      // Mock payment intent creation
+      jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
+
+      await expect(service.validatePaymentMethodForTrial(mockParams)).rejects.toThrow(
+        "Card validation failed. Please ensure your payment method is valid and try again."
+      );
+    });
+
+    it("handles 3DS payment intent creation failure", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockPaymentIntent = {
+        id: "pi_test_123",
+        status: "requires_action",
+        client_secret: "pi_test_123_secret"
+      } as Stripe.PaymentIntent;
+
+      // Mock user lookup
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
+
+      // Mock payment method validation check
+      paymentMethodRepository.findValidatedByUserId.mockResolvedValue([]);
+
+      // Mock payment intent creation - first call succeeds, second call fails
+      jest
+        .spyOn(service.paymentIntents, "create")
+        .mockResolvedValueOnce(mockPaymentIntent as any)
+        .mockRejectedValueOnce(new Error("3DS payment intent creation failed"));
+
+      await expect(service.validatePaymentMethodForTrial(mockParams)).rejects.toThrow("3DS payment intent creation failed");
+    });
+  });
+
+  describe("validatePaymentMethodAfter3DS", () => {
+    const mockParams = {
+      customerId: "cus_123",
+      paymentMethodId: "pm_123",
+      paymentIntentId: "pi_123"
+    };
+
+    it("marks payment method as validated when payment intent succeeded", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockPaymentIntent = {
+        id: "pi_123",
+        status: "succeeded"
+      } as Stripe.PaymentIntent;
+
+      // Mock user lookup
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
+
+      // Mock payment intent retrieval
+      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
+
+      // Mock payment method validation
+      paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
+
+      await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
+
+      expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
+      expect(paymentMethodRepository.markAsValidated).toHaveBeenCalledWith(mockParams.paymentMethodId, mockUser.id);
+    });
+
+    it("marks payment method as validated when payment intent requires_capture", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockPaymentIntent = {
+        id: "pi_123",
+        status: "requires_capture"
+      } as Stripe.PaymentIntent;
+
+      // Mock user lookup
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
+
+      // Mock payment intent retrieval
+      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
+
+      // Mock payment method validation
+      paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
+
+      await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
+
+      expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
+      expect(paymentMethodRepository.markAsValidated).toHaveBeenCalledWith(mockParams.paymentMethodId, mockUser.id);
+    });
+
+    it("logs warning when payment intent is not successful", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const mockPaymentIntent = {
+        id: "pi_123",
+        status: "requires_payment_method"
+      } as Stripe.PaymentIntent;
+
+      // Mock user lookup
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
+
+      // Mock payment intent retrieval
+      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
+
+      await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
+
+      expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
+      expect(paymentMethodRepository.markAsValidated).not.toHaveBeenCalled();
+    });
+
+    it("handles payment intent retrieval failure", async () => {
+      const { service, userRepository } = setup();
+      const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
+      const retrievalError = new Error("Payment intent not found");
+
+      // Mock user lookup
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(mockUser);
+
+      // Mock payment intent retrieval to fail
+      jest.spyOn(service.paymentIntents, "retrieve").mockRejectedValue(retrievalError);
+
+      await expect(service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId)).rejects.toThrow(
+        "Payment intent not found"
+      );
+    });
+
+    it("handles user not found during validation", async () => {
+      const { service, paymentMethodRepository, userRepository } = setup();
+      const mockPaymentIntent = {
+        id: "pi_123",
+        status: "succeeded"
+      } as Stripe.PaymentIntent;
+
+      // Mock user lookup to return null
+      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(undefined);
+
+      // Mock payment intent retrieval
+      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
+
+      await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
+
+      expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
+      expect(paymentMethodRepository.markAsValidated).not.toHaveBeenCalled();
     });
   });
 });

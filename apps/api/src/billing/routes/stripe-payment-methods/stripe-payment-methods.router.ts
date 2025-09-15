@@ -3,10 +3,10 @@ import { container } from "tsyringe";
 
 import { StripeController } from "@src/billing/controllers/stripe/stripe.controller";
 import {
-  MarkPaymentMethodValidatedRequestSchema,
-  MarkPaymentMethodValidatedResponseSchema,
   PaymentMethodsResponseSchema,
-  SetupIntentResponseSchema
+  SetupIntentResponseSchema,
+  ValidatePaymentMethodRequestSchema,
+  ValidatePaymentMethodResponseSchema
 } from "@src/billing/http-schemas/stripe.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
@@ -68,26 +68,26 @@ const removePaymentMethodRoute = createRoute({
   }
 });
 
-const markPaymentMethodValidatedRoute = createRoute({
+const validatePaymentMethodRoute = createRoute({
   method: "post",
-  path: "/v1/stripe/payment-methods/mark-validated",
-  summary: "Marks a payment method as validated after 3D Secure authentication",
+  path: "/v1/stripe/payment-methods/validate",
+  summary: "Validates a payment method after 3D Secure authentication",
   tags: ["Payment"],
   request: {
     body: {
       content: {
         "application/json": {
-          schema: MarkPaymentMethodValidatedRequestSchema
+          schema: ValidatePaymentMethodRequestSchema
         }
       }
     }
   },
   responses: {
     200: {
-      description: "Payment method marked as validated successfully",
+      description: "Payment method validated successfully",
       content: {
         "application/json": {
-          schema: MarkPaymentMethodValidatedResponseSchema
+          schema: ValidatePaymentMethodResponseSchema
         }
       }
     }
@@ -112,6 +112,6 @@ stripePaymentMethodsRouter.openapi(removePaymentMethodRoute, async function remo
   return c.body(null, 204);
 });
 
-stripePaymentMethodsRouter.openapi(markPaymentMethodValidatedRoute, async function markPaymentMethodValidated(c) {
-  return c.json(await container.resolve(StripeController).markPaymentMethodValidatedAfter3DS(c.req.valid("json")), 200);
+stripePaymentMethodsRouter.openapi(validatePaymentMethodRoute, async function validatePaymentMethod(c) {
+  return c.json(await container.resolve(StripeController).validatePaymentMethodAfter3DS(c.req.valid("json")), 200);
 });

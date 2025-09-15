@@ -44,7 +44,6 @@ export const startTrialRouter = new OpenApiHonoHandler();
 startTrialRouter.openapi(route, async function routeStartTrial(c) {
   const result = await container.resolve(WalletController).create(c.req.valid("json"));
 
-  // Check if 3D Secure is required
   if (result.data.requires3DS) {
     return c.json(result, 202);
   }

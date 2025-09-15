@@ -105,11 +105,6 @@ export interface ExportTransactionsCsvParams {
   timezone: string;
 }
 
-export interface TestChargeParams {
-  userId: string;
-  paymentMethodId: string;
-}
-
 export interface ConfirmPaymentResponse {
   success: boolean;
   requiresAction?: boolean;
