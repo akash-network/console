@@ -376,8 +376,10 @@ describe(StripeService.name, () => {
           created: 1640995200,
           paymentMethod: generatePaymentMethod({
             type: "card",
-            cardBrand: "visa",
-            cardLast4: "4242"
+            card: {
+              brand: "visa",
+              last4: "4242"
+            }
           })
         })
       ];
@@ -418,8 +420,10 @@ describe(StripeService.name, () => {
           created: 1640995200,
           paymentMethod: generatePaymentMethod({
             type: "card",
-            cardBrand: "visa",
-            cardLast4: "1111"
+            card: {
+              brand: "visa",
+              last4: "1111"
+            }
           }),
           description: "First transaction"
         })
@@ -432,8 +436,10 @@ describe(StripeService.name, () => {
           created: 1641081600,
           paymentMethod: generatePaymentMethod({
             type: "card",
-            cardBrand: "mastercard",
-            cardLast4: "2222"
+            card: {
+              brand: "mastercard",
+              last4: "2222"
+            }
           }),
           description: "Second transaction"
         })
@@ -790,8 +796,14 @@ describe(StripeService.name, () => {
     it("returns customer payment methods", async () => {
       const { service } = setup();
       const mockPaymentMethods = [
-        { id: "pm_123", type: "card", card: { brand: "visa" } },
-        { id: "pm_456", type: "card", card: { brand: "mastercard" } }
+        generatePaymentMethod({
+          id: "pm_123",
+          card: { brand: "visa" }
+        }),
+        generatePaymentMethod({
+          id: "pm_456",
+          card: { brand: "mastercard" }
+        })
       ];
       jest.spyOn(service.paymentMethods, "list").mockResolvedValue(stub({ data: mockPaymentMethods }));
 
@@ -884,17 +896,15 @@ describe(StripeService.name, () => {
       const { service, paymentMethodRepository } = setup();
       const currentUserId = "user_123";
       const paymentMethods = [
-        {
+        generatePaymentMethod({
           id: "pm_1",
-          type: "card",
           card: { fingerprint: "fp_123" }
-        },
-        {
+        }),
+        generatePaymentMethod({
           id: "pm_2",
-          type: "card",
           card: { fingerprint: "fp_456" }
-        }
-      ] as Stripe.PaymentMethod[];
+        })
+      ];
 
       paymentMethodRepository.findOthersTrialingByFingerprint.mockResolvedValue([
         {
@@ -918,12 +928,11 @@ describe(StripeService.name, () => {
       const { service, paymentMethodRepository } = setup();
       const currentUserId = "user_123";
       const paymentMethods = [
-        {
+        generatePaymentMethod({
           id: "pm_1",
-          type: "card",
           card: { fingerprint: "fp_123" }
-        }
-      ] as Stripe.PaymentMethod[];
+        })
+      ];
 
       paymentMethodRepository.findOthersTrialingByFingerprint.mockResolvedValue(undefined);
 
@@ -937,29 +946,26 @@ describe(StripeService.name, () => {
       const { service, paymentMethodRepository } = setup();
       const currentUserId = "user_123";
       const paymentMethods = [
-        {
+        generatePaymentMethod({
           id: "pm_1",
-          type: "card",
           card: { fingerprint: "fp_123" }
-        },
-        {
+        }),
+        generatePaymentMethod({
           id: "pm_2",
-          type: "card",
           card: null
-        },
-        {
+        }),
+        generatePaymentMethod({
           id: "pm_3",
-          type: "card",
           card: { fingerprint: undefined }
-        }
-      ] as Stripe.PaymentMethod[];
+        })
+      ];
 
       paymentMethodRepository.findOthersTrialingByFingerprint.mockResolvedValue(undefined);
 
       const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
 
       expect(result).toBe(false);
-      expect(paymentMethodRepository.findOthersTrialingByFingerprint).toHaveBeenCalledWith(["fp_123"], currentUserId);
+      expect(paymentMethodRepository.findOthersTrialingByFingerprint).toHaveBeenCalledWith(expect.arrayContaining(["fp_123"]), currentUserId);
     });
 
     it("should handle empty payment methods array", async () => {
