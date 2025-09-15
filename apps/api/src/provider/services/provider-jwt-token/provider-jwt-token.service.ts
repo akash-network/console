@@ -26,7 +26,7 @@ export class ProviderJwtTokenService {
   constructor(@InjectBillingConfig() private readonly config: BillingConfig) {}
 
   async generateJwtToken({ walletId, leases, ttl = JWT_TOKEN_TTL_IN_SECONDS }: GenerateJwtTokenParams) {
-    const { jwtToken, address } = await this.getJwtToken(walletId.toString());
+    const { jwtToken, address } = await this.getJwtToken(walletId);
     const now = Math.floor(Date.now() / 1000);
 
     const token = await jwtToken.createToken({
@@ -43,8 +43,8 @@ export class ProviderJwtTokenService {
   }
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
-  private async getJwtToken(walletId: string): Promise<JwtTokenWithAddress> {
-    const wallet = new Wallet(this.config.MASTER_WALLET_MNEMONIC, Number(walletId));
+  private async getJwtToken(walletId: number): Promise<JwtTokenWithAddress> {
+    const wallet = new Wallet(this.config.MASTER_WALLET_MNEMONIC, walletId);
     const akashWallet = await createSignArbitraryAkashWallet(await wallet.getInstance());
     const jwtToken = new JwtToken(akashWallet);
 
