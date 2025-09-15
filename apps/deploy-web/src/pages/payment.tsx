@@ -193,13 +193,12 @@ const PayPage: React.FunctionComponent = () => {
 
   const validateAmount = (value: number) => {
     const finalAmount = getFinalAmount(value.toString());
-    // Prevent $0 payments
+
     if (value <= 0) {
       setAmountError("Amount must be greater than $0");
       return false;
     }
 
-    // Only check for minimum amount if no coupon is applied
     if (!discounts.length && value < MINIMUM_PAYMENT_AMOUNT) {
       setAmountError(`Minimum amount is $${MINIMUM_PAYMENT_AMOUNT}`);
       return false;
