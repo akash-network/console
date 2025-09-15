@@ -15,7 +15,7 @@ export const PaymentMethods = pgTable(
       .notNull(),
     fingerprint: varchar("fingerprint", { length: 255 }).notNull(),
     paymentMethodId: varchar("payment_method_id", { length: 255 }).notNull(),
-    is_validated: boolean("is_validated").default(false).notNull(),
+    isValidated: boolean("is_validated").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull()
   },
@@ -23,7 +23,7 @@ export const PaymentMethods = pgTable(
     fingerprintPaymentMethodIdUnique: uniqueIndex("payment_methods_fingerprint_payment_method_id_unique").on(table.fingerprint, table.paymentMethodId),
     fingerprintIdx: index("payment_methods_fingerprint_idx").on(table.fingerprint),
     userIdIdx: index("payment_methods_user_id_idx").on(table.userId),
-    userIdIsValidatedIdx: index("payment_methods_user_id_is_validated_idx").on(table.userId, table.is_validated),
+    userIdIsValidatedIdx: index("payment_methods_user_id_is_validated_idx").on(table.userId, table.isValidated),
     userIdFingerprintPaymentMethodIdIdx: index("payment_methods_user_id_fingerprint_payment_method_id_idx").on(
       table.userId,
       table.fingerprint,

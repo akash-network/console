@@ -57,13 +57,13 @@ export class PaymentMethodRepository extends BaseRepository<Table, PaymentMethod
   async findValidatedByUserId(userId: PaymentMethodOutput["userId"]) {
     return this.toOutputList(
       await this.cursor.query.PaymentMethods.findMany({
-        where: this.whereAccessibleBy(and(eq(this.table.userId, userId), eq(this.table.is_validated, true)))
+        where: this.whereAccessibleBy(and(eq(this.table.userId, userId), eq(this.table.isValidated, true)))
       })
     );
   }
 
   async markAsValidated(paymentMethodId: string, userId: string) {
-    return await this.updateBy({ paymentMethodId, userId }, { is_validated: true });
+    return await this.updateBy({ paymentMethodId, userId }, { isValidated: true });
   }
 
   async deleteByFingerprint(fingerprint: string, paymentMethodId: string, userId: string) {
