@@ -464,21 +464,38 @@ export class StripeService extends Stripe {
     let hasYieldedAny = false;
 
     while (hasMore) {
-      const batch = await this.getCustomerTransactions(customerId, {
-        limit: batchSize,
-        startingAfter,
-        startDate: options.startDate,
-        endDate: options.endDate
-      });
+      try {
+        const batch = await this.getCustomerTransactions(customerId, {
+          limit: batchSize,
+          startingAfter,
+          startDate: options.startDate,
+          endDate: options.endDate
+        });
 
-      for (const transaction of batch.transactions) {
-        hasYieldedAny = true;
+        for (const transaction of batch.transactions) {
+          hasYieldedAny = true;
 
-        yield this.transformTransactionForCsv(transaction, options.timezone);
+          yield this.transformTransactionForCsv(transaction, options.timezone);
+        }
+
+        hasMore = batch.hasMore;
+        startingAfter = batch.nextPage || undefined;
+      } catch (error) {
+        logger.error({ event: "TRANSACTION_FETCH_ERROR", error, customerId, startingAfter });
+        yield {
+          id: `Error: ${(error as Error).message}`,
+          date: "",
+          amount: "",
+          currency: "",
+          status: "",
+          paymentMethodType: "",
+          cardBrand: "",
+          cardLast4: "",
+          description: "",
+          receiptUrl: ""
+        };
+        hasMore = false;
       }
-
-      hasMore = batch.hasMore;
-      startingAfter = batch.nextPage || undefined;
     }
 
     if (!hasYieldedAny) {
