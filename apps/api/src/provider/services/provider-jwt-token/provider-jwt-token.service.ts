@@ -22,7 +22,7 @@ type GenerateJwtTokenParams = {
 };
 
 @singleton()
-export class JwtTokenService {
+export class ProviderJwtTokenService {
   constructor(@InjectBillingConfig() private readonly config: BillingConfig) {}
 
   async generateJwtToken({ walletId, leases, ttl = JWT_TOKEN_TTL_IN_SECONDS }: GenerateJwtTokenParams) {
