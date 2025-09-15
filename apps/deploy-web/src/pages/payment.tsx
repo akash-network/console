@@ -5,10 +5,12 @@ import { useTheme } from "next-themes";
 import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
+import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
 import { Title } from "@src/components/shared/Title";
 import { AddPaymentMethodPopup, DeletePaymentMethodPopup, PaymentForm, PaymentMethodsList } from "@src/components/user/payment";
 import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuccessAnimation";
 import { useWallet } from "@src/context/WalletProvider";
+import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import { usePaymentDiscountsQuery, usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
@@ -40,6 +42,15 @@ const PayPage: React.FunctionComponent = () => {
     applyCoupon: { isPending: isApplyingCoupon, mutateAsync: applyCoupon },
     removePaymentMethod
   } = usePaymentMutations();
+  const threeDSecure = use3DSecure({
+    onSuccess: () => {
+      setShowPaymentSuccess({ amount, show: true });
+      setAmount("");
+      setCoupon("");
+    },
+    showSuccessMessage: false
+  });
+
   const isLoading = isLoadingPaymentMethods || isLoadingDiscounts;
   const { isTrialing } = useWallet();
 
@@ -79,17 +90,26 @@ const PayPage: React.FunctionComponent = () => {
     clearError();
 
     try {
-      await confirmPayment({
+      const response = await confirmPayment({
         userId: user?.id || "",
         paymentMethodId,
         amount: parseFloat(amount),
         currency: "usd"
       });
 
-      // Payment successful
-      setShowPaymentSuccess({ amount, show: true });
-      setAmount("");
-      setCoupon("");
+      if (response && response.requiresAction && response.clientSecret && response.paymentIntentId) {
+        threeDSecure.start3DSecure({
+          clientSecret: response.clientSecret,
+          paymentIntentId: response.paymentIntentId,
+          paymentMethodId
+        });
+      } else if (response.success) {
+        setShowPaymentSuccess({ amount, show: true });
+        setAmount("");
+        setCoupon("");
+      } else {
+        throw new Error("Payment failed");
+      }
     } catch (error: unknown) {
       console.error("Payment confirmation failed:", error);
 
@@ -199,14 +219,17 @@ const PayPage: React.FunctionComponent = () => {
       return false;
     }
 
+    // Only check for minimum amount if no coupon is applied
     if (!discounts.length && value < MINIMUM_PAYMENT_AMOUNT) {
       setAmountError(`Minimum amount is $${MINIMUM_PAYMENT_AMOUNT}`);
       return false;
     }
+
     if (finalAmount > 0 && finalAmount < 1) {
       setAmountError("Final amount after discount must be at least $1");
       return false;
     }
+
     setAmountError(undefined);
     return true;
   };
@@ -326,6 +349,18 @@ const PayPage: React.FunctionComponent = () => {
         clientSecret={setupIntent?.clientSecret}
         isDarkMode={isDarkMode}
         onSuccess={handleAddCardSuccess}
+      />
+
+      <ThreeDSecurePopup
+        isOpen={threeDSecure.isOpen}
+        onSuccess={threeDSecure.handle3DSSuccess}
+        onError={threeDSecure.handle3DSError}
+        clientSecret={threeDSecure.threeDSData?.clientSecret || ""}
+        paymentIntentId={threeDSecure.threeDSData?.paymentIntentId}
+        title="Payment Authentication"
+        description="Your bank requires additional verification for this payment."
+        successMessage="Payment authenticated successfully!"
+        errorMessage="Please try again or use a different payment method."
       />
     </Layout>
   );
