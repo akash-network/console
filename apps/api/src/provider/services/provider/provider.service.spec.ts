@@ -3,8 +3,8 @@ import type { JwtTokenPayload } from "@akashnetwork/jwt";
 import { mock } from "jest-mock-extended";
 
 import type { AuditorService } from "@src/provider/services/auditors/auditors.service";
-import type { JwtTokenService } from "@src/provider/services/jwt-token/jwt-token.service";
 import type { ProviderAttributesSchemaService } from "@src/provider/services/provider-attributes-schema/provider-attributes-schema.service";
+import type { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
 import { ProviderService } from "./provider.service";
 
 describe(ProviderService.name, () => {
@@ -226,7 +226,7 @@ describe(ProviderService.name, () => {
     const providerHttpService = mock<ProviderHttpService>();
     const providerAttributesSchemaService = mock<ProviderAttributesSchemaService>();
     const auditorsService = mock<AuditorService>();
-    const jwtTokenService = mock<JwtTokenService>();
+    const jwtTokenService = mock<ProviderJwtTokenService>();
 
     const service = new ProviderService(providerHttpService, providerAttributesSchemaService, auditorsService, jwtTokenService);
 
