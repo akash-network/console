@@ -65,11 +65,8 @@ export class ProviderService {
             scope: ["send-manifest"]
           })
         });
-        const result = await this.providerHttpService.sendManifest({ hostUri: providerIdentity.hostUri, dseq, manifest, jwtToken });
 
-        if (result) {
-          return result;
-        }
+        return await this.providerHttpService.sendManifest({ hostUri: providerIdentity.hostUri, dseq, manifest, jwtToken });
       } catch (error: unknown) {
         if (error instanceof Error && error.message?.includes("no lease for deployment") && i < this.MANIFEST_SEND_MAX_RETRIES) {
           await delay(this.MANIFEST_SEND_RETRY_DELAY);
