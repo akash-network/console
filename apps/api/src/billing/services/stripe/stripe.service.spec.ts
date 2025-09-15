@@ -1011,7 +1011,9 @@ describe(StripeService.name, () => {
       const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
 
       expect(result).toBe(false);
-      expect(paymentMethodRepository.findOthersTrialingByFingerprint).toHaveBeenCalledWith(["fp_123"], currentUserId);
+      // Extract only the fingerprints that are not null/undefined from the actual payment methods
+      const expectedFingerprints = paymentMethods.map(pm => pm.card?.fingerprint).filter(Boolean) as string[];
+      expect(paymentMethodRepository.findOthersTrialingByFingerprint).toHaveBeenCalledWith(expectedFingerprints, currentUserId);
     });
 
     it("should handle empty payment methods array in trialing wallets", async () => {
