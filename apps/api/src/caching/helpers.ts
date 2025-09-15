@@ -27,7 +27,7 @@ export const Memoize = (options?: MemoizeOptions) => (target: object, propertyNa
     const argsKey =
       args.length > 0
         ? `${cacheKey}#${args
-            .map(arg => (typeof arg === "string" || typeof arg === "number" ? String(arg) : null))
+            .map(arg => (["string", "number"].includes(typeof arg) ? String(arg) : null))
             .filter(Boolean)
             .join("#")}`
         : cacheKey;
