@@ -569,7 +569,7 @@ export class StripeService extends Stripe {
     });
 
     const fingerprints = paymentMethods.map(paymentMethod => paymentMethod.card?.fingerprint).filter(Boolean) as string[];
-    const otherPaymentMethods = await this.paymentMethodRepository.findOthersByFingerprint(fingerprints, currentUserId);
+    const otherPaymentMethods = await this.paymentMethodRepository.findOthersTrialingByFingerprint(fingerprints, currentUserId);
 
     return !!otherPaymentMethods;
   }
