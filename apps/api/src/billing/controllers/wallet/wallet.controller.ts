@@ -59,15 +59,15 @@ export class WalletController {
         if (validationResult.requires3DS) {
           return {
             data: {
-              id: 0,
+              id: null,
               userId: currentUser.id,
               address: null,
               creditAmount: 0,
               isTrialing: false,
               requires3DS: true,
-              clientSecret: validationResult.clientSecret || "",
-              paymentIntentId: validationResult.paymentIntentId || "",
-              paymentMethodId: validationResult.paymentMethodId || ""
+              clientSecret: validationResult.clientSecret || null,
+              paymentIntentId: validationResult.paymentIntentId || null,
+              paymentMethodId: validationResult.paymentMethodId || null
             }
           };
         }

@@ -2,7 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { container } from "tsyringe";
 
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
-import { StartTrialRequestInputSchema, WalletResponseOutputSchema } from "@src/billing/http-schemas/wallet.schema";
+import { StartTrialRequestInputSchema, WalletResponse3DSOutputSchema, WalletResponseNo3DSOutputSchema } from "@src/billing/http-schemas/wallet.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 
 const route = createRoute({
@@ -26,7 +26,7 @@ const route = createRoute({
       description: "Trial started successfully and wallet created",
       content: {
         "application/json": {
-          schema: WalletResponseOutputSchema
+          schema: WalletResponseNo3DSOutputSchema
         }
       }
     },
@@ -34,7 +34,7 @@ const route = createRoute({
       description: "3D Secure authentication required to complete trial setup",
       content: {
         "application/json": {
-          schema: WalletResponseOutputSchema
+          schema: WalletResponse3DSOutputSchema
         }
       }
     }

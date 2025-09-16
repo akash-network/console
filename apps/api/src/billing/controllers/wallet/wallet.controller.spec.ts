@@ -153,7 +153,7 @@ describe("WalletController", () => {
 
       expect(result).toEqual({
         data: {
-          id: 0,
+          id: null,
           userId: user.id,
           address: null,
           creditAmount: 0,

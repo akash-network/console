@@ -106,10 +106,12 @@ export interface ExportTransactionsCsvParams {
 }
 
 export interface ConfirmPaymentResponse {
-  success: boolean;
-  requiresAction?: boolean;
-  clientSecret?: string;
-  paymentIntentId?: string;
+  data: {
+    success: boolean;
+    requiresAction?: boolean;
+    clientSecret?: string;
+    paymentIntentId?: string;
+  };
 }
 
 export interface ThreeDSecureAuthParams {
