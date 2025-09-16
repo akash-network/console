@@ -10178,27 +10178,32 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 "schema": {
                   "properties": {
                     "data": {
+                      "additionalProperties": false,
                       "properties": {
                         "address": {
                           "nullable": true,
                           "type": "string",
                         },
                         "clientSecret": {
+                          "nullable": true,
                           "type": "string",
                         },
                         "creditAmount": {
                           "type": "number",
                         },
                         "id": {
+                          "nullable": true,
                           "type": "number",
                         },
                         "isTrialing": {
                           "type": "boolean",
                         },
                         "paymentIntentId": {
+                          "nullable": true,
                           "type": "string",
                         },
                         "paymentMethodId": {
+                          "nullable": true,
                           "type": "string",
                         },
                         "requires3DS": {
@@ -10234,27 +10239,32 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 "schema": {
                   "properties": {
                     "data": {
+                      "additionalProperties": false,
                       "properties": {
                         "address": {
                           "nullable": true,
                           "type": "string",
                         },
                         "clientSecret": {
+                          "nullable": true,
                           "type": "string",
                         },
                         "creditAmount": {
                           "type": "number",
                         },
                         "id": {
+                          "nullable": true,
                           "type": "number",
                         },
                         "isTrialing": {
                           "type": "boolean",
                         },
                         "paymentIntentId": {
+                          "nullable": true,
                           "type": "string",
                         },
                         "paymentMethodId": {
+                          "nullable": true,
                           "type": "string",
                         },
                         "requires3DS": {
@@ -12330,21 +12340,25 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             "type": "string",
                           },
                           "clientSecret": {
+                            "nullable": true,
                             "type": "string",
                           },
                           "creditAmount": {
                             "type": "number",
                           },
                           "id": {
+                            "nullable": true,
                             "type": "number",
                           },
                           "isTrialing": {
                             "type": "boolean",
                           },
                           "paymentIntentId": {
+                            "nullable": true,
                             "type": "string",
                           },
                           "paymentMethodId": {
+                            "nullable": true,
                             "type": "string",
                           },
                           "requires3DS": {
