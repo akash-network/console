@@ -1,5 +1,12 @@
 
 
+## [1.23.1](https://github.com/akash-network/console/compare/provider-console/v1.23.0...provider-console/v1.23.1) (2025-09-15)
+
+
+### Bug Fixes
+
+* sync email_verified from auth0 on demand  ([436e41a](https://github.com/akash-network/console/commit/436e41a6a1dc2c39552192d2ae648b011ccb44e2))
+
 ## [1.23.0](https://github.com/akash-network/console/compare/provider-console/v1.22.0...provider-console/v1.23.0) (2025-08-28)
 
 
