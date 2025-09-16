@@ -2,7 +2,7 @@
 // The config you add here will be used whenever a page is visited.
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
-import { init as initSentry, thirdPartyErrorFilterIntegration } from "@sentry/nextjs";
+import { eventFiltersIntegration, init as initSentry, thirdPartyErrorFilterIntegration } from "@sentry/nextjs";
 
 initSentry({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -16,6 +16,9 @@ initSentry({
     thirdPartyErrorFilterIntegration({
       filterKeys: [process.env.NEXT_PUBLIC_SENTRY_APPLICATION_KEY!],
       behaviour: "drop-error-if-exclusively-contains-third-party-frames"
+    }),
+    eventFiltersIntegration({
+      allowUrls: [/https?:\/\/[^.]+\.akash\.network/]
     })
   ]
   // ...
