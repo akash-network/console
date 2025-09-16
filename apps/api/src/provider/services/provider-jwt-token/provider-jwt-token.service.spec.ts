@@ -1,5 +1,5 @@
+import type { JwtTokenPayload } from "@akashnetwork/jwt";
 import * as JwtModule from "@akashnetwork/jwt";
-import type { JwtTokenPayload } from "@akashnetwork/jwt/src/types";
 import type { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import type { MockProxy } from "jest-mock-extended";
