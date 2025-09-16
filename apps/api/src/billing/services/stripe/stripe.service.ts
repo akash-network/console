@@ -26,7 +26,6 @@ interface StripePrices {
   isCustom: boolean;
   currency: string;
 }
-
 @singleton()
 export class StripeService extends Stripe {
   constructor(
@@ -144,6 +143,7 @@ export class StripeService extends Stripe {
     metadata?: Record<string, string>;
   }): Promise<{ success: boolean; paymentIntentId?: string }> {
     const discounts = await this.getCustomerDiscounts(params.customer);
+
     // Convert amount to cents immediately for stripe
     let finalAmountCents = Math.round(params.amount * 100);
     let discountApplied = false;

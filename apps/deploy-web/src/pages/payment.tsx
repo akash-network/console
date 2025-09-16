@@ -15,6 +15,8 @@ import { usePaymentDiscountsQuery, usePaymentMethodsQuery, usePaymentMutations, 
 import { handleCouponError, handleStripeError } from "@src/utils/stripeErrorHandler";
 import { withCustomPageAuthRequired } from "@src/utils/withCustomPageAuthRequired";
 
+const MINIMUM_PAYMENT_AMOUNT = 20;
+
 const PayPage: React.FunctionComponent = () => {
   const { resolvedTheme } = useTheme();
   const [amount, setAmount] = useState<string>("");
@@ -191,9 +193,14 @@ const PayPage: React.FunctionComponent = () => {
 
   const validateAmount = (value: number) => {
     const finalAmount = getFinalAmount(value.toString());
-    // Only check for $20 minimum if no coupon is applied
-    if (!discounts.length && value > 0 && value < 20) {
-      setAmountError("Minimum amount is $20");
+
+    if (value <= 0) {
+      setAmountError("Amount must be greater than $0");
+      return false;
+    }
+
+    if (!discounts.length && value < MINIMUM_PAYMENT_AMOUNT) {
+      setAmountError(`Minimum amount is $${MINIMUM_PAYMENT_AMOUNT}`);
       return false;
     }
     if (finalAmount > 0 && finalAmount < 1) {

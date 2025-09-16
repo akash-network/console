@@ -559,8 +559,10 @@ describe(StripeService.name, () => {
           created: 1640995200,
           paymentMethod: generatePaymentMethod({
             type: "card",
-            cardBrand: "visa",
-            cardLast4: "4242"
+            card: {
+              brand: "visa",
+              last4: "4242"
+            }
           })
         })
       ];
