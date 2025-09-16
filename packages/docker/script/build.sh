@@ -12,6 +12,7 @@ function print_help() {
   echo "  -t, --tag            Docker image tag"
   echo "  -a, --app            Application name"
   echo "  -f, --force-build    Force build the Docker image"
+  echo "  -l, --mark-latest    Mark image as latest (true/false, default: true)"
   echo "  -h, --help           Show this help message."
   echo ""
   echo "Examples:"
@@ -22,6 +23,7 @@ REPO=""
 TAG=""
 APP=""
 FORCE_BUILD=false
+MARK_LATEST="true"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -40,6 +42,10 @@ while [[ $# -gt 0 ]]; do
     -f|--force-build)
       FORCE_BUILD=true
       shift
+      ;;
+    -l|--mark-latest)
+      MARK_LATEST="$2"
+      shift 2
       ;;
     -h|--help)
       print_help
@@ -79,7 +85,7 @@ fi
 
 IS_BUILT_FOR_TAG=$(docker manifest inspect "${TAGGED_IMAGE}" > /dev/null 2>&1; echo $?)
 
-if [[ "${IS_BUILT_FOR_TAG}" -eq 0 ]]; then
+if [[ "${IS_BUILT_FOR_TAG}" -eq 0 ]] && [[ "${FORCE_BUILD}" == false ]]; then
   echo "image is already built for tag: ${TAG}. skipping build"
   exit 0
 fi
@@ -116,7 +122,11 @@ if [[ "${FORCE_BUILD}" == false ]]; then
   docker image tag "${TAGGED_IMAGE}" "${REPO}:${SHA}"
 fi
 
-docker image tag "${TAGGED_IMAGE}" "${REPO}:latest"
+if [[ "${MARK_LATEST}" == "true" ]]; then
+  docker image tag "${TAGGED_IMAGE}" "${REPO}:latest"
+fi
 
 docker push "${TAGGED_IMAGE}"
-docker push "${REPO}:latest"
+if [[ "${MARK_LATEST}" == "true" ]]; then
+  docker push "${REPO}:latest"
+fi

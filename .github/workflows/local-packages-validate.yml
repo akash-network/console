@@ -2,7 +2,7 @@ name: "Local Package CI"
 
 on:
   pull_request:
-    branches: ["main"]
+    branches: ["main", "main-sdk-next"]
     paths:
       - "packages/**"
       - ".github/workflows/local-packages-validate.yml"
