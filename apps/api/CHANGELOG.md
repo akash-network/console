@@ -1,5 +1,17 @@
 
 
+## [2.117.0](https://github.com/akash-network/console/compare/console-api/v2.116.0...console-api/v2.117.0) (2025-09-15)
+
+
+### Features
+
+* **billing:** add database schema and core types for payment method validation ([#1897](https://github.com/akash-network/console/issues/1897)) ([1cffbf6](https://github.com/akash-network/console/commit/1cffbf62261e432811b1eaea1ea9434b18cda84a))
+
+
+### Bug Fixes
+
+* sync email_verified from auth0 on demand  ([436e41a](https://github.com/akash-network/console/commit/436e41a6a1dc2c39552192d2ae648b011ccb44e2))
+
 ## [2.116.0](https://github.com/akash-network/console/compare/console-api/v2.115.1...console-api/v2.116.0) (2025-09-10)
 
 
