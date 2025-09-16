@@ -1,5 +1,5 @@
+import type { AccessScope, JwtTokenPayload } from "@akashnetwork/jwt";
 import { createSignArbitraryAkashWallet, JwtToken } from "@akashnetwork/jwt";
-import type { AccessScope, JwtTokenPayload } from "@akashnetwork/jwt/src/types";
 import { minutesToSeconds } from "date-fns";
 import { singleton } from "tsyringe";
 import * as uuid from "uuid";
