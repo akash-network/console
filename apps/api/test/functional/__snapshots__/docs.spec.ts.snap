@@ -10973,8 +10973,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "amount": {
-                        "exclusiveMinimum": true,
-                        "minimum": 0,
+                        "minimum": 20,
                         "type": "number",
                       },
                       "currency": {

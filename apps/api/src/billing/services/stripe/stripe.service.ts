@@ -26,9 +26,6 @@ interface StripePrices {
   isCustom: boolean;
   currency: string;
 }
-
-const MINIMUM_PAYMENT_AMOUNT = 20;
-
 @singleton()
 export class StripeService extends Stripe {
   constructor(
@@ -146,10 +143,6 @@ export class StripeService extends Stripe {
     metadata?: Record<string, string>;
   }): Promise<{ success: boolean; paymentIntentId?: string }> {
     const discounts = await this.getCustomerDiscounts(params.customer);
-
-    if (!discounts.length && params.amount < MINIMUM_PAYMENT_AMOUNT) {
-      throw new Error(`Minimum payment amount is $${MINIMUM_PAYMENT_AMOUNT} (before any discounts)`);
-    }
 
     // Convert amount to cents immediately for stripe
     let finalAmountCents = Math.round(params.amount * 100);
