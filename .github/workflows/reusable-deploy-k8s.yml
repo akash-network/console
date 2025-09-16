@@ -35,6 +35,7 @@ on:
           - NA
           - mainnet
           - sandbox
+          - testnet
       skip_beta_deployment_check:
         type: boolean
         required: false
@@ -62,6 +63,14 @@ on:
         description: "The chain to deploy to"
         required: false
         type: string
+      skip_beta_deployment_check:
+        type: boolean
+        required: false
+        default: false
+        description: >-
+          Bypass beta deployment check.
+          Use with caution — this will deploy directly to production without verifying the beta environment.
+          Skipping this check may result in deploying an unstable version with potential bugs.
 
 jobs:
   beta-deployment-status:

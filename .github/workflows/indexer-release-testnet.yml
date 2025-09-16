@@ -1,0 +1,44 @@
+name: Release INDEXER
+
+on:
+  push:
+    branches:
+      - main-sdk-next
+    paths:
+      - "apps/indexer/package.json"
+
+jobs:
+  prep:
+    runs-on: ubuntu-latest
+    outputs:
+      short_sha: ${{ steps.short.outputs.short_sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: short
+        name: Shortest unique SHA
+        run: |
+          SHORT_SHA=$(git rev-parse --short "$GITHUB_SHA")
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prep
+    name: Build Docker image
+    uses: ./.github/workflows/reusable-build-image.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+    with:
+      tag: indexer/${{ needs.prep.outputs.short_sha }}
+
+  deploy-beta-testnet:
+    needs: build
+    name: Deploy testnet to beta
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: indexer
+      appVersion: ${{ needs.build.outputs.image_tag }}
+      environment: staging
+      chain: mainnet
+      skip_beta_deployment_check: true
