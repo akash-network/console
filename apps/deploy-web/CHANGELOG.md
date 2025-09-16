@@ -1,5 +1,12 @@
 
 
+## [2.107.2](https://github.com/akash-network/console/compare/console-web/v2.107.1...console-web/v2.107.2) (2025-09-16)
+
+
+### Bug Fixes
+
+* **billing:** prevent 0 amount payments ([#1904](https://github.com/akash-network/console/issues/1904)) ([e32155e](https://github.com/akash-network/console/commit/e32155ecfdc099b63d490f3294bb178c24a7dd53))
+
 ## [2.107.1](https://github.com/akash-network/console/compare/console-web/v2.107.0...console-web/v2.107.1) (2025-09-15)
 
 
