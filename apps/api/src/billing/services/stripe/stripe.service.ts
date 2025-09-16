@@ -15,8 +15,6 @@ import { UserOutput, UserRepository } from "@src/user/repositories/user/user.rep
 
 const logger = LoggerService.forContext("StripeService");
 
-const MINIMUM_PAYMENT_AMOUNT = 20;
-
 interface CheckoutOptions {
   customerId: string;
   redirectUrl: string;
@@ -153,10 +151,6 @@ export class StripeService extends Stripe {
     confirm: boolean;
     metadata?: Record<string, string>;
   }): Promise<PaymentIntentResult> {
-    if (params.amount <= 0) {
-      throw new Error("Amount must be greater than $0");
-    }
-
     const discounts = await this.getCustomerDiscounts(params.customer);
 
     // Convert amount to cents immediately for stripe
@@ -790,31 +784,13 @@ export class StripeService extends Stripe {
       payment_method: params.payment_method
     });
 
-    // If the card requires 3D Secure authentication, create a new payment intent for 3DS
+    // If the card requires 3D Secure authentication, reuse the existing payment intent
     if (validationResult.requiresAction) {
-      // Create a new payment intent specifically for 3D Secure authentication
-      const threeDSPaymentIntent = await this.paymentIntents.create({
-        amount: 100, // $1.00 USD in cents
-        currency: "usd",
-        customer: params.customer,
-        payment_method: params.payment_method,
-        confirm: true,
-        capture_method: "manual",
-        automatic_payment_methods: {
-          enabled: true,
-          allow_redirects: "never"
-        },
-        metadata: {
-          type: "payment_method_validation_3ds",
-          description: "Payment method validation with 3D Secure"
-        }
-      });
-
       return {
         success: false,
         requires3DS: true,
-        clientSecret: threeDSPaymentIntent.client_secret || "",
-        paymentIntentId: threeDSPaymentIntent.id,
+        clientSecret: validationResult.clientSecret || "",
+        paymentIntentId: validationResult.paymentIntentId || "",
         paymentMethodId: params.payment_method
       };
     }

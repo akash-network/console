@@ -35,7 +35,6 @@ export class WalletTestingService<T extends Hono<any>> {
 
     return container.resolve(ExecutionContextService).runWithContext(async () => {
       container.resolve(AuthService).currentUser = user;
-      // Use the appropriate role based on user type - registered users get REGULAR_USER role
       const role = user.userId ? "REGULAR_USER" : "REGULAR_ANONYMOUS_USER";
       container.resolve(AuthService).ability = container.resolve(AbilityService).getAbilityFor(role, user);
       return (await container.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)) as {

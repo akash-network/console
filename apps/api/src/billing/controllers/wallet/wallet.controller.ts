@@ -59,7 +59,7 @@ export class WalletController {
         if (validationResult.requires3DS) {
           return {
             data: {
-              id: 0, // Temporary ID for 3D Secure response
+              id: 0,
               userId: currentUser.id,
               address: null,
               creditAmount: 0,

@@ -36,10 +36,6 @@ export class StripeErrorService {
   };
 
   private readonly PAYMENT_ERRORS = {
-    "Amount must be greater than $0": {
-      code: 400,
-      message: "Amount must be greater than $0"
-    },
     "Final amount after discount must be at least $1": {
       code: 400,
       message: "Final amount after discount must be at least $1"
