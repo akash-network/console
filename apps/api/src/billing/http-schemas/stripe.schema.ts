@@ -55,7 +55,7 @@ export const ConfirmPaymentRequestSchema = z.object({
   data: z.object({
     userId: z.string(),
     paymentMethodId: z.string(),
-    amount: z.number().min(0, "Amount must be greater than $0"),
+    amount: z.number().gt(0, "Amount must be greater than $0"),
     currency: z.string()
   })
 });
