@@ -145,10 +145,6 @@ export class StripeService extends Stripe {
     confirm: boolean;
     metadata?: Record<string, string>;
   }): Promise<{ success: boolean; paymentIntentId?: string }> {
-    if (params.amount <= 0) {
-      throw new Error("Amount must be greater than $0");
-    }
-
     const discounts = await this.getCustomerDiscounts(params.customer);
 
     if (!discounts.length && params.amount < MINIMUM_PAYMENT_AMOUNT) {
