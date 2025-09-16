@@ -1,5 +1,12 @@
 
 
+## [2.117.1](https://github.com/akash-network/console/compare/console-api/v2.117.0...console-api/v2.117.1) (2025-09-16)
+
+
+### Bug Fixes
+
+* **billing:** prevent 0 amount payments ([#1904](https://github.com/akash-network/console/issues/1904)) ([e32155e](https://github.com/akash-network/console/commit/e32155ecfdc099b63d490f3294bb178c24a7dd53))
+
 ## [2.117.0](https://github.com/akash-network/console/compare/console-api/v2.116.0...console-api/v2.117.0) (2025-09-15)
 
 
