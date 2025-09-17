@@ -5,6 +5,7 @@ import { container } from "tsyringe";
 import { StripeController } from "@src/billing/controllers/stripe/stripe.controller";
 import {
   ConfirmPaymentRequestSchema,
+  ConfirmPaymentResponseSchema,
   CustomerTransactionsCsvExportQuerySchema,
   CustomerTransactionsQuerySchema,
   CustomerTransactionsResponseSchema
@@ -15,6 +16,8 @@ const confirmPaymentRoute = createRoute({
   method: "post",
   path: "/v1/stripe/transactions/confirm",
   summary: "Confirm a payment using a saved payment method",
+  description:
+    "Processes a payment using a previously saved payment method. This endpoint handles wallet top-ups and may require 3D Secure authentication for certain payment methods or amounts.",
   tags: ["Payment"],
   request: {
     body: {
@@ -27,7 +30,20 @@ const confirmPaymentRoute = createRoute({
   },
   responses: {
     200: {
-      description: "Payment processed"
+      description: "Payment processed successfully",
+      content: {
+        "application/json": {
+          schema: ConfirmPaymentResponseSchema
+        }
+      }
+    },
+    202: {
+      description: "3D Secure authentication required to complete payment",
+      content: {
+        "application/json": {
+          schema: ConfirmPaymentResponseSchema
+        }
+      }
     }
   }
 });
@@ -79,13 +95,19 @@ export const stripeTransactionsRouter = new OpenApiHonoHandler();
 
 stripeTransactionsRouter.openapi(confirmPaymentRoute, async function confirmPayment(c) {
   const { data } = c.req.valid("json");
-  await container.resolve(StripeController).confirmPayment({
+  const result = await container.resolve(StripeController).confirmPayment({
     userId: data.userId,
     paymentMethodId: data.paymentMethodId,
     amount: data.amount,
     currency: data.currency
   });
-  return c.body(null, 200);
+
+  // Check if 3D Secure is required
+  if (result.data.requiresAction) {
+    return c.json(result, 202);
+  }
+
+  return c.json(result, 200);
 });
 
 stripeTransactionsRouter.openapi(getCustomerTransactionsRoute, async function getCustomerTransactions(c) {

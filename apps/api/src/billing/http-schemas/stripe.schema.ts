@@ -9,6 +9,7 @@ export const SetupIntentResponseSchema = z.object({
 
 export const PaymentMethodSchema = z.object({
   type: z.string(),
+  validated: z.boolean().optional(),
   card: z
     .object({
       brand: z.string().nullable(),
@@ -58,6 +59,25 @@ export const ConfirmPaymentRequestSchema = z.object({
     amount: z.number().gte(20, "Amount must be greater or equal to $20"),
     currency: z.string()
   })
+});
+
+export const PaymentIntentResultSchema = z.object({
+  success: z.boolean(),
+  requiresAction: z.boolean().optional(),
+  clientSecret: z.string().optional(),
+  paymentIntentId: z.string().optional()
+});
+
+export const PaymentMethodValidationResultSchema = z.object({
+  success: z.boolean(),
+  requires3DS: z.boolean().optional(),
+  clientSecret: z.string().optional(),
+  paymentIntentId: z.string().optional(),
+  paymentMethodId: z.string().optional()
+});
+
+export const ConfirmPaymentResponseSchema = z.object({
+  data: PaymentIntentResultSchema
 });
 
 export const ApplyCouponRequestSchema = z.object({
@@ -192,6 +212,17 @@ export const CustomerTransactionsCsvExportQuerySchema = z
     message: dateRangeErrorMessage
   });
 
+export const ValidatePaymentMethodRequestSchema = z.object({
+  data: z.object({
+    paymentMethodId: z.string().openapi({}),
+    paymentIntentId: z.string().openapi({})
+  })
+});
+
+export const ValidatePaymentMethodResponseSchema = z.object({
+  success: z.boolean()
+});
+
 export const ErrorResponseSchema = z.object({
   message: z.string(),
   code: z.string().optional(),
@@ -202,6 +233,9 @@ export type SetupIntentResponse = z.infer<typeof SetupIntentResponseSchema>;
 export type PaymentMethod = z.infer<typeof PaymentMethodSchema>;
 export type PaymentMethodsResponse = z.infer<typeof PaymentMethodsResponseSchema>;
 export type ConfirmPaymentRequest = z.infer<typeof ConfirmPaymentRequestSchema>;
+export type PaymentIntentResult = z.infer<typeof PaymentIntentResultSchema>;
+export type PaymentMethodValidationResult = z.infer<typeof PaymentMethodValidationResultSchema>;
+export type ConfirmPaymentResponse = z.infer<typeof ConfirmPaymentResponseSchema>;
 export type ApplyCouponRequest = z.infer<typeof ApplyCouponRequestSchema>;
 export type Coupon = z.infer<typeof CouponSchema>;
 export type ApplyCouponResponse = z.infer<typeof ApplyCouponResponseSchema>;
@@ -210,3 +244,5 @@ export type CustomerDiscountsResponse = z.infer<typeof CustomerDiscountsResponse
 export type Transaction = z.infer<typeof TransactionSchema>;
 export type CustomerTransactionsResponse = z.infer<typeof CustomerTransactionsResponseSchema>;
 export type CustomerTransactionsQuery = z.infer<typeof CustomerTransactionsQuerySchema>;
+export type ValidatePaymentMethodRequest = z.infer<typeof ValidatePaymentMethodRequestSchema>;
+export type ValidatePaymentMethodResponse = z.infer<typeof ValidatePaymentMethodResponseSchema>;

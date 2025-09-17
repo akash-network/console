@@ -35,6 +35,7 @@ export interface PaymentMethod {
   id: string;
   type: string;
   created: number;
+  validated: boolean;
   card?: {
     brand: string;
     last4: string;
@@ -102,4 +103,18 @@ export interface ExportTransactionsCsvParams {
   startDate: Date;
   endDate: Date;
   timezone: string;
+}
+
+export interface ConfirmPaymentResponse {
+  data: {
+    success: boolean;
+    requiresAction?: boolean;
+    clientSecret?: string;
+    paymentIntentId?: string;
+  };
+}
+
+export interface ThreeDSecureAuthParams {
+  paymentMethodId: string;
+  paymentIntentId: string;
 }

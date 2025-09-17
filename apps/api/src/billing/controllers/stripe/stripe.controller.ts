@@ -6,8 +6,9 @@ import type { infer as ZodInfer } from "zod";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
 import { CustomerTransactionsCsvExportQuerySchema } from "@src/billing/http-schemas/stripe.schema";
-import { ApplyCouponRequest, ConfirmPaymentRequest, Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
-import { PaymentMethod, StripeService } from "@src/billing/services/stripe/stripe.service";
+import { ApplyCouponRequest, ConfirmPaymentRequest, ConfirmPaymentResponse, Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
+import { UserWalletRepository } from "@src/billing/repositories";
+import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
 import { Semaphore } from "@src/core/lib/semaphore.decorator";
 
@@ -16,7 +17,8 @@ export class StripeController {
   constructor(
     private readonly stripe: StripeService,
     private readonly authService: AuthService,
-    private readonly stripeErrorService: StripeErrorService
+    private readonly stripeErrorService: StripeErrorService,
+    private readonly userWalletRepository: UserWalletRepository
   ) {}
 
   @Protected([{ action: "read", subject: "StripePayment" }])
@@ -35,20 +37,20 @@ export class StripeController {
   }
 
   @Protected([{ action: "read", subject: "StripePayment" }])
-  async getPaymentMethods(): Promise<{ data: PaymentMethod[] }> {
+  async getPaymentMethods(): Promise<{ data: Stripe.PaymentMethod[] }> {
     const { currentUser } = this.authService;
 
     if (!currentUser.stripeCustomerId) {
       return { data: [] };
     }
 
-    const paymentMethods = await this.stripe.getPaymentMethods(currentUser.stripeCustomerId);
+    const paymentMethods = await this.stripe.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId);
     return { data: paymentMethods };
   }
 
   @Semaphore()
   @Protected([{ action: "create", subject: "StripePayment" }])
-  async confirmPayment(params: ConfirmPaymentRequest["data"]): Promise<void> {
+  async confirmPayment(params: ConfirmPaymentRequest["data"]): Promise<ConfirmPaymentResponse> {
     const { currentUser } = this.authService;
 
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
@@ -59,7 +61,7 @@ export class StripeController {
       const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
       assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
 
-      const { success } = await this.stripe.createPaymentIntent({
+      const result = await this.stripe.createPaymentIntent({
         customer: currentUser.stripeCustomerId,
         payment_method: params.paymentMethodId,
         amount: params.amount,
@@ -67,7 +69,24 @@ export class StripeController {
         confirm: true
       });
 
-      assert(success, 402, "Payment not successful");
+      // Handle 3D Secure authentication requirement
+      if (result.requiresAction && result.clientSecret && result.paymentIntentId) {
+        return {
+          data: {
+            success: false,
+            requiresAction: true,
+            clientSecret: result.clientSecret,
+            paymentIntentId: result.paymentIntentId
+          }
+        };
+      }
+
+      // If payment was not successful and it's not a 3D Secure case, throw an error
+      if (!result.success) {
+        throw new Error("Payment not successful");
+      }
+
+      return { data: { success: true } };
     } catch (error: unknown) {
       if (this.stripeErrorService.isKnownError(error, "payment")) {
         throw this.stripeErrorService.toAppError(error, "payment");
@@ -104,8 +123,10 @@ export class StripeController {
   async removePaymentMethod(paymentMethodId: string): Promise<void> {
     const { currentUser } = this.authService;
 
+    const userWallet = await this.userWalletRepository.findOneByUserId(currentUser.id);
+
     assert(currentUser.stripeCustomerId, 500, "Payment account not properly configured. Please contact support.");
-    assert(!currentUser.trial, 403, "Cannot remove payment method during trial. Please contact support.");
+    assert(!(userWallet && userWallet.isTrialing), 403, "Cannot remove payment method during trial. Please contact support.");
 
     try {
       // Verify payment method ownership
@@ -160,5 +181,20 @@ export class StripeController {
     assert(currentUser.stripeCustomerId, 403, "Payments are not configured. Please start with a trial first");
 
     return this.stripe.exportTransactionsCsvStream(currentUser.stripeCustomerId, options);
+  }
+
+  @Protected([{ action: "create", subject: "StripePayment" }])
+  async validatePaymentMethodAfter3DS({
+    data: { paymentMethodId, paymentIntentId }
+  }: {
+    data: { paymentMethodId: string; paymentIntentId: string };
+  }): Promise<{ success: boolean }> {
+    const { currentUser } = this.authService;
+
+    assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
+
+    await this.stripe.validatePaymentMethodAfter3DS(currentUser.stripeCustomerId, paymentMethodId, paymentIntentId);
+
+    return { success: true };
   }
 }
