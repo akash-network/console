@@ -1,5 +1,12 @@
 
 
+## [1.27.0](https://github.com/akash-network/console/compare/notifications/v1.26.1...notifications/v1.27.0) (2025-09-17)
+
+
+### Features
+
+* **billing:** test charge for free trial ([#1898](https://github.com/akash-network/console/issues/1898)) ([959ed00](https://github.com/akash-network/console/commit/959ed00936c6d90b5763ea024038ecca70cf9079))
+
 ## [1.26.1](https://github.com/akash-network/console/compare/notifications/v1.26.0...notifications/v1.26.1) (2025-09-15)
 
 
