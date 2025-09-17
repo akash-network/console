@@ -1,5 +1,18 @@
 
 
+## [2.108.0](https://github.com/akash-network/console/compare/console-web/v2.107.2...console-web/v2.108.0) (2025-09-17)
+
+
+### Features
+
+* **billing:** test charge for free trial ([#1898](https://github.com/akash-network/console/issues/1898)) ([959ed00](https://github.com/akash-network/console/commit/959ed00936c6d90b5763ea024038ecca70cf9079))
+
+
+### Bug Fixes
+
+* **analytics:** uses gtag getter to make sure it's present after onload ([#1936](https://github.com/akash-network/console/issues/1936)) ([da4a70e](https://github.com/akash-network/console/commit/da4a70eb809974535461480c078df6f873117f87))
+* set allowUrls for sentry on deploy-web ([#1895](https://github.com/akash-network/console/issues/1895)) ([016ef7d](https://github.com/akash-network/console/commit/016ef7dd5f7af7156ed95fe7d9d89fa48a2daff1))
+
 ## [2.107.2](https://github.com/akash-network/console/compare/console-web/v2.107.1...console-web/v2.107.2) (2025-09-16)
 
 
