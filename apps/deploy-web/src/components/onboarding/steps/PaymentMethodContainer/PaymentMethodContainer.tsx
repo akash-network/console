@@ -1,5 +1,6 @@
 "use client";
-import React, { type FC, useEffect, useState } from "react";
+import React, { type FC, useCallback, useEffect, useState } from "react";
+import type { ApiWalletWithOptional3DS } from "@akashnetwork/http-sdk/src/managed-wallet-http/managed-wallet-http.service";
 import type { PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import { useSnackbar } from "notistack";
 
@@ -13,6 +14,7 @@ import { extractErrorMessage } from "@src/utils/errorUtils";
 
 const DEPENDENCIES = {
   useWallet,
+  useUser,
   usePaymentMethodsQuery,
   usePaymentMutations,
   useSetupIntentMutation,
@@ -57,8 +59,9 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
   const { data: paymentMethods = [], refetch: refetchPaymentMethods } = d.usePaymentMethodsQuery();
   const { removePaymentMethod } = d.usePaymentMutations();
   const { isWalletLoading, hasManagedWallet, managedWalletError } = d.useWallet();
-  const { user } = useUser();
+  const { user } = d.useUser();
   const { enqueueSnackbar } = useSnackbar();
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [cardToDelete, setCardToDelete] = useState<string>();
@@ -83,15 +86,15 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
 
         if ("requires3DS" in result && result.requires3DS) {
           // Start another 3D Secure flow if needed
-          threeDSecure.start3DSecure({
-            clientSecret: result.clientSecret || "",
-            paymentIntentId: result.paymentIntentId || "",
-            paymentMethodId: result.paymentMethodId || ""
-          });
+          if (!validateAndStart3DSecure(result)) {
+            setIsConnectingWallet(false);
+            return;
+          }
           setIsConnectingWallet(false);
           return;
         }
 
+        setIsConnectingWallet(false);
         onComplete();
       } catch (error) {
         console.error("Wallet creation failed after 3D Secure:", error);
@@ -107,6 +110,33 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
     },
     showSuccessMessage: false
   });
+
+  const validateAndStart3DSecure = useCallback(
+    (result: ApiWalletWithOptional3DS) => {
+      const { clientSecret, paymentIntentId, paymentMethodId } = result;
+
+      // Validate required fields
+      if (!clientSecret || clientSecret.trim() === "") {
+        console.error("3D Secure validation failed: clientSecret is missing or empty");
+        enqueueSnackbar("Authentication data is incomplete. Please try again.", { variant: "error" });
+        return false;
+      }
+
+      if ((!paymentIntentId || paymentIntentId.trim() === "") && (!paymentMethodId || paymentMethodId.trim() === "")) {
+        console.error("3D Secure validation failed: both paymentIntentId and paymentMethodId are missing or empty");
+        enqueueSnackbar("Payment method information is incomplete. Please try again.", { variant: "error" });
+        return false;
+      }
+
+      threeDSecure.start3DSecure({
+        clientSecret: clientSecret.trim(),
+        paymentIntentId: paymentIntentId?.trim() || "",
+        paymentMethodId: paymentMethodId?.trim() || ""
+      });
+      return true;
+    },
+    [threeDSecure, enqueueSnackbar]
+  );
 
   useEffect(() => {
     if (!setupIntent) {
@@ -174,15 +204,15 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       const result = await createWallet(user.id);
 
       if ("requires3DS" in result && result.requires3DS) {
-        threeDSecure.start3DSecure({
-          clientSecret: result.clientSecret || "",
-          paymentIntentId: result.paymentIntentId || "",
-          paymentMethodId: result.paymentMethodId || ""
-        });
+        if (!validateAndStart3DSecure(result)) {
+          setIsConnectingWallet(false);
+          return;
+        }
         setIsConnectingWallet(false);
         return;
       }
 
+      setIsConnectingWallet(false);
       onComplete();
     } catch (error) {
       console.error("Wallet creation failed:", error);

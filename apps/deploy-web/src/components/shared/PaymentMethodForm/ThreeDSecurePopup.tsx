@@ -32,7 +32,6 @@ export const ThreeDSecurePopup: React.FC<ThreeDSecurePopupProps> = ({
   return (
     <Popup variant="custom" title={title} open={isOpen} enableCloseOnBackdropClick={false} hideCloseButton maxWidth="sm" actions={[]}>
       <ThreeDSecureModal
-        isOpen={true}
         clientSecret={clientSecret}
         paymentIntentId={paymentIntentId}
         onSuccess={onSuccess}

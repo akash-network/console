@@ -23,16 +23,16 @@ export interface ApiWalletWithOptional3DS extends ApiWalletOutput {
 }
 
 export class ManagedWalletHttpService extends ApiHttpService {
-  async createWallet(userId: string): Promise<ApiWalletWithOptional3DS> {
+  async createWallet(userId: string): Promise<ApiWalletWithOptional3DS & { username: "Managed Wallet"; isWalletConnected: true }> {
     const response = await this.post<ApiWalletWithOptional3DS>("v1/start-trial", { data: { userId } }, { withCredentials: true });
 
-    return this.addWalletEssentials(this.extractApiData(response));
+    return this.addWalletEssentials<ApiWalletWithOptional3DS>(this.extractApiData(response));
   }
 
   async getWallet(userId: string): Promise<ApiManagedWalletOutput | null> {
     const [wallet] = this.extractApiData(await this.get<ApiWalletOutput[]>("v1/wallets", { params: { userId } }));
 
-    return wallet ? this.addWalletEssentials(wallet) : null;
+    return wallet ? this.addWalletEssentials<ApiWalletOutput>(wallet) : null;
   }
 
   async validatePaymentMethodAfter3DS(paymentMethodId: string, paymentIntentId: string): Promise<{ success: boolean }> {
@@ -47,7 +47,7 @@ export class ManagedWalletHttpService extends ApiHttpService {
     );
   }
 
-  protected addWalletEssentials(input: ApiWalletOutput): ApiManagedWalletOutput {
+  protected addWalletEssentials<T extends ApiManagedWalletOutputBase>(input: T): T & { username: "Managed Wallet"; isWalletConnected: true } {
     return {
       ...input,
       username: "Managed Wallet",
@@ -57,3 +57,5 @@ export class ManagedWalletHttpService extends ApiHttpService {
 }
 
 export type ApiManagedWalletOutput = ApiWalletOutput & { username: "Managed Wallet"; isWalletConnected: true };
+
+export type ApiManagedWalletOutputBase = ApiWalletOutput;

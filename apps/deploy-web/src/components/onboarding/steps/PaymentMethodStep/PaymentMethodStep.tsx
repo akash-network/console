@@ -85,6 +85,7 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
           <ErrorBoundary fallback={<div>Failed to load payment form</div>}>
             {stripePromise ? (
               <Elements
+                key={setupIntent.clientSecret}
                 stripe={stripePromise}
                 options={{
                   clientSecret: setupIntent.clientSecret,

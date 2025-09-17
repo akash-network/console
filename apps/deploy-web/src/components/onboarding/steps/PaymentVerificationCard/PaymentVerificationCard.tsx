@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import type { SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@akashnetwork/ui/components";
 import { CreditCard } from "iconoir-react";
 
@@ -9,7 +10,7 @@ import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
 
 interface PaymentVerificationCardProps {
-  setupIntent: { clientSecret: string };
+  setupIntent?: Pick<SetupIntentResponse, "clientSecret">;
   onSuccess: () => void;
 }
 
@@ -25,6 +26,19 @@ export const PaymentVerificationCard: React.FunctionComponent<PaymentVerificatio
     }
     onSuccess();
   };
+
+  if (!setupIntent) {
+    return (
+      <div className="space-y-6 text-center">
+        <Title>Add Payment Method</Title>
+        <Card className="mx-auto max-w-md text-left">
+          <CardContent className="p-6 text-center text-muted-foreground">
+            <p>Loading payment form...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 text-center">
@@ -43,7 +57,7 @@ export const PaymentVerificationCard: React.FunctionComponent<PaymentVerificatio
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {setupIntent?.clientSecret && <PaymentMethodForm onSuccess={handleCardAdded} buttonText="Add Payment Method" processingText="Processing..." />}
+          <PaymentMethodForm onSuccess={handleCardAdded} buttonText="Add Payment Method" processingText="Processing..." />
         </CardContent>
       </Card>
     </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Alert, Button, Snackbar } from "@akashnetwork/ui/components";
 import { Xmark } from "iconoir-react";
 import { useTheme } from "next-themes";
@@ -32,6 +32,7 @@ const PayPage: React.FunctionComponent = () => {
   const [showPaymentSuccess, setShowPaymentSuccess] = useState<{ amount: string; show: boolean }>({ amount: "", show: false });
   const [error, setError] = useState<string>();
   const [errorAction, setErrorAction] = useState<string>();
+  const submittedAmountRef = useRef<string>("");
   const isDarkMode = resolvedTheme === "dark";
   const { enqueueSnackbar } = useSnackbar();
   const { user } = useUser();
@@ -45,7 +46,7 @@ const PayPage: React.FunctionComponent = () => {
   } = usePaymentMutations();
   const threeDSecure = use3DSecure({
     onSuccess: () => {
-      setShowPaymentSuccess({ amount, show: true });
+      setShowPaymentSuccess({ amount: submittedAmountRef.current, show: true });
       setAmount("");
       setCoupon("");
     },
@@ -88,6 +89,8 @@ const PayPage: React.FunctionComponent = () => {
     if (!amount) return;
     if (!selectedPaymentMethodId || !paymentMethods.some(method => method.id === selectedPaymentMethodId)) return;
 
+    // Capture the submitted amount before starting the payment flow
+    submittedAmountRef.current = amount;
     clearError();
 
     try {
@@ -105,7 +108,7 @@ const PayPage: React.FunctionComponent = () => {
           paymentMethodId
         });
       } else if (response.success) {
-        setShowPaymentSuccess({ amount, show: true });
+        setShowPaymentSuccess({ amount: submittedAmountRef.current, show: true });
         setAmount("");
         setCoupon("");
       } else {

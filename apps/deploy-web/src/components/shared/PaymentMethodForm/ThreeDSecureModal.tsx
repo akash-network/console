@@ -7,9 +7,8 @@ import { useTheme } from "next-themes";
 
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 
-// Constants
-const AUTHENTICATION_TIMEOUT = 30000; // 30 seconds
-const SUCCESS_DELAY = 1500; // 1.5 seconds
+const AUTHENTICATION_TIMEOUT = 30_000;
+const SUCCESS_DELAY = 1_500;
 const SUCCESSFUL_STATUSES = ["succeeded", "requires_capture"] as const;
 
 interface ThreeDSecureModalProps {
@@ -17,8 +16,6 @@ interface ThreeDSecureModalProps {
   paymentIntentId?: string;
   onSuccess: () => void;
   onError: (error: string) => void;
-  isOpen: boolean;
-  onClose?: () => void;
   title?: string;
   description?: string;
   successMessage?: string;
@@ -208,8 +205,6 @@ export const ThreeDSecureModal: React.FC<ThreeDSecureModalProps> = ({
   paymentIntentId,
   onSuccess,
   onError,
-  isOpen,
-  onClose: _onClose,
   title = "Card Authentication",
   description = "Your bank requires additional verification for this transaction.",
   successMessage = "Your card has been verified successfully.",
@@ -221,10 +216,6 @@ export const ThreeDSecureModal: React.FC<ThreeDSecureModalProps> = ({
   const isDarkMode = resolvedTheme === "dark";
   const stripePromise = stripeService.getStripe();
 
-  if (!isOpen) {
-    return null;
-  }
-
   if (!stripePromise) {
     return (
       <div className="py-8 text-center">
@@ -235,6 +226,7 @@ export const ThreeDSecureModal: React.FC<ThreeDSecureModalProps> = ({
 
   return (
     <Elements
+      key={clientSecret}
       stripe={stripePromise}
       options={{
         clientSecret,

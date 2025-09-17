@@ -4,10 +4,6 @@ export interface StripePrice {
   currency: string;
 }
 
-export interface SetupIntentResponse {
-  clientSecret: string;
-}
-
 export interface Coupon {
   id: string;
   percent_off?: number | null;
