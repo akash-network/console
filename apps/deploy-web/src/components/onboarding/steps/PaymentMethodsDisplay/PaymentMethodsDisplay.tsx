@@ -1,10 +1,10 @@
 import React from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 
+import { PaymentMethodsList } from "@src/components/shared/PaymentMethodsList";
 import type { AppError } from "@src/types";
 import { EmptyPaymentMethods } from "./EmptyPaymentMethods";
 import { ErrorAlert } from "./ErrorAlert";
-import { PaymentMethodsList } from "./PaymentMethodsList";
 import { TermsAndConditions } from "./TermsAndConditions";
 import { TrialStartButton } from "./TrialStartButton";
 
@@ -41,7 +41,7 @@ export const PaymentMethodsDisplay: React.FC<PaymentMethodsDisplayProps> = ({
 
       <ErrorAlert error={managedWalletError} />
 
-      <TrialStartButton isLoading={isLoading} disabled={!hasPaymentMethod} onClick={onStartTrial} />
+      <TrialStartButton isLoading={isLoading} disabled={!hasPaymentMethod || isLoading} onClick={onStartTrial} />
 
       <TermsAndConditions />
     </div>

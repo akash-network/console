@@ -67,10 +67,8 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
   const hasValidatedCard = paymentMethods.length > 0 && paymentMethods.some(method => method.validated);
   const hasPaymentMethod = paymentMethods.length > 0;
 
-  // Use the centralized 3D Secure hook
   const threeDSecure = d.use3DSecure({
     onSuccess: async () => {
-      // After successful 3D Secure, retry wallet creation
       setIsConnectingWallet(true);
       await refetchPaymentMethods();
 
@@ -107,7 +105,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       console.error("3D Secure authentication failed:", error);
       enqueueSnackbar(error, { variant: "error", autoHideDuration: 5000 });
     },
-    showSuccessMessage: false // We'll handle success in the onSuccess callback
+    showSuccessMessage: false
   });
 
   useEffect(() => {
@@ -176,7 +174,6 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
       const result = await createWallet(user.id);
 
       if ("requires3DS" in result && result.requires3DS) {
-        // Use the 3D Secure hook to handle the authentication
         threeDSecure.start3DSecure({
           clientSecret: result.clientSecret || "",
           paymentIntentId: result.paymentIntentId || "",
@@ -224,12 +221,7 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
         refetchPaymentMethods,
         hasValidatedCard,
         hasPaymentMethod,
-        threeDSecure: {
-          isOpen: threeDSecure.isOpen,
-          threeDSData: threeDSecure.threeDSData,
-          handle3DSSuccess: threeDSecure.handle3DSSuccess,
-          handle3DSError: threeDSecure.handle3DSError
-        }
+        threeDSecure
       })}
     </>
   );

@@ -10,6 +10,7 @@ import { useTheme } from "next-themes";
 import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
 import { Title } from "@src/components/shared/Title";
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
+import type { ThreeDSecureData } from "@src/hooks/use3DSecure";
 import type { AppError } from "@src/types";
 import { PaymentMethodsDisplay } from "../PaymentMethodsDisplay/PaymentMethodsDisplay";
 import { PaymentVerificationCard } from "../PaymentVerificationCard/PaymentVerificationCard";
@@ -32,7 +33,7 @@ interface PaymentMethodStepProps {
   hasPaymentMethod: boolean;
   threeDSecure: {
     isOpen: boolean;
-    threeDSData: { clientSecret: string; paymentIntentId: string; paymentMethodId: string } | null;
+    threeDSData: ThreeDSecureData | null;
     handle3DSSuccess: () => Promise<void>;
     handle3DSError: (error: string) => void;
   };

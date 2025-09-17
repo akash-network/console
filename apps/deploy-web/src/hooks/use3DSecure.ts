@@ -3,7 +3,7 @@ import { useSnackbar } from "notistack";
 
 import { usePaymentMutations } from "@src/queries";
 
-interface ThreeDSecureData {
+export interface ThreeDSecureData {
   clientSecret: string;
   paymentIntentId: string;
   paymentMethodId: string;
@@ -62,7 +62,6 @@ export const use3DSecure = (options: Use3DSecureOptions = {}): Use3DSecureReturn
     console.log("3D Secure authentication successful, processing...");
 
     try {
-      // Mark payment method as validated after 3D Secure
       console.log("Marking payment method as validated...", {
         paymentMethodId: threeDSData.paymentMethodId,
         paymentIntentId: threeDSData.paymentIntentId

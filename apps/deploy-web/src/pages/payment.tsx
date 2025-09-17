@@ -6,8 +6,9 @@ import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
 import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
+import { PaymentMethodsList } from "@src/components/shared/PaymentMethodsList";
 import { Title } from "@src/components/shared/Title";
-import { AddPaymentMethodPopup, DeletePaymentMethodPopup, PaymentForm, PaymentMethodsList } from "@src/components/user/payment";
+import { AddPaymentMethodPopup, DeletePaymentMethodPopup, PaymentForm } from "@src/components/user/payment";
 import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuccessAnimation";
 import { useWallet } from "@src/context/WalletProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
@@ -219,7 +220,6 @@ const PayPage: React.FunctionComponent = () => {
       return false;
     }
 
-    // Only check for minimum amount if no coupon is applied
     if (!discounts.length && value < MINIMUM_PAYMENT_AMOUNT) {
       setAmountError(`Minimum amount is $${MINIMUM_PAYMENT_AMOUNT}`);
       return false;
@@ -281,10 +281,11 @@ const PayPage: React.FunctionComponent = () => {
             <h2 className="mb-3 text-lg font-semibold">Your Payment Methods</h2>
             <PaymentMethodsList
               paymentMethods={paymentMethods}
+              isRemoving={removePaymentMethod.isPending}
+              onRemovePaymentMethod={handleRemovePaymentMethod}
+              isSelectable={true}
               selectedPaymentMethodId={selectedPaymentMethodId}
               onPaymentMethodSelect={setSelectedPaymentMethodId}
-              onRemovePaymentMethod={handleRemovePaymentMethod}
-              isRemovingPaymentMethod={removePaymentMethod.isPending}
               isTrialing={isTrialing}
             />
             <Button onClick={handleShowAddPaymentMethod} className="mt-4 w-full">
