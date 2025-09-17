@@ -1,5 +1,17 @@
 
 
+## [2.118.0](https://github.com/akash-network/console/compare/console-api/v2.117.1...console-api/v2.118.0) (2025-09-17)
+
+
+### Features
+
+* **billing:** test charge for free trial ([#1898](https://github.com/akash-network/console/issues/1898)) ([959ed00](https://github.com/akash-network/console/commit/959ed00936c6d90b5763ea024038ecca70cf9079))
+
+
+### Bug Fixes
+
+* ensure managed wallet deployment close doesnot depend on authService ([#1932](https://github.com/akash-network/console/issues/1932)) ([95b3430](https://github.com/akash-network/console/commit/95b34307f38a5466fd2c5906149c4be79a0cf43a))
+
 ## [2.117.1](https://github.com/akash-network/console/compare/console-api/v2.117.0...console-api/v2.117.1) (2025-09-16)
 
 
