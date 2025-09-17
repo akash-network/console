@@ -16,7 +16,7 @@ import { UserWalletOutput, UserWalletRepository } from "@src/billing/repositorie
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import { UserRepository } from "@src/user/repositories";
+import { UserOutput, UserRepository } from "@src/user/repositories";
 import { BalancesService } from "../balances/balances.service";
 import { BillingConfigService } from "../billing-config/billing-config.service";
 import { ChainErrorService } from "../chain-error/chain-error.service";
@@ -75,6 +75,20 @@ export class ManagedSignerService {
     assert(userWallet, 404, "UserWallet Not Found");
     const user = this.authService.currentUser.userId === userId ? this.authService.currentUser : await this.userRepository.findById(userId);
     assert(user, 404, "User Not Found");
+
+    return this.executeDecodedTxByUserWallet(userWallet, messages, user);
+  }
+
+  async executeDecodedTxByUserWallet(
+    userWallet: UserWalletOutput,
+    messages: EncodeObject[],
+    walletOwner?: UserOutput
+  ): Promise<{
+    code: number;
+    hash: string;
+    transactionHash: string;
+    rawLog: string;
+  }> {
     assert(userWallet.feeAllowance > 0, 403, "UserWallet has no fee allowance");
 
     const hasDeploymentMessage = messages.some(message => message.typeUrl.endsWith(".MsgCreateDeployment"));
@@ -84,6 +98,8 @@ export class ManagedSignerService {
     }
 
     if (this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
+      const user = walletOwner?.id === userWallet.userId ? walletOwner : await this.userRepository.findById(userWallet.userId!);
+      assert(user, 500, "User for wallet not found");
       await Promise.all(
         messages.map(message =>
           Promise.all([
@@ -101,7 +117,7 @@ export class ManagedSignerService {
     try {
       const tx = await this.executeManagedTx(userWallet.id, messages);
 
-      if (userWallet.isTrialing && createLeaseMessage && !this.featureFlagsService.isEnabled(FeatureFlags.ANONYMOUS_FREE_TRIAL)) {
+      if (hasCreateTrialLeaseMessage) {
         await this.domainEvents.publish(
           new TrialDeploymentLeaseCreated({
             walletId: userWallet.id,
