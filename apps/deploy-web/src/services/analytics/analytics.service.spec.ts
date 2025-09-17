@@ -285,7 +285,7 @@ describe(AnalyticsService.name, () => {
       amplitude,
       hash,
       ga,
-      params.gtag ?? jest.fn(),
+      () => params.gtag ?? jest.fn(),
       storage
     );
   }

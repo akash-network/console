@@ -145,12 +145,16 @@ export class AnalyticsService {
 
   private isAmplitudeEnabled: boolean | undefined;
 
+  private get gtag() {
+    return this.getGtag();
+  }
+
   constructor(
     private readonly options: AnalyticsOptions,
     private readonly amplitude: Amplitude,
     private readonly hash: HashFn,
     private readonly ga: GoogleAnalytics,
-    private readonly gtag?: Gtag.Gtag,
+    private readonly getGtag: () => Gtag.Gtag | undefined = () => undefined,
     private readonly storage?: Pick<Storage, "getItem" | "setItem">
   ) {
     if (this.options.amplitude.enabled === false) {
@@ -266,7 +270,6 @@ export class AnalyticsService {
 }
 
 const localStorage = isBrowser ? window.localStorage : undefined;
-const gtag = isBrowser ? window.gtag : undefined;
 
 /**
  * @deprecated use useServices() instead
@@ -286,6 +289,6 @@ export const analyticsService = new AnalyticsService(
   amplitude,
   murmurhash.v3,
   { event },
-  gtag,
+  () => (isBrowser ? window.gtag : undefined),
   localStorage
 );
