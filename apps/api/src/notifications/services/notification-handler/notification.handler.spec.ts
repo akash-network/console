@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";
@@ -38,6 +39,9 @@ describe(NotificationHandler.name, () => {
     await handler.handle({
       template: "trialEnded",
       userId: "non-existent-user",
+      vars: {
+        paymentLink: faker.internet.url()
+      },
       version: 1
     });
 
@@ -63,6 +67,9 @@ describe(NotificationHandler.name, () => {
     await handler.handle({
       template: "trialEnded",
       userId: user.id,
+      vars: {
+        paymentLink: faker.internet.url()
+      },
       version: 1
     });
 
@@ -89,6 +96,9 @@ describe(NotificationHandler.name, () => {
     await handler.handle({
       template: "trialEnded",
       userId: user.id,
+      vars: {
+        paymentLink: faker.internet.url()
+      },
       conditions: { trial: true }, // User doesn't have trial: true
       version: 1
     });
@@ -107,16 +117,20 @@ describe(NotificationHandler.name, () => {
     const { handler, userRepository, notificationService } = setup({
       findUserById: jest.fn().mockResolvedValue(user)
     });
+    const vars = {
+      paymentLink: faker.internet.url()
+    };
 
     await handler.handle({
       template: "trialEnded",
       userId: user.id,
+      vars,
       conditions: { trial: true },
       version: 1
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
-    expect(notificationService.createNotification).toHaveBeenCalledWith(trialEndedNotification(user));
+    expect(notificationService.createNotification).toHaveBeenCalledWith(trialEndedNotification(user, vars));
   });
 
   it("creates notification when no conditions are provided", async () => {
@@ -218,9 +232,14 @@ describe(NotificationHandler.name, () => {
       findUserById: jest.fn().mockResolvedValue(user)
     });
 
+    const vars = {
+      paymentLink: faker.internet.url()
+    };
+
     await handler.handle({
       template: "trialEnded",
       userId: user.id,
+      vars,
       conditions: {
         trial: true,
         emailVerified: true
@@ -229,7 +248,7 @@ describe(NotificationHandler.name, () => {
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
-    expect(notificationService.createNotification).toHaveBeenCalledWith(trialEndedNotification(user));
+    expect(notificationService.createNotification).toHaveBeenCalledWith(trialEndedNotification(user, vars));
   });
 
   it("returns early when complex conditions are not met", async () => {
@@ -247,6 +266,9 @@ describe(NotificationHandler.name, () => {
     await handler.handle({
       template: "trialEnded",
       userId: user.id,
+      vars: {
+        paymentLink: faker.internet.url()
+      },
       conditions: {
         trial: true,
         emailVerified: true

@@ -135,6 +135,9 @@ describe(TrialStartedHandler.name, () => {
         new NotificationJob({
           template: "trialEnded",
           userId: user.id,
+          vars: {
+            paymentLink
+          },
           conditions: { trial: true }
         }),
         {
