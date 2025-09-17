@@ -20,12 +20,13 @@ export type StripePricesOutputResponse = z.infer<typeof StripePricesResponseOutp
 const route = createRoute({
   method: "get",
   path: "/v1/stripe/prices",
-  summary: "",
+  summary: "Get available Stripe pricing options",
+  description: "Retrieves the list of available pricing options for wallet top-ups, including custom amounts and standard pricing tiers",
   tags: ["Payment"],
   request: {},
   responses: {
     200: {
-      description: "",
+      description: "Available pricing options retrieved successfully",
       content: {
         "application/json": {
           schema: StripePricesResponseOutputSchema

@@ -59,6 +59,18 @@ export class StripeErrorService {
     "Coupon ID is required": {
       code: 400,
       message: "Coupon ID is required"
+    },
+    "Duplicate card validation request detected. Please wait before retrying.": {
+      code: 429,
+      message: "Duplicate card validation request detected. Please wait before retrying."
+    },
+    "Card validation failed. Please ensure your payment method is valid and try again.": {
+      code: 400,
+      message: "Card validation failed. Please ensure your payment method is valid and try again."
+    },
+    "Payment method was declined. Please try a different card.": {
+      code: 402,
+      message: "Payment method was declined. Please try a different card."
     }
   };
 
@@ -185,6 +197,10 @@ export class StripeErrorService {
       return "no_stripe_customer";
     } else if (messageLower.includes("coupon id is required")) {
       return "coupon_id_required";
+    } else if (messageLower.includes("duplicate card validation request")) {
+      return "duplicate_validation_request";
+    } else if (messageLower.includes("card validation failed")) {
+      return "card_validation_failed";
     }
 
     return "unknown_payment_error";
