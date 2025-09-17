@@ -10,6 +10,7 @@ import type { UserRepository } from "@src/user/repositories";
 import { TrialStartedHandler } from "./trial-started.handler";
 
 import { UserSeeder } from "@test/seeders/user.seeder";
+import { mockConfig } from "@test/services/mock-config.service";
 
 describe(TrialStartedHandler.name, () => {
   describe("handle", () => {
@@ -97,7 +98,7 @@ describe(TrialStartedHandler.name, () => {
       const trialDays = 30;
       const trialEndsAt = addDays(user.createdAt!, trialDays);
 
-      const { handler, jobQueueManager } = setup({
+      const { handler, jobQueueManager, paymentLink } = setup({
         findUserById: jest.fn().mockResolvedValue(user),
         trialExpirationDays: trialDays
       });
@@ -146,7 +147,10 @@ describe(TrialStartedHandler.name, () => {
         new NotificationJob({
           template: "afterTrialEnds",
           userId: user.id,
-          conditions: { trial: true }
+          conditions: { trial: true },
+          vars: {
+            paymentLink
+          }
         }),
         {
           singletonKey: `notification.afterTrialEnds.${user.id}.${trialDays + 7}`,
@@ -199,6 +203,7 @@ describe(TrialStartedHandler.name, () => {
     enqueueJob?: JobQueueService["enqueue"];
     trialExpirationDays?: number;
   }) {
+    const paymentLink = "https://console.akash.network/payment";
     const mocks = {
       notificationService: mock<NotificationService>({
         createNotification: input?.createNotification ?? jest.fn().mockResolvedValue(undefined)
@@ -210,13 +215,14 @@ describe(TrialStartedHandler.name, () => {
         findById: input?.findUserById ?? jest.fn()
       }),
       logger: mock<LoggerService>(),
-      coreConfig: mock<BillingConfigService>({
-        get: jest.fn().mockReturnValue(input?.trialExpirationDays ?? 30)
+      coreConfig: mockConfig<BillingConfigService>({
+        TRIAL_ALLOWANCE_EXPIRATION_DAYS: input?.trialExpirationDays ?? 30,
+        CONSOLE_WEB_PAYMENT_LINK: paymentLink
       })
     };
 
     const handler = new TrialStartedHandler(mocks.notificationService, mocks.jobQueueManager, mocks.userRepository, mocks.logger, mocks.coreConfig);
 
-    return { handler, ...mocks };
+    return { handler, ...mocks, paymentLink };
   }
 });
