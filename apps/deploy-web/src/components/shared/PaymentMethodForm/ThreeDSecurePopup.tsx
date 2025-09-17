@@ -11,6 +11,7 @@ interface ThreeDSecurePopupProps {
   onError: (error: string) => void;
   clientSecret: string;
   paymentIntentId?: string;
+  paymentMethodId?: string;
   title?: string;
   description?: string;
   successMessage?: string;
@@ -24,6 +25,7 @@ export const ThreeDSecurePopup: React.FC<ThreeDSecurePopupProps> = ({
   onError,
   clientSecret,
   paymentIntentId,
+  paymentMethodId,
   title = "Card Authentication",
   description = "Your bank requires additional verification for this transaction.",
   successMessage = "Your card has been verified successfully.",
@@ -34,6 +36,7 @@ export const ThreeDSecurePopup: React.FC<ThreeDSecurePopupProps> = ({
       <ThreeDSecureModal
         clientSecret={clientSecret}
         paymentIntentId={paymentIntentId}
+        paymentMethodId={paymentMethodId}
         onSuccess={onSuccess}
         onError={onError}
         title={title}

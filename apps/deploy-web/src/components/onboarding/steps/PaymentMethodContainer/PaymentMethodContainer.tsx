@@ -106,7 +106,6 @@ export const PaymentMethodContainer: FC<PaymentMethodContainerProps> = ({ childr
     onError: (error: string) => {
       setIsConnectingWallet(false);
       console.error("3D Secure authentication failed:", error);
-      enqueueSnackbar(error, { variant: "error", autoHideDuration: 5000 });
     },
     showSuccessMessage: false
   });

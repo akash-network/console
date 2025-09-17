@@ -14,6 +14,7 @@ const SUCCESSFUL_STATUSES = ["succeeded", "requires_capture"] as const;
 interface ThreeDSecureModalProps {
   clientSecret: string;
   paymentIntentId?: string;
+  paymentMethodId?: string;
   onSuccess: () => void;
   onError: (error: string) => void;
   title?: string;
@@ -44,6 +45,7 @@ interface AuthenticationResult {
 const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClose">> = ({
   clientSecret,
   paymentIntentId: _paymentIntentId,
+  paymentMethodId,
   onSuccess,
   onError,
   title: _title = "Card Authentication",
@@ -121,7 +123,9 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
     authenticationInProgress.current = true;
 
     try {
-      const result = await stripe.confirmCardPayment(clientSecret);
+      const result = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: paymentMethodId
+      });
       console.log("3D Secure authentication result:", result);
       processAuthenticationResult(result);
     } catch (err) {
@@ -131,7 +135,7 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
     } finally {
       authenticationInProgress.current = false;
     }
-  }, [stripe, clientSecret, processAuthenticationResult, handleAuthenticationFailure]);
+  }, [stripe, clientSecret, paymentMethodId, processAuthenticationResult, handleAuthenticationFailure]);
 
   useEffect(() => {
     if (!stripe || !elements || status !== "processing") {
@@ -203,6 +207,7 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
 export const ThreeDSecureModal: React.FC<ThreeDSecureModalProps> = ({
   clientSecret,
   paymentIntentId,
+  paymentMethodId,
   onSuccess,
   onError,
   title = "Card Authentication",
@@ -220,6 +225,14 @@ export const ThreeDSecureModal: React.FC<ThreeDSecureModalProps> = ({
     return (
       <div className="py-8 text-center">
         <p className="text-muted-foreground">Payment processing is not available at this time. Please try again later.</p>
+      </div>
+    );
+  }
+
+  if (!clientSecret || clientSecret.trim() === "") {
+    return (
+      <div className="py-8 text-center">
+        <p className="text-muted-foreground">Authentication data is missing. Please try again.</p>
       </div>
     );
   }
@@ -242,6 +255,7 @@ export const ThreeDSecureModal: React.FC<ThreeDSecureModalProps> = ({
       <ThreeDSecureForm
         clientSecret={clientSecret}
         paymentIntentId={paymentIntentId}
+        paymentMethodId={paymentMethodId}
         onSuccess={onSuccess}
         onError={onError}
         title={title}

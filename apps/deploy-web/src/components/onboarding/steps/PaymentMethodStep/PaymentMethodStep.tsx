@@ -70,6 +70,7 @@ export const PaymentMethodStep: React.FunctionComponent<PaymentMethodStepProps> 
         onError={threeDSecure.handle3DSError}
         clientSecret={threeDSecure.threeDSData.clientSecret}
         paymentIntentId={threeDSecure.threeDSData.paymentIntentId}
+        paymentMethodId={threeDSecure.threeDSData.paymentMethodId}
         title="Card Authentication"
         description="Your bank requires additional verification for this transaction."
         successMessage="Your card has been verified. Proceeding to start your trial..."

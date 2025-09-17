@@ -355,17 +355,20 @@ const PayPage: React.FunctionComponent = () => {
         onSuccess={handleAddCardSuccess}
       />
 
-      <ThreeDSecurePopup
-        isOpen={threeDSecure.isOpen}
-        onSuccess={threeDSecure.handle3DSSuccess}
-        onError={threeDSecure.handle3DSError}
-        clientSecret={threeDSecure.threeDSData?.clientSecret || ""}
-        paymentIntentId={threeDSecure.threeDSData?.paymentIntentId}
-        title="Payment Authentication"
-        description="Your bank requires additional verification for this payment."
-        successMessage="Payment authenticated successfully!"
-        errorMessage="Please try again or use a different payment method."
-      />
+      {threeDSecure.threeDSData?.clientSecret && (
+        <ThreeDSecurePopup
+          isOpen={threeDSecure.isOpen}
+          onSuccess={threeDSecure.handle3DSSuccess}
+          onError={threeDSecure.handle3DSError}
+          clientSecret={threeDSecure.threeDSData.clientSecret}
+          paymentIntentId={threeDSecure.threeDSData.paymentIntentId}
+          paymentMethodId={threeDSecure.threeDSData.paymentMethodId}
+          title="Payment Authentication"
+          description="Your bank requires additional verification for this payment."
+          successMessage="Payment authenticated successfully!"
+          errorMessage="Please try again or use a different payment method."
+        />
+      )}
     </Layout>
   );
 };
