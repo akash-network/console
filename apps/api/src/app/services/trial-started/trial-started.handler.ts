@@ -20,7 +20,7 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
     private readonly jobQueueManager: JobQueueService,
     private readonly userRepository: UserRepository,
     private readonly logger: LoggerService,
-    private readonly coreConfig: BillingConfigService
+    private readonly billingConfig: BillingConfigService
   ) {}
 
   async handle(payload: EventPayload<TrialStarted>): Promise<void> {
@@ -33,14 +33,14 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
       return;
     }
 
-    const TRIAL_ALLOWANCE_EXPIRATION_DAYS = this.coreConfig.get("TRIAL_ALLOWANCE_EXPIRATION_DAYS");
+    const TRIAL_ALLOWANCE_EXPIRATION_DAYS = this.billingConfig.get("TRIAL_ALLOWANCE_EXPIRATION_DAYS");
     const trialEndsAt = addDays(user.createdAt!, TRIAL_ALLOWANCE_EXPIRATION_DAYS);
 
     if (user.email) {
       this.logger.info({ event: "START_TRIAL_NOTIFICATION_SENDING", userId: user.id });
       await this.notificationService.createNotification(
         startTrialNotification(user, {
-          deploymentLifetimeInHours: this.coreConfig.get("TRIAL_DEPLOYMENT_CLEANUP_HOURS"),
+          deploymentLifetimeInHours: this.billingConfig.get("TRIAL_DEPLOYMENT_CLEANUP_HOURS"),
           trialEndsAt: trialEndsAt.toISOString()
         })
       );
@@ -89,6 +89,9 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
         new NotificationJob({
           template: "afterTrialEnds",
           userId: user.id,
+          vars: {
+            paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK")
+          },
           conditions: notificationConditions
         }),
         {

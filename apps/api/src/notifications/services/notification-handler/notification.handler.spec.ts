@@ -191,15 +191,19 @@ describe(NotificationHandler.name, () => {
       findUserById: jest.fn().mockResolvedValue(user)
     });
 
+    const vars = {
+      paymentLink: "https://example.com/payment"
+    };
     await handler.handle({
       template: "afterTrialEnds",
       userId: user.id,
       conditions: { trial: true },
+      vars,
       version: 1
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
-    expect(notificationService.createNotification).toHaveBeenCalledWith(afterTrialEndsNotification(user));
+    expect(notificationService.createNotification).toHaveBeenCalledWith(afterTrialEndsNotification(user, vars));
   });
 
   it("handles complex conditions with multiple properties", async () => {
