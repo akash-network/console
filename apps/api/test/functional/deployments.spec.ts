@@ -517,7 +517,7 @@ describe("Deployments API", () => {
         rawLog: "success"
       };
 
-      jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+      jest.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValueOnce(mockTxResult);
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "DELETE",
