@@ -1,5 +1,12 @@
 
 
+## [1.10.0](https://github.com/akash-network/console/compare/log-collector/v1.9.1...log-collector/v1.10.0) (2025-09-17)
+
+
+### Features
+
+* **billing:** test charge for free trial ([#1898](https://github.com/akash-network/console/issues/1898)) ([959ed00](https://github.com/akash-network/console/commit/959ed00936c6d90b5763ea024038ecca70cf9079))
+
 ## [1.9.1](https://github.com/akash-network/console/compare/log-collector/v1.9.0...log-collector/v1.9.1) (2025-09-15)
 
 
