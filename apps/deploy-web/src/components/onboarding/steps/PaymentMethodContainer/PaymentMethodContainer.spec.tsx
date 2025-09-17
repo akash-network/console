@@ -228,11 +228,26 @@ describe("PaymentMethodContainer", () => {
       hasManagedWallet: input.hasManagedWallet || false
     });
 
+    const mockUseCreateManagedWalletMutation = jest.fn().mockReturnValue({
+      mutateAsync: jest.fn().mockResolvedValue({})
+    });
+
+    const mockUse3DSecure = jest.fn().mockReturnValue({
+      isOpen: false,
+      threeDSData: null,
+      start3DSecure: jest.fn(),
+      close3DSecure: jest.fn(),
+      handle3DSSuccess: jest.fn(),
+      handle3DSError: jest.fn()
+    });
+
     const dependencies = {
       useWallet: mockUseWallet,
       usePaymentMethodsQuery: mockUsePaymentMethodsQuery,
       usePaymentMutations: mockUsePaymentMutations,
-      useSetupIntentMutation: mockUseSetupIntentMutation
+      useSetupIntentMutation: mockUseSetupIntentMutation,
+      useCreateManagedWalletMutation: mockUseCreateManagedWalletMutation,
+      use3DSecure: mockUse3DSecure
     };
 
     const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);
