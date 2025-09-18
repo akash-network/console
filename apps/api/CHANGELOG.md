@@ -1,5 +1,17 @@
 
 
+## [2.119.0](https://github.com/akash-network/console/compare/console-api/v2.118.0...console-api/v2.119.0) (2025-09-18)
+
+
+### Features
+
+* **billing:** implements payment link in post trial notification ([71205cb](https://github.com/akash-network/console/commit/71205cbcc5c4e675d59450cb476ae9f05bcdb02d))
+
+
+### Bug Fixes
+
+* **billing:** update the metadata user id for stripe customers ([#1938](https://github.com/akash-network/console/issues/1938)) ([4b4a020](https://github.com/akash-network/console/commit/4b4a0207f631803d0254be83d5876ed039b75e1e))
+
 ## [2.118.0](https://github.com/akash-network/console/compare/console-api/v2.117.1...console-api/v2.118.0) (2025-09-17)
 
 
