@@ -78,6 +78,9 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
         new NotificationJob({
           template: "trialEnded",
           userId: user.id,
+          vars: {
+            paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK")
+          },
           conditions: notificationConditions
         }),
         {
