@@ -1,6 +1,3 @@
-import { getSession } from "@auth0/nextjs-auth0";
-import httpProxy from "http-proxy";
-
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 
 export default defineApiHandler({
@@ -10,7 +7,7 @@ export default defineApiHandler({
     req.url = req.url?.replace(/^\/api\/proxy/, "");
 
     services.logger.info({ event: "PROXY_API_REQUEST", url: req.url });
-    const session = await getSession(req, res);
+    const session = await services.getSession(req, res);
 
     // Extract and forward cf_clearance and unleash-session-id cookies
     const cookies = req.headers.cookie?.split(";").map(c => c.trim());
@@ -24,7 +21,7 @@ export default defineApiHandler({
       req.headers.authorization = `Bearer ${session.accessToken}`;
     }
 
-    const proxy = httpProxy.createProxyServer({
+    const proxy = services.httpProxy.createProxyServer({
       changeOrigin: true,
       target: services.apiUrlService.getBaseApiUrlFor(services.config.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID),
       secure: false,
