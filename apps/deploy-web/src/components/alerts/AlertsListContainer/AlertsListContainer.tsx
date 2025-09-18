@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import React from "react";
 import { useCallback, useState } from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useServices } from "@src/context/ServicesProvider";
@@ -34,6 +35,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
   const [limit, setLimit] = useState(10);
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const { notificationsApi } = useServices();
+  const queryClient = useQueryClient();
   const { data, isError, isLoading, refetch } = notificationsApi.v1.getAlerts.useQuery({
     query: {
       page,
@@ -92,6 +94,10 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
         });
         notificator.success(`Alert ${enabled ? "enabled" : "disabled"}`);
         refetch();
+
+        await queryClient.invalidateQueries({
+          queryKey: ["DEPLOYMENT_DETAIL"]
+        });
       } catch (error) {
         notificator.error("Failed to update alert");
       } finally {
@@ -102,7 +108,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
         });
       }
     },
-    [patchMutation, notificator, refetch]
+    [patchMutation, notificator, refetch, queryClient]
   );
 
   const changePage = useCallback(({ page, limit }: { page: number; limit: number }) => {
