@@ -6,6 +6,7 @@ import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { MANAGED_MASTER_WALLET, UAKT_TOP_UP_MASTER_WALLET, USDC_TOP_UP_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { MasterWalletType } from "@src/billing/types/wallet.type";
+import { ChainErrorService } from "../services/chain-error/chain-error.service";
 
 export const MANAGED_MASTER_SIGNING_CLIENT = "MANAGED_MASTER_SIGNING_CLIENT";
 container.register(MANAGED_MASTER_SIGNING_CLIENT, {
@@ -15,6 +16,7 @@ container.register(MANAGED_MASTER_SIGNING_CLIENT, {
       c.resolve(MANAGED_MASTER_WALLET),
       c.resolve(TYPE_REGISTRY),
       SyncSigningStargateClient.connectWithSigner.bind(SyncSigningStargateClient),
+      c.resolve(ChainErrorService),
       MANAGED_MASTER_SIGNING_CLIENT
     )
 });
@@ -27,6 +29,7 @@ container.register(UAKT_TOP_UP_MASTER_SIGNING_CLIENT, {
       c.resolve(UAKT_TOP_UP_MASTER_WALLET),
       c.resolve(TYPE_REGISTRY),
       SyncSigningStargateClient.connectWithSigner.bind(SyncSigningStargateClient),
+      c.resolve(ChainErrorService),
       UAKT_TOP_UP_MASTER_SIGNING_CLIENT
     )
 });
@@ -39,6 +42,7 @@ container.register(USDC_TOP_UP_MASTER_SIGNING_CLIENT, {
       c.resolve(USDC_TOP_UP_MASTER_WALLET),
       c.resolve(TYPE_REGISTRY),
       SyncSigningStargateClient.connectWithSigner.bind(SyncSigningStargateClient),
+      c.resolve(ChainErrorService),
       USDC_TOP_UP_MASTER_SIGNING_CLIENT
     )
 });
