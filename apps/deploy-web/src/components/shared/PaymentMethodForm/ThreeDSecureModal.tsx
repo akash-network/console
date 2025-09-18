@@ -7,9 +7,8 @@ import { useTheme } from "next-themes";
 
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 
-const AUTHENTICATION_TIMEOUT = 30_000;
 const SUCCESS_DELAY = 1_500;
-const SUCCESSFUL_STATUSES = ["succeeded", "requires_capture"] as const;
+const SUCCESSFUL_STATUSES = ["succeeded", "requires_capture", "processing"] as const;
 
 interface ThreeDSecureModalProps {
   clientSecret: string;
@@ -142,16 +141,9 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
       return;
     }
 
-    const timeout = setTimeout(() => {
-      if (status === "processing") {
-        handleAuthenticationFailure("Authentication timed out. Please try again.");
-      }
-    }, AUTHENTICATION_TIMEOUT);
-
     performAuthentication();
 
     return () => {
-      clearTimeout(timeout);
       authenticationInProgress.current = false;
     };
   }, [stripe, elements, status, performAuthentication, handleAuthenticationFailure]);

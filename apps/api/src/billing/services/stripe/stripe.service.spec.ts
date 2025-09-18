@@ -1267,7 +1267,8 @@ describe(StripeService.name, () => {
       const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPaymentIntent = {
         id: "pi_123",
-        status: "succeeded"
+        status: "succeeded",
+        customer: "cus_123"
       } as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
@@ -1287,7 +1288,8 @@ describe(StripeService.name, () => {
       const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPaymentIntent = {
         id: "pi_123",
-        status: "requires_capture"
+        status: "requires_capture",
+        customer: "cus_123"
       } as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
@@ -1306,7 +1308,8 @@ describe(StripeService.name, () => {
       const { service, paymentMethodRepository } = setup();
       const mockPaymentIntent = {
         id: "pi_123",
-        status: "requires_payment_method"
+        status: "requires_payment_method",
+        customer: "cus_123"
       } as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
@@ -1334,7 +1337,8 @@ describe(StripeService.name, () => {
       const { service, paymentMethodRepository } = setup({ user: undefined });
       const mockPaymentIntent = {
         id: "pi_123",
-        status: "succeeded"
+        status: "succeeded",
+        customer: "cus_123"
       } as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
@@ -1344,6 +1348,22 @@ describe(StripeService.name, () => {
 
       expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
       expect(paymentMethodRepository.markAsValidated).not.toHaveBeenCalled();
+    });
+
+    it("throws error when payment intent belongs to different customer", async () => {
+      const { service } = setup();
+      const mockPaymentIntent = {
+        id: "pi_123",
+        status: "succeeded",
+        customer: "cus_different"
+      } as Stripe.PaymentIntent;
+
+      // Mock payment intent retrieval
+      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
+
+      await expect(service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId)).rejects.toThrow(
+        "Payment intent does not belong to the user"
+      );
     });
   });
 });

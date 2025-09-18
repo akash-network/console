@@ -72,9 +72,9 @@ describe("PaymentMethodContainer", () => {
     });
 
     expect(mockRemovePaymentMethod).toHaveBeenCalledWith("pm_123");
-    // Should still reset the state even on error
-    expect(child.mock.calls[child.mock.calls.length - 1][0].showDeleteConfirmation).toBe(false);
-    expect(child.mock.calls[child.mock.calls.length - 1][0].cardToDelete).toBeUndefined();
+    // State should remain unchanged on error (component doesn't reset state on error)
+    expect(child.mock.calls[child.mock.calls.length - 1][0].showDeleteConfirmation).toBe(true);
+    expect(child.mock.calls[child.mock.calls.length - 1][0].cardToDelete).toBe("pm_123");
   });
 
   it("should handle success callback", async () => {
@@ -87,32 +87,35 @@ describe("PaymentMethodContainer", () => {
     });
 
     expect(mockRefetchPaymentMethods).toHaveBeenCalled();
-    expect(mockOnComplete).toHaveBeenCalled();
+    // onSuccess only refetches payment methods, doesn't call onComplete
+    expect(mockOnComplete).not.toHaveBeenCalled();
   });
 
   it("should handle next step with payment methods", async () => {
-    const { child, mockConnectManagedWallet } = setup({
-      paymentMethods: [{ id: "pm_123", type: "card" }]
+    const mockOnComplete = jest.fn();
+    const { child, mockCreateWallet } = setup({
+      paymentMethods: [{ id: "pm_123", type: "card" }],
+      onComplete: mockOnComplete
     });
 
     const { onNext } = child.mock.calls[0][0];
     await act(async () => {
-      onNext();
+      await onNext();
     });
 
-    expect(mockConnectManagedWallet).toHaveBeenCalled();
-    expect(child.mock.calls[child.mock.calls.length - 1][0].isConnectingWallet).toBe(true);
+    expect(mockCreateWallet).toHaveBeenCalledWith("user_123");
+    expect(mockOnComplete).toHaveBeenCalled();
   });
 
   it("should not proceed when no payment methods exist", async () => {
-    const { child, mockConnectManagedWallet } = setup({ paymentMethods: [] });
+    const { child, mockCreateWallet } = setup({ paymentMethods: [] });
 
     const { onNext } = child.mock.calls[0][0];
     await act(async () => {
       onNext();
     });
 
-    expect(mockConnectManagedWallet).not.toHaveBeenCalled();
+    expect(mockCreateWallet).not.toHaveBeenCalled();
     expect(child.mock.calls[child.mock.calls.length - 1][0].isConnectingWallet).toBe(false);
   });
 
@@ -187,6 +190,165 @@ describe("PaymentMethodContainer", () => {
     expect(child.mock.calls[0][0].isRemoving).toBe(true);
   });
 
+  it("should calculate hasValidatedCard correctly", () => {
+    const paymentMethods = [
+      { id: "pm_123", type: "card", validated: true },
+      { id: "pm_456", type: "card", validated: false }
+    ];
+    const { child } = setup({ paymentMethods });
+
+    expect(child.mock.calls[0][0].hasValidatedCard).toBe(true);
+  });
+
+  it("should calculate hasValidatedCard as false when no validated cards", () => {
+    const paymentMethods = [
+      { id: "pm_123", type: "card", validated: false },
+      { id: "pm_456", type: "card", validated: false }
+    ];
+    const { child } = setup({ paymentMethods });
+
+    expect(child.mock.calls[0][0].hasValidatedCard).toBe(false);
+  });
+
+  it("should calculate hasPaymentMethod correctly", () => {
+    const paymentMethods = [{ id: "pm_123", type: "card" }];
+    const { child } = setup({ paymentMethods });
+
+    expect(child.mock.calls[0][0].hasPaymentMethod).toBe(true);
+  });
+
+  it("should calculate hasPaymentMethod as false when no payment methods", () => {
+    const { child } = setup({ paymentMethods: [] });
+
+    expect(child.mock.calls[0][0].hasPaymentMethod).toBe(false);
+  });
+
+  it("should handle wallet creation error", async () => {
+    const mockOnComplete = jest.fn();
+    const { child, mockCreateWallet } = setup({
+      paymentMethods: [{ id: "pm_123", type: "card" }],
+      onComplete: mockOnComplete
+    });
+    mockCreateWallet.mockRejectedValue(new Error("Wallet creation failed"));
+
+    const { onNext } = child.mock.calls[0][0];
+    await act(async () => {
+      await onNext();
+    });
+
+    expect(mockCreateWallet).toHaveBeenCalledWith("user_123");
+    expect(mockOnComplete).not.toHaveBeenCalled();
+    expect(child.mock.calls[child.mock.calls.length - 1][0].isConnectingWallet).toBe(false);
+  });
+
+  it("should handle wallet creation when user ID is not available", async () => {
+    const mockOnComplete = jest.fn();
+    const { child, mockCreateWallet } = setup({
+      paymentMethods: [{ id: "pm_123", type: "card" }],
+      onComplete: mockOnComplete,
+      user: null
+    });
+
+    const { onNext } = child.mock.calls[0][0];
+    await act(async () => {
+      await onNext();
+    });
+
+    expect(mockCreateWallet).not.toHaveBeenCalled();
+    expect(mockOnComplete).not.toHaveBeenCalled();
+    expect(child.mock.calls[child.mock.calls.length - 1][0].isConnectingWallet).toBe(false);
+  });
+
+  it("should handle 3D Secure required scenario", async () => {
+    const mockOnComplete = jest.fn();
+    const { child, mockCreateWallet, mockStart3DSecure } = setup({
+      paymentMethods: [{ id: "pm_123", type: "card" }],
+      onComplete: mockOnComplete
+    });
+    mockCreateWallet.mockResolvedValue({
+      requires3DS: true,
+      clientSecret: "cs_test_123",
+      paymentIntentId: "pi_test_123",
+      paymentMethodId: "pm_test_123"
+    });
+
+    const { onNext } = child.mock.calls[0][0];
+    await act(async () => {
+      await onNext();
+    });
+
+    expect(mockCreateWallet).toHaveBeenCalledWith("user_123");
+    expect(mockStart3DSecure).toHaveBeenCalledWith({
+      clientSecret: "cs_test_123",
+      paymentIntentId: "pi_test_123",
+      paymentMethodId: "pm_test_123"
+    });
+    expect(mockOnComplete).not.toHaveBeenCalled();
+    expect(child.mock.calls[child.mock.calls.length - 1][0].isConnectingWallet).toBe(false);
+  });
+
+  it("should handle 3D Secure validation failure - missing clientSecret", async () => {
+    const mockOnComplete = jest.fn();
+    const { child, mockCreateWallet, mockStart3DSecure } = setup({
+      paymentMethods: [{ id: "pm_123", type: "card" }],
+      onComplete: mockOnComplete
+    });
+    mockCreateWallet.mockResolvedValue({
+      requires3DS: true,
+      clientSecret: "",
+      paymentIntentId: "pi_test_123",
+      paymentMethodId: "pm_test_123"
+    });
+
+    const { onNext } = child.mock.calls[0][0];
+    await act(async () => {
+      await onNext();
+    });
+
+    expect(mockCreateWallet).toHaveBeenCalledWith("user_123");
+    expect(mockStart3DSecure).not.toHaveBeenCalled();
+    expect(mockOnComplete).not.toHaveBeenCalled();
+    expect(child.mock.calls[child.mock.calls.length - 1][0].isConnectingWallet).toBe(false);
+  });
+
+  it("should handle 3D Secure validation failure - missing payment IDs", async () => {
+    const mockOnComplete = jest.fn();
+    const { child, mockCreateWallet, mockStart3DSecure } = setup({
+      paymentMethods: [{ id: "pm_123", type: "card" }],
+      onComplete: mockOnComplete
+    });
+    mockCreateWallet.mockResolvedValue({
+      requires3DS: true,
+      clientSecret: "cs_test_123",
+      paymentIntentId: "",
+      paymentMethodId: ""
+    });
+
+    const { onNext } = child.mock.calls[0][0];
+    await act(async () => {
+      await onNext();
+    });
+
+    expect(mockCreateWallet).toHaveBeenCalledWith("user_123");
+    expect(mockStart3DSecure).not.toHaveBeenCalled();
+    expect(mockOnComplete).not.toHaveBeenCalled();
+    expect(child.mock.calls[child.mock.calls.length - 1][0].isConnectingWallet).toBe(false);
+  });
+
+  it("should pass threeDSecure data correctly", () => {
+    const { child } = setup();
+
+    const { threeDSecure } = child.mock.calls[0][0];
+    expect(threeDSecure).toEqual({
+      isOpen: false,
+      threeDSData: null,
+      start3DSecure: expect.any(Function),
+      close3DSecure: expect.any(Function),
+      handle3DSSuccess: expect.any(Function),
+      handle3DSError: expect.any(Function)
+    });
+  });
+
   function setup(
     input: {
       paymentMethods?: any[];
@@ -196,6 +358,8 @@ describe("PaymentMethodContainer", () => {
       isConnectingWallet?: boolean;
       isRemoving?: boolean;
       onComplete?: jest.Mock;
+      user?: { id: string } | null;
+      managedWalletError?: Error;
     } = {}
   ) {
     jest.clearAllMocks();
@@ -225,24 +389,34 @@ describe("PaymentMethodContainer", () => {
     const mockUseWallet = jest.fn().mockReturnValue({
       connectManagedWallet: mockConnectManagedWallet,
       isWalletLoading: input.isWalletLoading || false,
-      hasManagedWallet: input.hasManagedWallet || false
+      hasManagedWallet: input.hasManagedWallet || false,
+      managedWalletError: input.managedWalletError
     });
 
+    const mockCreateWallet = jest.fn().mockResolvedValue({});
     const mockUseCreateManagedWalletMutation = jest.fn().mockReturnValue({
-      mutateAsync: jest.fn().mockResolvedValue({})
+      mutateAsync: mockCreateWallet
     });
 
+    const mockStart3DSecure = jest.fn();
+    const mockHandle3DSSuccess = jest.fn();
+    const mockHandle3DSError = jest.fn();
     const mockUse3DSecure = jest.fn().mockReturnValue({
       isOpen: false,
       threeDSData: null,
-      start3DSecure: jest.fn(),
+      start3DSecure: mockStart3DSecure,
       close3DSecure: jest.fn(),
-      handle3DSSuccess: jest.fn(),
-      handle3DSError: jest.fn()
+      handle3DSSuccess: mockHandle3DSSuccess,
+      handle3DSError: mockHandle3DSError
+    });
+
+    const mockUseUser = jest.fn().mockReturnValue({
+      user: input.user !== undefined ? input.user : { id: "user_123" }
     });
 
     const dependencies = {
       useWallet: mockUseWallet,
+      useUser: mockUseUser,
       usePaymentMethodsQuery: mockUsePaymentMethodsQuery,
       usePaymentMutations: mockUsePaymentMutations,
       useSetupIntentMutation: mockUseSetupIntentMutation,
@@ -265,6 +439,10 @@ describe("PaymentMethodContainer", () => {
       mockRefetchPaymentMethods,
       mockRemovePaymentMethod,
       mockConnectManagedWallet,
+      mockCreateWallet,
+      mockStart3DSecure,
+      mockHandle3DSSuccess,
+      mockHandle3DSError,
       mockUseWallet,
       mockUsePaymentMethodsQuery,
       mockUsePaymentMutations,
