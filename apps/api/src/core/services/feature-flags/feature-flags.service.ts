@@ -3,6 +3,7 @@ import { Disposable, inject, registry, singleton } from "tsyringe";
 import { Unleash, UnleashConfig } from "unleash-client";
 
 import { APP_INITIALIZER, AppInitializer, ON_APP_START } from "@src/core/providers/app-initializer";
+import type { AppContext } from "@src/core/types/app-context";
 import { CoreConfigService } from "../core-config/core-config.service";
 import { ExecutionContextService } from "../execution-context/execution-context.service";
 import { FeatureFlagValue } from "./feature-flags";
@@ -14,6 +15,7 @@ export class FeatureFlagsService implements Disposable, AppInitializer {
   private readonly executionContext: ExecutionContextService;
   private client?: Unleash;
   private readonly createClient: typeof createUnleashClient;
+  private readonly UNLEASH_COOKIE_KEY = "unleash-session-id=";
 
   constructor(
     configService: CoreConfigService,
@@ -30,21 +32,30 @@ export class FeatureFlagsService implements Disposable, AppInitializer {
 
     assert(this.client, "Feature flags service was not initialized. Call initialize() method first.");
 
-    const clientInfo = this.executionContext.get("HTTP_CONTEXT")?.get("clientInfo");
     const currentUser = this.executionContext.get("CURRENT_USER");
+    const sessionId = this.extractSessionId();
 
     return this.client.isEnabled(featureFlag, {
       currentTime: new Date(),
-      remoteAddress: clientInfo?.ip,
       userId: currentUser?.id,
+      sessionId,
       environment: this.configService.get("DEPLOYMENT_ENV"),
       properties: {
-        userAgent: clientInfo?.userAgent,
-        fingerprint: clientInfo?.fingerprint,
-        nodeEnv: this.configService.get("NODE_ENV"),
         chainNetwork: this.configService.get("NETWORK")
       }
     });
+  }
+
+  private extractSessionId(): string | undefined {
+    const httpContext = this.executionContext.get("HTTP_CONTEXT") as AppContext | undefined;
+    if (!httpContext) return undefined;
+
+    const cookieHeader = httpContext.req.header("cookie");
+    if (!cookieHeader) return undefined;
+
+    const cookies = cookieHeader.split(";").map(c => c.trim());
+    const unleashCookie = cookies.find(c => c.startsWith(this.UNLEASH_COOKIE_KEY));
+    return unleashCookie?.replace(this.UNLEASH_COOKIE_KEY, "");
   }
 
   onChanged(callback: () => void) {
