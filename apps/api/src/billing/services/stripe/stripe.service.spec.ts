@@ -1277,8 +1277,9 @@ describe(StripeService.name, () => {
       // Mock payment method validation
       paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
 
-      await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
+      const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
+      expect(result).toEqual({ success: true });
       expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
       expect(paymentMethodRepository.markAsValidated).toHaveBeenCalledWith(mockParams.paymentMethodId, mockUser.id);
     });
@@ -1298,8 +1299,9 @@ describe(StripeService.name, () => {
       // Mock payment method validation
       paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
 
-      await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
+      const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
+      expect(result).toEqual({ success: true });
       expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
       expect(paymentMethodRepository.markAsValidated).toHaveBeenCalledWith(mockParams.paymentMethodId, mockUser.id);
     });
@@ -1315,8 +1317,9 @@ describe(StripeService.name, () => {
       // Mock payment intent retrieval
       jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
 
-      await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
+      const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
+      expect(result).toEqual({ success: false });
       expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
       expect(paymentMethodRepository.markAsValidated).not.toHaveBeenCalled();
     });
@@ -1344,8 +1347,9 @@ describe(StripeService.name, () => {
       // Mock payment intent retrieval
       jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
 
-      await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
+      const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
+      expect(result).toEqual({ success: true });
       expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
       expect(paymentMethodRepository.markAsValidated).not.toHaveBeenCalled();
     });

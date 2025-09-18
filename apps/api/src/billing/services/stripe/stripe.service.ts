@@ -743,7 +743,7 @@ export class StripeService extends Stripe {
     }
   }
 
-  async validatePaymentMethodAfter3DS(customerId: string, paymentMethodId: string, paymentIntentId: string): Promise<void> {
+  async validatePaymentMethodAfter3DS(customerId: string, paymentMethodId: string, paymentIntentId: string): Promise<{ success: boolean }> {
     try {
       const paymentIntent = await this.paymentIntents.retrieve(paymentIntentId);
 
@@ -761,6 +761,8 @@ export class StripeService extends Stripe {
           paymentIntentId,
           status: paymentIntent.status
         });
+
+        return { success: true };
       } else {
         logger.warn({
           event: "PAYMENT_INTENT_NOT_SUCCESSFUL_AFTER_3DS",
@@ -769,6 +771,8 @@ export class StripeService extends Stripe {
           paymentIntentId,
           status: paymentIntent.status
         });
+
+        return { success: false };
       }
     } catch (error) {
       logger.error({
