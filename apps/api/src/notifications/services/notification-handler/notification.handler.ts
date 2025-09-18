@@ -3,6 +3,11 @@ import { singleton } from "tsyringe";
 
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { Job, JOB_NAME, JobHandler, JobPayload } from "@src/core/services/job-queue/job-queue.service";
+import {
+  IsResolved,
+  NotificationDataResolverService,
+  ResolvedMarker
+} from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { CreateNotificationInput, NotificationService } from "../notification/notification.service";
 import { afterTrialEndsNotification } from "../notification-templates/after-trial-ends-notification";
@@ -47,7 +52,8 @@ export class NotificationHandler implements JobHandler<NotificationJob> {
   constructor(
     private readonly notificationService: NotificationService,
     private readonly logger: LoggerService,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly notificationDataResolver: NotificationDataResolverService
   ) {}
 
   async handle<T extends keyof NotificationTemplates>(payload: JobPayload<NotificationJob<T>>): Promise<void> {
@@ -79,10 +85,15 @@ export class NotificationHandler implements JobHandler<NotificationJob> {
       return;
     }
 
-    await this.notificationService.createNotification(notificationTemplate(user, payload.vars));
+    const vars = await this.notificationDataResolver.resolve(user, payload.vars);
+    await this.notificationService.createNotification(notificationTemplate(user, vars));
   }
 }
 
-type TemplateVarsParameter<T extends NotificationTemplates[keyof NotificationTemplates]> = Parameters<T>["length"] extends 0 | 1
+type MarkResolvedFields<T> = {
+  [K in keyof T]: IsResolved<T[K]> extends true ? ResolvedMarker : T[K];
+};
+
+export type TemplateVarsParameter<T extends NotificationTemplates[keyof NotificationTemplates]> = Parameters<T>["length"] extends 0 | 1
   ? { vars?: undefined }
-  : { vars: Parameters<T>[1] };
+  : { vars: MarkResolvedFields<Parameters<T>[1]> };
