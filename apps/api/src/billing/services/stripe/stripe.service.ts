@@ -750,6 +750,10 @@ export class StripeService extends Stripe {
       const paymentIntentCustomerId = typeof paymentIntent.customer === "string" ? paymentIntent.customer : paymentIntent.customer?.id;
       assert(paymentIntentCustomerId === customerId, 403, "Payment intent does not belong to the user");
 
+      // Ensure the PaymentIntent references the same payment method being validated
+      const paymentIntentPaymentMethodId = typeof paymentIntent.payment_method === "string" ? paymentIntent.payment_method : paymentIntent.payment_method?.id;
+      assert(paymentIntentPaymentMethodId === paymentMethodId, 403, "Payment intent does not reference the provided payment method");
+
       if (paymentIntent.status === "succeeded" || paymentIntent.status === "requires_capture") {
         // Payment intent was successfully authenticated, mark payment method as validated
         await this.markPaymentMethodAsValidated(customerId, paymentMethodId, paymentIntentId);
