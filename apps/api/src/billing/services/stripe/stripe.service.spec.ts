@@ -33,7 +33,7 @@ describe(StripeService.name, () => {
       expect(service.customers.create).toHaveBeenCalledWith({
         email: user.email,
         name: user.username,
-        metadata: { userId: user.userId }
+        metadata: { userId: user.id }
       });
       expect(userRepository.updateBy).toHaveBeenCalledWith(
         { id: user.id, stripeCustomerId: null },
