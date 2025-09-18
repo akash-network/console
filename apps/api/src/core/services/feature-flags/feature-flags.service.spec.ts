@@ -78,11 +78,6 @@ describe(FeatureFlagsService.name, () => {
       });
       const createClient = jest.fn(() => client);
       const currentUser = { id: "123" };
-      const httpClientInfo: ClientInfoContextVariables["clientInfo"] = {
-        ip: "127.0.0.1",
-        userAgent: "test",
-        fingerprint: "test"
-      };
       const config = {
         DEPLOYMENT_ENV: "development",
         NODE_ENV: "development",
@@ -91,22 +86,17 @@ describe(FeatureFlagsService.name, () => {
       const service = await setup({
         config,
         createClient,
-        currentUser,
-        httpClientInfo
+        currentUser
       });
 
       service.isEnabled(FeatureFlags.NOTIFICATIONS_ALERT_CREATE);
 
       expect(client.isEnabled).toHaveBeenCalledWith(FeatureFlags.NOTIFICATIONS_ALERT_CREATE, {
         currentTime: expect.any(Date),
-        remoteAddress: httpClientInfo.ip,
         userId: currentUser.id,
         sessionId: undefined,
         environment: config.DEPLOYMENT_ENV,
         properties: {
-          userAgent: httpClientInfo.userAgent,
-          fingerprint: httpClientInfo.fingerprint,
-          nodeEnv: config.NODE_ENV,
           chainNetwork: config.NETWORK
         }
       });
@@ -118,11 +108,6 @@ describe(FeatureFlagsService.name, () => {
       });
       const createClient = jest.fn(() => client);
       const currentUser = { id: "123" };
-      const httpClientInfo: ClientInfoContextVariables["clientInfo"] = {
-        ip: "127.0.0.1",
-        userAgent: "test",
-        fingerprint: "test"
-      };
       const config = {
         DEPLOYMENT_ENV: "development",
         NODE_ENV: "development",
@@ -132,7 +117,6 @@ describe(FeatureFlagsService.name, () => {
         config,
         createClient,
         currentUser,
-        httpClientInfo,
         unleashSessionId: "test-session-123"
       });
 
@@ -140,14 +124,10 @@ describe(FeatureFlagsService.name, () => {
 
       expect(client.isEnabled).toHaveBeenCalledWith(FeatureFlags.NOTIFICATIONS_ALERT_CREATE, {
         currentTime: expect.any(Date),
-        remoteAddress: httpClientInfo.ip,
         userId: currentUser.id,
         sessionId: "test-session-123",
         environment: config.DEPLOYMENT_ENV,
         properties: {
-          userAgent: httpClientInfo.userAgent,
-          fingerprint: httpClientInfo.fingerprint,
-          nodeEnv: config.NODE_ENV,
           chainNetwork: config.NETWORK
         }
       });

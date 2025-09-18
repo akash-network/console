@@ -32,20 +32,15 @@ export class FeatureFlagsService implements Disposable, AppInitializer {
 
     assert(this.client, "Feature flags service was not initialized. Call initialize() method first.");
 
-    const clientInfo = this.executionContext.get("HTTP_CONTEXT")?.get("clientInfo");
     const currentUser = this.executionContext.get("CURRENT_USER");
     const sessionId = this.extractSessionId();
 
     return this.client.isEnabled(featureFlag, {
       currentTime: new Date(),
-      remoteAddress: clientInfo?.ip,
       userId: currentUser?.id,
       sessionId,
       environment: this.configService.get("DEPLOYMENT_ENV"),
       properties: {
-        userAgent: clientInfo?.userAgent,
-        fingerprint: clientInfo?.fingerprint,
-        nodeEnv: this.configService.get("NODE_ENV"),
         chainNetwork: this.configService.get("NETWORK")
       }
     });
