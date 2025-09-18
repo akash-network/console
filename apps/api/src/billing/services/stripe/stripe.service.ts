@@ -588,7 +588,7 @@ export class StripeService extends Stripe {
       email: user.email ?? undefined,
       name: user.username ?? undefined,
       metadata: {
-        userId: user.userId
+        userId: user.id
       }
     });
 
