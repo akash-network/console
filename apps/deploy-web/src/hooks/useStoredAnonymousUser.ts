@@ -4,8 +4,8 @@ import { ANONYMOUS_USER_KEY, ANONYMOUS_USER_TOKEN_KEY } from "@src/config/auth.c
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { useWhen } from "@src/hooks/useWhen";
-import type { UserOutput } from "@src/queries/useAnonymousUserQuery";
-import { useAnonymousUserQuery } from "@src/queries/useAnonymousUserQuery";
+import type { UserOutput } from "@src/queries/useAnonymousUserQuery/useAnonymousUserQuery";
+import { useAnonymousUserQuery } from "@src/queries/useAnonymousUserQuery/useAnonymousUserQuery";
 
 type UseApiUserResult = {
   user?: UserOutput;
