@@ -193,8 +193,19 @@ export class StripeController {
 
     assert(currentUser.stripeCustomerId, 400, "Stripe customer ID not found");
 
-    await this.stripe.validatePaymentMethodAfter3DS(currentUser.stripeCustomerId, paymentMethodId, paymentIntentId);
+    try {
+      // Verify payment method ownership
+      const paymentMethod = await this.stripe.paymentMethods.retrieve(paymentMethodId);
+      const customerId = typeof paymentMethod.customer === "string" ? paymentMethod.customer : paymentMethod.customer?.id;
+      assert(customerId === currentUser.stripeCustomerId, 403, "Payment method does not belong to the user");
 
-    return { success: true };
+      return await this.stripe.validatePaymentMethodAfter3DS(currentUser.stripeCustomerId, paymentMethodId, paymentIntentId);
+    } catch (error: unknown) {
+      if (this.stripeErrorService.isKnownError(error, "payment")) {
+        throw this.stripeErrorService.toAppError(error, "payment");
+      }
+
+      throw error;
+    }
   }
 }

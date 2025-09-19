@@ -1040,7 +1040,7 @@ describe(StripeService.name, () => {
         id: "pi_test_123",
         status: "requires_action",
         client_secret: "pi_test_123_secret_abc123"
-      } as Stripe.PaymentIntent;
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       const { service } = setup({
         user: mockUser,
@@ -1065,7 +1065,7 @@ describe(StripeService.name, () => {
         last_payment_error: {
           message: "Your card was declined."
         }
-      } as Stripe.PaymentIntent;
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Override default payment intent mock
       jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
@@ -1085,7 +1085,7 @@ describe(StripeService.name, () => {
         id: "pi_test_123",
         status: "requires_capture",
         amount: 100
-      } as Stripe.PaymentIntent;
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Override default payment intent mock
       jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
@@ -1108,7 +1108,7 @@ describe(StripeService.name, () => {
         id: "pi_test_123",
         status: "processing",
         amount: 100
-      } as Stripe.PaymentIntent;
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Override default payment intent mock
       jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
@@ -1126,7 +1126,7 @@ describe(StripeService.name, () => {
         id: "pi_test_123",
         status: "succeeded",
         amount: 100
-      } as Stripe.PaymentIntent;
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       const { service, paymentMethodRepository } = setup({
         user: null,
@@ -1149,7 +1149,7 @@ describe(StripeService.name, () => {
         id: "pi_test_123",
         status: "succeeded",
         amount: 100
-      } as Stripe.PaymentIntent;
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Override default payment intent mock
       jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
@@ -1189,7 +1189,7 @@ describe(StripeService.name, () => {
         id: "pi_test_123",
         status: "succeeded",
         amount: 100
-      } as Stripe.PaymentIntent;
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Override default payment intent mock
       jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
@@ -1210,7 +1210,7 @@ describe(StripeService.name, () => {
         id: "pi_test_123",
         status: "requires_action",
         client_secret: "pi_test_123_secret"
-      } as Stripe.PaymentIntent;
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent creation - only one call needed since we reuse the existing intent
       jest.spyOn(service.paymentIntents, "create").mockResolvedValueOnce(mockPaymentIntent as any);
@@ -1235,7 +1235,7 @@ describe(StripeService.name, () => {
         id: "pi_test_123",
         status: "requires_payment_method",
         amount: 100
-      } as Stripe.PaymentIntent;
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Override default payment intent mock
       jest.spyOn(service.paymentIntents, "create").mockResolvedValue(mockPaymentIntent as any);
@@ -1267,8 +1267,11 @@ describe(StripeService.name, () => {
       const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPaymentIntent = {
         id: "pi_123",
-        status: "succeeded"
-      } as Stripe.PaymentIntent;
+        status: "succeeded",
+        customer: "cus_123",
+        payment_method: "pm_123",
+        metadata: {}
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
       jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
@@ -1276,8 +1279,9 @@ describe(StripeService.name, () => {
       // Mock payment method validation
       paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
 
-      await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
+      const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
+      expect(result).toEqual({ success: true });
       expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
       expect(paymentMethodRepository.markAsValidated).toHaveBeenCalledWith(mockParams.paymentMethodId, mockUser.id);
     });
@@ -1287,8 +1291,11 @@ describe(StripeService.name, () => {
       const mockUser = UserSeeder.create({ id: "user_123", stripeCustomerId: "cus_123" });
       const mockPaymentIntent = {
         id: "pi_123",
-        status: "requires_capture"
-      } as Stripe.PaymentIntent;
+        status: "requires_capture",
+        customer: "cus_123",
+        payment_method: "pm_123",
+        metadata: {}
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
       jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
@@ -1296,8 +1303,9 @@ describe(StripeService.name, () => {
       // Mock payment method validation
       paymentMethodRepository.markAsValidated.mockResolvedValue({} as any);
 
-      await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
+      const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
+      expect(result).toEqual({ success: true });
       expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
       expect(paymentMethodRepository.markAsValidated).toHaveBeenCalledWith(mockParams.paymentMethodId, mockUser.id);
     });
@@ -1306,14 +1314,18 @@ describe(StripeService.name, () => {
       const { service, paymentMethodRepository } = setup();
       const mockPaymentIntent = {
         id: "pi_123",
-        status: "requires_payment_method"
-      } as Stripe.PaymentIntent;
+        status: "requires_payment_method",
+        customer: "cus_123",
+        payment_method: "pm_123",
+        metadata: {}
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
       jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
 
-      await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
+      const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
+      expect(result).toEqual({ success: false });
       expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
       expect(paymentMethodRepository.markAsValidated).not.toHaveBeenCalled();
     });
@@ -1334,16 +1346,56 @@ describe(StripeService.name, () => {
       const { service, paymentMethodRepository } = setup({ user: undefined });
       const mockPaymentIntent = {
         id: "pi_123",
-        status: "succeeded"
-      } as Stripe.PaymentIntent;
+        status: "succeeded",
+        customer: "cus_123",
+        payment_method: "pm_123",
+        metadata: {}
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
 
       // Mock payment intent retrieval
       jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
 
-      await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
+      const result = await service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId);
 
+      expect(result).toEqual({ success: true });
       expect(service.paymentIntents.retrieve).toHaveBeenCalledWith(mockParams.paymentIntentId);
       expect(paymentMethodRepository.markAsValidated).not.toHaveBeenCalled();
+    });
+
+    it("throws error when payment intent belongs to different customer", async () => {
+      const { service } = setup();
+      const mockPaymentIntent = {
+        id: "pi_123",
+        status: "succeeded",
+        customer: "cus_different",
+        payment_method: "pm_123",
+        metadata: {}
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
+
+      // Mock payment intent retrieval
+      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
+
+      await expect(service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId)).rejects.toThrow(
+        "Payment intent does not belong to the user"
+      );
+    });
+
+    it("throws error when payment intent references different payment method", async () => {
+      const { service } = setup();
+      const mockPaymentIntent = {
+        id: "pi_123",
+        status: "succeeded",
+        customer: "cus_123",
+        payment_method: "pm_different",
+        metadata: {}
+      } as Partial<Stripe.PaymentIntent> as Stripe.PaymentIntent;
+
+      // Mock payment intent retrieval
+      jest.spyOn(service.paymentIntents, "retrieve").mockResolvedValue(mockPaymentIntent as any);
+
+      await expect(service.validatePaymentMethodAfter3DS(mockParams.customerId, mockParams.paymentMethodId, mockParams.paymentIntentId)).rejects.toThrow(
+        "Payment intent does not reference the provided payment method"
+      );
     });
   });
 });

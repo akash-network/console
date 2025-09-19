@@ -125,7 +125,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
         loading={processing}
         className="w-full"
         onClick={() => selectedPaymentMethodId && onPayment(selectedPaymentMethodId)}
-        disabled={!amount || processing || !selectedPaymentMethodId || !!amountError}
+        disabled={!amount || parseFloat(amount) <= 0 || processing || !selectedPaymentMethodId || !!amountError}
       >
         {processing ? (
           "Processing..."
