@@ -1,5 +1,14 @@
 
 
+## [2.120.0](https://github.com/akash-network/console/compare/console-api/v2.119.0...console-api/v2.120.0) (2025-09-19)
+
+
+### Features
+
+* **billing:** implements payment link in post trial notification ([a9d8403](https://github.com/akash-network/console/commit/a9d8403798414eccc2adc7ec8bbaef8f2b2df08a))
+* make Unleash session id visible for backend ([#1935](https://github.com/akash-network/console/issues/1935)) ([ed3c047](https://github.com/akash-network/console/commit/ed3c0474ef178a9ffc40c00555d137e6966885c6)), closes [#1867](https://github.com/akash-network/console/issues/1867)
+* **notifications:** implements data resolvers and adds them to onboarding notification ([#1901](https://github.com/akash-network/console/issues/1901)) ([38a0bd5](https://github.com/akash-network/console/commit/38a0bd5bc0669e95892fd1916c16786e2e80b811))
+
 ## [2.119.0](https://github.com/akash-network/console/compare/console-api/v2.118.0...console-api/v2.119.0) (2025-09-18)
 
 

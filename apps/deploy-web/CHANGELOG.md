@@ -1,5 +1,12 @@
 
 
+## [2.109.0](https://github.com/akash-network/console/compare/console-web/v2.108.0...console-web/v2.109.0) (2025-09-19)
+
+
+### Features
+
+* make Unleash session id visible for backend ([#1935](https://github.com/akash-network/console/issues/1935)) ([ed3c047](https://github.com/akash-network/console/commit/ed3c0474ef178a9ffc40c00555d137e6966885c6)), closes [#1867](https://github.com/akash-network/console/issues/1867)
+
 ## [2.108.0](https://github.com/akash-network/console/compare/console-web/v2.107.2...console-web/v2.108.0) (2025-09-17)
 
 
