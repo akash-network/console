@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 
-import type { UserOutput } from "@src/queries/useAnonymousUserQuery";
+import type { UserOutput } from "@src/queries/useAnonymousUserQuery/useAnonymousUserQuery";
 import type { CustomUserProfile } from "@src/types/user";
 import { plans } from "@src/utils/plans";
 
