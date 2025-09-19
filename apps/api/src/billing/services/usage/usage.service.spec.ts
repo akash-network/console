@@ -41,7 +41,7 @@ describe(UsageService.name, () => {
         const result = await service.getHistoryStats(address, startDate, endDate);
 
         expect(usageRepository.getHistory).toHaveBeenCalledWith(address, startDate, endDate);
-        expect(deploymentRepository.countByOwner).toHaveBeenCalledWith(address, startDate, endDate);
+        expect(deploymentRepository.countActiveByOwner).toHaveBeenCalledWith(address, startDate, endDate);
 
         expect(result).toEqual({
           totalSpent: 15.55,
@@ -70,7 +70,7 @@ describe(UsageService.name, () => {
 
       it("should handle zero total leases", async () => {
         const { address, startDate, endDate, service, deploymentRepository } = setup();
-        deploymentRepository.countByOwner.mockResolvedValue(0);
+        deploymentRepository.countActiveByOwner.mockResolvedValue(0);
 
         const result = await service.getHistoryStats(address, startDate, endDate);
 
@@ -92,7 +92,7 @@ describe(UsageService.name, () => {
         const result = await service.getHistoryStats(address, startDate, endDate);
 
         expect(usageRepository.getHistory).toHaveBeenCalledWith(address, startDate, endDate);
-        expect(deploymentRepository.countByOwner).toHaveBeenCalledWith(address, startDate, endDate);
+        expect(deploymentRepository.countActiveByOwner).toHaveBeenCalledWith(address, startDate, endDate);
 
         expect(result).toEqual({
           totalSpent: 0,
@@ -145,7 +145,7 @@ describe(UsageService.name, () => {
         ];
 
         usageRepository.getHistory.mockResolvedValue(mockUsageData);
-        deploymentRepository.countByOwner.mockRejectedValue(new Error("Lease DB error"));
+        deploymentRepository.countActiveByOwner.mockRejectedValue(new Error("Lease DB error"));
 
         await expect(service.getHistoryStats(address, startDate, endDate)).rejects.toThrow("Lease DB error");
       });
@@ -177,7 +177,7 @@ describe(UsageService.name, () => {
         ];
 
         usageRepository.getHistory.mockResolvedValue(mockUsageData);
-        deploymentRepository.countByOwner.mockResolvedValue(1000);
+        deploymentRepository.countActiveByOwner.mockResolvedValue(1000);
 
         const result = await service.getHistoryStats(address, startDate, endDate);
 
@@ -232,7 +232,7 @@ describe(UsageService.name, () => {
     });
 
     const deploymentRepository = mock<DeploymentRepository>({
-      countByOwner: jest.fn().mockResolvedValue(totalDeployments)
+      countActiveByOwner: jest.fn().mockResolvedValue(totalDeployments)
     });
 
     const service = new UsageService(usageRepository, deploymentRepository);

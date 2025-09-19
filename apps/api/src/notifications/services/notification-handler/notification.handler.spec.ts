@@ -3,6 +3,7 @@ import { mock } from "jest-mock-extended";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { JobPayload } from "@src/core/services/job-queue/job-queue.service";
+import type { NotificationDataResolverService } from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
 import type { UserRepository } from "@src/user/repositories";
 import type { NotificationService } from "../notification/notification.service";
 import { afterTrialEndsNotification } from "../notification-templates/after-trial-ends-notification";
@@ -174,22 +175,29 @@ describe(NotificationHandler.name, () => {
       createdAt: createdDate,
       trial: true
     });
+    const resolvedVars = { remainingCredits: faker.number.int({ min: 1000, max: 10000 }), activeDeployments: faker.number.int({ min: 0, max: 10 }) };
+    const resolveVars = jest.fn().mockImplementation(async (user, vars) => ({
+      ...vars,
+      ...resolvedVars
+    }));
 
     const { handler, userRepository, notificationService } = setup({
-      findUserById: jest.fn().mockResolvedValue(user)
+      findUserById: jest.fn().mockResolvedValue(user),
+      resolveVars
     });
 
     const trialEndsAt = "2023-10-15T12:00:00Z";
+    const paymentLink = faker.internet.url();
     await handler.handle({
       template: "beforeTrialEnds",
       userId: user.id,
-      vars: { trialEndsAt },
+      vars: { trialEndsAt, paymentLink, remainingCredits: "$resolved", activeDeployments: "$resolved" },
       conditions: { trial: true },
       version: 1
     });
 
     expect(userRepository.findById).toHaveBeenCalledWith(user.id);
-    expect(notificationService.createNotification).toHaveBeenCalledWith(beforeTrialEndsNotification(user, { trialEndsAt }));
+    expect(notificationService.createNotification).toHaveBeenCalledWith(beforeTrialEndsNotification(user, { trialEndsAt, paymentLink, ...resolvedVars }));
 
     jest.useRealTimers();
   });
@@ -280,7 +288,11 @@ describe(NotificationHandler.name, () => {
     expect(notificationService.createNotification).not.toHaveBeenCalled();
   });
 
-  function setup(input?: { findUserById?: UserRepository["findById"]; createNotification?: NotificationService["createNotification"] }) {
+  function setup(input?: {
+    findUserById?: UserRepository["findById"];
+    createNotification?: NotificationService["createNotification"];
+    resolveVars?: NotificationDataResolverService["resolve"];
+  }) {
     const mocks = {
       notificationService: mock<NotificationService>({
         createNotification: input?.createNotification ?? jest.fn().mockResolvedValue(undefined)
@@ -288,10 +300,13 @@ describe(NotificationHandler.name, () => {
       userRepository: mock<UserRepository>({
         findById: input?.findUserById ?? jest.fn()
       }),
+      notificationDataResolverService: mock<NotificationDataResolverService>({
+        resolve: input?.resolveVars ?? jest.fn().mockImplementation(async (user, vars) => vars)
+      }),
       logger: mock<LoggerService>()
     };
 
-    const handler = new NotificationHandler(mocks.notificationService, mocks.logger, mocks.userRepository);
+    const handler = new NotificationHandler(mocks.notificationService, mocks.logger, mocks.userRepository, mocks.notificationDataResolverService);
 
     return { handler, ...mocks };
   }

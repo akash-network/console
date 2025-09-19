@@ -31,13 +31,13 @@ export class DeploymentRepository {
     });
   }
 
-  async countByOwner(owner: string, startDate: string, endDate: string): Promise<number> {
+  async countActiveByOwner(owner: string, startDate?: string, endDate?: string): Promise<number> {
     return await Deployment.count({
       where: {
         owner,
         closedHeight: { [Op.not]: null },
-        "$createdBlock.datetime$": { [Op.gte]: startDate },
-        "$closedBlock.datetime$": { [Op.lte]: endDate }
+        ...(startDate && { "$createdBlock.datetime$": { [Op.gte]: startDate } }),
+        ...(endDate && { "$closedBlock.datetime$": { [Op.lte]: endDate } })
       },
       include: [
         { model: Block, as: "createdBlock" },
@@ -65,22 +65,6 @@ export class DeploymentRepository {
       },
       group: ["deployment.dseq"],
       having: literal(`COUNT("leases"."deploymentId") = 0`),
-      raw: true
-    });
-
-    return deployments ? (deployments as unknown as StaleDeploymentsOutput[]) : [];
-  }
-
-  async findDeploymentsBeforeCutoff(options: DeploymentsBeforeCutoffOptions): Promise<StaleDeploymentsOutput[]> {
-    const deployments = await Deployment.findAll({
-      attributes: ["dseq"],
-      where: {
-        owner: options.owner,
-        createdHeight: {
-          [Op.lt]: options.cutoffHeight
-        },
-        closedHeight: null
-      },
       raw: true
     });
 

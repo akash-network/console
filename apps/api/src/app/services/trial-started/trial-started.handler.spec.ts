@@ -110,7 +110,7 @@ describe(TrialStartedHandler.name, () => {
           template: "beforeTrialEnds",
           userId: user.id,
           conditions: { trial: true },
-          vars: { trialEndsAt: trialEndsAt.toISOString() }
+          vars: { trialEndsAt: trialEndsAt.toISOString(), paymentLink, remainingCredits: "$resolved", activeDeployments: "$resolved" }
         }),
         {
           singletonKey: `notification.beforeTrialEnds.${user.id}.${trialDays - 7}`,
@@ -123,7 +123,7 @@ describe(TrialStartedHandler.name, () => {
           template: "beforeTrialEnds",
           userId: user.id,
           conditions: { trial: true },
-          vars: { trialEndsAt: trialEndsAt.toISOString() }
+          vars: { trialEndsAt: trialEndsAt.toISOString(), paymentLink, remainingCredits: "$resolved", activeDeployments: "$resolved" }
         }),
         {
           singletonKey: `notification.beforeTrialEnds.${user.id}.${trialDays - 1}`,

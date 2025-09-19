@@ -5,6 +5,7 @@ import { TrialStarted } from "@src/billing/events/trial-started";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { EventPayload, JobHandler, JobQueueService, LoggerService } from "@src/core";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
+import { RESOLVED_MARKER } from "@src/notifications/services/notification-data-resolver/notification-data-resolver.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { startTrialNotification } from "@src/notifications/services/notification-templates/start-trial-notification";
 import { UserRepository } from "@src/user/repositories";
@@ -48,7 +49,12 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
     }
 
     const notificationConditions = { trial: true };
-    const vars = { trialEndsAt: trialEndsAt.toISOString() };
+    const vars = {
+      trialEndsAt: trialEndsAt.toISOString(),
+      paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK"),
+      remainingCredits: RESOLVED_MARKER,
+      activeDeployments: RESOLVED_MARKER
+    };
     await Promise.all([
       this.jobQueueManager.enqueue(
         new NotificationJob({
