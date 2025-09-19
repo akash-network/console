@@ -18,7 +18,7 @@ export class UsageService {
   async getHistoryStats(address: string, startDate: string, endDate: string): Promise<UsageHistoryStats> {
     const [historyData, totalDeployments] = await Promise.all([
       this.getHistory(address, startDate, endDate),
-      this.deploymentRepository.countByOwner(address, startDate, endDate)
+      this.deploymentRepository.countActiveByOwner(address, startDate, endDate)
     ]);
 
     if (historyData.length === 0) {
