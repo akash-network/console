@@ -46,4 +46,8 @@ export class Wallet implements OfflineDirectSigner {
   async getMnemonic() {
     return (await this.instanceAsPromised).mnemonic;
   }
+
+  async getInstance() {
+    return await this.instanceAsPromised;
+  }
 }
