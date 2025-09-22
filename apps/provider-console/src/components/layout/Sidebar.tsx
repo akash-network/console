@@ -6,6 +6,7 @@ import Drawer from "@mui/material/Drawer";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import {
+  Bell,
   ClipboardCheck,
   Cloud,
   DatabaseCheck,
@@ -110,6 +111,13 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
           icon: props => <Key {...props} />,
           url: UrlService.apiKeys(),
           activeRoutes: [UrlService.apiKeys()],
+          disabled: false
+        },
+        {
+          title: "Notifications",
+          icon: props => <Bell {...props} />,
+          url: UrlService.notifications(),
+          activeRoutes: [UrlService.notifications()],
           disabled: false
         },
         {

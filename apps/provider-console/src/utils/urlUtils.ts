@@ -29,6 +29,7 @@ export class UrlService {
   static persistentStorage = () => "/persistent-storage";
   static nodes = () => "/nodes";
   static apiKeys = () => "/api-keys";
+  static notifications = () => "/notifications";
 }
 
 export const stripProviderPrefixAndPort = (url: string) => {
