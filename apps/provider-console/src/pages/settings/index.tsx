@@ -6,6 +6,7 @@ import { ArrowUp, CheckCircle, Refresh, WarningTriangle } from "iconoir-react";
 import { useRouter } from "next/router";
 import { z } from "zod";
 
+import { JwtEnablementForm } from "@src/components/jwt/JwtEnablementForm";
 import { Layout } from "@src/components/layout/Layout";
 import { ControlMachineError } from "@src/components/shared/ControlMachineError";
 import { Title } from "@src/components/shared/Title";
@@ -13,6 +14,7 @@ import { withAuth } from "@src/components/shared/withAuth";
 import { useControlMachine } from "@src/context/ControlMachineProvider";
 import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useProvider } from "@src/context/ProviderContext";
+import { useJwtStatus } from "@src/queries/useJwtQuery";
 import { useKubeNodesQuery } from "@src/queries/useKubeNodesQuery";
 import restClient from "@src/utils/restClient";
 import { sanitizeMachineAccess } from "@src/utils/sanityUtils";
@@ -61,6 +63,7 @@ const SettingsPage: React.FC = () => {
   const [isUninstallModalOpen, setIsUninstallModalOpen] = useState(false);
   const [isUninstalling, setIsUninstalling] = useState(false);
   const [uninstallError, setUninstallError] = useState<string | null>(null);
+  const [isJwtModalOpen, setIsJwtModalOpen] = useState(false);
 
   const { providerDetails } = useProvider();
   const { activeControlMachine } = useControlMachine();
@@ -72,6 +75,8 @@ const SettingsPage: React.FC = () => {
   const { data: kubeNodesResponse, isLoading: isNodesLoading } = useKubeNodesQuery();
   const nodes = kubeNodesResponse?.nodes || [];
   const hasMultipleNodes = nodes.length > 1;
+
+  const { data: jwtStatus, isLoading: isJwtStatusLoading } = useJwtStatus();
 
   const isDisabled = !activeControlMachine;
 
@@ -566,6 +571,55 @@ const SettingsPage: React.FC = () => {
           {isEditingEmail && providerDetails?.email && <p className="text-muted-foreground mt-2 text-sm">Current email: {providerDetails.email}</p>}
         </div>
 
+        <div className="rounded-lg border p-6">
+          <h2 className="text-xl font-semibold">JWT Authentication</h2>
+          <p className="text-muted-foreground mt-2">Enable JWT authentication for your provider with automatic Let&apos;s Encrypt certificate management.</p>
+
+          {isJwtStatusLoading ? (
+            <div className="mt-4 flex items-center">
+              <div className="border-primary mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"></div>
+              <span>Checking JWT status...</span>
+            </div>
+          ) : jwtStatus ? (
+            <div className="mt-4">
+              {jwtStatus.letsencrypt_jwt_status ? (
+                <div className="mb-4 rounded-md border p-3">
+                  <div className="flex items-start">
+                    <CheckCircle className="mr-2 mt-0.5 h-5 w-5 text-green-500" />
+                    <div>
+                      <p className="font-medium text-green-800">JWT Authentication is enabled</p>
+                      <p className="mt-1 text-sm text-green-700">
+                        Provider: {jwtStatus.provider === "cloudflare" ? "Cloudflare" : "Google Cloud DNS"}
+                        {jwtStatus.email && ` • Email: ${jwtStatus.email}`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                  <div className="flex items-start">
+                    <WarningTriangle className="mr-2 mt-0.5 h-5 w-5 text-amber-500" />
+                    <div>
+                      <p className="font-medium text-amber-800">JWT Authentication is not enabled</p>
+                      <p className="mt-1 text-sm text-amber-700">
+                        Enable JWT authentication to secure your provider with automatic SSL certificate management.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <Button onClick={() => setIsJwtModalOpen(true)} disabled={isDisabled} variant={jwtStatus.letsencrypt_jwt_status ? "outline" : "default"}>
+                {jwtStatus.letsencrypt_jwt_status ? "Update JWT Settings" : "Enable JWT Authentication"}
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-md border border-yellow-200 bg-yellow-50 p-3">
+              <p className="text-yellow-800">Unable to check JWT status. Please ensure your control machine is connected.</p>
+            </div>
+          )}
+        </div>
+
         <div className="border-destructive/20 bg-destructive/5 dark:border-destructive/30 dark:bg-destructive/10 rounded-lg border p-6">
           <h2 className="text-xl font-semibold text-red-500 dark:text-red-400">Danger Zone</h2>
           <p className="text-muted-foreground mt-2">
@@ -642,6 +696,27 @@ const SettingsPage: React.FC = () => {
               <p className="text-red-700 dark:text-red-200">{uninstallError}</p>
             </div>
           )}
+        </div>
+      </Popup>
+
+      <Popup open={isJwtModalOpen} onClose={() => setIsJwtModalOpen(false)} variant="custom" title="JWT Authentication Setup" maxWidth="lg" actions={[]}>
+        <div className="space-y-4">
+          <div className="rounded-md border border-blue-500 bg-blue-50 p-4 dark:border-blue-400 dark:bg-blue-900/30">
+            <div className="flex items-center gap-2">
+              <WarningTriangle className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+              <span className="font-semibold text-blue-700 dark:text-blue-300">DNS Provider Support</span>
+            </div>
+            <div className="mt-1 text-blue-700 dark:text-blue-200">
+              Currently, only <span className="font-semibold">Cloudflare</span> and <span className="font-semibold">Google Cloud DNS</span> are supported for
+              JWT authentication with Let&apos;s Encrypt certificate management.
+            </div>
+          </div>
+
+          <p className="text-muted-foreground text-sm">
+            Configure JWT authentication with automatic Let&apos;s Encrypt certificate management. Select your DNS provider and provide the required
+            credentials.
+          </p>
+          <JwtEnablementForm onSuccess={() => setIsJwtModalOpen(false)} onCancel={() => setIsJwtModalOpen(false)} />
         </div>
       </Popup>
     </Layout>
