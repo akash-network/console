@@ -1,7 +1,10 @@
 import type { UserOutput } from "@src/user/repositories";
 import type { CreateNotificationInput } from "../notification/notification.service";
 
-export function startTrialNotification(user: UserOutput, vars: { trialEndsAt: string; deploymentLifetimeInHours: number }): CreateNotificationInput {
+export function startTrialNotification(
+  user: UserOutput,
+  vars: { trialEndsAt: string; deploymentLifetimeInHours: number; initialCredits: number }
+): CreateNotificationInput {
   const trialEndsAt = new Date(vars.trialEndsAt).toLocaleString("en-US", {
     timeZone: "UTC",
     hour12: false,
@@ -11,14 +14,16 @@ export function startTrialNotification(user: UserOutput, vars: { trialEndsAt: st
     hour: "2-digit",
     minute: "2-digit"
   });
+  const credits = (vars.initialCredits / 1_000_000).toFixed(2);
   return {
     notificationId: `startTrial.${user.id}`,
     payload: {
-      summary: "Welcome to Your Free Trial!",
+      summary: `Welcome - here's ${credits} on the house!`,
       description:
-        `Your free trial with Akash Network has started! You now have access to all platform features. ` +
-        `Trial deployments are limited to ${vars.deploymentLifetimeInHours} hours, and your trial will end on ${trialEndsAt} by UTC. ` +
-        `Explore and deploy on the decentralized cloud infrastructure.`
+        `Welcome to the Akash Supercloud - to get you going, we have loaded your account with ${credits} in trial credits! ` +
+        `Your trial will end at ${trialEndsAt} UTC` +
+        `To ensure that all free trials get fair access to resources, trial deployments are limited to ${vars.deploymentLifetimeInHours} hours, ` +
+        `Get started by deploying your first application today.`
     },
     user: {
       id: user.id,
