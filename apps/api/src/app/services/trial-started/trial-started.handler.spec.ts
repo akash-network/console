@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import { addDays, subDays } from "date-fns";
 import { mock } from "jest-mock-extended";
 
@@ -6,6 +7,7 @@ import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
+import { startTrialNotification } from "@src/notifications/services/notification-templates/start-trial-notification";
 import type { UserRepository } from "@src/user/repositories";
 import { TrialStartedHandler } from "./trial-started.handler";
 
@@ -49,16 +51,23 @@ describe(TrialStartedHandler.name, () => {
     });
 
     it("sends start trial notification when user has email and enqueues notification jobs", async () => {
+      const USER_CREATED_AT = new Date("2025-09-22T07:58:47.770Z");
+      const TRIAL_ENDS_AT = "2025-10-22T07:58:47.770Z";
       const user = UserSeeder.create({
         id: "user-123",
         email: "user@example.com",
         emailVerified: true,
-        subscribedToNewsletter: true
+        subscribedToNewsletter: true,
+        createdAt: USER_CREATED_AT
       });
+      const initialCredits = faker.number.int({ min: 5_000_000, max: 10_000_000 });
+      const deploymentLifetimeInHours = faker.number.int({ min: 1, max: 24 });
 
       const { handler, userRepository, notificationService, jobQueueManager, logger } = setup({
         findUserById: jest.fn().mockResolvedValue(user),
-        trialExpirationDays: 30
+        trialExpirationDays: 30,
+        initialCredits,
+        deploymentLifetimeInHours
       });
 
       await handler.handle({ userId: user.id, version: 1 });
@@ -68,17 +77,13 @@ describe(TrialStartedHandler.name, () => {
         event: "START_TRIAL_NOTIFICATION_SENDING",
         userId: user.id
       });
-      expect(notificationService.createNotification).toHaveBeenCalledWith({
-        notificationId: `startTrial.${user.id}`,
-        payload: {
-          summary: expect.stringMatching(/free trial/i),
-          description: expect.stringMatching(/trial with Akash Network has started/i)
-        },
-        user: {
-          id: user.id,
-          email: user.email
-        }
-      });
+      expect(notificationService.createNotification).toHaveBeenCalledWith(
+        startTrialNotification(user, {
+          trialEndsAt: TRIAL_ENDS_AT,
+          deploymentLifetimeInHours,
+          initialCredits
+        })
+      );
       expect(logger.info).toHaveBeenCalledWith({
         event: "START_TRIAL_NOTIFICATION_SENT",
         userId: user.id
@@ -205,6 +210,8 @@ describe(TrialStartedHandler.name, () => {
     createNotification?: NotificationService["createNotification"];
     enqueueJob?: JobQueueService["enqueue"];
     trialExpirationDays?: number;
+    initialCredits?: number;
+    deploymentLifetimeInHours?: number;
   }) {
     const paymentLink = "https://console.akash.network/payment";
     const mocks = {
@@ -220,7 +227,9 @@ describe(TrialStartedHandler.name, () => {
       logger: mock<LoggerService>(),
       coreConfig: mockConfig<BillingConfigService>({
         TRIAL_ALLOWANCE_EXPIRATION_DAYS: input?.trialExpirationDays ?? 30,
-        CONSOLE_WEB_PAYMENT_LINK: paymentLink
+        CONSOLE_WEB_PAYMENT_LINK: paymentLink,
+        TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: input?.initialCredits ?? 10_000_000,
+        TRIAL_DEPLOYMENT_CLEANUP_HOURS: input?.deploymentLifetimeInHours ?? 24
       })
     };
 
