@@ -6,7 +6,7 @@ export function trialFirstDeploymentLeaseCreatedNotification(user: UserOutput, v
     notificationId: `trialFirstDeploymentLeaseCreated.${vars.owner}`,
     payload: {
       summary: "You deployed your first application!",
-      description: `Congratulations on creating your first deployment (dseq: ${vars.dseq}) with Akash Console. If you have questions about anything you see, hit up our discord server <insert link to https://discord.com/invite/akash> `
+      description: `Congratulations on creating your first deployment (dseq: ${vars.dseq}) with Akash Console. If you have questions about anything you see, hit up our <a href="https://discord.com/invite/akash">Discord server</a>`
     },
     user: {
       id: user.id,
@@ -14,4 +14,3 @@ export function trialFirstDeploymentLeaseCreatedNotification(user: UserOutput, v
     }
   };
 }
-
