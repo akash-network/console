@@ -102,6 +102,10 @@ export class UserWalletRepository extends BaseRepository<ApiPgTables["UserWallet
     return this.toOutput(userWallet);
   }
 
+  async findFirst() {
+    return this.findOneBy();
+  }
+
   async findByUserId(userId: UserWalletOutput["userId"] | UserWalletOutput["userId"][]) {
     const where = Array.isArray(userId) ? inArray(this.table.userId, userId as string[]) : eq(this.table.userId, userId as string);
     return this.toOutputList(await this.cursor.query.UserWallets.findMany({ where: this.whereAccessibleBy(where) }));

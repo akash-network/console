@@ -99,12 +99,12 @@ export const BidResponseSchema = z.object({
       denom: z.string(),
       amount: z.string()
     })
-  })
+  }),
+  isCertificateRequired: z.boolean()
 });
 
 export const ListBidsQuerySchema = z.object({
-  dseq: z.string(),
-  userId: z.optional(z.string())
+  dseq: z.string()
 });
 
 export const ListBidsResponseSchema = z.object({
