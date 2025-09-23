@@ -1,4 +1,12 @@
-import type { ApplyCouponParams, ConfirmPaymentParams, Discount, PaymentMethod, SetupIntentResponse } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
+import type {
+  ApplyCouponParams,
+  ConfirmPaymentParams,
+  ConfirmPaymentResponse,
+  Discount,
+  PaymentMethod,
+  SetupIntentResponse,
+  ThreeDSecureAuthParams
+} from "@akashnetwork/http-sdk/src/stripe/stripe.types";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -62,8 +70,8 @@ export const usePaymentMutations = () => {
   const queryClient = useQueryClient();
 
   const confirmPayment = useMutation({
-    mutationFn: async ({ userId, paymentMethodId, amount, currency }: ConfirmPaymentParams) => {
-      await stripe.confirmPayment({
+    mutationFn: async ({ userId, paymentMethodId, amount, currency }: ConfirmPaymentParams): Promise<ConfirmPaymentResponse> => {
+      return await stripe.confirmPayment({
         userId,
         paymentMethodId,
         amount,
@@ -75,6 +83,19 @@ export const usePaymentMutations = () => {
       queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
       queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentDiscountsKey() });
       queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentTransactionsKey() });
+    }
+  });
+
+  const validatePaymentMethodAfter3DS = useMutation({
+    mutationFn: async ({ paymentMethodId, paymentIntentId }: ThreeDSecureAuthParams) => {
+      return await stripe.validatePaymentMethodAfter3DS({
+        paymentMethodId,
+        paymentIntentId
+      });
+    },
+    onSuccess: () => {
+      // Invalidate payment methods after 3DS validation
+      queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
     }
   });
 
@@ -102,6 +123,7 @@ export const usePaymentMutations = () => {
 
   return {
     confirmPayment,
+    validatePaymentMethodAfter3DS,
     applyCoupon,
     removePaymentMethod
   };
