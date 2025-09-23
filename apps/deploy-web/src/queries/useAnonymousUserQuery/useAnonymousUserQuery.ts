@@ -44,7 +44,7 @@ export function useAnonymousUserQuery(id?: string, options?: { enabled?: boolean
           set(userStateAtom, { user: fetched, token, isLoading: false });
         } catch (error: any) {
           const retryAfterInSeconds =
-            isHttpError(error) && error.response?.status === 429 ? error.response.data.retryAfter || DEFAULT_RETRY_AFTER_SECONDS : 10_000;
+            isHttpError(error) && error.response?.status === 429 ? error.response.data?.retryAfter || DEFAULT_RETRY_AFTER_SECONDS : 10;
           set(userStateAtom, { isLoading: false, error, retryAfter: new Date(Date.now() + retryAfterInSeconds * 1000) });
           errorHandler.reportError({ error, tags: { category: "anonymousUserQuery" } });
         }
