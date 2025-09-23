@@ -1,5 +1,17 @@
 
 
+## [1.28.0](https://github.com/akash-network/console/compare/notifications/v1.27.0...notifications/v1.28.0) (2025-09-23)
+
+
+### Features
+
+* **billing:** add 3dsecure payments ui ([#1933](https://github.com/akash-network/console/issues/1933)) ([4c7ce23](https://github.com/akash-network/console/commit/4c7ce23c206fda498d87e0d015e0a69cf1970aa5))
+
+
+### Bug Fixes
+
+* ensure anonymous user does not cause sentry errors ([#1943](https://github.com/akash-network/console/issues/1943)) ([9132e39](https://github.com/akash-network/console/commit/9132e39b785c7c37d055c6db09377737b6b08a5e))
+
 ## [1.27.0](https://github.com/akash-network/console/compare/notifications/v1.26.1...notifications/v1.27.0) (2025-09-17)
 
 
