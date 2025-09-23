@@ -1,14 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Alert, Button, Snackbar } from "@akashnetwork/ui/components";
 import { Xmark } from "iconoir-react";
 import { useTheme } from "next-themes";
 import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
+import { ThreeDSecurePopup } from "@src/components/shared/PaymentMethodForm/ThreeDSecurePopup";
+import { PaymentMethodsList } from "@src/components/shared/PaymentMethodsList";
 import { Title } from "@src/components/shared/Title";
-import { AddPaymentMethodPopup, DeletePaymentMethodPopup, PaymentForm, PaymentMethodsList } from "@src/components/user/payment";
+import { AddPaymentMethodPopup, DeletePaymentMethodPopup, PaymentForm } from "@src/components/user/payment";
 import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuccessAnimation";
 import { useWallet } from "@src/context/WalletProvider";
+import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import { usePaymentDiscountsQuery, usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
@@ -29,6 +32,7 @@ const PayPage: React.FunctionComponent = () => {
   const [showPaymentSuccess, setShowPaymentSuccess] = useState<{ amount: string; show: boolean }>({ amount: "", show: false });
   const [error, setError] = useState<string>();
   const [errorAction, setErrorAction] = useState<string>();
+  const submittedAmountRef = useRef<string>("");
   const isDarkMode = resolvedTheme === "dark";
   const { enqueueSnackbar } = useSnackbar();
   const { user } = useUser();
@@ -40,6 +44,15 @@ const PayPage: React.FunctionComponent = () => {
     applyCoupon: { isPending: isApplyingCoupon, mutateAsync: applyCoupon },
     removePaymentMethod
   } = usePaymentMutations();
+  const threeDSecure = use3DSecure({
+    onSuccess: () => {
+      setShowPaymentSuccess({ amount: submittedAmountRef.current, show: true });
+      setAmount("");
+      setCoupon("");
+    },
+    showSuccessMessage: false
+  });
+
   const isLoading = isLoadingPaymentMethods || isLoadingDiscounts;
   const { isTrialing } = useWallet();
 
@@ -76,20 +89,31 @@ const PayPage: React.FunctionComponent = () => {
     if (!amount) return;
     if (!selectedPaymentMethodId || !paymentMethods.some(method => method.id === selectedPaymentMethodId)) return;
 
+    // Capture the submitted amount before starting the payment flow
+    submittedAmountRef.current = amount;
     clearError();
 
     try {
-      await confirmPayment({
+      const response = await confirmPayment({
         userId: user?.id || "",
         paymentMethodId,
         amount: parseFloat(amount),
         currency: "usd"
       });
 
-      // Payment successful
-      setShowPaymentSuccess({ amount, show: true });
-      setAmount("");
-      setCoupon("");
+      if (response && response.requiresAction && response.clientSecret && response.paymentIntentId) {
+        threeDSecure.start3DSecure({
+          clientSecret: response.clientSecret,
+          paymentIntentId: response.paymentIntentId,
+          paymentMethodId
+        });
+      } else if (response.success) {
+        setShowPaymentSuccess({ amount: submittedAmountRef.current, show: true });
+        setAmount("");
+        setCoupon("");
+      } else {
+        throw new Error("Payment failed");
+      }
     } catch (error: unknown) {
       console.error("Payment confirmation failed:", error);
 
@@ -203,10 +227,12 @@ const PayPage: React.FunctionComponent = () => {
       setAmountError(`Minimum amount is $${MINIMUM_PAYMENT_AMOUNT}`);
       return false;
     }
+
     if (finalAmount > 0 && finalAmount < 1) {
       setAmountError("Final amount after discount must be at least $1");
       return false;
     }
+
     setAmountError(undefined);
     return true;
   };
@@ -258,10 +284,11 @@ const PayPage: React.FunctionComponent = () => {
             <h2 className="mb-3 text-lg font-semibold">Your Payment Methods</h2>
             <PaymentMethodsList
               paymentMethods={paymentMethods}
+              isRemoving={removePaymentMethod.isPending}
+              onRemovePaymentMethod={handleRemovePaymentMethod}
+              isSelectable={true}
               selectedPaymentMethodId={selectedPaymentMethodId}
               onPaymentMethodSelect={setSelectedPaymentMethodId}
-              onRemovePaymentMethod={handleRemovePaymentMethod}
-              isRemovingPaymentMethod={removePaymentMethod.isPending}
               isTrialing={isTrialing}
             />
             <Button onClick={handleShowAddPaymentMethod} className="mt-4 w-full">
@@ -327,6 +354,21 @@ const PayPage: React.FunctionComponent = () => {
         isDarkMode={isDarkMode}
         onSuccess={handleAddCardSuccess}
       />
+
+      {threeDSecure.threeDSData?.clientSecret && (
+        <ThreeDSecurePopup
+          isOpen={threeDSecure.isOpen}
+          onSuccess={threeDSecure.handle3DSSuccess}
+          onError={threeDSecure.handle3DSError}
+          clientSecret={threeDSecure.threeDSData.clientSecret}
+          paymentIntentId={threeDSecure.threeDSData.paymentIntentId}
+          paymentMethodId={threeDSecure.threeDSData.paymentMethodId}
+          title="Payment Authentication"
+          description="Your bank requires additional verification for this payment."
+          successMessage="Payment authenticated successfully!"
+          errorMessage="Please try again or use a different payment method."
+        />
+      )}
     </Layout>
   );
 };

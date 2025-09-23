@@ -24,6 +24,7 @@ export const AddPaymentMethodPopup: React.FC<AddPaymentMethodPopupProps> = ({ op
         <ErrorBoundary fallback={<div>Failed to load payment form</div>}>
           {stripePromise ? (
             <Elements
+              key={clientSecret}
               stripe={stripePromise}
               options={{
                 clientSecret,

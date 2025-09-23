@@ -4,10 +4,6 @@ export interface StripePrice {
   currency: string;
 }
 
-export interface SetupIntentResponse {
-  clientSecret: string;
-}
-
 export interface Coupon {
   id: string;
   percent_off?: number | null;
@@ -106,12 +102,10 @@ export interface ExportTransactionsCsvParams {
 }
 
 export interface ConfirmPaymentResponse {
-  data: {
-    success: boolean;
-    requiresAction?: boolean;
-    clientSecret?: string;
-    paymentIntentId?: string;
-  };
+  success: boolean;
+  requiresAction?: boolean;
+  clientSecret?: string;
+  paymentIntentId?: string;
 }
 
 export interface ThreeDSecureAuthParams {
