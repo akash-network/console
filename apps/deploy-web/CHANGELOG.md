@@ -1,5 +1,18 @@
 
 
+## [2.109.0](https://github.com/akash-network/console/compare/console-web/v2.108.0...console-web/v2.109.0) (2025-09-23)
+
+
+### Features
+
+* **billing:** add 3dsecure payments ui ([#1933](https://github.com/akash-network/console/issues/1933)) ([4c7ce23](https://github.com/akash-network/console/commit/4c7ce23c206fda498d87e0d015e0a69cf1970aa5))
+* make Unleash session id visible for backend ([#1935](https://github.com/akash-network/console/issues/1935)) ([ed3c047](https://github.com/akash-network/console/commit/ed3c0474ef178a9ffc40c00555d137e6966885c6)), closes [#1867](https://github.com/akash-network/console/issues/1867)
+
+
+### Bug Fixes
+
+* ensure anonymous user does not cause sentry errors ([#1943](https://github.com/akash-network/console/issues/1943)) ([9132e39](https://github.com/akash-network/console/commit/9132e39b785c7c37d055c6db09377737b6b08a5e))
+
 ## [2.108.0](https://github.com/akash-network/console/compare/console-web/v2.107.2...console-web/v2.108.0) (2025-09-17)
 
 
