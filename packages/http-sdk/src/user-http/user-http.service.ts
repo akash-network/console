@@ -1,5 +1,4 @@
 import type { AxiosRequestConfig } from "axios";
-import memoize from "lodash/memoize";
 
 import type { ApiOutput } from "../api-http/api-http.service";
 import { HttpService } from "../http/http.service";
@@ -25,13 +24,31 @@ export type UserCreateResponse = {
 };
 
 export class UserHttpService extends HttpService {
+  private anonymousUsersPromise: Record<string, Promise<UserCreateResponse | ApiOutput<UserOutput>>> = {};
+  private userCreateId = 0;
+
   constructor(config?: AxiosRequestConfig) {
     super(config);
-    this.getOrCreateAnonymousUser = memoize(this.getOrCreateAnonymousUser.bind(this));
   }
 
-  async getOrCreateAnonymousUser(id?: string): Promise<UserCreateResponse | ApiOutput<UserOutput>> {
-    return await (id ? this.getAnonymousUser(id) : this.createAnonymousUser());
+  getOrCreateAnonymousUser(id?: string): Promise<UserCreateResponse | ApiOutput<UserOutput>> {
+    const key = id ?? String(this.userCreateId++);
+    if (!this.anonymousUsersPromise[key]) {
+      const promise = id ? this.getAnonymousUser(id) : this.createAnonymousUser();
+      this.anonymousUsersPromise[key] = promise
+        .then(response => {
+          if (!id) {
+            // do not cache create user response
+            delete this.anonymousUsersPromise[key];
+          }
+          return response;
+        })
+        .catch(error => {
+          delete this.anonymousUsersPromise[key];
+          return Promise.reject(error);
+        });
+    }
+    return this.anonymousUsersPromise[key];
   }
 
   private async createAnonymousUser() {
