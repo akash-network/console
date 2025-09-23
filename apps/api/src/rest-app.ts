@@ -1,5 +1,4 @@
 import "./app";
-import "./deployment";
 
 import { LoggerService } from "@akashnetwork/logging";
 import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
