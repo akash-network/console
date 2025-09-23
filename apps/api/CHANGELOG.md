@@ -1,5 +1,12 @@
 
 
+## [2.120.1](https://github.com/akash-network/console/compare/console-api/v2.120.0...console-api/v2.120.1) (2025-09-23)
+
+
+### Bug Fixes
+
+* **notifications:** adds missing providers to background jobs  ([955f270](https://github.com/akash-network/console/commit/955f270d0b78dd63467862433569a98825471e10))
+
 ## [2.120.0](https://github.com/akash-network/console/compare/console-api/v2.119.0...console-api/v2.120.0) (2025-09-23)
 
 
