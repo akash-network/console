@@ -237,6 +237,32 @@ describe(UserService.name, () => {
       expect(walletAfter?.userId).toBe(existingUser.id);
     });
 
+    it("does not throw error when user was already created under different anonymous user", async () => {
+      const { service } = setup();
+
+      const anonymousUserSeed = {
+        emailVerified: false,
+        subscribedToNewsletter: false
+      };
+      const anonymousUser = await container.resolve(UserRepository).create(anonymousUserSeed);
+
+      const input: RegisterUserInput = {
+        userId: faker.string.uuid(),
+        anonymousUserId: anonymousUser.id,
+        wantedUsername: `test-user-${Date.now()}`,
+        email: faker.internet.email(),
+        emailVerified: faker.datatype.boolean(),
+        subscribedToNewsletter: faker.datatype.boolean(),
+        ip: faker.internet.ipv4(),
+        userAgent: faker.string.alphanumeric(32),
+        fingerprint: faker.string.alphanumeric(16)
+      };
+      await service.registerUser(input);
+
+      const otherAnonymousUser = await container.resolve(UserRepository).create(anonymousUserSeed);
+      await service.registerUser({ ...input, anonymousUserId: otherAnonymousUser.id });
+    });
+
     it("updates user if registering existing user", async () => {
       const { service } = setup();
 
