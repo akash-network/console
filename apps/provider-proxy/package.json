@@ -6,7 +6,7 @@
   "author": "Akash Network",
   "main": "main.js",
   "scripts": {
-    "build": "rm -rf dist/* && npx tsc && esbuild src/server.ts --bundle --sourcemap --platform=node --target=$(node -v | sed 's/^v/node/') --outdir=dist",
+    "build": "rm -rf dist/* && tsc && esbuild src/server.ts --bundle --sourcemap --packages=external --platform=node --target=$(node -v | sed 's/^v/node/') --outdir=dist",
     "dev": "nodemon src/server.ts",
     "dev:inspect": "nodemon --exec node --inspect -r ts-node/register src/server.ts",
     "dev-nodc": "npm run dev",
@@ -22,6 +22,7 @@
     "test:unit": "jest --selectProjects unit"
   },
   "dependencies": {
+    "@akashnetwork/jwt": "*",
     "@akashnetwork/logging": "*",
     "@akashnetwork/net": "*",
     "@cosmjs/encoding": "^0.32.4",
@@ -40,6 +41,7 @@
     "@akashnetwork/dev-config": "*",
     "@akashnetwork/docker": "*",
     "@akashnetwork/releaser": "*",
+    "@cosmjs/proto-signing": "^0.32.4",
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.16",
     "@types/node": "^22.13.11",

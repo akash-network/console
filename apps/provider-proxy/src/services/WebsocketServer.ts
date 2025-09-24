@@ -8,19 +8,18 @@ import { TLSSocket } from "tls";
 import WebSocket from "ws";
 import { z } from "zod";
 
-import { addCertificateValidation, chainNetworkSchema, providerRequestSchema } from "../utils/schema";
+import { addProviderAuthValidation, providerRequestSchema } from "../utils/schema";
 import { propagateTracingContext, traceActiveSpan } from "../utils/telemetry";
-import type { CertificateValidator } from "./CertificateValidator";
+import type { CertificateValidator } from "./CertificateValidator/CertificateValidator";
 import type { ClientWebSocketStats, WebsocketStats, WebSocketUsage } from "./WebsocketStats";
 
-const MESSAGE_SCHEMA = addCertificateValidation(
+const MESSAGE_SCHEMA = addProviderAuthValidation(
   z.discriminatedUnion("type", [
     z.object({
       type: z.literal("ping")
     }),
     providerRequestSchema.extend({
       type: z.literal("websocket"),
-      chainNetwork: chainNetworkSchema,
       data: z
         .string()
         .optional()
@@ -38,13 +37,7 @@ const WS_ERRORS = {
 };
 
 export class WebsocketServer {
-  private readonly openProviderSockets: Record<
-    string,
-    {
-      ws: WebSocket;
-      isVerified: boolean;
-    }
-  > = {};
+  private readonly openProviderSockets: Record<string, WebSocketDetails> = {};
   private wss?: WebSocket.Server;
 
   constructor(
@@ -92,9 +85,9 @@ export class WebsocketServer {
         "message",
         propagateTracingContext((messageStr: string) =>
           traceActiveSpan("ws.message", span => {
-            let message: WsMessage | undefined;
+            let newOrLegacyMessage: Record<string, unknown> | undefined;
             try {
-              message = typeof messageStr === "string" ? JSON.parse(messageStr) : undefined;
+              newOrLegacyMessage = typeof messageStr === "string" ? JSON.parse(messageStr) : undefined;
             } catch (error) {
               this.logger?.error({
                 event: "CLIENT_MESSAGE_INVALID_JSON",
@@ -105,7 +98,7 @@ export class WebsocketServer {
               });
             }
 
-            if (!message) {
+            if (!newOrLegacyMessage) {
               return ws.send(
                 JSON.stringify({
                   type: "websocket",
@@ -115,7 +108,7 @@ export class WebsocketServer {
               );
             }
 
-            const parsedMessage = MESSAGE_SCHEMA.safeParse(message);
+            const parsedMessage = MESSAGE_SCHEMA.safeParse(newOrLegacyMessage);
             if (parsedMessage.error) {
               this.logger?.error({
                 event: "CLIENT_MESSAGE_INVALID_JSON",
@@ -126,21 +119,23 @@ export class WebsocketServer {
                 JSON.stringify({
                   type: "websocket",
                   message: "Message doesn't match expected schema",
-                  error: "Invalid message format"
+                  error: "Invalid message format",
+                  errors: parsedMessage.error.errors
                 })
               );
             }
 
+            const message = parsedMessage.data as WsMessage;
             const attributes: Attributes = {
               type: message.type
             };
             if (message.type === "websocket") {
               attributes.providerUrl = message.url;
               attributes.providerAddress = message.providerAddress;
-              attributes.chainNetwork = message.chainNetwork;
-              attributes.certPem = message.certPem ? "***REDACTED***" : "***No cert provided***";
-              attributes.keyPem = message.keyPem ? "***REDACTED***" : "***No key provided***";
+              attributes.chainNetwork = message.network;
               attributes.function = getWebSocketUsage(message);
+              attributes.authenticated =
+                (message.auth?.type === "mtls" && message.auth.certPem && message.auth.keyPem) || (message.auth?.type === "jwt" && message.auth.token);
             }
 
             span.setAttributes(attributes);
@@ -227,12 +222,11 @@ export class WebsocketServer {
       socketDetails?.ws.terminate();
       socketDetails = this.createProviderSocket(url, {
         wsId: stats.id,
-        cert: message.certPem,
-        key: message.keyPem,
-        chainNetwork: message.chainNetwork,
+        auth: message.auth,
+        network: message.network,
         providerAddress: message.providerAddress
       });
-      this.linkSockets(socketDetails.ws, ws, stats);
+      this.linkSockets(socketDetails, ws, stats);
     }
 
     if (!message.data) {
@@ -254,7 +248,7 @@ export class WebsocketServer {
       socketDetails.ws.send(data, callback);
     });
 
-    if (socketDetails.ws.readyState === WebSocket.OPEN && socketDetails.isVerified) {
+    if (socketDetails.ws.readyState === WebSocket.OPEN && socketDetails.verification === "finished") {
       proxyMessage();
     } else {
       this.logger?.info(`Provider is not verified, waiting for certificate validation`);
@@ -265,26 +259,25 @@ export class WebsocketServer {
   private createProviderSocket(url: string, options: CreateProviderSocketOptions) {
     this.logger?.info(`Initializing new provider websocket connection: ${url}`);
 
-    const pws = new WebSocket(url, {
-      key: options.key,
-      cert: options.cert,
-      agent: new https.Agent({
-        // do not use TLS session resumption for websocket
-        sessionTimeout: 0,
-        rejectUnauthorized: false,
-        servername: ""
-      })
-    });
+    const pws = this.connectWebSocket(url, options);
 
-    this.openProviderSockets[options.wsId] = { ws: pws, isVerified: false };
+    this.openProviderSockets[options.wsId] = { ws: pws, verification: "in-progress" };
 
     pws.on(
       "upgrade",
       propagateTracingContext(response => {
         // Using sync function here to ensure that no data is processed by event handlers until SSL cert validation is finished
-        const certificate = response.socket && response.socket instanceof TLSSocket ? response.socket.getPeerX509Certificate() : undefined;
+        const socket = response.socket && response.socket instanceof TLSSocket ? response.socket : undefined;
+        if (socket?.authorized) {
+          // CA validation is successful, so certificate is not self-signed
+          this.openProviderSockets[options.wsId].verification = "finished";
+          pws.emit("verified");
+          return;
+        }
 
-        if (!certificate) {
+        const certificate = socket?.getPeerX509Certificate();
+
+        if (!socket || !certificate) {
           this.logger?.info(`Server ${url} didn't provide SSL certificate. Closing websocket connection`);
           // call destroy manually because at this time websocket is not connected with the actual socket
           response.socket.destroy();
@@ -293,13 +286,13 @@ export class WebsocketServer {
         }
 
         // stop reading data from socket until we validate certificate
-        response.socket.pause();
+        socket.pause();
         this.certificateValidator
-          .validate(certificate, options.chainNetwork, options.providerAddress)
+          .validate(certificate, options.network, options.providerAddress)
           .catch(error => {
             this.logger?.error({
               message: "Could not validate SSL certificate",
-              chainNetwork: options.chainNetwork,
+              chainNetwork: options.network,
               providerAddress: options.providerAddress,
               error
             });
@@ -314,37 +307,39 @@ export class WebsocketServer {
               pws.removeAllListeners("message");
               pws.removeAllListeners("verified");
 
+              this.openProviderSockets[options.wsId].verification = "failed";
               pws.close(WS_ERRORS.VIOLATED_POLICY, `invalidCertificate.${result.code}`);
               this.logger?.warn({
                 event: "PROVIDER_INVALID_CERTIFICATE",
                 connectionType: "websocket",
                 code: result.code,
-                chainNetwork: options.chainNetwork,
+                chainNetwork: options.network,
                 providerAddress: options.providerAddress
               });
             } else {
               // ensure that socket was not closed while its certificate was validating
               if (pws.readyState === WebSocket.OPEN && this.openProviderSockets[options.wsId]) {
-                this.openProviderSockets[options.wsId].isVerified = true;
+                this.openProviderSockets[options.wsId].verification = "finished";
                 pws.emit("verified");
                 this.logger?.debug({
                   event: "PROVIDER_CERTIFICATE_VERIFIED",
                   connectionType: "websocket",
-                  chainNetwork: options.chainNetwork,
+                  chainNetwork: options.network,
                   providerAddress: options.providerAddress
                 });
               } else {
-                this.logger?.warn({
+                pws.terminate();
+                this.logger?.debug({
                   event: "PROVIDER_WEBSOCKET_CLOSED",
-                  chainNetwork: options.chainNetwork,
+                  chainNetwork: options.network,
                   providerAddress: options.providerAddress,
-                  message: "Provider websocket was closed while its certificate was validating"
+                  message: "Provider websocket was closed while its certificate was validating."
                 });
               }
             }
 
             // need to call this in error and success case, otherwise listeners will not be notified about close event
-            response.socket.resume();
+            socket.resume();
           });
       })
     );
@@ -352,7 +347,35 @@ export class WebsocketServer {
     return this.openProviderSockets[options.wsId];
   }
 
-  private linkSockets(providerWs: WebSocket, ws: WebSocket, stats: ClientWebSocketStats): void {
+  private connectWebSocket(url: string, options: CreateProviderSocketOptions) {
+    if (options.auth?.type === "mtls") {
+      return new WebSocket(url, {
+        key: options.auth.keyPem,
+        cert: options.auth.certPem,
+        agent: new https.Agent({
+          // do not use TLS session resumption for websocket
+          sessionTimeout: 0,
+          rejectUnauthorized: false,
+          servername: "" // disable SNI for mtls authentication
+        })
+      });
+    }
+
+    const headers = options.auth ? { Authorization: `Bearer ${options.auth.token}` } : {};
+
+    return new WebSocket(url, {
+      headers,
+      agent: new https.Agent({
+        // do not use TLS session resumption for websocket
+        sessionTimeout: 0,
+        rejectUnauthorized: false
+      })
+    });
+  }
+
+  private linkSockets(providerSocketDetails: WebSocketDetails, ws: WebSocket, stats: ClientWebSocketStats): void {
+    const providerWs = providerSocketDetails.ws;
+
     providerWs.on(
       "open",
       propagateTracingContext(() => {
@@ -407,15 +430,18 @@ export class WebsocketServer {
           code,
           reason
         });
-        const data = JSON.stringify({
-          type: "websocket",
-          message: "",
-          closed: true,
-          code,
-          reason
-        });
-        stats.logDataTransfer(Buffer.from(data).length);
-        ws.send(data);
+
+        if (providerSocketDetails.verification !== "in-progress") {
+          const data = JSON.stringify({
+            type: "websocket",
+            message: "",
+            closed: true,
+            code,
+            reason
+          });
+          stats.logDataTransfer(Buffer.from(data).length);
+          ws.send(data);
+        }
       })
     );
   }
@@ -423,9 +449,8 @@ export class WebsocketServer {
 
 interface CreateProviderSocketOptions {
   wsId: string;
-  cert?: string;
-  key?: string;
-  chainNetwork: SupportedChainNetworks;
+  auth?: z.infer<typeof providerRequestSchema>["auth"];
+  network: SupportedChainNetworks;
   providerAddress: string;
 }
 
@@ -438,4 +463,9 @@ function getWebSocketUsage(message: any): WebSocketUsage {
   }
 
   return "Unknown";
+}
+
+interface WebSocketDetails {
+  ws: WebSocket;
+  verification: "in-progress" | "finished" | "failed";
 }

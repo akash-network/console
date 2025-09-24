@@ -1,10 +1,10 @@
 import type { X509Certificate } from "crypto";
 import { setTimeout } from "timers/promises";
 
-import type { CertificateValidatorIntrumentation, CertValidationResultError } from "../../src/services/CertificateValidator";
-import { CertificateValidator } from "../../src/services/CertificateValidator";
-import type { ProviderService } from "../../src/services/ProviderService";
-import { createX509CertPair } from "../seeders/createX509CertPair";
+import { createX509CertPair } from "../../../test/seeders/createX509CertPair";
+import type { ProviderService } from "../ProviderService/ProviderService";
+import type { CertificateValidatorIntrumentation, CertValidationResultError } from "./CertificateValidator";
+import { CertificateValidator } from "./CertificateValidator";
 
 describe(CertificateValidator.name, () => {
   const ONE_MINUTE = 60 * 1000;

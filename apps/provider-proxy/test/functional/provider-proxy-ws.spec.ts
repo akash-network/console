@@ -1,4 +1,7 @@
+import { createSignArbitraryAkashWallet, JwtToken } from "@akashnetwork/jwt";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { setTimeout } from "timers/promises";
+import type { TLSSocket } from "tls";
 import WebSocket from "ws";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";
@@ -224,6 +227,141 @@ describe("Provider proxy ws", () => {
     expect(await waitForMessage(ws)).toEqual(providerMessage("replied: test2"));
   });
 
+  it("supports mtls authentication", async () => {
+    const proxyServerUrl = await startServer();
+    const providerAddress = generateBech32();
+    const certPair = createX509CertPair({ commonName: providerAddress });
+    await startChainApiServer([certPair.cert]);
+    const { providerUrl } = await startProviderServer({
+      certPair,
+      requireClientCertificate: true,
+      websocketServer: {
+        enable: true,
+        onConnection(pws, req) {
+          const clientCert = (req.socket as TLSSocket).getPeerCertificate();
+          pws.send(`authenticated:${!!clientCert}`);
+        }
+      }
+    });
+    const ws = new WebSocket(`${proxyServerUrl}/ws`);
+
+    await new Promise(resolve => ws.once("open", resolve));
+
+    const clientCertPair = createX509CertPair({ commonName: generateBech32() });
+    ws.send(
+      JSON.stringify(
+        ourMessage("hello", providerUrl, {
+          providerAddress,
+          auth: {
+            type: "mtls",
+            certPem: clientCertPair.cert.toString(),
+            keyPem: clientCertPair.key
+          }
+        })
+      )
+    );
+
+    expect(await waitForMessage(ws)).toEqual(providerMessage("authenticated:true"));
+
+    ws.send(
+      JSON.stringify(
+        ourMessage("hello", providerUrl, {
+          providerAddress,
+          auth: {
+            type: "mtls",
+            certPem: "asdasdasd",
+            keyPem: "asdasd"
+          }
+        })
+      )
+    );
+
+    const response = (await waitForMessage(ws)) as { errors: any[] };
+    expect(response.errors).toEqual(
+      expect.arrayContaining([
+        {
+          code: "custom",
+          message: "is not a valid certificate",
+          path: ["auth", "certPem"],
+          params: {
+            reason: "invalid"
+          }
+        }
+      ])
+    );
+  });
+
+  fit("supports jwt authentication", async () => {
+    const proxyServerUrl = await startServer();
+    const providerAddress = generateBech32();
+    const certPair = createX509CertPair({ commonName: providerAddress });
+    await startChainApiServer([certPair.cert]);
+    const { providerUrl } = await startProviderServer({
+      certPair,
+      requireClientCertificate: true,
+      websocketServer: {
+        enable: true,
+        onConnection(pws, req) {
+          pws.send(`authenticated:${!!req.headers.authorization}`);
+        }
+      }
+    });
+    const ws = new WebSocket(`${proxyServerUrl}/ws`);
+
+    await new Promise(resolve => ws.once("open", resolve));
+
+    const testMnemonic =
+      "body letter input area umbrella develop shuffle gentle regular gold twice truly giant dawn nerve ocean wine wonder toe melt grid leader blush few";
+    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(testMnemonic, { prefix: "akash" });
+    const tokenManager = new JwtToken(await createSignArbitraryAkashWallet(wallet));
+    const token = await tokenManager.createToken({
+      iss: (await wallet.getAccounts())[0].address,
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+      version: "v1",
+      leases: { access: "full" }
+    });
+    ws.send(
+      JSON.stringify(
+        ourMessage("hello", providerUrl, {
+          providerAddress,
+          auth: {
+            type: "jwt",
+            token
+          }
+        })
+      )
+    );
+
+    expect(await waitForMessage(ws)).toEqual(providerMessage("authenticated:true"));
+
+    ws.send(
+      JSON.stringify(
+        ourMessage("hello", providerUrl, {
+          providerAddress,
+          auth: {
+            type: "jwt",
+            token: "testst"
+          }
+        })
+      )
+    );
+
+    const response = (await waitForMessage(ws)) as { errors: any[] };
+    expect(response.errors).toEqual(
+      expect.arrayContaining([
+        {
+          code: "custom",
+          message: "is not a valid JWT token",
+          path: ["auth", "token"],
+          params: {
+            errors: ["Invalid token"]
+          }
+        }
+      ])
+    );
+  });
+
   function providerMessage<T>(message: T, extra?: Record<string, any>) {
     return {
       ...extra,
@@ -242,7 +380,7 @@ describe("Provider proxy ws", () => {
         .join(","),
       url: `${url}/test`,
       providerAddress: extra?.providerAddress || generateBech32(),
-      chainNetwork: extra?.chainNetwork || "sandbox"
+      network: extra?.chainNetwork || "sandbox"
     };
   }
 

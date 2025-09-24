@@ -1,12 +1,15 @@
 import type { SupportedChainNetworks } from "@akashnetwork/net";
-import type { IncomingMessage } from "http";
+import { createHash } from "crypto";
+import type { IncomingMessage, OutgoingHttpHeaders } from "http";
 import type { RequestOptions } from "https";
 import https from "https";
 import { LRUCache } from "lru-cache";
 import { TLSSocket } from "tls";
+import type z from "zod";
 
+import type { providerRequestSchema } from "../utils/schema";
 import { propagateTracingContext } from "../utils/telemetry";
-import type { CertificateValidator, CertValidationResultError } from "./CertificateValidator";
+import type { CertificateValidator, CertValidationResultError } from "./CertificateValidator/CertificateValidator";
 
 export class ProviderProxy {
   /**
@@ -19,27 +22,11 @@ export class ProviderProxy {
   constructor(private readonly certificateValidator: CertificateValidator) {}
 
   connect(url: string, options: ProxyConnectOptions): Promise<ProxyConnectionResult> {
-    const agentOptions: TLSChainAgentOptions = {
-      timeout: options.timeout,
-      rejectUnauthorized: false,
-      cert: options.cert,
-      key: options.key,
-      chainNetwork: options.network,
-      providerAddress: options.providerAddress,
-      servername: ""
-    };
-    const agent = this.getHttpsAgent(agentOptions);
     return new Promise<ProxyConnectionResult>((resolve, reject) => {
+      const { agentCacheKey, ...requestOptions } = this.getRequestOptions(options);
       const req = https.request(
         url,
-        {
-          method: options.method,
-          headers: {
-            "Content-Type": "application/json",
-            ...options.headers
-          },
-          agent
-        },
+        requestOptions,
         propagateTracingContext(async (res: IncomingMessage) => {
           try {
             res.on(
@@ -53,6 +40,12 @@ export class ProviderProxy {
             if (!socket || !(socket instanceof TLSSocket)) {
               res.destroy();
               return resolve({ ok: false, code: "insecureConnection" });
+            }
+
+            if (socket.authorized) {
+              // CA validation is successful, so certificate is not self-signed
+              resolve({ ok: true, response: res });
+              return;
             }
 
             const serverCert = socket.getPeerX509Certificate();
@@ -71,12 +64,12 @@ export class ProviderProxy {
 
               if (validationResult.ok === false) {
                 // remove agent from cache to destroy TLS session to force TLS handshake on the next call
-                this.agentsCache.delete(genAgentsCacheKey(agentOptions));
+                this.agentsCache.delete(agentCacheKey);
                 resolve({ ok: false, code: "invalidCertificate", reason: validationResult.code });
                 req.off("error", reject);
                 res.destroy();
                 req.destroy();
-                agent.destroy();
+                requestOptions.agent?.destroy();
                 return;
               }
 
@@ -123,12 +116,41 @@ export class ProviderProxy {
     });
   }
 
-  private getHttpsAgent(options: TLSChainAgentOptions): https.Agent {
-    const key = genAgentsCacheKey(options);
+  private getRequestOptions(options: ProxyConnectOptions) {
+    const requestOptions: Omit<RequestOptions, "agent" | "headers"> & { agent?: https.Agent; headers: OutgoingHttpHeaders; agentCacheKey: string } = {
+      method: options.method,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      },
+      agentCacheKey: `${options.network}:${options.providerAddress}`
+    };
+    const agentOptions: https.AgentOptions = {
+      timeout: options.timeout,
+      rejectUnauthorized: false
+    };
 
+    if (options.auth?.type === "mtls") {
+      requestOptions.agentCacheKey += `:${createHash("sha256").update(`${options.auth.certPem}:${options.auth.keyPem}`).digest("hex")}`;
+      requestOptions.agent = this.getHttpsAgent(requestOptions.agentCacheKey, {
+        ...agentOptions,
+        cert: options.auth.certPem,
+        key: options.auth.keyPem,
+        servername: "" // disable SNI for mtls authentication
+      });
+    } else {
+      requestOptions.agent = this.getHttpsAgent(requestOptions.agentCacheKey, agentOptions);
+      if (options.auth) {
+        requestOptions.headers.Authorization = `Bearer ${options.auth.token}`;
+      }
+    }
+
+    return requestOptions;
+  }
+
+  private getHttpsAgent(key: string, options: https.AgentOptions): https.Agent {
     if (!this.agentsCache.has(key)) {
-      const { chainNetwork, providerAddress, ...agentOptions } = options;
-      const agent = new https.Agent(agentOptions);
+      const agent = new https.Agent(options);
       this.agentsCache.set(key, agent);
       return agent;
     }
@@ -137,11 +159,9 @@ export class ProviderProxy {
   }
 }
 
-function genAgentsCacheKey(options: TLSChainAgentOptions): string {
-  return `${options.chainNetwork}:${options.providerAddress}:${options.cert}:${options.key}`;
-}
-
-export interface ProxyConnectOptions extends Pick<RequestOptions, "cert" | "key" | "method"> {
+export interface ProxyConnectOptions {
+  method: string;
+  auth?: z.infer<typeof providerRequestSchema>["auth"];
   body?: RequestInit["body"];
   headers?: Record<string, string>;
   network: SupportedChainNetworks;
@@ -162,8 +182,3 @@ type ProxyConnectionResultError =
   | { ok: false; code: "invalidCertificate"; reason: CertValidationResultError["code"] }
   | { ok: false; code: "insecureConnection" }
   | { ok: false; code: "connectionError"; error: unknown };
-
-interface TLSChainAgentOptions extends https.AgentOptions {
-  chainNetwork: SupportedChainNetworks;
-  providerAddress: string;
-}

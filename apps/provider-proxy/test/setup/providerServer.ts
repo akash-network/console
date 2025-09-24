@@ -19,6 +19,11 @@ export function startProviderServer(options: ProviderServerOptions): Promise<Pro
       cert: certPair.cert.toJSON()
     };
 
+    if (options.requireClientCertificate) {
+      httpServerOptions.requestCert = true;
+      httpServerOptions.rejectUnauthorized = false;
+    }
+
     let cleanupHandlers = new Set<() => void>();
     const handlers: RequestHandlers = {
       "/200.txt"(_, res) {
@@ -71,11 +76,12 @@ export function stopProviderServer(): Promise<void> {
 
 type RequestHandlers = Record<string, (req: IncomingMessage, res: ServerResponse) => (() => void) | undefined | void>;
 export interface ProviderServerOptions {
+  requireClientCertificate?: boolean;
   certPair?: CertPair;
   handlers?: RequestHandlers;
   websocketServer?: {
     enable: boolean;
-    onConnection?(ws: WebSocket): void;
+    onConnection?(ws: WebSocket, req: IncomingMessage): void;
   };
 }
 

@@ -5,14 +5,13 @@ import { Readable } from "stream";
 
 import type { AppContext } from "../types/AppContext";
 import { canRetryOnError, httpRetry } from "../utils/retry";
-import { addCertificateValidation, chainNetworkSchema, providerRequestSchema } from "../utils/schema";
+import { addProviderAuthValidation, providerRequestSchema } from "../utils/schema";
 
-const RequestPayload = addCertificateValidation(
+const RequestPayload = addProviderAuthValidation(
   providerRequestSchema.extend({
     method: z.enum(["GET", "POST", "PUT", "DELETE"]),
     body: z.string().optional(),
-    timeout: z.number().optional(),
-    network: chainNetworkSchema
+    timeout: z.number().optional()
   })
 );
 
@@ -54,7 +53,7 @@ export const proxyRoute = createRoute({
 
 const DEFAULT_TIMEOUT = 10_000;
 export async function proxyProviderRequest(ctx: AppContext): Promise<Response | TypedResponse<string>> {
-  const { certPem, keyPem, method, body, url, network, providerAddress, timeout } = await ctx.req.json<z.infer<typeof RequestPayload>>();
+  const { method, body, url, network, providerAddress, timeout, auth } = ctx.req.valid("json" as never) as z.infer<typeof RequestPayload>;
 
   ctx.get("container").appLogger?.info({
     event: "PROXY_REQUEST",
@@ -70,8 +69,7 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
       ctx.get("container").providerProxy.connect(url, {
         method,
         body,
-        cert: certPem,
-        key: keyPem,
+        auth,
         network,
         providerAddress,
         timeout: Number(timeout || DEFAULT_TIMEOUT) || DEFAULT_TIMEOUT,
@@ -122,7 +120,7 @@ export async function proxyProviderRequest(ctx: AppContext): Promise<Response | 
             code: "custom",
             issues: [
               {
-                path: ["certPem"],
+                path: ["auth", "certPem"],
                 params: {
                   reason: "invalid"
                 }
