@@ -1,4 +1,3 @@
-import { faker } from "@faker-js/faker";
 import type { ApiResponse, GetUsers200ResponseOneOfInner, GetUsersByEmailRequest } from "auth0";
 import { ManagementClient } from "auth0";
 import { container } from "tsyringe";
@@ -86,40 +85,6 @@ describe("Syncing 'email verified' from auth0", () => {
       });
 
       expect(response.status).toBe(404);
-    });
-
-    it("throws 401 if user is not authenticated", async () => {
-      const { user } = await setup({ emailVerified: false });
-
-      const response = await app.request("/v1/verify-email", {
-        method: "POST",
-        body: JSON.stringify({
-          data: {
-            email: user.email
-          }
-        })
-      });
-
-      expect(response.status).toBe(401);
-    });
-
-    it("throws 403 when email is not the same as the current user's email", async () => {
-      const { token } = await setup({ emailVerified: false });
-
-      const response = await app.request("/v1/verify-email", {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({
-          data: {
-            email: faker.internet.email()
-          }
-        })
-      });
-
-      expect(response.status).toBe(403);
     });
   });
 

@@ -24,9 +24,7 @@ export class AuthController {
     }
   }
 
-  @Protected()
   async syncEmailVerified({ data: { email } }: VerifyEmailRequest) {
-    this.authService.throwUnlessCan("verify-email", "User", { email });
     const { emailVerified } = await this.userService.syncEmailVerified({ email });
 
     return {
