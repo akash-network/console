@@ -1,5 +1,12 @@
 
 
+## [2.121.1](https://github.com/akash-network/console/compare/console-api/v2.121.0...console-api/v2.121.1) (2025-09-24)
+
+
+### Bug Fixes
+
+* **onboarding:** improves onboarding notifications copy ([b618851](https://github.com/akash-network/console/commit/b618851d975325bf6018068ada5daefdacf6e617))
+
 ## [2.121.0](https://github.com/akash-network/console/compare/console-api/v2.120.1...console-api/v2.121.0) (2025-09-24)
 
 
