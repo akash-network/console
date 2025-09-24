@@ -28,7 +28,8 @@
         "alert",
         "notification-channel",
         "jwt",
-        "log-collector"
+        "log-collector",
+        "bid"
       ]
     ]
   }

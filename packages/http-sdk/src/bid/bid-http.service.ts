@@ -2,7 +2,44 @@ import type { AxiosRequestConfig } from "axios";
 
 import { HttpService } from "../http/http.service";
 
-type Bid = {
+type Attribute = {
+  key: string;
+  value: string;
+};
+
+export type DeploymentResource_V3 = {
+  cpu: {
+    units: {
+      val: string;
+    };
+    attributes: Attribute[];
+  };
+  gpu: {
+    units: {
+      val: string;
+    };
+    attributes: Attribute[];
+  };
+  memory: {
+    quantity: {
+      val: string;
+    };
+    attributes: Attribute[];
+  };
+  storage: {
+    name: string;
+    quantity: {
+      val: string;
+    };
+    attributes: Attribute[];
+  }[];
+  endpoints: {
+    kind: string;
+    sequence_number: number;
+  }[];
+};
+
+export type Bid = {
   bid: {
     bid_id: {
       owner: string;
@@ -16,6 +53,10 @@ type Bid = {
       denom: string;
       amount: string;
     };
+    resources_offer: {
+      resources: DeploymentResource_V3;
+      count: number;
+    }[];
     created_at: string;
   };
   escrow_account: {
