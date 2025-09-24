@@ -1,5 +1,12 @@
 
 
+## [1.29.0](https://github.com/akash-network/console/compare/notifications/v1.28.0...notifications/v1.29.0) (2025-09-24)
+
+
+### Features
+
+* **bid:** marks managed bids list with certs requirement ([75fed6f](https://github.com/akash-network/console/commit/75fed6f9d6575e3ff1676cb2250b912f7b8cc2a6)), closes [#1913](https://github.com/akash-network/console/issues/1913)
+
 ## [1.28.0](https://github.com/akash-network/console/compare/notifications/v1.27.0...notifications/v1.28.0) (2025-09-23)
 
 
