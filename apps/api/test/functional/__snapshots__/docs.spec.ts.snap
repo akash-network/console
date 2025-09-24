@@ -1248,10 +1248,404 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
               "type": "string",
             },
           },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "bid": {
+                            "properties": {
+                              "bid_id": {
+                                "properties": {
+                                  "dseq": {
+                                    "type": "string",
+                                  },
+                                  "gseq": {
+                                    "type": "number",
+                                  },
+                                  "oseq": {
+                                    "type": "number",
+                                  },
+                                  "owner": {
+                                    "type": "string",
+                                  },
+                                  "provider": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "owner",
+                                  "dseq",
+                                  "gseq",
+                                  "oseq",
+                                  "provider",
+                                ],
+                                "type": "object",
+                              },
+                              "created_at": {
+                                "type": "string",
+                              },
+                              "price": {
+                                "properties": {
+                                  "amount": {
+                                    "type": "string",
+                                  },
+                                  "denom": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount",
+                                ],
+                                "type": "object",
+                              },
+                              "resources_offer": {
+                                "items": {
+                                  "properties": {
+                                    "count": {
+                                      "type": "number",
+                                    },
+                                    "resources": {
+                                      "properties": {
+                                        "cpu": {
+                                          "properties": {
+                                            "attributes": {
+                                              "items": {
+                                                "properties": {
+                                                  "key": {
+                                                    "type": "string",
+                                                  },
+                                                  "value": {
+                                                    "type": "string",
+                                                  },
+                                                },
+                                                "required": [
+                                                  "key",
+                                                  "value",
+                                                ],
+                                                "type": "object",
+                                              },
+                                              "type": "array",
+                                            },
+                                            "units": {
+                                              "properties": {
+                                                "val": {
+                                                  "type": "string",
+                                                },
+                                              },
+                                              "required": [
+                                                "val",
+                                              ],
+                                              "type": "object",
+                                            },
+                                          },
+                                          "required": [
+                                            "units",
+                                            "attributes",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        "endpoints": {
+                                          "items": {
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                              },
+                                              "sequence_number": {
+                                                "type": "number",
+                                              },
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "sequence_number",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "type": "array",
+                                        },
+                                        "gpu": {
+                                          "properties": {
+                                            "attributes": {
+                                              "items": {
+                                                "properties": {
+                                                  "key": {
+                                                    "type": "string",
+                                                  },
+                                                  "value": {
+                                                    "type": "string",
+                                                  },
+                                                },
+                                                "required": [
+                                                  "key",
+                                                  "value",
+                                                ],
+                                                "type": "object",
+                                              },
+                                              "type": "array",
+                                            },
+                                            "units": {
+                                              "properties": {
+                                                "val": {
+                                                  "type": "string",
+                                                },
+                                              },
+                                              "required": [
+                                                "val",
+                                              ],
+                                              "type": "object",
+                                            },
+                                          },
+                                          "required": [
+                                            "units",
+                                            "attributes",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        "memory": {
+                                          "properties": {
+                                            "attributes": {
+                                              "items": {
+                                                "properties": {
+                                                  "key": {
+                                                    "type": "string",
+                                                  },
+                                                  "value": {
+                                                    "type": "string",
+                                                  },
+                                                },
+                                                "required": [
+                                                  "key",
+                                                  "value",
+                                                ],
+                                                "type": "object",
+                                              },
+                                              "type": "array",
+                                            },
+                                            "quantity": {
+                                              "properties": {
+                                                "val": {
+                                                  "type": "string",
+                                                },
+                                              },
+                                              "required": [
+                                                "val",
+                                              ],
+                                              "type": "object",
+                                            },
+                                          },
+                                          "required": [
+                                            "quantity",
+                                            "attributes",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        "storage": {
+                                          "items": {
+                                            "properties": {
+                                              "attributes": {
+                                                "items": {
+                                                  "properties": {
+                                                    "key": {
+                                                      "type": "string",
+                                                    },
+                                                    "value": {
+                                                      "type": "string",
+                                                    },
+                                                  },
+                                                  "required": [
+                                                    "key",
+                                                    "value",
+                                                  ],
+                                                  "type": "object",
+                                                },
+                                                "type": "array",
+                                              },
+                                              "name": {
+                                                "type": "string",
+                                              },
+                                              "quantity": {
+                                                "properties": {
+                                                  "val": {
+                                                    "type": "string",
+                                                  },
+                                                },
+                                                "required": [
+                                                  "val",
+                                                ],
+                                                "type": "object",
+                                              },
+                                            },
+                                            "required": [
+                                              "name",
+                                              "quantity",
+                                              "attributes",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "type": "array",
+                                        },
+                                      },
+                                      "required": [
+                                        "cpu",
+                                        "gpu",
+                                        "memory",
+                                        "storage",
+                                        "endpoints",
+                                      ],
+                                      "type": "object",
+                                    },
+                                  },
+                                  "required": [
+                                    "resources",
+                                    "count",
+                                  ],
+                                  "type": "object",
+                                },
+                                "type": "array",
+                              },
+                              "state": {
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "bid_id",
+                              "state",
+                              "price",
+                              "created_at",
+                              "resources_offer",
+                            ],
+                            "type": "object",
+                          },
+                          "escrow_account": {
+                            "properties": {
+                              "balance": {
+                                "properties": {
+                                  "amount": {
+                                    "type": "string",
+                                  },
+                                  "denom": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount",
+                                ],
+                                "type": "object",
+                              },
+                              "depositor": {
+                                "type": "string",
+                              },
+                              "funds": {
+                                "properties": {
+                                  "amount": {
+                                    "type": "string",
+                                  },
+                                  "denom": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount",
+                                ],
+                                "type": "object",
+                              },
+                              "id": {
+                                "properties": {
+                                  "scope": {
+                                    "type": "string",
+                                  },
+                                  "xid": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "scope",
+                                  "xid",
+                                ],
+                                "type": "object",
+                              },
+                              "owner": {
+                                "type": "string",
+                              },
+                              "settled_at": {
+                                "type": "string",
+                              },
+                              "state": {
+                                "type": "string",
+                              },
+                              "transferred": {
+                                "properties": {
+                                  "amount": {
+                                    "type": "string",
+                                  },
+                                  "denom": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount",
+                                ],
+                                "type": "object",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "owner",
+                              "state",
+                              "balance",
+                              "transferred",
+                              "settled_at",
+                              "depositor",
+                              "funds",
+                            ],
+                            "type": "object",
+                          },
+                          "isCertificateRequired": {
+                            "type": "boolean",
+                          },
+                        },
+                        "required": [
+                          "bid",
+                          "escrow_account",
+                          "isCertificateRequired",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "List of bids",
+          },
+        },
+        "summary": "List bids",
+        "tags": [
+          "Bids",
+        ],
+      },
+    },
+    "/v1/bids/{dseq}": {
+      "get": {
+        "parameters": [
           {
-            "in": "query",
-            "name": "userId",
-            "required": false,
+            "in": "path",
+            "name": "dseq",
+            "required": true,
             "schema": {
               "type": "string",
             },
@@ -1617,10 +2011,14 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                             ],
                             "type": "object",
                           },
+                          "isCertificateRequired": {
+                            "type": "boolean",
+                          },
                         },
                         "required": [
                           "bid",
                           "escrow_account",
+                          "isCertificateRequired",
                         ],
                         "type": "object",
                       },
@@ -1637,7 +2035,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "description": "List of bids",
           },
         },
-        "summary": "List bids",
+        "summary": "List bids by dseq",
         "tags": [
           "Bids",
         ],
