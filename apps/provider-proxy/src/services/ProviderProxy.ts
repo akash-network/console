@@ -123,6 +123,7 @@ export class ProviderProxy {
         "Content-Type": "application/json",
         ...options.headers
       },
+      timeout: options.timeout,
       agentCacheKey: `${options.network}:${options.providerAddress}`
     };
     const agentOptions: https.AgentOptions = {

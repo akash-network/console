@@ -291,7 +291,7 @@ describe("Provider proxy ws", () => {
     );
   });
 
-  fit("supports jwt authentication", async () => {
+  it("supports jwt authentication", async () => {
     const proxyServerUrl = await startServer();
     const providerAddress = generateBech32();
     const certPair = createX509CertPair({ commonName: providerAddress });
