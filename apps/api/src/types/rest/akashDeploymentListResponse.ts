@@ -40,22 +40,13 @@ export type RestAkashDeploymentListResponse = {
               };
               attributes: { key: string; value: string }[];
             };
-            storage: [
-              {
-                name: string;
-                quantity: {
-                  val: string;
-                };
-                attributes: { key: string; value: string }[];
-              },
-              {
-                name: string;
-                quantity: {
-                  val: string;
-                };
-                attributes: { key: string; value: string }[];
-              }
-            ];
+            storage: {
+              name: string;
+              quantity: {
+                val: string;
+              };
+              attributes: { key: string; value: string }[];
+            }[];
             gpu: {
               units: {
                 val: string;
