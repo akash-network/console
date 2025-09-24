@@ -29,7 +29,8 @@
         "notification-channel",
         "jwt",
         "log-collector",
-        "bid"
+        "bid",
+        "onboarding"
       ]
     ]
   }
