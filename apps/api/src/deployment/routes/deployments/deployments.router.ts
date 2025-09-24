@@ -22,6 +22,8 @@ import {
   UpdateDeploymentRequestSchema,
   UpdateDeploymentResponseSchema
 } from "@src/deployment/http-schemas/deployment.schema";
+import { FallbackDeploymentListQuerySchema, FallbackDeploymentListResponseSchema } from "@src/deployment/http-schemas/deployment-rpc.schema";
+import { DatabaseDeploymentReaderService } from "@src/deployment/services/deployment-reader/database-deployment-reader.service";
 
 const getRoute = createRoute({
   method: "get",
@@ -214,6 +216,27 @@ const getByOwnerAndDseqRoute = createRoute({
   }
 });
 
+// Fallback route that matches the node API signature
+const fallbackListRoute = createRoute({
+  method: "get",
+  path: "/akash/deployment/v1beta3/deployments/list",
+  summary: "List deployments (database fallback)",
+  tags: ["Deployments"],
+  request: {
+    query: FallbackDeploymentListQuerySchema
+  },
+  responses: {
+    200: {
+      description: "Returns paginated list of deployments from database",
+      content: {
+        "application/json": {
+          schema: FallbackDeploymentListResponseSchema
+        }
+      }
+    }
+  }
+});
+
 export const deploymentsRouter = new OpenApiHonoHandler();
 
 deploymentsRouter.openapi(getRoute, async function routeGetDeployment(c) {
@@ -276,4 +299,21 @@ deploymentsRouter.openapi(getByOwnerAndDseqRoute, async function routeGetDeploym
   } else {
     return c.json({ error: "NotFoundError", message: "Deployment Not Found" }, { status: 404 });
   }
+});
+
+deploymentsRouter.openapi(fallbackListRoute, async function routeFallbackListDeployments(c) {
+  const query = c.req.valid("query");
+  const databaseReader = container.resolve(DatabaseDeploymentReaderService);
+
+  const result = await databaseReader.listDeployments({
+    owner: query["filters.owner"],
+    state: query["filters.state"],
+    skip: query["pagination.offset"],
+    limit: query["pagination.limit"],
+    key: query["pagination.key"],
+    countTotal: query["pagination.count_total"],
+    reverse: query["pagination.reverse"]
+  });
+
+  return c.json(result, 200);
 });
