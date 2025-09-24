@@ -23,7 +23,7 @@ import {
   UpdateDeploymentResponseSchema
 } from "@src/deployment/http-schemas/deployment.schema";
 import { FallbackDeploymentListQuerySchema, FallbackDeploymentListResponseSchema } from "@src/deployment/http-schemas/deployment-rpc.schema";
-import { DatabaseDeploymentReaderService } from "@src/deployment/services/deployment-reader/database-deployment-reader.service";
+import { DatabaseDeploymentReaderService } from "@src/deployment/services/deployment-reader/db-deployment-reader.service";
 
 const getRoute = createRoute({
   method: "get",
@@ -216,7 +216,6 @@ const getByOwnerAndDseqRoute = createRoute({
   }
 });
 
-// Fallback route that matches the node API signature
 const fallbackListRoute = createRoute({
   method: "get",
   path: "/akash/deployment/v1beta3/deployments/list",

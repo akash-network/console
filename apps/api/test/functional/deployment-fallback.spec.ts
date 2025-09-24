@@ -1,25 +1,18 @@
 import Long from "long";
 
-import { closeConnections } from "@src/core";
 import { app, initDb } from "@src/rest-app";
+import type { RestAkashDeploymentListResponse } from "@src/types/rest/akashDeploymentListResponse";
 
-import { createAkashBlock, createDay, createDeployment, createDeploymentGroup, createDeploymentGroupResource, createTransaction } from "@test/seeders";
+import { createDeployment, createDeploymentGroup, createDeploymentGroupResource } from "@test/seeders";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 describe("Deployment Fallback API", () => {
-  const now = new Date();
-  const date = now.toISOString().split("T")[0];
-
-  afterAll(async () => {
-    await closeConnections();
-  });
-
   describe("GET /akash/deployment/v1beta3/deployments/list", () => {
     it("should return correct response structure with seeded data", async () => {
-      const { addresses } = await setup();
+      const { addresses } = await setup({ createTestData: true });
 
       const result = await makeRequest({
-        owner: addresses![0],
+        owner: addresses[0],
         state: "active"
       });
 
@@ -156,6 +149,8 @@ describe("Deployment Fallback API", () => {
     });
 
     it("should handle empty results gracefully", async () => {
+      await setup();
+
       const result = await makeRequest({
         owner: "akash1nonexistent123456789",
         state: "active"
@@ -164,70 +159,61 @@ describe("Deployment Fallback API", () => {
       expect(result).toHaveProperty("deployments");
       expect(result).toHaveProperty("pagination");
       expect(Array.isArray(result.deployments)).toBe(true);
+      expect(result.deployments.length).toBe(0);
       expect(result.pagination).toHaveProperty("next_key");
       expect(result.pagination).toHaveProperty("total");
+      expect(result.pagination.total).toBe("0");
     });
   });
 
-  const testData: {
-    day?: any;
-    addresses?: string[];
-    deployments?: any[];
-    deploymentGroups?: any[];
-    deploymentGroupResources?: any[];
-    blocks?: any[];
-    transactions?: any[];
-  } = {};
-  let isDbInitialized = false;
+  async function setup(
+    options: {
+      initDatabase?: boolean;
+      createTestData?: boolean;
+      uniqueId?: string;
+    } = {}
+  ) {
+    const { initDatabase = true, createTestData = false, uniqueId = Date.now().toString() } = options;
 
-  async function setup() {
-    if (isDbInitialized) {
-      return testData;
+    if (initDatabase) {
+      await initDb();
     }
 
-    await initDb();
+    if (!createTestData) {
+      return { addresses: [createAkashAddress(), createAkashAddress()] };
+    }
 
-    testData.day = await createDay({
-      date,
-      aktPrice: 1,
-      firstBlockHeight: 1,
-      lastBlockHeight: 100,
-      lastBlockHeightYet: 100
-    });
+    const testData: {
+      addresses: string[];
+      deployments?: any[];
+      deploymentGroups?: any[];
+      deploymentGroupResources?: any[];
+    } = {
+      addresses: [createAkashAddress(), createAkashAddress()]
+    };
 
-    testData.addresses = [createAkashAddress(), createAkashAddress()];
-
-    testData.blocks = await Promise.all([
-      createAkashBlock({
-        dayId: testData.day.id,
-        datetime: now,
-        height: 100
-      }),
-      createAkashBlock({
-        dayId: testData.day.id,
-        datetime: now,
-        height: 101
-      })
-    ]);
+    // Generate random height numbers
+    const height1 = 100000 + parseInt(uniqueId.slice(-6));
+    const height2 = 100001 + parseInt(uniqueId.slice(-6));
 
     testData.deployments = await Promise.all([
       createDeployment({
         owner: testData.addresses[0],
-        createdHeight: testData.blocks[0].height,
-        dseq: Long.fromNumber(1).toString(),
+        createdHeight: height1,
+        dseq: Long.fromNumber(1 + parseInt(uniqueId.slice(-3))).toString(),
         denom: "uakt",
         balance: 1000000,
         withdrawnAmount: 500000,
-        lastWithdrawHeight: testData.blocks[0].height
+        lastWithdrawHeight: height1
       }),
       createDeployment({
         owner: testData.addresses[1],
-        createdHeight: testData.blocks[1].height,
-        dseq: Long.fromNumber(2).toString(),
+        createdHeight: height2,
+        dseq: Long.fromNumber(2 + parseInt(uniqueId.slice(-3))).toString(),
         denom: "uakt",
         balance: 2000000,
         withdrawnAmount: 1000000,
-        lastWithdrawHeight: testData.blocks[1].height
+        lastWithdrawHeight: height2
       })
     ]);
 
@@ -273,17 +259,6 @@ describe("Deployment Fallback API", () => {
       })
     ]);
 
-    testData.transactions = await Promise.all([
-      createTransaction({
-        height: testData.blocks[0].height
-      }),
-      createTransaction({
-        height: testData.blocks[1].height
-      })
-    ]);
-
-    isDbInitialized = true;
-
     return testData;
   }
 
@@ -295,7 +270,7 @@ describe("Deployment Fallback API", () => {
     key?: string;
     countTotal?: boolean;
     reverse?: boolean;
-  }) {
+  }): Promise<RestAkashDeploymentListResponse> {
     const queryParams = new URLSearchParams();
 
     if (input.owner) queryParams.append("filters.owner", input.owner);
@@ -311,6 +286,6 @@ describe("Deployment Fallback API", () => {
 
     const response = await app.request(url);
     expect(response.status).toBe(200);
-    return await response.json();
+    return (await response.json()) as RestAkashDeploymentListResponse;
   }
 });

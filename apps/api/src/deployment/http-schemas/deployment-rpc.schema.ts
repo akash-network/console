@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// Fallback API schemas for database deployment list
 export const FallbackDeploymentListQuerySchema = z.object({
   "filters.owner": z.string().optional(),
   "filters.state": z.enum(["active", "closed"]).optional(),

@@ -15,7 +15,7 @@ export interface DatabaseDeploymentListParams {
 }
 
 // For the values that are not stored in the database
-export const FALLBACK_VALUE = "FALLBACK";
+export const FALLBACK_VALUE = "unknown_value";
 
 @singleton()
 export class DatabaseDeploymentReaderService {
@@ -54,9 +54,6 @@ export class DatabaseDeploymentReaderService {
       order: [["createdHeight", reverse ? "DESC" : "ASC"]]
     };
 
-    // Only count total if countTotal is true or if offset is used (matching HTTP service behavior)
-    const shouldCountTotal = countTotal || offset !== undefined;
-
     const { count: total, rows: deployments } = await Deployment.findAndCountAll(queryOptions);
 
     const transformedDeployments = await Promise.all(
@@ -85,13 +82,13 @@ export class DatabaseDeploymentReaderService {
                       id: i + 1,
                       cpu: {
                         units: {
-                          val: (resource.cpuUnits || 0).toString()
+                          val: (resource.cpuUnits ?? 0).toString()
                         },
                         attributes: []
                       },
                       memory: {
                         quantity: {
-                          val: (resource.memoryQuantity || 0).toString()
+                          val: (resource.memoryQuantity ?? 0).toString()
                         },
                         attributes: []
                       },
@@ -99,14 +96,14 @@ export class DatabaseDeploymentReaderService {
                         {
                           name: "default",
                           quantity: {
-                            val: (resource.ephemeralStorageQuantity + resource.persistentStorageQuantity || 0).toString()
+                            val: ((resource.ephemeralStorageQuantity ?? 0) + (resource.persistentStorageQuantity ?? 0)).toString()
                           },
                           attributes: []
                         }
                       ],
                       gpu: {
                         units: {
-                          val: (resource.gpuUnits || 0).toString()
+                          val: (resource.gpuUnits ?? 0).toString()
                         },
                         attributes: []
                       },
@@ -120,12 +117,12 @@ export class DatabaseDeploymentReaderService {
                     count: resource.count || 1,
                     price: {
                       denom: deployment.denom || "uakt",
-                      amount: (resource.price || 0).toFixed(18)
+                      amount: (resource.price ?? 0).toFixed(18)
                     }
                   };
                 }) || []
             },
-            created_at: (deployment.createdHeight || 0).toString()
+            created_at: (deployment.createdHeight ?? 0).toString()
           })) || [];
 
         return {
@@ -136,7 +133,7 @@ export class DatabaseDeploymentReaderService {
             },
             state: deployment.closedHeight ? "closed" : "active",
             version: FALLBACK_VALUE,
-            created_at: (deployment.createdHeight || 0).toString()
+            created_at: (deployment.createdHeight ?? 0).toString()
           },
           groups,
           escrow_account: {
@@ -148,13 +145,13 @@ export class DatabaseDeploymentReaderService {
             state: deployment.closedHeight ? "closed" : "open",
             balance: {
               denom: deployment.denom || "uakt",
-              amount: (deployment.balance || 0).toFixed(18)
+              amount: (deployment.balance ?? 0).toFixed(18)
             },
             transferred: {
               denom: deployment.denom || "uakt",
-              amount: (deployment.withdrawnAmount || 0).toFixed(18)
+              amount: (deployment.withdrawnAmount ?? 0).toFixed(18)
             },
-            settled_at: (deployment.lastWithdrawHeight || deployment.createdHeight || 0).toString(),
+            settled_at: (deployment.lastWithdrawHeight ?? deployment.createdHeight ?? 0).toString(),
             depositor: deployment.owner || "",
             funds: {
               denom: deployment.denom || "uakt",
@@ -173,7 +170,7 @@ export class DatabaseDeploymentReaderService {
       deployments: transformedDeployments,
       pagination: {
         next_key: nextKey,
-        total: shouldCountTotal ? total.toString() : "0"
+        total: countTotal ? total.toString() : "0"
       }
     };
   }
