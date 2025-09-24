@@ -1,5 +1,18 @@
 
 
+## [2.121.0](https://github.com/akash-network/console/compare/console-api/v2.120.1...console-api/v2.121.0) (2025-09-24)
+
+
+### Features
+
+* **bid:** marks managed bids list with certs requirement ([75fed6f](https://github.com/akash-network/console/commit/75fed6f9d6575e3ff1676cb2250b912f7b8cc2a6)), closes [#1913](https://github.com/akash-network/console/issues/1913)
+* **deployment:** add fallback deployment list endpoint ([#1958](https://github.com/akash-network/console/issues/1958)) ([b64886e](https://github.com/akash-network/console/commit/b64886e7846818d58156bb0bca25ebd1bf27d85e))
+
+
+### Bug Fixes
+
+* can verify anyone's email ([#1961](https://github.com/akash-network/console/issues/1961)) ([e48335d](https://github.com/akash-network/console/commit/e48335dbf46053111e6eb5d265ffddf45f6dff33)), closes [#1863](https://github.com/akash-network/console/issues/1863)
+
 ## [2.120.1](https://github.com/akash-network/console/compare/console-api/v2.120.0...console-api/v2.120.1) (2025-09-23)
 
 

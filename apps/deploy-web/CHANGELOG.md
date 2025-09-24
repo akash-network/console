@@ -1,5 +1,12 @@
 
 
+## [2.110.0](https://github.com/akash-network/console/compare/console-web/v2.109.0...console-web/v2.110.0) (2025-09-24)
+
+
+### Features
+
+* **bid:** marks managed bids list with certs requirement ([75fed6f](https://github.com/akash-network/console/commit/75fed6f9d6575e3ff1676cb2250b912f7b8cc2a6)), closes [#1913](https://github.com/akash-network/console/issues/1913)
+
 ## [2.109.0](https://github.com/akash-network/console/compare/console-web/v2.108.0...console-web/v2.109.0) (2025-09-23)
 
 
