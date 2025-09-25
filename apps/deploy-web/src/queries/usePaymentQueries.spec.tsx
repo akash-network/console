@@ -1,18 +1,11 @@
 import type { StripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
 import { mock } from "jest-mock-extended";
 
-import {
-  usePaymentDiscountsQuery,
-  usePaymentMethodsQuery,
-  usePaymentMutations,
-  usePaymentTransactionsQuery,
-  useSetupIntentMutation
-} from "./usePaymentQueries";
+import { usePaymentMethodsQuery, usePaymentMutations, usePaymentTransactionsQuery, useSetupIntentMutation } from "./usePaymentQueries";
 
 import { act, waitFor } from "@testing-library/react";
 import {
   createMockCouponResponse,
-  createMockDiscount,
   createMockItems,
   createMockPaymentMethod,
   createMockPaymentResponse,
@@ -35,35 +28,6 @@ describe("usePaymentQueries", () => {
       expect(stripeService.getPaymentMethods).toHaveBeenCalled();
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual(mockMethods);
-    });
-  });
-
-  it("fetches payment discounts", async () => {
-    const mockDiscounts = {
-      discounts: createMockItems(createMockDiscount, 2)
-    };
-    const stripeService = mock<StripeService>({
-      getCustomerDiscounts: jest.fn().mockResolvedValue(mockDiscounts)
-    });
-    const { result } = setupQuery(() => usePaymentDiscountsQuery(), {
-      services: { stripe: () => stripeService }
-    });
-    await waitFor(() => {
-      expect(stripeService.getCustomerDiscounts).toHaveBeenCalled();
-      expect(result.current.isSuccess).toBe(true);
-      expect(result.current.data).toEqual(mockDiscounts.discounts);
-    });
-  });
-
-  it("fallbacks to an empty array if 'discounts' field is not present", async () => {
-    const stripeService = mock<StripeService>({
-      getCustomerDiscounts: jest.fn().mockResolvedValue({})
-    });
-    const { result } = setupQuery(() => usePaymentDiscountsQuery(), {
-      services: { stripe: () => stripeService }
-    });
-    await waitFor(() => {
-      expect(result.current.data).toEqual([]);
     });
   });
 
