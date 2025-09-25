@@ -21,7 +21,7 @@ export interface Props {
   data: Alert[];
   pagination: Pick<AlertsPagination, "page" | "limit" | "total" | "totalPages">;
   onPaginationChange: (params: { page: number; limit: number }) => void;
-  onToggle: (id: string, enabled: boolean) => void;
+  onToggle: (id: string, enabled: boolean, dseq?: string) => void;
   loadingIds: Set<string>;
   isLoading?: boolean;
   isError?: boolean;
@@ -52,7 +52,7 @@ export const AlertsListView: FC<Props> = ({
               checked={info.getValue()}
               disabled={isToggling}
               onCheckedChange={checked => {
-                onToggle(info.row.original.id, !!checked);
+                onToggle(info.row.original.id, !!checked, info.row.original.params?.dseq);
               }}
               aria-label={"Toggle alert"}
             />
