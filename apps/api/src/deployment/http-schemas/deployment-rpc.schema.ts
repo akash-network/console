@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// Shared schemas
 const AttributeSchema = z.object({
   key: z.string(),
   value: z.string()
@@ -133,7 +132,6 @@ const PaginationSchema = z.object({
   total: z.string()
 });
 
-// Deployment List schemas
 export const FallbackDeploymentListQuerySchema = z.object({
   "filters.owner": z.string().optional(),
   "filters.state": z.enum(["active", "closed"]).optional(),
@@ -149,7 +147,6 @@ export const FallbackDeploymentListResponseSchema = z.object({
   pagination: PaginationSchema
 });
 
-// Deployment Info schemas
 export const FallbackDeploymentInfoQuerySchema = z.object({
   "id.owner": z.string(),
   "id.dseq": z.string()
