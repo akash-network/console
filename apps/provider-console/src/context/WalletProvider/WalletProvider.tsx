@@ -11,7 +11,7 @@ import type { SnackbarKey } from "notistack";
 import { useSnackbar } from "notistack";
 
 import { TransactionModal } from "@src/components/layout/TransactionModal";
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import { getCurrentNetworkConfig } from "@src/config/network.config";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { getSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import authClient from "@src/utils/authClient";
@@ -69,12 +69,15 @@ export const WalletProvider = ({ children }) => {
   const { addEndpoints } = useManager();
 
   useEffect(() => {
-    if (!browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL || !browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL) return;
+    const currentNetworkConfig = getCurrentNetworkConfig();
+
+    if (!currentNetworkConfig.nodesUrl || !currentNetworkConfig.rpcEndpoint) return;
 
     addEndpoints({
-      akash: { rest: [browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL], rpc: [browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL] },
-      "akash-sandbox": { rest: [browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL], rpc: [browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL] },
-      "akash-testnet": { rest: [browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL], rpc: [browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL] }
+      [currentNetworkConfig.chainRegistryName]: {
+        rest: [currentNetworkConfig.nodesUrl],
+        rpc: [currentNetworkConfig.rpcEndpoint]
+      }
     });
   }, [addEndpoints]);
 
@@ -82,14 +85,14 @@ export const WalletProvider = ({ children }) => {
     const selectedNetwork = getSelectedNetwork();
 
     const offlineSigner: any = getOfflineSigner();
-    let rpc = browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL ? browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL : (selectedNetwork.rpcEndpoint as string);
+    const rpc = selectedNetwork.rpcEndpoint as string;
 
     try {
       await axios.get(`${rpc}/abci_info`);
     } catch (error) {
-      if (error.code === "ERR_NETWORK" || error?.response?.status === 0) {
-        rpc = selectedNetwork.rpcEndpoint as string;
-      }
+      console.warn(`Failed to connect to RPC endpoint: ${rpc}`, error);
+      // If the selected network's RPC fails, we could add fallback logic here if needed
+      throw new Error(`Unable to connect to ${selectedNetwork.title} RPC endpoint: ${rpc}`);
     }
 
     const client = await SigningStargateClient.connectWithSigner(rpc, offlineSigner);

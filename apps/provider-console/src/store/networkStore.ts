@@ -1,24 +1,33 @@
 import axios from "axios";
 import { atom } from "jotai";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
+import type { NetworkConfig } from "@src/config/network.config";
+import { getCurrentNetworkConfig } from "@src/config/network.config";
 import type { Network } from "@src/types/network";
-import { mainnetId } from "@src/utils/constants";
 
-export let networks: Network[] = [
-  {
-    id: mainnetId,
-    title: "Mainnet",
-    description: "Akash Network mainnet network.",
-    chainId: "akashnet-2",
-    chainRegistryName: "akash",
-    enabled: true,
-    version: null,
-    rpcEndpoint: browserEnvConfig.NEXT_PUBLIC_MAINNET_RPC_URL,
-    nodesUrl: browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL,
-    versionUrl: browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL
-  }
-];
+/**
+ * Converts NetworkConfig to Network by properly mapping the fields
+ * This ensures type safety and handles the structural differences between the types
+ */
+function buildNetworkFromConfig(config: NetworkConfig): Network {
+  return {
+    id: config.id,
+    title: config.title,
+    description: config.description,
+    nodesUrl: config.nodesUrl,
+    chainId: config.chainId,
+    chainRegistryName: config.chainRegistryName,
+    versionUrl: config.versionUrl,
+    rpcEndpoint: config.rpcEndpoint, // NetworkConfig has required rpcEndpoint, Network has optional
+    version: config.version,
+    enabled: config.enabled
+  };
+}
+
+// Get the current network configuration from environment
+const currentNetworkConfig = getCurrentNetworkConfig();
+
+export let networks: Network[] = [buildNetworkFromConfig(currentNetworkConfig)];
 
 /**
  * Get the actual versions and metadata of the available networks
@@ -44,6 +53,8 @@ export const initiateNetworkData = async () => {
 
 const selectedNetwork = atom<Network>(networks[0]);
 
-export default {
+const networkStore = {
   selectedNetwork
 };
+
+export default networkStore;
