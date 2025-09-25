@@ -3,7 +3,7 @@ import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
 import type { SupportedChainNetworks } from "@akashnetwork/net";
 import { netConfig } from "@akashnetwork/net";
 
-import { CertificateValidator, createCertificateValidatorInstrumentation } from "./services/CertificateValidator";
+import { CertificateValidator, createCertificateValidatorInstrumentation } from "./services/CertificateValidator/CertificateValidator";
 import { ProviderProxy } from "./services/ProviderProxy";
 import { ProviderService } from "./services/ProviderService/ProviderService";
 import { WebsocketStats } from "./services/WebsocketStats";
