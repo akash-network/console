@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import type { DepositParams, RpcDepositParams } from "@src/types/deployment";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
 
 async function getDepositParams() {
-  const depositParamsQuery = await axios.get(ApiUrlService.depositParams());
+  const depositParamsQuery = await axios.get(ApiUrlService.depositParams(browserEnvConfig.NEXT_PUBLIC_API_ENDPOINT));
   const depositParams = depositParamsQuery.data as RpcDepositParams;
   const params = JSON.parse(depositParams.param.value) as DepositParams[];
 
