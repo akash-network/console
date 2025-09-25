@@ -3,8 +3,8 @@ import type { SupportedChainNetworks } from "@akashnetwork/net";
 import type { X509Certificate } from "crypto";
 import { LRUCache } from "lru-cache";
 
-import { validateCertificateAttrs } from "../utils/validateCertificateAttrs";
-import type { ProviderService } from "./ProviderService/ProviderService";
+import { validateCertificateAttrs } from "../../utils/validateCertificateAttrs";
+import type { ProviderService } from "../ProviderService/ProviderService";
 
 export class CertificateValidator {
   private readonly knownCertificatesCache = new LRUCache<string, X509Certificate>({

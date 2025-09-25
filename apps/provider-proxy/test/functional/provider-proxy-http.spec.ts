@@ -1,5 +1,8 @@
+import { createSignArbitraryAkashWallet, JwtToken } from "@akashnetwork/jwt";
 import type { SupportedChainNetworks } from "@akashnetwork/net";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { setTimeout as wait } from "timers/promises";
+import type { TLSSocket } from "tls";
 
 import { createX509CertPair } from "../seeders/createX509CertPair";
 import { generateBech32, startChainApiServer, stopChainAPIServer } from "../setup/chainApiServer";
@@ -207,7 +210,7 @@ describe("Provider HTTP proxy", () => {
           issues: expect.arrayContaining([
             expect.objectContaining({
               code: "custom",
-              path: ["certPem"],
+              path: ["auth", "certPem"],
               params: {
                 reason: "invalid"
               }
@@ -487,7 +490,7 @@ describe("Provider HTTP proxy", () => {
           issues: expect.arrayContaining([
             expect.objectContaining({
               code: "custom",
-              path: ["certPem"],
+              path: ["auth", "certPem"],
               params: {
                 reason: "expired"
               }
@@ -588,5 +591,152 @@ describe("Provider HTTP proxy", () => {
     expect(new TextDecoder().decode(chunk?.value)).toBe("Hello");
 
     requestController.abort();
+  });
+
+  it("supports mtls authentication", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const clientCertPair = createX509CertPair({ commonName: generateBech32() });
+
+    await startChainApiServer([validCertPair.cert]);
+    const { providerUrl } = await startProviderServer({
+      certPair: validCertPair,
+      requireClientCertificate: true,
+      handlers: {
+        "/auth"(req, res) {
+          const clientCert = (req.socket as TLSSocket).getPeerCertificate();
+          res.writeHead(200, "OK", { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ authenticated: !!clientCert }));
+        }
+      }
+    });
+
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({
+        method: "GET",
+        url: `${providerUrl}/auth`,
+        providerAddress,
+        network,
+        auth: {
+          type: "mtls",
+          certPem: clientCertPair.cert.toString(),
+          keyPem: clientCertPair.key
+        }
+      })
+    });
+
+    const body = await response.json();
+    expect(body).toEqual({ authenticated: true });
+
+    const invalidResponse = await request("/", {
+      method: "POST",
+      body: JSON.stringify({
+        method: "GET",
+        url: `${providerUrl}/auth`,
+        providerAddress,
+        network,
+        auth: {
+          type: "mtls",
+          certPem: "asdasdasd",
+          keyPem: "asdasd"
+        }
+      })
+    });
+
+    expect(invalidResponse.status).toBe(400);
+    const invalidBody = await invalidResponse.json();
+    expect(invalidBody).toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          issues: expect.arrayContaining([
+            expect.objectContaining({
+              code: "custom",
+              path: ["auth", "certPem"],
+              params: {
+                reason: "invalid"
+              }
+            })
+          ])
+        })
+      })
+    );
+  });
+
+  it("supports jwt authentication", async () => {
+    const providerAddress = generateBech32();
+    const validCertPair = createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+
+    await startChainApiServer([validCertPair.cert]);
+    const { providerUrl } = await startProviderServer({
+      certPair: validCertPair,
+      requireClientCertificate: true,
+      handlers: {
+        "/auth"(req, res) {
+          res.writeHead(200, "OK", { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ token: req.headers.authorization }));
+        }
+      }
+    });
+
+    const testMnemonic =
+      "body letter input area umbrella develop shuffle gentle regular gold twice truly giant dawn nerve ocean wine wonder toe melt grid leader blush few";
+    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(testMnemonic, { prefix: "akash" });
+    const tokenManager = new JwtToken(await createSignArbitraryAkashWallet(wallet));
+    const token = await tokenManager.createToken({
+      iss: (await wallet.getAccounts())[0].address,
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+      version: "v1",
+      leases: { access: "full" }
+    });
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({
+        method: "GET",
+        url: `${providerUrl}/auth`,
+        providerAddress,
+        network,
+        auth: {
+          type: "jwt",
+          token
+        }
+      })
+    });
+
+    const body = await response.json();
+    expect(body).toEqual({ token: `Bearer ${token}` });
+
+    const invalidResponse = await request("/", {
+      method: "POST",
+      body: JSON.stringify({
+        method: "GET",
+        url: `${providerUrl}/auth`,
+        providerAddress,
+        network,
+        auth: {
+          type: "jwt",
+          token: "testst"
+        }
+      })
+    });
+
+    expect(invalidResponse.status).toBe(400);
+    const invalidBody = await invalidResponse.json();
+    expect(invalidBody).toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          issues: expect.arrayContaining([
+            expect.objectContaining({
+              code: "custom",
+              path: ["auth", "token"],
+              params: {
+                errors: ["Invalid token"]
+              }
+            })
+          ])
+        })
+      })
+    );
   });
 });

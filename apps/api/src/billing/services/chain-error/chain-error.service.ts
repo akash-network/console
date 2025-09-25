@@ -45,6 +45,10 @@ export class ChainErrorService {
     "Invalid Owner Address": {
       code: 400,
       message: "Invalid owner address"
+    },
+    "bid not open": {
+      code: 400,
+      message: "Cannot create lease: The selected bid is no longer open. Please refresh and select an available bid."
     }
   };
 
