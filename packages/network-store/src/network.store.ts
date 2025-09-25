@@ -1,10 +1,8 @@
-import axios from "axios";
 import { atom } from "jotai";
 import { getDefaultStore, useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import cloneDeep from "lodash/cloneDeep";
 
-import { INITIAL_NETWORKS_CONFIG } from "./network.config";
+import { getInitialNetworksConfig } from "./network.config";
 import type { Network } from "./network.type";
 
 interface NetworkStoreOptions {
@@ -19,21 +17,6 @@ interface NetworksStore {
   data: Network[];
 }
 
-const networkIds = INITIAL_NETWORKS_CONFIG.map(({ id }) => id);
-
-interface NetworkError {
-  network: Network;
-  error: unknown;
-}
-
-class NetworkStoreVersionsInitError extends Error {
-  errors: Error[];
-  constructor(errors: NetworkError[]) {
-    super(`Failed to fetch network versions: ${errors.map(({ network }) => network.id).join(", ")}`);
-    this.errors = errors.map(({ error }) => error as Error);
-  }
-}
-
 export class NetworkStore {
   static create(options: NetworkStoreOptions) {
     return new NetworkStore(options);
@@ -41,9 +24,12 @@ export class NetworkStore {
 
   private readonly STORAGE_KEY = "selectedNetworkId";
 
-  readonly networksStore = atom<NetworksStore>({ isLoading: true, error: undefined, data: cloneDeep(INITIAL_NETWORKS_CONFIG) });
+  private readonly allNetworks: Network[] = [];
+  readonly networksStore = atom<NetworksStore>({ isLoading: true, error: undefined, data: [] });
 
-  private readonly selectedNetworkIdStore = atomWithStorage<Network["id"]>(this.STORAGE_KEY, this.getInitialNetworkId());
+  private readonly selectedNetworkIdStore = atomWithStorage<Network["id"]>(this.STORAGE_KEY, this.options.defaultNetworkId, undefined, {
+    getOnInit: true
+  });
 
   private readonly selectedNetworkStore = atom<Network, [Network], void>(
     get => {
@@ -67,8 +53,8 @@ export class NetworkStore {
     return this.store.get(this.selectedNetworkStore);
   }
 
-  get selectedNetworkId() {
-    return this.store.get(this.selectedNetworkIdStore);
+  get selectedNetworkId(): Network["id"] {
+    return this.store.get(this.selectedNetworkIdStore) as Network["id"];
   }
 
   get apiVersion() {
@@ -81,79 +67,22 @@ export class NetworkStore {
 
   constructor(private readonly options: NetworkStoreOptions) {
     this.store = options.store || getDefaultStore();
-    this.initiateNetworkFromUrlQuery();
-    this.initiateNetworks();
-  }
-
-  private getInitialNetworkId() {
-    if (typeof window === "undefined") {
-      return this.options.defaultNetworkId;
-    }
-    const raw = localStorage.getItem(this.STORAGE_KEY);
-
-    if (networkIds.some(id => id === raw)) {
-      return raw;
-    }
-
-    if (!raw) {
-      return this.options.defaultNetworkId;
-    }
-
-    try {
-      const parsed = JSON.parse(raw);
-
-      return networkIds.includes(parsed) ? parsed : this.options.defaultNetworkId;
-    } catch (error) {
-      return this.options.defaultNetworkId;
+    this.allNetworks = getInitialNetworksConfig({
+      apiBaseUrl: this.options.apiBaseUrl
+    });
+    this.store.set(this.networksStore, { data: this.allNetworks, isLoading: false, error: undefined });
+    if (typeof window !== "undefined") {
+      this.initiateNetworkFromUrl(new URL(window.location.href));
     }
   }
 
-  private async initiateNetworks() {
-    if (typeof window === "undefined" || (typeof process !== "undefined" && process.env.NODE_ENV === "test")) {
-      return;
-    }
-
-    const errors: NetworkError[] = [];
-    const networks = await Promise.all(
-      cloneDeep(INITIAL_NETWORKS_CONFIG).map(async network => {
-        try {
-          network.versionUrl = this.options.apiBaseUrl + network.versionUrl;
-          network.nodesUrl = this.options.apiBaseUrl + network.nodesUrl;
-
-          const response = await axios.get<string>(network.versionUrl, { timeout: 10000, adapter: "fetch" });
-          network.version = response.data;
-
-          return network;
-        } catch (error) {
-          errors.push({ network, error });
-
-          return network;
-        }
-      })
-    );
-
-    if (errors.length > 0) {
-      this.store.set(this.networksStore, { data: this.networks, isLoading: false, error: new NetworkStoreVersionsInitError(errors) });
-    } else {
-      this.store.set(this.networksStore, { data: networks, isLoading: false, error: undefined });
-    }
-  }
-
-  private initiateNetworkFromUrlQuery(): void {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const url = new URL(window.location.href);
-
-    if (!url.searchParams.has("network")) {
-      return;
-    }
+  initiateNetworkFromUrl(url: URL): void {
+    if (!url.searchParams.has("network")) return;
 
     const raw = url.searchParams.get("network");
 
-    if (INITIAL_NETWORKS_CONFIG.some(({ id }) => id === raw)) {
-      window.localStorage.setItem(this.STORAGE_KEY, JSON.stringify(raw));
+    if (this.allNetworks.map(({ id }) => id).includes(raw as Network["id"])) {
+      this.store.set(this.selectedNetworkIdStore, raw as Network["id"]);
     }
   }
 
