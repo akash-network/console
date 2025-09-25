@@ -44,7 +44,7 @@ const nextConfig = {
   },
   output: "standalone",
   typescript: {
-    tsconfigPath: "./tsconfig.json"
+    tsconfigPath: "./tsconfig.build.json"
   },
   eslint: {
     ignoreDuringBuilds: true
