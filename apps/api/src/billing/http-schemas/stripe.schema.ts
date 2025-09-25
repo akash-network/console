@@ -110,24 +110,6 @@ export const ApplyCouponResponseSchema = z.object({
   })
 });
 
-export const DiscountSchema = z.object({
-  type: z.enum(["coupon", "promotion_code"]),
-  id: z.string(),
-  coupon_id: z.string().optional(),
-  name: z.string().nullable().optional(),
-  code: z.string().optional(),
-  percent_off: z.number().nullable().optional(),
-  amount_off: z.number().nullable().optional(),
-  currency: z.string().nullable().optional(),
-  valid: z.boolean()
-});
-
-export const CustomerDiscountsResponseSchema = z.object({
-  data: z.object({
-    discounts: z.array(DiscountSchema)
-  })
-});
-
 export const TransactionSchema = z.object({
   id: z.string(),
   amount: z.number(),
@@ -239,8 +221,6 @@ export type ConfirmPaymentResponse = z.infer<typeof ConfirmPaymentResponseSchema
 export type ApplyCouponRequest = z.infer<typeof ApplyCouponRequestSchema>;
 export type Coupon = z.infer<typeof CouponSchema>;
 export type ApplyCouponResponse = z.infer<typeof ApplyCouponResponseSchema>;
-export type Discount = z.infer<typeof DiscountSchema>;
-export type CustomerDiscountsResponse = z.infer<typeof CustomerDiscountsResponseSchema>;
 export type Transaction = z.infer<typeof TransactionSchema>;
 export type CustomerTransactionsResponse = z.infer<typeof CustomerTransactionsResponseSchema>;
 export type CustomerTransactionsQuery = z.infer<typeof CustomerTransactionsQuerySchema>;

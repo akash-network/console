@@ -103,42 +103,8 @@ export class StripeWebhookService {
       return;
     }
 
-    // Get discount information from metadata
-    const metadata = paymentIntent.metadata;
-    const originalAmount =
-      metadata?.original_amount && !Number.isNaN(parseFloat(metadata.original_amount)) ? parseFloat(metadata.original_amount) : paymentIntent.amount;
-    const discountApplied = metadata?.discount_applied === "true";
-
-    // If a discount was applied, consume the promotion code
-    if (discountApplied) {
-      try {
-        const consumed = await this.stripe.consumeActiveDiscount(customerId);
-        if (consumed) {
-          this.logger.info({
-            event: "DISCOUNT_CONSUMED",
-            customerId,
-            originalAmount,
-            finalAmount: paymentIntent.amount
-          });
-        } else {
-          this.logger.error({
-            event: "FAILED_TO_CONSUME_DISCOUNT",
-            customerId,
-            originalAmount,
-            finalAmount: paymentIntent.amount
-          });
-        }
-      } catch (error) {
-        this.logger.error({
-          event: "FAILED_TO_CONSUME_DISCOUNT",
-          customerId,
-          error
-        });
-      }
-    }
-
-    // Use the original amount for the wallet top-up
-    await this.refillService.topUpWallet(originalAmount, user.id);
+    // Use the payment intent amount for the wallet top-up
+    await this.refillService.topUpWallet(paymentIntent.amount, user.id);
   }
 
   @WithTransaction()
