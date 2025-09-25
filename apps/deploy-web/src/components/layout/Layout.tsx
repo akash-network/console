@@ -16,7 +16,7 @@ import { useVariant } from "@src/hooks/useVariant";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
-import { CreditCardBanner, MaintenanceBanner } from "./TopBanner";
+import { CreditCardBanner, MaintenanceBanner, NetworkDownBanner } from "./TopBanner";
 import { TrackingScripts } from "./TrackingScripts";
 import { WelcomeToTrialModal } from "./WelcomeToTrialModal";
 
@@ -68,10 +68,10 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   });
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useState(!!maintenanceBannerFlag.enabled);
-  const { refreshNodeStatuses, isSettingsInit } = useSettings();
+  const { settings, refreshNodeStatuses, isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
   const hasCreditCardBanner = useHasCreditCardBanner(isMaintenanceBannerOpen);
-  const hasBanner = hasCreditCardBanner || isMaintenanceBannerOpen;
+  const hasBanner = hasCreditCardBanner || isMaintenanceBannerOpen || settings.isBlockchainDown;
 
   useEffect(() => {
     const refreshNodeIntervalId = setInterval(async () => {
@@ -100,6 +100,11 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
   return (
     <div className="flex h-full">
       {hasCreditCardBanner && <CreditCardBanner />}
+      {settings.isBlockchainDown && (
+        <>
+          <NetworkDownBanner />
+        </>
+      )}
       {isMaintenanceBannerOpen && <MaintenanceBanner onClose={() => setIsMaintenanceBannerOpen(false)} />}
 
       <div className="w-full flex-1" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT + (hasBanner ? 40 : 0)}px` }}>

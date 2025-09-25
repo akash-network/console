@@ -7,6 +7,7 @@ import { NextSeo } from "next-seo";
 
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { browserEnvConfig } from "@src/config/browser-env.config";
+import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useAllowance } from "@src/hooks/useAllowance";
 import { useExactDeploymentGrantsQuery } from "@src/queries/useExactDeploymentGrantsQuery";
@@ -46,6 +47,7 @@ const selectNonMasterAllowances = (data: PaginatedAllowanceType) => ({
 });
 
 export const Authorizations: React.FunctionComponent = () => {
+  const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged } = useWallet();
   const {
     fee: { all: allowancesGranted, isLoading: isLoadingAllowancesGranted, setDefault, default: defaultAllowance }
@@ -207,246 +209,260 @@ export const Authorizations: React.FunctionComponent = () => {
     <Layout isLoading={isLoading}>
       <NextSeo title="Settings Authorizations" />
 
-      <SettingsLayout
-        title="Deployment Authorizations"
-        page={SettingsTabs.AUTHORIZATIONS}
-        headerActions={
-          address && (
-            <div className="md:ml-4">
-              <Button onClick={onCreateNewGrant} color="secondary" variant="default" type="button" size="sm">
-                <Bank />
-                &nbsp;Authorize Spend
-              </Button>
-            </div>
-          )
-        }
-      >
-        {!address ? (
+      {settings.isBlockchainDown ? (
+        <SettingsLayout title="" page={SettingsTabs.AUTHORIZATIONS}>
           <>
-            <Fieldset label="" className="mb-4">
-              <ConnectWallet text="Connect your wallet to create a deployment authorization." />
-            </Fieldset>
+            <h3 className="mb-4 text-muted-foreground">The blockchain is down. Unable to create, list, or update authorizations.</h3>
           </>
-        ) : (
-          <>
-            <h3 className="mb-4 text-muted-foreground">
-              These authorizations allow you authorize other addresses to spend on deployments or deployment deposits using your funds. You can revoke these
-              authorizations at any time.
-            </h3>
-            <Fieldset label="Authorizations Given" className="mb-4">
-              <div className="mb-4 flex items-center gap-2">
-                <Input
-                  type="text"
-                  placeholder="Search by grantee address..."
-                  value={searchGrantee}
-                  onChange={onSearchGranteeChange}
-                  className="max-w-md flex-grow"
-                  error={!!searchError}
-                  endIcon={
-                    <Button
-                      variant="text"
-                      size="icon"
-                      onClick={() => {
-                        setSearchGrantee("");
-                        setSearchError(null);
-                      }}
-                    >
-                      <Xmark />
+        </SettingsLayout>
+      ) : (
+        <>
+          <SettingsLayout
+            title="Deployment Authorizations"
+            page={SettingsTabs.AUTHORIZATIONS}
+            headerActions={
+              address && (
+                <div className="md:ml-4">
+                  <Button onClick={onCreateNewGrant} color="secondary" variant="default" type="button" size="sm">
+                    <Bank />
+                    &nbsp;Authorize Spend
+                  </Button>
+                </div>
+              )
+            }
+          >
+            {!address ? (
+              <>
+                <Fieldset label="" className="mb-4">
+                  <ConnectWallet text="Connect your wallet to create a deployment authorization." />
+                </Fieldset>
+              </>
+            ) : (
+              <>
+                <h3 className="mb-4 text-muted-foreground">
+                  These authorizations allow you authorize other addresses to spend on deployments or deployment deposits using your funds. You can revoke these
+                  authorizations at any time.
+                </h3>
+                <Fieldset label="Authorizations Given" className="mb-4">
+                  <div className="mb-4 flex items-center gap-2">
+                    <Input
+                      type="text"
+                      placeholder="Search by grantee address..."
+                      value={searchGrantee}
+                      onChange={onSearchGranteeChange}
+                      className="max-w-md flex-grow"
+                      error={!!searchError}
+                      endIcon={
+                        <Button
+                          variant="text"
+                          size="icon"
+                          onClick={() => {
+                            setSearchGrantee("");
+                            setSearchError(null);
+                          }}
+                        >
+                          <Xmark />
+                        </Button>
+                      }
+                    />
+                    <Button variant="ghost" size="icon" className="rounded-full" onClick={onRefreshSearchClick}>
+                      <Refresh className="text-xs" />
                     </Button>
-                  }
-                />
-                <Button variant="ghost" size="icon" className="rounded-full" onClick={onRefreshSearchClick}>
-                  <Refresh className="text-xs" />
+                  </div>
+                  {isLoadingGranterGrants || !filteredGranterGrants ? (
+                    <div className="flex items-center justify-center">
+                      <Spinner size="large" />
+                    </div>
+                  ) : (
+                    <>
+                      {filteredGranterGrants?.grants?.length > 0 ? (
+                        <DeploymentGrantTable
+                          grants={filteredGranterGrants.grants}
+                          totalCount={filteredGranterGrants?.pagination?.total || 0}
+                          selectedGrants={selectedGrants}
+                          onEditGrant={onEditGrant}
+                          onPageChange={onDeploymentPageChange}
+                          setDeletingGrants={setDeletingGrants}
+                          setSelectedGrants={setSelectedGrants}
+                          pageIndex={pageIndex.deployment}
+                          pageSize={pageSize.deployment}
+                        />
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          {searchGrantee
+                            ? searchError
+                              ? "Please enter a valid Akash address"
+                              : "No matching authorizations found."
+                            : "No authorizations given."}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </Fieldset>
+
+                <Fieldset label="Authorizations Received" className="mb-4">
+                  {isLoadingGranteeGrants || !granteeGrants ? (
+                    <div className="flex items-center justify-center">
+                      <Spinner size="large" />
+                    </div>
+                  ) : (
+                    <>
+                      {granteeGrants.length > 0 ? (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Granter</TableHead>
+                              <TableHead className="text-right">Spending Limit</TableHead>
+                              <TableHead className="text-right">Expiration</TableHead>
+                            </TableRow>
+                          </TableHeader>
+
+                          <TableBody>
+                            {granteeGrants.map(grant => (
+                              <GranteeRow key={grant.granter} grant={grant} />
+                            ))}
+                          </TableBody>
+                        </Table>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No authorizations received.</p>
+                      )}
+                    </>
+                  )}
+                </Fieldset>
+              </>
+            )}
+
+            <div className="flex flex-wrap items-center py-4">
+              <Title>Tx Fee Authorizations</Title>
+              {address && (
+                <Button onClick={onCreateNewAllowance} color="secondary" variant="default" className="md:ml-4" type="button" size="sm">
+                  <Bank />
+                  &nbsp;Authorize Fee Spend
                 </Button>
-              </div>
-              {isLoadingGranterGrants || !filteredGranterGrants ? (
-                <div className="flex items-center justify-center">
-                  <Spinner size="large" />
-                </div>
-              ) : (
-                <>
-                  {filteredGranterGrants?.grants?.length > 0 ? (
-                    <DeploymentGrantTable
-                      grants={filteredGranterGrants.grants}
-                      totalCount={filteredGranterGrants?.pagination?.total || 0}
-                      selectedGrants={selectedGrants}
-                      onEditGrant={onEditGrant}
-                      onPageChange={onDeploymentPageChange}
-                      setDeletingGrants={setDeletingGrants}
-                      setSelectedGrants={setSelectedGrants}
-                      pageIndex={pageIndex.deployment}
-                      pageSize={pageSize.deployment}
-                    />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      {searchGrantee ? (searchError ? "Please enter a valid Akash address" : "No matching authorizations found.") : "No authorizations given."}
-                    </p>
-                  )}
-                </>
               )}
-            </Fieldset>
+            </div>
 
-            <Fieldset label="Authorizations Received" className="mb-4">
-              {isLoadingGranteeGrants || !granteeGrants ? (
-                <div className="flex items-center justify-center">
-                  <Spinner size="large" />
-                </div>
-              ) : (
-                <>
-                  {granteeGrants.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Granter</TableHead>
-                          <TableHead className="text-right">Spending Limit</TableHead>
-                          <TableHead className="text-right">Expiration</TableHead>
-                        </TableRow>
-                      </TableHeader>
+            {!address ? (
+              <>
+                <Fieldset label="" className="mb-4">
+                  <ConnectWallet text="Connect your wallet to create a tx fee authorization." />
+                </Fieldset>
+              </>
+            ) : (
+              <>
+                <h3 className="mb-4 text-muted-foreground">
+                  These authorizations allow you authorize other addresses to spend on transaction fees using your funds. You can revoke these authorizations at
+                  any time.
+                </h3>
 
-                      <TableBody>
-                        {granteeGrants.map(grant => (
-                          <GranteeRow key={grant.granter} grant={grant} />
-                        ))}
-                      </TableBody>
-                    </Table>
+                <Fieldset label="Authorizations Given" className="mb-4">
+                  {isLoadingAllowancesIssued || !allowancesIssued ? (
+                    <div className="flex items-center justify-center">
+                      <Spinner size="large" />
+                    </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No authorizations received.</p>
+                    <>
+                      {allowancesIssued.allowances.length > 0 ? (
+                        <FeeGrantTable
+                          allowances={allowancesIssued.allowances}
+                          selectedAllowances={selectedAllowances}
+                          onEditAllowance={onEditAllowance}
+                          setDeletingAllowances={setDeletingAllowances}
+                          setSelectedAllowances={setSelectedAllowances}
+                          pageIndex={pageIndex.fee}
+                          pageSize={pageSize.fee}
+                          onPageChange={onAllowancePageChange}
+                          totalCount={allowancesIssued.pagination?.total || 0}
+                        />
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No allowances issued.</p>
+                      )}
+                    </>
                   )}
-                </>
-              )}
-            </Fieldset>
-          </>
-        )}
+                </Fieldset>
 
-        <div className="flex flex-wrap items-center py-4">
-          <Title>Tx Fee Authorizations</Title>
-          {address && (
-            <Button onClick={onCreateNewAllowance} color="secondary" variant="default" className="md:ml-4" type="button" size="sm">
-              <Bank />
-              &nbsp;Authorize Fee Spend
-            </Button>
-          )}
-        </div>
-
-        {!address ? (
-          <>
-            <Fieldset label="" className="mb-4">
-              <ConnectWallet text="Connect your wallet to create a tx fee authorization." />
-            </Fieldset>
-          </>
-        ) : (
-          <>
-            <h3 className="mb-4 text-muted-foreground">
-              These authorizations allow you authorize other addresses to spend on transaction fees using your funds. You can revoke these authorizations at any
-              time.
-            </h3>
-
-            <Fieldset label="Authorizations Given" className="mb-4">
-              {isLoadingAllowancesIssued || !allowancesIssued ? (
-                <div className="flex items-center justify-center">
-                  <Spinner size="large" />
-                </div>
-              ) : (
-                <>
-                  {allowancesIssued.allowances.length > 0 ? (
-                    <FeeGrantTable
-                      allowances={allowancesIssued.allowances}
-                      selectedAllowances={selectedAllowances}
-                      onEditAllowance={onEditAllowance}
-                      setDeletingAllowances={setDeletingAllowances}
-                      setSelectedAllowances={setSelectedAllowances}
-                      pageIndex={pageIndex.fee}
-                      pageSize={pageSize.fee}
-                      onPageChange={onAllowancePageChange}
-                      totalCount={allowancesIssued.pagination?.total || 0}
-                    />
+                <Fieldset label="Authorizations Received" className="mb-4">
+                  {isLoadingAllowancesGranted || !allowancesGranted ? (
+                    <div className="flex items-center justify-center">
+                      <Spinner size="large" />
+                    </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No allowances issued.</p>
+                    <>
+                      {allowancesGranted.length > 0 ? (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Default</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Grantee</TableHead>
+                              <TableHead>Spending Limit</TableHead>
+                              <TableHead className="text-right">Expiration</TableHead>
+                            </TableRow>
+                          </TableHeader>
+
+                          <TableBody>
+                            {!!allowancesGranted && (
+                              <AllowanceGrantedRow
+                                key={address}
+                                allowance={{
+                                  granter: "",
+                                  grantee: "",
+                                  allowance: { "@type": "$CONNECTED_WALLET", expiration: "", spend_limit: [] }
+                                }}
+                                onSelect={() => setDefault(undefined)}
+                                selected={!defaultAllowance}
+                              />
+                            )}
+                            {allowancesGranted.map(allowance => (
+                              <AllowanceGrantedRow
+                                key={allowance.granter}
+                                allowance={allowance}
+                                onSelect={() => setDefault(allowance.granter)}
+                                selected={defaultAllowance === allowance.granter}
+                              />
+                            ))}
+                          </TableBody>
+                        </Table>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No allowances received.</p>
+                      )}
+                    </>
                   )}
-                </>
-              )}
-            </Fieldset>
+                </Fieldset>
+              </>
+            )}
 
-            <Fieldset label="Authorizations Received" className="mb-4">
-              {isLoadingAllowancesGranted || !allowancesGranted ? (
-                <div className="flex items-center justify-center">
-                  <Spinner size="large" />
-                </div>
-              ) : (
-                <>
-                  {allowancesGranted.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Default</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Grantee</TableHead>
-                          <TableHead>Spending Limit</TableHead>
-                          <TableHead className="text-right">Expiration</TableHead>
-                        </TableRow>
-                      </TableHeader>
-
-                      <TableBody>
-                        {!!allowancesGranted && (
-                          <AllowanceGrantedRow
-                            key={address}
-                            allowance={{
-                              granter: "",
-                              grantee: "",
-                              allowance: { "@type": "$CONNECTED_WALLET", expiration: "", spend_limit: [] }
-                            }}
-                            onSelect={() => setDefault(undefined)}
-                            selected={!defaultAllowance}
-                          />
-                        )}
-                        {allowancesGranted.map(allowance => (
-                          <AllowanceGrantedRow
-                            key={allowance.granter}
-                            allowance={allowance}
-                            onSelect={() => setDefault(allowance.granter)}
-                            selected={defaultAllowance === allowance.granter}
-                          />
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No allowances received.</p>
-                  )}
-                </>
-              )}
-            </Fieldset>
-          </>
-        )}
-
-        {!!deletingGrants && (
-          <Popup
-            open={true}
-            title="Confirm Delete?"
-            variant="confirm"
-            onClose={() => setDeletingGrants(null)}
-            onCancel={() => setDeletingGrants(null)}
-            onValidate={onDeleteGrantsConfirmed}
-            enableCloseOnBackdropClick
-          >
-            Deleting grants will revoke their ability to spend your funds on deployments.
-          </Popup>
-        )}
-        {!!deletingAllowances && (
-          <Popup
-            open={true}
-            title="Confirm Delete?"
-            variant="confirm"
-            onClose={() => setDeletingAllowances(null)}
-            onCancel={() => setDeletingAllowances(null)}
-            onValidate={onDeleteAllowanceConfirmed}
-            enableCloseOnBackdropClick
-          >
-            Deleting allowance to will revoke their ability to fees on your behalf.
-          </Popup>
-        )}
-        {showGrantModal && <GrantModal editingGrant={editingGrant} address={address} onClose={onGrantClose} />}
-        {showAllowanceModal && <AllowanceModal editingAllowance={editingAllowance} address={address} onClose={onAllowanceClose} />}
-      </SettingsLayout>
+            {!!deletingGrants && (
+              <Popup
+                open={true}
+                title="Confirm Delete?"
+                variant="confirm"
+                onClose={() => setDeletingGrants(null)}
+                onCancel={() => setDeletingGrants(null)}
+                onValidate={onDeleteGrantsConfirmed}
+                enableCloseOnBackdropClick
+              >
+                Deleting grants will revoke their ability to spend your funds on deployments.
+              </Popup>
+            )}
+            {!!deletingAllowances && (
+              <Popup
+                open={true}
+                title="Confirm Delete?"
+                variant="confirm"
+                onClose={() => setDeletingAllowances(null)}
+                onCancel={() => setDeletingAllowances(null)}
+                onValidate={onDeleteAllowanceConfirmed}
+                enableCloseOnBackdropClick
+              >
+                Deleting allowance to will revoke their ability to fees on your behalf.
+              </Popup>
+            )}
+            {showGrantModal && <GrantModal editingGrant={editingGrant} address={address} onClose={onGrantClose} />}
+            {showAllowanceModal && <AllowanceModal editingAllowance={editingAllowance} address={address} onClose={onAllowanceClose} />}
+          </SettingsLayout>
+        </>
+      )}
     </Layout>
   );
 };

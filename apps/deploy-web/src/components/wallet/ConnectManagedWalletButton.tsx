@@ -7,19 +7,28 @@ import { cn } from "@akashnetwork/ui/utils";
 import { Rocket } from "iconoir-react";
 import { useRouter } from "next/navigation";
 
+import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { UrlService } from "@src/utils/urlUtils";
 
+const DEPENDENCIES = {
+  useFlag,
+  useRouter,
+  useSettings
+};
+
 interface Props extends ButtonProps {
   children?: ReactNode;
   className?: string;
+  dependencies?: typeof DEPENDENCIES;
 }
 
-export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ className = "", ...rest }) => {
+export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ className = "", dependencies: d = DEPENDENCIES, ...rest }) => {
+  const { settings } = d.useSettings();
   const { connectManagedWallet, hasManagedWallet, isWalletLoading } = useWallet();
-  const allowAnonymousUserTrial = useFlag("anonymous_free_trial");
-  const router = useRouter();
+  const allowAnonymousUserTrial = d.useFlag("anonymous_free_trial");
+  const router = d.useRouter();
 
   const startTrial: React.MouseEventHandler = useCallback(() => {
     if (allowAnonymousUserTrial) {
@@ -35,7 +44,7 @@ export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ cla
       onClick={startTrial}
       className={cn("border-primary bg-primary/10 dark:bg-primary", className)}
       {...rest}
-      disabled={isWalletLoading}
+      disabled={settings.isBlockchainDown || isWalletLoading}
     >
       {isWalletLoading ? <Spinner size="small" className="mr-2" variant="dark" /> : <Rocket className="rotate-45 text-xs" />}
       <span className="m-2 whitespace-nowrap">{hasManagedWallet ? "Switch to USD Payments" : "Start Trial"}</span>

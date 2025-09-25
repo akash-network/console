@@ -25,6 +25,7 @@ export type Settings = {
   nodes: Array<BlockchainNode>;
   selectedNode: BlockchainNode | null | undefined;
   customNode: BlockchainNode | null | undefined;
+  isBlockchainDown: boolean;
 };
 
 type ContextType = {
@@ -44,7 +45,8 @@ const defaultSettings: Settings = {
   isCustomNode: false,
   nodes: [],
   selectedNode: null,
-  customNode: null
+  customNode: null,
+  isBlockchainDown: false
 };
 
 export const SettingsProvider: FCWithChildren = ({ children }) => {

@@ -224,7 +224,12 @@ export const DeploymentList: React.FunctionComponent = () => {
               {isSignedInWithTrial && !user && <p className="text-sm">If you are expecting to see some, you may need to sign-in or connect a wallet</p>}
 
               {isWalletConnected ? (
-                <Link href={UrlService.newDeployment()} className={cn(buttonVariants({ variant: "default", size: "lg" }), "mt-4")} onClick={onDeployClick}>
+                <Link
+                  href={UrlService.newDeployment()}
+                  className={cn(buttonVariants({ variant: "default", size: "lg" }), "mt-4")}
+                  onClick={onDeployClick}
+                  aria-disabled={settings.isBlockchainDown}
+                >
                   Deploy
                   <Rocket className="ml-4 rotate-45 text-sm" />
                 </Link>

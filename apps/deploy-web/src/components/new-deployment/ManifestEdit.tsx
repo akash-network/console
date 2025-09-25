@@ -351,7 +351,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
             <div className="flex-grow">
               <Button
                 variant="default"
-                disabled={trialDeploymentLimitReached || isCreatingDeployment || !!parsingError || !editedManifest}
+                disabled={settings.isBlockchainDown || trialDeploymentLimitReached || isCreatingDeployment || !!parsingError || !editedManifest}
                 onClick={() => handleCreateDeployment()}
                 className="w-full whitespace-nowrap sm:w-auto"
                 data-testid="create-deployment-btn"

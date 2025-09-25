@@ -13,6 +13,7 @@ import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { usePricing } from "@src/context/PricingProvider";
+import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsdcDenom } from "@src/hooks/useDenom";
 import { useFlag } from "@src/hooks/useFlag";
@@ -41,6 +42,7 @@ type Props = {
 };
 
 export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances, walletBalance, activeDeployments, leases, providers }) => {
+  const { settings } = useSettings();
   const { resolvedTheme } = useTheme();
   const tw = useTailwind();
   const { address, isManaged: isManagedWallet, isTrialing } = useWallet();
@@ -229,7 +231,12 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
               )}
 
               <div className="mt-4 flex gap-2">
-                <Link href={UrlService.newDeployment()} className={cn(buttonVariants({ variant: "default" }))} onClick={onDeployClick}>
+                <Link
+                  href={UrlService.newDeployment()}
+                  className={cn(buttonVariants({ variant: "default" }))}
+                  onClick={onDeployClick}
+                  aria-disabled={settings.isBlockchainDown}
+                >
                   Deploy
                   <Rocket className="ml-2 rotate-45 text-sm" />
                 </Link>
