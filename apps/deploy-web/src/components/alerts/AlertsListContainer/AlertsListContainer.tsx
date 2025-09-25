@@ -5,10 +5,13 @@ import { useMemo } from "react";
 import React from "react";
 import { useCallback, useState } from "react";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useServices } from "@src/context/ServicesProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
+import { QueryKeys } from "@src/queries";
 
 type Alert = components["schemas"]["AlertOutputResponse"]["data"];
 type AlertsOutput = components["schemas"]["AlertListOutputResponse"]["data"][0];
@@ -19,7 +22,7 @@ export type ChildrenProps = {
   pagination: Pick<AlertsPagination, "page" | "limit" | "total" | "totalPages">;
   isLoading: boolean;
   onPaginationChange: (state: { page: number; limit: number }) => void;
-  onToggle: (id: string, enabled: boolean) => void;
+  onToggle: (id: string, enabled: boolean, dseq?: string) => void;
   loadingIds: Set<string>;
   onRemove: (id: Alert["id"]) => Promise<void>;
   isError: boolean;
@@ -34,6 +37,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
   const [limit, setLimit] = useState(10);
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const { notificationsApi } = useServices();
+  const queryClient = useQueryClient();
   const { data, isError, isLoading, refetch } = notificationsApi.v1.getAlerts.useQuery({
     query: {
       page,
@@ -44,6 +48,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
   const notificator = useNotificator();
   const deleteMutation = notificationsApi.v1.deleteAlert.useMutation();
   const patchMutation = notificationsApi.v1.patchAlert.useMutation();
+  const { address } = useWallet();
 
   const remove = useCallback(
     async (id: Alert["id"]) => {
@@ -79,7 +84,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
   );
 
   const toggle = useCallback(
-    async (id: string, enabled: boolean) => {
+    async (id: string, enabled: boolean, dseq?: string) => {
       try {
         setLoadingIds(prev => new Set(prev).add(id));
         await patchMutation.mutateAsync({
@@ -92,6 +97,10 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
         });
         notificator.success(`Alert ${enabled ? "enabled" : "disabled"}`);
         refetch();
+
+        await queryClient.invalidateQueries({
+          queryKey: QueryKeys.getDeploymentDetailKey(address, dseq)
+        });
       } catch (error) {
         notificator.error("Failed to update alert");
       } finally {
@@ -102,7 +111,7 @@ export const AlertsListContainer: FC<AlertsListContainerProps> = ({ children }) 
         });
       }
     },
-    [patchMutation, notificator, refetch]
+    [patchMutation, notificator, refetch, queryClient, address]
   );
 
   const changePage = useCallback(({ page, limit }: { page: number; limit: number }) => {

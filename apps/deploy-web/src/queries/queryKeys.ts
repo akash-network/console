@@ -26,7 +26,7 @@ export class QueryKeys {
 
   // Deploy
   static getDeploymentListKey = (address: string) => ["DEPLOYMENT_LIST", address];
-  static getDeploymentDetailKey = (address: string, dseq: string) => ["DEPLOYMENT_DETAIL", address, dseq];
+  static getDeploymentDetailKey = (address: string, dseq?: string) => ["DEPLOYMENT_DETAIL", address, dseq].filter(Boolean);
   static getAllLeasesKey = (address: string) => ["ALL_LEASES", address];
   static getLeasesKey = (address: string, dseq: string) => ["LEASE_LIST", address, dseq];
   static getLeaseStatusKey = (dseq: string, gseq: number, oseq: number) => ["LEASE_STATUS", dseq, gseq, oseq];
