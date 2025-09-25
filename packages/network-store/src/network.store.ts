@@ -24,7 +24,7 @@ export class NetworkStore {
 
   private readonly STORAGE_KEY = "selectedNetworkId";
 
-  private readonly allNetworks: Network[] = [];
+  private readonly allNetworks: Network[];
   readonly networksStore = atom<NetworksStore>({ isLoading: true, error: undefined, data: [] });
 
   private readonly selectedNetworkIdStore = atomWithStorage<Network["id"]>(this.STORAGE_KEY, this.options.defaultNetworkId, undefined, {
