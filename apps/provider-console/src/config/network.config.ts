@@ -4,19 +4,12 @@ import { akash } from "@src/chains/akash";
 import type { Network } from "@src/types/network";
 import { browserEnvConfig } from "./browser-env.config";
 
-export interface NetworkConfig extends Network {
-  rpcEndpoint: string;
-  consoleApiUrl: string;
-  securityUrl: string;
-  apiBaseUrl: string;
-}
-
 /**
  * Gets the current network configuration based on the selected network
  * No if/else conditions - GitHub Actions sets the selection variable
  */
-export function getCurrentNetworkConfig(): NetworkConfig {
-  const selectedNetwork = browserEnvConfig.NEXT_PUBLIC_SELECTED_NETWORK;
+export function getCurrentNetworkConfig(): Network {
+  const selectedNetwork = browserEnvConfig.NEXT_PUBLIC_SELECTED_NETWORK ?? "mainnet";
 
   // Get the configuration for the selected network
   const config = getNetworkConfig();
@@ -31,10 +24,7 @@ export function getCurrentNetworkConfig(): NetworkConfig {
     version: config.version || null,
     rpcEndpoint: config.rpcEndpoint,
     nodesUrl: config.apiEndpoint,
-    versionUrl: config.apiEndpoint,
-    consoleApiUrl: config.consoleApiUrl,
-    securityUrl: config.securityUrl,
-    apiBaseUrl: config.apiBaseUrl
+    versionUrl: config.apiEndpoint
   };
 }
 
@@ -84,7 +74,7 @@ export function createDynamicChain(): Chain {
  * No if/else conditions - GitHub Actions sets the selection variable
  */
 export function getNetworkVersionInfo() {
-  const selectedNetwork = browserEnvConfig.NEXT_PUBLIC_SELECTED_NETWORK;
+  const selectedNetwork = browserEnvConfig.NEXT_PUBLIC_SELECTED_NETWORK ?? "mainnet";
   const config = getNetworkConfig();
 
   return {

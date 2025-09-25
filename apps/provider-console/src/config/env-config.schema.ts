@@ -7,7 +7,7 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development"),
 
   // Network selection (set by GitHub Actions)
-  NEXT_PUBLIC_SELECTED_NETWORK: networkId.describe("Must be one of: mainnet, sandbox, testnet"),
+  NEXT_PUBLIC_SELECTED_NETWORK: networkId.optional().default("mainnet").describe("Must be one of: mainnet, sandbox, testnet"),
 
   // Generic network configuration (populated from chain-specific .env files)
   NEXT_PUBLIC_NETWORK_TITLE: z.string(),

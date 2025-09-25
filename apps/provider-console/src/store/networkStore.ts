@@ -1,7 +1,6 @@
 import axios from "axios";
 import { atom } from "jotai";
 
-import type { NetworkConfig } from "@src/config/network.config";
 import { getCurrentNetworkConfig } from "@src/config/network.config";
 import type { Network } from "@src/types/network";
 
@@ -9,7 +8,7 @@ import type { Network } from "@src/types/network";
  * Converts NetworkConfig to Network by properly mapping the fields
  * This ensures type safety and handles the structural differences between the types
  */
-function buildNetworkFromConfig(config: NetworkConfig): Network {
+function buildNetworkFromConfig(config: Network): Network {
   return {
     id: config.id,
     title: config.title,

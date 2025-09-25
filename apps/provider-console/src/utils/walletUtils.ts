@@ -2,7 +2,7 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { mainnetId } from "./constants";
 
 function getSelectedNetworkId(): string {
-  return browserEnvConfig.NEXT_PUBLIC_CHAIN_ID ?? mainnetId;
+  return browserEnvConfig.NEXT_PUBLIC_SELECTED_NETWORK ?? mainnetId;
 }
 
 export type LocalWalletDataType = {
