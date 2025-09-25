@@ -103,8 +103,9 @@ export class StripeWebhookService {
       return;
     }
 
-    // Use the payment intent amount for the wallet top-up
-    await this.refillService.topUpWallet(paymentIntent.amount, user.id);
+    // Use amount_received when available (for partial captures), otherwise use amount
+    const paymentAmount = paymentIntent.amount_received ?? paymentIntent.amount;
+    await this.refillService.topUpWallet(paymentAmount, user.id);
   }
 
   @WithTransaction()

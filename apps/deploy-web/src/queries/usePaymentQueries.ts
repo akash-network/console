@@ -89,9 +89,6 @@ export const usePaymentMutations = () => {
     mutationFn: async ({ coupon, userId }: ApplyCouponParams) => {
       const response = await stripe.applyCoupon(coupon, userId);
       return response;
-    },
-    onSuccess: () => {
-      // Coupon applied directly to balance, no need to invalidate discount queries
     }
   });
 
