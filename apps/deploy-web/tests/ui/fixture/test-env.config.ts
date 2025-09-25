@@ -18,5 +18,6 @@ export const testEnvConfig = testEnvSchema.parse({
 export const PROVIDERS_WHITELIST = {
   mainnet: ["provider.hurricane.akash.pub", "provider.europlots.com"],
   sandbox: ["provider.europlots-sandbox.com"],
-  "testnet-02": []
+  "testnet-02": [],
+  "testnet-7": []
 } satisfies Record<SupportedChainNetworks, string[]>;

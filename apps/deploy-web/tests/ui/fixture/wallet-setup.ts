@@ -112,13 +112,17 @@ async function topUpWallet(wallet: DirectSecp256k1HdWallet) {
       return;
     }
 
-    const faucetUrl = netConfig.getFaucetUrl(testEnvConfig.NETWORK_ID);
+    let faucetUrl = netConfig.getFaucetUrl(testEnvConfig.NETWORK_ID);
     if (!faucetUrl) {
       console.error(`Faucet URL is not set for this network: ${testEnvConfig.NETWORK_ID}. Cannot auto top up wallet`);
       return;
     }
 
-    const response = await fetch(faucetUrl, {
+    if (faucetUrl.endsWith("/")) {
+      faucetUrl = faucetUrl.slice(0, -1);
+    }
+
+    const response = await fetch(`${faucetUrl}/faucet`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"

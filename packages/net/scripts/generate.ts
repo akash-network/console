@@ -7,21 +7,23 @@ const PROJECT_DIR = normalize(joinPath(scriptDir, "..", "..", ".."));
 const PACKAGE_DIR = normalize(joinPath(scriptDir, ".."));
 const OUT_DIR = joinPath(PACKAGE_DIR, "src", "generated");
 const AKASH_NET_BASE = "https://raw.githubusercontent.com/akash-network/net/main";
-const networks = ["mainnet", "sandbox", "testnet-02"];
+const networks = ["mainnet", "sandbox", "testnet-02", "testnet-7"];
 
 async function main() {
   console.log(`Generate network configuration: ${networks.join(", ")}`);
   const config: Record<string, unknown> = {};
   for (const network of networks) {
     const baseConfigUrl = `${AKASH_NET_BASE}/${network}`;
-    const [apiUrls, rpcUrls, version] = await Promise.all([
+    const [apiUrls, rpcUrls, version, faucetUrl] = await Promise.all([
       fetchText(`${baseConfigUrl}/api-nodes.txt`),
       fetchText(`${baseConfigUrl}/rpc-nodes.txt`),
-      fetchText(`${baseConfigUrl}/version.txt`)
+      fetchText(`${baseConfigUrl}/version.txt`).catch(() => null),
+      fetchText(`${baseConfigUrl}/faucet-url.txt`).catch(() => null)
     ]);
 
     const networkConfig = {
-      version: version.trim(),
+      version: version?.trim() ?? null,
+      faucetUrl: faucetUrl?.trim() ?? null,
       apiUrls: apiUrls.trim().split("\n"),
       rpcUrls: rpcUrls.trim().split("\n")
     };
@@ -40,7 +42,12 @@ async function main() {
 }
 
 function fetchText(url: string): Promise<string> {
-  return fetch(url).then(res => res.text());
+  return fetch(url).then(res => {
+    if (!res.ok) {
+      throw new Error(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
+    }
+    return res.text();
+  });
 }
 
 main().catch(console.error);

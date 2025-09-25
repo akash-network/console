@@ -1,6 +1,7 @@
 export const netConfigData = {
   mainnet: {
     version: "0.38.0",
+    faucetUrl: null,
     apiUrls: [
       "https://api.akashnet.net:443",
       "https://akash-api.polkachu.com:443",
@@ -17,12 +18,20 @@ export const netConfigData = {
   },
   sandbox: {
     version: "0.38.0",
+    faucetUrl: "http://faucet.sandbox-01.aksh.pw/",
     apiUrls: ["https://api.sandbox-01.aksh.pw:443"],
     rpcUrls: ["https://rpc.sandbox-01.aksh.pw:443"]
   },
   "testnet-02": {
     version: "0.23.1-rc0",
+    faucetUrl: "https://faucet.testnet-02.aksh.pw",
     apiUrls: ["https://api.testnet-02.aksh.pw:443", "https://akash-testnet-rest.cosmonautstakes.com:443"],
     rpcUrls: ["https://rpc.testnet-02.aksh.pw:443", "https://akash-testnet-rpc.cosmonautstakes.com:443"]
+  },
+  "testnet-7": {
+    version: null,
+    faucetUrl: "https://faucet.dev.akash.pub/",
+    apiUrls: ["https://testnetapi.akashnet.net"],
+    rpcUrls: ["https://testnetrpc.akashnet.net:443"]
   }
 };
