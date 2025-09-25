@@ -2,7 +2,6 @@ import type {
   ApplyCouponParams,
   ConfirmPaymentParams,
   ConfirmPaymentResponse,
-  Discount,
   PaymentMethod,
   SetupIntentResponse,
   ThreeDSecureAuthParams
@@ -21,18 +20,6 @@ export const usePaymentMethodsQuery = (options?: Omit<UseQueryOptions<PaymentMet
     queryFn: async () => {
       const response = await stripe.getPaymentMethods();
       return response;
-    }
-  });
-};
-
-export const usePaymentDiscountsQuery = (options?: Omit<UseQueryOptions<Discount[]>, "queryKey" | "queryFn">) => {
-  const { stripe } = useServices();
-  return useQuery<Discount[]>({
-    ...options,
-    queryKey: QueryKeys.getPaymentDiscountsKey(),
-    queryFn: async () => {
-      const response = await stripe.getCustomerDiscounts();
-      return response.discounts ?? [];
     }
   });
 };
@@ -81,7 +68,6 @@ export const usePaymentMutations = () => {
     onSuccess: () => {
       // Invalidate relevant queries after successful payment
       queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
-      queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentDiscountsKey() });
       queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentTransactionsKey() });
     }
   });
@@ -105,8 +91,7 @@ export const usePaymentMutations = () => {
       return response;
     },
     onSuccess: () => {
-      // Invalidate discounts after applying coupon
-      queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentDiscountsKey() });
+      // Coupon applied directly to balance, no need to invalidate discount queries
     }
   });
 
