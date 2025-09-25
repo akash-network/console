@@ -59,7 +59,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             placeholder="Enter coupon code"
             label="Coupon Code"
           />
-          <LoadingButton loading={isApplyingCoupon} onClick={onClaimCoupon} disabled={!coupon || processing}>
+          <LoadingButton loading={isApplyingCoupon} onClick={onClaimCoupon} disabled={!coupon || processing || isApplyingCoupon}>
             Claim coupon
           </LoadingButton>
         </div>
