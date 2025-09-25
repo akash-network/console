@@ -1,7 +1,7 @@
 import { LoggerService } from "@akashnetwork/logging";
 import { ForbiddenError } from "@casl/ability";
 import { isHttpError } from "http-errors";
-import { DatabaseError } from "sequelize";
+import { ConnectionAcquireTimeoutError, ConnectionError, DatabaseError } from "sequelize";
 import { singleton } from "tsyringe";
 import { ZodError } from "zod";
 
@@ -57,6 +57,18 @@ export class HonoErrorHandlerService {
           type: "authorization_error"
         },
         { status: 403 }
+      );
+    }
+
+    if (error instanceof ConnectionAcquireTimeoutError || error instanceof ConnectionError) {
+      return c.json(
+        {
+          error: "BadGatewayError",
+          message: "Database connection timeout",
+          code: "database_timeout",
+          type: "service_unavailable"
+        },
+        { status: 502 }
       );
     }
 
