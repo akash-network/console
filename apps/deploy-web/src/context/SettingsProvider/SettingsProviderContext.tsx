@@ -151,12 +151,16 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
           nodeInfo: null,
           id: "https://rest.cosmos.directory/akash"
         };
+        if ((selectedNode as BlockchainNode).nodeInfo === null) {
+          Object.assign(selectedNode, await loadNodeStatus(selectedNode.api));
+        }
         updateSettings({
           ...settings,
           apiEndpoint: defaultApiNode,
           rpcEndpoint: defaultRpcNode,
           selectedNode: selectedNode as BlockchainNode,
-          nodes: nodesWithStatuses
+          nodes: nodesWithStatuses,
+          isBlockchainDown: (selectedNode as BlockchainNode).status === "inactive"
         });
       } else {
         defaultApiNode = settings.apiEndpoint;
@@ -167,7 +171,8 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
           apiEndpoint: defaultApiNode,
           rpcEndpoint: defaultRpcNode,
           selectedNode: selectedNode as BlockchainNode,
-          nodes: nodesWithStatuses
+          nodes: nodesWithStatuses,
+          isBlockchainDown: false
         });
       }
 
@@ -288,8 +293,13 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
 
       // Update the settings with callback to avoid stale state settings
       updateSettings(prevSettings => {
-        const selectedNode = _nodes.find(node => node.id === prevSettings.selectedNode?.id);
-        const isBlockchainDown = _customNode?.status === "inactive" || _nodes.every(node => node.status === "inactive");
+        const selectedNode = prevSettings.selectedNode ? _nodes.find(node => node.id === prevSettings.selectedNode?.id) : undefined;
+        let isBlockchainDown: boolean;
+        if (_isCustomNode) {
+          isBlockchainDown = _customNode?.status === "inactive";
+        } else {
+          isBlockchainDown = selectedNode ? selectedNode.status === "inactive" : _nodes.every(node => node.status === "inactive");
+        }
 
         return {
           ...prevSettings,
