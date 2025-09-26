@@ -94,7 +94,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
     createAxios:
       () =>
       (options?: CreateAxiosDefaults): AxiosInstance =>
-        withInterceptors(createHttpClient({ ...options, adapter: "fetch" }), {
+        withInterceptors(createHttpClient({ adapter: "fetch", ...options }), {
           request: [config.globalRequestMiddleware]
         }),
     certificateManager: () => certificateManager,

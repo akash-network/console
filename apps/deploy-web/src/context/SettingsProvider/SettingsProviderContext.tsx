@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
+import { createFetchAdapter } from "@src/services/createFetchAdapter/createFetchAdapter";
 import type { FCWithChildren } from "@src/types/component";
 import type { NodeStatus } from "@src/types/node";
 import { initAkashTypes } from "@src/utils/init";
@@ -25,16 +26,19 @@ export type Settings = {
   nodes: Array<BlockchainNode>;
   selectedNode: BlockchainNode | null | undefined;
   customNode: BlockchainNode | null | undefined;
+  isBlockchainDown: boolean;
 };
 
 type ContextType = {
   settings: Settings;
-  setSettings: (newSettings: Settings) => void;
+  setSettings: React.Dispatch<React.SetStateAction<Settings>>;
   isLoadingSettings: boolean;
   isSettingsInit: boolean;
   refreshNodeStatuses: (settingsOverride?: Settings) => Promise<void>;
   isRefreshingNodeStatus: boolean;
 };
+
+export type SettingsContextType = ContextType;
 
 const SettingsProviderContext = React.createContext<ContextType>({} as ContextType);
 
@@ -44,8 +48,15 @@ const defaultSettings: Settings = {
   isCustomNode: false,
   nodes: [],
   selectedNode: null,
-  customNode: null
+  customNode: null,
+  isBlockchainDown: false
 };
+
+const fetchAdapter = createFetchAdapter({
+  circuitBreaker: {
+    halfOpenAfter: 5 * 1000
+  }
+});
 
 export const SettingsProvider: FCWithChildren = ({ children }) => {
   const { externalApiHttpClient, queryClient, networkStore } = useRootContainer();
@@ -82,7 +93,7 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
       const settings = { ...defaultSettings, ...JSON.parse(settingsStr || "{}") } as Settings;
 
       const { data: nodes } = await externalApiHttpClient.get<Array<{ id: string; api: string; rpc: string }>>(selectedNetwork.nodesUrl);
-      const nodesWithStatuses: Array<BlockchainNode> = await Promise.all(
+      const nodesWithStatuses: BlockchainNode[] = await Promise.all(
         nodes.map(async node => {
           const nodeStatus = await loadNodeStatus(node.rpc);
 
@@ -95,29 +106,39 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
         })
       );
 
-      const hasSettings =
-        settingsStr && settings.apiEndpoint && settings.rpcEndpoint && settings.selectedNode && nodes?.find(x => x.id === settings.selectedNode?.id);
-      let defaultApiNode = hasSettings ?? settings.apiEndpoint;
-      let defaultRpcNode = hasSettings ?? settings.rpcEndpoint;
-      let selectedNode = hasSettings ?? settings.selectedNode;
+      const selectedNodeInSettings =
+        settingsStr && settings.apiEndpoint && settings.rpcEndpoint && settings.selectedNode ? nodes?.find(x => x.id === settings.selectedNode?.id) : undefined;
+      let defaultApiNode = selectedNodeInSettings?.api ?? settings.apiEndpoint;
+      let defaultRpcNode = selectedNodeInSettings?.rpc ?? settings.rpcEndpoint;
+      let selectedNode = selectedNodeInSettings || settings.selectedNode;
 
       // If the user has a custom node set, use it no matter the status
-      if (hasSettings && settings.isCustomNode) {
+      if (selectedNodeInSettings && settings.isCustomNode) {
         const nodeStatus = await loadNodeStatus(settings.rpcEndpoint);
         const customNodeUrl = new URL(settings.apiEndpoint);
 
-        const customNode: Partial<BlockchainNode> = {
+        const customNode: BlockchainNode = {
+          api: "",
+          rpc: "",
           status: nodeStatus.status,
           latency: nodeStatus.latency,
           nodeInfo: nodeStatus.nodeInfo,
           id: customNodeUrl.hostname
         };
 
-        updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, customNode, nodes: nodesWithStatuses });
+        updateSettings({
+          ...settings,
+          apiEndpoint: defaultApiNode,
+          rpcEndpoint: defaultRpcNode,
+          selectedNode: selectedNode as BlockchainNode,
+          customNode,
+          nodes: nodesWithStatuses,
+          isBlockchainDown: nodeStatus.status === "inactive"
+        });
       }
 
       // If the user has no settings or the selected node is inactive, use the fastest available active node
-      if (!hasSettings || (hasSettings && settings.selectedNode?.status === "inactive")) {
+      if (!selectedNodeInSettings || (selectedNodeInSettings && settings.selectedNode?.status === "inactive")) {
         const randomNode = getFastestNode(nodesWithStatuses);
         // Use cosmos.directory as a backup if there's no active nodes in the list
         defaultApiNode = randomNode?.api || "https://rest.cosmos.directory/akash";
@@ -130,12 +151,24 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
           nodeInfo: null,
           id: "https://rest.cosmos.directory/akash"
         };
-        updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, nodes: nodesWithStatuses });
+        updateSettings({
+          ...settings,
+          apiEndpoint: defaultApiNode,
+          rpcEndpoint: defaultRpcNode,
+          selectedNode: selectedNode as BlockchainNode,
+          nodes: nodesWithStatuses
+        });
       } else {
         defaultApiNode = settings.apiEndpoint;
         defaultRpcNode = settings.rpcEndpoint;
         selectedNode = settings.selectedNode;
-        updateSettings({ ...settings, apiEndpoint: defaultApiNode, rpcEndpoint: defaultRpcNode, selectedNode, nodes: nodesWithStatuses });
+        updateSettings({
+          ...settings,
+          apiEndpoint: defaultApiNode,
+          rpcEndpoint: defaultRpcNode,
+          selectedNode: selectedNode as BlockchainNode,
+          nodes: nodesWithStatuses
+        });
       }
 
       setIsLoadingSettings(false);
@@ -157,8 +190,14 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
     let nodeStatus: NodeStatus | null = null;
 
     try {
-      const response = await externalApiHttpClient.get(`${rpcUrl}/status`, { timeout: 10000 });
-      nodeStatus = response.data.result as NodeStatus;
+      const response = await externalApiHttpClient.get<{ result: NodeStatus }>(`${rpcUrl}/status`, {
+        timeout: 5000,
+        adapter: fetchAdapter,
+        "axios-retry": {
+          retries: 0
+        }
+      });
+      nodeStatus = response.data.result;
       status = "active";
     } catch (error) {
       status = "inactive";
@@ -176,31 +215,26 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
 
   /**
    * Get the fastest node from the list based on latency
-   * @param {*} nodes
-   * @returns
    */
   const getFastestNode = (nodes: Array<BlockchainNode>) => {
-    const filteredNodes = nodes.filter(n => n.status === "active" && n.nodeInfo?.sync_info.catching_up === false);
-    let lowest = Number.POSITIVE_INFINITY,
-      fastestNode: BlockchainNode | null = null;
+    let fastestNode = nodes[0];
+    if (nodes.length === 1) return fastestNode;
 
-    // No active node, return the first one
-    if (filteredNodes.length === 0) {
-      return nodes[0];
-    }
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      const isHealthy = node.status === "active" && node.nodeInfo?.sync_info.catching_up === false;
+      if (!isHealthy) continue;
 
-    filteredNodes.forEach(node => {
-      if (node.latency < lowest) {
-        lowest = node.latency;
+      if (node.latency < fastestNode.latency) {
         fastestNode = node;
       }
-    });
-
+    }
     return fastestNode;
   };
 
-  const updateSettings = (newSettings: any) => {
+  const updateSettings: typeof setSettings = value => {
     setSettings(prevSettings => {
+      const newSettings = typeof value === "function" ? value(prevSettings) : value;
       clearQueries(prevSettings, newSettings);
       setLocalStorageItem("settings", JSON.stringify(newSettings));
 
@@ -263,20 +297,18 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
       setIsRefreshingNodeStatus(false);
 
       // Update the settings with callback to avoid stale state settings
-      setSettings(prevSettings => {
+      updateSettings(prevSettings => {
         const selectedNode = _nodes.find(node => node.id === prevSettings.selectedNode?.id);
+        const isBlockchainDown = _customNode?.status === "inactive" || _nodes.every(node => node.status === "inactive");
 
-        const newSettings = {
+        return {
           ...prevSettings,
           nodes: _nodes,
           selectedNode,
-          customNode: _customNode
+          customNode: _customNode,
+          isCustomNode: _isCustomNode,
+          isBlockchainDown
         };
-
-        clearQueries(prevSettings, newSettings);
-        setLocalStorageItem("settings", JSON.stringify(newSettings));
-
-        return newSettings;
       });
     },
     [isCustomNode, isRefreshingNodeStatus, customNode, setLocalStorageItem, apiEndpoint, nodes, setSettings]
