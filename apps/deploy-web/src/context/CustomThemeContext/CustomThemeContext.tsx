@@ -153,7 +153,7 @@ export const CustomThemeProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   return (
     <CustomThemeProviderContext.Provider value={{ mode }}>
-      <ThemeProvider theme={theme}>{isMounted ? children : <div style={{ visibility: "hidden" }}>{children}</div>}</ThemeProvider>
+      <ThemeProvider theme={theme}>{<div style={isMounted ? {} : { visibility: "hidden" }}>{children}</div>}</ThemeProvider>
     </CustomThemeProviderContext.Provider>
   );
 };
