@@ -8,11 +8,11 @@ import { cn } from "@akashnetwork/ui/utils";
 import { useMediaQuery, useTheme as useMuiTheme } from "@mui/material";
 import { millisecondsInMinute } from "date-fns/constants";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
+import { useVariant } from "@src/hooks/useVariant";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
@@ -28,8 +28,6 @@ type Props = {
   containerClassName?: string;
   children?: ReactNode;
 };
-
-const withMaintenanceBanner = browserEnvConfig.NEXT_PUBLIC_MAINTENANCE_BANNER_ENABLED;
 
 const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName }) => {
   const [locale, setLocale] = useState("en-US");
@@ -56,6 +54,7 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
 };
 
 const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName = "" }) => {
+  const maintenanceBannerFlag = useVariant("maintenance_banner");
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const [isNavOpen, setIsNavOpen] = useState(() => {
@@ -68,7 +67,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
     return true;
   });
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useState(withMaintenanceBanner);
+  const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useState(!!maintenanceBannerFlag.enabled);
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
   const hasCreditCardBanner = useHasCreditCardBanner(isMaintenanceBannerOpen);
