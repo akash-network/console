@@ -1,11 +1,12 @@
 import { useMemo } from "react";
 import { useAtom } from "jotai";
 
+import { useRootContainer } from "@src/context/ServicesProvider/RootContainerProvider";
 import { settingsIdAtom } from "@src/context/SettingsProvider/settingsStore";
-import networkStore from "@src/store/networkStore";
 
 export const useLocalStorage = () => {
   const [settingsId] = useAtom(settingsIdAtom);
+  const { networkStore } = useRootContainer();
   const selectedNetworkId = networkStore.useSelectedNetworkId();
 
   return useMemo(
