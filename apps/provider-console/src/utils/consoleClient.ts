@@ -8,7 +8,7 @@ const errorNotification = (error = "Error Occurred") => {
 };
 
 const consoleClient = axios.create({
-  baseURL: browserEnvConfig.NEXT_PUBLIC_CONSOLE_API_MAINNET_URL,
+  baseURL: browserEnvConfig.NEXT_PUBLIC_CONSOLE_API_URL,
   timeout: 60000
 });
 
@@ -35,12 +35,11 @@ consoleClient.interceptors.response.use(
       extra: {
         errorMessage,
         requestUrl: error.config?.url,
-        requestMethod: error.config?.method,
-      },
+        requestMethod: error.config?.method
+      }
     });
     throw error;
   }
 );
-
 
 export default consoleClient;

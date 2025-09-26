@@ -1,3 +1,6 @@
+import { browserEnvConfig } from "@src/config/browser-env.config";
+import { getNetworkVersionInfo } from "@src/config/network.config";
+
 export const mainnetId = "mainnet";
 export const testnetId = "testnet";
 export const sandboxId = "sandbox";
@@ -37,40 +40,22 @@ export const NODE_STATUS = {
   COMPLETED: "completed"
 } as const;
 
-export let selectedNetworkId = "";
-
 // 0.5AKT aka 500000uakt
 export const defaultInitialDeposit = 500000;
 
-export let networkVersion: "v1beta2" | "v1beta3" | "v1beta4";
-export let networkVersionMarket: "v1beta2" | "v1beta3" | "v1beta4";
+// Get network info based on selected network - no if/else conditions
+const networkVersionInfo = getNetworkVersionInfo();
+export const selectedNetworkId = networkVersionInfo.selectedNetworkId;
+export const networkVersion = networkVersionInfo.networkVersion;
+export const networkVersionMarket = networkVersionInfo.networkVersionMarket;
 
 export function setNetworkVersion() {
-  const _selectedNetworkId = localStorage.getItem("selectedNetworkId");
+  // This function is kept for backward compatibility but now uses environment-driven config
+  // No action needed since values are read directly from environment
+}
 
-  switch (_selectedNetworkId) {
-    case mainnetId:
-      networkVersion = "v1beta3";
-      networkVersionMarket = "v1beta4";
-      selectedNetworkId = mainnetId;
-      break;
-    case testnetId:
-      networkVersion = "v1beta3";
-      networkVersionMarket = "v1beta3";
-      selectedNetworkId = testnetId;
-      break;
-    case sandboxId:
-      networkVersion = "v1beta3";
-      networkVersionMarket = "v1beta4";
-      selectedNetworkId = sandboxId;
-      break;
-
-    default:
-      networkVersion = "v1beta3";
-      networkVersionMarket = "v1beta4";
-      selectedNetworkId = mainnetId;
-      break;
-  }
+export function getDefaultNetworkId(): string {
+  return browserEnvConfig.NEXT_PUBLIC_SELECTED_NETWORK;
 }
 
 export const monacoOptions = {

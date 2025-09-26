@@ -8,7 +8,7 @@ const errorNotification = (error = "Error Occurred") => {
 };
 
 const authClient = axios.create({
-  baseURL: browserEnvConfig.NEXT_PUBLIC_BASE_SECURITY_URL,
+  baseURL: browserEnvConfig.NEXT_PUBLIC_SECURITY_URL,
   timeout: 30000
 });
 
@@ -33,8 +33,8 @@ authClient.interceptors.response.use(
       extra: {
         errorMessage,
         requestUrl: error.config?.url,
-        requestMethod: error.config?.method,
-      },
+        requestMethod: error.config?.method
+      }
     });
 
     errorNotification(errorMessage);

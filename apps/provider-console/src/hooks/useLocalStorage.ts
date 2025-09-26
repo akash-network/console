@@ -1,25 +1,27 @@
 import { useEffect, useState } from "react";
 import { useEventListener } from "usehooks-ts";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useWallet } from "@src/context/WalletProvider";
+import { mainnetId } from "@src/utils/constants";
 
 export const useLocalStorage = () => {
   const { address } = useWallet();
 
   const getLocalStorageItem = (key: string) => {
-    const selectedNetworkId = localStorage.getItem("selectedNetworkId");
+    const selectedNetworkId = browserEnvConfig.NEXT_PUBLIC_SELECTED_NETWORK ?? mainnetId;
 
     return localStorage.getItem(`${selectedNetworkId}${address ? "/" + address : ""}/${key}`);
   };
 
   const setLocalStorageItem = (key: string, value: string) => {
-    const selectedNetworkId = localStorage.getItem("selectedNetworkId");
+    const selectedNetworkId = browserEnvConfig.NEXT_PUBLIC_SELECTED_NETWORK ?? mainnetId;
 
     localStorage.setItem(`${selectedNetworkId}${address ? "/" + address : ""}/${key}`, value);
   };
 
   const removeLocalStorageItem = (key: string) => {
-    const selectedNetworkId = localStorage.getItem("selectedNetworkId");
+    const selectedNetworkId = browserEnvConfig.NEXT_PUBLIC_SELECTED_NETWORK ?? mainnetId;
     localStorage.removeItem(`${selectedNetworkId}${address ? "/" + address : ""}/${key}`);
   };
 

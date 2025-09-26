@@ -1,6 +1,7 @@
 import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
 import * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
 
+import { browserEnvConfig } from "@src/config/browser-env.config";
 import { mainnetId, sandboxId, testnetId } from "../constants";
 
 const commonTypes = { ...v1beta3, ...v1beta4 };
@@ -10,7 +11,7 @@ const sandboxTypes = commonTypes;
 export let protoTypes;
 
 export function initProtoTypes() {
-  const selectedNetworkId = localStorage.getItem("selectedNetworkId");
+  const selectedNetworkId = browserEnvConfig.NEXT_PUBLIC_CHAIN_ID ?? mainnetId;
 
   switch (selectedNetworkId) {
     case mainnetId:
