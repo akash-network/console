@@ -1,5 +1,22 @@
 
 
+## [2.111.0](https://github.com/akash-network/console/compare/console-web/v2.110.0...console-web/v2.111.0) (2025-09-26)
+
+
+### Features
+
+* control maintenance banner with a feature flag ([#1968](https://github.com/akash-network/console/issues/1968)) ([22654c9](https://github.com/akash-network/console/commit/22654c9d364f68e3bc137319b95069d0f8d51972)), closes [#1949](https://github.com/akash-network/console/issues/1949)
+
+
+### Bug Fixes
+
+* invalidate deployment when toggling alert status ([#1937](https://github.com/akash-network/console/issues/1937)) ([08ebc6a](https://github.com/akash-network/console/commit/08ebc6a3f7d52d72b71d1f576664ae7760dda191)), closes [#1768](https://github.com/akash-network/console/issues/1768) [#1768](https://github.com/akash-network/console/issues/1768)
+
+
+### Code Refactoring
+
+* network version is now taken from /net package in network-store ([#1966](https://github.com/akash-network/console/issues/1966)) ([61dc080](https://github.com/akash-network/console/commit/61dc08057419270e50d1b9ceed2f82331429e974))
+
 ## [2.110.0](https://github.com/akash-network/console/compare/console-web/v2.109.0...console-web/v2.110.0) (2025-09-24)
 
 
