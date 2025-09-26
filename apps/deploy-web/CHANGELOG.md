@@ -1,5 +1,12 @@
 
 
+## [2.112.0](https://github.com/akash-network/console/compare/console-web/v2.111.0...console-web/v2.112.0) (2025-09-26)
+
+
+### Features
+
+* adds support for detecting whether blockchain is down ([#1973](https://github.com/akash-network/console/issues/1973)) ([384080c](https://github.com/akash-network/console/commit/384080ca2c9b906527c7a1b46c184b4118ea59df))
+
 ## [2.111.0](https://github.com/akash-network/console/compare/console-web/v2.110.0...console-web/v2.111.0) (2025-09-26)
 
 
