@@ -1,13 +1,15 @@
 import { Block } from "@akashnetwork/database/dbSchemas";
 import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
-import { DeploymentHttpService, DeploymentInfo, LeaseHttpService } from "@akashnetwork/http-sdk";
+import { DeploymentHttpService, DeploymentInfo, LeaseHttpService, RestAkashLeaseListResponse } from "@akashnetwork/http-sdk";
 import { PromisePool } from "@supercharge/promise-pool";
 import assert from "http-assert";
 import { InternalServerError } from "http-errors";
 import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
+import { UserWalletRepository } from "@src/billing/repositories";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
@@ -20,14 +22,12 @@ export class DeploymentReaderService {
     private readonly providerService: ProviderService,
     private readonly deploymentHttpService: DeploymentHttpService,
     private readonly leaseHttpService: LeaseHttpService,
-    private readonly messageService: MessageService
+    private readonly messageService: MessageService,
+    private readonly userWalletRepository: UserWalletRepository
   ) {}
 
-  public async findByOwnerAndDseq(
-    owner: string,
-    dseq: string,
-    options?: { certificate?: { certPem: string; keyPem: string } }
-  ): Promise<GetDeploymentResponse["data"]> {
+  public async findByOwnerAndDseq(owner: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
+    const wallet = await this.getWalletByAddress(owner);
     const deploymentResponse = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
 
     if ("code" in deploymentResponse) {
@@ -40,20 +40,13 @@ export class DeploymentReaderService {
 
     const leasesWithStatus = await Promise.all(
       leases.map(async ({ lease }) => {
-        if (!options?.certificate) {
-          return {
-            lease,
-            status: null
-          };
-        }
-
         try {
           const leaseStatus = await this.providerService.getLeaseStatus(
             lease.lease_id.provider,
             lease.lease_id.dseq,
             lease.lease_id.gseq,
             lease.lease_id.oseq,
-            options.certificate
+            wallet.id
           );
           return {
             lease,
@@ -87,16 +80,19 @@ export class DeploymentReaderService {
     const deployments = deploymentReponse.deployments;
     const total = parseInt(deploymentReponse.pagination.total, 10);
 
-    const { results: leaseResults } = await PromisePool.withConcurrency(100)
+    const { results: leasesByDeployment } = await PromisePool.withConcurrency(100)
       .for(deployments)
       .process(async deployment => this.leaseHttpService.list({ owner, dseq: deployment.deployment.deployment_id.dseq }));
 
-    const deploymentsWithLeases = deployments.map((deployment, index) => ({
+    const wallet = await this.getWalletByAddress(owner);
+    const leaseStatusesByDeployment = await this.getLeaseStatuses(leasesByDeployment, wallet.id);
+
+    const deploymentsWithLeases = deployments.map((deployment, deploymentIndex) => ({
       deployment: deployment.deployment,
       leases:
-        leaseResults[index]?.leases?.map(({ lease }) => ({
+        leasesByDeployment[deploymentIndex]?.leases?.map(({ lease }, leaseIndex) => ({
           ...lease,
-          status: null as null
+          status: leaseStatusesByDeployment[deploymentIndex][leaseIndex]
         })) ?? [],
       escrow_account: deployment.escrow_account
     }));
@@ -106,6 +102,36 @@ export class DeploymentReaderService {
       total,
       hasMore: skip !== undefined && limit !== undefined ? total > skip + limit : false
     };
+  }
+
+  private async getLeaseStatuses(leasesByDeployment: RestAkashLeaseListResponse[], walletId: number): Promise<LeaseStatusResponse[][]> {
+    const deploymentConcurrency = 10;
+    const leaseConcurrency = 10;
+    const leaseStatusesByDeployment: LeaseStatusResponse[][] = [];
+
+    await PromisePool.withConcurrency(deploymentConcurrency)
+      .for(leasesByDeployment)
+      .process(async ({ leases }, deploymentIndex) => {
+        await PromisePool.withConcurrency(leaseConcurrency)
+          .for(leases)
+          .process(async ({ lease }, leaseIndex) => {
+            const leaseStatus = await this.providerService.getLeaseStatus(
+              lease.lease_id.provider,
+              lease.lease_id.dseq,
+              lease.lease_id.gseq,
+              lease.lease_id.oseq,
+              walletId
+            );
+
+            if (!leaseStatusesByDeployment[deploymentIndex]) {
+              leaseStatusesByDeployment[deploymentIndex] = [];
+            }
+
+            leaseStatusesByDeployment[deploymentIndex][leaseIndex] = leaseStatus;
+          });
+      });
+
+    return leaseStatusesByDeployment;
   }
 
   public async listWithResources({
@@ -284,5 +310,14 @@ export class DeploymentReaderService {
       events: relatedMessages || [],
       other: deploymentData
     };
+  }
+
+  private async getWalletByAddress(address: string) {
+    const wallet = await this.userWalletRepository.findOneBy({ address });
+    if (!wallet) {
+      throw new Error(`Wallet not found for address: ${address}`);
+    }
+
+    return wallet;
   }
 }
