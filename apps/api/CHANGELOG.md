@@ -1,5 +1,18 @@
 
 
+## [2.121.2](https://github.com/akash-network/console/compare/console-api/v2.121.1...console-api/v2.121.2) (2025-09-26)
+
+
+### Bug Fixes
+
+* handle chain error when estimating fees ([#1942](https://github.com/akash-network/console/issues/1942)) ([e1aa1b3](https://github.com/akash-network/console/commit/e1aa1b3f805039c6a69b734f2be26090f3ad5e11)), closes [#1834](https://github.com/akash-network/console/issues/1834)
+* throw 502 on PostgreSQL connection error ([#1957](https://github.com/akash-network/console/issues/1957)) ([679d8e3](https://github.com/akash-network/console/commit/679d8e3fbbf3c344565f982899d77c21e056691e)), closes [#1944](https://github.com/akash-network/console/issues/1944)
+
+
+### Code Refactoring
+
+* network version is now taken from /net package in network-store ([#1966](https://github.com/akash-network/console/issues/1966)) ([61dc080](https://github.com/akash-network/console/commit/61dc08057419270e50d1b9ceed2f82331429e974))
+
 ## [2.121.1](https://github.com/akash-network/console/compare/console-api/v2.121.0...console-api/v2.121.1) (2025-09-24)
 
 

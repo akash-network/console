@@ -1,5 +1,17 @@
 
 
+## [1.18.0](https://github.com/akash-network/console/compare/provider-proxy/v1.17.1...provider-proxy/v1.18.0) (2025-09-26)
+
+
+### Features
+
+* adds support for jwt auth to provider-proxy ([#1963](https://github.com/akash-network/console/issues/1963)) ([f8ef172](https://github.com/akash-network/console/commit/f8ef172cca086e57f9edf87e7ea2a7b53ce59669))
+
+
+### Code Refactoring
+
+* network version is now taken from /net package in network-store ([#1966](https://github.com/akash-network/console/issues/1966)) ([61dc080](https://github.com/akash-network/console/commit/61dc08057419270e50d1b9ceed2f82331429e974))
+
 ## [1.17.1](https://github.com/akash-network/console/compare/provider-proxy/v1.17.0...provider-proxy/v1.17.1) (2025-08-28)
 
 
