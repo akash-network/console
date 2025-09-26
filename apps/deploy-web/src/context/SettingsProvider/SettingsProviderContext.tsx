@@ -113,7 +113,7 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
       let selectedNode = selectedNodeInSettings || settings.selectedNode;
 
       // If the user has a custom node set, use it no matter the status
-      if (selectedNodeInSettings && settings.isCustomNode) {
+      if (settings.isCustomNode) {
         const nodeStatus = await loadNodeStatus(settings.rpcEndpoint);
         const customNodeUrl = new URL(settings.apiEndpoint);
 
