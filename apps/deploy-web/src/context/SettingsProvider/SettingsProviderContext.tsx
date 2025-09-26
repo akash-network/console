@@ -216,20 +216,10 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
   /**
    * Get the fastest node from the list based on latency
    */
-  const getFastestNode = (nodes: Array<BlockchainNode>) => {
-    let fastestNode = nodes[0];
-    if (nodes.length === 1) return fastestNode;
-
-    for (let i = 0; i < nodes.length; i++) {
-      const node = nodes[i];
-      const isHealthy = node.status === "active" && node.nodeInfo?.sync_info.catching_up === false;
-      if (!isHealthy) continue;
-
-      if (node.latency < fastestNode.latency) {
-        fastestNode = node;
-      }
-    }
-    return fastestNode;
+  const getFastestNode = (nodes: BlockchainNode[]) => {
+    const healthyNodes = nodes.filter(n => n.status === "active" && n.nodeInfo?.sync_info.catching_up === false);
+    if (healthyNodes.length === 0) return;
+    return healthyNodes.reduce((fastestNode, node) => (node.latency < fastestNode.latency ? node : fastestNode));
   };
 
   const updateSettings: typeof setSettings = value => {

@@ -22,11 +22,12 @@ export function createFallbackableHttpClient(
           failure: options.shouldFallback
         }
       },
-      onFailure: (error, config) => {
+      onFailure: (error, requestConfig) => {
         options.onFailure?.(error);
 
         if (isHttpError(error) || isBrokenCircuitError(error)) {
-          return fallbackHttpClient.request(config);
+          const { adapter, ...restOfRequestConfig } = requestConfig;
+          return fallbackHttpClient.request(restOfRequestConfig);
         }
       },
       onSuccess: options.onSuccess
