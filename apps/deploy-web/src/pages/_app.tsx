@@ -31,6 +31,7 @@ import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
+import { PaymentPollingProvider } from "@src/context/PaymentPollingProvider";
 import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
 import { ServicesProvider } from "@src/context/ServicesProvider";
 import { RootContainerProvider, useRootContainer } from "@src/context/ServicesProvider/RootContainerProvider";
@@ -77,13 +78,15 @@ const App: React.FunctionComponent<Props> = props => {
         <UserProviders>
           <FlagProvider>
             <WalletProvider>
-              <CertificateProvider>
-                <BackgroundTaskProvider>
-                  <NavigationGuardProvider>
-                    <Component {...pageProps} />
-                  </NavigationGuardProvider>
-                </BackgroundTaskProvider>
-              </CertificateProvider>
+              <PaymentPollingProvider>
+                <CertificateProvider>
+                  <BackgroundTaskProvider>
+                    <NavigationGuardProvider>
+                      <Component {...pageProps} />
+                    </NavigationGuardProvider>
+                  </BackgroundTaskProvider>
+                </CertificateProvider>
+              </PaymentPollingProvider>
             </WalletProvider>
           </FlagProvider>
         </UserProviders>
