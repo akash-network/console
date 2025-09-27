@@ -31,6 +31,7 @@ import { SignUpButton } from "@src/components/auth/SignUpButton/SignUpButton";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import type { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useServices } from "@src/context/ServicesProvider";
+import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useWhen } from "@src/hooks/useWhen";
@@ -98,7 +99,8 @@ export const DEPENDENCIES = {
   useSnackbar,
   useManagedDeploymentConfirm,
   useRouter,
-  useBlock
+  useBlock,
+  useSettings
 };
 
 // Refresh bids every 7 seconds;
@@ -110,6 +112,7 @@ const WARNING_NUM_OF_BID_REQUESTS = Math.round((60 * 1000) / REFRESH_BIDS_INTERV
 const TRIAL_SIGNUP_WARNING_TIMEOUT = 33_000;
 
 export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies: d = DEPENDENCIES }) => {
+  const { settings } = d.useSettings();
   const { providerProxy, analyticsService, errorHandler, networkStore } = d.useServices();
 
   const [isSendingManifest, setIsSendingManifest] = useState(false);
@@ -409,7 +412,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
                   </div>
                 </d.DropdownMenuTrigger>
                 <d.DropdownMenuContent>
-                  <d.CustomDropdownLinkItem onClick={() => handleCloseDeployment()} icon={<Bin />}>
+                  <d.CustomDropdownLinkItem onClick={() => handleCloseDeployment()} icon={<Bin />} disabled={settings.isBlockchainDown}>
                     Close Deployment
                   </d.CustomDropdownLinkItem>
                 </d.DropdownMenuContent>
@@ -422,7 +425,9 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
                 color="secondary"
                 onClick={createLease}
                 className="w-full whitespace-nowrap md:w-auto"
-                disabled={hasActiveBid ? false : dseqList.some(gseq => !selectedBids[gseq]) || isSendingManifest || isCreatingLeases}
+                disabled={
+                  hasActiveBid ? false : settings.isBlockchainDown || dseqList.some(gseq => !selectedBids[gseq]) || isSendingManifest || isCreatingLeases
+                }
                 data-testid="create-lease-button"
               >
                 {isCreatingLeases || isSendingManifest ? (
@@ -442,7 +447,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
         )}
 
         {!isLoadingBids && allClosed && (
-          <d.Button variant="default" color="secondary" onClick={handleCloseDeployment} size="sm">
+          <d.Button variant="default" color="secondary" onClick={handleCloseDeployment} size="sm" disabled={settings.isBlockchainDown}>
             Close Deployment
           </d.Button>
         )}
@@ -594,7 +599,14 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
                   recommend signing up and adding funds to your account.
                 </p>
                 <p>
-                  <d.Button onClick={() => handleCloseDeployment()} variant="outline" type="button" size="sm" className="mr-4">
+                  <d.Button
+                    onClick={() => handleCloseDeployment()}
+                    variant="outline"
+                    type="button"
+                    size="sm"
+                    className="mr-4"
+                    disabled={settings.isBlockchainDown}
+                  >
                     Close Deployment
                   </d.Button>
                   <d.SignUpButton wrapper="button" color="secondary" variant="default" type="button" size="sm" />

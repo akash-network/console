@@ -39,9 +39,10 @@ describe(CreateCertificateButton.name, () => {
       isCreatingCert?: boolean;
       isLocalCertExpired?: boolean;
       localCert?: LocalCert;
+      isBlockchainDown?: boolean;
     }
   ) {
-    const { createCertificate, isCreatingCert, isLocalCertExpired, localCert, ...props } = input ?? {};
+    const { createCertificate, isCreatingCert, isLocalCertExpired, localCert, isBlockchainDown, ...props } = input ?? {};
 
     return render(
       <CreateCertificateButton
@@ -53,7 +54,23 @@ describe(CreateCertificateButton.name, () => {
             isCreatingCert: isCreatingCert ?? false,
             isLocalCertExpired: isLocalCertExpired ?? false,
             localCert: localCert ?? null
-          })) as (typeof CREATE_CERTIFICATE_BUTTON_DEPENDENCIES)["useCertificate"]
+          })) as (typeof CREATE_CERTIFICATE_BUTTON_DEPENDENCIES)["useCertificate"],
+          useSettings: () => ({
+            settings: {
+              apiEndpoint: "https://api.example.com",
+              rpcEndpoint: "https://rpc.example.com",
+              isCustomNode: false,
+              nodes: [],
+              selectedNode: null,
+              customNode: null,
+              isBlockchainDown: isBlockchainDown ?? false
+            },
+            setSettings: jest.fn(),
+            isLoadingSettings: false,
+            isSettingsInit: true,
+            refreshNodeStatuses: jest.fn(),
+            isRefreshingNodeStatus: false
+          })
         }}
       />
     );

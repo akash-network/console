@@ -148,6 +148,36 @@ describe(CreateLease.name, () => {
     jest.useRealTimers();
   });
 
+  it("disables Accept Bid button when blockchain is down", async () => {
+    const BidGroup = jest.fn(ComponentMock);
+    const bids = [
+      buildRpcBid({
+        bid: {
+          bid_id: {
+            gseq: 1
+          },
+          state: "open"
+        }
+      }),
+      buildRpcBid({
+        bid: {
+          bid_id: {
+            gseq: 1
+          },
+          state: "open"
+        }
+      })
+    ];
+    const { getByRole } = setup({
+      BidGroup,
+      bids,
+      isBlockchainDown: true
+    });
+    await waitFor(() => {
+      expect(getByRole("button", { name: /Accept Bid/i })).toHaveAttribute("disabled");
+    });
+  });
+
   describe("lease creation", () => {
     it("creates lease on chain and submits manifest to provider", async () => {
       const signAndBroadcastTx = jest.fn().mockResolvedValue({ code: 0 });
@@ -362,6 +392,7 @@ describe(CreateLease.name, () => {
     updateSelectedCertificate?: (cert: CertificatePem) => Promise<LocalCert>;
     isTrialWallet?: boolean;
     getBlock?: () => Promise<BlockDetail>;
+    isBlockchainDown?: boolean;
   }) {
     const favoriteProviders: string[] = [];
     const useLocalNotes = (() => ({
@@ -456,6 +487,22 @@ describe(CreateLease.name, () => {
             useRouter: () => mock(),
             useManagedDeploymentConfirm: () => ({
               closeDeploymentConfirm: () => Promise.resolve(true)
+            }),
+            useSettings: () => ({
+              settings: {
+                apiEndpoint: "https://api.example.com",
+                rpcEndpoint: "https://rpc.example.com",
+                isCustomNode: false,
+                nodes: [],
+                selectedNode: null,
+                customNode: null,
+                isBlockchainDown: input?.isBlockchainDown ?? false
+              },
+              setSettings: jest.fn(),
+              isLoadingSettings: false,
+              isSettingsInit: true,
+              refreshNodeStatuses: jest.fn(),
+              isRefreshingNodeStatus: false
             })
           }}
         />

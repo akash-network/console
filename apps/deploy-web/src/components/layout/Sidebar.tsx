@@ -36,6 +36,7 @@ import { useAtom } from "jotai";
 import Image from "next/image";
 import Link from "next/link";
 
+import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
@@ -60,6 +61,7 @@ const DRAWER_WIDTH = 240;
 const CLOSED_DRAWER_WIDTH = 57;
 
 export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDrawerToggle, isNavOpen, onOpenMenuClick, mdDrawerClassName }) => {
+  const { settings } = useSettings();
   const [, setDeploySdl] = useAtom(sdlStore.deploySdl);
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
@@ -310,6 +312,7 @@ export const Sidebar: React.FunctionComponent<Props> = ({ isMobileOpen, handleDr
           href={UrlService.newDeployment()}
           onClick={onDeployClick}
           data-testid="sidebar-deploy-button"
+          aria-disabled={settings.isBlockchainDown}
         >
           {isNavOpen && "Deploy "}
           <Rocket className={cn("rotate-45", { ["ml-4"]: isNavOpen })} fontSize="small" />
