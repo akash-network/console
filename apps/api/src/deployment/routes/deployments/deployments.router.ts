@@ -22,7 +22,12 @@ import {
   UpdateDeploymentRequestSchema,
   UpdateDeploymentResponseSchema
 } from "@src/deployment/http-schemas/deployment.schema";
-import { FallbackDeploymentListQuerySchema, FallbackDeploymentListResponseSchema } from "@src/deployment/http-schemas/deployment-rpc.schema";
+import {
+  FallbackDeploymentInfoQuerySchema,
+  FallbackDeploymentInfoResponseSchema,
+  FallbackDeploymentListQuerySchema,
+  FallbackDeploymentListResponseSchema
+} from "@src/deployment/http-schemas/deployment-rpc.schema";
 import { DatabaseDeploymentReaderService } from "@src/deployment/services/deployment-reader/db-deployment-reader.service";
 
 const getRoute = createRoute({
@@ -236,6 +241,29 @@ const fallbackListRoute = createRoute({
   }
 });
 
+const fallbackInfoRoute = createRoute({
+  method: "get",
+  path: "/akash/deployment/v1beta3/deployments/info",
+  summary: "Get deployment info (database fallback)",
+  tags: ["Deployments"],
+  request: {
+    query: FallbackDeploymentInfoQuerySchema
+  },
+  responses: {
+    200: {
+      description: "Returns deployment info from database",
+      content: {
+        "application/json": {
+          schema: FallbackDeploymentInfoResponseSchema
+        }
+      }
+    },
+    404: {
+      description: "Deployment not found"
+    }
+  }
+});
+
 export const deploymentsRouter = new OpenApiHonoHandler();
 
 deploymentsRouter.openapi(getRoute, async function routeGetDeployment(c) {
@@ -315,4 +343,24 @@ deploymentsRouter.openapi(fallbackListRoute, async function routeFallbackListDep
   });
 
   return c.json(result, 200);
+});
+
+deploymentsRouter.openapi(fallbackInfoRoute, async function routeFallbackDeploymentInfo(c) {
+  const query = c.req.valid("query");
+  const databaseReader = container.resolve(DatabaseDeploymentReaderService);
+
+  const result = await databaseReader.getDeploymentInfo(query["id.owner"], query["id.dseq"]);
+
+  if (result) {
+    return c.json(result, 200);
+  } else {
+    return c.json(
+      {
+        code: 5,
+        message: "deployment not found",
+        details: []
+      },
+      404
+    );
+  }
 });

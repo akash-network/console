@@ -1,7 +1,7 @@
 import { Block } from "@akashnetwork/database/dbSchemas";
 import { AkashMessage, Deployment, DeploymentGroup, DeploymentGroupResource, Lease } from "@akashnetwork/database/dbSchemas/akash";
 import { Transaction } from "@akashnetwork/database/dbSchemas/base";
-import { literal, Op } from "sequelize";
+import { FindAndCountOptions, FindOptions, literal, Op, WhereOptions } from "sequelize";
 import { singleton } from "tsyringe";
 
 export interface StaleDeploymentsOptions {
@@ -17,6 +17,16 @@ export interface ProviderCleanupOptions {
 export interface DeploymentsBeforeCutoffOptions {
   owner: string;
   cutoffHeight: number;
+}
+
+export interface DatabaseDeploymentListParams {
+  owner?: string;
+  state?: "active" | "closed";
+  skip?: number;
+  limit?: number;
+  key?: string;
+  countTotal?: boolean;
+  reverse?: boolean;
 }
 
 export interface StaleDeploymentsOutput {
@@ -127,5 +137,64 @@ export class DeploymentRepository {
         }
       ]
     });
+  }
+
+  async findByIdWithGroups(owner: string, dseq: string): Promise<Deployment | null> {
+    return await Deployment.findOne({
+      where: { owner, dseq },
+      include: [
+        {
+          model: DeploymentGroup,
+          include: [
+            {
+              model: DeploymentGroupResource,
+              separate: true
+            }
+          ]
+        }
+      ]
+    });
+  }
+
+  async findDeploymentsWithPagination(params: DatabaseDeploymentListParams): Promise<{ count: number; rows: Deployment[] }> {
+    const { owner, state, skip = 0, limit = 100, key, countTotal = true, reverse = false } = params;
+
+    const whereClause: WhereOptions = {};
+    if (owner) {
+      whereClause.owner = owner;
+    }
+    if (state === "active") {
+      whereClause.closedHeight = null;
+    } else if (state === "closed") {
+      whereClause.closedHeight = { [Op.ne]: null };
+    }
+
+    const offset = key ? parseInt(key, 10) || 0 : skip;
+
+    const queryOptions: FindAndCountOptions = {
+      where: whereClause,
+      include: [
+        {
+          model: DeploymentGroup,
+          include: [
+            {
+              model: DeploymentGroupResource,
+              separate: true
+            }
+          ]
+        }
+      ],
+      offset,
+      limit,
+      order: [["createdHeight", reverse ? "DESC" : "ASC"]] as [string, "ASC" | "DESC"][],
+      distinct: true
+    };
+
+    if (countTotal) {
+      return await Deployment.findAndCountAll(queryOptions);
+    } else {
+      const rows = await Deployment.findAll(queryOptions as FindOptions);
+      return { count: 0, rows };
+    }
   }
 }
