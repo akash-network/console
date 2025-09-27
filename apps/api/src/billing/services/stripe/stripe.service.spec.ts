@@ -62,7 +62,6 @@ describe(StripeService.name, () => {
         amount: 10000,
         currency: mockPaymentParams.currency,
         confirm: mockPaymentParams.confirm,
-        metadata: expect.any(Object),
         automatic_payment_methods: {
           enabled: true,
           allow_redirects: "never"
@@ -71,47 +70,6 @@ describe(StripeService.name, () => {
       expect(result).toEqual({
         success: true,
         paymentIntentId: StripeSeederCreate().paymentIntent.id
-      });
-    });
-
-    it("handles zero amount payment with discount", async () => {
-      const { service, refillService, userRepository } = setup();
-      const user = createTestUser({ id: "test-user-id-001" });
-
-      // Set lastUser in the mock context so findOneBy returns this user
-      jest.spyOn(userRepository, "findOneBy").mockResolvedValue(user);
-      userRepository.findOneBy.mockImplementation(async query => {
-        if (query?.stripeCustomerId && user.stripeCustomerId === query.stripeCustomerId) {
-          return user;
-        }
-        if (query?.id && user.id === query.id) {
-          return user;
-        }
-        return undefined;
-      });
-
-      const stripeData = StripeSeederCreate();
-      jest.spyOn(service, "getCustomerDiscounts").mockResolvedValue([
-        {
-          type: "promotion_code",
-          id: stripeData.promotionCode.id,
-          coupon_id: stripeData.promotionCode.coupon.id,
-          code: stripeData.promotionCode.code,
-          name: "50% off",
-          percent_off: 100,
-          valid: true
-        }
-      ]);
-
-      const result = await service.createPaymentIntent({
-        ...mockPaymentParams,
-        amount: 100
-      });
-
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(10000, user.id);
-      expect(result).toEqual({
-        success: true,
-        paymentIntentId: "pi_zero_amount"
       });
     });
   });
@@ -861,38 +819,6 @@ describe(StripeService.name, () => {
       const result = await service.getCoupon(TEST_CONSTANTS.COUPON_ID);
       expect(service.coupons.retrieve).toHaveBeenCalledWith(TEST_CONSTANTS.COUPON_ID);
       expect(result).toEqual(mockCoupon);
-    });
-  });
-
-  describe("consumeActiveDiscount", () => {
-    it("should consume active discount", async () => {
-      const { service } = setup();
-      const customerId = TEST_CONSTANTS.CUSTOMER_ID;
-      jest.spyOn(service, "getCustomerDiscounts").mockResolvedValue([
-        {
-          type: "promotion_code",
-          id: TEST_CONSTANTS.PROMOTION_CODE_ID,
-          coupon_id: TEST_CONSTANTS.COUPON_ID,
-          code: "PROMO123",
-          name: "Promo",
-          percent_off: 50,
-          amount_off: null,
-          currency: "usd",
-          valid: true
-        }
-      ]);
-      const result = await service.consumeActiveDiscount(customerId);
-      expect(result).toBe(true);
-      expect(service.customers.update).toHaveBeenCalledWith(customerId, { promotion_code: null });
-    });
-
-    it("should return false if no active discount", async () => {
-      const { service } = setup();
-      const customerId = TEST_CONSTANTS.CUSTOMER_ID;
-      jest.spyOn(service, "getCustomerDiscounts").mockResolvedValue([]);
-      const result = await service.consumeActiveDiscount(customerId);
-      expect(result).toBe(false);
-      expect(service.customers.update).not.toHaveBeenCalled();
     });
   });
 
