@@ -119,7 +119,7 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
 
   useEffect(
     function checkForPaymentCompletion() {
-      if (!isPolling || !currentBalance || !initialBalanceRef.current) {
+      if (!isPolling || !currentBalance || initialBalanceRef.current == null) {
         return;
       }
 

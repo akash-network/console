@@ -1,8 +1,10 @@
+import type { AnalyticsService as RealAnalyticsService } from "@src/services/analytics/analytics.service";
+
 export interface AnalyticsService {
-  track: (event: string, properties?: Record<string, any>) => void;
+  track: jest.MockedFunction<RealAnalyticsService["track"]>;
 }
 
 export const buildAnalyticsService = (overrides: Partial<AnalyticsService> = {}): AnalyticsService => ({
-  track: jest.fn(),
+  track: jest.fn() as jest.MockedFunction<RealAnalyticsService["track"]>,
   ...overrides
 });

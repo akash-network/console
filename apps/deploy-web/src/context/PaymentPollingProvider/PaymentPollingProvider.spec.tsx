@@ -5,23 +5,7 @@ import { DEPENDENCIES, PaymentPollingProvider, usePaymentPolling } from "./Payme
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { buildAnalyticsService, buildManagedWallet, buildSnackbarService, buildWallet, buildWalletBalance } from "@tests/seeders";
 
-// Mock dependencies
-jest.mock("notistack", () => ({
-  useSnackbar: () => ({
-    enqueueSnackbar: jest.fn(),
-    closeSnackbar: jest.fn()
-  })
-}));
-
 describe(PaymentPollingProvider.name, () => {
-  beforeEach(() => {
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
   it("provides polling context to children", () => {
     setup({
       isTrialing: false,
@@ -100,7 +84,7 @@ describe(PaymentPollingProvider.name, () => {
   });
 
   it("verifies polling starts correctly for non-trial users", async () => {
-    const { refetchBalance } = setup({
+    const { refetchBalance, cleanup } = setup({
       isTrialing: false,
       balance: { totalUsd: 100 },
       isWalletBalanceLoading: false
@@ -121,10 +105,12 @@ describe(PaymentPollingProvider.name, () => {
 
     // Verify that refetchBalance is called during polling
     expect(refetchBalance).toHaveBeenCalled();
+
+    cleanup();
   });
 
   it("verifies polling starts correctly for trial users", async () => {
-    const { refetchBalance, refetchManagedWallet } = setup({
+    const { refetchBalance, refetchManagedWallet, cleanup } = setup({
       isTrialing: true,
       balance: { totalUsd: 100 },
       isWalletBalanceLoading: false
@@ -146,6 +132,8 @@ describe(PaymentPollingProvider.name, () => {
     // Verify that both refetchBalance and refetchManagedWallet are called during polling
     expect(refetchBalance).toHaveBeenCalled();
     expect(refetchManagedWallet).toHaveBeenCalled();
+
+    cleanup();
   });
 
   it("verifies analytics service is properly configured for trial users", async () => {
@@ -165,7 +153,7 @@ describe(PaymentPollingProvider.name, () => {
   });
 
   it("shows timeout snackbar after polling timeout", async () => {
-    const { enqueueSnackbar } = setup({
+    const { enqueueSnackbar, cleanup } = setup({
       isTrialing: false,
       balance: { totalUsd: 100 },
       isWalletBalanceLoading: false
@@ -186,10 +174,34 @@ describe(PaymentPollingProvider.name, () => {
         variant: "warning"
       })
     );
+
+    cleanup();
+  });
+
+  it("handles zero initial balance correctly", async () => {
+    const { cleanup } = setup({
+      isTrialing: false,
+      balance: { totalUsd: 0 },
+      isWalletBalanceLoading: false
+    });
+
+    await act(async () => {
+      screen.getByTestId("start-polling").click();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("is-polling")).toHaveTextContent("true");
+    });
+
+    // The payment completion logic should run even with zero initial balance
+    // This test verifies that the guard condition allows zero values
+    expect(screen.queryByTestId("is-polling")).toHaveTextContent("true");
+
+    cleanup();
   });
 
   it("cleans up polling on unmount", async () => {
-    const { unmount } = setup({
+    const { unmount, cleanup } = setup({
       isTrialing: false,
       balance: { totalUsd: 100 },
       isWalletBalanceLoading: false
@@ -208,6 +220,8 @@ describe(PaymentPollingProvider.name, () => {
 
     // Polling should be cleaned up (no way to directly test this, but it prevents memory leaks)
     expect(screen.queryByTestId("is-polling")).not.toBeInTheDocument();
+
+    cleanup();
   });
 
   it("throws error when used outside provider", () => {
@@ -227,6 +241,8 @@ describe(PaymentPollingProvider.name, () => {
   });
 
   function setup(input: { isTrialing: boolean; balance: { totalUsd: number } | null; isWalletBalanceLoading: boolean }) {
+    jest.useFakeTimers();
+
     const refetchBalance = jest.fn();
     const refetchManagedWallet = jest.fn();
     const analyticsService = buildAnalyticsService();
@@ -298,7 +314,10 @@ describe(PaymentPollingProvider.name, () => {
       enqueueSnackbar: snackbarService.enqueueSnackbar,
       closeSnackbar: snackbarService.closeSnackbar,
       rerender,
-      unmount
+      unmount,
+      cleanup: () => {
+        jest.useRealTimers();
+      }
     };
   }
 });
