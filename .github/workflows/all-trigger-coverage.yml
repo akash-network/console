@@ -2,7 +2,7 @@ name: Triggers coverage check for files that do not require coverage
 
 on:
   pull_request:
-    branches: [main]
+    branches: ["main", "main-sdk-next"]
     paths-ignore:
       - 'apps/**'
       - 'packages/**'
