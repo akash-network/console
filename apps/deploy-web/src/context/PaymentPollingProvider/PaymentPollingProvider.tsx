@@ -46,12 +46,12 @@ export interface PaymentPollingProviderProps {
 export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
   const { isTrialing: wasTrialing } = d.useWallet();
   const { balance: currentBalance, refetch: refetchBalance, isLoading: isBalanceLoading } = d.useWalletBalance();
-  const { refetch: refetchManagedWallet, isLoading: isManagedWalletLoading } = d.useManagedWallet();
+  const { refetch: refetchManagedWallet, isFetching: isManagedWalletFetching } = d.useManagedWallet();
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { analyticsService } = d.useServices();
 
   const [isPolling, setIsPolling] = React.useState(false);
-  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPollingRef = useRef<boolean>(false);
   const attemptCountRef = useRef<number>(0);
   const initialBalanceRef = useRef<number | null>(null);
@@ -134,9 +134,15 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
         return;
       }
 
-      if (!isBalanceLoading && !isManagedWalletLoading) {
+      if (!isBalanceLoading && !isManagedWalletFetching) {
         // Schedule next poll if still polling
         if (isPollingRef.current) {
+          // Clear any existing timeout to prevent multiple timers
+          if (pollingTimeoutRef.current) {
+            clearTimeout(pollingTimeoutRef.current);
+            pollingTimeoutRef.current = null;
+          }
+
           pollingTimeoutRef.current = setTimeout(() => {
             if (isPollingRef.current) {
               executePoll();
@@ -145,7 +151,7 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
         }
       }
     },
-    [isPolling, isBalanceLoading, isManagedWalletLoading, executePoll]
+    [isPolling, isBalanceLoading, isManagedWalletFetching, executePoll]
   );
 
   useEffect(
@@ -160,16 +166,15 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
       if (currentTotalBalance > initialBalanceValue) {
         enqueueSnackbar(<d.Snackbar title="Payment successful!" subTitle="Your balance has been updated" iconVariant="success" />, { variant: "success" });
 
-        // If user was not trialing, we can stop polling immediately
-        if (!initialTrialingRef.current) {
-          stopPolling();
-          return;
-        }
+        stopPolling();
 
-        analyticsService.track("trial_completed", {
-          category: "user",
-          label: "First payment completed"
-        });
+        // Track analytics for trial users after stopping polling
+        if (initialTrialingRef.current) {
+          analyticsService.track("trial_completed", {
+            category: "user",
+            label: "First payment completed"
+          });
+        }
       }
     },
     [isPolling, currentBalance, stopPolling, enqueueSnackbar, analyticsService, d]

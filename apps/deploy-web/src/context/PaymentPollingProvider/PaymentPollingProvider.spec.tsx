@@ -278,6 +278,7 @@ describe(PaymentPollingProvider.name, () => {
       useManagedWallet: jest.fn(() => ({
         wallet: mockManagedWallet,
         isLoading: false,
+        isFetching: false,
         createError: null,
         refetch: refetchManagedWallet,
         create: jest.fn()
