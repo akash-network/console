@@ -259,8 +259,6 @@ jobs:
           # shellcheck disable=SC2086
           helm upgrade "$release_name" "$chart_name" --install --atomic -n "${{ inputs.environment }}" --set "appVersion=${{ inputs.appVersion }}" --debug --kubeconfig kubeconfig $values_file_arg
 
-          echo "release_name=$release_name" >> "$GITHUB_ENV"
-
       - name: Force rollout (restart pods even if spec unchanged)
         if: success() && inputs.force-rollout
         run: |
