@@ -1,7 +1,9 @@
 import type * as v1beta1 from "@akashnetwork/akash-api/v1beta1";
 import type * as v1beta2 from "@akashnetwork/akash-api/v1beta2";
 import type * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
-import type * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
+import type * as v1 from "@akashnetwork/chain-sdk/chain/types/akash.v1";
+import type * as v1beta4 from "@akashnetwork/chain-sdk/chain/types/akash.v1beta4";
+import type * as v1beta5 from "@akashnetwork/chain-sdk/chain/types/akash.v1beta5";
 import type { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
 import {
   Bid,
@@ -105,7 +107,30 @@ export class AkashStatsIndexer extends Indexer {
       "/akash.market.v1beta4.MsgCloseLease": this.handleCloseLease,
       "/akash.market.v1beta4.MsgCreateBid": this.handleCreateBid,
       "/akash.market.v1beta4.MsgCloseBid": this.handleCloseBid,
-      "/akash.market.v1beta4.MsgWithdrawLease": this.handleWithdrawLease
+      "/akash.market.v1beta4.MsgWithdrawLease": this.handleWithdrawLease,
+      "/akash.deployment.v1beta4.MsgCreateDeployment": this.handleCreateDeploymentV4,
+      // "/akash.deployment.v1beta4.MsgUpdateDeployment": this.handleUpdateDeployment,
+      // "/akash.deployment.v1beta4.MsgCloseDeployment": this.handleCloseDeployment,
+      // "/akash.provider.v1beta4.MsgCreateProvider": this.handleCreateProvider,
+      // "/akash.provider.v1beta4.MsgDeleteProvider": this.handleDeleteProvider,
+      // "/akash.provider.v1beta4.MsgUpdateProvider": this.handleUpdateProvider
+      // "/akash.deployment.v1beta4.MsgCloseGroup": this.handleCloseGroup,
+      // "/akash.deployment.v1beta4.MsgPauseGroup": this.handlePauseGroup,
+      // "/akash.deployment.v1beta4.MsgStartGroup": this.handleStartGroup,
+      // Akash v1beta5 types
+      "/akash.market.v1beta5.MsgCreateLease": this.handleCreateLease,
+      // "/akash.market.v1beta5.MsgCloseLease": this.handleCloseLease,
+      // "/akash.market.v1beta5.MsgCreateBid": this.handleCreateBid,
+      // "/akash.market.v1beta5.MsgCloseBid": this.handleCloseBid,
+      // "/akash.market.v1beta5.MsgWithdrawLease": this.handleWithdrawLease,
+      // "akash.market.v1beta5.MsgUpdateParams": this.handleUpdateParams,
+      // Akash v1 types
+      "/akash.escrow.v1.MsgAccountDeposit": this.handleDepositDeploymentV1
+      // "/akash.cert.v1.MsgCreateCertificate": this.handleCreateCertificate,
+      // "/akash.cert.v1.MsgRevokeCertificate": this.handleRevokeCertificate,
+      // "akash.audit.v1.MsgDeleteProviderAttributes": this.handleDeleteSignProviderAttributes,
+      // "/akash.audit.v1.MsgSignProviderAttributes": this.handleSignProviderAttributes,
+      // "/akash.take.v1.MsgUpdateParams": this.handleUpdateParams,
     };
   }
 
@@ -134,10 +159,10 @@ export class AkashStatsIndexer extends Indexer {
     await ProviderAttribute.sync({ force: false });
     await ProviderAttributeSignature.sync({ force: false });
     await ProviderSnapshot.sync({ force: false });
-    await ProviderSnapshotStorage.sync({ force: false });
     await ProviderSnapshotNode.sync({ force: false });
     await ProviderSnapshotNodeCPU.sync({ force: false });
     await ProviderSnapshotNodeGPU.sync({ force: false });
+    await ProviderSnapshotStorage.sync({ force: false });
     await Lease.sync({ force: false });
     await Bid.sync({ force: false });
   }
@@ -236,6 +261,7 @@ export class AkashStatsIndexer extends Indexer {
       "/akash.deployment.v1beta3.MsgDepositDeployment",
       "/akash.market.v1beta3.MsgWithdrawLease",
       // v1beta4
+      "/akash.deployment.v1beta4.MsgCreateDeployment",
       "/akash.market.v1beta4.MsgCreateLease",
       "/akash.market.v1beta4.MsgCloseLease",
       "/akash.market.v1beta4.MsgCloseBid",
@@ -407,6 +433,71 @@ export class AkashStatsIndexer extends Indexer {
     }
   }
 
+  private async handleCreateDeploymentV4(decodedMessage: v1beta4.MsgCreateDeployment, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    if (!(decodedMessage.deposit.amount.denom in denomMapping)) {
+      throw "Unknown denom: " + decodedMessage.deposit.amount.denom;
+    }
+
+    console.log(decodedMessage);
+    throw new Error("test");
+
+    const created = await Deployment.create(
+      {
+        id: uuid.v4(),
+        owner: decodedMessage.id.owner,
+        dseq: decodedMessage.id.dseq.toString(),
+        deposit: parseInt(decodedMessage.deposit.amount.amount),
+        balance: parseInt(decodedMessage.deposit.amount.amount),
+        withdrawnAmount: 0,
+        denom: denomMapping[decodedMessage.deposit.amount.denom],
+        createdHeight: height,
+        closedHeight: null
+      },
+      { transaction: blockGroupTransaction }
+    );
+
+    msg.relatedDeploymentId = created.id;
+
+    for (const group of decodedMessage.groups) {
+      const createdGroup = await DeploymentGroup.create(
+        {
+          id: uuid.v4(),
+          deploymentId: created.id,
+          owner: created.owner,
+          dseq: created.dseq,
+          gseq: decodedMessage.groups.indexOf(group) + 1
+        },
+        { transaction: blockGroupTransaction }
+      );
+
+      for (const groupResource of group.resources) {
+        const { vendor: gpuVendor, model: gpuModel } = getGPUAttributes(groupResource.resource.gpu);
+
+        await DeploymentGroupResource.create(
+          {
+            deploymentGroupId: createdGroup.id,
+            cpuUnits: parseInt(uint8arrayToString(groupResource.resource.cpu.units.val)),
+            gpuUnits: parseInt(uint8arrayToString(groupResource.resource.gpu.units.val)),
+            gpuVendor: gpuVendor,
+            gpuModel: gpuModel,
+            memoryQuantity: parseInt(uint8arrayToString(groupResource.resource.memory.quantity.val)),
+            ephemeralStorageQuantity: groupResource.resource.storage
+              .filter(x => !isPersistentStorage(x))
+              .map(x => parseInt(uint8arrayToString(x.quantity.val)))
+              .reduce((a, b) => a + b, 0),
+            persistentStorageQuantity: groupResource.resource.storage
+              .filter(x => isPersistentStorage(x))
+              .map(x => parseInt(uint8arrayToString(x.quantity.val)))
+              .reduce((a, b) => a + b, 0),
+            count: groupResource.count,
+            price: parseFloat(groupResource.price.amount) // TODO: handle denom
+          },
+          { transaction: blockGroupTransaction }
+        );
+      }
+    }
+  }
+
   private async handleCloseDeployment(
     decodedMessage: v1beta1.MsgCloseDeployment | v1beta2.MsgCloseDeployment | v1beta3.MsgCloseDeployment,
     height: number,
@@ -440,7 +531,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCreateLease(
-    decodedMessage: v1beta1.MsgCreateLease | v1beta2.MsgCreateLease | v1beta3.MsgCreateLease,
+    decodedMessage: v1beta1.MsgCreateLease | v1beta2.MsgCreateLease | v1beta3.MsgCreateLease | v1beta5.MsgCreateLease,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -577,7 +668,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCreateBid(
-    decodedMessage: v1beta1.MsgCreateBid | v1beta2.MsgCreateBid | v1beta3.MsgCreateBid | v1beta4.MsgCreateBid,
+    decodedMessage: v1beta1.MsgCreateBid | v1beta2.MsgCreateBid | v1beta3.MsgCreateBid,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -704,8 +795,53 @@ export class AkashStatsIndexer extends Indexer {
     msg.amount = getAmountFromCoin(decodedMessage.amount);
   }
 
+  private async handleDepositDeploymentV1(decodedMessage: v1.MsgAccountDeposit, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    // For v1 escrow, we need to extract the deployment info from the account ID
+    // The xid field contains the deployment identifier in the format "owner/dseq"
+    // The owner is provided directly in the message, and dseq is extracted from xid
+    const [owner, dseq] = decodedMessage.id.xid.split("/");
+
+    console.log(decodedMessage);
+    throw new Error("test");
+
+    const deployment = await Deployment.findOne({
+      where: {
+        owner: owner,
+        dseq: dseq
+      },
+      include: [
+        {
+          model: Lease
+        }
+      ],
+      transaction: blockGroupTransaction
+    });
+
+    if (!deployment) {
+      throw new Error(`Deployment for ${owner}/${dseq} not found.`);
+    }
+
+    msg.relatedDeploymentId = deployment.id;
+
+    deployment.deposit += parseFloat(decodedMessage.deposit.amount.amount);
+    deployment.balance += parseFloat(decodedMessage.deposit.amount.amount);
+    await deployment.save({ transaction: blockGroupTransaction });
+
+    const blockRate = deployment.leases
+      .filter(x => !x.closedHeight)
+      .map(x => x.price)
+      .reduce((a, b) => a + b, 0);
+
+    for (const lease of deployment.leases.filter(x => !x.closedHeight)) {
+      lease.predictedClosedHeight = Math.ceil((deployment.lastWithdrawHeight || lease.createdHeight) + deployment.balance / blockRate).toString();
+      await lease.save({ transaction: blockGroupTransaction });
+    }
+
+    msg.amount = getAmountFromCoin(decodedMessage.deposit.amount);
+  }
+
   private async handleWithdrawLease(
-    decodedMessage: v1beta1.MsgWithdrawLease | v1beta2.MsgWithdrawLease | v1beta3.MsgWithdrawLease | v1beta4.MsgWithdrawLease,
+    decodedMessage: v1beta1.MsgWithdrawLease | v1beta2.MsgWithdrawLease | v1beta3.MsgWithdrawLease,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -977,11 +1113,11 @@ export class AkashStatsIndexer extends Indexer {
   }
 }
 
-function isPersistentStorage(storage: v1beta2.Storage | v1beta3.Storage): boolean {
+function isPersistentStorage(storage: v1beta2.Storage | v1beta3.Storage | v1beta4.Storage): boolean {
   return (storage.attributes || []).some(a => a.key === "persistent" && a.value === "true");
 }
 
-function getGPUAttributes(gpu: v1beta3.GPU) {
+function getGPUAttributes(gpu: v1beta3.GPU | v1beta4.GPU) {
   if (!gpu.attributes || gpu.attributes.length !== 1) return { vendor: null, model: null };
 
   const attr = gpu.attributes[0];

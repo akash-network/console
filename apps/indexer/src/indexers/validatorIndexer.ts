@@ -56,10 +56,31 @@ export class ValidatorIndexer extends Indexer {
     });
   }
   private async createValidatorFromGentx(validator: IGentxCreateValidator, dbTransaction: DbTransaction) {
+    let accountAddress: string;
+
+    // Handle empty or invalid delegator_address
+    if (!validator.delegator_address || validator.delegator_address.trim() === "") {
+      console.warn(`Empty delegator_address for validator ${validator.validator_address}, using validator_address as accountAddress`);
+      accountAddress = validator.validator_address;
+    } else {
+      try {
+        // Try to decode the delegator address as bech32
+        accountAddress = toBech32(activeChain.bech32Prefix, fromBech32(validator.delegator_address).data);
+      } catch (error) {
+        // If bech32 decoding fails, the delegator_address might already be in the correct format
+        // or it might be a different type of address. Use it as-is.
+        console.warn(
+          `Failed to decode delegator_address "${validator.delegator_address}" as bech32, using as-is:`,
+          error instanceof Error ? error.message : String(error)
+        );
+        accountAddress = validator.delegator_address;
+      }
+    }
+
     await Validator.create(
       {
         operatorAddress: validator.validator_address,
-        accountAddress: toBech32(activeChain.bech32Prefix, fromBech32(validator.delegator_address).data),
+        accountAddress: accountAddress,
         hexAddress: toHex(pubkeyToRawAddress(validator.pubkey["@type"], fromBase64(validator.pubkey.key))).toUpperCase(),
         moniker: validator.description.moniker,
         identity: validator.description.identity,
