@@ -31,7 +31,7 @@ export function useServices() {
 
 function createAppContainer<T extends Factories>(settingsState: SettingsContextType, services: T) {
   const di = createChildContainer(rootContainer, {
-    authzHttpService: () => new AuthzHttpService({ baseURL: settingsState.settings?.apiEndpoint, adapter: "fetch" }),
+    authzHttpService: () => new AuthzHttpService(di.chainApiHttpClient),
     walletBalancesService: () => new WalletBalancesService(di.authzHttpService, di.chainApiHttpClient, di.appConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS),
     certificatesService: () => new CertificatesService(di.chainApiHttpClient),
     chainApiHttpClient: () =>
