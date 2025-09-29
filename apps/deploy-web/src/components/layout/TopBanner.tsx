@@ -2,11 +2,12 @@ import { FormattedDate } from "react-intl";
 import { Button } from "@akashnetwork/ui/components";
 import { Xmark } from "iconoir-react";
 
+import { useTopBanner } from "@src/context/TopBannerProvider";
 import { useWallet } from "@src/context/WalletProvider/WalletProvider";
 import { useVariant } from "@src/hooks/useVariant";
 import { ConnectManagedWalletButton } from "../wallet/ConnectManagedWalletButton";
 
-export function CreditCardBanner() {
+function CreditCardBanner() {
   const { hasManagedWallet } = useWallet();
 
   return (
@@ -18,7 +19,7 @@ export function CreditCardBanner() {
   );
 }
 
-export function NetworkDownBanner() {
+function NetworkDownBanner() {
   return (
     <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
       <span className="text-xs font-semibold text-white md:text-sm">The network is down. Unable to change deployments at the moment.</span>
@@ -26,7 +27,7 @@ export function NetworkDownBanner() {
   );
 }
 
-export function MaintenanceBanner({ onClose }: { onClose: () => void }) {
+function MaintenanceBanner({ onClose }: { onClose: () => void }) {
   const maintenanceBannerFlag = useVariant("maintenance_banner");
 
   const { message, date } = maintenanceBannerFlag.enabled
@@ -43,4 +44,22 @@ export function MaintenanceBanner({ onClose }: { onClose: () => void }) {
       </Button>
     </div>
   );
+}
+
+export function TopBanner() {
+  const { isMaintenanceBannerOpen, setIsMaintenanceBannerOpen, isBlockchainDown, hasCreditCardBanner } = useTopBanner();
+
+  if (isMaintenanceBannerOpen) {
+    return <MaintenanceBanner onClose={() => setIsMaintenanceBannerOpen(false)} />;
+  }
+
+  if (isBlockchainDown) {
+    return <NetworkDownBanner />;
+  }
+
+  if (hasCreditCardBanner) {
+    return <CreditCardBanner />;
+  }
+
+  return null;
 }
