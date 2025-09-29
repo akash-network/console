@@ -24,7 +24,7 @@ export class ProviderService {
       throw new Error(`No API URL provided for network ${network}`);
     }
 
-    const response = await httpRetry(() => this.fetch(`${baseUrl}/akash/cert/v1beta3/certificates/list?${queryParams}`), {
+    const response = await httpRetry(() => this.fetch(`${baseUrl}/akash/cert/v1/certificates/list?${queryParams}`), {
       retryIf: response => response.status > 500,
       logger: this.logger
     });
