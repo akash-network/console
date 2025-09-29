@@ -168,13 +168,21 @@ describe(CreateLease.name, () => {
         }
       })
     ];
-    const { getByRole } = setup({
+    setup({
       BidGroup,
       bids,
       isBlockchainDown: true
     });
+
     await waitFor(() => {
-      expect(getByRole("button", { name: /Accept Bid/i })).toHaveAttribute("disabled");
+      expect((BidGroup as jest.Mock).mock.calls.length).toBeGreaterThan(0);
+    });
+    const bidGroupProps = (BidGroup as jest.Mock).mock.calls[0][0];
+    act(() => {
+      bidGroupProps.handleBidSelected(mapToBidDto(bids[0]));
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /Accept Bid/i })).toBeDisabled();
     });
   });
 
