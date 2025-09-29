@@ -212,6 +212,9 @@ describe("useGrantsQuery", () => {
         })
       } as any);
       setupQuery(() => useAllowancesGranted(""), {
+        services: {
+          chainApiHttpClient: () => chainApiHttpClient
+        },
         wrapper: ({ children }) => <MockSettingsProvider>{children}</MockSettingsProvider>
       });
 
