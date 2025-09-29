@@ -8,8 +8,9 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 
-const POLLING_INTERVAL_MS = 1000;
+const POLLING_INTERVAL_MS = 2000;
 const MAX_POLLING_DURATION_MS = 30000;
+const MAX_ATTEMPTS = MAX_POLLING_DURATION_MS / POLLING_INTERVAL_MS;
 
 export const DEPENDENCIES = {
   useWallet,
@@ -44,26 +45,28 @@ export interface PaymentPollingProviderProps {
 
 export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
   const { isTrialing: wasTrialing } = d.useWallet();
-  const { balance: currentBalance, refetch: refetchBalance } = d.useWalletBalance();
-  const { refetch: refetchManagedWallet } = d.useManagedWallet();
+  const { balance: currentBalance, refetch: refetchBalance, isLoading: isBalanceLoading } = d.useWalletBalance();
+  const { refetch: refetchManagedWallet, isLoading: isManagedWalletLoading } = d.useManagedWallet();
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { analyticsService } = d.useServices();
 
   const [isPolling, setIsPolling] = React.useState(false);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<number | null>(null);
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isPollingRef = useRef<boolean>(false);
+  const attemptCountRef = useRef<number>(0);
   const initialBalanceRef = useRef<number | null>(null);
   const wasTrialingRef = useRef<boolean>(wasTrialing);
   const initialTrialingRef = useRef<boolean>(wasTrialing);
   const loadingSnackbarKeyRef = useRef<string | number | null>(null);
 
   const stopPolling = useCallback(() => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
     }
+    isPollingRef.current = false;
+    attemptCountRef.current = 0;
     setIsPolling(false);
-    startTimeRef.current = null;
     initialBalanceRef.current = null;
     initialTrialingRef.current = wasTrialing;
 
@@ -72,6 +75,25 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
       loadingSnackbarKeyRef.current = null;
     }
   }, [closeSnackbar, wasTrialing]);
+
+  const executePoll = useCallback(() => {
+    attemptCountRef.current++;
+
+    if (attemptCountRef.current > MAX_ATTEMPTS) {
+      stopPolling();
+      enqueueSnackbar(<d.Snackbar title="Payment processing timeout" subTitle="Please refresh the page to check your balance" iconVariant="warning" />, {
+        variant: "warning"
+      });
+      return;
+    }
+
+    try {
+      refetchBalance();
+      refetchManagedWallet();
+    } catch (error) {
+      console.error("Error during polling:", error);
+    }
+  }, [stopPolling, enqueueSnackbar, refetchBalance, refetchManagedWallet, d]);
 
   const pollForPayment = useCallback(
     (initialBalance?: number | null) => {
@@ -82,8 +104,9 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
       const balanceToUse = initialBalance ?? currentBalance?.totalUsd ?? null;
       initialBalanceRef.current = balanceToUse;
       initialTrialingRef.current = wasTrialing;
+      isPollingRef.current = true;
+      attemptCountRef.current = 0;
       setIsPolling(true);
-      startTimeRef.current = Date.now();
 
       const loadingSnackbarKey = enqueueSnackbar(<d.Snackbar title="Processing payment..." subTitle="Please wait while we update your balance" showLoading />, {
         variant: "info",
@@ -92,22 +115,10 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
       });
       loadingSnackbarKeyRef.current = loadingSnackbarKey;
 
-      pollingRef.current = setInterval(async () => {
-        const elapsed = Date.now() - (startTimeRef.current || 0);
-
-        if (elapsed >= MAX_POLLING_DURATION_MS) {
-          stopPolling();
-          enqueueSnackbar(<d.Snackbar title="Payment processing timeout" subTitle="Please refresh the page to check your balance" iconVariant="warning" />, {
-            variant: "warning"
-          });
-          return;
-        }
-
-        refetchBalance();
-        refetchManagedWallet();
-      }, POLLING_INTERVAL_MS);
+      // Start the first poll immediately
+      executePoll();
     },
-    [isPolling, currentBalance, refetchBalance, refetchManagedWallet, stopPolling, enqueueSnackbar, wasTrialing]
+    [isPolling, currentBalance, executePoll, enqueueSnackbar, wasTrialing, d]
   );
 
   useEffect(
@@ -115,6 +126,26 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
       wasTrialingRef.current = wasTrialing;
     },
     [wasTrialing]
+  );
+
+  useEffect(
+    function handleRefetchCompletion() {
+      if (!isPolling) {
+        return;
+      }
+
+      if (!isBalanceLoading && !isManagedWalletLoading) {
+        // Schedule next poll if still polling
+        if (isPollingRef.current) {
+          pollingTimeoutRef.current = setTimeout(() => {
+            if (isPollingRef.current) {
+              executePoll();
+            }
+          }, POLLING_INTERVAL_MS);
+        }
+      }
+    },
+    [isPolling, isBalanceLoading, isManagedWalletLoading, executePoll]
   );
 
   useEffect(
@@ -141,7 +172,7 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
         });
       }
     },
-    [isPolling, currentBalance, stopPolling, enqueueSnackbar, analyticsService]
+    [isPolling, currentBalance, stopPolling, enqueueSnackbar, analyticsService, d]
   );
 
   useEffect(
@@ -159,7 +190,7 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
         );
       }
     },
-    [isPolling, wasTrialing, stopPolling, enqueueSnackbar]
+    [isPolling, wasTrialing, stopPolling, enqueueSnackbar, d]
   );
 
   useEffect(

@@ -1,9 +1,11 @@
 import React from "react";
+import { mock } from "jest-mock-extended";
 
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { DEPENDENCIES, PaymentPollingProvider, usePaymentPolling } from "./PaymentPollingProvider";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { buildAnalyticsService, buildManagedWallet, buildSnackbarService, buildWallet, buildWalletBalance } from "@tests/seeders";
+import { buildManagedWallet, buildWallet, buildWalletBalance } from "@tests/seeders";
 
 describe(PaymentPollingProvider.name, () => {
   it("provides polling context to children", () => {
@@ -245,8 +247,9 @@ describe(PaymentPollingProvider.name, () => {
 
     const refetchBalance = jest.fn();
     const refetchManagedWallet = jest.fn();
-    const analyticsService = buildAnalyticsService();
-    const snackbarService = buildSnackbarService();
+    const analyticsService = mock<AnalyticsService>();
+    const mockEnqueueSnackbar = jest.fn();
+    const mockCloseSnackbar = jest.fn();
     const wallet = buildWallet({ isTrialing: input.isTrialing });
     const managedWallet = buildManagedWallet({ isTrialing: input.isTrialing });
     const walletBalance = input.balance ? buildWalletBalance(input.balance) : null;
@@ -282,9 +285,12 @@ describe(PaymentPollingProvider.name, () => {
       useServices: jest.fn(() => ({
         analyticsService
       })),
-      useSnackbar: jest.fn(() => snackbarService),
+      useSnackbar: jest.fn(() => ({
+        enqueueSnackbar: mockEnqueueSnackbar,
+        closeSnackbar: mockCloseSnackbar
+      })),
       Snackbar: mockSnackbar
-    } as any;
+    } as unknown as typeof DEPENDENCIES;
 
     const TestComponent = () => {
       const { pollForPayment, stopPolling, isPolling } = usePaymentPolling();
@@ -311,8 +317,8 @@ describe(PaymentPollingProvider.name, () => {
       refetchBalance,
       refetchManagedWallet,
       analyticsService,
-      enqueueSnackbar: snackbarService.enqueueSnackbar,
-      closeSnackbar: snackbarService.closeSnackbar,
+      enqueueSnackbar: mockEnqueueSnackbar,
+      closeSnackbar: mockCloseSnackbar,
       rerender,
       unmount,
       cleanup: () => {
