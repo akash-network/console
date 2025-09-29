@@ -69,6 +69,7 @@ export type AnalyticsEvent =
   | "user_settings_save"
   | "anonymous_user_created"
   | "trial_started"
+  | "trial_completed"
   | "create_api_key"
   | "delete_api_key"
   | "close_deposit_modal"
