@@ -1,8 +1,8 @@
 import { isFuture } from "date-fns";
-import type { HttpClient } from "src/utils/httpClient";
 
 import { extractData } from "../http/http.service";
 import type { Denom } from "../types/denom.type";
+import type { HttpClient } from "../utils/httpClient";
 import { isHttpError } from "../utils/isHttpError";
 
 export interface SpendLimit {
