@@ -2,7 +2,7 @@ name: "Deploy Web CI"
 
 on:
   pull_request:
-    branches: ["main"]
+    branches: ["main", "main-sdk-next"]
   push:
     branches: ["main"]
 
