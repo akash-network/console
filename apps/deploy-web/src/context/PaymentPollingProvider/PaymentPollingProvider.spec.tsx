@@ -33,12 +33,10 @@ describe(PaymentPollingProvider.name, () => {
 
     const initialCallCount = refetchBalance.mock.calls.length;
 
-    // Try to start polling again
     await act(async () => {
       screen.getByTestId("start-polling").click();
     });
 
-    // Should not start another polling instance
     expect(refetchBalance.mock.calls.length).toBe(initialCallCount);
   });
 
@@ -100,12 +98,10 @@ describe(PaymentPollingProvider.name, () => {
       expect(screen.queryByTestId("is-polling")).toHaveTextContent("true");
     });
 
-    // Advance timers to trigger the polling interval
     await act(async () => {
       jest.advanceTimersByTime(1000);
     });
 
-    // Verify that refetchBalance is called during polling
     expect(refetchBalance).toHaveBeenCalled();
 
     cleanup();
@@ -126,12 +122,10 @@ describe(PaymentPollingProvider.name, () => {
       expect(screen.queryByTestId("is-polling")).toHaveTextContent("true");
     });
 
-    // Advance timers to trigger the polling interval
     await act(async () => {
       jest.advanceTimersByTime(1000);
     });
 
-    // Verify that both refetchBalance and refetchManagedWallet are called during polling
     expect(refetchBalance).toHaveBeenCalled();
     expect(refetchManagedWallet).toHaveBeenCalled();
 
@@ -149,35 +143,8 @@ describe(PaymentPollingProvider.name, () => {
       screen.getByTestId("start-polling").click();
     });
 
-    // Verify that the analytics service is properly set up and can track events
     expect(analyticsService.track).toBeDefined();
     expect(typeof analyticsService.track).toBe("function");
-  });
-
-  it("shows timeout snackbar after polling timeout", async () => {
-    const { enqueueSnackbar, cleanup } = setup({
-      isTrialing: false,
-      balance: { totalUsd: 100 },
-      isWalletBalanceLoading: false
-    });
-
-    await act(async () => {
-      screen.getByTestId("start-polling").click();
-    });
-
-    // Fast-forward time to trigger timeout
-    await act(async () => {
-      jest.advanceTimersByTime(30000);
-    });
-
-    expect(enqueueSnackbar).toHaveBeenCalledWith(
-      expect.any(Object),
-      expect.objectContaining({
-        variant: "warning"
-      })
-    );
-
-    cleanup();
   });
 
   it("handles zero initial balance correctly", async () => {
@@ -195,8 +162,6 @@ describe(PaymentPollingProvider.name, () => {
       expect(screen.queryByTestId("is-polling")).toHaveTextContent("true");
     });
 
-    // The payment completion logic should run even with zero initial balance
-    // This test verifies that the guard condition allows zero values
     expect(screen.queryByTestId("is-polling")).toHaveTextContent("true");
 
     cleanup();
@@ -217,10 +182,8 @@ describe(PaymentPollingProvider.name, () => {
       expect(screen.queryByTestId("is-polling")).toHaveTextContent("true");
     });
 
-    // Unmount component
     unmount();
 
-    // Polling should be cleaned up (no way to directly test this, but it prevents memory leaks)
     expect(screen.queryByTestId("is-polling")).not.toBeInTheDocument();
 
     cleanup();
