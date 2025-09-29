@@ -13,6 +13,14 @@ on:
         options:
           - staging
           - production
+      tag-latest:
+        description: "Whether to mark the image as latest additionally to provided tag"
+        type: boolean
+        default: true
+      force-build:
+        description: "Whether to force build the image"
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       tag:
@@ -22,6 +30,14 @@ on:
       deployment-env:
         description: "Deployment environment"
         type: string
+      tag-latest:
+        description: "Whether to mark the image as latest additionally to provided tag"
+        type: boolean
+        default: true
+      force-build:
+        description: "Whether to force build the image"
+        type: boolean
+        default: false
     outputs:
       image_tag:
         description: "The image tag"
@@ -103,5 +119,11 @@ jobs:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }} # used by console-api to fetch Akash templates
           GIT_COMMIT_HASH: ${{ github.sha }}
         run: |
+          if [[ -n "${{ env.force_build }}" ]]; then
+            force_build="${{ env.force_build }}"
+          elif ${{ inputs.force-build }}; then
+            force_build="-f"
+          fi
+
           # shellcheck disable=SC2086
-          ./packages/docker/script/build.sh -r ${{ env.registry }} -t ${{ env.tag }} -a ${{ env.app }} ${{ env.force_build }}
+          ./packages/docker/script/build.sh -r ${{ env.registry }} -t ${{ env.tag }} -a ${{ env.app }} -l "${{ inputs.tag-latest }}" "$force_build"
