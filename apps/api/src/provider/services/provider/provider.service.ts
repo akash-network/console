@@ -87,9 +87,7 @@ export class ProviderService {
         owner: providerAddress
       }
     });
-    if (!provider) {
-      throw new Error(`Provider ${providerAddress} not found`);
-    }
+    assert(provider, 404, `Provider ${providerAddress} not found`);
 
     const providerIdentity: ProviderIdentity = {
       owner: providerAddress,
