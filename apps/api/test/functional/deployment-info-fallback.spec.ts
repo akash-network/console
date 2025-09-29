@@ -1,3 +1,6 @@
+import type { Deployment } from "@akashnetwork/database/dbSchemas/akash";
+import type { DeploymentGroup } from "@akashnetwork/database/dbSchemas/akash";
+import type { DeploymentGroupResource } from "@akashnetwork/database/dbSchemas/akash";
 import Long from "long";
 
 import { app, initDb } from "@src/rest-app";
@@ -16,41 +19,39 @@ describe("Deployment Info Fallback API", () => {
         "id.dseq": deployments![0].dseq
       });
 
-      // Check if result is an error response
-      if ("code" in result) {
-        throw new Error(`API returned error: ${result.message}`);
+      expect(isSuccessResponse(result)).toBe(true);
+      if (isSuccessResponse(result)) {
+        expect(result).toHaveProperty("deployment");
+        expect(result).toHaveProperty("groups");
+        expect(result).toHaveProperty("escrow_account");
+
+        // Check deployment structure
+        expect(result.deployment).toHaveProperty("deployment_id");
+        expect(result.deployment.deployment_id).toHaveProperty("owner", addresses[0]);
+        expect(result.deployment.deployment_id).toHaveProperty("dseq", deployments![0].dseq);
+        expect(result.deployment).toHaveProperty("state");
+        expect(result.deployment).toHaveProperty("version");
+        expect(result.deployment).toHaveProperty("created_at");
+
+        // Check groups structure
+        expect(Array.isArray(result.groups)).toBe(true);
+        expect(result.groups.length).toBeGreaterThan(0);
+
+        const group = result.groups[0];
+        expect(group).toHaveProperty("group_id");
+        expect(group).toHaveProperty("state");
+        expect(group).toHaveProperty("group_spec");
+        expect(group.group_spec).toHaveProperty("name");
+        expect(group.group_spec).toHaveProperty("resources");
+        expect(Array.isArray(group.group_spec.resources)).toBe(true);
+
+        // Check escrow account structure
+        expect(result.escrow_account).toHaveProperty("id");
+        expect(result.escrow_account).toHaveProperty("owner");
+        expect(result.escrow_account).toHaveProperty("state");
+        expect(result.escrow_account).toHaveProperty("balance");
+        expect(result.escrow_account).toHaveProperty("transferred");
       }
-
-      expect(result).toHaveProperty("deployment");
-      expect(result).toHaveProperty("groups");
-      expect(result).toHaveProperty("escrow_account");
-
-      // Check deployment structure
-      expect(result.deployment).toHaveProperty("deployment_id");
-      expect(result.deployment.deployment_id).toHaveProperty("owner", addresses[0]);
-      expect(result.deployment.deployment_id).toHaveProperty("dseq", deployments![0].dseq);
-      expect(result.deployment).toHaveProperty("state");
-      expect(result.deployment).toHaveProperty("version");
-      expect(result.deployment).toHaveProperty("created_at");
-
-      // Check groups structure
-      expect(Array.isArray(result.groups)).toBe(true);
-      expect(result.groups.length).toBeGreaterThan(0);
-
-      const group = result.groups[0];
-      expect(group).toHaveProperty("group_id");
-      expect(group).toHaveProperty("state");
-      expect(group).toHaveProperty("group_spec");
-      expect(group.group_spec).toHaveProperty("name");
-      expect(group.group_spec).toHaveProperty("resources");
-      expect(Array.isArray(group.group_spec.resources)).toBe(true);
-
-      // Check escrow account structure
-      expect(result.escrow_account).toHaveProperty("id");
-      expect(result.escrow_account).toHaveProperty("owner");
-      expect(result.escrow_account).toHaveProperty("state");
-      expect(result.escrow_account).toHaveProperty("balance");
-      expect(result.escrow_account).toHaveProperty("transferred");
     });
 
     it("should return 404 for non-existent deployment", async () => {
@@ -69,22 +70,16 @@ describe("Deployment Info Fallback API", () => {
     it("should handle different deployment states", async () => {
       const { addresses, deployments } = await setup({ createTestData: true });
 
-      // Test active deployment
       const activeResult = await makeRequest({
         "id.owner": addresses[0],
         "id.dseq": deployments![0].dseq
       });
 
-      // Check if result is an error response
-      if ("code" in activeResult) {
-        throw new Error(`API returned error: ${activeResult.message}`);
+      expect(isSuccessResponse(activeResult)).toBe(true);
+      if (isSuccessResponse(activeResult)) {
+        expect(activeResult.deployment.state).toBe("active");
+        expect(activeResult.escrow_account.state).toBe("open");
       }
-
-      expect(activeResult.deployment.state).toBe("active");
-      expect(activeResult.escrow_account.state).toBe("open");
-
-      // Test closed deployment (if we had one)
-      // This would require creating a deployment with closedHeight set
     });
 
     it("should return proper resource information", async () => {
@@ -95,30 +90,28 @@ describe("Deployment Info Fallback API", () => {
         "id.dseq": deployments![0].dseq
       });
 
-      // Check if result is an error response
-      if ("code" in result) {
-        throw new Error(`API returned error: ${result.message}`);
+      expect(isSuccessResponse(result)).toBe(true);
+      if (isSuccessResponse(result)) {
+        const group = result.groups[0];
+        const resource = group.group_spec.resources[0];
+
+        expect(resource.resource).toHaveProperty("cpu");
+        expect(resource.resource).toHaveProperty("memory");
+        expect(resource.resource).toHaveProperty("storage");
+        expect(resource.resource).toHaveProperty("gpu");
+        expect(resource.resource).toHaveProperty("endpoints");
+
+        expect(resource.resource.cpu.units).toHaveProperty("val");
+        expect(resource.resource.memory.quantity).toHaveProperty("val");
+        expect(Array.isArray(resource.resource.storage)).toBe(true);
+        expect(resource.resource.gpu.units).toHaveProperty("val");
+        expect(Array.isArray(resource.resource.endpoints)).toBe(true);
+
+        expect(resource).toHaveProperty("count");
+        expect(resource).toHaveProperty("price");
+        expect(resource.price).toHaveProperty("denom");
+        expect(resource.price).toHaveProperty("amount");
       }
-
-      const group = result.groups[0];
-      const resource = group.group_spec.resources[0];
-
-      expect(resource.resource).toHaveProperty("cpu");
-      expect(resource.resource).toHaveProperty("memory");
-      expect(resource.resource).toHaveProperty("storage");
-      expect(resource.resource).toHaveProperty("gpu");
-      expect(resource.resource).toHaveProperty("endpoints");
-
-      expect(resource.resource.cpu.units).toHaveProperty("val");
-      expect(resource.resource.memory.quantity).toHaveProperty("val");
-      expect(Array.isArray(resource.resource.storage)).toBe(true);
-      expect(resource.resource.gpu.units).toHaveProperty("val");
-      expect(Array.isArray(resource.resource.endpoints)).toBe(true);
-
-      expect(resource).toHaveProperty("count");
-      expect(resource).toHaveProperty("price");
-      expect(resource.price).toHaveProperty("denom");
-      expect(resource.price).toHaveProperty("amount");
     });
   });
 
@@ -141,14 +134,13 @@ describe("Deployment Info Fallback API", () => {
 
     const testData: {
       addresses: string[];
-      deployments?: any[];
-      deploymentGroups?: any[];
-      deploymentGroupResources?: any[];
+      deployments?: Deployment[];
+      deploymentGroups?: DeploymentGroup[];
+      deploymentGroupResources?: DeploymentGroupResource[];
     } = {
       addresses: [createAkashAddress(), createAkashAddress()]
     };
 
-    // Generate random height numbers
     const height1 = 100000 + parseInt(uniqueId.slice(-6));
     const height2 = 100001 + parseInt(uniqueId.slice(-6));
 
@@ -218,17 +210,18 @@ describe("Deployment Info Fallback API", () => {
     return testData;
   }
 
+  function isSuccessResponse(
+    response: RestAkashDeploymentInfoResponse
+  ): response is Exclude<RestAkashDeploymentInfoResponse, { code: number; message: string; details: string[] }> {
+    return !("code" in response);
+  }
+
   async function makeRequest(input: { "id.owner": string; "id.dseq": string }): Promise<RestAkashDeploymentInfoResponse> {
     const params = new URLSearchParams(input);
 
     const url = `/akash/deployment/v1beta3/deployments/info?${params.toString()}`;
     const response = await app.request(url);
 
-    if (response.status === 404) {
-      return (await response.json()) as RestAkashDeploymentInfoResponse;
-    }
-
-    expect(response.status).toBe(200);
     return (await response.json()) as RestAkashDeploymentInfoResponse;
   }
 });
