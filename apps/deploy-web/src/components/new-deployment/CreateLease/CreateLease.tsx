@@ -425,9 +425,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
                 color="secondary"
                 onClick={createLease}
                 className="w-full whitespace-nowrap md:w-auto"
-                disabled={
-                  hasActiveBid ? false : settings.isBlockchainDown || dseqList.some(gseq => !selectedBids[gseq]) || isSendingManifest || isCreatingLeases
-                }
+                disabled={settings.isBlockchainDown || isSendingManifest || isCreatingLeases || (!hasActiveBid && dseqList.some(gseq => !selectedBids[gseq]))}
                 data-testid="create-lease-button"
               >
                 {isCreatingLeases || isSendingManifest ? (
