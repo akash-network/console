@@ -1,7 +1,9 @@
 import type * as v1beta1 from "@akashnetwork/akash-api/v1beta1";
 import type * as v1beta2 from "@akashnetwork/akash-api/v1beta2";
 import type * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
+import type * as prevV1beta4 from "@akashnetwork/akash-api/v1beta4";
 import type * as v1 from "@akashnetwork/chain-sdk/chain/types/akash.v1";
+import { Scope } from "@akashnetwork/chain-sdk/chain/types/akash.v1";
 import type * as v1beta4 from "@akashnetwork/chain-sdk/chain/types/akash.v1beta4";
 import type * as v1beta5 from "@akashnetwork/chain-sdk/chain/types/akash.v1beta5";
 import type { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
@@ -91,11 +93,11 @@ export class AkashStatsIndexer extends Indexer {
       // Akash v1beta3 types
       "/akash.deployment.v1beta3.MsgCreateDeployment": this.handleCreateDeploymentV3,
       "/akash.deployment.v1beta3.MsgCloseDeployment": this.handleCloseDeployment,
+      "/akash.deployment.v1beta3.MsgDepositDeployment": this.handleDepositDeployment,
       "/akash.market.v1beta3.MsgCreateLease": this.handleCreateLease,
       "/akash.market.v1beta3.MsgCloseLease": this.handleCloseLease,
       "/akash.market.v1beta3.MsgCreateBid": this.handleCreateBid,
       "/akash.market.v1beta3.MsgCloseBid": this.handleCloseBid,
-      "/akash.deployment.v1beta3.MsgDepositDeployment": this.handleDepositDeployment,
       "/akash.market.v1beta3.MsgWithdrawLease": this.handleWithdrawLease,
       "/akash.provider.v1beta3.MsgCreateProvider": this.handleCreateProvider,
       "/akash.provider.v1beta3.MsgUpdateProvider": this.handleUpdateProvider,
@@ -103,34 +105,26 @@ export class AkashStatsIndexer extends Indexer {
       "/akash.audit.v1beta3.MsgSignProviderAttributes": this.handleSignProviderAttributes,
       "/akash.audit.v1beta3.MsgDeleteProviderAttributes": this.handleDeleteSignProviderAttributes,
       // Akash v1beta4 types
+      "/akash.deployment.v1beta4.MsgCreateDeployment": this.handleCreateDeploymentV4,
+      "/akash.deployment.v1beta4.MsgCloseDeployment": this.handleCloseDeployment,
       "/akash.market.v1beta4.MsgCreateLease": this.handleCreateLease,
       "/akash.market.v1beta4.MsgCloseLease": this.handleCloseLease,
       "/akash.market.v1beta4.MsgCreateBid": this.handleCreateBid,
       "/akash.market.v1beta4.MsgCloseBid": this.handleCloseBid,
       "/akash.market.v1beta4.MsgWithdrawLease": this.handleWithdrawLease,
-      "/akash.deployment.v1beta4.MsgCreateDeployment": this.handleCreateDeploymentV4,
-      // "/akash.deployment.v1beta4.MsgUpdateDeployment": this.handleUpdateDeployment,
-      // "/akash.deployment.v1beta4.MsgCloseDeployment": this.handleCloseDeployment,
-      // "/akash.provider.v1beta4.MsgCreateProvider": this.handleCreateProvider,
-      // "/akash.provider.v1beta4.MsgDeleteProvider": this.handleDeleteProvider,
-      // "/akash.provider.v1beta4.MsgUpdateProvider": this.handleUpdateProvider
-      // "/akash.deployment.v1beta4.MsgCloseGroup": this.handleCloseGroup,
-      // "/akash.deployment.v1beta4.MsgPauseGroup": this.handlePauseGroup,
-      // "/akash.deployment.v1beta4.MsgStartGroup": this.handleStartGroup,
+      "/akash.provider.v1beta4.MsgCreateProvider": this.handleCreateProvider,
+      "/akash.provider.v1beta4.MsgDeleteProvider": this.handleDeleteProvider,
+      "/akash.provider.v1beta4.MsgUpdateProvider": this.handleUpdateProvider,
       // Akash v1beta5 types
       "/akash.market.v1beta5.MsgCreateLease": this.handleCreateLease,
-      // "/akash.market.v1beta5.MsgCloseLease": this.handleCloseLease,
-      // "/akash.market.v1beta5.MsgCreateBid": this.handleCreateBid,
-      // "/akash.market.v1beta5.MsgCloseBid": this.handleCloseBid,
-      // "/akash.market.v1beta5.MsgWithdrawLease": this.handleWithdrawLease,
-      // "akash.market.v1beta5.MsgUpdateParams": this.handleUpdateParams,
+      "/akash.market.v1beta5.MsgCloseLease": this.handleCloseV5,
+      "/akash.market.v1beta5.MsgCreateBid": this.handleCreateBidV5,
+      "/akash.market.v1beta5.MsgCloseBid": this.handleCloseBidV5,
+      "/akash.market.v1beta5.MsgWithdrawLease": this.handleWithdrawLeaseV5,
       // Akash v1 types
-      "/akash.escrow.v1.MsgAccountDeposit": this.handleDepositDeploymentV1
-      // "/akash.cert.v1.MsgCreateCertificate": this.handleCreateCertificate,
-      // "/akash.cert.v1.MsgRevokeCertificate": this.handleRevokeCertificate,
-      // "akash.audit.v1.MsgDeleteProviderAttributes": this.handleDeleteSignProviderAttributes,
-      // "/akash.audit.v1.MsgSignProviderAttributes": this.handleSignProviderAttributes,
-      // "/akash.take.v1.MsgUpdateParams": this.handleUpdateParams,
+      "/akash.escrow.v1.MsgAccountDeposit": this.handleDepositDeploymentV1,
+      "/akash.audit.v1.MsgDeleteProviderAttributes": this.handleDeleteSignProviderAttributes,
+      "/akash.audit.v1.MsgSignProviderAttributes": this.handleSignProviderAttributes
     };
   }
 
@@ -265,7 +259,10 @@ export class AkashStatsIndexer extends Indexer {
       "/akash.market.v1beta4.MsgCreateLease",
       "/akash.market.v1beta4.MsgCloseLease",
       "/akash.market.v1beta4.MsgCloseBid",
-      "/akash.market.v1beta4.MsgWithdrawLease"
+      "/akash.market.v1beta4.MsgWithdrawLease",
+      // v1beta5
+      "/akash.market.v1beta5.MsgCreateLease",
+      "/akash.market.v1beta5.MsgCloseLease"
     ].includes(msg.type);
   }
 
@@ -499,7 +496,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCloseDeployment(
-    decodedMessage: v1beta1.MsgCloseDeployment | v1beta2.MsgCloseDeployment | v1beta3.MsgCloseDeployment,
+    decodedMessage: v1beta1.MsgCloseDeployment | v1beta2.MsgCloseDeployment | v1beta3.MsgCloseDeployment | v1beta4.MsgCloseDeployment,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -531,7 +528,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCreateLease(
-    decodedMessage: v1beta1.MsgCreateLease | v1beta2.MsgCreateLease | v1beta3.MsgCreateLease | v1beta5.MsgCreateLease,
+    decodedMessage: v1beta1.MsgCreateLease | v1beta2.MsgCreateLease | v1beta3.MsgCreateLease | prevV1beta4.MsgCreateLease | v1beta5.MsgCreateLease,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -621,7 +618,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCloseLease(
-    decodedMessage: v1beta1.MsgCloseLease | v1beta1.MsgCloseLease,
+    decodedMessage: v1beta1.MsgCloseLease | v1beta2.MsgCloseLease | v1beta3.MsgCloseLease,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -667,6 +664,46 @@ export class AkashStatsIndexer extends Indexer {
     }
   }
 
+  private async handleCloseV5(decodedMessage: v1beta5.MsgCloseLease, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    const deployment = await Deployment.findOne({
+      where: {
+        owner: decodedMessage.id.owner,
+        dseq: decodedMessage.id.dseq.toString()
+      },
+      include: [{ model: Lease }],
+      transaction: blockGroupTransaction
+    });
+
+    if (!deployment) {
+      throw new Error(`Deployment for ${decodedMessage.id.owner}/${decodedMessage.id.dseq.toString()} not found.`);
+    }
+
+    const lease = deployment.leases.find(
+      x => x.oseq === decodedMessage.id.oseq && x.gseq === decodedMessage.id.gseq && x.providerAddress === decodedMessage.id.provider
+    );
+
+    if (!lease)
+      throw new Error(`Lease for ${decodedMessage.id.owner}/${decodedMessage.id.dseq}/${decodedMessage.id.gseq}/${decodedMessage.id.provider} not found.`);
+
+    msg.relatedDeploymentId = deployment.id;
+
+    const { blockRate } = await accountSettle(deployment, height, blockGroupTransaction);
+
+    lease.closedHeight = height;
+    await lease.save({ transaction: blockGroupTransaction });
+
+    if (!deployment.leases.some(x => !x.closedHeight)) {
+      deployment.closedHeight = height;
+      await deployment.save({ transaction: blockGroupTransaction });
+    } else {
+      const predictedClosedHeight = Math.ceil((deployment.lastWithdrawHeight || lease.createdHeight) + deployment.balance / (blockRate - lease.price));
+      await Lease.update(
+        { predictedClosedHeight: predictedClosedHeight.toString() },
+        { where: { deploymentId: deployment.id }, transaction: blockGroupTransaction }
+      );
+    }
+  }
+
   private async handleCreateBid(
     decodedMessage: v1beta1.MsgCreateBid | v1beta2.MsgCreateBid | v1beta3.MsgCreateBid,
     height: number,
@@ -691,6 +728,32 @@ export class AkashStatsIndexer extends Indexer {
       where: {
         owner: decodedMessage.order.owner,
         dseq: decodedMessage.order.dseq.toString()
+      },
+      transaction: blockGroupTransaction
+    });
+
+    msg.relatedDeploymentId = deployment.id;
+  }
+
+  private async handleCreateBidV5(decodedMessage: v1beta5.MsgCreateBid, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    await Bid.create(
+      {
+        owner: decodedMessage.id.owner,
+        dseq: decodedMessage.id.dseq.toString(),
+        gseq: decodedMessage.id.gseq,
+        oseq: decodedMessage.id.oseq,
+        provider: decodedMessage.id.provider,
+        price: parseFloat(decodedMessage.price.amount),
+        createdHeight: height
+      },
+      { transaction: blockGroupTransaction }
+    );
+
+    const deployment = await Deployment.findOne({
+      attributes: ["id"],
+      where: {
+        owner: decodedMessage.id.owner,
+        dseq: decodedMessage.id.dseq.toString()
       },
       transaction: blockGroupTransaction
     });
@@ -753,6 +816,56 @@ export class AkashStatsIndexer extends Indexer {
     });
   }
 
+  private async handleCloseBidV5(decodedMessage: v1beta5.MsgCloseBid, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    const deployment = await Deployment.findOne({
+      where: {
+        owner: decodedMessage.id.owner,
+        dseq: decodedMessage.id.dseq.toString()
+      },
+      include: [{ model: Lease }],
+      transaction: blockGroupTransaction
+    });
+
+    if (!deployment) {
+      throw new Error(`Deployment for ${decodedMessage.id.owner}/${decodedMessage.id.dseq.toString()} not found.`);
+    }
+
+    msg.relatedDeploymentId = deployment.id;
+
+    const lease = deployment.leases.find(
+      x => x.oseq === decodedMessage.id.oseq && x.gseq === decodedMessage.id.gseq && x.providerAddress === decodedMessage.id.provider
+    );
+
+    if (lease) {
+      const { blockRate } = await accountSettle(deployment, height, blockGroupTransaction);
+
+      lease.closedHeight = height;
+      await lease.save({ transaction: blockGroupTransaction });
+
+      if (!deployment.leases.some(x => !x.closedHeight)) {
+        deployment.closedHeight = height;
+        await deployment.save({ transaction: blockGroupTransaction });
+      } else {
+        const predictedClosedHeight = Math.ceil((deployment.lastWithdrawHeight || lease.createdHeight) + deployment.balance / (blockRate - lease.price));
+        await Lease.update(
+          { predictedClosedHeight: predictedClosedHeight.toString() },
+          { where: { deploymentId: deployment.id }, transaction: blockGroupTransaction }
+        );
+      }
+    }
+
+    await Bid.destroy({
+      where: {
+        owner: decodedMessage.id.owner,
+        dseq: decodedMessage.id.dseq.toString(),
+        gseq: decodedMessage.id.gseq,
+        oseq: decodedMessage.id.oseq,
+        provider: decodedMessage.id.provider
+      },
+      transaction: blockGroupTransaction
+    });
+  }
+
   private async handleDepositDeployment(
     decodedMessage: v1beta1.MsgDepositDeployment | v1beta2.MsgDepositDeployment | v1beta3.MsgDepositDeployment,
     height: number,
@@ -799,6 +912,13 @@ export class AkashStatsIndexer extends Indexer {
     // For v1 escrow, we need to extract the deployment info from the account ID
     // The xid field contains the deployment identifier in the format "owner/dseq"
     // The owner is provided directly in the message, and dseq is extracted from xid
+    const scope = decodedMessage.id.scope;
+
+    if (scope !== Scope.deployment) {
+      console.log(`Invalid scope: ${scope}`);
+      return;
+    }
+
     const [owner, dseq] = decodedMessage.id.xid.split("/");
 
     console.log(decodedMessage);
@@ -872,8 +992,35 @@ export class AkashStatsIndexer extends Indexer {
     msg.relatedDeploymentId = deployment.id;
   }
 
+  private async handleWithdrawLeaseV5(decodedMessage: v1beta5.MsgWithdrawLease, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    const owner = decodedMessage.id.owner;
+    const dseq = decodedMessage.id.dseq.toString();
+    const gseq = decodedMessage.id.gseq;
+    const oseq = decodedMessage.id.oseq;
+    const provider = decodedMessage.id.provider;
+
+    const deployment = await Deployment.findOne({
+      where: {
+        owner: owner,
+        dseq: dseq
+      },
+      include: [{ model: Lease }],
+      transaction: blockGroupTransaction
+    });
+
+    if (!deployment) throw new Error(`Deployment not found for owner: ${owner} and dseq: ${dseq}`);
+
+    const lease = deployment.leases.find(x => x.gseq === gseq && x.oseq === oseq && x.providerAddress === provider);
+
+    if (!lease) throw new Error(`Lease not found for gseq: ${gseq}, oseq: ${oseq} and provider: ${provider}`);
+
+    await accountSettle(deployment, height, blockGroupTransaction);
+
+    msg.relatedDeploymentId = deployment.id;
+  }
+
   private async handleCreateProvider(
-    decodedMessage: v1beta1.MsgCreateProvider | v1beta2.MsgCreateProvider | v1beta3.MsgCreateProvider,
+    decodedMessage: v1beta1.MsgCreateProvider | v1beta2.MsgCreateProvider | v1beta3.MsgCreateProvider | v1beta4.MsgCreateProvider,
     height: number,
     blockGroupTransaction: DbTransaction
   ) {
@@ -901,7 +1048,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleUpdateProvider(
-    decodedMessage: v1beta1.MsgUpdateProvider | v1beta2.MsgUpdateProvider | v1beta3.MsgUpdateProvider,
+    decodedMessage: v1beta1.MsgUpdateProvider | v1beta2.MsgUpdateProvider | v1beta3.MsgUpdateProvider | v1beta4.MsgUpdateProvider,
     height: number,
     blockGroupTransaction: DbTransaction
   ) {
@@ -937,7 +1084,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleDeleteProvider(
-    decodedMessage: v1beta1.MsgDeleteProvider | v1beta2.MsgDeleteProvider | v1beta3.MsgDeleteProvider,
+    decodedMessage: v1beta1.MsgDeleteProvider | v1beta2.MsgDeleteProvider | v1beta3.MsgDeleteProvider | v1beta4.MsgDeleteProvider,
     height: number,
     blockGroupTransaction: DbTransaction
   ) {
@@ -955,7 +1102,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleSignProviderAttributes(
-    decodedMessage: v1beta1.MsgSignProviderAttributes | v1beta2.MsgSignProviderAttributes | v1beta3.MsgSignProviderAttributes,
+    decodedMessage: v1beta1.MsgSignProviderAttributes | v1beta2.MsgSignProviderAttributes | v1beta3.MsgSignProviderAttributes | v1.MsgSignProviderAttributes,
     height: number,
     blockGroupTransaction: DbTransaction
   ) {
@@ -998,7 +1145,11 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleDeleteSignProviderAttributes(
-    decodedMessage: v1beta1.MsgDeleteProviderAttributes | v1beta2.MsgDeleteProviderAttributes | v1beta3.MsgDeleteProviderAttributes,
+    decodedMessage:
+      | v1beta1.MsgDeleteProviderAttributes
+      | v1beta2.MsgDeleteProviderAttributes
+      | v1beta3.MsgDeleteProviderAttributes
+      | v1.MsgDeleteProviderAttributes,
     height: number,
     blockGroupTransaction: DbTransaction
   ) {
