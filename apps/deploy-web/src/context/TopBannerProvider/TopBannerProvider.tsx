@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 
 import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
 import { useVariant } from "@src/hooks/useVariant";
+import { useWhen } from "@src/hooks/useWhen";
 import type { FCWithChildren } from "@src/types/component";
 import { useSettings } from "../SettingsProvider";
 
@@ -21,6 +22,7 @@ export const TopBannerProvider: FCWithChildren = ({ children }) => {
   const hasCreditCardBanner = useHasCreditCardBanner();
 
   const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useState(!!maintenanceBannerFlag.enabled);
+  useWhen(maintenanceBannerFlag.enabled, () => setIsMaintenanceBannerOpen(true));
 
   const hasBanner = useMemo(
     () => isMaintenanceBannerOpen || settings.isBlockchainDown || hasCreditCardBanner,
