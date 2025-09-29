@@ -219,9 +219,7 @@ describe("Deployment Info Fallback API", () => {
   }
 
   async function makeRequest(input: { "id.owner": string; "id.dseq": string }): Promise<RestAkashDeploymentInfoResponse> {
-    const params = new URLSearchParams();
-    params.append("id.owner", input["id.owner"]);
-    params.append("id.dseq", input["id.dseq"]);
+    const params = new URLSearchParams(input);
 
     const url = `/akash/deployment/v1beta3/deployments/info?${params.toString()}`;
     const response = await app.request(url);
