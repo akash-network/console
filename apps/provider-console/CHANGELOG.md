@@ -1,5 +1,12 @@
 
 
+## [1.24.0](https://github.com/akash-network/console/compare/provider-console/v1.23.1...provider-console/v1.24.0) (2025-09-30)
+
+
+### Features
+
+* disable some features when blockchain is down ([#1971](https://github.com/akash-network/console/issues/1971)) ([64d5bef](https://github.com/akash-network/console/commit/64d5befefc09479a09d5e1a829c9004ab2d6470e))
+
 ## [1.23.1](https://github.com/akash-network/console/compare/provider-console/v1.23.0...provider-console/v1.23.1) (2025-09-15)
 
 

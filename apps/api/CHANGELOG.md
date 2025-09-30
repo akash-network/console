@@ -1,5 +1,17 @@
 
 
+## [2.122.0](https://github.com/akash-network/console/compare/console-api/v2.121.2...console-api/v2.122.0) (2025-09-30)
+
+
+### Features
+
+* **deployment:** add fallback deployment info endpoint ([#1964](https://github.com/akash-network/console/issues/1964)) ([b888d90](https://github.com/akash-network/console/commit/b888d90d8b3b6d61a9dd54f6d98815732ecb30f3))
+
+
+### Code Refactoring
+
+* adjusts authz and provider services to work when blockchain is down ([#1977](https://github.com/akash-network/console/issues/1977)) ([52ed240](https://github.com/akash-network/console/commit/52ed240375312e37752da39315da0f0fad12e8cd))
+
 ## [2.121.2](https://github.com/akash-network/console/compare/console-api/v2.121.1...console-api/v2.121.2) (2025-09-26)
 
 
