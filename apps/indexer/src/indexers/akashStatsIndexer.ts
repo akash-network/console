@@ -435,9 +435,6 @@ export class AkashStatsIndexer extends Indexer {
       throw "Unknown denom: " + decodedMessage.deposit.amount.denom;
     }
 
-    console.log(decodedMessage);
-    throw new Error("test");
-
     const created = await Deployment.create(
       {
         id: uuid.v4(),
