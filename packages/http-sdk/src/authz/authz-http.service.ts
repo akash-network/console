@@ -1,8 +1,8 @@
-import type { AxiosRequestConfig } from "axios";
 import { isFuture } from "date-fns";
 
-import { HttpService } from "../http/http.service";
+import { extractData } from "../http/http.service";
 import type { Denom } from "../types/denom.type";
+import type { HttpClient } from "../utils/httpClient";
 import { isHttpError } from "../utils/isHttpError";
 
 export interface SpendLimit {
@@ -53,18 +53,20 @@ interface DepositDeploymentGrantResponse<T extends ExactDepositDeploymentGrant =
   };
 }
 
-export class AuthzHttpService extends HttpService {
+export class AuthzHttpService {
   private readonly DEPOSIT_DEPLOYMENT_GRANT_TYPE: ExactDepositDeploymentGrant["authorization"]["@type"] =
     "/akash.deployment.v1beta3.DepositDeploymentAuthorization";
 
   private readonly FEE_ALLOWANCE_TYPE: FeeAllowance["allowance"]["@type"] = "/cosmos.feegrant.v1beta1.BasicAllowance";
 
-  constructor(config?: Pick<AxiosRequestConfig, "baseURL" | "adapter">) {
-    super(config);
+  constructor(private readonly httpClient: HttpClient) {}
+
+  get isReady(): boolean {
+    return !!this.httpClient.defaults.baseURL;
   }
 
   async getFeeAllowancesForGrantee(address: string) {
-    const allowances = this.extractData(await this.get<FeeAllowanceListResponse>(`cosmos/feegrant/v1beta1/allowances/${address}`));
+    const allowances = extractData(await this.httpClient.get<FeeAllowanceListResponse>(`cosmos/feegrant/v1beta1/allowances/${address}`));
     return allowances.allowances;
   }
 
@@ -74,8 +76,8 @@ export class AuthzHttpService extends HttpService {
   }
 
   async getPaginatedFeeAllowancesForGranter(address: string, limit: number, offset: number) {
-    const allowances = this.extractData(
-      await this.get<FeeAllowanceListResponse>(`cosmos/feegrant/v1beta1/issued/${address}`, {
+    const allowances = extractData(
+      await this.httpClient.get<FeeAllowanceListResponse>(`cosmos/feegrant/v1beta1/issued/${address}`, {
         params: {
           "pagination.limit": limit,
           "pagination.offset": offset,
@@ -95,7 +97,7 @@ export class AuthzHttpService extends HttpService {
 
   async getFeeAllowanceForGranterAndGrantee(granter: string, grantee: string): Promise<FeeAllowance | undefined> {
     try {
-      const response = this.extractData(await this.get<FeeAllowanceResponse>(`cosmos/feegrant/v1beta1/allowance/${granter}/${grantee}`));
+      const response = extractData(await this.httpClient.get<FeeAllowanceResponse>(`cosmos/feegrant/v1beta1/allowance/${granter}/${grantee}`));
       return this.isValidFeeAllowance(response.allowance) ? response.allowance : undefined;
     } catch (error) {
       if (isHttpError(error) && error.response?.data.message?.includes("fee-grant not found")) {
@@ -107,8 +109,8 @@ export class AuthzHttpService extends HttpService {
   }
 
   async getDepositDeploymentGrantsForGranterAndGrantee(granter: string, grantee: string): Promise<ExactDepositDeploymentGrant | undefined> {
-    const response = this.extractData(
-      await this.get<DepositDeploymentGrantResponse<ExactDepositDeploymentGrant>>("cosmos/authz/v1beta1/grants", {
+    const response = extractData(
+      await this.httpClient.get<DepositDeploymentGrantResponse<ExactDepositDeploymentGrant>>("cosmos/authz/v1beta1/grants", {
         params: {
           grantee: grantee,
           granter: granter
@@ -119,8 +121,8 @@ export class AuthzHttpService extends HttpService {
   }
 
   async getValidDepositDeploymentGrantsForGranterAndGrantee(granter: string, grantee: string): Promise<ExactDepositDeploymentGrant | undefined> {
-    const response = this.extractData(
-      await this.get<DepositDeploymentGrantResponse<ExactDepositDeploymentGrant>>("cosmos/authz/v1beta1/grants", {
+    const response = extractData(
+      await this.httpClient.get<DepositDeploymentGrantResponse<ExactDepositDeploymentGrant>>("cosmos/authz/v1beta1/grants", {
         params: {
           grantee: grantee,
           granter: granter
@@ -157,8 +159,8 @@ export class AuthzHttpService extends HttpService {
     const address = "granter" in options ? options.granter : options.grantee;
 
     do {
-      const response = this.extractData(
-        await this.get<DepositDeploymentGrantResponse>(`cosmos/authz/v1beta1/grants/${side}/${address}`, {
+      const response = extractData(
+        await this.httpClient.get<DepositDeploymentGrantResponse>(`cosmos/authz/v1beta1/grants/${side}/${address}`, {
           params: { "pagination.key": nextPageKey, "pagination.limit": options.limit }
         })
       );
@@ -184,8 +186,8 @@ export class AuthzHttpService extends HttpService {
     const limit = options.limit;
     const offset = options.offset;
 
-    const grants = this.extractData(
-      await this.get<DepositDeploymentGrantResponse>(`cosmos/authz/v1beta1/grants/${side}/${address}`, {
+    const grants = extractData(
+      await this.httpClient.get<DepositDeploymentGrantResponse>(`cosmos/authz/v1beta1/grants/${side}/${address}`, {
         params: {
           "pagination.limit": limit,
           "pagination.offset": offset,
