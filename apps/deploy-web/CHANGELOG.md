@@ -1,5 +1,19 @@
 
 
+## [2.112.0](https://github.com/akash-network/console/compare/console-web/v2.111.0...console-web/v2.112.0) (2025-09-30)
+
+
+### Features
+
+* adds support for detecting whether blockchain is down ([#1973](https://github.com/akash-network/console/issues/1973)) ([384080c](https://github.com/akash-network/console/commit/384080ca2c9b906527c7a1b46c184b4118ea59df))
+* **billing:** implement polling for balance update after payment ([#1975](https://github.com/akash-network/console/issues/1975)) ([9969a28](https://github.com/akash-network/console/commit/9969a28b52cfb79a95ff9bc00801b8b7b3dad8e4))
+* disable some features when blockchain is down ([#1971](https://github.com/akash-network/console/issues/1971)) ([64d5bef](https://github.com/akash-network/console/commit/64d5befefc09479a09d5e1a829c9004ab2d6470e))
+
+
+### Code Refactoring
+
+* adjusts authz and provider services to work when blockchain is down ([#1977](https://github.com/akash-network/console/issues/1977)) ([52ed240](https://github.com/akash-network/console/commit/52ed240375312e37752da39315da0f0fad12e8cd))
+
 ## [2.111.0](https://github.com/akash-network/console/compare/console-web/v2.110.0...console-web/v2.111.0) (2025-09-26)
 
 
