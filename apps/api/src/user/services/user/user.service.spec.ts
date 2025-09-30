@@ -237,6 +237,38 @@ describe(UserService.name, () => {
       expect(walletAfter?.userId).toBe(existingUser.id);
     });
 
+    it("returns existing user (unique by userId) when user is registered under different anonymous user", async () => {
+      const { service } = setup();
+
+      const anonymousUserSeed = {
+        emailVerified: false,
+        subscribedToNewsletter: false
+      };
+      const anonymousUser = await container.resolve(UserRepository).create(anonymousUserSeed);
+      const userWallet = await container.resolve(UserWalletRepository).create({ userId: anonymousUser.id });
+
+      const input: RegisterUserInput = {
+        userId: faker.string.uuid(),
+        anonymousUserId: anonymousUser.id,
+        wantedUsername: `test-user-${Date.now()}`,
+        email: faker.internet.email(),
+        emailVerified: faker.datatype.boolean(),
+        subscribedToNewsletter: faker.datatype.boolean(),
+        ip: faker.internet.ipv4(),
+        userAgent: faker.string.alphanumeric(32),
+        fingerprint: faker.string.alphanumeric(16)
+      };
+      const user = await service.registerUser(input);
+
+      const anotherAnonymousUser = await container.resolve(UserRepository).create(anonymousUserSeed);
+      await container.resolve(UserWalletRepository).create({ userId: anotherAnonymousUser.id });
+
+      const existingUser = await service.registerUser({ ...input, anonymousUserId: anotherAnonymousUser.id });
+
+      expect(existingUser.id).toBe(user.id);
+      expect(await container.resolve(UserWalletRepository).findOneByUserId(existingUser.id)).toHaveProperty("id", userWallet.id);
+    });
+
     it("updates user if registering existing user", async () => {
       const { service } = setup();
 

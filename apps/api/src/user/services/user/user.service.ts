@@ -46,16 +46,21 @@ export class UserService {
     };
 
     if (data.anonymousUserId) {
-      const user = await this.userRepository.updateBy(
-        {
-          id: data.anonymousUserId,
-          userId: null
-        },
-        userDetails,
-        { returning: true }
-      );
-
-      isAnonymous = !!user;
+      try {
+        const user = await this.userRepository.updateBy(
+          {
+            id: data.anonymousUserId,
+            userId: null
+          },
+          userDetails,
+          { returning: true }
+        );
+        isAnonymous = !!user;
+      } catch (error) {
+        if (!isUniqueViolation(error) || !error.constraint_name?.includes("userSetting_userId_unique")) {
+          throw error;
+        }
+      }
     }
 
     const user = await this.upsertUser({
