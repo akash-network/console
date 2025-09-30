@@ -2,8 +2,8 @@ import { Lease } from "@akashnetwork/database/dbSchemas/akash";
 import { singleton } from "tsyringe";
 
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
-import { UserWalletOutput } from "@src/billing/repositories";
 import { ManagedSignerService, RpcMessageService } from "@src/billing/services";
+import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { type FallbackLeaseListResponse } from "@src/deployment/http-schemas/lease-rpc.schema";
@@ -19,11 +19,14 @@ export class LeaseService {
     private readonly rpcMessageService: RpcMessageService,
     private readonly providerService: ProviderService,
     private readonly deploymentReaderService: DeploymentReaderService,
-    private readonly leaseRepository: LeaseRepository
+    private readonly leaseRepository: LeaseRepository,
+    private readonly walletReaderService: WalletReaderService
   ) {}
 
-  public async createLeasesAndSendManifest(wallet: UserWalletOutput, input: CreateLeaseRequest): Promise<GetDeploymentResponse["data"]> {
-    const leaseMessages = input.leases.map(lease =>
+  public async createLeasesAndSendManifest({ leases, manifest, certificate }: CreateLeaseRequest): Promise<GetDeploymentResponse["data"]> {
+    const wallet = await this.walletReaderService.getCurrentWallet();
+
+    const leaseMessages = leases.map(lease =>
       this.rpcMessageService.getCreateLeaseMsg({
         owner: wallet.address!,
         dseq: lease.dseq,
@@ -35,11 +38,19 @@ export class LeaseService {
 
     await this.signerService.executeDecodedTxByUserId(wallet.userId, leaseMessages);
 
-    for (const lease of input.leases) {
-      await this.providerService.sendManifest({ provider: lease.provider, dseq: lease.dseq, manifest: input.manifest, walletId: wallet.id });
+    for (const lease of leases) {
+      const commonParams = {
+        provider: lease.provider,
+        dseq: lease.dseq,
+        manifest: manifest
+      };
+      await this.providerService.sendManifest({
+        ...commonParams,
+        auth: await this.providerService.toProviderAuth(certificate || { walletId: wallet.id, provider: lease.provider })
+      });
     }
 
-    return await this.deploymentReaderService.findByOwnerAndDseq(wallet.address!, input.leases[0].dseq);
+    return await this.deploymentReaderService.findByWalletAndDseq(wallet, leases[0].dseq);
   }
 
   public async listLeasesFallback(params: DatabaseLeaseListParams): Promise<FallbackLeaseListResponse> {

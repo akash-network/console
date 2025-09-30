@@ -29,23 +29,21 @@ export class ProviderJwtTokenService {
     const { jwtToken, address } = await this.getJwtToken(walletId);
     const now = Math.floor(Date.now() / 1000);
 
-    const token = await jwtToken.createToken({
-      iss: address,
+    return await jwtToken.createToken({
+      version: "v1",
       exp: now + ttl,
       nbf: now,
       iat: now,
+      iss: address,
       jti: uuid.v4(),
-      version: "v1",
       leases
     });
-
-    return token;
   }
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   private async getJwtToken(walletId: number): Promise<JwtTokenWithAddress> {
     const wallet = new Wallet(this.config.MASTER_WALLET_MNEMONIC, walletId);
-    const akashWallet = await createSignArbitraryAkashWallet(await wallet.getInstance());
+    const akashWallet = await createSignArbitraryAkashWallet(await wallet.getInstance(), walletId);
     const jwtToken = new JwtToken(akashWallet);
 
     return { jwtToken, address: akashWallet.address };

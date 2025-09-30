@@ -6,6 +6,7 @@ import { container } from "tsyringe";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletOutput } from "@src/billing/repositories/user-wallet/user-wallet.repository";
+import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { WalletInitializerService } from "@src/billing/services";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
@@ -20,6 +21,11 @@ export class WalletTestingService<T extends Hono<any>> {
     const wallet = await this.createWallet(user);
 
     return { user, token, wallet };
+  }
+
+  async finishTrial(wallet: { id: number }) {
+    const userRepository = container.resolve(UserWalletRepository);
+    await userRepository.updateById(wallet.id, { isTrialing: false });
   }
 
   /** @deprecated anonymous users will not be supported in the nearest future */

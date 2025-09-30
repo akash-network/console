@@ -101,7 +101,13 @@ export const DepositDeploymentResponseSchema = z.object({
 
 export const UpdateDeploymentRequestSchema = z.object({
   data: z.object({
-    sdl: z.string()
+    sdl: z.string(),
+    certificate: z
+      .object({
+        certPem: z.string(),
+        keyPem: z.string()
+      })
+      .optional()
   })
 });
 
@@ -248,7 +254,6 @@ export const GetDeploymentByOwnerDseqResponseSchema = z.object({
 export type GetDeploymentResponse = z.infer<typeof GetDeploymentResponseSchema>;
 export type CreateDeploymentRequest = z.infer<typeof CreateDeploymentRequestSchema>;
 export type CreateDeploymentResponse = z.infer<typeof CreateDeploymentResponseSchema>;
-export type CloseDeploymentParams = z.infer<typeof CloseDeploymentParamsSchema>;
 export type CloseDeploymentResponse = z.infer<typeof CloseDeploymentResponseSchema>;
 export type DepositDeploymentRequest = z.infer<typeof DepositDeploymentRequestSchema>;
 export type DepositDeploymentResponse = z.infer<typeof DepositDeploymentResponseSchema>;
@@ -257,5 +262,4 @@ export type UpdateDeploymentResponse = z.infer<typeof UpdateDeploymentResponseSc
 export type ListWithResourcesParams = z.infer<typeof ListWithResourcesParamsSchema>;
 export type ListWithResourcesQuery = z.infer<typeof ListWithResourcesQuerySchema>;
 export type ListWithResourcesResponse = z.infer<typeof ListWithResourcesResponseSchema>;
-export type GetDeploymentByOwnerDseqParams = z.infer<typeof GetDeploymentByOwnerDseqParamsSchema>;
 export type GetDeploymentByOwnerDseqResponse = z.infer<typeof GetDeploymentByOwnerDseqResponseSchema>;

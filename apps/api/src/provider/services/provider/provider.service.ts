@@ -1,4 +1,4 @@
-import { Provider, ProviderAttribute, ProviderAttributeSignature, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
+import { Provider, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
 import { SupportedChainNetworks } from "@akashnetwork/net";
 import { AxiosError } from "axios";
@@ -8,16 +8,16 @@ import { Op } from "sequelize";
 import { setTimeout as delay } from "timers/promises";
 import { singleton } from "tsyringe";
 
-import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
-import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
-import { ProviderIdentity, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
+import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
+import { ProviderAuth, ProviderIdentity, ProviderMtlsAuth, ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
+import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
 import { ProviderList } from "@src/types/provider";
 import { toUTC } from "@src/utils";
 import { mapProviderToList } from "@src/utils/map/provider";
 import { AuditorService } from "../auditors/auditors.service";
 import { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
-import { ProviderJwtTokenService } from "../provider-jwt-token/provider-jwt-token.service";
 
 @singleton()
 export class ProviderService {
@@ -27,96 +27,92 @@ export class ProviderService {
 
   constructor(
     private readonly providerProxy: ProviderProxyService,
+    private readonly providerRepository: ProviderRepository,
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
-    @InjectBillingConfig() private readonly config: BillingConfig,
-    private readonly jwtTokenService: ProviderJwtTokenService
+    private readonly jwtTokenService: ProviderJwtTokenService,
+    private readonly config: BillingConfigService
   ) {
-    this.chainNetwork = this.config.NETWORK as SupportedChainNetworks;
+    this.chainNetwork = this.config.get("NETWORK") as SupportedChainNetworks;
   }
 
-  async sendManifest({ provider: providerAddress, dseq, manifest, walletId }: { provider: string; dseq: string; manifest: string; walletId: number }) {
-    const jsonStr = manifest.replace(/"quantity":{"val/g, '"size":{"val');
+  async sendManifest(options: { provider: string; dseq: string; manifest: string; auth: ProviderAuth }) {
+    const provider = await this.providerRepository.findActiveByAddress(options.provider);
 
-    const provider = await Provider.findOne({ where: { owner: providerAddress } });
+    assert(provider, 404, `Provider ${options.provider} not found`);
 
-    assert(provider, 404, `Provider ${providerAddress} not found`);
-
+    const manifest = options.manifest.replace(/"quantity":{"val/g, '"size":{"val');
     const providerIdentity: ProviderIdentity = {
-      owner: providerAddress,
+      owner: options.provider,
       hostUri: provider.hostUri
     };
 
-    return await this.sendManifestToProvider(walletId, dseq, jsonStr, providerIdentity);
+    return await this.sendManifestToProvider({ dseq: options.dseq, manifest, auth: options.auth, providerIdentity });
   }
 
-  private async sendManifestToProvider(walletId: number, dseq: string, jsonStr: string, providerIdentity: ProviderIdentity) {
+  async toProviderAuth(auth: Omit<ProviderMtlsAuth, "type"> | { walletId: number; provider: string }): Promise<ProviderAuth> {
+    if ("walletId" in auth) {
+      const jwtToken = await this.jwtTokenService.generateJwtToken({
+        walletId: auth.walletId,
+        leases: this.jwtTokenService.getGranularLeases({
+          provider: auth.provider,
+          scope: ["send-manifest"]
+        })
+      });
+
+      return {
+        type: "jwt",
+        token: jwtToken
+      };
+    }
+    return {
+      type: "mtls",
+      ...auth
+    };
+  }
+
+  private async sendManifestToProvider(options: { dseq: string; manifest: string; auth: ProviderAuth; providerIdentity: ProviderIdentity }) {
     for (let i = 1; i <= this.MANIFEST_SEND_MAX_RETRIES; i++) {
       try {
-        const jwtToken = await this.jwtTokenService.generateJwtToken({
-          walletId,
-          leases: this.jwtTokenService.getGranularLeases({
-            provider: providerIdentity.owner,
-            scope: ["send-manifest"]
-          })
-        });
-        const result = await this.providerProxy.fetchProviderUrl(`/deployment/${dseq}/manifest`, {
+        const result = await this.providerProxy.request(`/deployment/${options.dseq}/manifest`, {
           method: "PUT",
-          body: jsonStr,
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-            "Content-Type": "application/json"
-          },
+          body: options.manifest,
+          auth: options.auth,
           chainNetwork: this.chainNetwork,
-          providerIdentity,
+          providerIdentity: options.providerIdentity,
           timeout: 60000
         });
 
-        if (result) {
-          return result;
-        }
-      } catch (error: unknown) {
-        if (error instanceof Error && error.message?.includes("no lease for deployment") && i < this.MANIFEST_SEND_MAX_RETRIES) {
+        if (result) return result;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message?.includes("no lease for deployment") && i < this.MANIFEST_SEND_MAX_RETRIES) {
           await delay(this.MANIFEST_SEND_RETRY_DELAY);
           continue;
         }
 
-        const providerError = error instanceof AxiosError && error.response?.data;
+        const providerError = err instanceof AxiosError && (err.response?.data?.message || err.response?.data);
         if (typeof providerError === "string") {
           assert(!providerError.toLowerCase().includes("invalid manifest"), 400, providerError);
+          assert(!providerError.toLowerCase().includes("unauthorized access"), 401, providerError);
         }
 
-        throw new Error(providerError || error);
+        throw new Error(providerError || err);
       }
     }
   }
 
-  async getLeaseStatus(providerAddress: string, dseq: string, gseq: number, oseq: number, walletId: number): Promise<LeaseStatusResponse> {
-    const provider = await Provider.findOne({
-      where: {
-        owner: providerAddress
-      }
-    });
+  async getLeaseStatus(providerAddress: string, dseq: string, gseq: number, oseq: number, auth: ProviderAuth): Promise<LeaseStatusResponse> {
+    const provider = await this.providerRepository.findActiveByAddress(providerAddress);
     assert(provider, 404, `Provider ${providerAddress} not found`);
 
     const providerIdentity: ProviderIdentity = {
       owner: providerAddress,
       hostUri: provider.hostUri
     };
-    const jwtToken = await this.jwtTokenService.generateJwtToken({
-      walletId,
-      leases: this.jwtTokenService.getGranularLeases({
-        provider: providerAddress,
-        scope: ["status"]
-      })
-    });
 
-    return await this.providerProxy.fetchProviderUrl<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
+    return await this.providerProxy.request<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${jwtToken}`,
-        "Content-Type": "application/json"
-      },
+      auth,
       chainNetwork: this.chainNetwork,
       providerIdentity,
       timeout: 30000
@@ -124,52 +120,8 @@ export class ProviderService {
   }
 
   async getProviderList({ trial = false }: { trial?: boolean } = {}): Promise<ProviderList[]> {
-    const providersWithAttributesAndAuditors = await Provider.findAll({
-      where: {
-        deletedHeight: null
-      },
-      order: [["createdHeight", "ASC"]],
-      include: [
-        {
-          model: ProviderAttribute
-        },
-        trial
-          ? {
-              model: ProviderAttributeSignature,
-              required: true,
-              where: {
-                auditor: AUDITOR,
-                key: TRIAL_ATTRIBUTE,
-                value: "true"
-              }
-            }
-          : {
-              model: ProviderAttributeSignature
-            }
-      ]
-    });
-
-    const providerWithNodes = await Provider.findAll({
-      attributes: ["owner"],
-      where: {
-        deletedHeight: null
-      },
-      include: [
-        {
-          model: ProviderSnapshot,
-          required: true,
-          as: "lastSuccessfulSnapshot",
-          include: [
-            {
-              model: ProviderSnapshotNode,
-              attributes: ["id"],
-              required: false,
-              include: [{ model: ProviderSnapshotNodeGPU, required: false }]
-            }
-          ]
-        }
-      ]
-    });
+    const providersWithAttributesAndAuditors = await this.providerRepository.getWithAttributesAndAuditors({ trial });
+    const providerWithNodes = await this.providerRepository.getProviderWithNodes();
 
     const distinctProviders = Object.values(
       providersWithAttributesAndAuditors.reduce((acc: Record<string, Provider>, provider: Provider) => {
@@ -191,20 +143,7 @@ export class ProviderService {
 
   async getProvider(address: string) {
     const nowUtc = toUTC(new Date());
-    const provider = await Provider.findOne({
-      where: {
-        deletedHeight: null,
-        owner: address
-      },
-      include: [
-        {
-          model: ProviderAttribute
-        },
-        {
-          model: ProviderAttributeSignature
-        }
-      ]
-    });
+    const provider = await this.providerRepository.getProviderByAddressWithAttributes(address);
 
     if (!provider) return null;
 

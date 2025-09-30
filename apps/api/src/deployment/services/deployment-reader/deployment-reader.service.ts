@@ -1,6 +1,6 @@
 import { Block } from "@akashnetwork/database/dbSchemas";
 import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
-import { DeploymentHttpService, DeploymentInfo, LeaseHttpService, RestAkashLeaseListResponse } from "@akashnetwork/http-sdk";
+import { DeploymentHttpService, DeploymentInfo, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { PromisePool } from "@supercharge/promise-pool";
 import assert from "http-assert";
 import { InternalServerError } from "http-errors";
@@ -8,8 +8,8 @@ import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
 import { UserWalletRepository } from "@src/billing/repositories";
+import { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
-import { LeaseStatusResponse } from "@src/deployment/http-schemas/lease.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
@@ -23,11 +23,21 @@ export class DeploymentReaderService {
     private readonly deploymentHttpService: DeploymentHttpService,
     private readonly leaseHttpService: LeaseHttpService,
     private readonly messageService: MessageService,
-    private readonly userWalletRepository: UserWalletRepository
+    private readonly userWalletRepository: UserWalletRepository,
+    private readonly walletReaderService: WalletReaderService
   ) {}
 
-  public async findByOwnerAndDseq(owner: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
-    const wallet = await this.getWalletByAddress(owner);
+  public async findByCurrentOwnerAndDseq(dseq: string): Promise<GetDeploymentResponse["data"]> {
+    const wallet = await this.walletReaderService.getCurrentWallet();
+    return this.findByWalletAndDseq(wallet, dseq);
+  }
+
+  public async findByWalletAndDseq(
+    wallet: WalletInitialized,
+    dseq: string,
+    options?: { certificate?: { certPem: string; keyPem: string } }
+  ): Promise<GetDeploymentResponse["data"]> {
+    const { address: owner } = wallet;
     const deploymentResponse = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
 
     if ("code" in deploymentResponse) {
@@ -46,7 +56,7 @@ export class DeploymentReaderService {
             lease.lease_id.dseq,
             lease.lease_id.gseq,
             lease.lease_id.oseq,
-            wallet.id
+            await this.providerService.toProviderAuth(options?.certificate || { walletId: wallet.id, provider: lease.lease_id.provider })
           );
           return {
             lease,
@@ -71,67 +81,37 @@ export class DeploymentReaderService {
     };
   }
 
-  public async list(
-    owner: string,
-    { skip, limit }: { skip?: number; limit?: number }
-  ): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
+  public async list({
+    skip,
+    limit
+  }: {
+    skip?: number;
+    limit?: number;
+  }): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
+    const { address: owner } = await this.walletReaderService.getCurrentWallet();
     const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
     const deploymentReponse = await this.deploymentHttpService.findAll({ owner, state: "active", pagination });
     const deployments = deploymentReponse.deployments;
     const total = parseInt(deploymentReponse.pagination.total, 10);
 
-    const { results: leasesByDeployment } = await PromisePool.withConcurrency(100)
+    const { results: leaseResults } = await PromisePool.withConcurrency(100)
       .for(deployments)
       .process(async deployment => this.leaseHttpService.list({ owner, dseq: deployment.deployment.deployment_id.dseq }));
 
-    const wallet = await this.getWalletByAddress(owner);
-    const leaseStatusesByDeployment = await this.getLeaseStatuses(leasesByDeployment, wallet.id);
-
-    const deploymentsWithLeases = deployments.map((deployment, deploymentIndex) => ({
+    const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
       leases:
-        leasesByDeployment[deploymentIndex]?.leases?.map(({ lease }, leaseIndex) => ({
+        leaseResults[index]?.leases?.map(({ lease }) => ({
           ...lease,
-          status: leaseStatusesByDeployment[deploymentIndex][leaseIndex]
+          status: null as null
         })) ?? [],
       escrow_account: deployment.escrow_account
     }));
-
     return {
       deployments: deploymentsWithLeases,
       total,
       hasMore: skip !== undefined && limit !== undefined ? total > skip + limit : false
     };
-  }
-
-  private async getLeaseStatuses(leasesByDeployment: RestAkashLeaseListResponse[], walletId: number): Promise<LeaseStatusResponse[][]> {
-    const deploymentConcurrency = 10;
-    const leaseConcurrency = 10;
-    const leaseStatusesByDeployment: LeaseStatusResponse[][] = [];
-
-    await PromisePool.withConcurrency(deploymentConcurrency)
-      .for(leasesByDeployment)
-      .process(async ({ leases }, deploymentIndex) => {
-        await PromisePool.withConcurrency(leaseConcurrency)
-          .for(leases)
-          .process(async ({ lease }, leaseIndex) => {
-            const leaseStatus = await this.providerService.getLeaseStatus(
-              lease.lease_id.provider,
-              lease.lease_id.dseq,
-              lease.lease_id.gseq,
-              lease.lease_id.oseq,
-              walletId
-            );
-
-            if (!leaseStatusesByDeployment[deploymentIndex]) {
-              leaseStatusesByDeployment[deploymentIndex] = [];
-            }
-
-            leaseStatusesByDeployment[deploymentIndex][leaseIndex] = leaseStatus;
-          });
-      });
-
-    return leaseStatusesByDeployment;
   }
 
   public async listWithResources({
@@ -310,14 +290,5 @@ export class DeploymentReaderService {
       events: relatedMessages || [],
       other: deploymentData
     };
-  }
-
-  private async getWalletByAddress(address: string) {
-    const wallet = await this.userWalletRepository.findOneBy({ address });
-    if (!wallet) {
-      throw new Error(`Wallet not found for address: ${address}`);
-    }
-
-    return wallet;
   }
 }

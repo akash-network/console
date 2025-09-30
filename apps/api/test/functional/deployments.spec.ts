@@ -37,6 +37,7 @@ describe("Deployments API", () => {
   const signerService = container.resolve(ManagedSignerService);
   const deploymentReaderService = container.resolve(DeploymentReaderService);
 
+  let currentUser: UserOutput;
   let knownUsers: Record<string, UserOutput>;
   let knownApiKeys: Record<string, ApiKeyOutput>;
   let knownWallets: Record<string, UserWalletOutput[]>;
@@ -78,6 +79,9 @@ describe("Deployments API", () => {
       },
       findOneByUserId: async (id: string) => {
         return Promise.resolve(knownWallets[id][0]);
+      },
+      findFirst: async () => {
+        return Promise.resolve(knownWallets[currentUser.id][0]);
       }
     } as unknown as UserWalletRepository;
 
@@ -111,6 +115,7 @@ describe("Deployments API", () => {
     const apiKey = ApiKeySeeder.create({ userId });
     const wallets = [UserWalletSeeder.create({ userId, address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm" })];
 
+    currentUser = user;
     knownUsers[userId] = user;
     knownApiKeys[userApiKeySecret] = apiKey;
     knownWallets[user.id] = wallets;
@@ -544,7 +549,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      jest.spyOn(deploymentReaderService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+      jest.spyOn(deploymentReaderService, "findByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "DELETE",
@@ -611,7 +616,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      jest.spyOn(deploymentReaderService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+      jest.spyOn(deploymentReaderService, "findByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
       const response = await app.request(`/v1/deposit-deployment`, {
         method: "POST",
@@ -753,7 +758,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      jest.spyOn(deploymentReaderService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+      jest.spyOn(deploymentReaderService, "findByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 

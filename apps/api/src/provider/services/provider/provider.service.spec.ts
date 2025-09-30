@@ -1,241 +1,258 @@
-import type { ProviderHttpService } from "@akashnetwork/http-sdk";
+import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { JwtTokenPayload } from "@akashnetwork/jwt";
+import { faker } from "@faker-js/faker";
+import { AxiosError } from "axios";
 import { mock } from "jest-mock-extended";
 
-import type { AuditorService } from "@src/provider/services/auditors/auditors.service";
-import type { ProviderAttributesSchemaService } from "@src/provider/services/provider-attributes-schema/provider-attributes-schema.service";
-import type { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
+import { mockConfigService } from "../../../../test/mocks/config-service.mock";
+import { LeaseStatusSeeder } from "../../../../test/seeders/lease-status.seeder";
+import { createProviderSeed } from "../../../../test/seeders/provider.seeder";
+import { UserWalletSeeder } from "../../../../test/seeders/user-wallet.seeder";
+import type { BillingConfigService } from "../../../billing/services/billing-config/billing-config.service";
+import type { ProviderRepository } from "../../repositories/provider/provider.repository";
+import type { AuditorService } from "../auditors/auditors.service";
+import type { ProviderAttributesSchemaService } from "../provider-attributes-schema/provider-attributes-schema.service";
+import type { ProviderJwtTokenService } from "../provider-jwt-token/provider-jwt-token.service";
 import { ProviderService } from "./provider.service";
+import type { ProviderProxyService } from "./provider-proxy.service";
 
 describe(ProviderService.name, () => {
   describe("sendManifest", () => {
     it("should send manifest successfully on first attempt", async () => {
-      const { service, jwtTokenService, providerHttpService } = setup();
+      const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
-      const providerAddress = "akash1provider123";
-      const dseq = "123456";
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = UserWalletSeeder.create();
+      const dseq = faker.string.numeric(6);
       const manifest = '{"quantity":{"val":"1"}}';
-      const walletId = 1;
-      const jwtToken = "jwt-token-123";
-      const hostUri = "https://provider.example.com";
-
-      const mockProviderResponse = {
-        provider: {
-          owner: providerAddress,
-          host_uri: hostUri,
-          attributes: [],
-          info: { email: "", website: "" }
-        }
-      };
+      const jwtToken = faker.string.alphanumeric(32);
 
       const leases: JwtTokenPayload["leases"] = {
         access: "granular",
-        permissions: [{ provider: providerAddress, access: "scoped", scope: ["send-manifest"] }]
+        permissions: [{ provider: provider.owner, access: "scoped", scope: ["send-manifest"] }]
       };
 
-      providerHttpService.getProvider.mockResolvedValue(mockProviderResponse);
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
       jwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
       jwtTokenService.getGranularLeases.mockReturnValue(leases);
-      providerHttpService.sendManifest.mockResolvedValue({ success: true });
+      providerProxyService.request.mockResolvedValue({ success: true });
 
-      const result = await service.sendManifest({ provider: providerAddress, dseq, manifest, walletId });
+      const result = await service.sendManifest({
+        provider: provider.owner,
+        dseq,
+        manifest,
+        auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+      });
 
-      expect(providerHttpService.getProvider).toHaveBeenCalledWith(providerAddress);
+      expect(providerRepository.findActiveByAddress).toHaveBeenCalledWith(provider.owner);
       expect(jwtTokenService.generateJwtToken).toHaveBeenCalledWith({
-        walletId,
+        walletId: wallet.id,
         leases
       });
-      expect(providerHttpService.sendManifest).toHaveBeenCalledWith({
-        hostUri,
-        dseq,
-        manifest: '{"size":{"val":"1"}}',
-        jwtToken
+      expect(providerProxyService.request).toHaveBeenCalledWith(`/deployment/${dseq}/manifest`, {
+        method: "PUT",
+        body: '{"size":{"val":"1"}}',
+        auth: { type: "jwt", token: jwtToken },
+        chainNetwork: "sandbox",
+        providerIdentity: {
+          owner: provider.owner,
+          hostUri: provider.hostUri
+        },
+        timeout: 60000
       });
       expect(result).toEqual({ success: true });
     });
 
     it("should retry on lease not found error and succeed", async () => {
-      const { service, jwtTokenService, providerHttpService } = setup();
+      const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
-      const providerAddress = "akash1provider123";
-      const dseq = "123456";
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = UserWalletSeeder.create();
+      const dseq = faker.string.numeric(6);
       const manifest = '{"quantity":{"val":"1"}}';
-      const walletId = 1;
-      const jwtToken = "jwt-token-123";
-      const hostUri = "https://provider.example.com";
+      const jwtToken = faker.string.alphanumeric(32);
 
-      const mockProviderResponse = {
-        provider: {
-          owner: providerAddress,
-          host_uri: hostUri,
-          attributes: [],
-          info: { email: "", website: "" }
-        }
-      };
-
-      providerHttpService.getProvider.mockResolvedValue(mockProviderResponse);
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
       jwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
-      providerHttpService.sendManifest.mockRejectedValueOnce(new Error("no lease for deployment")).mockResolvedValueOnce({ success: true });
 
-      const result = await service.sendManifest({ provider: providerAddress, dseq, manifest, walletId });
+      const axiosError = new AxiosError("no lease for deployment");
+      axiosError.response = { data: "no lease for deployment" } as any;
 
-      expect(providerHttpService.sendManifest).toHaveBeenCalledTimes(2);
+      providerProxyService.request.mockRejectedValueOnce(axiosError).mockResolvedValueOnce({ success: true });
+
+      const result = await service.sendManifest({
+        provider: provider.owner,
+        dseq,
+        manifest,
+        auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+      });
+
+      expect(providerProxyService.request).toHaveBeenCalledTimes(2);
       expect(result).toEqual({ success: true });
     }, 10000);
 
     it("should throw error when provider not found", async () => {
-      const { service, providerHttpService } = setup();
+      const { service, providerRepository } = setup();
 
-      const providerAddress = "akash1provider123";
-      const dseq = "123456";
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = UserWalletSeeder.create();
+      const dseq = faker.string.numeric(6);
       const manifest = '{"quantity":{"val":"1"}}';
-      const walletId = 1;
 
-      providerHttpService.getProvider.mockRejectedValue(new Error(`Provider ${providerAddress} not found`));
+      providerRepository.findActiveByAddress.mockResolvedValue(null);
 
-      await expect(service.sendManifest({ provider: providerAddress, dseq, manifest, walletId })).rejects.toThrow(`Provider ${providerAddress} not found`);
+      await expect(
+        service.sendManifest({
+          provider: provider.owner,
+          dseq,
+          manifest,
+          auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+        })
+      ).rejects.toThrow(`Provider ${provider.owner} not found`);
     });
 
     it("should throw error after max retries", async () => {
-      const { service, jwtTokenService, providerHttpService } = setup();
+      const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
-      const providerAddress = "akash1provider123";
-      const dseq = "123456";
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = UserWalletSeeder.create();
+      const dseq = faker.string.numeric(6);
       const manifest = '{"quantity":{"val":"1"}}';
-      const walletId = 1;
-      const jwtToken = "jwt-token-123";
-      const hostUri = "https://provider.example.com";
+      const jwtToken = faker.string.alphanumeric(32);
 
-      const mockProviderResponse = {
-        provider: {
-          owner: providerAddress,
-          host_uri: hostUri,
-          attributes: [],
-          info: { email: "", website: "" }
-        }
-      };
-
-      providerHttpService.getProvider.mockResolvedValue(mockProviderResponse);
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
       jwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
-      providerHttpService.sendManifest.mockRejectedValue(new Error("no lease for deployment"));
 
-      await expect(service.sendManifest({ provider: providerAddress, dseq, manifest, walletId })).rejects.toThrow("no lease for deployment");
+      const axiosError = new AxiosError("no lease for deployment");
+      axiosError.response = { data: "no lease for deployment" } as any;
+      providerProxyService.request.mockRejectedValue(axiosError);
 
-      expect(providerHttpService.sendManifest).toHaveBeenCalledTimes(3);
+      await expect(
+        service.sendManifest({
+          provider: provider.owner,
+          dseq,
+          manifest,
+          auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+        })
+      ).rejects.toThrow("no lease for deployment");
+
+      expect(providerProxyService.request).toHaveBeenCalledTimes(3);
     }, 15000);
 
     it("should throw error immediately for non-lease errors", async () => {
-      const { service, jwtTokenService, providerHttpService } = setup();
+      const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
-      const providerAddress = "akash1provider123";
-      const dseq = "123456";
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = UserWalletSeeder.create();
+      const dseq = faker.string.numeric(6);
       const manifest = '{"quantity":{"val":"1"}}';
-      const walletId = 1;
-      const jwtToken = "jwt-token-123";
-      const hostUri = "https://provider.example.com";
+      const jwtToken = faker.string.alphanumeric(32);
 
-      const mockProviderResponse = {
-        provider: {
-          owner: providerAddress,
-          host_uri: hostUri,
-          attributes: [],
-          info: { email: "", website: "" }
-        }
-      };
-
-      providerHttpService.getProvider.mockResolvedValue(mockProviderResponse);
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
       jwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
-      providerHttpService.sendManifest.mockRejectedValue(new Error("network error"));
 
-      await expect(service.sendManifest({ provider: providerAddress, dseq, manifest, walletId })).rejects.toThrow("network error");
+      const axiosError = new AxiosError("network error");
+      axiosError.response = { data: "network error" } as any;
+      providerProxyService.request.mockRejectedValue(axiosError);
 
-      expect(providerHttpService.sendManifest).toHaveBeenCalledTimes(1);
+      await expect(
+        service.sendManifest({
+          provider: provider.owner,
+          dseq,
+          manifest,
+          auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+        })
+      ).rejects.toThrow("network error");
+
+      expect(providerProxyService.request).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("getLeaseStatus", () => {
     it("should get lease status successfully", async () => {
-      const { service, jwtTokenService, providerHttpService } = setup();
+      const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
-      const providerAddress = "akash1provider123";
-      const dseq = "123456";
-      const gseq = 1;
-      const oseq = 1;
-      const walletId = 1;
-      const jwtToken = "jwt-token-123";
-      const hostUri = "https://provider.example.com";
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = UserWalletSeeder.create();
+      const dseq = faker.string.numeric(6);
+      const gseq = faker.number.int({ min: 1, max: 10 });
+      const oseq = faker.number.int({ min: 1, max: 10 });
+      const jwtToken = faker.string.alphanumeric(32);
 
-      const mockProviderResponse = {
-        provider: {
-          owner: providerAddress,
-          host_uri: hostUri,
-          attributes: [],
-          info: { email: "", website: "" }
-        }
-      };
-
-      const mockLeaseStatus = {
-        forwarded_ports: {},
-        ips: {},
-        services: {}
-      };
+      const leaseStatus = LeaseStatusSeeder.create();
 
       const leases: JwtTokenPayload["leases"] = {
         access: "granular",
-        permissions: [{ provider: providerAddress, access: "scoped", scope: ["status"] }]
+        permissions: [{ provider: provider.owner, access: "scoped", scope: ["status"] }]
       };
 
-      providerHttpService.getProvider.mockResolvedValue(mockProviderResponse);
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
       jwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
       jwtTokenService.getGranularLeases.mockReturnValue(leases);
-      providerHttpService.getLeaseStatus.mockResolvedValue(mockLeaseStatus);
+      providerProxyService.request.mockResolvedValue(leaseStatus);
 
-      const result = await service.getLeaseStatus(providerAddress, dseq, gseq, oseq, walletId);
-
-      expect(providerHttpService.getProvider).toHaveBeenCalledWith(providerAddress);
-      expect(jwtTokenService.generateJwtToken).toHaveBeenCalledWith({
-        walletId,
-        leases
-      });
-      expect(providerHttpService.getLeaseStatus).toHaveBeenCalledWith({
-        hostUri,
+      const result = await service.getLeaseStatus(
+        provider.owner,
         dseq,
         gseq,
         oseq,
-        jwtToken
+        await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+      );
+
+      expect(providerRepository.findActiveByAddress).toHaveBeenCalledWith(provider.owner);
+      expect(jwtTokenService.generateJwtToken).toHaveBeenCalledWith({
+        walletId: wallet.id,
+        leases
       });
-      expect(result).toEqual(mockLeaseStatus);
+      expect(providerProxyService.request).toHaveBeenCalledWith(`/lease/${dseq}/${gseq}/${oseq}/status`, {
+        method: "GET",
+        auth: { type: "jwt", token: jwtToken },
+        chainNetwork: "sandbox",
+        providerIdentity: {
+          owner: provider.owner,
+          hostUri: provider.hostUri
+        },
+        timeout: 30000
+      });
+      expect(result).toEqual(leaseStatus);
     });
 
     it("should throw error when provider not found", async () => {
-      const { service, providerHttpService } = setup();
+      const { service, providerRepository } = setup();
 
-      const providerAddress = "akash1provider123";
-      const dseq = "123456";
-      const gseq = 1;
-      const oseq = 1;
-      const walletId = 1;
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = UserWalletSeeder.create();
+      const dseq = faker.string.numeric(6);
+      const gseq = faker.number.int({ min: 1, max: 10 });
+      const oseq = faker.number.int({ min: 1, max: 10 });
 
-      providerHttpService.getProvider.mockRejectedValue(new Error(`Provider ${providerAddress} not found`));
+      providerRepository.findActiveByAddress.mockResolvedValue(null);
 
-      await expect(service.getLeaseStatus(providerAddress, dseq, gseq, oseq, walletId)).rejects.toThrow(`Provider ${providerAddress} not found`);
+      await expect(
+        service.getLeaseStatus(provider.owner, dseq, gseq, oseq, await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner }))
+      ).rejects.toThrow(`Provider ${provider.owner} not found`);
     });
   });
 
   function setup() {
-    const providerHttpService = mock<ProviderHttpService>();
+    const providerProxyService = mock<ProviderProxyService>();
+    const providerRepository = mock<ProviderRepository>();
     const providerAttributesSchemaService = mock<ProviderAttributesSchemaService>();
     const auditorsService = mock<AuditorService>();
     const jwtTokenService = mock<ProviderJwtTokenService>();
+    const config = mockConfigService<BillingConfigService>({
+      NETWORK: "sandbox"
+    });
 
-    const service = new ProviderService(providerHttpService, providerAttributesSchemaService, auditorsService, jwtTokenService);
+    const service = new ProviderService(providerProxyService, providerRepository, providerAttributesSchemaService, auditorsService, jwtTokenService, config);
 
     return {
       service,
-      providerHttpService,
+      providerRepository,
       providerAttributesSchemaService,
       auditorsService,
-      jwtTokenService
+      jwtTokenService,
+      providerProxyService
     };
   }
 });

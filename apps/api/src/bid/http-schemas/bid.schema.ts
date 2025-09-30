@@ -111,5 +111,4 @@ export const ListBidsResponseSchema = z.object({
   data: z.array(BidResponseSchema)
 });
 
-export type BidResponse = z.infer<typeof BidResponseSchema>;
 export type ListBidsResponse = z.infer<typeof ListBidsResponseSchema>;

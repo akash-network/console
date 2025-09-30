@@ -1,6 +1,6 @@
 import { Bid, BidHttpService } from "@akashnetwork/http-sdk";
 import assert from "http-assert";
-import semver from "semver";
+import semver, { SemVer } from "semver";
 import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
@@ -9,6 +9,8 @@ import { ProviderService } from "@src/provider/services/provider/provider.servic
 
 @singleton()
 export class BidService {
+  static JWT_AUTH_SUPPORT_VERSION = new SemVer("0.8.3-rc0");
+
   constructor(
     private readonly bidHttpService: BidHttpService,
     private readonly authService: AuthService,
@@ -31,7 +33,7 @@ export class BidService {
     const provider = await this.providerService.getProvider(bid.bid.bid_id.provider);
     return {
       ...bid,
-      isCertificateRequired: !provider || !semver.valid(provider.akashVersion) || semver.lt(provider.akashVersion, "0.10.0")
+      isCertificateRequired: !provider || !semver.valid(provider.akashVersion) || semver.lt(provider.akashVersion, BidService.JWT_AUTH_SUPPORT_VERSION)
     };
   }
 }
