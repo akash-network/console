@@ -1,5 +1,12 @@
 
 
+## [1.12.1](https://github.com/akash-network/console/compare/log-collector/v1.12.0...log-collector/v1.12.1) (2025-09-30)
+
+
+### Code Refactoring
+
+* adjusts authz and provider services to work when blockchain is down ([#1977](https://github.com/akash-network/console/issues/1977)) ([52ed240](https://github.com/akash-network/console/commit/52ed240375312e37752da39315da0f0fad12e8cd))
+
 ## [1.12.0](https://github.com/akash-network/console/compare/log-collector/v1.11.0...log-collector/v1.12.0) (2025-09-24)
 
 
