@@ -32,6 +32,7 @@ import { cn } from "@src/utils/styleUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import { ControlMachineStatus } from "./ControlMachineStatus";
 import { ModeToggle } from "./ModeToggle";
+import { NetworkIndicator } from "./NetworkIndicator";
 import { ProviderStatus } from "./ProviderStatus";
 import { SidebarGroupMenu } from "./SidebarGroupMenu";
 
@@ -202,8 +203,11 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
           <div className="space-y-2 pb-4 pl-4 pr-4">
             {/* <NodeStatusBar /> */}
             <div className="px-2">
-              <ProviderStatus />
-              <ControlMachineStatus />
+              <div className="mt-2">
+                <NetworkIndicator isNavOpen={_isNavOpen} />
+                <ProviderStatus />
+                <ControlMachineStatus />
+              </div>
             </div>
             <Separator />
             <div className="flex items-center justify-center space-x-1 pt-4">

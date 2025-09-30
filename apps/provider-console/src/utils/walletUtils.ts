@@ -1,6 +1,10 @@
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { mainnetId } from "./constants";
 
+function getSelectedNetworkId(): string {
+  return browserEnvConfig.NEXT_PUBLIC_SELECTED_NETWORK ?? mainnetId;
+}
+
 export type LocalWalletDataType = {
   address: string;
   cert?: string;
@@ -22,7 +26,7 @@ export function getSelectedStorageWallet() {
 }
 
 export function getStorageWallets() {
-  const selectedNetworkId = localStorage.getItem("selectedNetworkId") || mainnetId;
+  const selectedNetworkId = getSelectedNetworkId();
   const wallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`) || "[]") as LocalWalletDataType[];
 
   return wallets || [];
@@ -41,12 +45,12 @@ export function updateWallet(address: string, func: (w: LocalWalletDataType) => 
 }
 
 export function updateStorageWallets(wallets: LocalWalletDataType[]) {
-  const selectedNetworkId = localStorage.getItem("selectedNetworkId") || mainnetId;
+  const selectedNetworkId = getSelectedNetworkId();
   localStorage.setItem(`${selectedNetworkId}/wallets`, JSON.stringify(wallets));
 }
 
 export function deleteWalletFromStorage(address: string, deleteDeployments: boolean) {
-  const selectedNetworkId = localStorage.getItem("selectedNetworkId") || mainnetId;
+  const selectedNetworkId = getSelectedNetworkId();
   const wallets = getStorageWallets();
   const newWallets = wallets.filter(w => w.address !== address).map((w, i) => ({ ...w, selected: i === 0 }));
 
@@ -77,6 +81,6 @@ export function updateLocalStorageWalletName(address: string, name: string) {
 
 export function getNonceMessage(nonce: string, walletAddress: string) {
   const domain = window.location.origin;
-  const baseDomain = domain === "http://localhost:3000" ? browserEnvConfig.NEXT_PUBLIC_BETA_URL : domain;
+  const baseDomain = domain === "http://localhost:3000" ? browserEnvConfig.NEXT_PUBLIC_URL : domain;
   return `${baseDomain} wants you to sign in with your Keplr account - ${walletAddress} using Nonce - ${nonce}`;
 }
