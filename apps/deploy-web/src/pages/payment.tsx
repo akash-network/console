@@ -10,6 +10,7 @@ import { PaymentMethodsList } from "@src/components/shared/PaymentMethodsList";
 import { Title } from "@src/components/shared/Title";
 import { AddPaymentMethodPopup, DeletePaymentMethodPopup, PaymentForm } from "@src/components/user/payment";
 import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuccessAnimation";
+import { usePaymentPolling } from "@src/context/PaymentPollingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
@@ -44,8 +45,10 @@ const PayPage: React.FunctionComponent = () => {
     applyCoupon: { isPending: isApplyingCoupon, mutateAsync: applyCoupon },
     removePaymentMethod
   } = usePaymentMutations();
+  const { pollForPayment, isPolling } = usePaymentPolling();
   const threeDSecure = use3DSecure({
     onSuccess: () => {
+      pollForPayment();
       setShowPaymentSuccess({ amount: submittedAmountRef.current, show: true });
       setAmount("");
       setCoupon("");
@@ -108,6 +111,7 @@ const PayPage: React.FunctionComponent = () => {
           paymentMethodId
         });
       } else if (response.success) {
+        pollForPayment();
         setShowPaymentSuccess({ amount: submittedAmountRef.current, show: true });
         setAmount("");
         setCoupon("");
@@ -149,6 +153,7 @@ const PayPage: React.FunctionComponent = () => {
       }
 
       if (response.amountAdded && response.amountAdded > 0) {
+        pollForPayment();
         setShowPaymentSuccess({ amount: response.amountAdded.toString(), show: true });
       }
 
@@ -308,7 +313,7 @@ const PayPage: React.FunctionComponent = () => {
                 onClaimCoupon={handleClaimCoupon}
                 discounts={discounts}
                 getFinalAmount={getFinalAmount}
-                processing={isConfirmingPayment}
+                processing={isConfirmingPayment || isPolling}
                 selectedPaymentMethodId={selectedPaymentMethodId}
                 onPayment={handlePayment}
                 isApplyingCoupon={isApplyingCoupon}

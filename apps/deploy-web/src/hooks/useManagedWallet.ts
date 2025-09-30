@@ -18,10 +18,10 @@ export const useManagedWallet = () => {
   const { user: signedInUser } = useCustomUser();
   const userWallet = useSelectedChain();
   const [selectedWalletType, setSelectedWalletType] = useAtom(walletStore.selectedWalletType);
-  const { data: queried, isFetched, isLoading: isFetching, refetch } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined);
+  const { data: queried, isFetched, isLoading: isInitialLoading, isFetching, refetch } = useManagedWalletQuery(isBillingEnabled ? user?.id : undefined);
   const { mutate: create, data: created, isPending: isCreating, isSuccess: isCreated, error: createError } = useCreateManagedWalletMutation();
   const wallet = useMemo(() => (queried || created) as ApiManagedWalletOutput, [queried, created]);
-  const isLoading = isFetching || isCreating;
+  const isLoading = isInitialLoading || isCreating;
   const [, setIsSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const selected = getSelectedStorageWallet();
 
@@ -35,7 +35,7 @@ export const useManagedWallet = () => {
     if (signedInUser?.id && (!!queried || !!created)) {
       setIsSignedInWithTrial(true);
     }
-  }, [signedInUser?.id, queried, created]);
+  }, [signedInUser?.id, queried, created, setIsSignedInWithTrial]);
 
   useEffect(() => {
     if (!isBillingEnabled) {
@@ -81,8 +81,9 @@ export const useManagedWallet = () => {
           }
         : undefined,
       isLoading,
+      isFetching,
       createError,
       refetch
     };
-  }, [wallet, selected?.address, isLoading, createError, refetch, user?.id, create]);
+  }, [wallet, selected?.address, isLoading, isFetching, createError, refetch, user?.id, create]);
 };

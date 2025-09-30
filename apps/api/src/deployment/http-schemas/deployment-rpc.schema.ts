@@ -1,13 +1,12 @@
 import { z } from "zod";
 
-export const FallbackDeploymentListQuerySchema = z.object({
-  "filters.owner": z.string().optional(),
-  "filters.state": z.enum(["active", "closed"]).optional(),
-  "pagination.offset": z.coerce.number().optional(),
-  "pagination.limit": z.coerce.number().optional(),
-  "pagination.key": z.string().optional(),
-  "pagination.count_total": z.coerce.boolean().optional(),
-  "pagination.reverse": z.coerce.boolean().optional()
+const AttributeSchema = z.object({
+  key: z.string(),
+  value: z.string()
+});
+
+const QuantitySchema = z.object({
+  val: z.string()
 });
 
 const DeploymentIdSchema = z.object({
@@ -26,21 +25,12 @@ const SignedBySchema = z.object({
   any_of: z.array(z.string())
 });
 
-const AttributeSchema = z.object({
-  key: z.string(),
-  value: z.string()
-});
-
 const RequirementsSchema = z.object({
   signed_by: SignedBySchema,
   attributes: z.array(AttributeSchema)
 });
 
 const UnitsSchema = z.object({
-  val: z.string()
-});
-
-const QuantitySchema = z.object({
   val: z.string()
 });
 
@@ -142,10 +132,36 @@ const PaginationSchema = z.object({
   total: z.string()
 });
 
+export const FallbackDeploymentListQuerySchema = z.object({
+  "filters.owner": z.string().optional(),
+  "filters.state": z.enum(["active", "closed"]).optional(),
+  "pagination.offset": z.coerce.number().optional(),
+  "pagination.limit": z.coerce.number().optional(),
+  "pagination.key": z.string().optional(),
+  "pagination.count_total": z.coerce.boolean().optional(),
+  "pagination.reverse": z.coerce.boolean().optional()
+});
+
 export const FallbackDeploymentListResponseSchema = z.object({
   deployments: z.array(DeploymentWithGroupsSchema),
   pagination: PaginationSchema
 });
 
+export const FallbackDeploymentInfoQuerySchema = z.object({
+  "id.owner": z.string(),
+  "id.dseq": z.string()
+});
+
+export const FallbackDeploymentInfoResponseSchema = z.union([
+  z.object({
+    code: z.number(),
+    message: z.string(),
+    details: z.array(z.string())
+  }),
+  DeploymentWithGroupsSchema
+]);
+
 export type FallbackDeploymentListQuery = z.infer<typeof FallbackDeploymentListQuerySchema>;
 export type FallbackDeploymentListResponse = z.infer<typeof FallbackDeploymentListResponseSchema>;
+export type FallbackDeploymentInfoQuery = z.infer<typeof FallbackDeploymentInfoQuerySchema>;
+export type FallbackDeploymentInfoResponse = z.infer<typeof FallbackDeploymentInfoResponseSchema>;
