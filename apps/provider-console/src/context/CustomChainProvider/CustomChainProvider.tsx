@@ -8,7 +8,8 @@ import { wallets as leap } from "@cosmos-kit/leap-extension";
 import { ChainProvider } from "@cosmos-kit/react";
 import { useChain } from "@cosmos-kit/react";
 
-import { akash, assetLists } from "@src/chains";
+import { assetLists } from "@src/chains";
+import { createDynamicChain } from "@src/config/network.config";
 import { useSelectedNetwork } from "@src/hooks/useSelectedNetwork";
 import { customRegistry } from "@src/utils/customRegistry";
 
@@ -31,9 +32,13 @@ export function CustomChainProvider({ children }: Props) {
     return true;
   });
 
+  // Create dynamic chain from environment configuration - no if/else conditions
+  // Following the same pattern as akashSandbox but environment-driven
+  const dynamicChain = createDynamicChain();
+
   return (
     <ChainProvider
-      chains={[akash]}
+      chains={[dynamicChain]}
       assetLists={assetLists}
       wallets={availableWallets}
       sessionOptions={{
@@ -51,9 +56,10 @@ export function CustomChainProvider({ children }: Props) {
       endpointOptions={{
         isLazy: true,
         endpoints: {
-          akash: { rest: [], rpc: [] },
-          "akash-sandbox": { rest: [], rpc: [] },
-          "akash-testnet": { rest: [], rpc: [] }
+          [dynamicChain.chain_name]: {
+            rest: [dynamicChain.apis?.rest?.[0]?.address || ""],
+            rpc: [dynamicChain.apis?.rpc?.[0]?.address || ""]
+          }
         }
       }}
       signerOptions={{

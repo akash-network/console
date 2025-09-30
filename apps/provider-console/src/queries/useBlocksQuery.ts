@@ -17,7 +17,7 @@ async function getBlock(apiEndpoint, id) {
 export function useBlock(id, options = {}) {
   return useQuery({
     queryKey: QueryKeys.getBlockKey(id),
-    queryFn: () => getBlock(browserEnvConfig.NEXT_PUBLIC_MAINNET_API_URL, id),
+    queryFn: () => getBlock(browserEnvConfig.NEXT_PUBLIC_API_ENDPOINT, id),
     refetchInterval: false,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
