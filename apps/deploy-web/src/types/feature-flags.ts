@@ -5,4 +5,5 @@ export type FeatureFlag =
   | "ui_deployment_closed_alert"
   | "billing_usage"
   | "custodial_auto_topup"
-  | "ui_sdl_log_collector_enabled";
+  | "ui_sdl_log_collector_enabled"
+  | "maintenance_banner";

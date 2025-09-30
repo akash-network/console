@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/console-web",
-  "version": "2.110.0",
+  "version": "2.112.0",
   "private": true,
   "description": "Web UI to deploy on the Akash Network and view statistic about network usage.",
   "repository": {
@@ -77,6 +77,7 @@
     "chain-registry": "^1.69.31",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
+    "cockatiel": "^3.2.1",
     "cosmjs-types": "^0.9.0",
     "date-fns": "^2.29.3",
     "dotenv": "^16.4.5",

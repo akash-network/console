@@ -3,10 +3,36 @@ import { faker } from "@faker-js/faker";
 import type { AxiosInstance } from "axios";
 import { mock } from "jest-mock-extended";
 
+import type { SettingsContextType } from "@src/context/SettingsProvider/SettingsProviderContext";
+import { SettingsProviderContext } from "@src/context/SettingsProvider/SettingsProviderContext";
 import { useAllowancesGranted, useAllowancesIssued, useGranteeGrants, useGranterGrants } from "./useGrantsQuery";
 
 import { waitFor } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
+
+const createMockSettingsContext = (): SettingsContextType =>
+  mock({
+    settings: {
+      apiEndpoint: "https://api.example.com",
+      rpcEndpoint: "https://rpc.example.com",
+      isCustomNode: false,
+      nodes: [],
+      selectedNode: null,
+      customNode: null,
+      isBlockchainDown: false
+    },
+    setSettings: jest.fn(),
+    isLoadingSettings: false,
+    isSettingsInit: true,
+    refreshNodeStatuses: jest.fn(),
+    isRefreshingNodeStatus: false
+  });
+
+const MockSettingsProvider = ({ children }: { children: React.ReactNode }) => {
+  const mockSettings = createMockSettingsContext();
+
+  return <SettingsProviderContext.Provider value={mockSettings}>{children}</SettingsProviderContext.Provider>;
+};
 
 describe("useGrantsQuery", () => {
   describe(useGranterGrants.name, () => {
@@ -28,13 +54,14 @@ describe("useGrantsQuery", () => {
       };
 
       const authzHttpService = mock<AuthzHttpService>({
-        defaults: { baseURL: "https://api.akash.network" },
+        isReady: true,
         getPaginatedDepositDeploymentGrants: jest.fn().mockResolvedValue(mockData)
       });
       const { result } = setupQuery(() => useGranterGrants("test-address", 0, 1000), {
         services: {
           authzHttpService: () => authzHttpService
-        }
+        },
+        wrapper: ({ children }) => <MockSettingsProvider>{children}</MockSettingsProvider>
       });
 
       await waitFor(() => {
@@ -46,13 +73,14 @@ describe("useGrantsQuery", () => {
 
     it("does not fetch when address is not provided", () => {
       const authzHttpService = mock<AuthzHttpService>({
-        defaults: { baseURL: "https://api.akash.network" },
+        isReady: true,
         getPaginatedDepositDeploymentGrants: jest.fn().mockResolvedValue([])
       });
       setupQuery(() => useGranterGrants("", 0, 1000), {
         services: {
           authzHttpService: () => authzHttpService
-        }
+        },
+        wrapper: ({ children }) => <MockSettingsProvider>{children}</MockSettingsProvider>
       });
 
       expect(authzHttpService.getPaginatedDepositDeploymentGrants).not.toHaveBeenCalled();
@@ -69,14 +97,15 @@ describe("useGrantsQuery", () => {
         }
       ];
       const authzHttpService = mock<AuthzHttpService>({
-        defaults: { baseURL: "https://api.akash.network" },
+        isReady: true,
         getAllDepositDeploymentGrants: jest.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useGranteeGrants("test-address"), {
         services: {
           authzHttpService: () => authzHttpService
-        }
+        },
+        wrapper: ({ children }) => <MockSettingsProvider>{children}</MockSettingsProvider>
       });
 
       await waitFor(() => {
@@ -88,13 +117,14 @@ describe("useGrantsQuery", () => {
 
     it("does not fetch when address is not provided", () => {
       const authzHttpService = mock<AuthzHttpService>({
-        defaults: { baseURL: "https://api.akash.network" },
+        isReady: true,
         getAllDepositDeploymentGrants: jest.fn().mockResolvedValue([])
       });
       setupQuery(() => useGranteeGrants(""), {
         services: {
           authzHttpService: () => authzHttpService
-        }
+        },
+        wrapper: ({ children }) => <MockSettingsProvider>{children}</MockSettingsProvider>
       });
 
       expect(authzHttpService.getAllDepositDeploymentGrants).not.toHaveBeenCalled();
@@ -108,14 +138,15 @@ describe("useGrantsQuery", () => {
         pagination: { total: 1 }
       };
       const authzHttpService = mock<AuthzHttpService>({
-        defaults: { baseURL: "https://api.akash.network" },
+        isReady: true,
         getPaginatedFeeAllowancesForGranter: jest.fn().mockResolvedValue(mockData)
       });
 
       const { result } = setupQuery(() => useAllowancesIssued("test-address", 0, 1000), {
         services: {
           authzHttpService: () => authzHttpService
-        }
+        },
+        wrapper: ({ children }) => <MockSettingsProvider>{children}</MockSettingsProvider>
       });
 
       await waitFor(() => {
@@ -127,13 +158,14 @@ describe("useGrantsQuery", () => {
 
     it("does not fetch when address is not provided", () => {
       const authzHttpService = mock<AuthzHttpService>({
-        defaults: { baseURL: "https://api.akash.network" },
+        isReady: true,
         getPaginatedFeeAllowancesForGranter: jest.fn().mockResolvedValue([])
       });
       setupQuery(() => useAllowancesIssued("", 0, 1000), {
         services: {
           authzHttpService: () => authzHttpService
-        }
+        },
+        wrapper: ({ children }) => <MockSettingsProvider>{children}</MockSettingsProvider>
       });
 
       expect(authzHttpService.getPaginatedFeeAllowancesForGranter).not.toHaveBeenCalled();
@@ -156,7 +188,8 @@ describe("useGrantsQuery", () => {
       const { result } = setupQuery(() => useAllowancesGranted("test-address"), {
         services: {
           chainApiHttpClient: () => chainApiHttpClient
-        }
+        },
+        wrapper: ({ children }) => <MockSettingsProvider>{children}</MockSettingsProvider>
       });
 
       await waitFor(() => {
@@ -178,7 +211,12 @@ describe("useGrantsQuery", () => {
           }
         })
       } as any);
-      setupQuery(() => useAllowancesGranted(""));
+      setupQuery(() => useAllowancesGranted(""), {
+        services: {
+          chainApiHttpClient: () => chainApiHttpClient
+        },
+        wrapper: ({ children }) => <MockSettingsProvider>{children}</MockSettingsProvider>
+      });
 
       expect(chainApiHttpClient.get).not.toHaveBeenCalled();
     });

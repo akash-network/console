@@ -1,5 +1,19 @@
 
 
+## [0.37.0](https://github.com/akash-network/console/compare/stats-web/v0.36.2...stats-web/v0.37.0) (2025-09-30)
+
+
+### Features
+
+* disable some features when blockchain is down ([#1971](https://github.com/akash-network/console/issues/1971)) ([64d5bef](https://github.com/akash-network/console/commit/64d5befefc09479a09d5e1a829c9004ab2d6470e))
+
+## [0.36.2](https://github.com/akash-network/console/compare/stats-web/v0.36.1...stats-web/v0.36.2) (2025-09-26)
+
+
+### Code Refactoring
+
+* network version is now taken from /net package in network-store ([#1966](https://github.com/akash-network/console/issues/1966)) ([61dc080](https://github.com/akash-network/console/commit/61dc08057419270e50d1b9ceed2f82331429e974))
+
 ## [0.36.1](https://github.com/akash-network/console/compare/stats-web/v0.36.0...stats-web/v0.36.1) (2025-09-15)
 
 

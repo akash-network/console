@@ -1,5 +1,36 @@
 
 
+## [2.112.0](https://github.com/akash-network/console/compare/console-web/v2.111.0...console-web/v2.112.0) (2025-09-30)
+
+
+### Features
+
+* adds support for detecting whether blockchain is down ([#1973](https://github.com/akash-network/console/issues/1973)) ([384080c](https://github.com/akash-network/console/commit/384080ca2c9b906527c7a1b46c184b4118ea59df))
+* **billing:** implement polling for balance update after payment ([#1975](https://github.com/akash-network/console/issues/1975)) ([9969a28](https://github.com/akash-network/console/commit/9969a28b52cfb79a95ff9bc00801b8b7b3dad8e4))
+* disable some features when blockchain is down ([#1971](https://github.com/akash-network/console/issues/1971)) ([64d5bef](https://github.com/akash-network/console/commit/64d5befefc09479a09d5e1a829c9004ab2d6470e))
+
+
+### Code Refactoring
+
+* adjusts authz and provider services to work when blockchain is down ([#1977](https://github.com/akash-network/console/issues/1977)) ([52ed240](https://github.com/akash-network/console/commit/52ed240375312e37752da39315da0f0fad12e8cd))
+
+## [2.111.0](https://github.com/akash-network/console/compare/console-web/v2.110.0...console-web/v2.111.0) (2025-09-26)
+
+
+### Features
+
+* control maintenance banner with a feature flag ([#1968](https://github.com/akash-network/console/issues/1968)) ([22654c9](https://github.com/akash-network/console/commit/22654c9d364f68e3bc137319b95069d0f8d51972)), closes [#1949](https://github.com/akash-network/console/issues/1949)
+
+
+### Bug Fixes
+
+* invalidate deployment when toggling alert status ([#1937](https://github.com/akash-network/console/issues/1937)) ([08ebc6a](https://github.com/akash-network/console/commit/08ebc6a3f7d52d72b71d1f576664ae7760dda191)), closes [#1768](https://github.com/akash-network/console/issues/1768) [#1768](https://github.com/akash-network/console/issues/1768)
+
+
+### Code Refactoring
+
+* network version is now taken from /net package in network-store ([#1966](https://github.com/akash-network/console/issues/1966)) ([61dc080](https://github.com/akash-network/console/commit/61dc08057419270e50d1b9ceed2f82331429e974))
+
 ## [2.110.0](https://github.com/akash-network/console/compare/console-web/v2.109.0...console-web/v2.110.0) (2025-09-24)
 
 

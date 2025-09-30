@@ -1,6 +1,5 @@
 import { Provider, ProviderAttribute, ProviderAttributeSignature, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
-import { ProviderHttpService } from "@akashnetwork/http-sdk";
 import { SupportedChainNetworks } from "@akashnetwork/net";
 import { AxiosError } from "axios";
 import { add } from "date-fns";
@@ -27,7 +26,6 @@ export class ProviderService {
 
   constructor(
     private readonly providerProxy: ProviderProxyService,
-    private readonly providerHttpService: ProviderHttpService,
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
     @InjectBillingConfig() private readonly config: BillingConfig
@@ -35,16 +33,16 @@ export class ProviderService {
     this.chainNetwork = this.config.NETWORK as SupportedChainNetworks;
   }
 
-  async sendManifest(provider: string, dseq: string, manifest: string, options: { certPem: string; keyPem: string }) {
+  async sendManifest(providerAddress: string, dseq: string, manifest: string, options: { certPem: string; keyPem: string }) {
     const jsonStr = manifest.replace(/"quantity":{"val/g, '"size":{"val');
 
-    const providerResponse = await this.providerHttpService.getProvider(provider);
+    const provider = await Provider.findOne({ where: { owner: providerAddress } });
 
-    assert(providerResponse, 404, `Provider ${provider} not found`);
+    assert(provider, 404, `Provider ${providerAddress} not found`);
 
     const providerIdentity: ProviderIdentity = {
-      owner: provider,
-      hostUri: providerResponse.provider.host_uri
+      owner: providerAddress,
+      hostUri: provider.hostUri
     };
 
     return await this.sendManifestToProvider(dseq, jsonStr, options, providerIdentity);
@@ -77,15 +75,23 @@ export class ProviderService {
     }
   }
 
-  async getLeaseStatus(provider: string, dseq: string, gseq: number, oseq: number, options: { certPem: string; keyPem: string }): Promise<LeaseStatusResponse> {
-    const providerResponse = await this.providerHttpService.getProvider(provider);
-    if (!providerResponse) {
-      throw new Error(`Provider ${provider} not found`);
-    }
+  async getLeaseStatus(
+    providerAddress: string,
+    dseq: string,
+    gseq: number,
+    oseq: number,
+    options: { certPem: string; keyPem: string }
+  ): Promise<LeaseStatusResponse> {
+    const provider = await Provider.findOne({
+      where: {
+        owner: providerAddress
+      }
+    });
+    assert(provider, 404, `Provider ${providerAddress} not found`);
 
     const providerIdentity: ProviderIdentity = {
-      owner: provider,
-      hostUri: providerResponse.provider.host_uri
+      owner: providerAddress,
+      hostUri: provider.hostUri
     };
 
     return await this.providerProxy.fetchProviderUrl<LeaseStatusResponse>(`/lease/${dseq}/${gseq}/${oseq}/status`, {
