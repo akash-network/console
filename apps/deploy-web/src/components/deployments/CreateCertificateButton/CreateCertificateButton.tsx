@@ -5,12 +5,14 @@ import { Alert, Button, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 
 import { useCertificate } from "@src/context/CertificateProvider";
+import { useSettings } from "@src/context/SettingsProvider";
 
 export const DEPENDENCIES = {
   Alert,
   Button,
   Spinner,
-  useCertificate
+  useCertificate,
+  useSettings
 };
 
 export interface Props extends Omit<ButtonProps, "onClick"> {
@@ -20,6 +22,7 @@ export interface Props extends Omit<ButtonProps, "onClick"> {
 }
 
 export const CreateCertificateButton: FC<Props> = ({ afterCreate, containerClassName, dependencies: d = DEPENDENCIES, ...buttonProps }) => {
+  const { settings } = d.useSettings();
   const { isCreatingCert, createCertificate, isLocalCertExpired, localCert } = d.useCertificate();
 
   const _createCertificate = useCallback(async () => {
@@ -38,7 +41,12 @@ export const CreateCertificateButton: FC<Props> = ({ afterCreate, containerClass
       <d.Alert variant="warning" className={cn({ "py-2 text-sm": buttonProps?.size === "sm" }, "truncate")}>
         {warningText}
       </d.Alert>
-      <d.Button className={warningText ? "mt-4" : ""} {...buttonProps} disabled={buttonProps?.disabled || isCreatingCert} onClick={_createCertificate}>
+      <d.Button
+        className={warningText ? "mt-4" : ""}
+        {...buttonProps}
+        disabled={buttonProps?.disabled || settings.isBlockchainDown || isCreatingCert}
+        onClick={_createCertificate}
+      >
         {isCreatingCert ? <d.Spinner size="small" /> : buttonText}
       </d.Button>
     </div>

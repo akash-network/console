@@ -9,6 +9,7 @@ import { AutoTopUpSettingContainer } from "@src/components/settings/AutoTopUpSet
 import { LocalDataManager } from "@src/components/settings/LocalDataManager";
 import { Fieldset } from "@src/components/shared/Fieldset";
 import { LabelValue } from "@src/components/shared/LabelValue";
+import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useWhen } from "@src/hooks/useWhen";
@@ -21,6 +22,7 @@ import { SettingsForm } from "./SettingsForm";
 import { SettingsLayout, SettingsTabs } from "./SettingsLayout";
 
 export const SettingsContainer: React.FunctionComponent = () => {
+  const { settings } = useSettings();
   const [isSelectingNetwork, setIsSelectingNetwork] = useState(false);
   const selectedNetwork = networkStore.useSelectedNetwork();
   const wallet = useWallet();
@@ -68,9 +70,11 @@ export const SettingsContainer: React.FunctionComponent = () => {
           )}
         </div>
 
-        <Fieldset label="Certificates" className="mb-4">
-          <CertificateList />
-        </Fieldset>
+        {!settings.isBlockchainDown && (
+          <Fieldset label="Certificates" className="mb-4">
+            <CertificateList />
+          </Fieldset>
+        )}
       </SettingsLayout>
     </Layout>
   );
