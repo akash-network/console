@@ -74,6 +74,8 @@ export class QueryKeys {
 
   static getManagedWalletKey = (userId?: string) => ["MANAGED_WALLET", userId || ""];
 
+  static getManagedWalletKey = (userId?: string) => ["MANAGED_WALLET", userId || ""];
+
   static getPaymentTransactionsKey = (options?: {
     limit?: number;
     startingAfter?: string | null;
