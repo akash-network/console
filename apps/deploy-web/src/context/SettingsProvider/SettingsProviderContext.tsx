@@ -40,7 +40,7 @@ type ContextType = {
 
 export type SettingsContextType = ContextType;
 
-const SettingsProviderContext = React.createContext<ContextType>({} as ContextType);
+export const SettingsProviderContext = React.createContext<ContextType>({} as ContextType);
 
 const defaultSettings: Settings = {
   apiEndpoint: "",

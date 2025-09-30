@@ -10,13 +10,12 @@ import { millisecondsInMinute } from "date-fns/constants";
 
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useSettings } from "@src/context/SettingsProvider";
+import { TopBannerProvider, useTopBanner } from "@src/context/TopBannerProvider/TopBannerProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
-import { useVariant } from "@src/hooks/useVariant";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
-import { CreditCardBanner, MaintenanceBanner } from "./TopBanner";
+import { TopBanner } from "./TopBanner";
 import { TrackingScripts } from "./TrackingScripts";
 import { WelcomeToTrialModal } from "./WelcomeToTrialModal";
 
@@ -40,21 +39,22 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
 
   return (
     <IntlProvider locale={locale} defaultLocale="en-US">
-      <LayoutApp
-        isLoading={isLoading}
-        isUsingSettings={isUsingSettings}
-        isUsingWallet={isUsingWallet}
-        disableContainer={disableContainer}
-        containerClassName={containerClassName}
-      >
-        {children}
-      </LayoutApp>
+      <TopBannerProvider>
+        <LayoutApp
+          isLoading={isLoading}
+          isUsingSettings={isUsingSettings}
+          isUsingWallet={isUsingWallet}
+          disableContainer={disableContainer}
+          containerClassName={containerClassName}
+        >
+          {children}
+        </LayoutApp>
+      </TopBannerProvider>
     </IntlProvider>
   );
 };
 
 const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSettings, isUsingWallet, disableContainer, containerClassName = "" }) => {
-  const maintenanceBannerFlag = useVariant("maintenance_banner");
   const muiTheme = useMuiTheme();
   const smallScreen = useMediaQuery(muiTheme.breakpoints.down("md"));
   const [isNavOpen, setIsNavOpen] = useState(() => {
@@ -67,11 +67,9 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
     return true;
   });
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useState(!!maintenanceBannerFlag.enabled);
   const { refreshNodeStatuses, isSettingsInit } = useSettings();
   const { isWalletLoaded } = useWallet();
-  const hasCreditCardBanner = useHasCreditCardBanner(isMaintenanceBannerOpen);
-  const hasBanner = hasCreditCardBanner || isMaintenanceBannerOpen;
+  const { hasBanner } = useTopBanner();
 
   useEffect(() => {
     const refreshNodeIntervalId = setInterval(async () => {
@@ -99,8 +97,7 @@ const LayoutApp: React.FunctionComponent<Props> = ({ children, isLoading, isUsin
 
   return (
     <div className="flex h-full">
-      {hasCreditCardBanner && <CreditCardBanner />}
-      {isMaintenanceBannerOpen && <MaintenanceBanner onClose={() => setIsMaintenanceBannerOpen(false)} />}
+      <TopBanner />
 
       <div className="w-full flex-1" style={{ marginTop: `${ACCOUNT_BAR_HEIGHT + (hasBanner ? 40 : 0)}px` }}>
         <div className="h-full">
