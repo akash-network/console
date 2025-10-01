@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 
-import type { LoggerService } from "../../servicies/logger/logger.service";
+import type { LoggerService } from "../../services/logger/logger.service";
 
 type HttpRequestLog = {
   httpRequest: {
