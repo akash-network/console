@@ -6,4 +6,5 @@ export type FeatureFlag =
   | "billing_usage"
   | "custodial_auto_topup"
   | "ui_sdl_log_collector_enabled"
-  | "maintenance_banner";
+  | "maintenance_banner"
+  | "jwt_instead_of_cert";

@@ -30,7 +30,6 @@ import { ChainParamProvider } from "@src/context/ChainParamProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
 import { FlagProvider } from "@src/context/FlagProvider/FlagProvider";
-import { JwtProvider } from "@src/context/JwtProvider/JwtProviderContext";
 import { LocalNoteProvider } from "@src/context/LocalNoteProvider";
 import { PaymentPollingProvider } from "@src/context/PaymentPollingProvider";
 import { PricingProvider } from "@src/context/PricingProvider/PricingProvider";
@@ -81,13 +80,11 @@ const App: React.FunctionComponent<Props> = props => {
             <WalletProvider>
               <PaymentPollingProvider>
                 <CertificateProvider>
-                  <JwtProvider>
-                    <BackgroundTaskProvider>
-                      <NavigationGuardProvider>
-                        <Component {...pageProps} />
-                      </NavigationGuardProvider>
-                    </BackgroundTaskProvider>
-                  </JwtProvider>
+                  <BackgroundTaskProvider>
+                    <NavigationGuardProvider>
+                      <Component {...pageProps} />
+                    </NavigationGuardProvider>
+                  </BackgroundTaskProvider>
                 </CertificateProvider>
               </PaymentPollingProvider>
             </WalletProvider>
