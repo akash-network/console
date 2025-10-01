@@ -8,6 +8,7 @@ interface BaseLocalWallet {
   address: string;
   cert?: string;
   certKey?: string;
+  token?: string;
   selected: boolean;
 }
 
