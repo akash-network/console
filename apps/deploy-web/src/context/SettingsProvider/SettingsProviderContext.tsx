@@ -29,7 +29,7 @@ export type Settings = {
   isBlockchainDown: boolean;
 };
 
-type ContextType = {
+export type ContextType = {
   settings: Settings;
   setSettings: React.Dispatch<React.SetStateAction<Settings>>;
   isLoadingSettings: boolean;
