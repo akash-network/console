@@ -1,5 +1,12 @@
 
 
+## [1.25.0](https://github.com/akash-network/console/compare/provider-console/v1.24.0...provider-console/v1.25.0) (2025-10-01)
+
+
+### Features
+
+* **provider:** extract chain env variable for sandbox env ([#1970](https://github.com/akash-network/console/issues/1970)) ([9050c0b](https://github.com/akash-network/console/commit/9050c0b584eee36e430f2ed572c9cb693f9ce62f))
+
 ## [1.24.0](https://github.com/akash-network/console/compare/provider-console/v1.23.1...provider-console/v1.24.0) (2025-09-30)
 
 

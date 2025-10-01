@@ -1,5 +1,12 @@
 
 
+## [2.122.1](https://github.com/akash-network/console/compare/console-api/v2.122.0...console-api/v2.122.1) (2025-10-01)
+
+
+### Bug Fixes
+
+* ensure user can be signed in with a different anonymous user id but still be resolved to proper user ([#1951](https://github.com/akash-network/console/issues/1951)) ([a889138](https://github.com/akash-network/console/commit/a889138341d69657275aeb3a0bd0aa3af56becd2))
+
 ## [2.122.0](https://github.com/akash-network/console/compare/console-api/v2.121.2...console-api/v2.122.0) (2025-09-30)
 
 

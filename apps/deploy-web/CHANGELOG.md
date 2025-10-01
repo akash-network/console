@@ -1,5 +1,12 @@
 
 
+## [2.112.1](https://github.com/akash-network/console/compare/console-web/v2.112.0...console-web/v2.112.1) (2025-10-01)
+
+
+### Bug Fixes
+
+* **billing:** fix payment polling and add create lease trial info ([#1986](https://github.com/akash-network/console/issues/1986)) ([f6a873c](https://github.com/akash-network/console/commit/f6a873ced45db3753a64787daacbf346e95bcc2e))
+
 ## [2.112.0](https://github.com/akash-network/console/compare/console-web/v2.111.0...console-web/v2.112.0) (2025-09-30)
 
 
