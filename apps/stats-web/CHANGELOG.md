@@ -1,5 +1,12 @@
 
 
+## [0.37.1](https://github.com/akash-network/console/compare/stats-web/v0.37.0...stats-web/v0.37.1) (2025-10-01)
+
+
+### Bug Fixes
+
+* proxy build script ([#1987](https://github.com/akash-network/console/issues/1987)) ([7c0a504](https://github.com/akash-network/console/commit/7c0a5041d4618171563bdb7e6ce82e8cb93f4d7c))
+
 ## [0.37.0](https://github.com/akash-network/console/compare/stats-web/v0.36.2...stats-web/v0.37.0) (2025-09-30)
 
 
