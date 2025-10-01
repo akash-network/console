@@ -918,8 +918,9 @@ export class AkashStatsIndexer extends Indexer {
 
     const [owner, dseq] = decodedMessage.id.xid.split("/");
 
-    console.log(decodedMessage);
-    throw new Error("test");
+    if (!owner || !dseq) {
+      throw new Error(`Invalid owner or dseq: ${owner}/${dseq}`);
+    }
 
     const deployment = await Deployment.findOne({
       where: {
