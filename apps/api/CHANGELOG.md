@@ -1,5 +1,12 @@
 
 
+## [2.122.2](https://github.com/akash-network/console/compare/console-api/v2.122.1...console-api/v2.122.2) (2025-10-01)
+
+
+### Bug Fixes
+
+* proxy build script ([#1987](https://github.com/akash-network/console/issues/1987)) ([7c0a504](https://github.com/akash-network/console/commit/7c0a5041d4618171563bdb7e6ce82e8cb93f4d7c))
+
 ## [2.122.1](https://github.com/akash-network/console/compare/console-api/v2.122.0...console-api/v2.122.1) (2025-10-01)
 
 
