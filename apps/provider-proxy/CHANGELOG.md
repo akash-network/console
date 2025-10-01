@@ -1,5 +1,12 @@
 
 
+## [1.18.1](https://github.com/akash-network/console/compare/provider-proxy/v1.18.0...provider-proxy/v1.18.1) (2025-10-01)
+
+
+### Bug Fixes
+
+* proxy build script ([#1987](https://github.com/akash-network/console/issues/1987)) ([7c0a504](https://github.com/akash-network/console/commit/7c0a5041d4618171563bdb7e6ce82e8cb93f4d7c))
+
 ## [1.18.0](https://github.com/akash-network/console/compare/provider-proxy/v1.17.1...provider-proxy/v1.18.0) (2025-09-26)
 
 
