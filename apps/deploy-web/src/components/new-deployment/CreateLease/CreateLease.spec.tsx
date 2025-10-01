@@ -3,6 +3,7 @@ import { mock } from "jest-mock-extended";
 
 import type { ContextType as CertificateContextType, LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import type { AppDIContainer } from "@src/context/ServicesProvider";
+import type { useFlag } from "@src/hooks/useFlag";
 import { mapToBidDto } from "@src/queries/useBidQuery";
 import type { RpcBid } from "@src/types/deployment";
 import type { ApiProviderDetail } from "@src/types/provider";
@@ -406,6 +407,12 @@ describe(CreateLease.name, () => {
     const useLocalNotes = (() => ({
       favoriteProviders
     })) as unknown as (typeof CREATE_LEASE_DEPENDENCIES)["useLocalNotes"];
+    const mockUseFlag = jest.fn((flag: string) => {
+      if (flag === "anonymous_free_trial") {
+        return true;
+      }
+      return false;
+    }) as unknown as ReturnType<typeof useFlag>;
 
     initAkashTypes({
       networkApiVersion: "v1beta3",
@@ -511,7 +518,8 @@ describe(CreateLease.name, () => {
               isSettingsInit: true,
               refreshNodeStatuses: jest.fn(),
               isRefreshingNodeStatus: false
-            })
+            }),
+            useFlag: () => mockUseFlag
           }}
         />
       </TestContainerProvider>

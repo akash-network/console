@@ -6,6 +6,7 @@ import {
   AlertDescription,
   AlertTitle,
   Button,
+  buttonVariants,
   Card,
   CardContent,
   Checkbox,
@@ -17,22 +18,25 @@ import {
   Snackbar,
   Spinner
 } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { isAxiosError } from "axios";
-import { ArrowRight, BadgeCheck, Bin, InfoCircle, MoreHoriz, Xmark } from "iconoir-react";
+import { ArrowRight, BadgeCheck, Bin, HandCard, InfoCircle, MoreHoriz, Xmark } from "iconoir-react";
 import yaml from "js-yaml";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "notistack";
 
 import { SignUpButton } from "@src/components/auth/SignUpButton/SignUpButton";
+import { AddFundsLink } from "@src/components/user/AddFundsLink";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import type { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import { useServices } from "@src/context/ServicesProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBidList } from "@src/queries/useBidQuery";
@@ -87,6 +91,7 @@ export const DEPENDENCIES = {
   AlertTitle,
   AlertDescription,
   SignUpButton,
+  AddFundsLink,
   useServices,
   useWallet,
   useCertificate,
@@ -100,7 +105,8 @@ export const DEPENDENCIES = {
   useManagedDeploymentConfirm,
   useRouter,
   useBlock,
-  useSettings
+  useSettings,
+  useFlag
 };
 
 // Refresh bids every 7 seconds;
@@ -113,7 +119,7 @@ const TRIAL_SIGNUP_WARNING_TIMEOUT = 33_000;
 
 export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies: d = DEPENDENCIES }) => {
   const { settings } = d.useSettings();
-  const { providerProxy, analyticsService, errorHandler, networkStore } = d.useServices();
+  const { providerProxy, analyticsService, errorHandler, networkStore, urlService } = d.useServices();
 
   const [isSendingManifest, setIsSendingManifest] = useState(false);
   const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
@@ -123,6 +129,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
   const [filteredBids, setFilteredBids] = useState<Array<string>>([]);
   const [search, setSearch] = useState("");
   const { address, signAndBroadcastTx, isManaged, isTrialing } = d.useWallet();
+  const isAnonymousFreeTrialEnabled = d.useFlag("anonymous_free_trial");
   const { localCert, setLocalCert, genNewCertificateIfLocalIsInvalid, updateSelectedCertificate } = d.useCertificate();
   const router = d.useRouter();
   const [numberOfRequests, setNumberOfRequests] = useState(0);
@@ -568,7 +575,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
             />
           ))}
 
-          {isTrialing && (
+          {isTrialing && isAnonymousFreeTrialEnabled && (
             <d.Alert variant="destructive">
               <d.AlertTitle className="text-center text-lg dark:text-white/90">Free Trial!</d.AlertTitle>
               <d.AlertDescription className="space-y-1 text-center dark:text-white/90">
@@ -582,10 +589,29 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
               </d.AlertDescription>
             </d.Alert>
           )}
+
+          {isTrialing && !isAnonymousFreeTrialEnabled && (
+            <d.Alert variant="destructive">
+              <d.AlertTitle className="text-center text-lg dark:text-white/90">Free Trial!</d.AlertTitle>
+              <d.AlertDescription className="space-y-1 text-center dark:text-white/90">
+                <p>
+                  You are using a free trial and deployments only last <strong>24 hours</strong>.
+                </p>
+                <p>Add funds to activate your account and remove this limitation.</p>
+
+                <div className="pt-2">
+                  <d.AddFundsLink className={cn("hover:no-underline", buttonVariants({ variant: "default" }))} href={urlService.payment()}>
+                    <span className="whitespace-nowrap">Add Funds</span>
+                    <HandCard className="ml-2 text-xs" />
+                  </d.AddFundsLink>
+                </div>
+              </d.AlertDescription>
+            </d.Alert>
+          )}
         </d.ViewPanel>
       )}
 
-      {zeroBidsForTrialWarningDisplayed && (
+      {zeroBidsForTrialWarningDisplayed && isAnonymousFreeTrialEnabled && (
         <div className="pt-4">
           <d.Card>
             <d.CardContent>

@@ -59,6 +59,13 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
   const initialTrialingRef = useRef<boolean>(wasTrialing);
   const loadingSnackbarKeyRef = useRef<string | number | null>(null);
 
+  const closeLoadingSnackbar = useCallback(() => {
+    if (loadingSnackbarKeyRef.current) {
+      closeSnackbar(loadingSnackbarKeyRef.current);
+      loadingSnackbarKeyRef.current = null;
+    }
+  }, [closeSnackbar, loadingSnackbarKeyRef]);
+
   const stopPolling = useCallback(() => {
     if (pollingTimeoutRef.current) {
       clearTimeout(pollingTimeoutRef.current);
@@ -70,11 +77,8 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
     initialBalanceRef.current = null;
     initialTrialingRef.current = wasTrialing;
 
-    if (loadingSnackbarKeyRef.current) {
-      closeSnackbar(loadingSnackbarKeyRef.current);
-      loadingSnackbarKeyRef.current = null;
-    }
-  }, [closeSnackbar, wasTrialing]);
+    closeLoadingSnackbar();
+  }, [closeLoadingSnackbar, wasTrialing]);
 
   const executePoll = useCallback(() => {
     attemptCountRef.current++;
@@ -87,12 +91,8 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
       return;
     }
 
-    try {
-      refetchBalance();
-      refetchManagedWallet();
-    } catch (error) {
-      console.error("Error during polling:", error);
-    }
+    refetchBalance();
+    refetchManagedWallet();
   }, [stopPolling, enqueueSnackbar, refetchBalance, refetchManagedWallet, d]);
 
   const pollForPayment = useCallback(
@@ -164,9 +164,8 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
       const initialBalanceValue = initialBalanceRef.current;
 
       if (currentTotalBalance > initialBalanceValue) {
+        closeLoadingSnackbar();
         enqueueSnackbar(<d.Snackbar title="Payment successful!" subTitle="Your balance has been updated" iconVariant="success" />, { variant: "success" });
-
-        stopPolling();
 
         // Track analytics for trial users after stopping polling
         if (initialTrialingRef.current) {
@@ -174,10 +173,12 @@ export const PaymentPollingProvider: React.FC<PaymentPollingProviderProps> = ({ 
             category: "user",
             label: "First payment completed"
           });
+        } else {
+          stopPolling();
         }
       }
     },
-    [isPolling, currentBalance, stopPolling, enqueueSnackbar, analyticsService, d]
+    [isPolling, currentBalance, stopPolling, enqueueSnackbar, analyticsService, d, closeLoadingSnackbar]
   );
 
   useEffect(
