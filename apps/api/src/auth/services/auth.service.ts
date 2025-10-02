@@ -15,7 +15,11 @@ export class AuthService {
 
   get currentUser(): UserOutput {
     // BUGALERT: https://github.com/akash-network/console/issues/1447
-    return this.executionContextService.get("CURRENT_USER")!;
+    const user = this.executionContextService.get("CURRENT_USER")!;
+
+    assert(user, 401);
+
+    return user;
   }
 
   set ability(ability: Ability) {

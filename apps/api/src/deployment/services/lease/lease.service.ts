@@ -23,8 +23,13 @@ export class LeaseService {
     private readonly walletReaderService: WalletReaderService
   ) {}
 
-  public async createLeasesAndSendManifest({ leases, manifest, certificate }: CreateLeaseRequest): Promise<GetDeploymentResponse["data"]> {
-    const wallet = await this.walletReaderService.getCurrentWallet();
+  public async createLeasesAndSendManifest({
+    leases,
+    manifest,
+    certificate,
+    userId
+  }: CreateLeaseRequest & { userId: string }): Promise<GetDeploymentResponse["data"]> {
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
 
     const leaseMessages = leases.map(lease =>
       this.rpcMessageService.getCreateLeaseMsg({

@@ -3,7 +3,8 @@ import { minutesToSeconds } from "date-fns";
 import { inject, singleton } from "tsyringe";
 import * as uuid from "uuid";
 
-import { Wallet } from "@src/billing/lib/wallet/wallet";
+import { WalletFactory } from "@src/billing/lib/wallet/wallet";
+import { WALLET_FACTORY } from "@src/billing/providers/wallet.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { Memoize } from "@src/caching/helpers";
 import { JWT_MODULE, JWTModule } from "@src/provider/providers/jwt.provider";
@@ -26,7 +27,7 @@ export class ProviderJwtTokenService {
   constructor(
     @inject(JWT_MODULE) private readonly jwtModule: JWTModule,
     private readonly billingConfigService: BillingConfigService,
-    private readonly walletFactory: (typeof Wallet)["create"] = Wallet["create"]
+    @inject(WALLET_FACTORY) private readonly walletFactory: WalletFactory
   ) {}
 
   async generateJwtToken({ walletId, leases, ttl = JWT_TOKEN_TTL_IN_SECONDS }: GenerateJwtTokenParams) {

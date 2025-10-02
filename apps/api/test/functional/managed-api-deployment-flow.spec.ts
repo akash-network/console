@@ -70,7 +70,6 @@ describe("Managed Wallet API Deployment Flow", () => {
 
       // Step 4: Create lease and send manifest to provider using appropriate authentication
       const lease = await createLease(apiKey, deployment, bid, certificate);
-      console.log("DEBUG lease", lease);
       expect(lease).toMatchObject({
         deployment: expect.objectContaining({
           deployment_id: expect.objectContaining({

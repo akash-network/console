@@ -55,3 +55,6 @@ export class Wallet implements OfflineDirectSigner {
     return await this.instanceAsPromised;
   }
 }
+
+export type WalletFactory = (mnemonic?: string, index?: number) => Wallet;
+export const walletFactory: WalletFactory = (mnemonic?: string, index?: number) => new Wallet(mnemonic, index);

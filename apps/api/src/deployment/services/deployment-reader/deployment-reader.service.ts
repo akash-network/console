@@ -7,7 +7,6 @@ import { InternalServerError } from "http-errors";
 import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
-import { UserWalletRepository } from "@src/billing/repositories";
 import { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -23,12 +22,11 @@ export class DeploymentReaderService {
     private readonly deploymentHttpService: DeploymentHttpService,
     private readonly leaseHttpService: LeaseHttpService,
     private readonly messageService: MessageService,
-    private readonly userWalletRepository: UserWalletRepository,
     private readonly walletReaderService: WalletReaderService
   ) {}
 
-  public async findByCurrentOwnerAndDseq(dseq: string): Promise<GetDeploymentResponse["data"]> {
-    const wallet = await this.walletReaderService.getCurrentWallet();
+  public async findByUserIdAndDseq(userId: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
     return this.findByWalletAndDseq(wallet, dseq);
   }
 
@@ -82,13 +80,15 @@ export class DeploymentReaderService {
   }
 
   public async list({
+    query,
     skip,
     limit
   }: {
+    query: { userId: string };
     skip?: number;
     limit?: number;
   }): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
-    const { address: owner } = await this.walletReaderService.getCurrentWallet();
+    const { address: owner } = await this.walletReaderService.getWalletByUserId(query.userId);
     const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
     const deploymentReponse = await this.deploymentHttpService.findAll({ owner, state: "active", pagination });
     const deployments = deploymentReponse.deployments;

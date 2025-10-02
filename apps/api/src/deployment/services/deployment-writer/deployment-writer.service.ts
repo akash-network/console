@@ -35,8 +35,8 @@ export class DeploymentWriterService {
     private readonly walletReaderService: WalletReaderService
   ) {}
 
-  public async create(input: CreateDeploymentRequest["data"]): Promise<CreateDeploymentResponse["data"]> {
-    const wallet = await this.walletReaderService.getCurrentWallet();
+  public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
+    const wallet = await this.walletReaderService.getWalletByUserId(input.userId);
     let sdl: string = input.sdl;
     const deploymentGrantDenom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
 
@@ -69,9 +69,8 @@ export class DeploymentWriterService {
     };
   }
 
-  public async closeForCurrentWallet(dseq: string): Promise<void> {
-    const wallet = await this.walletReaderService.getCurrentWallet();
-
+  public async closeByUserIdAndDseq(userId: string, dseq: string): Promise<void> {
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
     return this.close(wallet, dseq);
   }
 
@@ -81,27 +80,27 @@ export class DeploymentWriterService {
     await this.signerService.executeDecodedTxByUserWallet(wallet, [message]);
   }
 
-  public async deposit(dseq: string, amount: number): Promise<GetDeploymentResponse["data"]> {
-    const wallet = await this.walletReaderService.getCurrentWallet();
-    const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+  public async deposit(options: { userId: string; dseq: string; amount: number }): Promise<GetDeploymentResponse["data"]> {
+    const wallet = await this.walletReaderService.getWalletByUserId(options.userId);
+    const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, options.dseq);
     const deploymentGrantDenom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
     const depositor = await this.masterWallet.getFirstAddress();
 
     const message = this.rpcMessageService.getDepositDeploymentMsg({
       owner: wallet.address,
       dseq: deployment.deployment.deployment_id.dseq,
-      amount: denomToUdenom(amount),
+      amount: denomToUdenom(options.amount),
       denom: deploymentGrantDenom,
       depositor
     });
 
     await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
 
-    return await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
+    return await this.deploymentReaderService.findByWalletAndDseq(wallet, options.dseq);
   }
 
-  public async update(dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
-    const wallet = await this.walletReaderService.getCurrentWallet();
+  public async updateByUserIdAndDseq(userId: string, dseq: string, input: UpdateDeploymentRequest["data"]): Promise<GetDeploymentResponse["data"]> {
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const { sdl, certificate } = input;
 
     assert(this.sdlService.validateSdl(sdl), 400, "Invalid SDL");

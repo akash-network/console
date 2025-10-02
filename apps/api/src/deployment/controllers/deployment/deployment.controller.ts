@@ -2,7 +2,7 @@ import assert from "http-assert";
 import { singleton } from "tsyringe";
 import { z } from "zod";
 
-import { Protected } from "@src/auth/services/auth.service";
+import { AuthService, Protected } from "@src/auth/services/auth.service";
 import {
   CloseDeploymentResponse,
   CreateDeploymentRequest,
@@ -25,42 +25,50 @@ import { DeploymentWriterService } from "@src/deployment/services/deployment-wri
 export class DeploymentController {
   constructor(
     private readonly deploymentReaderService: DeploymentReaderService,
-    private readonly deploymentWriterService: DeploymentWriterService
+    private readonly deploymentWriterService: DeploymentWriterService,
+    private readonly authService: AuthService
   ) {}
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async findByDseq(dseq: string): Promise<GetDeploymentResponse> {
-    const deployment = await this.deploymentReaderService.findByCurrentOwnerAndDseq(dseq);
+    const deployment = await this.deploymentReaderService.findByUserIdAndDseq(this.authService.currentUser.id, dseq);
     return { data: deployment };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async create(input: CreateDeploymentRequest["data"]): Promise<CreateDeploymentResponse> {
-    const result = await this.deploymentWriterService.create(input);
+    const result = await this.deploymentWriterService.create({ ...input, userId: this.authService.currentUser.id });
     return { data: result };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async close(dseq: string): Promise<CloseDeploymentResponse> {
-    await this.deploymentWriterService.closeForCurrentWallet(dseq);
+    await this.deploymentWriterService.closeByUserIdAndDseq(this.authService.currentUser.id, dseq);
     return { data: { success: true } };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async deposit(input: DepositDeploymentRequest["data"]): Promise<DepositDeploymentResponse> {
-    const result = await this.deploymentWriterService.deposit(input.dseq, input.deposit);
+    const result = await this.deploymentWriterService.deposit({
+      dseq: input.dseq,
+      amount: input.deposit,
+      userId: this.authService.currentUser.id
+    });
     return { data: result };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async update(dseq: string, input: UpdateDeploymentRequest["data"]): Promise<UpdateDeploymentResponse> {
-    const result = await this.deploymentWriterService.update(dseq, input);
+    const result = await this.deploymentWriterService.updateByUserIdAndDseq(this.authService.currentUser.id, dseq, input);
     return { data: result };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async list({ skip, limit }: { skip?: number; limit?: number }): Promise<z.infer<typeof ListDeploymentsResponseSchema>> {
     const { deployments, total, hasMore } = await this.deploymentReaderService.list({
+      query: {
+        userId: this.authService.currentUser.id
+      },
       skip,
       limit
     });

@@ -28,12 +28,12 @@ export class WalletReaderService {
     return wallets.map(wallet => this.userWalletRepository.toPublic(wallet));
   }
 
-  async getCurrentWallet(): Promise<WalletInitialized>;
-  async getCurrentWallet(options: { isInitialised: true }): Promise<UserWalletOutput>;
-  async getCurrentWallet(options?: { isInitialised: boolean }): Promise<UserWalletOutput | WalletInitialized> {
+  async getWalletByUserId(userId: string): Promise<WalletInitialized>;
+  async getWalletByUserId(userId: string, options: { isInitialised: true }): Promise<UserWalletOutput>;
+  async getWalletByUserId(userId: string, options?: { isInitialised: boolean }): Promise<UserWalletOutput | WalletInitialized> {
     const { ability } = this.authService;
 
-    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findFirst();
+    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(userId);
     assert(userWallet, 404, "UserWallet Not Found");
 
     if (options?.isInitialised) {
