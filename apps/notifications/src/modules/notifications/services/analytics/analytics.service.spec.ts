@@ -23,10 +23,15 @@ describe("AnalyticsService", () => {
   });
 
   it("should not track events when user is not sampled", async () => {
-    const { service, amplitude, hasher, configService } = await setup();
+    const amplitude = mock<Amplitude>();
+    const hasher = mock<Hasher>();
+    const configService = mock<ConfigService<Namespaced<"notifications", NotificationEnvConfig>>>();
+    const loggerService = mock<LoggerService>();
 
-    jest.spyOn(configService, "get").mockReturnValue("0.0");
+    jest.spyOn(configService, "getOrThrow").mockReturnValue("0.0");
     hasher.hash.mockReturnValue(50); // Hash value that would normally be sampled
+
+    const service = new AnalyticsService(amplitude, hasher, configService, loggerService);
 
     service.track("user123", "email_sent", { recipient_count: 1 });
 
@@ -52,7 +57,7 @@ describe("AnalyticsService", () => {
     const configService = mock<ConfigService<Namespaced<"notifications", NotificationEnvConfig>>>();
     const loggerService = mock<LoggerService>();
 
-    jest.spyOn(configService, "get").mockReturnValue("1.0");
+    jest.spyOn(configService, "getOrThrow").mockReturnValue("1.0");
     hasher.hash.mockReturnValue(50); // Mock hash value that will be sampled
 
     const service = new AnalyticsService(amplitude, hasher, configService, loggerService);
