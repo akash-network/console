@@ -1,12 +1,12 @@
-import type { AccessScope, JwtTokenPayload } from "@akashnetwork/jwt";
-import { createSignArbitraryAkashWallet, JwtToken } from "@akashnetwork/jwt";
+import { AccessScope, JwtToken, JwtTokenPayload } from "@akashnetwork/jwt";
 import { minutesToSeconds } from "date-fns";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
 import * as uuid from "uuid";
 
 import { Wallet } from "@src/billing/lib/wallet/wallet";
-import { BillingConfig, InjectBillingConfig } from "@src/billing/providers";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { Memoize } from "@src/caching/helpers";
+import { JWT_MODULE, JWTModule } from "@src/provider/providers/jwt.provider";
 
 const JWT_TOKEN_TTL_IN_SECONDS = 30;
 
@@ -23,7 +23,11 @@ type GenerateJwtTokenParams = {
 
 @singleton()
 export class ProviderJwtTokenService {
-  constructor(@InjectBillingConfig() private readonly config: BillingConfig) {}
+  constructor(
+    @inject(JWT_MODULE) private readonly jwtModule: JWTModule,
+    private readonly billingConfigService: BillingConfigService,
+    private readonly walletFactory: (typeof Wallet)["create"] = Wallet["create"]
+  ) {}
 
   async generateJwtToken({ walletId, leases, ttl = JWT_TOKEN_TTL_IN_SECONDS }: GenerateJwtTokenParams) {
     const { jwtToken, address } = await this.getJwtToken(walletId);
@@ -42,9 +46,9 @@ export class ProviderJwtTokenService {
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   private async getJwtToken(walletId: number): Promise<JwtTokenWithAddress> {
-    const wallet = new Wallet(this.config.MASTER_WALLET_MNEMONIC, walletId);
-    const akashWallet = await createSignArbitraryAkashWallet(await wallet.getInstance(), walletId);
-    const jwtToken = new JwtToken(akashWallet);
+    const wallet = this.walletFactory(this.billingConfigService.get("MASTER_WALLET_MNEMONIC"), walletId);
+    const akashWallet = await this.jwtModule.createSignArbitraryAkashWallet(await wallet.getInstance(), walletId);
+    const jwtToken = new this.jwtModule.JwtToken(akashWallet);
 
     return { jwtToken, address: akashWallet.address };
   }

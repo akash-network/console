@@ -96,7 +96,7 @@ export class ProviderService {
           assert(!providerError.toLowerCase().includes("unauthorized access"), 401, providerError);
         }
 
-        throw new Error(providerError || err);
+        throw err;
       }
     }
   }

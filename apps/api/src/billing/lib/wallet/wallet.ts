@@ -5,6 +5,10 @@ import type { DirectSecp256k1HdWalletOptions } from "@cosmjs/proto-signing/build
 import type { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 
 export class Wallet implements OfflineDirectSigner {
+  static create(mnemonic?: string, index?: number): Wallet {
+    return new Wallet(mnemonic, index);
+  }
+
   private readonly PREFIX = "akash";
 
   private readonly HD_PATH = "m/44'/118'/0'/0";
