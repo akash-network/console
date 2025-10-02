@@ -1,7 +1,16 @@
-import type { Lease } from "@akashnetwork/database/dbSchemas/akash";
+import { format } from "date-fns";
+import { subDays } from "date-fns";
 
 import type { FallbackLeaseListResponse } from "@src/deployment/http-schemas/lease-rpc.schema";
 import { app, initDb } from "@src/rest-app";
+
+import { createProvider } from "@test/seeders";
+import { createLease } from "@test/seeders";
+import { createDeployment } from "@test/seeders";
+import { createDeploymentGroup } from "@test/seeders";
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { createAkashBlock } from "@test/seeders/akash-block.seeder";
+import { createDay } from "@test/seeders/day.seeder";
 
 type LeaseListTestParams = {
   owner?: string;
@@ -17,19 +26,15 @@ type LeaseListTestParams = {
   reverse?: boolean;
 };
 
-import { createLease } from "@test/seeders";
-import { createDeployment } from "@test/seeders";
-import { createDeploymentGroup } from "@test/seeders";
-import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { createAkashBlock } from "@test/seeders/akash-block.seeder";
-
 describe("Lease Fallback API", () => {
+  let isDbInitialized = false;
+
   describe("GET /akash/market/v1beta4/leases/list", () => {
     it("should return correct response structure with seeded data", async () => {
-      const { addresses } = await setup({ createTestData: true });
+      const { owners } = await setup();
 
       const result = await makeRequest({
-        owner: addresses[0]
+        owner: owners[0]
       });
 
       expect(result).toHaveProperty("leases");
@@ -87,23 +92,23 @@ describe("Lease Fallback API", () => {
     });
 
     it("should filter by owner", async () => {
-      const { addresses } = await setup({ createTestData: true });
+      const { owners } = await setup();
 
       const result = await makeRequest({
-        owner: addresses[0]
+        owner: owners[0]
       });
 
       expect(result.leases.length).toBeGreaterThan(0);
       result.leases.forEach(lease => {
-        expect(lease.lease.lease_id.owner).toBe(addresses[0]);
+        expect(lease.lease.lease_id.owner).toBe(owners[0]);
       });
     });
 
     it("should filter by dseq", async () => {
-      const { addresses } = await setup({ createTestData: true });
+      const { owners } = await setup();
 
       const result = await makeRequest({
-        owner: addresses[0],
+        owner: owners[0],
         dseq: "1001"
       });
 
@@ -114,10 +119,10 @@ describe("Lease Fallback API", () => {
     });
 
     it("should filter by state active", async () => {
-      const { addresses } = await setup({ createTestData: true });
+      const { owners } = await setup();
 
       const result = await makeRequest({
-        owner: addresses[0],
+        owner: owners[0],
         state: "active"
       });
 
@@ -128,10 +133,10 @@ describe("Lease Fallback API", () => {
     });
 
     it("should filter by state closed", async () => {
-      const { addresses } = await setup({ createTestData: true });
+      const { owners } = await setup();
 
       const result = await makeRequest({
-        owner: addresses[0],
+        owner: owners[0],
         state: "closed"
       });
 
@@ -142,23 +147,23 @@ describe("Lease Fallback API", () => {
     });
 
     it("should filter by provider", async () => {
-      const { addresses, providers } = await setup({ createTestData: true });
+      const { owners, providers } = await setup();
 
       const result = await makeRequest({
-        owner: addresses[0],
-        provider: providers[0]
+        owner: owners[0],
+        provider: providers[0].owner
       });
 
       result.leases.forEach(lease => {
-        expect(lease.lease.lease_id.provider).toBe(providers[0]);
+        expect(lease.lease.lease_id.provider).toBe(providers[0].owner);
       });
     });
 
     it("should filter by gseq", async () => {
-      const { addresses } = await setup({ createTestData: true });
+      const { owners } = await setup();
 
       const result = await makeRequest({
-        owner: addresses[0],
+        owner: owners[0],
         gseq: 1
       });
 
@@ -168,10 +173,10 @@ describe("Lease Fallback API", () => {
     });
 
     it("should filter by oseq", async () => {
-      const { addresses } = await setup({ createTestData: true });
+      const { owners } = await setup();
 
       const result = await makeRequest({
-        owner: addresses[0],
+        owner: owners[0],
         oseq: 1
       });
 
@@ -181,10 +186,10 @@ describe("Lease Fallback API", () => {
     });
 
     it("should handle pagination with limit", async () => {
-      const { addresses } = await setup({ createTestData: true });
+      const { owners } = await setup();
 
       const result = await makeRequest({
-        owner: addresses[0],
+        owner: owners[0],
         limit: 1
       });
 
@@ -194,10 +199,10 @@ describe("Lease Fallback API", () => {
     });
 
     it("should handle pagination with offset", async () => {
-      const { addresses } = await setup({ createTestData: true });
+      const { owners } = await setup();
 
       const result = await makeRequest({
-        owner: addresses[0],
+        owner: owners[0],
         skip: 0,
         limit: 1
       });
@@ -206,10 +211,10 @@ describe("Lease Fallback API", () => {
     });
 
     it("should handle reverse sorting", async () => {
-      const { addresses } = await setup({ createTestData: true });
+      const { owners } = await setup();
 
       const result = await makeRequest({
-        owner: addresses[0],
+        owner: owners[0],
         reverse: true
       });
 
@@ -230,10 +235,10 @@ describe("Lease Fallback API", () => {
     });
 
     it("should return empty result for non-existent dseq", async () => {
-      const { addresses } = await setup({ createTestData: true });
+      const { owners } = await setup();
 
       const result = await makeRequest({
-        owner: addresses[0],
+        owner: owners[0],
         dseq: "999999"
       });
 
@@ -243,15 +248,15 @@ describe("Lease Fallback API", () => {
     });
 
     it("should handle count_total parameter", async () => {
-      const { addresses } = await setup({ createTestData: true });
+      const { owners } = await setup();
 
       const resultWithCount = await makeRequest({
-        owner: addresses[0],
+        owner: owners[0],
         countTotal: true
       });
 
       const resultWithoutCount = await makeRequest({
-        owner: addresses[0],
+        owner: owners[0],
         countTotal: false
       });
 
@@ -260,27 +265,27 @@ describe("Lease Fallback API", () => {
     });
 
     it("should handle multiple filters together", async () => {
-      const { addresses, providers } = await setup({ createTestData: true });
+      const { owners, providers } = await setup();
 
       const result = await makeRequest({
-        owner: addresses[0],
-        provider: providers[0],
+        owner: owners[0],
+        provider: providers[0].owner,
         state: "closed",
         limit: 10
       });
 
       result.leases.forEach(lease => {
-        expect(lease.lease.lease_id.owner).toBe(addresses[0]);
-        expect(lease.lease.lease_id.provider).toBe(providers[0]);
+        expect(lease.lease.lease_id.owner).toBe(owners[0]);
+        expect(lease.lease.lease_id.provider).toBe(providers[0].owner);
         expect(lease.lease.state).toBe("closed");
       });
     });
 
     it("should return correct data types", async () => {
-      const { addresses } = await setup({ createTestData: true });
+      const { owners } = await setup();
 
       const result = await makeRequest({
-        owner: addresses[0]
+        owner: owners[0]
       });
 
       expect(result.leases.length).toBeGreaterThan(0);
@@ -309,169 +314,267 @@ describe("Lease Fallback API", () => {
     });
   });
 
-  async function setup(
-    options: {
-      initDatabase?: boolean;
-      createTestData?: boolean;
-      uniqueId?: string;
-    } = {}
-  ) {
-    const { initDatabase = true, createTestData = false, uniqueId = Date.now().toString() } = options;
+  async function setup() {
+    const now = new Date();
+    now.setHours(12, 0, 0, 0);
 
-    if (initDatabase) {
-      await initDb();
-    }
+    const dates = [subDays(now, 7), subDays(now, 6), subDays(now, 5), subDays(now, 4), subDays(now, 3), subDays(now, 2), subDays(now, 1), now];
 
-    if (!createTestData) {
+    const providers = await Promise.all([createProvider({ deletedHeight: null }), createProvider({ deletedHeight: null })]);
+
+    const owners = [createAkashAddress(), createAkashAddress(), createAkashAddress()];
+
+    if (isDbInitialized) {
       return {
-        addresses: [createAkashAddress(), createAkashAddress(), createAkashAddress()],
-        providers: [createAkashAddress(), createAkashAddress()],
-        leases: []
+        now,
+        dates,
+        owners,
+        providers
       };
     }
 
-    // Generate random height numbers
-    const height1 = 1000 + parseInt(uniqueId.slice(-3));
-    const height2 = 2000 + parseInt(uniqueId.slice(-3));
-    const height3 = 3000 + parseInt(uniqueId.slice(-3));
-    const height4 = 4000 + parseInt(uniqueId.slice(-3));
-    const height5 = 5000 + parseInt(uniqueId.slice(-3));
+    await initDb();
 
-    const testData: {
-      addresses: string[];
-      providers: string[];
-      leases?: Lease[];
-    } = {
-      addresses: [createAkashAddress(), createAkashAddress(), createAkashAddress()],
-      providers: [createAkashAddress(), createAkashAddress()]
-    };
-
-    // Create blocks first
-    const blocks = await Promise.all([
-      createAkashBlock({
-        datetime: new Date(),
-        height: height1
+    await Promise.all([
+      createDay({
+        date: format(dates[0], "yyyy-MM-dd"),
+        firstBlockHeight: 1,
+        lastBlockHeight: 100,
+        lastBlockHeightYet: 100,
+        aktPrice: 2.5
       }),
-      createAkashBlock({
-        datetime: new Date(),
-        height: height2
+      createDay({
+        date: format(dates[1], "yyyy-MM-dd"),
+        firstBlockHeight: 101,
+        lastBlockHeight: 200,
+        lastBlockHeightYet: 200,
+        aktPrice: 2.75
       }),
-      createAkashBlock({
-        datetime: new Date(),
-        height: height3
+      createDay({
+        date: format(dates[2], "yyyy-MM-dd"),
+        firstBlockHeight: 201,
+        lastBlockHeight: 300,
+        lastBlockHeightYet: 300,
+        aktPrice: 3.0
       }),
-      createAkashBlock({
-        datetime: new Date(),
-        height: height4
+      createDay({
+        date: format(dates[3], "yyyy-MM-dd"),
+        firstBlockHeight: 301,
+        lastBlockHeight: 400,
+        lastBlockHeightYet: 400,
+        aktPrice: 3.25
       }),
-      createAkashBlock({
-        datetime: new Date(),
-        height: height5
+      createDay({
+        date: format(dates[4], "yyyy-MM-dd"),
+        firstBlockHeight: 401,
+        lastBlockHeight: 500,
+        lastBlockHeightYet: 500,
+        aktPrice: 3.5
+      }),
+      createDay({
+        date: format(dates[5], "yyyy-MM-dd"),
+        firstBlockHeight: 501,
+        lastBlockHeight: 600,
+        lastBlockHeightYet: 600,
+        aktPrice: 3.75
+      }),
+      createDay({
+        date: format(dates[6], "yyyy-MM-dd"),
+        firstBlockHeight: 601,
+        lastBlockHeight: 700,
+        lastBlockHeightYet: 700,
+        aktPrice: 4.0
+      }),
+      createDay({
+        date: format(dates[7], "yyyy-MM-dd"),
+        firstBlockHeight: 701,
+        lastBlockHeight: 800,
+        lastBlockHeightYet: 800,
+        aktPrice: 4.25
       })
     ]);
 
-    // Create deployments and deployment groups first
+    const blocks = await Promise.all([
+      createAkashBlock({
+        datetime: dates[0],
+        height: 50
+      }),
+      createAkashBlock({
+        datetime: dates[1],
+        height: 150
+      }),
+      createAkashBlock({
+        datetime: dates[2],
+        height: 250
+      }),
+      createAkashBlock({
+        datetime: dates[3],
+        height: 350
+      }),
+      createAkashBlock({
+        datetime: dates[4],
+        height: 450
+      }),
+      createAkashBlock({
+        datetime: dates[5],
+        height: 550
+      }),
+      createAkashBlock({
+        datetime: dates[6],
+        height: 650
+      }),
+      createAkashBlock({
+        datetime: dates[7],
+        height: 750
+      })
+    ]);
+
     const deployments = await Promise.all([
       createDeployment({
-        owner: testData.addresses[0],
+        owner: owners[0],
         dseq: "1001",
-        createdHeight: blocks[0].height
+        createdHeight: blocks[0].height,
+        closedHeight: blocks[3].height,
+        denom: "uakt"
       }),
       createDeployment({
-        owner: testData.addresses[0],
+        owner: owners[0],
         dseq: "1002",
-        createdHeight: blocks[1].height
+        createdHeight: blocks[1].height,
+        closedHeight: blocks[5].height,
+        denom: "uusdc"
       }),
       createDeployment({
-        owner: testData.addresses[1],
+        owner: owners[0],
+        dseq: "1003",
+        createdHeight: blocks[2].height,
+        closedHeight: null,
+        denom: "uakt"
+      }),
+      createDeployment({
+        owner: owners[1],
         dseq: "2001",
-        createdHeight: blocks[2].height
+        createdHeight: blocks[1].height,
+        closedHeight: blocks[4].height,
+        denom: "uakt"
+      }),
+      createDeployment({
+        owner: owners[1],
+        dseq: "2002",
+        createdHeight: blocks[3].height,
+        closedHeight: null,
+        denom: "uusdc"
+      }),
+      createDeployment({
+        owner: owners[2],
+        dseq: "3001",
+        createdHeight: blocks[4].height,
+        closedHeight: blocks[6].height,
+        denom: "uakt"
       })
     ]);
 
     const deploymentGroups = await Promise.all([
       createDeploymentGroup({
-        owner: testData.addresses[0],
-        dseq: "1001",
-        gseq: 1,
-        deploymentId: deployments[0].id
+        deploymentId: deployments[0].id,
+        owner: owners[0],
+        dseq: "1001"
       }),
       createDeploymentGroup({
-        owner: testData.addresses[0],
-        dseq: "1002",
-        gseq: 1,
-        deploymentId: deployments[1].id
+        deploymentId: deployments[1].id,
+        owner: owners[0],
+        dseq: "1002"
       }),
       createDeploymentGroup({
-        owner: testData.addresses[1],
-        dseq: "2001",
-        gseq: 1,
-        deploymentId: deployments[2].id
+        deploymentId: deployments[2].id,
+        owner: owners[0],
+        dseq: "1003"
+      }),
+      createDeploymentGroup({
+        deploymentId: deployments[3].id,
+        owner: owners[1],
+        dseq: "2001"
+      }),
+      createDeploymentGroup({
+        deploymentId: deployments[4].id,
+        owner: owners[1],
+        dseq: "2002"
+      }),
+      createDeploymentGroup({
+        deploymentId: deployments[5].id,
+        owner: owners[2],
+        dseq: "3001"
       })
     ]);
 
-    // Create test leases
-    testData.leases = await Promise.all([
+    await Promise.all([
       createLease({
-        owner: testData.addresses[0],
+        owner: owners[0],
         dseq: "1001",
-        gseq: 1,
-        oseq: 1,
-        providerAddress: testData.providers[0],
+        providerAddress: providers[0].owner,
         createdHeight: blocks[0].height,
-        closedHeight: blocks[2].height, // closed
+        closedHeight: blocks[3].height,
         deploymentId: deployments[0].id,
         deploymentGroupId: deploymentGroups[0].id,
-        price: 1.5,
-        denom: "uakt",
-        withdrawnAmount: 0.5,
-        cpuUnits: 1000,
-        gpuUnits: 0,
-        memoryQuantity: 1024 * 1024 * 1024,
-        ephemeralStorageQuantity: 1024 * 1024 * 1024,
-        persistentStorageQuantity: 0
+        price: 50,
+        denom: "uakt"
       }),
       createLease({
-        owner: testData.addresses[0],
+        owner: owners[0],
         dseq: "1002",
-        gseq: 1,
-        oseq: 1,
-        providerAddress: testData.providers[1],
+        providerAddress: providers[1].owner,
         createdHeight: blocks[1].height,
-        closedHeight: null, // active
+        closedHeight: blocks[5].height,
         deploymentId: deployments[1].id,
         deploymentGroupId: deploymentGroups[1].id,
-        price: 2.0,
-        denom: "uusdc",
-        withdrawnAmount: 0.0,
-        cpuUnits: 2000,
-        gpuUnits: 1,
-        memoryQuantity: 2 * 1024 * 1024 * 1024,
-        ephemeralStorageQuantity: 2 * 1024 * 1024 * 1024,
-        persistentStorageQuantity: 0
+        price: 25000,
+        denom: "uusdc"
       }),
       createLease({
-        owner: testData.addresses[1],
-        dseq: "2001",
-        gseq: 1,
-        oseq: 1,
-        providerAddress: testData.providers[0],
+        owner: owners[0],
+        dseq: "1003",
+        providerAddress: providers[0].owner,
         createdHeight: blocks[2].height,
-        closedHeight: null, // active
+        closedHeight: null,
         deploymentId: deployments[2].id,
         deploymentGroupId: deploymentGroups[2].id,
-        price: 3.0,
+        price: 75,
         denom: "uakt",
-        withdrawnAmount: 1.0,
-        cpuUnits: 3000,
-        gpuUnits: 2,
-        memoryQuantity: 4 * 1024 * 1024 * 1024,
-        ephemeralStorageQuantity: 4 * 1024 * 1024 * 1024,
-        persistentStorageQuantity: 0
+        predictedClosedHeight: "1000"
+      }),
+      createLease({
+        owner: owners[1],
+        dseq: "2001",
+        providerAddress: providers[1].owner,
+        createdHeight: blocks[1].height,
+        closedHeight: blocks[4].height,
+        deploymentId: deployments[3].id,
+        deploymentGroupId: deploymentGroups[3].id,
+        price: 40,
+        denom: "uakt"
+      }),
+      createLease({
+        owner: owners[1],
+        dseq: "2002",
+        providerAddress: providers[0].owner,
+        createdHeight: blocks[3].height,
+        closedHeight: null,
+        deploymentId: deployments[4].id,
+        deploymentGroupId: deploymentGroups[4].id,
+        price: 30000,
+        denom: "uusdc",
+        predictedClosedHeight: "1200"
       })
     ]);
 
-    return testData;
+    isDbInitialized = true;
+
+    return {
+      now,
+      dates,
+      owners,
+      providers
+    };
   }
 
   async function makeRequest(input: LeaseListTestParams): Promise<FallbackLeaseListResponse> {
@@ -493,6 +596,6 @@ describe("Lease Fallback API", () => {
     const url = `/akash/market/v1beta4/leases/list${queryString ? `?${queryString}` : ""}`;
 
     const response = await app.request(url);
-    return await response.json();
+    return (await response.json()) as FallbackLeaseListResponse;
   }
 });
