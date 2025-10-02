@@ -1,5 +1,21 @@
+import type { Lease } from "@akashnetwork/database/dbSchemas/akash";
+
 import type { FallbackLeaseListResponse } from "@src/deployment/http-schemas/lease-rpc.schema";
 import { app, initDb } from "@src/rest-app";
+
+type LeaseListTestParams = {
+  owner?: string;
+  dseq?: string;
+  gseq?: number;
+  oseq?: number;
+  provider?: string;
+  state?: string;
+  skip?: number;
+  limit?: number;
+  key?: string;
+  countTotal?: boolean;
+  reverse?: boolean;
+};
 
 import { createLease } from "@test/seeders";
 import { createDeployment } from "@test/seeders";
@@ -324,7 +340,7 @@ describe("Lease Fallback API", () => {
     const testData: {
       addresses: string[];
       providers: string[];
-      leases?: any[];
+      leases?: Lease[];
     } = {
       addresses: [createAkashAddress(), createAkashAddress(), createAkashAddress()],
       providers: [createAkashAddress(), createAkashAddress()]
@@ -458,19 +474,7 @@ describe("Lease Fallback API", () => {
     return testData;
   }
 
-  async function makeRequest(input: {
-    owner?: string;
-    dseq?: string;
-    gseq?: number;
-    oseq?: number;
-    provider?: string;
-    state?: string;
-    skip?: number;
-    limit?: number;
-    key?: string;
-    countTotal?: boolean;
-    reverse?: boolean;
-  }): Promise<FallbackLeaseListResponse> {
+  async function makeRequest(input: LeaseListTestParams): Promise<FallbackLeaseListResponse> {
     const queryParams = new URLSearchParams();
 
     if (input.owner) queryParams.append("filters.owner", input.owner);
