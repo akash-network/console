@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Button,
   buttonVariants,
@@ -18,6 +18,7 @@ import {
 import { cn } from "@akashnetwork/ui/utils";
 import { Refresh, Rocket, Xmark } from "iconoir-react";
 import { useAtom } from "jotai";
+import { uniq } from "lodash";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
@@ -38,6 +39,8 @@ import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { DeploymentListRow } from "./DeploymentListRow";
+
+const SHIFT_KEY = "Shift";
 
 export const DeploymentList: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx, isWalletLoaded, isWalletConnected } = useWallet();
@@ -63,6 +66,9 @@ export const DeploymentList: React.FunctionComponent = () => {
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
   const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const { user } = useCustomUser();
+
+  const [intervalSelectionAnchor, setIntervalSelectionAnchor] = useState<string | null>(null);
+  const [lastIntervalSelectionDseqs, setLastIntervalSelectionDseqs] = useState<string[]>([]);
 
   useEffect(() => {
     if (isWalletLoaded && isSettingsInit) {
@@ -110,10 +116,63 @@ export const DeploymentList: React.FunctionComponent = () => {
     setSearch(value);
   };
 
-  const onSelectDeployment = (checked: boolean, dseq: string) => {
+  const indexOfDseq = useCallback(
+    (dseq: string) => {
+      return currentPageDeployments?.findIndex(d => d.dseq === dseq);
+    },
+    [currentPageDeployments]
+  );
+
+  const isBetweenDseqs = useCallback(
+    (dseq: string, dseqA: string, dseqB: string) => {
+      const dseqIndex = indexOfDseq(dseq);
+      const dseqAIndex = indexOfDseq(dseqA);
+      const dseqBIndex = indexOfDseq(dseqB);
+
+      return (
+        dseqIndex !== -1 &&
+        dseqAIndex !== -1 &&
+        dseqBIndex !== -1 &&
+        ((dseqAIndex <= dseqIndex && dseqIndex <= dseqBIndex) || (dseqAIndex >= dseqIndex && dseqIndex >= dseqBIndex))
+      );
+    },
+    [indexOfDseq]
+  );
+
+  const currentPageDeploymentsBetween = useCallback(
+    (dseqA: string, dseqB: string) => {
+      return currentPageDeployments.filter(deployment => isBetweenDseqs(deployment.dseq, dseqA, dseqB)).map(d => d.dseq);
+    },
+    [currentPageDeployments, isBetweenDseqs]
+  );
+
+  const toggleSingleSelection = (checked: boolean, dseq: string) => {
+    setSelectedDeploymentDseqs(prev => (checked ? [...prev, dseq] : prev.filter(x => x !== dseq)));
+    if (checked) {
+      setIntervalSelectionAnchor(dseq);
+    }
+  };
+
+  const changeMultipleSelection = (dseq: string) => {
+    if (!intervalSelectionAnchor) {
+      return;
+    }
+
+    const dseqsToCheck = currentPageDeploymentsBetween(dseq, intervalSelectionAnchor);
+    const dseqsToUncheck = lastIntervalSelectionDseqs;
+
     setSelectedDeploymentDseqs(prev => {
-      return checked ? prev.concat([dseq]) : prev.filter(x => x !== dseq);
+      return uniq(prev.filter(x => !dseqsToUncheck.includes(x)).concat(dseqsToCheck));
     });
+    setLastIntervalSelectionDseqs(dseqsToCheck);
+  };
+
+  const onSelectDeployment = (checked: boolean, dseq: string, eventShiftPressed: boolean) => {
+    if (intervalSelectionAnchor && eventShiftPressed) {
+      changeMultipleSelection(dseq);
+    } else {
+      toggleSingleSelection(checked, dseq);
+    }
   };
 
   const onCloseSelectedDeployments = async () => {
@@ -147,6 +206,20 @@ export const DeploymentList: React.FunctionComponent = () => {
     setPageSize(value);
     setPageIndex(0);
   };
+
+  useEffect(() => {
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === SHIFT_KEY) {
+        setLastIntervalSelectionDseqs([]);
+      }
+    };
+
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
 
   return (
     <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings isUsingWallet>
