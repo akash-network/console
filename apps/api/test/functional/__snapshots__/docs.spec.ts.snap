@@ -584,8 +584,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
             "name": "pagination.count_total",
             "required": false,
             "schema": {
-              "nullable": true,
-              "type": "boolean",
+              "type": "string",
             },
           },
           {
