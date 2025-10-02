@@ -1097,6 +1097,301 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/akash/market/v1beta4/leases/list": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "filters.owner",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "filters.dseq",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "filters.gseq",
+            "required": false,
+            "schema": {
+              "nullable": true,
+              "type": "number",
+            },
+          },
+          {
+            "in": "query",
+            "name": "filters.oseq",
+            "required": false,
+            "schema": {
+              "nullable": true,
+              "type": "number",
+            },
+          },
+          {
+            "in": "query",
+            "name": "filters.provider",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "filters.state",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "pagination.offset",
+            "required": false,
+            "schema": {
+              "nullable": true,
+              "type": "number",
+            },
+          },
+          {
+            "in": "query",
+            "name": "pagination.limit",
+            "required": false,
+            "schema": {
+              "nullable": true,
+              "type": "number",
+            },
+          },
+          {
+            "in": "query",
+            "name": "pagination.key",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "pagination.count_total",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "pagination.reverse",
+            "required": false,
+            "schema": {
+              "nullable": true,
+              "type": "boolean",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "leases": {
+                      "items": {
+                        "properties": {
+                          "escrow_payment": {
+                            "properties": {
+                              "account_id": {
+                                "properties": {
+                                  "scope": {
+                                    "type": "string",
+                                  },
+                                  "xid": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "scope",
+                                  "xid",
+                                ],
+                                "type": "object",
+                              },
+                              "balance": {
+                                "properties": {
+                                  "amount": {
+                                    "type": "string",
+                                  },
+                                  "denom": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount",
+                                ],
+                                "type": "object",
+                              },
+                              "owner": {
+                                "type": "string",
+                              },
+                              "payment_id": {
+                                "type": "string",
+                              },
+                              "rate": {
+                                "properties": {
+                                  "amount": {
+                                    "type": "string",
+                                  },
+                                  "denom": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount",
+                                ],
+                                "type": "object",
+                              },
+                              "state": {
+                                "type": "string",
+                              },
+                              "withdrawn": {
+                                "properties": {
+                                  "amount": {
+                                    "type": "string",
+                                  },
+                                  "denom": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount",
+                                ],
+                                "type": "object",
+                              },
+                            },
+                            "required": [
+                              "account_id",
+                              "payment_id",
+                              "owner",
+                              "state",
+                              "rate",
+                              "balance",
+                              "withdrawn",
+                            ],
+                            "type": "object",
+                          },
+                          "lease": {
+                            "properties": {
+                              "closed_on": {
+                                "type": "string",
+                              },
+                              "created_at": {
+                                "type": "string",
+                              },
+                              "lease_id": {
+                                "properties": {
+                                  "dseq": {
+                                    "type": "string",
+                                  },
+                                  "gseq": {
+                                    "type": "number",
+                                  },
+                                  "oseq": {
+                                    "type": "number",
+                                  },
+                                  "owner": {
+                                    "type": "string",
+                                  },
+                                  "provider": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "owner",
+                                  "dseq",
+                                  "gseq",
+                                  "oseq",
+                                  "provider",
+                                ],
+                                "type": "object",
+                              },
+                              "price": {
+                                "properties": {
+                                  "amount": {
+                                    "type": "string",
+                                  },
+                                  "denom": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "denom",
+                                  "amount",
+                                ],
+                                "type": "object",
+                              },
+                              "state": {
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "lease_id",
+                              "state",
+                              "price",
+                              "created_at",
+                              "closed_on",
+                            ],
+                            "type": "object",
+                          },
+                        },
+                        "required": [
+                          "lease",
+                          "escrow_payment",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "pagination": {
+                      "properties": {
+                        "next_key": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "total": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "next_key",
+                        "total",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "leases",
+                    "pagination",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Returns paginated list of leases from database",
+          },
+        },
+        "summary": "List leases (database fallback)",
+        "tags": [
+          "Leases",
+        ],
+      },
+    },
     "/v1/addresses/{address}": {
       "get": {
         "parameters": [

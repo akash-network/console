@@ -1,3 +1,4 @@
+import { Lease } from "@akashnetwork/database/dbSchemas/akash";
 import { singleton } from "tsyringe";
 
 import { USDC_IBC_DENOMS } from "@src/billing/config/network.config";
@@ -67,7 +68,7 @@ export class LeaseService {
     };
   }
 
-  private transformLease(lease: any) {
+  private transformLease(lease: Lease) {
     const isActive = !lease.closedHeight;
     const state = isActive ? "active" : "closed";
     const mappedDenom = this.mapDenom(lease.denom);

@@ -1,5 +1,5 @@
 import { Lease } from "@akashnetwork/database/dbSchemas/akash";
-import { col, fn, Op } from "sequelize";
+import { col, fn, Op, WhereOptions } from "sequelize";
 import { singleton } from "tsyringe";
 
 export interface DrainingDeploymentOutput {
@@ -78,7 +78,7 @@ export class LeaseRepository {
   async findLeasesWithPagination(params: DatabaseLeaseListParams): Promise<{ count: number; rows: Lease[] }> {
     const { skip = 0, limit = 100, owner, dseq, gseq, oseq, provider, state, reverse = false } = params;
 
-    const whereConditions: any = {};
+    const whereConditions: WhereOptions = {};
 
     if (owner) {
       whereConditions.owner = owner;
