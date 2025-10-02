@@ -5,6 +5,7 @@ import sanitizeHtml from "sanitize-html";
 
 import { Namespaced } from "@src/lib/types/namespaced-config.type";
 import { NotificationEnvConfig } from "@src/modules/notifications/config/env.config";
+import { AnalyticsService } from "@src/modules/notifications/services/analytics/analytics.service";
 
 type EmailSendOptions = {
   addresses: string[];
@@ -17,30 +18,47 @@ type EmailSendOptions = {
 export class EmailSenderService {
   constructor(
     private readonly novu: Novu,
-    private readonly configService: ConfigService<Namespaced<"notifications", NotificationEnvConfig>>
+    private readonly configService: ConfigService<Namespaced<"notifications", NotificationEnvConfig>>,
+    private readonly analyticsService: AnalyticsService
   ) {}
 
   async send({ addresses, userId, subject, content }: EmailSendOptions) {
-    await this.novu.trigger({
-      workflowId: this.configService.getOrThrow("notifications.NOVU_MAILER_WORKFLOW_ID"),
-      to: {
-        subscriberId: userId,
-        email: addresses[0]
-      },
-      payload: {
-        subject,
-        content: sanitizeHtml(content, {
-          allowedTags: ["a"],
-          allowedAttributes: {
-            a: ["href"]
+    try {
+      await this.novu.trigger({
+        workflowId: this.configService.getOrThrow("notifications.NOVU_MAILER_WORKFLOW_ID"),
+        to: {
+          subscriberId: userId,
+          email: addresses[0]
+        },
+        payload: {
+          subject,
+          content: sanitizeHtml(content, {
+            allowedTags: ["a"],
+            allowedAttributes: {
+              a: ["href"]
+            }
+          })
+        },
+        overrides: {
+          email: {
+            to: addresses
           }
-        })
-      },
-      overrides: {
-        email: {
-          to: addresses
         }
-      }
-    });
+      });
+
+      this.analyticsService.track(userId, "email_sent", {
+        recipient_count: addresses.length,
+        subject,
+        workflow_id: this.configService.getOrThrow("notifications.NOVU_MAILER_WORKFLOW_ID")
+      });
+    } catch (error) {
+      this.analyticsService.track(userId, "email_failed", {
+        recipient_count: addresses.length,
+        subject,
+        error: error instanceof Error ? error.message : "Unknown error",
+        workflow_id: this.configService.getOrThrow("notifications.NOVU_MAILER_WORKFLOW_ID")
+      });
+      throw error;
+    }
   }
 }
