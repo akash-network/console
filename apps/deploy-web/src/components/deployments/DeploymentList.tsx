@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Button,
   buttonVariants,
@@ -18,6 +18,7 @@ import {
 import { cn } from "@akashnetwork/ui/utils";
 import { Refresh, Rocket, Xmark } from "iconoir-react";
 import { useAtom } from "jotai";
+import { uniq } from "lodash";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
@@ -38,6 +39,8 @@ import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { DeploymentListRow } from "./DeploymentListRow";
+
+const SHIFT_KEY = "Shift";
 
 export const DeploymentList: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx, isWalletLoaded, isWalletConnected } = useWallet();
@@ -63,6 +66,9 @@ export const DeploymentList: React.FunctionComponent = () => {
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
   const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const { user } = useCustomUser();
+
+  const [lastSelectedDeploymentDseq, setLastSelectedDeploymentDseq] = useState<string | null>(null);
+  const [hoveredDeploymentDseq, setHoveredDeploymentDseq] = useState<string | null>(null);
 
   useEffect(() => {
     if (isWalletLoaded && isSettingsInit) {
@@ -110,10 +116,35 @@ export const DeploymentList: React.FunctionComponent = () => {
     setSearch(value);
   };
 
-  const onSelectDeployment = (checked: boolean, dseq: string) => {
+  const isBetweenDseqs = useCallback(
+    (dseq: string, dseqA: string, dseqB: string) => {
+      const dseqIndex = currentPageDeployments?.findIndex(d => d.dseq === dseq);
+      const dseqAIndex = currentPageDeployments?.findIndex(d => d.dseq === dseqA);
+      const dseqBIndex = currentPageDeployments?.findIndex(d => d.dseq === dseqB);
+
+      return (
+        dseqIndex !== -1 &&
+        dseqAIndex !== -1 &&
+        dseqBIndex !== -1 &&
+        ((dseqAIndex <= dseqIndex && dseqIndex <= dseqBIndex) || (dseqAIndex >= dseqIndex && dseqIndex >= dseqBIndex))
+      );
+    },
+    [currentPageDeployments]
+  );
+
+  const onSelectDeployment = (checked: boolean, dseq: string, eventShiftPressed: boolean) => {
+    const dseqs =
+      lastSelectedDeploymentDseq && eventShiftPressed
+        ? currentPageDeployments.filter(deployment => isBetweenDseqs(deployment.dseq, dseq, lastSelectedDeploymentDseq)).map(d => d.dseq)
+        : [dseq];
+
     setSelectedDeploymentDseqs(prev => {
-      return checked ? prev.concat([dseq]) : prev.filter(x => x !== dseq);
+      return checked ? uniq(prev.concat(dseqs)) : prev.filter(x => !dseqs.includes(x));
     });
+
+    if (!eventShiftPressed) {
+      setLastSelectedDeploymentDseq(dseq);
+    }
   };
 
   const onCloseSelectedDeployments = async () => {
@@ -147,6 +178,45 @@ export const DeploymentList: React.FunctionComponent = () => {
     setPageSize(value);
     setPageIndex(0);
   };
+
+  const [isShiftPressed, setIsShiftPressed] = useState(false);
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === SHIFT_KEY) {
+        setIsShiftPressed(true);
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === SHIFT_KEY) {
+        setIsShiftPressed(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
+  const onRowMouseEnter = (dseq: string) => {
+    setHoveredDeploymentDseq(dseq);
+  };
+
+  const isRowHighlightedForMultipleSelection = useCallback(
+    (dseq: string) => {
+      if (!isShiftPressed || !hoveredDeploymentDseq || !lastSelectedDeploymentDseq) {
+        return false;
+      }
+
+      const dseqIndex = currentPageDeployments?.findIndex(d => d.dseq === dseq);
+      return dseqIndex !== -1 && isBetweenDseqs(dseq, hoveredDeploymentDseq, lastSelectedDeploymentDseq);
+    },
+    [isShiftPressed, hoveredDeploymentDseq, lastSelectedDeploymentDseq, currentPageDeployments, isBetweenDseqs]
+  );
 
   return (
     <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings isUsingWallet>
@@ -293,6 +363,8 @@ export const DeploymentList: React.FunctionComponent = () => {
                   isSelectable
                   onSelectDeployment={onSelectDeployment}
                   checked={selectedDeploymentDseqs.includes(deployment.dseq)}
+                  onMouseEnter={onRowMouseEnter}
+                  isHighlighted={isRowHighlightedForMultipleSelection(deployment.dseq)}
                 />
               ))}
             </TableBody>

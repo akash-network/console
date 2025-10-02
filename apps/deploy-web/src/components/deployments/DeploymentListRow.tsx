@@ -13,6 +13,7 @@ import {
   TableCell,
   TableRow
 } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
@@ -50,14 +51,25 @@ import { LeaseChip } from "./LeaseChip";
 type Props = {
   deployment: NamedDeploymentDto;
   isSelectable?: boolean;
-  onSelectDeployment?: (isChecked: boolean, dseq: string) => void;
+  onSelectDeployment?: (isChecked: boolean, dseq: string, eventShiftPressed: boolean) => void;
+  onMouseEnter?: (dseq: string) => void;
   checked?: boolean;
   providers: Array<ApiProviderList> | undefined;
-  refreshDeployments: any;
+  refreshDeployments: () => void;
   children?: ReactNode;
+  isHighlighted?: boolean;
 };
 
-export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, isSelectable, onSelectDeployment, checked, providers, refreshDeployments }) => {
+export const DeploymentListRow: React.FunctionComponent<Props> = ({
+  deployment,
+  isSelectable,
+  onSelectDeployment,
+  checked,
+  providers,
+  refreshDeployments,
+  onMouseEnter,
+  isHighlighted
+}) => {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isDepositingDeployment, setIsDepositingDeployment] = useState(false);
@@ -132,7 +144,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     const response = await signAndBroadcastTx([message]);
     if (response) {
       if (onSelectDeployment) {
-        onSelectDeployment(false, deployment.dseq);
+        onSelectDeployment(false, deployment.dseq, false);
       }
 
       refreshDeployments();
@@ -168,7 +180,14 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
 
   return (
     <>
-      <TableRow className="cursor-pointer hover:bg-muted-foreground/10 [&>td]:p-2" role="link" onClick={viewDeployment}>
+      <TableRow
+        className={cn("cursor-pointer hover:bg-muted-foreground/10 [&>td]:p-2", {
+          "bg-muted-foreground/10": isHighlighted
+        })}
+        role="link"
+        onClick={viewDeployment}
+        onMouseEnter={() => onMouseEnter?.(deployment.dseq)}
+      >
         <TableCell>
           <div className="flex items-center justify-center">
             <SpecDetailList
@@ -296,9 +315,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                 checked={checked}
                 onClick={event => {
                   event.stopPropagation();
-                }}
-                onCheckedChange={value => {
-                  onSelectDeployment && onSelectDeployment(value as boolean, deployment.dseq);
+                  onSelectDeployment?.(!checked, deployment.dseq, event.shiftKey);
                 }}
               />
             )}
