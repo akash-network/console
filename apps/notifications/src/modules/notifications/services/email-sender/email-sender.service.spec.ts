@@ -77,12 +77,7 @@ describe(EmailSenderService.name, () => {
     });
   });
 
-  async function setup(): Promise<{
-    service: EmailSenderService;
-    novu: MockProxy<Novu>;
-    analyticsService: MockProxy<AnalyticsService>;
-    novuWorkflowId: string;
-  }> {
+  async function setup() {
     const module: TestingModule = await Test.createTestingModule({
       providers: [EmailSenderService, MockProvider(Novu), MockProvider(ConfigService), MockProvider(AnalyticsService)]
     }).compile();
