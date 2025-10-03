@@ -6,11 +6,10 @@ import { DatabaseDeploymentListParams } from "@src/deployment/repositories/deplo
 import { RestAkashDeploymentInfoResponse } from "@src/types/rest/akashDeploymentInfoResponse";
 import { RestAkashDeploymentListResponse } from "@src/types/rest/akashDeploymentListResponse";
 
-// For the values that are not stored in the database
-export const FALLBACK_VALUE = "unknown_value";
+export const UNKNOWN_DB_PLACEHOLDER = "unknown_value";
 
 @singleton()
-export class DatabaseDeploymentReaderService {
+export class FallbackDeploymentReaderService {
   constructor(private readonly deploymentRepository: DeploymentRepository) {}
 
   async listDeployments(params: DatabaseDeploymentListParams): Promise<RestAkashDeploymentListResponse> {
@@ -29,7 +28,7 @@ export class DatabaseDeploymentReaderService {
               dseq: deployment.dseq || ""
             },
             state: deployment.closedHeight ? "closed" : "active",
-            version: FALLBACK_VALUE,
+            version: UNKNOWN_DB_PLACEHOLDER,
             created_at: (deployment.createdHeight ?? 0).toString()
           },
           groups,
@@ -89,7 +88,7 @@ export class DatabaseDeploymentReaderService {
           dseq: deployment.dseq || ""
         },
         state: deployment.closedHeight ? "closed" : "active",
-        version: FALLBACK_VALUE,
+        version: UNKNOWN_DB_PLACEHOLDER,
         created_at: (deployment.createdHeight ?? 0).toString()
       },
       groups,
@@ -128,7 +127,7 @@ export class DatabaseDeploymentReaderService {
         },
         state: deployment.closedHeight ? "closed" : "open",
         group_spec: {
-          name: FALLBACK_VALUE,
+          name: UNKNOWN_DB_PLACEHOLDER,
           requirements: {
             signed_by: {
               all_of: [],

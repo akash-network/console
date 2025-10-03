@@ -1,6 +1,14 @@
 import { Block } from "@akashnetwork/database/dbSchemas";
 import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
-import { DeploymentHttpService, DeploymentInfo, LeaseHttpService } from "@akashnetwork/http-sdk";
+import {
+  DeploymentHttpService,
+  DeploymentInfo,
+  DeploymentListResponse,
+  LeaseHttpService,
+  LeaseListParams,
+  PaginationParams,
+  RestAkashLeaseListResponse
+} from "@akashnetwork/http-sdk";
 import { PromisePool } from "@supercharge/promise-pool";
 import assert from "http-assert";
 import { InternalServerError } from "http-errors";
@@ -9,10 +17,12 @@ import { singleton } from "tsyringe";
 
 import { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import { averageBlockCountInAMonth } from "@src/utils/constants";
+import { FallbackDeploymentReaderService } from "../fallback-deployment-reader/fallback-deployment-reader.service";
 import { MessageService } from "../message-service/message.service";
 
 @singleton()
@@ -20,7 +30,9 @@ export class DeploymentReaderService {
   constructor(
     private readonly providerService: ProviderService,
     private readonly deploymentHttpService: DeploymentHttpService,
+    private readonly dbDeploymentReaderService: FallbackDeploymentReaderService,
     private readonly leaseHttpService: LeaseHttpService,
+    private readonly fallbackLeaseReaderService: FallbackLeaseReaderService,
     private readonly messageService: MessageService,
     private readonly walletReaderService: WalletReaderService
   ) {}
@@ -36,7 +48,8 @@ export class DeploymentReaderService {
     options?: { certificate?: { certPem: string; keyPem: string } }
   ): Promise<GetDeploymentResponse["data"]> {
     const { address: owner } = wallet;
-    const deploymentResponse = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
+    const deploymentResponse = await this.getDeployment(owner, dseq);
+    assert(deploymentResponse, 404, "Deployment not found");
 
     if ("code" in deploymentResponse) {
       assert(!deploymentResponse.message?.toLowerCase().includes("deployment not found"), 404, "Deployment not found");
@@ -44,7 +57,7 @@ export class DeploymentReaderService {
       throw new InternalServerError(deploymentResponse.message);
     }
 
-    const { leases } = await this.leaseHttpService.list({ owner, dseq });
+    const { leases } = await this.getLeaseList({ owner, dseq });
 
     const leasesWithStatus = await Promise.all(
       leases.map(async ({ lease }) => {
@@ -90,7 +103,7 @@ export class DeploymentReaderService {
   }): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
     const { address: owner } = await this.walletReaderService.getWalletByUserId(query.userId);
     const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
-    const deploymentReponse = await this.deploymentHttpService.findAll({ owner, state: "active", pagination });
+    const deploymentReponse = await this.getDeploymentsList({ owner, state: "active", pagination });
     const deployments = deploymentReponse.deployments;
     const total = parseInt(deploymentReponse.pagination.total, 10);
 
@@ -127,7 +140,7 @@ export class DeploymentReaderService {
     limit?: number;
     reverseSorting?: boolean;
   }) {
-    const response = await this.deploymentHttpService.findAll({
+    const response = await this.getDeploymentsList({
       owner: address,
       state: status,
       pagination: {
@@ -191,7 +204,8 @@ export class DeploymentReaderService {
   public async getDeploymentByOwnerAndDseq(owner: string, dseq: string) {
     let deploymentData: RestAkashDeploymentInfoResponse | null = null;
     try {
-      deploymentData = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
+      deploymentData = await this.getDeployment(owner, dseq);
+      assert(deploymentData, 404, "Deployment not found");
 
       if ("code" in deploymentData) {
         if (deploymentData.message?.toLowerCase().includes("deployment not found")) {
@@ -290,5 +304,29 @@ export class DeploymentReaderService {
       events: relatedMessages || [],
       other: deploymentData
     };
+  }
+
+  private async getDeployment(owner: string, dseq: string): Promise<RestAkashDeploymentInfoResponse | null> {
+    try {
+      return await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
+    } catch (error: any) {
+      return await this.dbDeploymentReaderService.getDeploymentInfo(owner, dseq);
+    }
+  }
+
+  private async getDeploymentsList(params: { owner: string; state?: "active" | "closed"; pagination?: PaginationParams }): Promise<DeploymentListResponse> {
+    try {
+      return await this.deploymentHttpService.findAll(params);
+    } catch (error: any) {
+      return await this.dbDeploymentReaderService.listDeployments(params);
+    }
+  }
+
+  private async getLeaseList(params: LeaseListParams): Promise<RestAkashLeaseListResponse> {
+    try {
+      return await this.leaseHttpService.list(params);
+    } catch (error: any) {
+      return await this.fallbackLeaseReaderService.list(params);
+    }
   }
 }
