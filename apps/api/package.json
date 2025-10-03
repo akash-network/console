@@ -95,7 +95,7 @@
     "memory-cache": "^0.2.0",
     "murmurhash": "^2.0.1",
     "pg": "^8.12.0",
-    "pg-boss": "^10.3.2",
+    "pg-boss": "^11.0.4",
     "pg-hstore": "^2.3.4",
     "postgres": "^3.4.4",
     "protobufjs": "^6.11.2",
