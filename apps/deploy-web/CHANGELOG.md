@@ -1,5 +1,17 @@
 
 
+## [2.113.0](https://github.com/akash-network/console/compare/console-web/v2.112.2...console-web/v2.113.0) (2025-10-03)
+
+
+### Features
+
+* **auth:** implements managed wallet API JWT auth  ([06b4e45](https://github.com/akash-network/console/commit/06b4e4540433b3b55fbc31f76d955e05e040a82e))
+
+
+### Bug Fixes
+
+* **billing:** cleanup discount payments ([#1969](https://github.com/akash-network/console/issues/1969)) ([0a72177](https://github.com/akash-network/console/commit/0a721771bc39fc0b1995688cac032f52988c79bd))
+
 ## [2.112.2](https://github.com/akash-network/console/compare/console-web/v2.112.1...console-web/v2.112.2) (2025-10-01)
 
 
