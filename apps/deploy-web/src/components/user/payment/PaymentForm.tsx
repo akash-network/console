@@ -1,8 +1,6 @@
 import React from "react";
 import { FormattedNumber } from "react-intl";
-import type { Discount } from "@akashnetwork/http-sdk/src/stripe/stripe.types";
-import { Badge, Card, CardContent, CardHeader, CardTitle, Input, LoadingButton, Separator } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
+import { Input, LoadingButton } from "@akashnetwork/ui/components";
 
 interface PaymentFormProps {
   amount: string;
@@ -11,8 +9,6 @@ interface PaymentFormProps {
   coupon: string;
   onCouponChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onClaimCoupon: () => void;
-  discounts: Discount[];
-  getFinalAmount: (amount: string) => number;
   processing: boolean;
   isApplyingCoupon: boolean;
   selectedPaymentMethodId?: string;
@@ -26,8 +22,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
   coupon,
   onCouponChange,
   onClaimCoupon,
-  discounts,
-  getFinalAmount,
   processing,
   selectedPaymentMethodId,
   onPayment,
@@ -53,56 +47,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
         </div>
       </div>
 
-      {discounts.length > 0 && (
-        <Card>
-          <CardHeader className={cn({ "border-b": !!amount })}>
-            <CardTitle>
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-muted-foreground">Coupon Applied</span>
-                <div className="flex gap-2">
-                  {discounts.map(discount => (
-                    <Badge key={discount.id} className="text-xs">
-                      {discount.type === "promotion_code" ? discount.code : discount.name}
-                      {" - "}
-                      <span className="ml-1">
-                        {discount.percent_off ? (
-                          `${discount.percent_off}%`
-                        ) : discount.amount_off ? (
-                          <FormattedNumber value={discount.amount_off / 100} style="currency" currency="USD" />
-                        ) : (
-                          ""
-                        )}
-                      </span>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          {!!amount && (
-            <CardContent>
-              <div className="mt-2 space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Subtotal:</span>
-                  <span>${Number(amount).toFixed(2)}</span>
-                </div>
-                {discounts.length > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Discount:</span>
-                    <span className="text-success">-${(Number(amount) - getFinalAmount(amount)).toFixed(2)}</span>
-                  </div>
-                )}
-                <Separator className="my-2" />
-                <div className="flex items-center justify-between font-medium">
-                  <span className="text-muted-foreground">Final Amount:</span>
-                  <span>${getFinalAmount(amount).toFixed(2)}</span>
-                </div>
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      )}
-
       <div>
         <div className="mt-1 flex w-full items-end gap-2">
           <Input
@@ -115,7 +59,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             placeholder="Enter coupon code"
             label="Coupon Code"
           />
-          <LoadingButton loading={isApplyingCoupon} onClick={onClaimCoupon} disabled={!coupon || processing}>
+          <LoadingButton loading={isApplyingCoupon} onClick={onClaimCoupon} disabled={!coupon || processing || isApplyingCoupon}>
             Claim coupon
           </LoadingButton>
         </div>
@@ -131,7 +75,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           "Processing..."
         ) : (
           <>
-            Pay <FormattedNumber value={getFinalAmount(amount)} style="currency" currency="USD" />
+            Pay <FormattedNumber value={parseFloat(amount) || 0} style="currency" currency="USD" />
           </>
         )}
       </LoadingButton>

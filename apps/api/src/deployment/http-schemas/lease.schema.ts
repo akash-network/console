@@ -2,10 +2,12 @@ import { z } from "zod";
 
 export const CreateLeaseRequestSchema = z.object({
   manifest: z.string(),
-  certificate: z.object({
-    certPem: z.string(),
-    keyPem: z.string()
-  }),
+  certificate: z
+    .object({
+      certPem: z.string(),
+      keyPem: z.string()
+    })
+    .optional(),
   leases: z.array(
     z.object({
       dseq: z.string(),
@@ -49,5 +51,4 @@ export const LeaseStatusResponseSchema = z.object({
 });
 
 export type CreateLeaseRequest = z.infer<typeof CreateLeaseRequestSchema>;
-export type LeaseServiceStatus = z.infer<typeof LeaseServiceStatusSchema>;
 export type LeaseStatusResponse = z.infer<typeof LeaseStatusResponseSchema>;

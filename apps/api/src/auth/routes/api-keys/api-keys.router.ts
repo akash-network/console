@@ -4,13 +4,16 @@ import { z } from "zod";
 
 import { ApiKeyController } from "@src/auth/controllers/api-key/api-key.controller";
 import {
+  ApiKeyHiddenResponseSchema,
+  ApiKeyVisibleResponseSchema,
   CreateApiKeyRequestSchema,
   FindApiKeyParamsSchema,
-  SingleApiKeyResponseSchema,
   UpdateApiKeyRequestSchema
 } from "@src/auth/http-schemas/api-key.schema";
 import { ListApiKeysResponseSchema } from "@src/auth/http-schemas/api-key.schema";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
+
+export const apiKeysRouter = new OpenApiHonoHandler();
 
 const listRoute = createRoute({
   method: "get",
@@ -29,6 +32,11 @@ const listRoute = createRoute({
   }
 });
 
+apiKeysRouter.openapi(listRoute, async function routeListApiKeys(c) {
+  const result = await container.resolve(ApiKeyController).findAll();
+  return c.json(result, 200);
+});
+
 const getRoute = createRoute({
   method: "get",
   path: "/v1/api-keys/{id}",
@@ -42,7 +50,7 @@ const getRoute = createRoute({
       description: "Returns API key details",
       content: {
         "application/json": {
-          schema: SingleApiKeyResponseSchema
+          schema: ApiKeyHiddenResponseSchema
         }
       }
     },
@@ -57,6 +65,12 @@ const getRoute = createRoute({
       }
     }
   }
+});
+
+apiKeysRouter.openapi(getRoute, async function routeGetApiKey(c) {
+  const { id } = c.req.valid("param");
+  const result = await container.resolve(ApiKeyController).findById(id);
+  return c.json(result, 200);
 });
 
 const postRoute = createRoute({
@@ -78,11 +92,17 @@ const postRoute = createRoute({
       description: "API key created successfully",
       content: {
         "application/json": {
-          schema: SingleApiKeyResponseSchema
+          schema: ApiKeyVisibleResponseSchema
         }
       }
     }
   }
+});
+
+apiKeysRouter.openapi(postRoute, async function routeCreateApiKey(c) {
+  const { data } = c.req.valid("json");
+  const result = await container.resolve(ApiKeyController).create(data);
+  return c.json(result, 201);
 });
 
 const patchRoute = createRoute({
@@ -105,7 +125,7 @@ const patchRoute = createRoute({
       description: "API key updated successfully",
       content: {
         "application/json": {
-          schema: SingleApiKeyResponseSchema
+          schema: ApiKeyHiddenResponseSchema
         }
       }
     },
@@ -120,6 +140,13 @@ const patchRoute = createRoute({
       }
     }
   }
+});
+
+apiKeysRouter.openapi(patchRoute, async function routeUpdateApiKey(c) {
+  const { id } = c.req.valid("param");
+  const { data } = c.req.valid("json");
+  const result = await container.resolve(ApiKeyController).update(id, data);
+  return c.json(result, 200);
 });
 
 const deleteRoute = createRoute({
@@ -145,32 +172,6 @@ const deleteRoute = createRoute({
       }
     }
   }
-});
-
-export const apiKeysRouter = new OpenApiHonoHandler();
-
-apiKeysRouter.openapi(listRoute, async function routeListApiKeys(c) {
-  const result = await container.resolve(ApiKeyController).findAll();
-  return c.json(result, 200);
-});
-
-apiKeysRouter.openapi(getRoute, async function routeGetApiKey(c) {
-  const { id } = c.req.valid("param");
-  const result = await container.resolve(ApiKeyController).findById(id);
-  return c.json(result, 200);
-});
-
-apiKeysRouter.openapi(postRoute, async function routeCreateApiKey(c) {
-  const { data } = c.req.valid("json");
-  const result = await container.resolve(ApiKeyController).create(data);
-  return c.json(result, 201);
-});
-
-apiKeysRouter.openapi(patchRoute, async function routeUpdateApiKey(c) {
-  const { id } = c.req.valid("param");
-  const { data } = c.req.valid("json");
-  const result = await container.resolve(ApiKeyController).update(id, data);
-  return c.json(result, 200);
 });
 
 apiKeysRouter.openapi(deleteRoute, async function routeDeleteApiKey(c) {

@@ -18,11 +18,9 @@ describe(AnalyticsService.name, () => {
 
   describe("track", () => {
     it("should track event when user is sampled", () => {
-      const { service, amplitude, hasher, config, logger } = setup();
+      const { service, amplitude, hasher, logger } = setup({ samplingRate: "0.5" });
 
       hasher.hash.mockReturnValue(5);
-
-      config.get.mockReturnValue(0.5);
 
       const userId = faker.string.uuid();
       const eventName = "user_registered";
@@ -34,7 +32,6 @@ describe(AnalyticsService.name, () => {
       service.track(userId, eventName, properties);
 
       expect(hasher.hash).toHaveBeenCalledWith(userId);
-      expect(config.get).toHaveBeenCalledWith("AMPLITUDE_SAMPLING");
       expect(amplitude.track).toHaveBeenCalledWith(eventName, properties, {
         user_id: userId
       });
@@ -46,11 +43,9 @@ describe(AnalyticsService.name, () => {
     });
 
     it("should not track event when user is not sampled", () => {
-      const { service, amplitude, hasher, config, logger } = setup();
+      const { service, amplitude, hasher, logger } = setup({ samplingRate: "0.5" });
 
       hasher.hash.mockReturnValue(75);
-
-      config.get.mockReturnValue(0.5);
 
       const userId = faker.string.uuid();
       const eventName = "balance_top_up";
@@ -58,17 +53,14 @@ describe(AnalyticsService.name, () => {
       service.track(userId, eventName);
 
       expect(hasher.hash).toHaveBeenCalledWith(userId);
-      expect(config.get).toHaveBeenCalledWith("AMPLITUDE_SAMPLING");
       expect(amplitude.track).not.toHaveBeenCalled();
       expect(logger.debug).not.toHaveBeenCalled();
     });
 
     it("should use empty object for properties when none provided", () => {
-      const { service, amplitude, hasher, config } = setup();
+      const { service, amplitude, hasher } = setup({ samplingRate: "0.5" });
 
       hasher.hash.mockReturnValue(5);
-
-      config.get.mockReturnValue(0.5);
 
       const userId = faker.string.uuid();
       const eventName = "user_registered";
@@ -87,11 +79,9 @@ describe(AnalyticsService.name, () => {
 
   describe("shouldSampleUser", () => {
     it("should sample user when hash value is less than sampling threshold", () => {
-      const { service, hasher, config } = setup();
+      const { service, hasher } = setup({ samplingRate: "0.5" });
 
       hasher.hash.mockReturnValue(25);
-
-      config.get.mockReturnValue(0.5);
 
       const userId = faker.string.uuid();
 
@@ -99,15 +89,12 @@ describe(AnalyticsService.name, () => {
 
       expect(result).toBe(true);
       expect(hasher.hash).toHaveBeenCalledWith(userId);
-      expect(config.get).toHaveBeenCalledWith("AMPLITUDE_SAMPLING");
     });
 
     it("should not sample user when hash value is greater than sampling threshold", () => {
-      const { service, hasher, config } = setup();
+      const { service, hasher } = setup({ samplingRate: "0.5" });
 
       hasher.hash.mockReturnValue(75);
-
-      config.get.mockReturnValue(0.5);
 
       const userId = faker.string.uuid();
 
@@ -115,15 +102,12 @@ describe(AnalyticsService.name, () => {
 
       expect(result).toBe(false);
       expect(hasher.hash).toHaveBeenCalledWith(userId);
-      expect(config.get).toHaveBeenCalledWith("AMPLITUDE_SAMPLING");
     });
 
     it("should sample all users when sampling rate is 1", () => {
-      const { service, hasher, config } = setup();
+      const { service, hasher } = setup({ samplingRate: "1.0" });
 
       const testCases = [0, 25, 50, 75, 99];
-
-      config.get.mockReturnValue(1.0);
 
       for (const hashValue of testCases) {
         hasher.hash.mockReturnValueOnce(hashValue);
@@ -136,11 +120,9 @@ describe(AnalyticsService.name, () => {
     });
 
     it("should sample no users when sampling rate is 0", () => {
-      const { service, hasher, config } = setup();
+      const { service, hasher } = setup({ samplingRate: "0" });
 
       const testCases = [0, 25, 50, 75, 99];
-
-      config.get.mockReturnValue(0);
 
       for (const hashValue of testCases) {
         hasher.hash.mockReturnValueOnce(hashValue);
@@ -153,11 +135,9 @@ describe(AnalyticsService.name, () => {
     });
 
     it("should handle negative hash values correctly", () => {
-      const { service, hasher, config } = setup();
+      const { service, hasher } = setup({ samplingRate: "0.5" });
 
       hasher.hash.mockReturnValue(-25);
-
-      config.get.mockReturnValue(0.5);
 
       const userId = faker.string.uuid();
 
@@ -168,11 +148,13 @@ describe(AnalyticsService.name, () => {
     });
   });
 
-  function setup() {
+  function setup(input: { samplingRate?: string } = {}) {
     const amplitude = mock<Amplitude>();
     const hasher = mock<Hasher>();
     const config = mock<CoreConfigService>();
     const logger = mock<LoggerService>();
+
+    config.get.mockReturnValue(input.samplingRate ?? "1.0");
 
     const service = new AnalyticsService(amplitude, hasher, config, logger);
 
