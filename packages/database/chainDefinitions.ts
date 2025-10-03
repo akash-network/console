@@ -1,3 +1,4 @@
+import { netConfig } from "@akashnetwork/net";
 import * as dotenv from "dotenv";
 import type { Model, ModelCtor } from "sequelize-typescript";
 
@@ -85,7 +86,7 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
   },
   akashTestnet: {
     code: "akash-testnet",
-    rpcNodes: ["https://testnetrpc.akashnet.net:443"],
+    rpcNodes: [netConfig.getBaseRpcUrl("testnet-7")],
     cosmosDirectoryId: "akash",
     connectionString: process.env.AKASH_TESTNET_DATABASE_CS,
     genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/testnet-7/genesis.json",
