@@ -28,6 +28,7 @@ type LeaseListTestParams = {
 
 describe("Lease Fallback API", () => {
   let isDbInitialized = false;
+  let cachedOwners: string[] = [];
 
   describe("GET /akash/market/v1beta4/leases/list", () => {
     it("should return correct response structure with seeded data", async () => {
@@ -315,6 +316,8 @@ describe("Lease Fallback API", () => {
   });
 
   async function setup() {
+    await initDb();
+
     const now = new Date();
     now.setHours(12, 0, 0, 0);
 
@@ -322,7 +325,13 @@ describe("Lease Fallback API", () => {
 
     const providers = await Promise.all([createProvider({ deletedHeight: null }), createProvider({ deletedHeight: null })]);
 
-    const owners = [createAkashAddress(), createAkashAddress(), createAkashAddress()];
+    let owners: string[];
+    if (isDbInitialized) {
+      owners = cachedOwners;
+    } else {
+      owners = [createAkashAddress(), createAkashAddress(), createAkashAddress()];
+      cachedOwners = owners;
+    }
 
     if (isDbInitialized) {
       return {
@@ -332,8 +341,6 @@ describe("Lease Fallback API", () => {
         providers
       };
     }
-
-    await initDb();
 
     await Promise.all([
       createDay({
@@ -568,6 +575,7 @@ describe("Lease Fallback API", () => {
     ]);
 
     isDbInitialized = true;
+    cachedOwners = owners;
 
     return {
       now,
