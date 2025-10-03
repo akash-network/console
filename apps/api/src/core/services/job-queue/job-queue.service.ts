@@ -142,8 +142,7 @@ export class JobQueueService implements Disposable {
   }
 
   async ping(): Promise<void> {
-    // @ts-expect-error - getDb is not typed, see https://github.com/timgit/pg-boss/issues/552#issuecomment-3213043039
-    await this.pgBoss.getDb().executeSql("SELECT 1");
+    await this.pgBoss.getDb().executeSql("SELECT 1", []);
   }
 }
 
