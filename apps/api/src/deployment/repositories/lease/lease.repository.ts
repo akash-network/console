@@ -1,5 +1,5 @@
 import { Lease } from "@akashnetwork/database/dbSchemas/akash";
-import { col, fn, Op } from "sequelize";
+import { col, fn, Op, WhereOptions } from "sequelize";
 import { singleton } from "tsyringe";
 
 export interface DrainingDeploymentOutput {
@@ -9,6 +9,20 @@ export interface DrainingDeploymentOutput {
   blockRate: number;
   predictedClosedHeight: number;
   closedHeight?: number;
+}
+
+export interface DatabaseLeaseListParams {
+  owner?: string;
+  dseq?: string;
+  gseq?: number;
+  oseq?: number;
+  provider?: string;
+  state?: string;
+  skip?: number;
+  limit?: number;
+  key?: string;
+  countTotal?: boolean;
+  reverse?: boolean;
 }
 
 @singleton()
@@ -59,5 +73,50 @@ export class LeaseRepository {
     }
 
     return [];
+  }
+
+  async findLeasesWithPagination(params: DatabaseLeaseListParams): Promise<{ count: number; rows: Lease[] }> {
+    const { skip = 0, limit = 100, owner, dseq, gseq, oseq, provider, state, reverse = false } = params;
+
+    const whereConditions: WhereOptions = {};
+
+    if (owner) {
+      whereConditions.owner = owner;
+    }
+    if (dseq) {
+      whereConditions.dseq = dseq;
+    }
+    if (gseq !== undefined) {
+      whereConditions.gseq = gseq;
+    }
+    if (oseq !== undefined) {
+      whereConditions.oseq = oseq;
+    }
+    if (provider) {
+      whereConditions.providerAddress = provider;
+    }
+    if (state) {
+      if (state === "active") {
+        whereConditions.closedHeight = null;
+      } else if (state === "closed") {
+        whereConditions.closedHeight = { [Op.ne]: null };
+      }
+    }
+
+    const { count, rows } = await Lease.findAndCountAll({
+      where: whereConditions,
+      limit,
+      offset: skip,
+      order: reverse ? [["createdHeight", "DESC"]] : [["createdHeight", "ASC"]],
+      include: [
+        {
+          model: Lease.associations.deployment.target,
+          as: "deployment",
+          required: false
+        }
+      ]
+    });
+
+    return { count, rows: rows as Lease[] };
   }
 }

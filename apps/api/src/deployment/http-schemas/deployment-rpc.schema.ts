@@ -138,7 +138,10 @@ export const FallbackDeploymentListQuerySchema = z.object({
   "pagination.offset": z.coerce.number().optional(),
   "pagination.limit": z.coerce.number().optional(),
   "pagination.key": z.string().optional(),
-  "pagination.count_total": z.coerce.boolean().optional(),
+  "pagination.count_total": z
+    .string()
+    .optional()
+    .transform(val => val === "true"),
   "pagination.reverse": z.coerce.boolean().optional()
 });
 
