@@ -17,7 +17,9 @@ describe(JobQueueService.name, () => {
 
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
         name: "test",
-        retryLimit: 10
+        retryBackoff: true,
+        retryDelayMax: 300,
+        retryLimit: 5
       });
     });
 
@@ -47,11 +49,15 @@ describe(JobQueueService.name, () => {
       expect(pgBoss.createQueue).toHaveBeenCalledTimes(2);
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
         name: "test",
-        retryLimit: 10
+        retryBackoff: true,
+        retryDelayMax: 300,
+        retryLimit: 5
       });
       expect(pgBoss.createQueue).toHaveBeenCalledWith("another", {
         name: "another",
-        retryLimit: 10
+        retryBackoff: true,
+        retryDelayMax: 300,
+        retryLimit: 5
       });
     });
   });
@@ -122,7 +128,9 @@ describe(JobQueueService.name, () => {
 
       expect(pgBoss.createQueue).toHaveBeenCalledWith("test", {
         name: "test",
-        retryLimit: 10
+        retryBackoff: true,
+        retryDelayMax: 300,
+        retryLimit: 5
       });
       expect(pgBoss.work).toHaveBeenCalledTimes(5);
       expect(pgBoss.work).toHaveBeenCalledWith("test", { batchSize: 1 }, expect.any(Function));
