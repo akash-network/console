@@ -231,7 +231,7 @@ describe(JobQueueService.name, () => {
       jest.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql: jest.fn().mockResolvedValue(undefined) });
       await service.ping();
 
-      expect(pgBoss.getDb().executeSql).toHaveBeenCalledWith("SELECT 1");
+      expect(pgBoss.getDb().executeSql).toHaveBeenCalledWith("SELECT 1", []);
     });
   });
 
