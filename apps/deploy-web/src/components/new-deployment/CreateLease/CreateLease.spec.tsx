@@ -176,14 +176,7 @@ describe(CreateLease.name, () => {
     });
 
     await waitFor(() => {
-      expect((BidGroup as jest.Mock).mock.calls.length).toBeGreaterThan(0);
-    });
-    const bidGroupProps = (BidGroup as jest.Mock).mock.calls[0][0];
-    act(() => {
-      bidGroupProps.handleBidSelected(mapToBidDto(bids[0]));
-    });
-    await waitFor(() => {
-      expect(screen.queryByRole("button", { name: /Accept Bid/i })).toBeDisabled();
+      expect(screen.getByText(/Blockchain is down/i)).toBeInTheDocument();
     });
   });
 
@@ -435,6 +428,7 @@ describe(CreateLease.name, () => {
           errorHandler: () => mock<AppDIContainer["errorHandler"]>(),
           chainApiHttpClient: () =>
             mock<AppDIContainer["chainApiHttpClient"]>({
+              isFallbackEnabled: !!input?.isBlockchainDown,
               get: async url => {
                 if (url.includes("bids/list")) {
                   return {

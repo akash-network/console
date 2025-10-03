@@ -12,7 +12,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSnackbar } from "notistack";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useSdlBuilder } from "@src/context/SdlBuilderProvider/SdlBuilderProvider";
 import { useServices } from "@src/context/ServicesProvider";
@@ -74,7 +73,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
 
-  const { analyticsService } = useServices();
+  const { analyticsService, chainApiHttpClient, appConfig } = useServices();
   const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged, isTrialing, isOnboarding } = useWallet();
   const router = useRouter();
@@ -87,7 +86,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const searchParams = useSearchParams();
   const templateId = searchParams.get("templateId");
   const { data: depositParams } = useDepositParams();
-  const defaultDeposit = depositParams || browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
+  const defaultDeposit = depositParams || appConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
   const wallet = useWallet();
   const managedDenom = useManagedWalletDenom();
   const { enqueueSnackbar } = useSnackbar();
@@ -166,7 +165,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     try {
       if (!yamlStr) return null;
 
-      const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, yamlStr, dseq, address, deposit, depositorAddress);
+      const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, yamlStr, dseq, address, deposit, depositorAddress);
       validateDeploymentData(dd, selectedTemplate);
 
       setSdlDenom(dd.deposit.denom);
@@ -217,7 +216,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     setIsCheckingPrerequisites(false);
 
     if (isManaged) {
-      handleCreateClick(defaultDeposit, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      handleCreateClick(defaultDeposit, appConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
     } else {
       setIsDepositingDeployment(true);
     }

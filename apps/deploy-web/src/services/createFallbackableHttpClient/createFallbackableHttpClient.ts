@@ -4,12 +4,13 @@ import { ExponentialBackoff, isBrokenCircuitError } from "cockatiel";
 
 import { createFetchAdapter } from "../createFetchAdapter/createFetchAdapter";
 
+export type FallbackableHttpClient = HttpClient & { isFallbackEnabled: boolean };
 export function createFallbackableHttpClient(
   createHttpClient: typeof createDefaultHttpClient,
   fallbackHttpClient: HttpClient,
   options: ChainApiHttpClientOptions
-) {
-  return createHttpClient({
+): FallbackableHttpClient {
+  const httpClient = createHttpClient({
     baseURL: options.baseURL,
     adapter: createFetchAdapter({
       circuitBreaker: {
@@ -36,6 +37,12 @@ export function createFallbackableHttpClient(
       retries: 0
     }
   });
+
+  Object.defineProperty(httpClient, "isFallbackEnabled", {
+    get: options.shouldFallback
+  });
+
+  return httpClient as FallbackableHttpClient;
 }
 
 export interface ChainApiHttpClientOptions {

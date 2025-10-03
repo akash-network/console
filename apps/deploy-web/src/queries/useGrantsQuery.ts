@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useSettings } from "@src/context/SettingsProvider/SettingsProviderContext";
 import type { AllowanceType, PaginatedAllowanceType, PaginatedGrantType } from "@src/types/grant";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { QueryKeys } from "./queryKeys";
@@ -15,29 +14,25 @@ export function useGranterGrants(
   limit: number,
   options: Omit<UseQueryOptions<PaginatedGrantType>, "queryKey" | "queryFn"> = {}
 ) {
-  const { settings } = useSettings();
-  const { authzHttpService } = useServices();
+  const { authzHttpService, chainApiHttpClient } = useServices();
   const offset = page * limit;
-
-  options.enabled = options.enabled !== false && !!address && authzHttpService.isReady && !settings.isBlockchainDown;
 
   return useQuery({
     queryKey: QueryKeys.getGranterGrants(address, page, offset),
     queryFn: () => authzHttpService.getPaginatedDepositDeploymentGrants({ granter: address, limit, offset }),
-    ...options
+    ...options,
+    enabled: options.enabled !== false && !!address && !chainApiHttpClient.isFallbackEnabled
   });
 }
 
 export function useGranteeGrants(address: string, options: Omit<UseQueryOptions<DepositDeploymentGrant[]>, "queryKey" | "queryFn"> = {}) {
-  const { settings } = useSettings();
-  const { authzHttpService } = useServices();
-
-  options.enabled = options.enabled !== false && !!address && authzHttpService.isReady && !settings.isBlockchainDown;
+  const { authzHttpService, chainApiHttpClient } = useServices();
 
   return useQuery({
     queryKey: QueryKeys.getGranteeGrants(address || "UNDEFINED"),
     queryFn: () => authzHttpService.getAllDepositDeploymentGrants({ grantee: address, limit: 1000 }),
-    ...options
+    ...options,
+    enabled: options.enabled !== false && !!address && !chainApiHttpClient.isFallbackEnabled
   });
 }
 
@@ -47,16 +42,14 @@ export function useAllowancesIssued(
   limit: number,
   options: Omit<UseQueryOptions<PaginatedAllowanceType>, "queryKey" | "queryFn"> = {}
 ) {
-  const { settings } = useSettings();
-  const { authzHttpService } = useServices();
+  const { authzHttpService, chainApiHttpClient } = useServices();
   const offset = page * limit;
-
-  options.enabled = options.enabled !== false && !!address && authzHttpService.isReady && !settings.isBlockchainDown;
 
   return useQuery({
     queryKey: QueryKeys.getAllowancesIssued(address, page, offset),
     queryFn: () => authzHttpService.getPaginatedFeeAllowancesForGranter(address, limit, offset),
-    ...options
+    ...options,
+    enabled: options.enabled !== false && !!address && !chainApiHttpClient.isFallbackEnabled
   });
 }
 
@@ -65,14 +58,12 @@ async function getAllowancesGranted(chainApiHttpClient: AxiosInstance, address: 
 }
 
 export function useAllowancesGranted(address: string, options: Omit<UseQueryOptions<AllowanceType[]>, "queryKey" | "queryFn"> = {}) {
-  const { settings } = useSettings();
   const { chainApiHttpClient } = useServices();
-
-  options.enabled = options.enabled !== false && !!address && !!chainApiHttpClient.defaults.baseURL && !settings.isBlockchainDown;
 
   return useQuery({
     queryKey: address ? QueryKeys.getAllowancesGranted(address) : [],
     queryFn: () => getAllowancesGranted(chainApiHttpClient, address),
-    ...options
+    ...options,
+    enabled: options.enabled !== false && !!address && !chainApiHttpClient.isFallbackEnabled
   });
 }

@@ -15,7 +15,8 @@ export function useBlock(id: string, options: Omit<UseQueryOptions<Block, Error,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    ...options
+    ...options,
+    enabled: options.enabled !== false && !!chainApiHttpClient.defaults.baseURL && !chainApiHttpClient.isFallbackEnabled
   });
 }
 

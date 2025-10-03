@@ -36,7 +36,8 @@ export function useBidList(address: string, dseq: string, options?: Omit<UseQuer
   return useQuery({
     queryKey: QueryKeys.getBidListKey(address, dseq) as QueryKey,
     queryFn: () => getBidList(chainApiHttpClient, address, dseq),
-    ...options
+    ...options,
+    enabled: options?.enabled !== false && !chainApiHttpClient.isFallbackEnabled
   });
 }
 
@@ -48,11 +49,19 @@ async function getBidInfo(apiClient: AxiosInstance, address: string, dseq: strin
   return response.data;
 }
 
-export function useBidInfo(address: string, dseq: string, gseq: number, oseq: number, provider: string, options = {}) {
+export function useBidInfo(
+  address: string,
+  dseq: string,
+  gseq: number,
+  oseq: number,
+  provider: string,
+  options?: Omit<UseQueryOptions<RpcBid | null>, "queryKey" | "queryFn">
+) {
   const { chainApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getBidInfoKey(address, dseq, gseq, oseq, provider),
     queryFn: () => getBidInfo(chainApiHttpClient, address, dseq, gseq, oseq, provider),
-    ...options
+    ...options,
+    enabled: options?.enabled !== false && !chainApiHttpClient.isFallbackEnabled
   });
 }

@@ -11,6 +11,7 @@ import { Title } from "@src/components/shared/Title";
 import { AddPaymentMethodPopup, DeletePaymentMethodPopup, PaymentForm } from "@src/components/user/payment";
 import { PaymentSuccessAnimation } from "@src/components/user/payment/PaymentSuccessAnimation";
 import { usePaymentPolling } from "@src/context/PaymentPollingProvider";
+import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
@@ -54,6 +55,7 @@ const PayPage: React.FunctionComponent = () => {
     },
     showSuccessMessage: false
   });
+  const { settings } = useSettings();
 
   const isLoading = isLoadingPaymentMethods;
   const { isTrialing } = useWallet();
@@ -258,6 +260,16 @@ const PayPage: React.FunctionComponent = () => {
           {paymentMethods.length > 0 && (
             <div className="mt-6">
               <h2 className="mb-3 text-lg font-semibold">Add credits</h2>
+              {settings.isBlockchainDown && (
+                <Alert variant="warning" className="mb-4">
+                  <p className="font-medium">
+                    We are currently experiencing a temporary blockchain outage, which may cause delays in processing your payments. Once the blockchain is back
+                    online, all pending transactions will be processed automatically.
+                    <br />
+                    If you encounter any issues or have urgent concerns, please don’t hesitate to reach out to us — we’re here to help.
+                  </p>
+                </Alert>
+              )}
               <PaymentForm
                 amount={amount}
                 onAmountChange={handleAmountChange}
