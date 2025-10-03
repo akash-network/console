@@ -2,10 +2,10 @@ import type * as v1beta1 from "@akashnetwork/akash-api/v1beta1";
 import type * as v1beta2 from "@akashnetwork/akash-api/v1beta2";
 import type * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
 import type * as prevV1beta4 from "@akashnetwork/akash-api/v1beta4";
-import type * as v1 from "@akashnetwork/chain-sdk/chain/types/akash.v1";
-import { Scope } from "@akashnetwork/chain-sdk/chain/types/akash.v1";
-import type * as v1beta4 from "@akashnetwork/chain-sdk/chain/types/akash.v1beta4";
-import type * as v1beta5 from "@akashnetwork/chain-sdk/chain/types/akash.v1beta5";
+import type * as v1 from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { Scope } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import type * as v1beta4 from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import type * as v1beta5 from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
 import {
   Bid,
