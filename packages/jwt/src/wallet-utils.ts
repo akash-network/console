@@ -15,13 +15,13 @@ const BASE_HD_PATH = "m/44'/118'/0'/0/";
  * @param wallet - The DirectSecp256k1HdWallet instance to use for signing
  * @returns An Akash Wallet interface implementation
  */
-export async function createSignArbitraryAkashWallet(wallet: DirectSecp256k1HdWallet): Promise<SignArbitraryAkashWallet> {
+export async function createSignArbitraryAkashWallet(wallet: DirectSecp256k1HdWallet, accountIndex: number = 0): Promise<SignArbitraryAkashWallet> {
   const [account] = await wallet.getAccounts();
 
   return {
     pubkey: account.pubkey,
     address: account.address,
-    signArbitrary: async (signer: string, data: string | Uint8Array, accountIndex: number = 0): Promise<StdSignature> => {
+    signArbitrary: async (signer: string, data: string | Uint8Array): Promise<StdSignature> => {
       const message = typeof data === "string" ? new TextEncoder().encode(data) : data;
       const hashedMessage = sha256(message);
       const seed = await fromMnemonic(wallet.mnemonic);

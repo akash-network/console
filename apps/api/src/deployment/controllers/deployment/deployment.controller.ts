@@ -3,7 +3,6 @@ import { singleton } from "tsyringe";
 import { z } from "zod";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
-import { UserWalletRepository } from "@src/billing/repositories";
 import {
   CloseDeploymentResponse,
   CreateDeploymentRequest,
@@ -27,82 +26,49 @@ export class DeploymentController {
   constructor(
     private readonly deploymentReaderService: DeploymentReaderService,
     private readonly deploymentWriterService: DeploymentWriterService,
-    private readonly authService: AuthService,
-    private readonly userWalletRepository: UserWalletRepository
+    private readonly authService: AuthService
   ) {}
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async findByDseq(dseq: string): Promise<GetDeploymentResponse> {
-    const { currentUser, ability } = this.authService;
-
-    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
-    assert(userWallet, 404, "UserWallet Not Found");
-
-    const deployment = await this.deploymentReaderService.findByOwnerAndDseq(userWallet.address!, dseq);
-
-    return {
-      data: deployment
-    };
+    const deployment = await this.deploymentReaderService.findByUserIdAndDseq(this.authService.currentUser.id, dseq);
+    return { data: deployment };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async create(input: CreateDeploymentRequest["data"]): Promise<CreateDeploymentResponse> {
-    const { currentUser, ability } = this.authService;
-
-    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
-    assert(userWallet, 404, "UserWallet Not Found");
-
-    const result = await this.deploymentWriterService.create(userWallet, input);
-
-    return {
-      data: result
-    };
-  }
-
-  @Protected([{ action: "sign", subject: "UserWallet" }])
-  async close(dseq: string): Promise<CloseDeploymentResponse> {
-    const { currentUser, ability } = this.authService;
-
-    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
-    assert(userWallet, 404, "UserWallet Not Found");
-
-    const result = await this.deploymentWriterService.close(userWallet, dseq);
-
+    const result = await this.deploymentWriterService.create({ ...input, userId: this.authService.currentUser.id });
     return { data: result };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
+  async close(dseq: string): Promise<CloseDeploymentResponse> {
+    await this.deploymentWriterService.closeByUserIdAndDseq(this.authService.currentUser.id, dseq);
+    return { data: { success: true } };
+  }
+
+  @Protected([{ action: "sign", subject: "UserWallet" }])
   async deposit(input: DepositDeploymentRequest["data"]): Promise<DepositDeploymentResponse> {
-    const { currentUser, ability } = this.authService;
-
-    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
-    assert(userWallet, 404, "UserWallet Not Found");
-
-    const result = await this.deploymentWriterService.deposit(userWallet, input.dseq, input.deposit);
-
+    const result = await this.deploymentWriterService.deposit({
+      dseq: input.dseq,
+      amount: input.deposit,
+      userId: this.authService.currentUser.id
+    });
     return { data: result };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async update(dseq: string, input: UpdateDeploymentRequest["data"]): Promise<UpdateDeploymentResponse> {
-    const { currentUser, ability } = this.authService;
-
-    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
-    assert(userWallet, 404, "UserWallet Not Found");
-
-    const result = await this.deploymentWriterService.update(userWallet, dseq, input);
-
+    const result = await this.deploymentWriterService.updateByUserIdAndDseq(this.authService.currentUser.id, dseq, input);
     return { data: result };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async list({ skip, limit }: { skip?: number; limit?: number }): Promise<z.infer<typeof ListDeploymentsResponseSchema>> {
-    const { currentUser, ability } = this.authService;
-
-    const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findOneByUserId(currentUser.id);
-    assert(userWallet, 404, "UserWallet Not Found");
-
-    const { deployments, total, hasMore } = await this.deploymentReaderService.list(userWallet.address!, {
+    const { deployments, total, hasMore } = await this.deploymentReaderService.list({
+      query: {
+        userId: this.authService.currentUser.id
+      },
       skip,
       limit
     });

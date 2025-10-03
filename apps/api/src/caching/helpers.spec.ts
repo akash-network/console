@@ -175,11 +175,6 @@ describe("Memoize Function", () => {
       expect(requestCount).toBe(1);
       expect(refreshRequest).toHaveBeenCalledTimes(1);
     });
-
-    function setup() {
-      jest.clearAllMocks();
-      cacheEngine.clearAllKeyInCache();
-    }
   });
 
   describe("Memoize decorator", () => {
@@ -210,30 +205,48 @@ describe("Memoize Function", () => {
       expect(descriptor?.value).toBeDefined();
     });
 
-    it("should include string arguments in cache key", () => {
+    it("should include string and number arguments in cache key", async () => {
+      setup();
+
       class TestClass {
         @Memoize()
-        async testMethod(_arg1: string, _arg2: string) {
+        async testMethod(_arg1: string, _arg2: number) {
           return "test";
         }
       }
 
-      const descriptor = Object.getOwnPropertyDescriptor(TestClass.prototype, "testMethod");
+      const instance = new TestClass();
+      await instance.testMethod("test", 123);
+      await instance.testMethod("test", 456);
 
-      expect(descriptor?.value).toBeDefined();
+      const cacheKeys = cacheEngine.getKeys();
+      expect(cacheKeys).toHaveLength(2);
+      expect(cacheKeys).toContain("TestClass#testMethod#test#123");
+      expect(cacheKeys).toContain("TestClass#testMethod#test#456");
     });
 
-    it("should filter out non-string arguments from cache key", () => {
+    it("should filter out other types of arguments from cache key", async () => {
+      setup();
+
       class TestClass {
         @Memoize()
-        async testMethod(_arg1: string, _arg2: number, _arg3: object) {
+        async testMethod(_arg1: string, _arg2: object) {
           return "test";
         }
       }
 
-      const descriptor = Object.getOwnPropertyDescriptor(TestClass.prototype, "testMethod");
+      const instance = new TestClass();
+      await instance.testMethod("test", { test: "test1" });
+      await instance.testMethod("test", { test: "test2" });
 
-      expect(descriptor?.value).toBeDefined();
+      const cacheKeys = cacheEngine.getKeys();
+      expect(cacheKeys).toHaveLength(1);
+      expect(cacheKeys).toContain("TestClass#testMethod#test");
     });
   });
+
+  function setup() {
+    jest.clearAllMocks();
+    cacheEngine.clearAllKeyInCache();
+  }
 });

@@ -1,14 +1,17 @@
 import { z } from "zod";
 
-export const ApiKeyResponseSchema = z.object({
+export const ApiKeyHiddenSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   expiresAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   lastUsedAt: z.string().datetime().nullable(),
-  keyFormat: z.string(),
-  apiKey: z.string().optional()
+  keyFormat: z.string()
+});
+
+export const ApiKeyVisibleSchema = ApiKeyHiddenSchema.extend({
+  apiKey: z.string()
 });
 
 export const CreateApiKeySchema = z.object({
@@ -23,8 +26,6 @@ export const CreateApiKeySchema = z.object({
     .optional()
 });
 
-export const ListApiKeysSchema = z.array(ApiKeyResponseSchema);
-
 export const UpdateApiKeySchema = z.object({
   name: z.string().optional()
 });
@@ -34,11 +35,15 @@ export const FindApiKeyParamsSchema = z.object({
 });
 
 export const ListApiKeysResponseSchema = z.object({
-  data: ListApiKeysSchema
+  data: z.array(ApiKeyHiddenSchema)
 });
 
-export const SingleApiKeyResponseSchema = z.object({
-  data: ApiKeyResponseSchema
+export const ApiKeyVisibleResponseSchema = z.object({
+  data: ApiKeyVisibleSchema
+});
+
+export const ApiKeyHiddenResponseSchema = z.object({
+  data: ApiKeyHiddenSchema
 });
 
 export const CreateApiKeyRequestSchema = z.object({
@@ -49,17 +54,8 @@ export const UpdateApiKeyRequestSchema = z.object({
   data: UpdateApiKeySchema
 });
 
-export const ErrorResponseSchema = z.object({
-  message: z.string(),
-  code: z.string().optional(),
-  type: z.string().optional()
-});
-
-export type ApiKeyResponse = z.infer<typeof ApiKeyResponseSchema>;
 export type ListApiKeysResponse = z.infer<typeof ListApiKeysResponseSchema>;
-export type SingleApiKeyResponse = z.infer<typeof SingleApiKeyResponseSchema>;
+export type ApiKeyVisibleResponse = z.infer<typeof ApiKeyVisibleResponseSchema>;
+export type ApiKeyHiddenResponse = z.infer<typeof ApiKeyHiddenResponseSchema>;
 export type CreateApiKeyRequest = z.infer<typeof CreateApiKeyRequestSchema>;
 export type UpdateApiKeyRequest = z.infer<typeof UpdateApiKeyRequestSchema>;
-export type FindApiKeyParams = z.infer<typeof FindApiKeyParamsSchema>;
-export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
-export type ListApiKeys = z.infer<typeof ListApiKeysSchema>;
