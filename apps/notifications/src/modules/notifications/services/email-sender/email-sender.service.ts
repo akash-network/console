@@ -56,7 +56,7 @@ export class EmailSenderService {
         workflow_id: this.configService.getOrThrow("notifications.NOVU_MAILER_WORKFLOW_ID")
       });
     } catch (error) {
-      this.loggerService.error("Failed to track email analytics", error);
+      this.loggerService.error({ message: "Failed to track email analytics", error });
     }
   }
 }

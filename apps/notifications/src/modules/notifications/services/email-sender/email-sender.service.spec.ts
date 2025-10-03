@@ -77,7 +77,7 @@ describe(EmailSenderService.name, () => {
         subject: params.subject,
         workflow_id: novuWorkflowId
       });
-      expect(loggerService.error).toHaveBeenCalledWith("Failed to track email analytics", analyticsError);
+      expect(loggerService.error).toHaveBeenCalledWith({ message: "Failed to track email analytics", error: analyticsError });
     });
   });
 
