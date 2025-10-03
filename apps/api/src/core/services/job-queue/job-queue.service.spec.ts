@@ -3,6 +3,7 @@ import type PgBoss from "pg-boss";
 
 import type { LoggerService } from "@src/core/providers/logging.provider";
 import type { CoreConfigService } from "../core-config/core-config.service";
+import type { ExecutionContextService } from "../execution-context/execution-context.service";
 import { type Job, JOB_NAME, type JobHandler, JobQueueService } from "./job-queue.service";
 
 describe(JobQueueService.name, () => {
@@ -249,10 +250,19 @@ describe(JobQueueService.name, () => {
           work: jest.fn().mockResolvedValue(undefined),
           start: jest.fn().mockResolvedValue(undefined),
           stop: jest.fn().mockResolvedValue(undefined)
-        })
+        }),
+      executionContextService: mock<ExecutionContextService>({
+        set: jest.fn().mockResolvedValue(undefined),
+        runWithContext: jest.fn(async (cb: () => Promise<any>) => await cb())
+      })
     };
 
-    const service = new JobQueueService(mocks.logger, mocks.coreConfig, input && Object.hasOwn(input, "pgBoss") ? input?.pgBoss : mocks.pgBoss);
+    const service = new JobQueueService(
+      mocks.logger,
+      mocks.coreConfig,
+      mocks.executionContextService,
+      input && Object.hasOwn(input, "pgBoss") ? input?.pgBoss : mocks.pgBoss
+    );
 
     return { service, ...mocks };
   }
