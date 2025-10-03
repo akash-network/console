@@ -31,6 +31,7 @@ export class TransactionMessageData {
     MSG_CREATE_LEASE: "",
     MSG_REVOKE_CERTIFICATE: "",
     MSG_CREATE_CERTIFICATE: "",
+    MSG_CREATE_JWT: "",
     MSG_UPDATE_PROVIDER: "",
 
     // Cosmos
@@ -62,6 +63,18 @@ export class TransactionMessageData {
         owner: address,
         cert: Buffer.from(crtpem).toString("base64"),
         pubkey: Buffer.from(pubpem).toString("base64")
+      }
+    };
+
+    return message;
+  }
+
+  static getCreateJwtMsg(address: string, token: string) {
+    const message = {
+      typeUrl: TransactionMessageData.Types.MSG_CREATE_JWT,
+      value: {
+        owner: address,
+        token: Buffer.from(token).toString("base64")
       }
     };
 

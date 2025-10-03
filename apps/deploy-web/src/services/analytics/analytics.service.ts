@@ -37,6 +37,7 @@ export type AnalyticsEvent =
   | "create_certificate"
   | "regenerate_certificate"
   | "export_certificate"
+  | "create_jwt"
   | "deployment_deposit"
   | "close_deployment"
   | "use_depositor"
