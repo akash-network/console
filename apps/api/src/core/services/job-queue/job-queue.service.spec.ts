@@ -198,12 +198,12 @@ describe(JobQueueService.name, () => {
       const mockError = new Error("PgBoss connection failed");
 
       let errorHandler: (error: Error) => void;
-      jest.spyOn(pgBoss, "on").mockImplementation((event: string, handler: (error: Error) => void) => {
+      jest.spyOn(pgBoss, "on").mockImplementation(((event, handler) => {
         if (event === "error") {
-          errorHandler = handler;
+          errorHandler = handler as (error: Error) => void;
         }
         return pgBoss;
-      });
+      }) as PgBoss["on"]);
 
       await service.setup();
       errorHandler!(mockError);
@@ -228,12 +228,10 @@ describe(JobQueueService.name, () => {
   describe("ping", () => {
     it("pings PgBoss", async () => {
       const { service, pgBoss } = setup();
-      // @ts-expect-error - getDb is not typed, see https://github.com/timgit/pg-boss/issues/552#issuecomment-3213043039
       jest.spyOn(pgBoss, "getDb").mockReturnValue({ executeSql: jest.fn().mockResolvedValue(undefined) });
       await service.ping();
 
-      // @ts-expect-error - getDb is not typed, see https://github.com/timgit/pg-boss/issues/552#issuecomment-3213043039
-      expect(pgBoss.getDb().executeSql).toHaveBeenCalledWith("SELECT 1");
+      expect(pgBoss.getDb().executeSql).toHaveBeenCalledWith("SELECT 1", []);
     });
   });
 
