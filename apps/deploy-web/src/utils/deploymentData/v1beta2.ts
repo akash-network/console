@@ -208,8 +208,6 @@ export async function NewDeploymentData(
   };
 
   if (!id.dseq) {
-    console.log("Getting current height", new Error().stack);
-
     const response = await chainApiHttpClient.get("/blocks/latest");
     id.dseq = response.data.block.header.height;
   }

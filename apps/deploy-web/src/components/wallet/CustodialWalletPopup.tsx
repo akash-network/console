@@ -62,7 +62,7 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
               </span>
             </div>
           </>
-        )) || <div className="text-white-foreground space-x-2 text-xs">Wallet Balance is unknown because the blockchain is down</div>}
+        )) || <div className="space-x-2 text-xs text-white">Wallet Balance is unknown because the blockchain is down</div>}
       </div>
 
       <div className="text-xs text-muted-foreground">Wallet Actions</div>

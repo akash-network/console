@@ -100,7 +100,6 @@ export async function NewDeploymentData(
 
     let finalDseq: string = dseq || "";
     if (!finalDseq) {
-      console.log("Getting current height", new Error().stack);
       const response = await chainApiHttpClient.get("/blocks/latest");
       finalDseq = response.data.block.header.height;
     }
