@@ -244,8 +244,8 @@ async function insertBlocks(startHeight: number, endHeight: number) {
           ...event.attributes.map((attr, i) => ({
             transactionEventId: eventId,
             index: i,
-            key: atob(attr.key),
-            value: attr.value ? atob(attr.value) : attr.value
+            key: attr.key,
+            value: attr.value
           }))
         );
       }
