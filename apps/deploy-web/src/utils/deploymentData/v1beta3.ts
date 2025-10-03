@@ -1,10 +1,11 @@
 import type { Attribute } from "@akashnetwork/akash-api/akash/base/v1beta3";
+import type { HttpClient } from "@akashnetwork/http-sdk";
 import yaml from "js-yaml";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import networkStore from "@src/store/networkStore";
 import type { DepositParams } from "@src/types/deployment";
-import { CustomValidationError, getCurrentHeight, getSdl, Manifest, ManifestVersion } from "./helpers";
+import { CustomValidationError, getSdl, Manifest, ManifestVersion } from "./helpers";
 
 export const ENDPOINT_NAME_VALIDATION_REGEX = /^[a-z]+[-_\da-z]+$/;
 export const TRIAL_ATTRIBUTE = "console/trials";
@@ -81,7 +82,7 @@ function mapProviderAttributes(attributes: Attribute[]) {
 }
 
 export async function NewDeploymentData(
-  apiEndpoint: string,
+  chainApiHttpClient: HttpClient,
   yamlStr: string,
   dseq: string | null,
   fromAddress: string,
@@ -97,13 +98,20 @@ export async function NewDeploymentData(
     const version = await sdl.manifestVersion();
     const _deposit = (Array.isArray(deposit) && deposit.find(d => d.denom === denom)) || { denom, amount: deposit.toString() };
 
+    let finalDseq: string = dseq || "";
+    if (!finalDseq) {
+      console.log("Getting current height", new Error().stack);
+      const response = await chainApiHttpClient.get("/blocks/latest");
+      finalDseq = response.data.block.header.height;
+    }
+
     return {
       sdl: sdl.data,
       manifest: mani,
       groups: groups,
       deploymentId: {
         owner: fromAddress,
-        dseq: dseq || (await getCurrentHeight(apiEndpoint)).toString()
+        dseq: finalDseq
       },
       orderId: [],
       leaseId: [],

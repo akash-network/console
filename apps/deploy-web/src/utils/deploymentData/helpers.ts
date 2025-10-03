@@ -1,7 +1,6 @@
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
 import type { v2Sdl } from "@akashnetwork/akashjs/build/sdl/types";
 import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
-import axios from "axios";
 
 export class CustomValidationError extends Error {
   constructor(message: string) {
@@ -30,14 +29,6 @@ const specSuffixes = {
   Pb: 1000 * 1000 * 1000 * 1000 * 1000,
   Eb: 1000 * 1000 * 1000 * 1000 * 1000 * 1000
 };
-
-export async function getCurrentHeight(apiEndpoint: string) {
-  const response = await axios.get(`${apiEndpoint}/blocks/latest`);
-  const data = response.data;
-
-  const height = parseInt(data.block.header.height);
-  return height;
-}
 
 export function parseSizeStr(str: string) {
   try {

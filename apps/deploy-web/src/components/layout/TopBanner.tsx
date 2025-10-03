@@ -22,7 +22,7 @@ function CreditCardBanner() {
 function NetworkDownBanner() {
   return (
     <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
-      <span className="text-xs font-semibold text-white md:text-sm">The network is down. Unable to change deployments at the moment.</span>
+      <span className="text-xs font-semibold text-white md:text-sm">The blockchain is down. Console is in read-only mode.</span>
     </div>
   );
 }
@@ -49,12 +49,12 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
 export function TopBanner() {
   const { isMaintenanceBannerOpen, setIsMaintenanceBannerOpen, isBlockchainDown, hasCreditCardBanner } = useTopBanner();
 
-  if (isMaintenanceBannerOpen) {
-    return <MaintenanceBanner onClose={() => setIsMaintenanceBannerOpen(false)} />;
-  }
-
   if (isBlockchainDown) {
     return <NetworkDownBanner />;
+  }
+
+  if (isMaintenanceBannerOpen) {
+    return <MaintenanceBanner onClose={() => setIsMaintenanceBannerOpen(false)} />;
   }
 
   if (hasCreditCardBanner) {

@@ -11,10 +11,8 @@ import { LinkTo } from "@src/components/shared/LinkTo";
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { useCertificate } from "@src/context/CertificateProvider";
 import { useServices } from "@src/context/ServicesProvider";
-import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import networkStore from "@src/store/networkStore";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
@@ -43,12 +41,11 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   editedManifest,
   onManifestChange
 }) => {
-  const { providerProxy } = useServices();
+  const { providerProxy, analyticsService, chainApiHttpClient } = useServices();
   const [parsingError, setParsingError] = useState<string | null>(null);
   const [deploymentVersion, setDeploymentVersion] = useState<string | null>(null);
   const [showOutsideDeploymentMessage, setShowOutsideDeploymentMessage] = useState(false);
   const [isSendingManifest, setIsSendingManifest] = useState(false);
-  const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged: isManagedWallet } = useWallet();
   const { data: providers } = useProviderList();
   const { localCert, isLocalCertMatching } = useCertificate();
@@ -85,7 +82,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
       try {
         if (!editedManifest) return null;
 
-        await deploymentData.NewDeploymentData(settings.apiEndpoint, yamlStr, dseq, address);
+        await deploymentData.NewDeploymentData(chainApiHttpClient, yamlStr, dseq, address);
 
         setParsingError(null);
       } catch (err: any) {
@@ -107,7 +104,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
         clearTimeout(timeoutId);
       }
     };
-  }, [editedManifest, deployment.dseq, settings.apiEndpoint, address]);
+  }, [editedManifest, deployment.dseq, chainApiHttpClient, address]);
 
   function handleTextChange(value: string | undefined) {
     onManifestChange(value || "");
@@ -143,7 +140,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     try {
       const doc = yaml.load(editedManifest);
 
-      const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, editedManifest, deployment.dseq, address); // TODO Flags
+      const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, editedManifest, deployment.dseq, address); // TODO Flags
       const mani = deploymentData.getManifest(doc, true);
 
       // If it's actual update, send a transaction, else just send the manifest

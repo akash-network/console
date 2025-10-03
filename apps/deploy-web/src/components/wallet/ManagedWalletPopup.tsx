@@ -13,7 +13,7 @@ import { LinkTo } from "../shared/LinkTo";
 import { AddFundsLink } from "../user/AddFundsLink";
 
 interface ManagedWalletPopupProps extends React.PropsWithChildren {
-  walletBalance: WalletBalance;
+  walletBalance?: WalletBalance | null;
 }
 
 export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBalance }) => {
@@ -29,31 +29,35 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
         </div>
       )}
       <div className="rounded-md border border-primary/50 bg-primary/10 p-2 text-primary dark:bg-primary dark:text-foreground">
-        <div className="flex items-center justify-between space-x-2">
-          <span className="text-xs">Credits Remaining:</span>
-          <span>
-            <FormattedNumber
-              value={walletBalance.totalDeploymentGrantsUSD}
-              // eslint-disable-next-line react/style-prop-object
-              style="currency"
-              currency="USD"
-            />
-          </span>
-        </div>
+        {(walletBalance && (
+          <>
+            <div className="flex items-center justify-between space-x-2">
+              <span className="text-xs">Credits Remaining:</span>
+              <span>
+                <FormattedNumber
+                  value={walletBalance.totalDeploymentGrantsUSD}
+                  // eslint-disable-next-line react/style-prop-object
+                  style="currency"
+                  currency="USD"
+                />
+              </span>
+            </div>
 
-        <Separator className="my-2 bg-primary/50 dark:bg-white/20" />
+            <Separator className="my-2 bg-primary/50 dark:bg-white/20" />
 
-        <div className="flex items-center justify-between space-x-2">
-          <span className="text-xs">Deposits:</span>
-          <span>
-            <FormattedNumber
-              value={walletBalance.totalDeploymentEscrowUSD}
-              // eslint-disable-next-line react/style-prop-object
-              style="currency"
-              currency="USD"
-            />
-          </span>
-        </div>
+            <div className="flex items-center justify-between space-x-2">
+              <span className="text-xs">Deposits:</span>
+              <span>
+                <FormattedNumber
+                  value={walletBalance.totalDeploymentEscrowUSD}
+                  // eslint-disable-next-line react/style-prop-object
+                  style="currency"
+                  currency="USD"
+                />
+              </span>
+            </div>
+          </>
+        )) || <div className="text-white-foreground space-x-2 text-xs">Wallet Balance is unknown because the blockchain is down</div>}
       </div>
       <div className="mb-2 mt-1 flex items-center justify-end">
         <LinkTo className="text-xs text-foreground no-underline" onClick={() => showManagedEscrowFaqModal()}>
