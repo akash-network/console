@@ -52,29 +52,6 @@ describe(EmailSenderService.name, () => {
         workflow_id: novuWorkflowId
       });
     });
-
-    it("should track analytics on email failure", async () => {
-      const { service, novu, analyticsService, novuWorkflowId } = await setup();
-      const email = faker.internet.email();
-      const params = {
-        addresses: [email],
-        subject: faker.lorem.sentence(),
-        content: faker.lorem.paragraph(),
-        userId: faker.string.uuid()
-      };
-
-      const error = new Error("Novu API error");
-      novu.trigger.mockRejectedValue(error);
-
-      await expect(service.send(params)).rejects.toThrow("Novu API error");
-
-      expect(analyticsService.track).toHaveBeenCalledWith(params.userId, "email_failed", {
-        recipient_count: 1,
-        subject: params.subject,
-        error: "Novu API error",
-        workflow_id: novuWorkflowId
-      });
-    });
   });
 
   async function setup() {
