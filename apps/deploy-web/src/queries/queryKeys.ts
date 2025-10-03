@@ -71,7 +71,6 @@ export class QueryKeys {
   static getFeatureFlagsKey = (networkId: string) => ["FEATURE_FLAGS", networkId];
 
   static getPaymentMethodsKey = () => ["PAYMENT_METHODS"];
-  static getPaymentDiscountsKey = () => ["PAYMENT_DISCOUNTS"];
 
   static getManagedWalletKey = (userId?: string) => ["MANAGED_WALLET", userId || ""];
 

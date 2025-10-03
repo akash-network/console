@@ -15,7 +15,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { use3DSecure } from "@src/hooks/use3DSecure";
 import { useUser } from "@src/hooks/useUser";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
-import { usePaymentDiscountsQuery, usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
+import { usePaymentMethodsQuery, usePaymentMutations, useSetupIntentMutation } from "@src/queries";
 import { handleCouponError, handleStripeError } from "@src/utils/stripeErrorHandler";
 import { withCustomPageAuthRequired } from "@src/utils/withCustomPageAuthRequired";
 
@@ -38,7 +38,6 @@ const PayPage: React.FunctionComponent = () => {
   const { enqueueSnackbar } = useSnackbar();
   const { user } = useUser();
   const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods, refetch: refetchPaymentMethods } = usePaymentMethodsQuery();
-  const { data: discounts = [], isLoading: isLoadingDiscounts, refetch: refetchDiscounts } = usePaymentDiscountsQuery();
   const { data: setupIntent, mutate: createSetupIntent, reset: resetSetupIntent } = useSetupIntentMutation();
   const {
     confirmPayment: { isPending: isConfirmingPayment, mutateAsync: confirmPayment },
@@ -56,7 +55,7 @@ const PayPage: React.FunctionComponent = () => {
     showSuccessMessage: false
   });
 
-  const isLoading = isLoadingPaymentMethods || isLoadingDiscounts;
+  const isLoading = isLoadingPaymentMethods;
   const { isTrialing } = useWallet();
 
   useEffect(() => {
@@ -73,13 +72,6 @@ const PayPage: React.FunctionComponent = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amount]);
-
-  useEffect(() => {
-    if (discounts.length > 0 && !amount) {
-      setAmount(getDiscountedAmount().toString());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [discounts]);
 
   const clearError = () => {
     if (error) {
@@ -158,7 +150,6 @@ const PayPage: React.FunctionComponent = () => {
       }
 
       enqueueSnackbar(<Snackbar title="Coupon applied successfully!" iconVariant="success" />, { variant: "success", autoHideDuration: 5_000 });
-      refetchDiscounts();
       setCoupon("");
     } catch (error: unknown) {
       const errorInfo = handleStripeError(error);
@@ -190,51 +181,14 @@ const PayPage: React.FunctionComponent = () => {
     }
   };
 
-  const getDiscountedAmount = () => {
-    let totalDiscount = 0;
-    discounts.forEach(discount => {
-      if (discount.valid && discount.amount_off) {
-        totalDiscount += discount.amount_off / 100; // Convert cents to dollars
-      }
-    });
-    return totalDiscount;
-  };
-
-  const calculateDiscountAmount = (amount: number) => {
-    let totalDiscount = 0;
-    discounts.forEach(discount => {
-      if (discount.valid) {
-        if (discount.percent_off) {
-          totalDiscount += (amount * discount.percent_off) / 100;
-        } else if (discount.amount_off) {
-          totalDiscount += discount.amount_off / 100; // Convert cents to dollars
-        }
-      }
-    });
-    return totalDiscount;
-  };
-
-  const getFinalAmount = (amount: string) => {
-    const numAmount = amount ? parseFloat(amount) : 0;
-    const discount = calculateDiscountAmount(numAmount);
-    return Math.max(0, numAmount - discount);
-  };
-
   const validateAmount = (value: number) => {
-    const finalAmount = getFinalAmount(value.toString());
-
     if (value <= 0) {
       setAmountError("Amount must be greater than $0");
       return false;
     }
 
-    if (!discounts.length && value < MINIMUM_PAYMENT_AMOUNT) {
+    if (value < MINIMUM_PAYMENT_AMOUNT) {
       setAmountError(`Minimum amount is $${MINIMUM_PAYMENT_AMOUNT}`);
-      return false;
-    }
-
-    if (finalAmount > 0 && finalAmount < 1) {
-      setAmountError("Final amount after discount must be at least $1");
       return false;
     }
 
@@ -311,8 +265,6 @@ const PayPage: React.FunctionComponent = () => {
                 coupon={coupon}
                 onCouponChange={handleCouponChange}
                 onClaimCoupon={handleClaimCoupon}
-                discounts={discounts}
-                getFinalAmount={getFinalAmount}
                 processing={isConfirmingPayment || isPolling}
                 selectedPaymentMethodId={selectedPaymentMethodId}
                 onPayment={handlePayment}
