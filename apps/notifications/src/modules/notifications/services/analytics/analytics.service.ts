@@ -1,23 +1,25 @@
-import { inject, singleton } from "tsyringe";
+import { Inject, Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 
-import { AMPLITUDE, type Amplitude } from "@src/core/providers/amplitude.provider";
-import { HASHER, type Hasher } from "@src/core/providers/hash.provider";
-import { LoggerService } from "@src/core/providers/logging.provider";
-import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import { LoggerService } from "@src/common/services/logger/logger.service";
+import { Namespaced } from "@src/lib/types/namespaced-config.type";
+import { NotificationEnvConfig } from "@src/modules/notifications/config/env.config";
+import { Amplitude } from "@src/modules/notifications/providers/amplitude.provider";
+import { Hasher } from "@src/modules/notifications/providers/hash.provider";
 
-type AnalyticsEvent = "user_registered" | "balance_top_up";
+type AnalyticsEvent = "email_sent" | "email_failed";
 
-@singleton()
+@Injectable()
 export class AnalyticsService {
   private readonly samplingRate: number;
 
   constructor(
-    @inject(AMPLITUDE) private readonly amplitude: Amplitude,
-    @inject(HASHER) private readonly hasher: Hasher,
-    private readonly coreConfigService: CoreConfigService,
+    @Inject("AMPLITUDE") private readonly amplitude: Amplitude,
+    @Inject("HASHER") private readonly hasher: Hasher,
+    private readonly configService: ConfigService<Namespaced<"notifications", NotificationEnvConfig>>,
     private readonly loggerService: LoggerService
   ) {
-    loggerService.setContext(AnalyticsService.name);
+    this.loggerService.setContext(AnalyticsService.name);
     this.samplingRate = this.validateSamplingRate();
   }
 
@@ -38,7 +40,7 @@ export class AnalyticsService {
   }
 
   private validateSamplingRate(): number {
-    const rawValue = this.coreConfigService.get("AMPLITUDE_SAMPLING");
+    const rawValue = this.configService.getOrThrow("notifications.AMPLITUDE_SAMPLING");
     const samplingRate = Number(rawValue);
 
     if (!Number.isFinite(samplingRate)) {
