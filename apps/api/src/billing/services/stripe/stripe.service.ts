@@ -110,15 +110,6 @@ export class StripeService extends Stripe {
       .sort((a, b) => b.created - a.created);
   }
 
-  private async handleZeroAmountPayment(customerId: string, originalAmountCents: number): Promise<{ success: boolean; paymentIntentId: string }> {
-    const user = await this.userRepository.findOneBy({ stripeCustomerId: customerId });
-    assert(user, 404, "User not found for customer ID");
-
-    await this.refillService.topUpWallet(originalAmountCents, user.id);
-
-    return { success: true, paymentIntentId: "pi_zero_amount" };
-  }
-
   async createPaymentIntent(params: {
     customer: string;
     payment_method: string;
