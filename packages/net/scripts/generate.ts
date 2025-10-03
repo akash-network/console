@@ -7,7 +7,7 @@ const PROJECT_DIR = normalize(joinPath(scriptDir, "..", "..", ".."));
 const PACKAGE_DIR = normalize(joinPath(scriptDir, ".."));
 const OUT_DIR = joinPath(PACKAGE_DIR, "src", "generated");
 const AKASH_NET_BASE = "https://raw.githubusercontent.com/akash-network/net/main";
-const networks = ["mainnet", "sandbox", "testnet-02", "testnet-7"];
+const networks = ["mainnet", "sandbox", "testnet-7"];
 
 async function main() {
   console.log(`Generate network configuration: ${networks.join(", ")}`);
