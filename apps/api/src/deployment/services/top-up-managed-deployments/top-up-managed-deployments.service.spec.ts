@@ -2,6 +2,7 @@ import "@test/mocks/logger-service.mock";
 
 import { LoggerService } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
+import type { MockProxy } from "jest-mock-extended";
 
 import type { Wallet } from "@src/billing/services";
 import { RpcMessageService } from "@src/billing/services";
@@ -10,10 +11,10 @@ import type { ChainErrorService } from "@src/billing/services/chain-error/chain-
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { DrainingDeploymentService } from "@src/deployment/services/draining-deployment/draining-deployment.service";
+import { mockConfigService } from "../../../../test/mocks/config-service.mock";
 import type { CachedBalanceService } from "../cached-balance/cached-balance.service";
 import { TopUpManagedDeploymentsService } from "./top-up-managed-deployments.service";
 
-import { MockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress } from "@test/seeders";
 import { AutoTopUpDeploymentSeeder } from "@test/seeders/auto-top-up-deployment.seeder";
 import { DrainingDeploymentSeeder } from "@test/seeders/draining-deployment.seeder";
@@ -30,7 +31,7 @@ jest.mock("@akashnetwork/logging", () => ({
 
 describe(TopUpManagedDeploymentsService.name, () => {
   let managedSignerService: jest.Mocked<ManagedSignerService>;
-  let billingConfig: MockConfigService<{ DEPLOYMENT_GRANT_DENOM: string; USDC_IBC_DENOMS: { mainnetId: string; sandboxId: string } }>;
+  let billingConfig: MockProxy<BillingConfigService>;
   let drainingDeploymentService: jest.Mocked<DrainingDeploymentService>;
   let managedMasterWallet: jest.Mocked<Wallet>;
   let rpcMessageService: RpcMessageService;
@@ -46,7 +47,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
   beforeEach(() => {
     managedSignerService = stub<ManagedSignerService>({ executeManagedTx: jest.fn() });
-    billingConfig = new MockConfigService<{ DEPLOYMENT_GRANT_DENOM: string; USDC_IBC_DENOMS: { mainnetId: string; sandboxId: string } }>({
+    billingConfig = mockConfigService<BillingConfigService>({
       DEPLOYMENT_GRANT_DENOM,
       USDC_IBC_DENOMS: {
         mainnetId: DEPLOYMENT_GRANT_DENOM,
@@ -68,7 +69,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
 
     service = new TopUpManagedDeploymentsService(
       managedSignerService,
-      billingConfig as unknown as BillingConfigService,
+      billingConfig,
       drainingDeploymentService,
       managedMasterWallet,
       rpcMessageService,

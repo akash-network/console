@@ -1,5 +1,12 @@
 import { Attribute, SignedBy } from "@akashnetwork/akashjs/build/sdl/types";
-import { Provider, ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
+import {
+  Provider,
+  ProviderAttribute,
+  ProviderAttributeSignature,
+  ProviderSnapshot,
+  ProviderSnapshotNode,
+  ProviderSnapshotNodeGPU
+} from "@akashnetwork/database/dbSchemas/akash";
 import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
@@ -20,10 +27,6 @@ export class ProviderRepository {
     });
 
     return trialProviders.map(provider => provider.provider);
-  }
-
-  async getProvider(address: string): Promise<Provider | null> {
-    return await Provider.findByPk(address);
   }
 
   async getProvidersHostUriByAttributes(attributes: Attribute[], signatures?: Partial<SignedBy>): Promise<string[]> {
@@ -120,5 +123,82 @@ export class ProviderRepository {
       }
     });
     return rows.map(row => row.hostUri);
+  }
+
+  async getWithAttributesAndAuditors({ trial = false }: { trial?: boolean } = {}) {
+    return await Provider.findAll({
+      where: {
+        deletedHeight: null
+      },
+      order: [["createdHeight", "ASC"]],
+      include: [
+        {
+          model: ProviderAttribute
+        },
+        trial
+          ? {
+              model: ProviderAttributeSignature,
+              required: true,
+              where: {
+                auditor: AUDITOR,
+                key: TRIAL_ATTRIBUTE,
+                value: "true"
+              }
+            }
+          : {
+              model: ProviderAttributeSignature
+            }
+      ]
+    });
+  }
+
+  async getProviderWithNodes() {
+    return await Provider.findAll({
+      attributes: ["owner"],
+      where: {
+        deletedHeight: null
+      },
+      include: [
+        {
+          model: ProviderSnapshot,
+          required: true,
+          as: "lastSuccessfulSnapshot",
+          include: [
+            {
+              model: ProviderSnapshotNode,
+              attributes: ["id"],
+              required: false,
+              include: [{ model: ProviderSnapshotNodeGPU, required: false }]
+            }
+          ]
+        }
+      ]
+    });
+  }
+
+  async getProviderByAddressWithAttributes(address: string) {
+    return await Provider.findOne({
+      where: {
+        deletedHeight: null,
+        owner: address
+      },
+      include: [
+        {
+          model: ProviderAttribute
+        },
+        {
+          model: ProviderAttributeSignature
+        }
+      ]
+    });
+  }
+
+  async findActiveByAddress(address: string): Promise<Provider | null> {
+    return await Provider.findOne({
+      where: {
+        deletedHeight: null,
+        owner: address
+      }
+    });
   }
 }

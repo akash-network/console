@@ -7,6 +7,7 @@ import { InternalServerError } from "http-errors";
 import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
+import { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
@@ -20,14 +21,21 @@ export class DeploymentReaderService {
     private readonly providerService: ProviderService,
     private readonly deploymentHttpService: DeploymentHttpService,
     private readonly leaseHttpService: LeaseHttpService,
-    private readonly messageService: MessageService
+    private readonly messageService: MessageService,
+    private readonly walletReaderService: WalletReaderService
   ) {}
 
-  public async findByOwnerAndDseq(
-    owner: string,
+  public async findByUserIdAndDseq(userId: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    return this.findByWalletAndDseq(wallet, dseq);
+  }
+
+  public async findByWalletAndDseq(
+    wallet: WalletInitialized,
     dseq: string,
     options?: { certificate?: { certPem: string; keyPem: string } }
   ): Promise<GetDeploymentResponse["data"]> {
+    const { address: owner } = wallet;
     const deploymentResponse = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
 
     if ("code" in deploymentResponse) {
@@ -40,20 +48,13 @@ export class DeploymentReaderService {
 
     const leasesWithStatus = await Promise.all(
       leases.map(async ({ lease }) => {
-        if (!options?.certificate) {
-          return {
-            lease,
-            status: null
-          };
-        }
-
         try {
           const leaseStatus = await this.providerService.getLeaseStatus(
             lease.lease_id.provider,
             lease.lease_id.dseq,
             lease.lease_id.gseq,
             lease.lease_id.oseq,
-            options.certificate
+            await this.providerService.toProviderAuth(options?.certificate || { walletId: wallet.id, provider: lease.lease_id.provider })
           );
           return {
             lease,
@@ -78,10 +79,16 @@ export class DeploymentReaderService {
     };
   }
 
-  public async list(
-    owner: string,
-    { skip, limit }: { skip?: number; limit?: number }
-  ): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
+  public async list({
+    query,
+    skip,
+    limit
+  }: {
+    query: { userId: string };
+    skip?: number;
+    limit?: number;
+  }): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
+    const { address: owner } = await this.walletReaderService.getWalletByUserId(query.userId);
     const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
     const deploymentReponse = await this.deploymentHttpService.findAll({ owner, state: "active", pagination });
     const deployments = deploymentReponse.deployments;
@@ -100,7 +107,6 @@ export class DeploymentReaderService {
         })) ?? [],
       escrow_account: deployment.escrow_account
     }));
-
     return {
       deployments: deploymentsWithLeases,
       total,

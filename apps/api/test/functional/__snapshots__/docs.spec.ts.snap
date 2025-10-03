@@ -2102,9 +2102,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                     "data": {
                       "items": {
                         "properties": {
-                          "apiKey": {
-                            "type": "string",
-                          },
                           "createdAt": {
                             "format": "date-time",
                             "type": "string",
@@ -2241,6 +2238,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "updatedAt",
                         "lastUsedAt",
                         "keyFormat",
+                        "apiKey",
                       ],
                       "type": "object",
                     },
@@ -2322,9 +2320,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
-                        "apiKey": {
-                          "type": "string",
-                        },
                         "createdAt": {
                           "format": "date-time",
                           "type": "string",
@@ -2441,9 +2436,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
-                        "apiKey": {
-                          "type": "string",
-                        },
                         "createdAt": {
                           "format": "date-time",
                           "type": "string",
@@ -6121,7 +6113,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                     },
                     "required": [
                       "sdl",
-                      "certificate",
                     ],
                     "type": "object",
                   },
@@ -7368,7 +7359,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                 },
                 "required": [
                   "manifest",
-                  "certificate",
                   "leases",
                 ],
                 "type": "object",

@@ -5,9 +5,9 @@ import { AxiosHeaders } from "axios";
 import { once } from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-import type { ServerEnvConfig } from "@src/config/env-config.schema";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
+import { rewriteLocalRedirect } from "@src/services/auth/auth/rewrite-local-redirect";
 import type { SeverityLevel } from "@src/services/error-handler/error-handler.service";
 import type { UserSettings } from "@src/types/user";
 import { ANONYMOUS_HEADER_COOKIE_NAME } from "./signup";
@@ -134,15 +134,3 @@ const authHandler = once((services: AppServices) =>
     }
   })
 );
-
-function rewriteLocalRedirect(res: NextApiResponse<any>, config: Pick<ServerEnvConfig, "AUTH0_REDIRECT_BASE_URL" | "AUTH0_ISSUER_BASE_URL">) {
-  const redirect = res.redirect;
-
-  res.redirect = function rewriteLocalRedirect(urlOrStatus: string | number, maybeUrl?: string): NextApiResponse<any> {
-    const code = typeof urlOrStatus === "string" ? 302 : urlOrStatus;
-    const inputUrl = typeof urlOrStatus === "string" ? urlOrStatus : maybeUrl;
-    const rewritten = config.AUTH0_REDIRECT_BASE_URL ? inputUrl!.replace(config.AUTH0_ISSUER_BASE_URL, config.AUTH0_REDIRECT_BASE_URL || "") : inputUrl!;
-
-    return redirect.apply(this, [code, rewritten]);
-  };
-}
