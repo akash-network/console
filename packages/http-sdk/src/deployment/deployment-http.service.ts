@@ -105,7 +105,7 @@ export type RestAkashDeploymentInfoResponse =
     }
   | DeploymentInfo;
 
-type DeploymentListResponse = {
+export type DeploymentListResponse = {
   deployments: DeploymentInfo[];
   pagination: {
     next_key: string | null;
@@ -123,7 +123,7 @@ type DeploymentListParams = {
   "pagination.reverse"?: boolean;
 };
 
-interface PaginationParams {
+export interface PaginationParams {
   key?: string;
   offset?: number;
   limit?: number;
