@@ -221,7 +221,7 @@ export const YourAccount: React.FunctionComponent<Props> = ({ isLoadingBalances,
 
                     <div className="flex flex-wrap items-center gap-2">
                       {userProviders?.map(p => (
-                        <Link key={p.owner} href={UrlService.providerDetailLeases(p.owner)}>
+                        <Link key={p.owner} href={p.owner ? UrlService.providerDetailLeases(p.owner) : "#"}>
                           <Badge>{p.name}</Badge>
                         </Link>
                       ))}

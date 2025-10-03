@@ -20,7 +20,7 @@ import { PriceValue } from "../shared/PriceValue";
 import { ConnectManagedWalletButton } from "./ConnectManagedWalletButton";
 
 interface CustodialWalletPopupProps extends React.PropsWithChildren {
-  walletBalance: WalletBalance;
+  walletBalance?: WalletBalance | null;
 }
 
 const withBilling = browserEnvConfig.NEXT_PUBLIC_BILLING_ENABLED;
@@ -43,22 +43,26 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
 
       <div className="mb-1 text-xs text-muted-foreground">Wallet Balance</div>
       <div className="mb-4 rounded-md border border-success/10 bg-success/10 p-2 text-success dark:border-success/80 dark:bg-success/80 dark:text-foreground">
-        <div className="flex items-center justify-between space-x-2">
-          <span className="text-xs">AKT</span>
-          <span className="flex items-center space-x-1">
-            <PriceValue denom={UAKT_DENOM} value={uaktToAKT(walletBalance.totalUAKT, 2)} />
-            <span className="text-xs font-light">({uaktToAKT(walletBalance.totalUAKT, 2)} AKT)</span>
-          </span>
-        </div>
+        {(walletBalance && (
+          <>
+            <div className="flex items-center justify-between space-x-2">
+              <span className="text-xs">AKT</span>
+              <span className="flex items-center space-x-1">
+                <PriceValue denom={UAKT_DENOM} value={uaktToAKT(walletBalance.totalUAKT, 2)} />
+                <span className="text-xs font-light">({uaktToAKT(walletBalance.totalUAKT, 2)} AKT)</span>
+              </span>
+            </div>
 
-        <Separator className="my-2 bg-success/10 dark:bg-white/20" />
+            <Separator className="my-2 bg-success/10 dark:bg-white/20" />
 
-        <div className="flex items-center justify-between space-x-2">
-          <span className="text-xs">USDC</span>
-          <span>
-            <FormattedNumber value={udenomToDenom(walletBalance.totalUUSDC, 2)} style="currency" currency="USD" />
-          </span>
-        </div>
+            <div className="flex items-center justify-between space-x-2">
+              <span className="text-xs">USDC</span>
+              <span>
+                <FormattedNumber value={udenomToDenom(walletBalance.totalUUSDC, 2)} style="currency" currency="USD" />
+              </span>
+            </div>
+          </>
+        )) || <div className="text-white-foreground space-x-2 text-xs">Wallet Balance is unknown because the blockchain is down</div>}
       </div>
 
       <div className="text-xs text-muted-foreground">Wallet Actions</div>
