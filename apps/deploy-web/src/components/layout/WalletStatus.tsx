@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useState } from "react";
+import React, { useState } from "react";
 import { FormattedNumber } from "react-intl";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -27,10 +27,6 @@ export function WalletStatus() {
   const isLoadingBalance = isWalletBalanceLoading && !walletBalance;
   const isInit = isWalletLoaded && !isWalletLoading && !isLoadingBalance;
 
-  const openDropdown = useCallback(() => {
-    setOpen(true);
-  }, []);
-
   return (
     <>
       {isInit ? (
@@ -44,7 +40,7 @@ export function WalletStatus() {
                       "border-primary bg-primary/10 text-primary dark:bg-primary dark:text-primary-foreground": isManaged,
                       "bg-background text-foreground": !isManaged
                     })}
-                    onMouseOver={openDropdown}
+                    onMouseOver={() => setOpen(true)}
                   >
                     <div className="flex items-center space-x-2" aria-label="Connected wallet name and balance">
                       {isManaged && isTrialing && <span className="text-xs">Trial</span>}
