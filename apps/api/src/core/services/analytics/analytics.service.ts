@@ -39,11 +39,6 @@ export class AnalyticsService {
 
   private validateSamplingRate(): number {
     const rawValue = this.coreConfigService.get("AMPLITUDE_SAMPLING");
-
-    if (rawValue === undefined) {
-      throw new Error("AMPLITUDE_SAMPLING configuration is required but not found.");
-    }
-
     const samplingRate = Number(rawValue);
 
     if (!Number.isFinite(samplingRate)) {
