@@ -4,6 +4,7 @@ import type { AxiosInstance } from "axios";
 import { mock } from "jest-mock-extended";
 
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
+import type { FallbackableHttpClient } from "@src/services/createFallbackableHttpClient/createFallbackableHttpClient";
 import { CustomSnackbarProvider } from "../../../../packages/ui/context/CustomSnackbarProvider";
 import { setupQuery } from "../../tests/unit/query-client";
 import { useDepositParams, useSaveSettings } from "./useSaveSettings";
@@ -73,7 +74,9 @@ describe("Settings management", () => {
 
   describe(useDepositParams.name, () => {
     it("should fetch deposit params successfully", async () => {
-      const chainApiHttpClient = mock<AxiosInstance>();
+      const chainApiHttpClient = mock<FallbackableHttpClient>({
+        isFallbackEnabled: false
+      } as FallbackableHttpClient);
       const depositParams = {
         denom: "uakt",
         minDeposit: "1000000"
@@ -100,7 +103,9 @@ describe("Settings management", () => {
     });
 
     it("handles error when fetching deposit params", async () => {
-      const chainApiHttpClient = mock<AxiosInstance>();
+      const chainApiHttpClient = mock<FallbackableHttpClient>({
+        isFallbackEnabled: false
+      } as FallbackableHttpClient);
       chainApiHttpClient.get.mockRejectedValue(new Error("Failed to fetch deposit params"));
 
       const { result } = setupQuery(() => useDepositParams(), {

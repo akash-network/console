@@ -40,6 +40,15 @@ export const services = createChildContainer(rootContainer, {
     }),
   /** TODO: https://github.com/akash-network/console/issues/1720 */
   publicConsoleApiHttpClient: () => services.applyAxiosInterceptors(services.createAxios()),
+  fallbackChainApiHttpClient: () =>
+    services.applyAxiosInterceptors(services.createAxios(), {
+      request: [
+        config => {
+          config.baseURL = services.apiUrlService.getBaseApiUrlFor(services.networkStore.selectedNetworkId);
+          return config;
+        }
+      ]
+    }),
   networkStore: () => networkStore,
   appConfig: () => browserEnvConfig,
   authService: () => new AuthService(services.urlService, services.internalApiHttpClient)

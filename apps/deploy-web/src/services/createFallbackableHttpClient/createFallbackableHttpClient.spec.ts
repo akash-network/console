@@ -14,11 +14,11 @@ describe(createFallbackableHttpClient.name, () => {
   });
 
   it("uses fallback http client when request fails after 3 retries and should", async () => {
-    const onFailure = jest.fn();
+    const onUnavailableError = jest.fn();
     const options: ChainApiHttpClientOptions = {
       baseURL: "https://api.test.com",
       shouldFallback: () => false,
-      onFailure
+      onUnavailableError
     };
 
     const fetch = jest.fn(async () => new Response("error", { status: 500 }));
@@ -33,7 +33,7 @@ describe(createFallbackableHttpClient.name, () => {
         url: "/test"
       })
     );
-    expect(onFailure).toHaveBeenCalledTimes(1);
+    expect(onUnavailableError).toHaveBeenCalledTimes(1);
   });
 
   it("calls onSuccess callback when request succeeds", async () => {
@@ -53,11 +53,11 @@ describe(createFallbackableHttpClient.name, () => {
   });
 
   it("falls back to fallback http client if shouldFallback returns true (circuit breaker is open)", async () => {
-    const onFailure = jest.fn();
+    const onUnavailableError = jest.fn();
     const options: ChainApiHttpClientOptions = {
       baseURL: "https://api.test.com",
       shouldFallback: () => true,
-      onFailure
+      onUnavailableError
     };
 
     const fetch = jest.fn(async () => new Response("test", { status: 500 }));
@@ -66,7 +66,7 @@ describe(createFallbackableHttpClient.name, () => {
     await Promise.all([chainApiHttpClient.get("/test"), jest.runAllTimersAsync()]);
 
     await chainApiHttpClient.get("/test"); // fails fast becaues circuit breaker is open
-    expect(onFailure).toHaveBeenCalledWith(expect.any(BrokenCircuitError));
+    expect(onUnavailableError).toHaveBeenCalledWith(expect.any(BrokenCircuitError));
     expect(fallbackHttpClient.request).toHaveBeenCalledTimes(2); // once after failed retries, another one when circuit breaker is open
   });
 

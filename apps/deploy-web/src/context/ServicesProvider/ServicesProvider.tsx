@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
 import { AuthzHttpService, CertificatesService } from "@akashnetwork/http-sdk";
 
+import { withInterceptors } from "@src/services/app-di-container/app-di-container";
 import { services as rootContainer } from "@src/services/app-di-container/browser-di-container";
 import type { DIContainer, Factories } from "@src/services/container/createContainer";
 import { createChildContainer } from "@src/services/container/createContainer";
@@ -29,25 +30,27 @@ export function useServices() {
   return useContext(ServicesContext) as AppDIContainer;
 }
 
+const neverResolvedPromise = new Promise<never>(() => {});
 function createAppContainer<T extends Factories>(settingsState: SettingsContextType, services: T) {
   const di = createChildContainer(rootContainer, {
     authzHttpService: () => new AuthzHttpService(di.chainApiHttpClient),
     walletBalancesService: () => new WalletBalancesService(di.authzHttpService, di.chainApiHttpClient, di.appConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS),
     certificatesService: () => new CertificatesService(di.chainApiHttpClient),
     chainApiHttpClient: () =>
-      createFallbackableHttpClient(
-        rootContainer.createAxios,
-        rootContainer.externalApiHttpClient, // TODO: replace with indexer HttpClient
-        {
+      withInterceptors(
+        createFallbackableHttpClient(rootContainer.createAxios, rootContainer.fallbackChainApiHttpClient, {
           baseURL: settingsState.settings?.apiEndpoint,
           shouldFallback: () => settingsState.settings?.isBlockchainDown,
-          onFailure: () => {
+          onUnavailableError: () => {
             if (settingsState.settings?.isBlockchainDown) return;
             settingsState.setSettings(prev => ({ ...prev, isBlockchainDown: true }));
           },
           onSuccess: () => {
             settingsState.refreshNodeStatuses();
           }
+        }),
+        {
+          request: [config => (config.baseURL ? config : neverResolvedPromise)]
         }
       ),
     ...services

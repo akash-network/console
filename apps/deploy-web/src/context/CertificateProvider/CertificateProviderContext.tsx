@@ -73,7 +73,7 @@ type Props = {
 };
 
 export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d = DEPENDENCIES }) => {
-  const { certificateManager, analyticsService, certificatesService, errorHandler } = d.useServices();
+  const { certificateManager, analyticsService, certificatesService, errorHandler, chainApiHttpClient } = d.useServices();
 
   const [isCreatingCert, setIsCreatingCert] = useState(false);
   const [validCertificates, setValidCertificates] = useState<Array<ChainCertificate>>([]);
@@ -91,11 +91,13 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
       setIsLoadingCertificates(true);
 
       try {
-        const certificates = await certificatesService.getAllCertificates({ address, state: "valid" });
+        const certificates = await certificatesService
+          .getAllCertificates({ address, state: "valid" })
+          .catch(error => (chainApiHttpClient.isFallbackEnabled ? [] : Promise.reject(error)));
+
         const certs = (certificates || []).map(cert => {
           const parsed = atob(cert.certificate.cert);
           const pem = certificateManager.parsePem(parsed);
-
           return {
             ...cert,
             parsed,
@@ -136,7 +138,7 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
    * When changing wallet, reset certs and load for new wallet
    */
   useEffect(() => {
-    if (!isSettingsInit) return;
+    if (!isSettingsInit || chainApiHttpClient.isFallbackEnabled) return;
 
     setValidCertificates([]);
     setSelectedCertificate(null);
@@ -147,7 +149,7 @@ export const CertificateProvider: React.FC<Props> = ({ children, dependencies: d
       loadLocalCert();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, isSettingsInit]);
+  }, [address, isSettingsInit, chainApiHttpClient.isFallbackEnabled]);
 
   useEffect(() => {
     let isMatching = false;
