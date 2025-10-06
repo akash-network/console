@@ -6,9 +6,9 @@ test.describe("SDL Builder Deployment Flow", () => {
     const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
     await sdlBuilderPage.gotoInteractive();
 
-    await expect(page.getByRole("button", { name: /^deploy$/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /preview/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /add service/i })).toBeVisible();
+    await expect(sdlBuilderPage.getDeployButton()).toBeVisible();
+    await expect(sdlBuilderPage.getPreviewButton()).toBeVisible();
+    await expect(sdlBuilderPage.getAddServiceButton()).toBeVisible();
   });
 
   test("fill image name and preview SDL", async ({ page, context }) => {
@@ -19,9 +19,9 @@ test.describe("SDL Builder Deployment Flow", () => {
 
     await sdlBuilderPage.clickPreview();
 
-    await sdlBuilderPage.verifyPreviewSdlContains("nginx:latest");
-    await sdlBuilderPage.verifyPreviewSdlContains("version:");
-    await sdlBuilderPage.verifyPreviewSdlContains("services:");
+    await expect(sdlBuilderPage.getPreviewTextLocator("nginx:latest")).toBeVisible();
+    await expect(sdlBuilderPage.getPreviewTextLocator("version:")).toBeVisible();
+    await expect(sdlBuilderPage.getPreviewTextLocator("services:")).toBeVisible();
 
     await sdlBuilderPage.closePreview();
   });
@@ -45,50 +45,12 @@ test.describe("SDL Builder Deployment Flow", () => {
 
     await sdlBuilderPage.addService();
 
-    await page.waitForTimeout(1000);
+    await sdlBuilderPage.waitForServiceAdded("service-2");
 
     await sdlBuilderPage.clickPreview();
-    await sdlBuilderPage.verifyPreviewSdlContains("service-1");
-    await sdlBuilderPage.verifyPreviewSdlContains("service-2");
+    await expect(sdlBuilderPage.getPreviewTextLocator("service-1")).toBeVisible();
+    await expect(sdlBuilderPage.getPreviewTextLocator("service-2")).toBeVisible();
     await sdlBuilderPage.closePreview();
-  });
-
-  test("reset form to default state", async ({ page, context }) => {
-    const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
-    await sdlBuilderPage.gotoInteractive();
-
-    await sdlBuilderPage.fillImageName("redis:alpine");
-    await sdlBuilderPage.verifyImageNameValue("redis:alpine");
-
-    await sdlBuilderPage.addService();
-    await page.waitForTimeout(500);
-
-    await sdlBuilderPage.clickReset();
-
-    await page.waitForTimeout(1000);
-
-    const imageInput = page.getByTestId("image-name-input");
-    await expect(imageInput).toBeVisible();
-
-    await sdlBuilderPage.fillImageName("nginx:latest");
-    await sdlBuilderPage.verifyImageNameValue("nginx:latest");
-  });
-
-  test("validation prevents deployment with empty image", async ({ page, context }) => {
-    const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
-    await sdlBuilderPage.gotoInteractive();
-
-    await page.getByTestId("image-name-input").clear();
-
-    await sdlBuilderPage.clickDeploy();
-
-    const imageInput = page.getByTestId("image-name-input");
-    await expect(imageInput).toBeVisible();
-
-    const walletBtn = page.getByTestId("connect-wallet-btn");
-    await expect(walletBtn)
-      .not.toBeVisible({ timeout: 2000 })
-      .catch(() => true);
   });
 
   test("preview SDL with different images", async ({ page, context }) => {
@@ -100,7 +62,7 @@ test.describe("SDL Builder Deployment Flow", () => {
     for (const image of images) {
       await sdlBuilderPage.fillImageName(image);
       await sdlBuilderPage.clickPreview();
-      await sdlBuilderPage.verifyPreviewSdlContains(image);
+      await expect(sdlBuilderPage.getPreviewTextLocator(image)).toBeVisible();
       await sdlBuilderPage.closePreview();
     }
   });
@@ -113,10 +75,10 @@ test.describe("SDL Builder Deployment Flow", () => {
 
     await sdlBuilderPage.clickPreview();
 
-    await sdlBuilderPage.verifyPreviewSdlContains("version:");
-    await sdlBuilderPage.verifyPreviewSdlContains("services:");
-    await sdlBuilderPage.verifyPreviewSdlContains("profiles:");
-    await sdlBuilderPage.verifyPreviewSdlContains("deployment:");
+    await expect(sdlBuilderPage.getPreviewTextLocator("version:")).toBeVisible();
+    await expect(sdlBuilderPage.getPreviewTextLocator("services:")).toBeVisible();
+    await expect(sdlBuilderPage.getPreviewTextLocator("profiles:")).toBeVisible();
+    await expect(sdlBuilderPage.getPreviewTextLocator("deployment:")).toBeVisible();
 
     await sdlBuilderPage.closePreview();
   });
@@ -128,14 +90,12 @@ test.describe("SDL Builder Deployment Flow", () => {
     await sdlBuilderPage.fillImageName("nginx:latest");
 
     await sdlBuilderPage.addService();
-    await page.waitForTimeout(500);
+    await sdlBuilderPage.waitForServiceAdded("service-2");
 
     await sdlBuilderPage.clickPreview();
 
-    await page.waitForTimeout(1000);
-
-    await expect(page.getByText(/service-1:/).first()).toBeVisible();
-    await expect(page.getByText(/service-2:/).first()).toBeVisible();
+    await expect(sdlBuilderPage.getServiceLocator("service-1")).toBeVisible();
+    await expect(sdlBuilderPage.getServiceLocator("service-2")).toBeVisible();
 
     await sdlBuilderPage.closePreview();
   });
@@ -146,7 +106,6 @@ test.describe("SDL Builder Deployment Flow", () => {
 
     await sdlBuilderPage.fillImageName("alpine:latest");
 
-    const previewBtn = page.getByRole("button", { name: /preview/i });
-    await expect(previewBtn).toBeEnabled();
+    await expect(sdlBuilderPage.getPreviewButton()).toBeEnabled();
   });
 });

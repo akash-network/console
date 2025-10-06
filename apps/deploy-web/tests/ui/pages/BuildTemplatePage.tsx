@@ -1,5 +1,3 @@
-import { expect } from "@playwright/test";
-
 import { testEnvConfig } from "../fixture/test-env.config";
 import { DeployBasePage } from "./DeployBasePage";
 
@@ -29,15 +27,35 @@ export class BuildTemplatePage extends DeployBasePage {
     await this.page.getByRole("button", { name: /reset/i }).click();
   }
 
-  async verifyPreviewSdlContains(text: string) {
-    await expect(this.page.getByText(text).first()).toBeVisible();
+  getPreviewTextLocator(text: string) {
+    return this.page.getByText(text).first();
   }
 
   async closePreview() {
     await this.page.getByRole("button", { name: /close/i }).first().click();
   }
 
-  async verifyImageNameValue(value: string) {
-    await expect(this.page.getByTestId("image-name-input")).toHaveValue(value);
+  getImageNameInput() {
+    return this.page.getByTestId("image-name-input");
+  }
+
+  getDeployButton() {
+    return this.page.getByRole("button", { name: /^deploy$/i });
+  }
+
+  getPreviewButton() {
+    return this.page.getByRole("button", { name: /preview/i });
+  }
+
+  getAddServiceButton() {
+    return this.page.getByRole("button", { name: /add service/i });
+  }
+
+  getServiceLocator(serviceName: string) {
+    return this.page.getByText(new RegExp(`${serviceName}:`));
+  }
+
+  async waitForServiceAdded(serviceName: string, timeout = 5000) {
+    await this.getServiceLocator(serviceName).waitFor({ state: "attached", timeout });
   }
 }
