@@ -1,10 +1,15 @@
+import { faker } from "@faker-js/faker";
 import { ConstantBackoff, handleWhenResult, retry } from "cockatiel";
+import nock from "nock";
 import * as assert from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
+import { container } from "tsyringe";
+import type { z } from "zod";
 
 import type { ApiKeyVisibleResponse } from "@src/auth/http-schemas/api-key.schema";
 import type { ListBidsResponse } from "@src/bid/http-schemas/bid.schema";
+import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { CreateCertificateResponse } from "@src/certificate/http-schemas/create-certificate.schema";
 import type {
   CreateDeploymentResponse,
@@ -12,9 +17,13 @@ import type {
   GetDeploymentResponse,
   UpdateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
-import { app } from "@src/rest-app";
+import type { ListDeploymentsResponseSchema } from "@src/deployment/http-schemas/deployment.schema";
 
-import { createProvider } from "@test/seeders";
+type ListDeploymentsResponse = z.infer<typeof ListDeploymentsResponseSchema>;
+import { app } from "@src/rest-app";
+import { apiNodeUrl } from "@src/utils/constants";
+
+import { createDeployment as createDeploymentSeed, createDeploymentGroup, createLease as createLeaseSeed, createProvider } from "@test/seeders";
 import { AppHttpService } from "@test/services/app-http.service";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
@@ -35,10 +44,10 @@ describe("Managed Wallet API Deployment Flow", () => {
 
   it.each(authTypes)("should execute a full deployment cycle with provider %s auth", async auth => {
     // Setup: Prepare test environment with providers, user, and API key
-    const { apiKey } = await setup();
+    const { apiKey, walletAddress } = await setup();
 
     // Step 1: Create deployment with SDL configuration
-    const deployment = await createDeployment(apiKey);
+    const deployment = await createDeployment(apiKey, walletAddress);
     expect(deployment).toMatchObject({
       dseq: expect.any(String),
       manifest: expect.any(String)
@@ -69,7 +78,7 @@ describe("Managed Wallet API Deployment Flow", () => {
       }
 
       // Step 4: Create lease and send manifest to provider using appropriate authentication
-      const lease = await createLease(apiKey, deployment, bid, certificate);
+      const lease = await createLease(apiKey, deployment, bid, walletAddress, certificate);
       expect(lease).toMatchObject({
         deployment: expect.objectContaining({
           deployment_id: expect.objectContaining({
@@ -154,18 +163,196 @@ describe("Managed Wallet API Deployment Flow", () => {
     }
   });
 
+  it("should maintain read-only operations during blockchain node outages", async () => {
+    // Setup: Prepare test environment with providers, user, and API key
+    const { apiKey, walletAddress, blockNode, unblockNode } = await setup();
+
+    // ===============================================================================
+    // PHASE 1: BLOCKCHAIN UP - Establish baseline operations that require blockchain access
+    // ===============================================================================
+
+    // Step 1: Create deployment with SDL configuration
+    const deployment = await createDeployment(apiKey, walletAddress);
+    expect(deployment).toMatchObject({
+      dseq: expect.any(String),
+      manifest: expect.any(String)
+    });
+
+    try {
+      // Step 2: Wait for provider bids and select one supporting the target authentication type
+      const bid = await waitForBids(apiKey, deployment.dseq, "JWT");
+
+      expect(bid).toMatchObject({
+        bid: expect.any(Object),
+        isCertificateRequired: expect.any(Boolean)
+      });
+      assert.ok(bid, "Bid not found");
+
+      // Step 3: Create lease and send manifest to provider using appropriate authentication
+      const lease = await createLease(apiKey, deployment, bid, walletAddress);
+      expect(lease).toMatchObject({
+        deployment: expect.objectContaining({
+          deployment_id: expect.objectContaining({
+            dseq: deployment.dseq
+          }),
+          state: expect.any(String)
+        }),
+        leases: expect.arrayContaining([
+          expect.objectContaining({
+            lease_id: expect.objectContaining({
+              dseq: deployment.dseq,
+              gseq: bid.bid.bid_id.gseq,
+              oseq: bid.bid.bid_id.oseq,
+              provider: bid.bid.bid_id.provider
+            }),
+            state: expect.any(String),
+            price: expect.objectContaining({
+              denom: "uakt",
+              amount: expect.any(String)
+            }),
+            created_at: expect.any(String)
+          })
+        ]),
+        escrow_account: expect.objectContaining({
+          id: expect.any(Object),
+          balance: expect.objectContaining({
+            denom: "uakt",
+            amount: expect.any(String)
+          })
+        })
+      });
+
+      // Step 4: Deposit additional funds into deployment escrow account
+      const deposit = await depositIntoDeployment(apiKey, deployment.dseq);
+      expect(deposit).toMatchObject({
+        escrow_account: expect.objectContaining({
+          id: expect.any(Object),
+          balance: expect.objectContaining({
+            denom: "uakt",
+            amount: expect.any(String)
+          })
+        })
+      });
+
+      // ===============================================================================
+      // PHASE 2: BLOCKCHAIN DOWN - Test which operations continue to work during outage
+      // ===============================================================================
+
+      blockNode();
+
+      // Step 5: Retrieve complete deployment details including leases and escrow
+      const deploymentDetails = await getDeploymentDetails(apiKey, deployment.dseq);
+      expect(deploymentDetails).toMatchObject({
+        deployment: expect.objectContaining({
+          deployment_id: expect.objectContaining({
+            dseq: deployment.dseq
+          }),
+          state: expect.any(String)
+        }),
+        leases: expect.arrayContaining([
+          expect.objectContaining({
+            lease_id: expect.objectContaining({
+              dseq: deployment.dseq
+            })
+          })
+        ])
+      });
+
+      // Step 6: Retrieve a deployment list to verify read-only list operations work during outage
+      const deploymentList = await getDeploymentList(apiKey);
+      expect(deploymentList).toMatchObject({
+        deployments: expect.arrayContaining([
+          expect.objectContaining({
+            deployment: expect.objectContaining({
+              deployment_id: expect.objectContaining({
+                dseq: deployment.dseq
+              }),
+              state: expect.any(String)
+            })
+          })
+        ]),
+        pagination: expect.objectContaining({
+          total: expect.any(Number),
+          skip: expect.any(Number),
+          limit: 10
+        })
+      });
+
+      // ===============================================================================
+      // PHASE 3: BLOCKCHAIN RESTORED - Verify write operations work again
+      // ===============================================================================
+
+      unblockNode();
+
+      // Step 7: Demonstrate that write operations work again when blockchain is available
+      const closedDeploymentResponse = await closeDeployment(apiKey, deployment.dseq);
+      expect(closedDeploymentResponse).toMatchObject({
+        status: 200
+      });
+    } catch (e) {
+      // Final step: Close deployment in case of error to release escrow funds and cleanup
+      await closeDeployment(apiKey, deployment.dseq);
+      throw e;
+    }
+  });
+
   /**
    * Sets up the test environment by preparing providers, creating a user, and generating an API key.
-   * @returns Promise resolving to an object containing the API key for testing
+   * Also provides network outage simulation functions for testing blockchain resilience.
+   * @returns Promise resolving to an object containing:
+   *   - apiKey: API key for authentication
+   *   - walletAddress: Wallet address from the created user
+   *   - blockNode: Function to simulate blockchain node outage by blocking RPC/API connections
+   *   - unblockNode: Function to restore blockchain connectivity
    */
   async function setup() {
     await prepareIndexedProviders();
-    const { token } = await prepareUser();
+    const { token, wallet } = await prepareUser();
     const apiKey = await createApiKey(token);
 
     return {
-      apiKey
+      apiKey,
+      walletAddress: wallet.address,
+      blockNode,
+      unblockNode
     };
+  }
+
+  /**
+   * Simulates a blockchain node outage to test which operations remain functional during network disruptions.
+   * Blocks operations requiring blockchain transactions while preserving read-only functionality:
+   * @returns A cleanup function that restores network connectivity
+   */
+  function blockNode() {
+    const RPC_NODE_ENDPOINT = container.resolve(BillingConfigService).get("RPC_NODE_ENDPOINT");
+    const nodeUrl = apiNodeUrl;
+    const errorType = process.env.NODE_OUTAGE_ERROR_TYPE || "ECONNRESET";
+
+    nock(nodeUrl)
+      .persist()
+      .get(/.*/)
+      .replyWithError({ code: errorType, message: errorType })
+      .post(/.*/)
+      .replyWithError({ code: errorType, message: errorType });
+
+    nock(RPC_NODE_ENDPOINT)
+      .persist()
+      .get(/.*/)
+      .replyWithError({ code: errorType, message: errorType })
+      .post(/.*/)
+      .replyWithError({ code: errorType, message: errorType });
+
+    return () => {
+      nock.cleanAll();
+    };
+  }
+
+  /**
+   * Restores normal blockchain network operation by clearing all network interceptors.
+   * This allows requests to reach the actual node endpoints again and validates system recovery.
+   */
+  function unblockNode() {
+    nock.cleanAll();
   }
 
   /**
@@ -233,10 +420,12 @@ describe("Managed Wallet API Deployment Flow", () => {
   /**
    * Creates a new deployment using the provided API key.
    * Reads the SDL file and creates a deployment with a 5 AKT deposit.
+   * Seeds the database with deployment and deployment group data, ensuring proper foreign key relationships.
    * @param apiKey - API key for authentication
+   * @param walletAddress - Wallet address from setup
    * @returns Promise resolving to the deployment data including dseq and manifest
    */
-  async function createDeployment(apiKey: string): Promise<CreateDeploymentResponse["data"]> {
+  async function createDeployment(apiKey: string, walletAddress: string): Promise<CreateDeploymentResponse["data"]> {
     const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
     const { data } = await http.request<CreateDeploymentResponse>("/v1/deployments", {
       method: "POST",
@@ -251,6 +440,27 @@ describe("Managed Wallet API Deployment Flow", () => {
         }
       })
     });
+
+    const deploymentDbId = faker.string.uuid();
+    await createDeploymentSeed({
+      id: deploymentDbId,
+      dseq: data.data.dseq,
+      deposit: 5,
+      balance: 5,
+      denom: "uakt",
+      owner: walletAddress
+    });
+
+    const deploymentGroup = await createDeploymentGroup({
+      id: faker.string.uuid(),
+      deploymentId: deploymentDbId,
+      dseq: data.data.dseq,
+      gseq: 1,
+      owner: walletAddress
+    });
+
+    (data.data as any)._dbId = deploymentDbId;
+    (data.data as any)._deploymentGroupId = deploymentGroup.id;
 
     return data.data;
   }
@@ -300,9 +510,11 @@ describe("Managed Wallet API Deployment Flow", () => {
   /**
    * Creates a lease and sends the manifest to the provider.
    * Supports both mTLS and JWT authentication based on provider capabilities.
+   * Seeds the database with lease data using actual API response data and proper foreign key references.
    * @param apiKey - API key for authentication
-   * @param deployment - Deployment data containing manifest and dseq
+   * @param deployment - Deployment data containing manifest, dseq, and database IDs
    * @param bid - Selected bid from a provider
+   * @param walletAddress - Wallet address from setup
    * @param certificate - Optional certificate data for mTLS authentication (required for providers with akash versions < 0.8.3-rc0)
    * @returns Promise resolving to the deployment data with lease information
    */
@@ -310,6 +522,7 @@ describe("Managed Wallet API Deployment Flow", () => {
     apiKey: string,
     deployment: CreateDeploymentResponse["data"],
     bid: ListBidsResponse["data"][number],
+    walletAddress: string,
     certificate?: CreateCertificateResponse["data"]
   ): Promise<GetDeploymentResponse["data"]> {
     const body = {
@@ -338,6 +551,22 @@ describe("Managed Wallet API Deployment Flow", () => {
       },
       body: JSON.stringify(body)
     });
+
+    for (const lease of data.data.leases) {
+      await createLeaseSeed({
+        id: faker.string.uuid(),
+        dseq: lease.lease_id.dseq,
+        gseq: lease.lease_id.gseq,
+        oseq: lease.lease_id.oseq,
+        providerAddress: lease.lease_id.provider,
+        owner: walletAddress,
+        price: parseFloat(lease.price.amount),
+        denom: lease.price.denom,
+        deploymentId: (deployment as any)._dbId,
+        deploymentGroupId: (deployment as any)._deploymentGroupId,
+        createdHeight: faker.number.int({ min: 1, max: 10000000 })
+      });
+    }
 
     return data.data;
   }
@@ -407,6 +636,23 @@ describe("Managed Wallet API Deployment Flow", () => {
    */
   async function getDeploymentDetails(apiKey: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
     const { data } = await http.request<GetDeploymentResponse>(`/v1/deployments/${dseq}`, {
+      method: "GET",
+      headers: {
+        "x-api-key": apiKey
+      }
+    });
+
+    return data.data;
+  }
+
+  /**
+   * Retrieves a paginated list of deployments for the authenticated user.
+   * @param apiKey - API key for authentication
+   * @param options - Optional pagination options (skip, limit)
+   * @returns Promise resolving to the list of deployments with pagination info
+   */
+  async function getDeploymentList(apiKey: string): Promise<ListDeploymentsResponse["data"]> {
+    const { data } = await http.request<ListDeploymentsResponse>("/v1/deployments?skip=0&limit=10", {
       method: "GET",
       headers: {
         "x-api-key": apiKey
