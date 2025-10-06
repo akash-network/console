@@ -1,10 +1,11 @@
+import type { BrowserContext, Page } from "@playwright/test";
+
 import { expect, test } from "./fixture/base-test";
 import { BuildTemplatePage } from "./pages/BuildTemplatePage";
 
 test.describe("SDL Builder Deployment Flow", () => {
   test("navigate to SDL builder page", async ({ page, context }) => {
-    const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
-    await sdlBuilderPage.gotoInteractive();
+    const { sdlBuilderPage } = await setup({ page, context });
 
     await expect(sdlBuilderPage.getDeployButton()).toBeVisible();
     await expect(sdlBuilderPage.getPreviewButton()).toBeVisible();
@@ -12,10 +13,7 @@ test.describe("SDL Builder Deployment Flow", () => {
   });
 
   test("fill image name and preview SDL", async ({ page, context }) => {
-    const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
-    await sdlBuilderPage.gotoInteractive();
-
-    await sdlBuilderPage.fillImageName("nginx:latest");
+    const { sdlBuilderPage } = await setup({ page, context, imageName: "nginx:latest" });
 
     await sdlBuilderPage.clickPreview();
 
@@ -27,10 +25,7 @@ test.describe("SDL Builder Deployment Flow", () => {
   });
 
   test("create deployment from SDL builder", async ({ page, context }) => {
-    const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
-    await sdlBuilderPage.gotoInteractive();
-
-    await sdlBuilderPage.fillImageName("nginx:alpine");
+    const { sdlBuilderPage } = await setup({ page, context, imageName: "nginx:alpine" });
 
     await sdlBuilderPage.clickDeploy();
 
@@ -38,10 +33,7 @@ test.describe("SDL Builder Deployment Flow", () => {
   });
 
   test("add multiple services", async ({ page, context }) => {
-    const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
-    await sdlBuilderPage.gotoInteractive();
-
-    await sdlBuilderPage.fillImageName("nginx:latest");
+    const { sdlBuilderPage } = await setup({ page, context, imageName: "nginx:latest" });
 
     await sdlBuilderPage.addService();
 
@@ -54,8 +46,7 @@ test.describe("SDL Builder Deployment Flow", () => {
   });
 
   test("preview SDL with different images", async ({ page, context }) => {
-    const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
-    await sdlBuilderPage.gotoInteractive();
+    const { sdlBuilderPage } = await setup({ page, context });
 
     const images = ["postgres:15", "redis:7", "node:18-alpine"];
 
@@ -68,10 +59,7 @@ test.describe("SDL Builder Deployment Flow", () => {
   });
 
   test("verify SDL YAML structure", async ({ page, context }) => {
-    const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
-    await sdlBuilderPage.gotoInteractive();
-
-    await sdlBuilderPage.fillImageName("ubuntu:22.04");
+    const { sdlBuilderPage } = await setup({ page, context, imageName: "ubuntu:22.04" });
 
     await sdlBuilderPage.clickPreview();
 
@@ -84,10 +72,7 @@ test.describe("SDL Builder Deployment Flow", () => {
   });
 
   test("add service then preview shows both services", async ({ page, context }) => {
-    const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
-    await sdlBuilderPage.gotoInteractive();
-
-    await sdlBuilderPage.fillImageName("nginx:latest");
+    const { sdlBuilderPage } = await setup({ page, context, imageName: "nginx:latest" });
 
     await sdlBuilderPage.addService();
     await sdlBuilderPage.waitForServiceAdded("service-2");
@@ -108,4 +93,15 @@ test.describe("SDL Builder Deployment Flow", () => {
 
     await expect(sdlBuilderPage.getPreviewButton()).toBeEnabled();
   });
+
+  async function setup({ page, context, imageName }: { page: Page; context: BrowserContext; imageName?: string }) {
+    const sdlBuilderPage = new BuildTemplatePage(context, page, "sdl-builder");
+    await sdlBuilderPage.gotoInteractive();
+
+    if (imageName) {
+      await sdlBuilderPage.fillImageName(imageName);
+    }
+
+    return { sdlBuilderPage };
+  }
 });

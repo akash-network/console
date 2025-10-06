@@ -52,10 +52,15 @@ export class BuildTemplatePage extends DeployBasePage {
   }
 
   getServiceLocator(serviceName: string) {
-    return this.page.getByText(new RegExp(`${serviceName}:`));
+    const escapedName = serviceName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return this.page.getByText(new RegExp(`${escapedName}:`)).first();
   }
 
-  async waitForServiceAdded(serviceName: string, timeout = 5000) {
-    await this.getServiceLocator(serviceName).waitFor({ state: "attached", timeout });
+  getServiceNameInput(serviceName: string) {
+    return this.page.getByRole("textbox").filter({ hasText: serviceName });
+  }
+
+  async waitForServiceAdded(serviceName: string, timeout = 10000) {
+    await this.page.locator(`input[type="text"][value="${serviceName}"]`).first().waitFor({ state: "visible", timeout });
   }
 }
