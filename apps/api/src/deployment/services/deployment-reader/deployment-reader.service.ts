@@ -1,17 +1,29 @@
 import { Block } from "@akashnetwork/database/dbSchemas";
 import { Deployment, Lease, Provider, ProviderAttribute } from "@akashnetwork/database/dbSchemas/akash";
-import { DeploymentHttpService, DeploymentInfo, LeaseHttpService } from "@akashnetwork/http-sdk";
+import {
+  DeploymentHttpService,
+  DeploymentInfo,
+  DeploymentListResponse,
+  LeaseHttpService,
+  LeaseListParams,
+  PaginationParams,
+  RestAkashLeaseListResponse
+} from "@akashnetwork/http-sdk";
 import { PromisePool } from "@supercharge/promise-pool";
+import { AxiosError } from "axios";
 import assert from "http-assert";
 import { InternalServerError } from "http-errors";
 import { Op } from "sequelize";
 import { singleton } from "tsyringe";
 
+import { WalletInitialized, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { ProviderList } from "@src/types/provider";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import { averageBlockCountInAMonth } from "@src/utils/constants";
+import { FallbackDeploymentReaderService } from "../fallback-deployment-reader/fallback-deployment-reader.service";
 import { MessageService } from "../message-service/message.service";
 
 @singleton()
@@ -19,16 +31,26 @@ export class DeploymentReaderService {
   constructor(
     private readonly providerService: ProviderService,
     private readonly deploymentHttpService: DeploymentHttpService,
+    private readonly fallbackDeploymentReaderService: FallbackDeploymentReaderService,
     private readonly leaseHttpService: LeaseHttpService,
-    private readonly messageService: MessageService
+    private readonly fallbackLeaseReaderService: FallbackLeaseReaderService,
+    private readonly messageService: MessageService,
+    private readonly walletReaderService: WalletReaderService
   ) {}
 
-  public async findByOwnerAndDseq(
-    owner: string,
+  public async findByUserIdAndDseq(userId: string, dseq: string): Promise<GetDeploymentResponse["data"]> {
+    const wallet = await this.walletReaderService.getWalletByUserId(userId);
+    return this.findByWalletAndDseq(wallet, dseq);
+  }
+
+  public async findByWalletAndDseq(
+    wallet: WalletInitialized,
     dseq: string,
     options?: { certificate?: { certPem: string; keyPem: string } }
   ): Promise<GetDeploymentResponse["data"]> {
-    const deploymentResponse = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
+    const { address: owner } = wallet;
+    const deploymentResponse = await this.getDeployment(owner, dseq);
+    assert(deploymentResponse, 404, "Deployment not found");
 
     if ("code" in deploymentResponse) {
       assert(!deploymentResponse.message?.toLowerCase().includes("deployment not found"), 404, "Deployment not found");
@@ -36,24 +58,17 @@ export class DeploymentReaderService {
       throw new InternalServerError(deploymentResponse.message);
     }
 
-    const { leases } = await this.leaseHttpService.list({ owner, dseq });
+    const { leases } = await this.getLeaseList({ owner, dseq });
 
     const leasesWithStatus = await Promise.all(
       leases.map(async ({ lease }) => {
-        if (!options?.certificate) {
-          return {
-            lease,
-            status: null
-          };
-        }
-
         try {
           const leaseStatus = await this.providerService.getLeaseStatus(
             lease.lease_id.provider,
             lease.lease_id.dseq,
             lease.lease_id.gseq,
             lease.lease_id.oseq,
-            options.certificate
+            await this.providerService.toProviderAuth(options?.certificate || { walletId: wallet.id, provider: lease.lease_id.provider })
           );
           return {
             lease,
@@ -78,12 +93,18 @@ export class DeploymentReaderService {
     };
   }
 
-  public async list(
-    owner: string,
-    { skip, limit }: { skip?: number; limit?: number }
-  ): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
+  public async list({
+    query,
+    skip,
+    limit
+  }: {
+    query: { userId: string };
+    skip?: number;
+    limit?: number;
+  }): Promise<{ deployments: GetDeploymentResponse["data"][]; total: number; hasMore: boolean }> {
+    const { address: owner } = await this.walletReaderService.getWalletByUserId(query.userId);
     const pagination = skip !== undefined || limit !== undefined ? { offset: skip, limit } : undefined;
-    const deploymentReponse = await this.deploymentHttpService.findAll({ owner, state: "active", pagination });
+    const deploymentReponse = await this.getDeploymentsList({ owner, state: "active", pagination });
     const deployments = deploymentReponse.deployments;
     const total = parseInt(deploymentReponse.pagination.total, 10);
 
@@ -100,7 +121,6 @@ export class DeploymentReaderService {
         })) ?? [],
       escrow_account: deployment.escrow_account
     }));
-
     return {
       deployments: deploymentsWithLeases,
       total,
@@ -121,7 +141,7 @@ export class DeploymentReaderService {
     limit?: number;
     reverseSorting?: boolean;
   }) {
-    const response = await this.deploymentHttpService.findAll({
+    const response = await this.getDeploymentsList({
       owner: address,
       state: status,
       pagination: {
@@ -185,7 +205,8 @@ export class DeploymentReaderService {
   public async getDeploymentByOwnerAndDseq(owner: string, dseq: string) {
     let deploymentData: RestAkashDeploymentInfoResponse | null = null;
     try {
-      deploymentData = await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
+      deploymentData = await this.getDeployment(owner, dseq);
+      assert(deploymentData, 404, "Deployment not found");
 
       if ("code" in deploymentData) {
         if (deploymentData.message?.toLowerCase().includes("deployment not found")) {
@@ -284,5 +305,72 @@ export class DeploymentReaderService {
       events: relatedMessages || [],
       other: deploymentData
     };
+  }
+
+  private async getDeployment(owner: string, dseq: string): Promise<RestAkashDeploymentInfoResponse | null> {
+    try {
+      return await this.deploymentHttpService.findByOwnerAndDseq(owner, dseq);
+    } catch (error) {
+      if (this.shouldFallbackToDatabase(error)) {
+        return await this.fallbackDeploymentReaderService.findByOwnerAndDseq(owner, dseq);
+      }
+
+      throw error;
+    }
+  }
+
+  private async getDeploymentsList(params: { owner: string; state?: "active" | "closed"; pagination?: PaginationParams }): Promise<DeploymentListResponse> {
+    try {
+      return await this.deploymentHttpService.findAll(params);
+    } catch (error) {
+      if (this.shouldFallbackToDatabase(error)) {
+        return await this.fallbackDeploymentReaderService.findAll(params);
+      }
+
+      throw error;
+    }
+  }
+
+  private async getLeaseList(params: LeaseListParams): Promise<RestAkashLeaseListResponse> {
+    try {
+      return await this.leaseHttpService.list(params);
+    } catch (error) {
+      if (this.shouldFallbackToDatabase(error)) {
+        return await this.fallbackLeaseReaderService.list(params);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Determines if an error should trigger fallback to database services.
+   * Falls back for network/connectivity issues but not for business logic errors.
+   */
+  private shouldFallbackToDatabase(error: unknown): boolean {
+    if (error instanceof AxiosError) {
+      if (error.code === "ECONNREFUSED" || error.code === "ECONNRESET" || error.code === "ETIMEDOUT" || error.code === "ENOTFOUND") {
+        return true;
+      }
+
+      if (error.response?.status && error.response?.status >= 500) {
+        return true;
+      }
+    }
+
+    if (error instanceof Error) {
+      if (error.message?.toLowerCase().includes("timeout")) {
+        return true;
+      }
+
+      if (
+        error.message?.toLowerCase().includes("connection") &&
+        (error.message.toLowerCase().includes("refused") || error.message.toLowerCase().includes("reset"))
+      ) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }

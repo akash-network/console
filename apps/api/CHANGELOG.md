@@ -1,5 +1,26 @@
 
 
+## [2.123.0](https://github.com/akash-network/console/compare/console-api/v2.122.2...console-api/v2.123.0) (2025-10-06)
+
+
+### Features
+
+* **analytics:** add amplitude to notifications for emails ([#1991](https://github.com/akash-network/console/issues/1991)) ([6dd78ab](https://github.com/akash-network/console/commit/6dd78ab08b1dfc676fbe735333fd968869922bab))
+* **auth:** implements managed wallet API JWT auth  ([06b4e45](https://github.com/akash-network/console/commit/06b4e4540433b3b55fbc31f76d955e05e040a82e))
+* **deployment:** add lease list fallback ([#1992](https://github.com/akash-network/console/issues/1992)) ([ddb237a](https://github.com/akash-network/console/commit/ddb237a148febf27024d7304f9eb4511497be4d9))
+* run bg jobs in execution context ([#1998](https://github.com/akash-network/console/issues/1998)) ([0a25bb5](https://github.com/akash-network/console/commit/0a25bb5272008b9162bc8c7a3447f9427f33e259))
+* **wallet:** ensures managed wallet supports read-only mode during blockchain outage ([2a005c6](https://github.com/akash-network/console/commit/2a005c61e845906962ebfc49116974d8fdd3d931))
+
+
+### Bug Fixes
+
+* **billing:** cleanup discount payments ([#1969](https://github.com/akash-network/console/issues/1969)) ([0a72177](https://github.com/akash-network/console/commit/0a721771bc39fc0b1995688cac032f52988c79bd))
+
+
+### Code Refactoring
+
+* upgrade pgboss to v11 on api ([#1993](https://github.com/akash-network/console/issues/1993)) ([8a15284](https://github.com/akash-network/console/commit/8a15284618ec9c2eb309d6e7f0501cda479caa62))
+
 ## [2.122.2](https://github.com/akash-network/console/compare/console-api/v2.122.1...console-api/v2.122.2) (2025-10-01)
 
 

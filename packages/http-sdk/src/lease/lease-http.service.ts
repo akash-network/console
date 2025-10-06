@@ -42,12 +42,12 @@ export type RestAkashLeaseListResponse = {
     };
   }[];
   pagination: {
-    next_key: string;
+    next_key: string | null;
     total: string;
   };
 };
 
-type LeaseListParams = {
+export type LeaseListParams = {
   owner: string;
   dseq?: string;
   state?: "active" | "insufficient_funds" | "closed";

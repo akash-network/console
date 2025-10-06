@@ -6,7 +6,7 @@ import type { infer as ZodInfer } from "zod";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
 import { CustomerTransactionsCsvExportQuerySchema } from "@src/billing/http-schemas/stripe.schema";
-import { ApplyCouponRequest, ConfirmPaymentRequest, ConfirmPaymentResponse, Discount, Transaction } from "@src/billing/http-schemas/stripe.schema";
+import { ApplyCouponRequest, ConfirmPaymentRequest, ConfirmPaymentResponse, Transaction } from "@src/billing/http-schemas/stripe.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { StripeErrorService } from "@src/billing/services/stripe-error/stripe-error.service";
@@ -142,18 +142,6 @@ export class StripeController {
 
       throw error;
     }
-  }
-
-  @Protected([{ action: "read", subject: "StripePayment" }])
-  async getCustomerDiscounts(): Promise<{ data: { discounts: Discount[] } }> {
-    const { currentUser } = this.authService;
-
-    if (!currentUser.stripeCustomerId) {
-      return { data: { discounts: [] } };
-    }
-
-    const discounts = await this.stripe.getCustomerDiscounts(currentUser.stripeCustomerId);
-    return { data: { discounts } };
   }
 
   @Protected([{ action: "read", subject: "StripePayment" }])

@@ -1,8 +1,10 @@
+import { createMongoAbility, MongoAbility } from "@casl/ability";
 import PgBoss from "pg-boss";
 import { Disposable, inject, InjectionToken, singleton } from "tsyringe";
 
 import { LoggerService } from "@src/core/providers/logging.provider";
 import { CoreConfigService } from "../core-config/core-config.service";
+import { ExecutionContextService } from "../execution-context/execution-context.service";
 
 export const PG_BOSS_TOKEN: InjectionToken<PgBoss> = Symbol("pgBoss");
 
@@ -14,6 +16,7 @@ export class JobQueueService implements Disposable {
   constructor(
     private readonly logger: LoggerService,
     private readonly coreConfig: CoreConfigService,
+    private readonly executionContextService: ExecutionContextService,
     @inject(PG_BOSS_TOKEN, { isOptional: true }) pgBoss?: PgBoss
   ) {
     this.pgBoss =
@@ -35,7 +38,9 @@ export class JobQueueService implements Disposable {
       seenJobs.add(queueName);
       await this.pgBoss.createQueue(queueName, {
         name: queueName,
-        retryLimit: 10
+        retryLimit: 5,
+        retryBackoff: true,
+        retryDelayMax: 5 * 60
       });
     });
     await Promise.all(promises);
@@ -98,24 +103,46 @@ export class JobQueueService implements Disposable {
       const queueName = handler.accepts[JOB_NAME];
       const workersPromises = Array.from({ length: handler.concurrency ?? concurrency ?? 2 }).map(() =>
         this.pgBoss.work<JobPayload<Job>>(queueName, workerOptions, async ([job]) => {
-          this.logger.info({
-            event: "JOB_STARTED",
-            jobId: job.id
-          });
-          try {
-            await handler.handle(job.data);
+          await this.executionContextService.runWithContext(async () => {
+            this.executionContextService.set("CURRENT_USER", {
+              id: "bg-job-user",
+              bio: "",
+              email: "bg-job-user@akash.network",
+              emailVerified: false,
+              stripeCustomerId: "",
+              subscribedToNewsletter: false,
+              createdAt: new Date(),
+              lastActiveAt: new Date(),
+              lastIp: null,
+              lastUserAgent: null,
+              lastFingerprint: null,
+              youtubeUsername: null,
+              twitterUsername: null,
+              githubUsername: null,
+              userId: "system:bg-job-user",
+              username: "___bg_job_user___",
+              trial: false
+            });
+            this.executionContextService.set("ABILITY", createMongoAbility<MongoAbility>());
             this.logger.info({
-              event: "JOB_DONE",
+              event: "JOB_STARTED",
               jobId: job.id
             });
-          } catch (error) {
-            this.logger.error({
-              event: "JOB_FAILED",
-              jobId: job.id,
-              error
-            });
-            throw error;
-          }
+            try {
+              await handler.handle(job.data);
+              this.logger.info({
+                event: "JOB_DONE",
+                jobId: job.id
+              });
+            } catch (error) {
+              this.logger.error({
+                event: "JOB_FAILED",
+                jobId: job.id,
+                error
+              });
+              throw error;
+            }
+          });
         })
       );
 
@@ -142,8 +169,7 @@ export class JobQueueService implements Disposable {
   }
 
   async ping(): Promise<void> {
-    // @ts-expect-error - getDb is not typed, see https://github.com/timgit/pg-boss/issues/552#issuecomment-3213043039
-    await this.pgBoss.getDb().executeSql("SELECT 1");
+    await this.pgBoss.getDb().executeSql("SELECT 1", []);
   }
 }
 

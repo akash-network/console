@@ -32,7 +32,7 @@ type NotificationTemplates = typeof notificationTemplates;
 type GenericNotificationTemplate = (user: UserOutput, vars?: Record<string, unknown>) => CreateNotificationInput;
 
 export class NotificationJob<T extends keyof NotificationTemplates = keyof NotificationTemplates> implements Job {
-  static readonly [JOB_NAME] = "notifications";
+  static readonly [JOB_NAME] = "NotificationJob";
   readonly name = NotificationJob[JOB_NAME];
   readonly version = 1;
 

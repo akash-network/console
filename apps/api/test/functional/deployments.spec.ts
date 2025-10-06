@@ -37,15 +37,18 @@ describe("Deployments API", () => {
   const signerService = container.resolve(ManagedSignerService);
   const deploymentReaderService = container.resolve(DeploymentReaderService);
 
+  let currentUser: UserOutput;
   let knownUsers: Record<string, UserOutput>;
   let knownApiKeys: Record<string, ApiKeyOutput>;
   let knownWallets: Record<string, UserWalletOutput[]>;
+  let allWallets: UserWalletOutput[];
   let currentHeight: number;
 
   beforeEach(() => {
     knownUsers = {};
     knownApiKeys = {};
     knownWallets = {};
+    allWallets = [];
     currentHeight = faker.number.int({ min: 1000000, max: 10000000 });
 
     jest.spyOn(userRepository, "findById").mockImplementation(async (id: string) => {
@@ -66,12 +69,19 @@ describe("Deployments API", () => {
 
     jest.spyOn(blockHttpService, "getCurrentHeight").mockResolvedValue(currentHeight);
 
+    jest.spyOn(userWalletRepository, "findOneBy").mockImplementation(async (query: Partial<UserWalletOutput> | undefined) => {
+      return Promise.resolve(allWallets.find(wallet => wallet.address === query?.address));
+    });
+
     const fakeWalletRepository = {
       findByUserId: async (id: string) => {
         return Promise.resolve(knownWallets[id]);
       },
       findOneByUserId: async (id: string) => {
         return Promise.resolve(knownWallets[id][0]);
+      },
+      findFirst: async () => {
+        return Promise.resolve(knownWallets[currentUser.id][0]);
       }
     } as unknown as UserWalletRepository;
 
@@ -105,9 +115,11 @@ describe("Deployments API", () => {
     const apiKey = ApiKeySeeder.create({ userId });
     const wallets = [UserWalletSeeder.create({ userId, address: "akash13265twfqejnma6cc93rw5dxk4cldyz2zyy8cdm" })];
 
+    currentUser = user;
     knownUsers[userId] = user;
     knownApiKeys[userApiKeySecret] = apiKey;
     knownWallets[user.id] = wallets;
+    allWallets.push(...wallets);
 
     return { user, userApiKeySecret, wallets };
   }
@@ -537,7 +549,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      jest.spyOn(deploymentReaderService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+      jest.spyOn(deploymentReaderService, "findByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
       const response = await app.request(`/v1/deployments/${dseq}`, {
         method: "DELETE",
@@ -604,7 +616,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      jest.spyOn(deploymentReaderService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+      jest.spyOn(deploymentReaderService, "findByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
       const response = await app.request(`/v1/deposit-deployment`, {
         method: "POST",
@@ -688,6 +700,41 @@ describe("Deployments API", () => {
         method: "PUT",
         body: JSON.stringify({
           data: {
+            sdl: yml
+          }
+        }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: unknown };
+      expect(result.data).toEqual({
+        deployment: expect.any(Object),
+        escrow_account: expect.any(Object),
+        leases: expect.arrayContaining([expect.any(Object)])
+      });
+    });
+
+    it("should update a deployment successfully with a certificate provided", async () => {
+      const { userApiKeySecret, wallets } = await mockUser();
+      const dseq = "1234";
+      setupDeploymentInfoMock(wallets, dseq);
+
+      const mockTxResult = {
+        code: 0,
+        hash: "test-hash",
+        transactionHash: "test-hash",
+        rawLog: "success"
+      };
+
+      jest.spyOn(signerService, "executeDecodedTxByUserId").mockResolvedValueOnce(mockTxResult);
+
+      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          data: {
             sdl: yml,
             certificate: {
               certPem: "test-cert-pem",
@@ -711,7 +758,7 @@ describe("Deployments API", () => {
       const { userApiKeySecret } = await mockUser();
       const dseq = "1234";
 
-      jest.spyOn(deploymentReaderService, "findByOwnerAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
+      jest.spyOn(deploymentReaderService, "findByWalletAndDseq").mockRejectedValueOnce(new NotFound("Deployment not found"));
 
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
@@ -719,11 +766,7 @@ describe("Deployments API", () => {
         method: "PUT",
         body: JSON.stringify({
           data: {
-            sdl: yml,
-            certificate: {
-              certPem: "test-cert-pem",
-              keyPem: "test-key-pem"
-            }
+            sdl: yml
           }
         }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
@@ -744,11 +787,7 @@ describe("Deployments API", () => {
         method: "PUT",
         body: JSON.stringify({
           data: {
-            sdl: "test-sdl",
-            certificate: {
-              certPem: "test-cert-pem",
-              keyPem: "test-key-pem"
-            }
+            sdl: "test-sdl"
           }
         }),
         headers: new Headers({ "Content-Type": "application/json" })
@@ -772,11 +811,7 @@ describe("Deployments API", () => {
         method: "PUT",
         body: JSON.stringify({
           data: {
-            sdl: "invalid-sdl",
-            certificate: {
-              certPem: "test-cert-pem",
-              keyPem: "test-key-pem"
-            }
+            sdl: "invalid-sdl"
           }
         }),
         headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
@@ -785,45 +820,6 @@ describe("Deployments API", () => {
       expect(response.status).toBe(400);
       const result = (await response.json()) as { message: string };
       expect(result.message).toContain("Invalid SDL");
-    });
-
-    it("should return 400 if certificate is missing required fields", async () => {
-      const { userApiKeySecret, wallets } = await mockUser();
-      const dseq = "1234";
-      setupDeploymentInfoMock(wallets, dseq);
-
-      const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
-
-      const response = await app.request(`/v1/deployments/${dseq}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          data: {
-            sdl: yml,
-            certificate: {
-              certPem: "test-cert-pem"
-            }
-          }
-        }),
-        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
-      });
-
-      expect(response.status).toBe(400);
-      const result = await response.json();
-      expect(result).toEqual({
-        data: [
-          {
-            code: "invalid_type",
-            expected: "string",
-            message: "Required",
-            path: ["data", "certificate", "keyPem"],
-            received: "undefined"
-          }
-        ],
-        error: "BadRequestError",
-        message: "Validation error",
-        code: "validation_error",
-        type: "validation_error"
-      });
     });
   });
 

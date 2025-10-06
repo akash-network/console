@@ -9,15 +9,27 @@ import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config"
 import { register } from "@src/infrastructure/db/db.module";
 import { DbHealthzService } from "@src/infrastructure/db/services/db-healthz/db-healthz.service";
 import moduleConfig from "@src/modules/notifications/config";
+import { AmplitudeProvider } from "./providers/amplitude.provider";
+import { HashProvider } from "./providers/hash.provider";
 import { NovuProvider } from "./providers/novu.provider";
 import { NotificationChannelRepository } from "./repositories/notification-channel/notification-channel.repository";
+import { AnalyticsService } from "./services/analytics/analytics.service";
 import { EmailSenderService } from "./services/email-sender/email-sender.service";
 import { NotificationRouterService } from "./services/notification-router/notification-router.service";
 import * as schema from "./model-schemas";
 
 @Module({
   imports: [CommonModule, ConfigModule.forFeature(moduleConfig), ...register(schema)],
-  providers: [NovuProvider, EmailSenderService, NotificationRouterService, NotificationChannelRepository, DbHealthzService],
+  providers: [
+    AmplitudeProvider,
+    HashProvider,
+    AnalyticsService,
+    NovuProvider,
+    EmailSenderService,
+    NotificationRouterService,
+    NotificationChannelRepository,
+    DbHealthzService
+  ],
   exports: [NotificationChannelRepository, NotificationRouterService, EmailSenderService, DbHealthzService]
 })
 export class NotificationsModule implements OnApplicationShutdown {

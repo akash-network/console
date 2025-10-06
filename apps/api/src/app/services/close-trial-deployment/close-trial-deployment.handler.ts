@@ -58,7 +58,21 @@ export class CloseTrialDeploymentHandler implements JobHandler<CloseTrialDeploym
       return;
     }
 
-    await this.deploymentWriterService.close(wallet, payload.dseq);
+    const { address } = wallet;
+
+    if (!address) {
+      this.logger.debug({
+        event: "SKIP_CLOSE_TRIAL_DEPLOYMENT_JOB",
+        reason: "Wallet is not initialized",
+        job: CloseTrialDeployment[JOB_NAME],
+        walletId: payload.walletId,
+        dseq: payload.dseq,
+        userId: wallet.userId
+      });
+      return;
+    }
+
+    await this.deploymentWriterService.close({ ...wallet, address }, payload.dseq);
 
     await this.jobQueueService.enqueue(
       new NotificationJob({
