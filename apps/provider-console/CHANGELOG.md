@@ -1,5 +1,12 @@
 
 
+## [1.26.0](https://github.com/akash-network/console/compare/provider-console/v1.25.0...provider-console/v1.26.0) (2025-10-06)
+
+
+### Features
+
+* **auth:** implements managed wallet API JWT auth  ([06b4e45](https://github.com/akash-network/console/commit/06b4e4540433b3b55fbc31f76d955e05e040a82e))
+
 ## [1.25.0](https://github.com/akash-network/console/compare/provider-console/v1.24.0...provider-console/v1.25.0) (2025-10-01)
 
 

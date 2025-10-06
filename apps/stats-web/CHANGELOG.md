@@ -1,5 +1,12 @@
 
 
+## [0.38.0](https://github.com/akash-network/console/compare/stats-web/v0.37.1...stats-web/v0.38.0) (2025-10-06)
+
+
+### Features
+
+* **auth:** implements managed wallet API JWT auth  ([06b4e45](https://github.com/akash-network/console/commit/06b4e4540433b3b55fbc31f76d955e05e040a82e))
+
 ## [0.37.1](https://github.com/akash-network/console/compare/stats-web/v0.37.0...stats-web/v0.37.1) (2025-10-01)
 
 
