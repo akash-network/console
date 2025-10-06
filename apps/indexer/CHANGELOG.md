@@ -1,5 +1,12 @@
 
 
+## [1.17.0](https://github.com/akash-network/console/compare/indexer/v1.16.0...indexer/v1.17.0) (2025-10-06)
+
+
+### Features
+
+* **auth:** implements managed wallet API JWT auth  ([06b4e45](https://github.com/akash-network/console/commit/06b4e4540433b3b55fbc31f76d955e05e040a82e))
+
 ## [1.16.0](https://github.com/akash-network/console/compare/indexer/v1.15.1...indexer/v1.16.0) (2025-08-26)
 
 

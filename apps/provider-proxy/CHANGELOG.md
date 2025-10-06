@@ -1,5 +1,12 @@
 
 
+## [1.19.0](https://github.com/akash-network/console/compare/provider-proxy/v1.18.1...provider-proxy/v1.19.0) (2025-10-06)
+
+
+### Features
+
+* **auth:** implements managed wallet API JWT auth  ([06b4e45](https://github.com/akash-network/console/commit/06b4e4540433b3b55fbc31f76d955e05e040a82e))
+
 ## [1.18.1](https://github.com/akash-network/console/compare/provider-proxy/v1.18.0...provider-proxy/v1.18.1) (2025-10-01)
 
 
