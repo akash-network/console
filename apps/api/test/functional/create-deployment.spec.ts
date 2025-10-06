@@ -12,7 +12,7 @@ import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { MANAGED_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
 import type { Wallet } from "@src/billing/services";
 import { app } from "@src/rest-app";
-import { apiNodeUrl } from "@src/utils/constants";
+import { apiNodeUrl, certVersion, deploymentVersion } from "@src/utils/constants";
 
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
@@ -35,7 +35,7 @@ describe("Tx Sign", () => {
       const { user, token, wallet } = await walletService.createAnonymousUserAndWallet();
       nock(apiNodeUrl, { allowUnmocked: true })
         .get(
-          `/akash/deployment/v1beta3/deployments/list?filters.owner=${wallet.address}&pagination.offset=0&pagination.limit=1&pagination.count_total=true&pagination.reverse=false`
+          `/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${wallet.address}&pagination.offset=0&pagination.limit=1&pagination.count_total=true&pagination.reverse=false`
         )
         .reply(200, {
           deployments: [],
@@ -66,7 +66,7 @@ describe("Tx Sign", () => {
         userId: userId,
         messages: [
           {
-            typeUrl: "/akash.cert.v1beta3.MsgCreateCertificate",
+            typeUrl: `/akash.cert.${certVersion}.MsgCreateCertificate`,
             value: {
               owner: address,
               cert: Buffer.from(cert).toString("base64"),
@@ -74,7 +74,7 @@ describe("Tx Sign", () => {
             }
           },
           {
-            typeUrl: "/akash.deployment.v1beta3.MsgCreateDeployment",
+            typeUrl: `/akash.deployment.${deploymentVersion}.MsgCreateDeployment`,
             value: {
               id: {
                 owner: address,

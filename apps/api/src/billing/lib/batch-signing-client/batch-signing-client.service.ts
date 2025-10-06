@@ -1,3 +1,4 @@
+import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { LoggerService } from "@akashnetwork/logging";
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
@@ -5,7 +6,6 @@ import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, GasPrice } from "@cosmjs/stargate";
 import type { IndexedTx } from "@cosmjs/stargate/build/stargateclient";
 import { Sema } from "async-sema";
-import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import DataLoader from "dataloader";
 import { backOff } from "exponential-backoff";
 import assert from "http-assert";

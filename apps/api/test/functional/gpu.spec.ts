@@ -1,4 +1,4 @@
-import { MsgCreateBid } from "@akashnetwork/akash-api/v1beta4";
+import { MsgCreateBid } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
@@ -598,18 +598,18 @@ describe("GPU API", () => {
     ]);
     await Promise.all([
       createAkashMessage({
-        type: "/akash.market.v1beta4.MsgCreateBid",
+        type: `/${MsgCreateBid.$type}`,
         txId: testData.transactions[0].id,
         height: block.height,
         data: MsgCreateBid.encode(
           MsgCreateBid.create({
-            order: {
+            id: {
               owner: testData.providers[0].owner,
               dseq: Long.fromNumber(1),
               oseq: 1,
-              gseq: 1
+              gseq: 1,
+              provider: testData.providers[0].owner
             },
-            provider: testData.providers[0].owner,
             price: {
               amount: "1000",
               denom: "uakt"
@@ -653,18 +653,18 @@ describe("GPU API", () => {
         relatedDeploymentId: deployments[0].id
       }),
       createAkashMessage({
-        type: "/akash.market.v1beta4.MsgCreateBid",
+        type: `/${MsgCreateBid.$type}`,
         txId: testData.transactions[1].id,
         height: block.height,
         data: MsgCreateBid.encode(
           MsgCreateBid.create({
-            order: {
+            id: {
               owner: testData.providers[1].owner,
               dseq: Long.fromNumber(2),
               oseq: 1,
-              gseq: 1
+              gseq: 1,
+              provider: testData.providers[1].owner
             },
-            provider: testData.providers[1].owner,
             price: {
               amount: "2000",
               denom: "uakt"

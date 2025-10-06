@@ -1,3 +1,4 @@
+import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { AuthzHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
@@ -87,7 +88,7 @@ describe("start trial", () => {
         expect(allowances).toMatchObject([
           {
             authorization: {
-              "@type": "/akash.deployment.v1beta3.DepositDeploymentAuthorization",
+              "@type": `/${MsgAccountDeposit}`,
               spend_limit: { denom: config.DEPLOYMENT_GRANT_DENOM, amount: String(config.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT) }
             },
             expiration: expect.any(String)

@@ -1,4 +1,4 @@
-import type { MsgCreateBid } from "@akashnetwork/akash-api/v1beta4";
+import type { MsgCreateBid } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 
 export type GpuProviderType = {
   owner: string;

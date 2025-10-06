@@ -82,7 +82,7 @@ export const DeploymentDetails: React.FC<DeploymentDetailsProps> = ({ dseq, owne
         <Card>
           <CardContent className="p-4">
             <h3 className="mb-2 text-sm text-gray-500">Transferred</h3>
-            <p className="font-semibold">{uaktToAKT(deploymentDetails.other.escrow_account.transferred.amount, 2)} AKT</p>
+            <p className="font-semibold">{uaktToAKT(deploymentDetails.other.escrow_account.state.transferred[0]?.amount || "0", 2)} AKT</p>
           </CardContent>
         </Card>
       </div>
