@@ -41,7 +41,7 @@ function createAppContainer<T extends Factories>(settingsState: SettingsContextT
         createFallbackableHttpClient(rootContainer.createAxios, rootContainer.fallbackChainApiHttpClient, {
           baseURL: settingsState.settings?.apiEndpoint,
           shouldFallback: () => settingsState.settings?.isBlockchainDown,
-          onFailure: () => {
+          onUnavailableError: () => {
             if (settingsState.settings?.isBlockchainDown) return;
             settingsState.setSettings(prev => ({ ...prev, isBlockchainDown: true }));
           },
