@@ -186,7 +186,7 @@ describe("Balances", () => {
 
       nock(apiNodeUrl)
         .persist()
-        .get(/\/akash\/deployment\/v1beta3\/deployments\/list\?.*/)
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
         .reply(
           200,
           DeploymentListResponseSeeder.create({

@@ -1,15 +1,7 @@
-import { GroupSpec } from "@akashnetwork/akash-api/akash/deployment/v1beta3";
-import {
-  DepositDeploymentAuthorization,
-  MsgCloseDeployment,
-  MsgCreateDeployment,
-  MsgCreateLease,
-  MsgDepositDeployment,
-  MsgUpdateDeployment
-} from "@akashnetwork/akash-api/v1beta3";
-import { MsgExec, MsgRevoke } from "cosmjs-types/cosmos/authz/v1beta1/tx";
-import { BasicAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/feegrant";
-import { MsgGrantAllowance } from "cosmjs-types/cosmos/feegrant/v1beta1/tx";
+import { MsgAccountDeposit, MsgCreateCertificate, Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { GroupSpec, MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
+import { BasicAllowance, MsgExec, MsgGrantAllowance, MsgRevoke } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import addYears from "date-fns/addYears";
 import Long from "long";
 import { singleton } from "tsyringe";
@@ -30,17 +22,12 @@ interface DepositDeploymentMsgOptionsBase {
 }
 
 export interface DepositDeploymentMsgOptions extends DepositDeploymentMsgOptionsBase {
-  depositor: string;
-}
-
-export interface ExecDepositDeploymentMsgOptions extends DepositDeploymentMsgOptionsBase {
-  grantee: string;
+  signer: string;
 }
 
 export interface CreateDeploymentMsgOptions extends DepositDeploymentMsgOptionsBase {
   groups: GroupSpec[];
-  manifestVersion: Uint8Array;
-  depositor: string;
+  hash: Uint8Array;
 }
 
 export interface CreateLeaseMsgOptions {
@@ -54,19 +41,7 @@ export interface CreateLeaseMsgOptions {
 export interface UpdateDeploymentMsgOptions {
   owner: string;
   dseq: string;
-  version: Uint8Array;
-}
-
-export interface DepositDeploymentMsg {
-  typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment";
-  value: {
-    id: {
-      owner: string;
-      dseq: Long;
-    };
-    amount: { denom: string; amount: string };
-    depositor: string;
-  };
+  hash: Uint8Array;
 }
 
 @singleton()
@@ -88,11 +63,6 @@ export class RpcMessageService {
                 }
               ],
               expiration: expiration
-                ? {
-                    seconds: BigInt(Math.floor(expiration.getTime() / 1_000)),
-                    nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000)
-                  }
-                : undefined
             }).finish()
           )
         }
@@ -108,12 +78,15 @@ export class RpcMessageService {
         grantee,
         grant: {
           authorization: {
-            typeUrl: `/${DepositDeploymentAuthorization.$type}`,
-            value: DepositDeploymentAuthorization.encode(
-              DepositDeploymentAuthorization.fromPartial({
-                spendLimit: {
-                  denom,
-                  amount: limit.toString()
+            typeUrl: `/${MsgAccountDeposit.$type}`,
+            value: MsgAccountDeposit.encode(
+              MsgAccountDeposit.fromPartial({
+                deposit: {
+                  amount: {
+                    denom,
+                    amount: limit.toString()
+                  },
+                  sources: [Source.grant]
                 }
               })
             ).finish()
@@ -142,11 +115,11 @@ export class RpcMessageService {
 
   getRevokeDepositDeploymentGrantMsg({ granter, grantee }: { granter: string; grantee: string }) {
     return {
-      typeUrl: MsgRevoke.typeUrl,
+      typeUrl: `/${MsgRevoke.$type}`,
       value: MsgRevoke.fromPartial({
         granter: granter,
         grantee: grantee,
-        msgTypeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment"
+        msgTypeUrl: "/akash.deployment.v1.MsgAccountDeposit"
       })
     };
   }
@@ -163,28 +136,30 @@ export class RpcMessageService {
     };
   }
 
-  getCreateDeploymentMsg({ owner, dseq, groups, manifestVersion, denom, amount, depositor }: CreateDeploymentMsgOptions) {
+  getCreateDeploymentMsg({ owner, dseq, groups, hash, denom, amount }: CreateDeploymentMsgOptions) {
     return {
-      typeUrl: `/akash.deployment.v1beta3.MsgCreateDeployment`,
+      typeUrl: `/${MsgCreateDeployment.$type}`,
       value: MsgCreateDeployment.fromPartial({
         id: {
           owner,
           dseq
         },
         groups,
-        version: manifestVersion,
+        hash,
         deposit: {
-          denom,
-          amount: amount.toString()
-        },
-        depositor
+          amount: {
+            denom,
+            amount: amount.toString()
+          },
+          sources: [Source.grant]
+        }
       })
     };
   }
 
   getCreateLeaseMsg({ owner, dseq, gseq, oseq, provider }: CreateLeaseMsgOptions) {
     return {
-      typeUrl: `/akash.market.v1beta4.MsgCreateLease`,
+      typeUrl: `/${MsgCreateLease.$type}`,
       value: MsgCreateLease.fromPartial({
         bidId: {
           owner,
@@ -197,42 +172,48 @@ export class RpcMessageService {
     };
   }
 
-  getDepositDeploymentMsg({ owner, dseq, amount, denom, depositor }: DepositDeploymentMsgOptions): DepositDeploymentMsg {
+  getDepositDeploymentMsg({ signer, owner, dseq, amount, denom }: DepositDeploymentMsgOptions) {
     return {
-      typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
-      value: {
+      typeUrl: `/${MsgAccountDeposit.$type}`,
+      value: MsgAccountDeposit.fromPartial({
+        signer,
         id: {
-          owner,
-          dseq: Long.fromString(dseq.toString(), true)
+          scope: Scope.deployment,
+          xid: `${owner}/${dseq}`
         },
-        amount: {
-          denom,
-          amount: amount.toString()
-        },
-        depositor: depositor || owner
-      }
+        deposit: {
+          amount: {
+            denom,
+            amount: amount.toString()
+          },
+          sources: [Source.grant]
+        }
+      })
     };
   }
 
-  getExecDepositDeploymentMsg({ owner, dseq, amount, denom, grantee }: ExecDepositDeploymentMsgOptions) {
+  getExecDepositDeploymentMsg({ signer, owner, dseq, amount, denom, grantee }: DepositDeploymentMsgOptions & { grantee: string }) {
     return {
-      typeUrl: MsgExec.typeUrl,
+      typeUrl: `/${MsgExec.$type}`,
       value: {
         grantee,
         msgs: [
           {
-            typeUrl: `/${MsgDepositDeployment.$type}`,
-            value: MsgDepositDeployment.encode(
-              MsgDepositDeployment.fromPartial({
+            typeUrl: `/${MsgAccountDeposit.$type}`,
+            value: MsgAccountDeposit.encode(
+              MsgAccountDeposit.fromPartial({
+                signer,
                 id: {
-                  owner,
-                  dseq: Long.fromString(dseq.toString(), true)
+                  scope: Scope.deployment,
+                  xid: `${owner}/${dseq}`
                 },
-                amount: {
-                  denom,
-                  amount: amount.toString()
-                },
-                depositor: owner
+                deposit: {
+                  amount: {
+                    denom,
+                    amount: amount.toString()
+                  },
+                  sources: [Source.grant]
+                }
               })
             ).finish()
           }
@@ -243,24 +224,24 @@ export class RpcMessageService {
 
   getCreateCertificateMsg(address: string, crtpem: string, pubpem: string) {
     return {
-      typeUrl: "/akash.cert.v1beta3.MsgCreateCertificate",
-      value: {
+      typeUrl: `${MsgCreateCertificate.$type}`,
+      value: MsgCreateCertificate.fromPartial({
         owner: address,
-        cert: Buffer.from(crtpem).toString("base64"),
-        pubkey: Buffer.from(pubpem).toString("base64")
-      }
+        cert: Buffer.from(crtpem, "base64"),
+        pubkey: Buffer.from(pubpem, "base64")
+      })
     };
   }
 
-  getUpdateDeploymentMsg({ owner, dseq, version }: UpdateDeploymentMsgOptions) {
+  getUpdateDeploymentMsg({ owner, dseq, hash }: UpdateDeploymentMsgOptions) {
     return {
-      typeUrl: `/akash.deployment.v1beta3.MsgUpdateDeployment`,
+      typeUrl: `${MsgUpdateDeployment.$type}`,
       value: MsgUpdateDeployment.fromPartial({
         id: {
           owner,
           dseq
         },
-        version
+        hash
       })
     };
   }

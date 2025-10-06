@@ -8,7 +8,7 @@ import type { GetAddressTransactionsResponse } from "@src/address/http-schemas/a
 import { closeConnections, connectUsingSequelize } from "@src/db/dbConnection";
 import type { ListWithResourcesResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { app } from "@src/rest-app";
-import { apiNodeUrl } from "@src/utils/constants";
+import { apiNodeUrl, deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { createAddressReferenceInDatabase } from "@test/seeders/address-reference.seeder";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -379,7 +379,7 @@ describe("Addresses API", () => {
     nock(apiNodeUrl)
       .persist()
       .get(
-        `/akash/deployment/v1beta3/deployments/list?filters.owner=${address}&pagination.limit=10&pagination.offset=0&pagination.count_total=true&pagination.reverse=false`
+        `/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${address}&pagination.limit=10&pagination.offset=0&pagination.count_total=true&pagination.reverse=false`
       )
       .reply(200, {
         deployments: [
@@ -439,7 +439,7 @@ describe("Addresses API", () => {
 
     nock(apiNodeUrl)
       .persist()
-      .get(`/akash/market/v1beta4/leases/list?filters.owner=${address}&filters.state=active`)
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`)
       .reply(200, {
         leases: [
           {

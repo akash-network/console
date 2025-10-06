@@ -1,6 +1,7 @@
-import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
 import { getAkashTypeRegistry } from "@akashnetwork/akashjs/build/stargate";
+import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { BidHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
@@ -131,19 +132,21 @@ export class GpuBidsCreatorService {
 
     const manifestVersion = await sdl.manifestVersion();
     const message = {
-      typeUrl: `/akash.deployment.v1beta3.MsgCreateDeployment`,
+      typeUrl: `${MsgCreateDeployment.$type}`,
       value: MsgCreateDeployment.fromPartial({
         id: {
           owner: owner,
           dseq: dseq
         },
         groups: sdl.groups(),
-        version: manifestVersion,
+        hash: manifestVersion,
         deposit: {
-          denom: "uakt",
-          amount: "500000" // 0.5 AKT
-        },
-        depositor: owner
+          amount: {
+            denom: "uakt",
+            amount: "500000" // 0.5 AKT
+          },
+          sources: [Source.balance]
+        }
       })
     };
 
@@ -152,7 +155,7 @@ export class GpuBidsCreatorService {
 
   private async closeDeployment(client: SigningStargateClient, owner: string, dseq: string) {
     const message = {
-      typeUrl: `/akash.deployment.v1beta3.MsgCloseDeployment`,
+      typeUrl: `${MsgCloseDeployment.$type}`,
       value: MsgCloseDeployment.fromPartial({
         id: {
           owner: owner,

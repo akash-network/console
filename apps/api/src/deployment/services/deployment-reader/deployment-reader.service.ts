@@ -110,7 +110,7 @@ export class DeploymentReaderService {
 
     const { results: leaseResults } = await PromisePool.withConcurrency(100)
       .for(deployments)
-      .process(async deployment => this.leaseHttpService.list({ owner, dseq: deployment.deployment.deployment_id.dseq }));
+      .process(async deployment => this.leaseHttpService.list({ owner, dseq: deployment.deployment.id.dseq }));
 
     const deploymentsWithLeases = deployments.map((deployment, index) => ({
       deployment: deployment.deployment,
@@ -157,8 +157,8 @@ export class DeploymentReaderService {
     return {
       count: parseInt(response.pagination.total),
       results: response.deployments.map(x => ({
-        owner: x.deployment.deployment_id.owner,
-        dseq: x.deployment.deployment_id.dseq,
+        owner: x.deployment.id.owner,
+        dseq: x.deployment.id.dseq,
         status: x.deployment.state,
         createdHeight: parseInt(x.deployment.created_at),
         escrowAccount: x.escrow_account,
@@ -179,7 +179,7 @@ export class DeploymentReaderService {
           )
           .reduce((a, b) => a + b, 0),
         leases: leaseResponse.leases
-          .filter(l => l.lease.lease_id.dseq === x.deployment.deployment_id.dseq)
+          .filter(l => l.lease.lease_id.dseq === x.deployment.id.dseq)
           .map(lease => {
             const provider = providers.find(p => p.owner === lease.lease.lease_id.provider);
             return {
@@ -253,11 +253,11 @@ export class DeploymentReaderService {
       },
       include: [{ model: ProviderAttribute }]
     });
-    const deploymentDenom = deploymentData.escrow_account.balance.denom;
+    const deploymentDenom = deploymentData.escrow_account.state.funds[0]?.denom || deploymentData.escrow_account.state.transferred[0]?.denom;
 
     const leases = leasesData.leases.map(x => {
       const provider = providers.find(p => p.owner === x.lease.lease_id.provider);
-      const group = (deploymentData as DeploymentInfo).groups.find(g => g.group_id.gseq === x.lease.lease_id.gseq);
+      const group = (deploymentData as DeploymentInfo).groups.find(g => g.id.gseq === x.lease.lease_id.gseq);
       const dbLease = dbDeployment?.leases.find(l => l.gseq === x.lease.lease_id.gseq && l.oseq === x.lease.lease_id.oseq);
 
       return {
@@ -291,9 +291,9 @@ export class DeploymentReaderService {
     });
 
     return {
-      owner: deploymentData.deployment.deployment_id.owner,
-      dseq: deploymentData.deployment.deployment_id.dseq,
-      balance: parseFloat(deploymentData.escrow_account.balance.amount),
+      owner: deploymentData.deployment.id.owner,
+      dseq: deploymentData.deployment.id.dseq,
+      balance: parseFloat(deploymentData.escrow_account.state.funds[0]?.amount || "0"),
       denom: deploymentDenom,
       status: deploymentData.deployment.state,
       createdHeight: dbDeployment?.createdHeight,
