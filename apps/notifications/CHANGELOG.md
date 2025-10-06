@@ -1,5 +1,14 @@
 
 
+## [1.30.0](https://github.com/akash-network/console/compare/notifications/v1.29.2...notifications/v1.30.0) (2025-10-06)
+
+
+### Features
+
+* **analytics:** add amplitude to notifications for emails ([#1991](https://github.com/akash-network/console/issues/1991)) ([6dd78ab](https://github.com/akash-network/console/commit/6dd78ab08b1dfc676fbe735333fd968869922bab))
+* **auth:** implements managed wallet API JWT auth  ([06b4e45](https://github.com/akash-network/console/commit/06b4e4540433b3b55fbc31f76d955e05e040a82e))
+* **wallet:** ensures managed wallet supports read-only mode during blockchain outage ([2a005c6](https://github.com/akash-network/console/commit/2a005c61e845906962ebfc49116974d8fdd3d931))
+
 ## [1.29.2](https://github.com/akash-network/console/compare/notifications/v1.29.1...notifications/v1.29.2) (2025-10-01)
 
 

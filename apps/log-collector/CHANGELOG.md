@@ -1,5 +1,13 @@
 
 
+## [1.13.0](https://github.com/akash-network/console/compare/log-collector/v1.12.2...log-collector/v1.13.0) (2025-10-06)
+
+
+### Features
+
+* **auth:** implements managed wallet API JWT auth  ([06b4e45](https://github.com/akash-network/console/commit/06b4e4540433b3b55fbc31f76d955e05e040a82e))
+* **wallet:** ensures managed wallet supports read-only mode during blockchain outage ([2a005c6](https://github.com/akash-network/console/commit/2a005c61e845906962ebfc49116974d8fdd3d931))
+
 ## [1.12.2](https://github.com/akash-network/console/compare/log-collector/v1.12.1...log-collector/v1.12.2) (2025-10-01)
 
 
