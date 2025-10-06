@@ -9,16 +9,14 @@ import { Rocket } from "iconoir-react";
 import { useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useCertificate } from "@src/context/CertificateProvider";
-import { useSettings } from "@src/context/SettingsProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useManagedWalletDenom } from "@src/hooks/useManagedWalletDenom";
 import { useWhen } from "@src/hooks/useWhen";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import { useDepositParams } from "@src/queries/useSaveSettings";
 import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import sdlStore from "@src/store/sdlStore";
 import type { ProfileGpuModelType, RentGpusFormValuesType, ServiceType } from "@src/types";
 import { RentGpusFormValuesSchema } from "@src/types";
@@ -49,6 +47,7 @@ import { RegionSelect } from "./RegionSelect";
 import { TokenFormControl } from "./TokenFormControl";
 
 export const RentGpusForm: React.FunctionComponent = () => {
+  const { chainApiHttpClient, analyticsService, appConfig } = useServices();
   const [error, setError] = useState<string | null>(null);
   // const [templateMetadata, setTemplateMetadata] = useState<ITemplate>(null);
   const [isQueryInit, setIsQuertInit] = useState(false);
@@ -70,14 +69,13 @@ export const RentGpusForm: React.FunctionComponent = () => {
   const { services: _services } = watch();
   const searchParams = useSearchParams();
   const currentService: ServiceType = (_services && _services[0]) || ({} as any);
-  const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged } = useWallet();
   const { loadValidCertificates, localCert, isLocalCertMatching, loadLocalCert, setSelectedCertificate } = useCertificate();
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const router = useRouter();
   const managedDenom = useManagedWalletDenom();
   const { data: depositParams } = useDepositParams();
-  const defaultDeposit = depositParams || browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
+  const defaultDeposit = depositParams || appConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT;
 
   useWhen(isManaged && sdlDenom === "uakt", () => {
     setSdlDenom(managedDenom);
@@ -135,7 +133,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
     try {
       if (!yamlStr) return null;
 
-      const dd = await deploymentData.NewDeploymentData(settings.apiEndpoint, yamlStr, dseq, address, deposit, depositorAddress);
+      const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, yamlStr, dseq, address, deposit, depositorAddress);
       validateDeploymentData(dd);
 
       setSdlDenom(dd.deposit.denom);

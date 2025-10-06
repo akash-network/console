@@ -1,13 +1,14 @@
 import type { SDL } from "@akashnetwork/akashjs/build/sdl";
 import type { Attribute, v2Sdl } from "@akashnetwork/akashjs/build/sdl/types";
 import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+import type { HttpClient } from "@akashnetwork/http-sdk";
 import yaml from "js-yaml";
 import path from "path";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import networkStore from "@src/store/networkStore";
 import { stringToBoolean } from "../stringUtils";
-import { CustomValidationError, DeploymentGroups, getCurrentHeight, getSdl, Manifest, ManifestVersion, parseSizeStr } from "./helpers";
+import { CustomValidationError, DeploymentGroups, getSdl, Manifest, ManifestVersion, parseSizeStr } from "./helpers";
 
 function validate(yamlStr: string, yamlJson: v2Sdl, networkId: NetworkId) {
   let sdl: SDL;
@@ -181,7 +182,7 @@ export async function getManifestVersion(yamlJson: string | v2Sdl, asString = fa
 }
 
 export async function NewDeploymentData(
-  apiEndpoint: string,
+  chainApiHttpClient: HttpClient,
   yamlStr: string,
   dseq: string,
   fromAddress: string,
@@ -207,7 +208,8 @@ export async function NewDeploymentData(
   };
 
   if (!id.dseq) {
-    id.dseq = (await getCurrentHeight(apiEndpoint)).toString();
+    const response = await chainApiHttpClient.get("/blocks/latest");
+    id.dseq = response.data.block.header.height;
   }
 
   return {

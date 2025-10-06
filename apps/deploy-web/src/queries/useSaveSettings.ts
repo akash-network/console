@@ -1,3 +1,4 @@
+import type { UseQueryOptions } from "@tanstack/react-query";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { AxiosInstance, AxiosResponse } from "axios";
 import { useSnackbar } from "notistack";
@@ -33,11 +34,12 @@ async function getDepositParams(chainApiHttpClient: AxiosInstance) {
   return JSON.parse(depositParams.param.value) as DepositParams[];
 }
 
-export function useDepositParams(options = {}) {
+export function useDepositParams(options?: Omit<UseQueryOptions<DepositParams[]>, "queryKey" | "queryFn">) {
   const { chainApiHttpClient } = useServices();
   return useQuery({
     queryKey: QueryKeys.getDepositParamsKey(),
     queryFn: () => getDepositParams(chainApiHttpClient),
-    ...options
+    ...options,
+    enabled: options?.enabled !== false && !chainApiHttpClient.isFallbackEnabled
   });
 }

@@ -1,15 +1,15 @@
 import type { createHttpClient as createDefaultHttpClient, HttpClient } from "@akashnetwork/http-sdk";
-import { isHttpError } from "@akashnetwork/http-sdk";
 import { ExponentialBackoff, isBrokenCircuitError } from "cockatiel";
 
-import { createFetchAdapter } from "../createFetchAdapter/createFetchAdapter";
+import { createFetchAdapter, isNetworkOrIdempotentRequestError } from "../createFetchAdapter/createFetchAdapter";
 
+export type FallbackableHttpClient = HttpClient & { isFallbackEnabled: boolean };
 export function createFallbackableHttpClient(
   createHttpClient: typeof createDefaultHttpClient,
   fallbackHttpClient: HttpClient,
   options: ChainApiHttpClientOptions
-) {
-  return createHttpClient({
+): FallbackableHttpClient {
+  const httpClient = createHttpClient({
     baseURL: options.baseURL,
     adapter: createFetchAdapter({
       circuitBreaker: {
@@ -23,9 +23,8 @@ export function createFallbackableHttpClient(
         }
       },
       onFailure: (error, requestConfig) => {
-        options.onFailure?.(error);
-
-        if (isHttpError(error) || isBrokenCircuitError(error)) {
+        if (isNetworkOrIdempotentRequestError(error) || isBrokenCircuitError(error)) {
+          options.onUnavailableError?.(error);
           const { adapter, ...restOfRequestConfig } = requestConfig;
           return fallbackHttpClient.request(restOfRequestConfig);
         }
@@ -36,11 +35,17 @@ export function createFallbackableHttpClient(
       retries: 0
     }
   });
+
+  Object.defineProperty(httpClient, "isFallbackEnabled", {
+    get: options.shouldFallback
+  });
+
+  return httpClient as FallbackableHttpClient;
 }
 
 export interface ChainApiHttpClientOptions {
   baseURL: string;
-  onFailure?: (error: unknown) => void;
+  onUnavailableError?: (error: unknown) => void;
   onSuccess?: () => void;
   shouldFallback: () => boolean;
 }
