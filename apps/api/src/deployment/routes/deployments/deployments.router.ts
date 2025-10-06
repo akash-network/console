@@ -28,7 +28,7 @@ import {
   FallbackDeploymentListQuerySchema,
   FallbackDeploymentListResponseSchema
 } from "@src/deployment/http-schemas/deployment-rpc.schema";
-import { DatabaseDeploymentReaderService } from "@src/deployment/services/deployment-reader/db-deployment-reader.service";
+import { FallbackDeploymentReaderService } from "@src/deployment/services/fallback-deployment-reader/fallback-deployment-reader.service";
 
 const getRoute = createRoute({
   method: "get",
@@ -330,9 +330,9 @@ deploymentsRouter.openapi(getByOwnerAndDseqRoute, async function routeGetDeploym
 
 deploymentsRouter.openapi(fallbackListRoute, async function routeFallbackListDeployments(c) {
   const query = c.req.valid("query");
-  const databaseReader = container.resolve(DatabaseDeploymentReaderService);
+  const deploymentService = container.resolve(FallbackDeploymentReaderService);
 
-  const result = await databaseReader.listDeployments({
+  const result = await deploymentService.findAll({
     owner: query["filters.owner"],
     state: query["filters.state"],
     skip: query["pagination.offset"],
@@ -347,9 +347,9 @@ deploymentsRouter.openapi(fallbackListRoute, async function routeFallbackListDep
 
 deploymentsRouter.openapi(fallbackInfoRoute, async function routeFallbackDeploymentInfo(c) {
   const query = c.req.valid("query");
-  const databaseReader = container.resolve(DatabaseDeploymentReaderService);
+  const deploymentService = container.resolve(FallbackDeploymentReaderService);
 
-  const result = await databaseReader.getDeploymentInfo(query["id.owner"], query["id.dseq"]);
+  const result = await deploymentService.findByOwnerAndDseq(query["id.owner"], query["id.dseq"]);
 
   if (result) {
     return c.json(result, 200);
