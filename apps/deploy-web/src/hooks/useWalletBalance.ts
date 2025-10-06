@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { useAtom } from "jotai";
 
 import { UAKT_DENOM } from "@src/config/denom.config";
 import { useChainParam } from "@src/context/ChainParamProvider";
 import { usePricing } from "@src/context/PricingProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useBalances } from "@src/queries/useBalancesQuery";
+import walletStore from "@src/store/walletStore";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { uaktToAKT } from "@src/utils/priceUtils";
 import { useUsdcDenom } from "./useDenom";
@@ -35,7 +37,7 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
   const { isLoaded, price, udenomToUsd } = usePricing();
   const { address, isManaged } = useWallet();
   const { data: balances, isFetching: isLoadingBalances, refetch } = useBalances(address);
-  const [walletBalance, setWalletBalance] = useState<WalletBalance | null>(null);
+  const [walletBalance, setWalletBalance] = useAtom(walletStore.balance);
 
   useEffect(() => {
     if (isLoaded && balances && price) {

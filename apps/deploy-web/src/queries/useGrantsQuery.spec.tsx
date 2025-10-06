@@ -1,10 +1,10 @@
 import type { AuthzHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
-import type { AxiosInstance } from "axios";
 import { mock } from "jest-mock-extended";
 
 import type { SettingsContextType } from "@src/context/SettingsProvider/SettingsProviderContext";
 import { SettingsProviderContext } from "@src/context/SettingsProvider/SettingsProviderContext";
+import type { FallbackableHttpClient } from "@src/services/createFallbackableHttpClient/createFallbackableHttpClient";
 import { useAllowancesGranted, useAllowancesIssued, useGranteeGrants, useGranterGrants } from "./useGrantsQuery";
 
 import { waitFor } from "@testing-library/react";
@@ -175,8 +175,8 @@ describe("useGrantsQuery", () => {
   describe(useAllowancesGranted.name, () => {
     it("fetches allowances granted when address is provided", async () => {
       const mockData = [{ id: faker.string.uuid() }];
-      const chainApiHttpClient = mock<AxiosInstance>({
-        defaults: { baseURL: "https://api.akash.network" },
+      const chainApiHttpClient = mock<FallbackableHttpClient>({
+        isFallbackEnabled: false,
         get: jest.fn().mockResolvedValue({
           data: {
             allowances: mockData,
@@ -202,8 +202,8 @@ describe("useGrantsQuery", () => {
     });
 
     it("does not fetch when address is not provided", () => {
-      const chainApiHttpClient = mock<AxiosInstance>({
-        defaults: { baseURL: "https://api.akash.network" },
+      const chainApiHttpClient = mock<FallbackableHttpClient>({
+        isFallbackEnabled: false,
         get: jest.fn().mockResolvedValue({
           data: {
             allowances: [],

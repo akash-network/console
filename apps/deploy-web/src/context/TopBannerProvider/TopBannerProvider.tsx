@@ -21,7 +21,7 @@ export const TopBannerProvider: FCWithChildren = ({ children }) => {
   const { settings } = useSettings();
   const hasCreditCardBanner = useHasCreditCardBanner();
 
-  const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useState(!!maintenanceBannerFlag.enabled);
+  const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useState(false);
   useWhen(maintenanceBannerFlag.enabled, () => setIsMaintenanceBannerOpen(true));
 
   const hasBanner = useMemo(

@@ -60,7 +60,7 @@ export function createFetchAdapter(options: FetchAdapterOptions = {}): AxiosAdap
   };
 }
 
-function isNetworkOrIdempotentRequestError(error: unknown): boolean {
+export function isNetworkOrIdempotentRequestError(error: unknown): boolean {
   const isNetworkError = error && !axios.isAxiosError(error) && error instanceof Error && "code" in error && error.code;
   if (isNetworkError) return isRetriableError(error);
   return axios.isAxiosError(error) && isIdempotentRequestError(error);
