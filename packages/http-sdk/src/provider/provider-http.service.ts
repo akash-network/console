@@ -9,7 +9,7 @@ export class ProviderHttpService extends HttpService {
   }
 
   async getProvider(address: string): Promise<GetProviderResponse> {
-    return this.extractData(await this.get<GetProviderResponse>(`/akash/provider/v1beta3/providers/${address}`));
+    return this.extractData(await this.get<GetProviderResponse>(`/akash/provider/v1beta4/providers/${address}`));
   }
 
   async sendManifest({ hostUri, dseq, manifest, jwtToken }: { hostUri: string; dseq: string; manifest: string; jwtToken: string }): Promise<void> {

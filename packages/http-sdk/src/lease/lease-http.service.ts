@@ -62,7 +62,7 @@ export class LeaseHttpService {
 
   public async list({ owner, dseq, state, pagination }: LeaseListParams): Promise<RestAkashLeaseListResponse> {
     return extractData(
-      await this.httpClient.get<RestAkashLeaseListResponse>("/akash/market/v1beta4/leases/list", {
+      await this.httpClient.get<RestAkashLeaseListResponse>("/akash/market/v1beta5/leases/list", {
         params: {
           "filters.owner": owner,
           "filters.dseq": dseq,
