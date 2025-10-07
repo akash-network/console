@@ -86,7 +86,7 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
   },
   akashTestnet: {
     code: "akash-testnet",
-    rpcNodes: [netConfig.getBaseRpcUrl("testnet-7")],
+    rpcNodes: [netConfig.getBaseRpcUrl("testnet")],
     cosmosDirectoryId: "akash",
     connectionString: process.env.AKASH_TESTNET_DATABASE_CS,
     genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/testnet-7/genesis.json",

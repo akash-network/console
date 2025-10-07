@@ -90,9 +90,9 @@ describe("Managed Wallet API Deployment Flow", () => {
           expect.objectContaining({
             lease_id: expect.objectContaining({
               dseq: deployment.dseq,
-              gseq: bid.bid.bid_id.gseq,
-              oseq: bid.bid.bid_id.oseq,
-              provider: bid.bid.bid_id.provider
+              gseq: bid.bid.id.gseq,
+              oseq: bid.bid.id.oseq,
+              provider: bid.bid.id.provider
             }),
             state: expect.any(String),
             price: expect.objectContaining({
@@ -201,9 +201,9 @@ describe("Managed Wallet API Deployment Flow", () => {
           expect.objectContaining({
             lease_id: expect.objectContaining({
               dseq: deployment.dseq,
-              gseq: bid.bid.bid_id.gseq,
-              oseq: bid.bid.bid_id.oseq,
-              provider: bid.bid.bid_id.provider
+              gseq: bid.bid.id.gseq,
+              oseq: bid.bid.id.oseq,
+              provider: bid.bid.id.provider
             }),
             state: expect.any(String),
             price: expect.objectContaining({
@@ -530,9 +530,9 @@ describe("Managed Wallet API Deployment Flow", () => {
       leases: [
         {
           dseq: deployment.dseq,
-          gseq: bid.bid.bid_id.gseq,
-          oseq: bid.bid.bid_id.oseq,
-          provider: bid.bid.bid_id.provider
+          gseq: bid.bid.id.gseq,
+          oseq: bid.bid.id.oseq,
+          provider: bid.bid.id.provider
         }
       ],
       certificate: certificate
