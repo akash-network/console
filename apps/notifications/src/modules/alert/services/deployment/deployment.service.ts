@@ -56,9 +56,9 @@ export class DeploymentService {
         return Err(new RichError("Deployment has no price", "DEPLOYMENT_NO_PRICE"));
       }
 
-      const blocksPassed = Math.abs(parseInt(deploymentInfo.escrow_account.state.settled_at, 10) - block);
-      const balanceAmount = parseInt(deploymentInfo.escrow_account.state.funds[0]?.amount || "0", 10);
-      const fundsAmount = parseInt(deploymentInfo.escrow_account.state.funds[0]?.amount || "0", 10);
+      const blocksPassed = Math.abs(parseInt(deploymentInfo.escrow_account.settled_at, 10) - block);
+      const balanceAmount = parseInt(deploymentInfo.escrow_account.balance.amount, 10);
+      const fundsAmount = parseInt(deploymentInfo.escrow_account.funds.amount, 10);
       const balance = balanceAmount + fundsAmount;
       const blocksLeft = balance / pricePerBlock - blocksPassed;
       const escrow = Math.max(blocksLeft * pricePerBlock, 0);
