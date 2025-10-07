@@ -33,7 +33,7 @@ describe("Deployment Fallback API", () => {
       expect(deployment).toHaveProperty("escrow_account");
 
       // Check deployment details
-      expect(deployment.deployment).toHaveProperty("deployment_id");
+      expect(deployment.deployment).toHaveProperty("id");
       expect(deployment.deployment).toHaveProperty("state");
       expect(deployment.deployment).toHaveProperty("version");
       expect(deployment.deployment).toHaveProperty("created_at");
@@ -122,7 +122,7 @@ describe("Deployment Fallback API", () => {
 
       // All deployments should belong to the specified owner
       result.deployments.forEach((deployment: any) => {
-        expect(deployment.deployment.deployment_id.owner).toBe(addresses![0]);
+        expect(deployment.deployment.id.owner).toBe(addresses![0]);
       });
     });
 
