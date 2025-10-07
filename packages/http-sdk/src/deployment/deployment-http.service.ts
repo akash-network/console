@@ -141,7 +141,7 @@ export class DeploymentHttpService {
 
   public async findByOwnerAndDseq(owner: string, dseq: string): Promise<RestAkashDeploymentInfoResponse> {
     return extractData(
-      await this.httpClient.get<RestAkashDeploymentInfoResponse>("/akash/deployment/v1beta3/deployments/info", {
+      await this.httpClient.get<RestAkashDeploymentInfoResponse>("/akash/deployment/v1beta4/deployments/info", {
         params: {
           "id.owner": owner,
           "id.dseq": dseq
@@ -161,7 +161,7 @@ export class DeploymentHttpService {
   public async findAll(input: { owner: string; state?: "active" | "closed"; pagination?: PaginationParams }): Promise<DeploymentListResponse> {
     const { owner, state, pagination } = input;
     const baseUrl = this.httpClient.getUri({
-      url: `/akash/deployment/v1beta3/deployments/list?filters.owner=${owner}${state ? `&filters.state=${state}` : ""}`
+      url: `/akash/deployment/v1beta4/deployments/list?filters.owner=${owner}${state ? `&filters.state=${state}` : ""}`
     });
     const defaultLimit = 1000;
 
@@ -193,7 +193,7 @@ export class DeploymentHttpService {
     }
 
     return extractData(
-      await this.httpClient.get<DeploymentListResponse>("/akash/deployment/v1beta3/deployments/list", {
+      await this.httpClient.get<DeploymentListResponse>("/akash/deployment/v1beta4/deployments/list", {
         params
       })
     );
