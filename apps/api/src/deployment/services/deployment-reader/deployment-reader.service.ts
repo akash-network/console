@@ -293,7 +293,7 @@ export class DeploymentReaderService {
     return {
       owner: deploymentData.deployment.id.owner,
       dseq: deploymentData.deployment.id.dseq,
-      balance: parseFloat(deploymentData.escrow_account.state.funds[0]?.amount || "0"),
+      balance: parseFloat(deploymentData.escrow_account.state.funds.reduce((sum, { amount }) => sum + parseFloat(amount), 0).toFixed(18)),
       denom: deploymentDenom,
       status: deploymentData.deployment.state,
       createdHeight: dbDeployment?.createdHeight,
