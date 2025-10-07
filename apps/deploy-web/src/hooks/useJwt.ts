@@ -80,7 +80,7 @@ export const useJwt = ({ dependencies: d = DEPENDENCIES } = {}) => {
 
     const token = await jwtToken.createToken({
       version: "v1",
-      iss: "https://example.com",
+      iss: address,
       exp: Math.floor(Date.now() / 1000) + 3600,
       iat: Math.floor(Date.now() / 1000)
     });
