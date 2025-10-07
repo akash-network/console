@@ -1,4 +1,4 @@
-import { JwtToken } from "@akashnetwork/jwt";
+import { JwtTokenManager } from "@akashnetwork/chain-sdk";
 import type { SupportedChainNetworks } from "@akashnetwork/net";
 import { netConfig } from "@akashnetwork/net";
 import { z } from "@hono/zod-openapi";
@@ -33,7 +33,7 @@ export const providerRequestSchema = z.object({
 
 // we need just validation and decoding that's why signer is not provided
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const jwtTokenManager = new JwtToken({} as any);
+const jwtTokenManager = new JwtTokenManager({} as any);
 
 export type ProviderRequestSchema = Omit<z.infer<typeof providerRequestSchema>, "chainNetwork" | "certPem" | "keyPem">;
 

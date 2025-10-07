@@ -7,3 +7,4 @@ export * from "@src/provider/routes/provider-earnings/provider-earnings.router";
 export * from "@src/provider/routes/provider-versions/provider-versions.router";
 export * from "@src/provider/routes/provider-graph-data/provider-graph-data.router";
 export * from "@src/provider/routes/provider-deployments/provider-deployments.router";
+export * from "@src/provider/routes/jwt-token/jwt-token.router";
