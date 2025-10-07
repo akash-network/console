@@ -1,7 +1,14 @@
-import { MsgAccountDeposit, MsgCreateCertificate, Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import {
+  DepositAuthorization,
+  DepositAuthorization_Scope,
+  MsgAccountDeposit,
+  MsgCreateCertificate,
+  Scope,
+  Source
+} from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { GroupSpec, MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
-import { BasicAllowance, MsgExec, MsgGrantAllowance, MsgRevoke } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import { BasicAllowance, MsgExec, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import addYears from "date-fns/addYears";
 import Long from "long";
 import { singleton } from "tsyringe";
@@ -48,12 +55,12 @@ export interface UpdateDeploymentMsgOptions {
 export class RpcMessageService {
   getFeesAllowanceGrantMsg({ limit, expiration, granter, grantee }: Omit<SpendingAuthorizationMsgOptions, "denom">) {
     return {
-      typeUrl: "/cosmos.feegrant.v1beta1.MsgGrantAllowance",
+      typeUrl: `/${MsgGrantAllowance.$type}`,
       value: MsgGrantAllowance.fromPartial({
         granter,
         grantee,
         allowance: {
-          typeUrl: "/cosmos.feegrant.v1beta1.BasicAllowance",
+          typeUrl: `/${BasicAllowance.$type}`,
           value: Uint8Array.from(
             BasicAllowance.encode({
               spendLimit: [
@@ -72,22 +79,20 @@ export class RpcMessageService {
 
   getDepositDeploymentGrantMsg({ denom, limit, expiration = addYears(new Date(), 10), granter, grantee }: SpendingAuthorizationMsgOptions) {
     return {
-      typeUrl: "/cosmos.authz.v1beta1.MsgGrant",
+      typeUrl: `/${MsgGrant.$type}`,
       value: {
         granter,
         grantee,
         grant: {
           authorization: {
-            typeUrl: `/${MsgAccountDeposit.$type}`,
-            value: MsgAccountDeposit.encode(
-              MsgAccountDeposit.fromPartial({
-                deposit: {
-                  amount: {
-                    denom,
-                    amount: limit.toString()
-                  },
-                  sources: [Source.grant]
-                }
+            typeUrl: `/${DepositAuthorization.$type}`,
+            value: DepositAuthorization.encode(
+              DepositAuthorization.fromPartial({
+                spendLimit: {
+                  denom,
+                  amount: limit.toString()
+                },
+                scopes: [DepositAuthorization_Scope.deployment]
               })
             ).finish()
           },
@@ -104,11 +109,11 @@ export class RpcMessageService {
 
   getRevokeAllowanceMsg({ granter, grantee }: { granter: string; grantee: string }) {
     return {
-      typeUrl: "/cosmos.feegrant.v1beta1.MsgRevokeAllowance",
+      typeUrl: `/${MsgRevokeAllowance.$type}`,
       value: MsgRevoke.fromPartial({
         granter,
         grantee,
-        msgTypeUrl: "/cosmos.feegrant.v1beta1.MsgGrantAllowance"
+        msgTypeUrl: `/${MsgGrantAllowance.$type}`
       })
     };
   }
@@ -119,7 +124,7 @@ export class RpcMessageService {
       value: MsgRevoke.fromPartial({
         granter: granter,
         grantee: grantee,
-        msgTypeUrl: "/akash.deployment.v1.MsgAccountDeposit"
+        msgTypeUrl: `/${DepositAuthorization.$type}`
       })
     };
   }
