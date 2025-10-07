@@ -1,5 +1,5 @@
+import type { JwtTokenPayload } from "@akashnetwork/chain-sdk";
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import type { JwtTokenPayload } from "@akashnetwork/jwt";
 import { netConfig } from "@akashnetwork/net";
 import { faker } from "@faker-js/faker";
 import { AxiosError } from "axios";
