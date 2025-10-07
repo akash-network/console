@@ -102,12 +102,8 @@ export const useJwt = ({ dependencies: d = DEPENDENCIES } = {}) => {
           label: "Created jwt"
         });
       }
-
+    } finally {
       setIsCreatingToken(false);
-    } catch (error) {
-      setIsCreatingToken(false);
-
-      throw error;
     }
   }, [getAccount, signArbitrary, address, signAndBroadcastTx, d, loadLocalToken, analyticsService]);
 
