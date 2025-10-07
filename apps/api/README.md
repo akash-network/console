@@ -75,7 +75,7 @@ src/
 
 #### Functional Tests Wallet
 
-Functional tests use the Akash sandbox environment and require wallet credentials. By default, `TestWalletService` generates a unique wallet for each test file, which increases startup time. To improve performance, you can configure a single shared wallet by setting `MASTER_WALLET_MNEMONIC` in `env/.env.functional.test.local`. Simply create a wallet, add its mnemonic to this file, and fund it via the Akash sandbox faucet (https://faucet.sandbox-01.aksh.pw).
+Functional tests use the Akash sandbox environment and require wallet credentials. By default, `TestWalletService` generates a unique wallet for each test file, which increases startup time. To improve performance, you can configure a single shared wallet by setting `MASTER_WALLET_MNEMONIC` in `env/.env.functional.test.local`. Simply create a wallet, add its mnemonic to this file, and fund it via the Akash sandbox faucet (https://faucet.sandbox-2.aksh.pw).
 
 ## Changes from **beta** to **v1** (February 2024)
 

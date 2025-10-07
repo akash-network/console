@@ -524,7 +524,7 @@ describe("Managed Wallet API Deployment Flow", () => {
     bid: ListBidsResponse["data"][number],
     walletAddress: string,
     certificate?: CreateCertificateResponse["data"]
-  ): Promise<GetDeploymentResponse["data"]> {
+  ): Promise<GetDeploymentResponse["data"] | undefined> {
     const body = {
       manifest: deployment.manifest,
       leases: [
@@ -551,6 +551,10 @@ describe("Managed Wallet API Deployment Flow", () => {
       },
       body: JSON.stringify(body)
     });
+
+    if (!data?.data?.leases) {
+      return undefined;
+    }
 
     for (const lease of data.data.leases) {
       await createLeaseSeed({

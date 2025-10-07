@@ -21,6 +21,7 @@
     "zod": "3.*"
   },
   "devDependencies": {
+    "@akashnetwork/net": "*",
     "@cosmjs/proto-signing": "^0.32.4",
     "@cosmjs/stargate": "^0.32.4",
     "@types/jest": "^29.5.14",
