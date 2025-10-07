@@ -40,9 +40,9 @@ export class DeploymentBalanceMonitor {
       timeout: 15_000
     });
 
-    const balance = response.data.escrow_account.state.funds[0];
-    const funds = response.data.escrow_account.state.funds;
-    const isAktDenom = balance?.denom === activeChain.denom || balance?.denom === activeChain.udenom;
+    const balance = response.data.escrow_account.balance;
+    const funds = response.data.escrow_account.funds;
+    const isAktDenom = balance.denom === activeChain.denom || balance.denom === activeChain.udenom;
 
     if (!balance || !funds || !isAktDenom) {
       return null;
