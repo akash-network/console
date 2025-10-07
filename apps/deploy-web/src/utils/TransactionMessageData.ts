@@ -14,6 +14,7 @@ export function setMessageTypes(config: AppConfig) {
   TransactionMessageData.Types.MSG_CREATE_LEASE = `/akash.market.${config.marketApiVersion}.MsgCreateLease`;
   TransactionMessageData.Types.MSG_REVOKE_CERTIFICATE = `/akash.cert.${config.networkApiVersion}.MsgRevokeCertificate`;
   TransactionMessageData.Types.MSG_CREATE_CERTIFICATE = `/akash.cert.${config.networkApiVersion}.MsgCreateCertificate`;
+  TransactionMessageData.Types.MSG_CREATE_JWT = `/akash.cert.${config.networkApiVersion}.MsgCreateJwt`;
 
   TransactionMessageData.Types.MSG_UPDATE_PROVIDER = `/akash.provider.${config.networkApiVersion}.MsgUpdateProvider`;
 }
