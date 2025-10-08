@@ -74,7 +74,7 @@ describe("Lease Fallback API", () => {
       expect(lease.escrow_payment).toHaveProperty("id");
       expect(lease.escrow_payment.id).toHaveProperty("xid");
       expect(lease.escrow_payment.id).toHaveProperty("aid");
-      expect(lease.escrow_payment).toHaveProperty("owner");
+      expect(lease.escrow_payment.state).toHaveProperty("owner");
       expect(lease.escrow_payment).toHaveProperty("state");
       expect(lease.escrow_payment.state).toHaveProperty("rate");
       expect(lease.escrow_payment.state).toHaveProperty("balance");
@@ -130,7 +130,7 @@ describe("Lease Fallback API", () => {
 
       result.leases.forEach(lease => {
         expect(lease.lease.state).toBe("active");
-        expect(lease.escrow_payment.state).toBe("open");
+        expect(lease.escrow_payment.state.state).toBe("open");
       });
     });
 
@@ -144,7 +144,7 @@ describe("Lease Fallback API", () => {
 
       result.leases.forEach(lease => {
         expect(lease.lease.state).toBe("closed");
-        expect(lease.escrow_payment.state).toBe("closed");
+        expect(lease.escrow_payment.state.state).toBe("closed");
       });
     });
 
@@ -306,7 +306,7 @@ describe("Lease Fallback API", () => {
       expect(typeof lease.lease.closed_on).toBe("string");
       expect(typeof lease.escrow_payment.id.xid).toBe("string");
       expect(typeof lease.escrow_payment.state.owner).toBe("string");
-      expect(typeof lease.escrow_payment.state).toBe("string");
+      expect(typeof lease.escrow_payment.state.state).toBe("string");
       expect(typeof lease.escrow_payment.state.rate.denom).toBe("string");
       expect(typeof lease.escrow_payment.state.rate.amount).toBe("string");
       expect(typeof lease.escrow_payment.state.balance.denom).toBe("string");

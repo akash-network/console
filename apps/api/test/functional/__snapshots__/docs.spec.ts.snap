@@ -1270,84 +1270,116 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                         "properties": {
                           "escrow_payment": {
                             "properties": {
-                              "account_id": {
+                              "id": {
                                 "properties": {
-                                  "scope": {
-                                    "type": "string",
+                                  "aid": {
+                                    "properties": {
+                                      "scope": {
+                                        "type": "string",
+                                      },
+                                      "xid": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "scope",
+                                      "xid",
+                                    ],
+                                    "type": "object",
                                   },
                                   "xid": {
                                     "type": "string",
                                   },
                                 },
                                 "required": [
-                                  "scope",
+                                  "aid",
                                   "xid",
                                 ],
                                 "type": "object",
                               },
-                              "balance": {
-                                "properties": {
-                                  "amount": {
-                                    "type": "string",
-                                  },
-                                  "denom": {
-                                    "type": "string",
-                                  },
-                                },
-                                "required": [
-                                  "denom",
-                                  "amount",
-                                ],
-                                "type": "object",
-                              },
-                              "owner": {
-                                "type": "string",
-                              },
-                              "payment_id": {
-                                "type": "string",
-                              },
-                              "rate": {
-                                "properties": {
-                                  "amount": {
-                                    "type": "string",
-                                  },
-                                  "denom": {
-                                    "type": "string",
-                                  },
-                                },
-                                "required": [
-                                  "denom",
-                                  "amount",
-                                ],
-                                "type": "object",
-                              },
                               "state": {
-                                "type": "string",
-                              },
-                              "withdrawn": {
                                 "properties": {
-                                  "amount": {
+                                  "balance": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "owner": {
                                     "type": "string",
                                   },
-                                  "denom": {
+                                  "rate": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "state": {
                                     "type": "string",
+                                  },
+                                  "unsettled": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "withdrawn": {
+                                    "properties": {
+                                      "amount": {
+                                        "type": "string",
+                                      },
+                                      "denom": {
+                                        "type": "string",
+                                      },
+                                    },
+                                    "required": [
+                                      "denom",
+                                      "amount",
+                                    ],
+                                    "type": "object",
                                   },
                                 },
                                 "required": [
-                                  "denom",
-                                  "amount",
+                                  "owner",
+                                  "state",
+                                  "rate",
+                                  "balance",
+                                  "unsettled",
+                                  "withdrawn",
                                 ],
                                 "type": "object",
                               },
                             },
                             "required": [
-                              "account_id",
-                              "payment_id",
-                              "owner",
+                              "id",
                               "state",
-                              "rate",
-                              "balance",
-                              "withdrawn",
                             ],
                             "type": "object",
                           },
@@ -1359,8 +1391,11 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "created_at": {
                                 "type": "string",
                               },
-                              "lease_id": {
+                              "id": {
                                 "properties": {
+                                  "bseq": {
+                                    "type": "number",
+                                  },
                                   "dseq": {
                                     "type": "string",
                                   },
@@ -1383,6 +1418,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "gseq",
                                   "oseq",
                                   "provider",
+                                  "bseq",
                                 ],
                                 "type": "object",
                               },
@@ -1401,12 +1437,15 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                 ],
                                 "type": "object",
                               },
+                              "reason": {
+                                "type": "string",
+                              },
                               "state": {
                                 "type": "string",
                               },
                             },
                             "required": [
-                              "lease_id",
+                              "id",
                               "state",
                               "price",
                               "created_at",
@@ -5634,8 +5673,11 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                     "created_at": {
                                       "type": "string",
                                     },
-                                    "lease_id": {
+                                    "id": {
                                       "properties": {
+                                        "bseq": {
+                                          "type": "number",
+                                        },
                                         "dseq": {
                                           "type": "string",
                                         },
@@ -5658,6 +5700,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                         "gseq",
                                         "oseq",
                                         "provider",
+                                        "bseq",
                                       ],
                                       "type": "object",
                                     },
@@ -5675,6 +5718,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                         "amount",
                                       ],
                                       "type": "object",
+                                    },
+                                    "reason": {
+                                      "type": "string",
                                     },
                                     "state": {
                                       "type": "string",
@@ -5797,7 +5843,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                     },
                                   },
                                   "required": [
-                                    "lease_id",
+                                    "id",
                                     "state",
                                     "price",
                                     "created_at",
@@ -6183,8 +6229,11 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "created_at": {
                                 "type": "string",
                               },
-                              "lease_id": {
+                              "id": {
                                 "properties": {
+                                  "bseq": {
+                                    "type": "number",
+                                  },
                                   "dseq": {
                                     "type": "string",
                                   },
@@ -6207,6 +6256,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "gseq",
                                   "oseq",
                                   "provider",
+                                  "bseq",
                                 ],
                                 "type": "object",
                               },
@@ -6224,6 +6274,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "amount",
                                 ],
                                 "type": "object",
+                              },
+                              "reason": {
+                                "type": "string",
                               },
                               "state": {
                                 "type": "string",
@@ -6346,7 +6399,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               },
                             },
                             "required": [
-                              "lease_id",
+                              "id",
                               "state",
                               "price",
                               "created_at",
@@ -6606,8 +6659,11 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "created_at": {
                                 "type": "string",
                               },
-                              "lease_id": {
+                              "id": {
                                 "properties": {
+                                  "bseq": {
+                                    "type": "number",
+                                  },
                                   "dseq": {
                                     "type": "string",
                                   },
@@ -6630,6 +6686,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "gseq",
                                   "oseq",
                                   "provider",
+                                  "bseq",
                                 ],
                                 "type": "object",
                               },
@@ -6647,6 +6704,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "amount",
                                 ],
                                 "type": "object",
+                              },
+                              "reason": {
+                                "type": "string",
                               },
                               "state": {
                                 "type": "string",
@@ -6769,7 +6829,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               },
                             },
                             "required": [
-                              "lease_id",
+                              "id",
                               "state",
                               "price",
                               "created_at",
@@ -7010,8 +7070,11 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "created_at": {
                                 "type": "string",
                               },
-                              "lease_id": {
+                              "id": {
                                 "properties": {
+                                  "bseq": {
+                                    "type": "number",
+                                  },
                                   "dseq": {
                                     "type": "string",
                                   },
@@ -7034,6 +7097,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "gseq",
                                   "oseq",
                                   "provider",
+                                  "bseq",
                                 ],
                                 "type": "object",
                               },
@@ -7051,6 +7115,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "amount",
                                 ],
                                 "type": "object",
+                              },
+                              "reason": {
+                                "type": "string",
                               },
                               "state": {
                                 "type": "string",
@@ -7173,7 +7240,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               },
                             },
                             "required": [
-                              "lease_id",
+                              "id",
                               "state",
                               "price",
                               "created_at",
@@ -7913,8 +7980,11 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               "created_at": {
                                 "type": "string",
                               },
-                              "lease_id": {
+                              "id": {
                                 "properties": {
+                                  "bseq": {
+                                    "type": "number",
+                                  },
                                   "dseq": {
                                     "type": "string",
                                   },
@@ -7937,6 +8007,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "gseq",
                                   "oseq",
                                   "provider",
+                                  "bseq",
                                 ],
                                 "type": "object",
                               },
@@ -7954,6 +8025,9 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                                   "amount",
                                 ],
                                 "type": "object",
+                              },
+                              "reason": {
+                                "type": "string",
                               },
                               "state": {
                                 "type": "string",
@@ -8076,7 +8150,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
                               },
                             },
                             "required": [
-                              "lease_id",
+                              "id",
                               "state",
                               "price",
                               "created_at",
