@@ -42,7 +42,7 @@ describe("Deployment Fallback API", () => {
       expect(Array.isArray(deployment.groups)).toBe(true);
       if (deployment.groups.length > 0) {
         const group = deployment.groups[0];
-        expect(group).toHaveProperty("group_id");
+        expect(group).toHaveProperty("id");
         expect(group).toHaveProperty("state");
         expect(group).toHaveProperty("group_spec");
         expect(group).toHaveProperty("created_at");
