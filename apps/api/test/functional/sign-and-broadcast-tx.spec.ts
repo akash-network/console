@@ -1,5 +1,5 @@
+import { certificateManager } from "@akashnetwork/chain-sdk";
 import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { certificateManager } from "@akashnetwork/chain-sdk/web";
 import type { Registry } from "@cosmjs/proto-signing";
 import { container } from "tsyringe";
 

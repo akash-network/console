@@ -27,11 +27,11 @@ describe("Deployment Info Fallback API", () => {
         expect(result).toHaveProperty("escrow_account");
 
         // Check deployment structure
-        expect(result.deployment).toHaveProperty("deployment_id");
+        expect(result.deployment).toHaveProperty("id");
         expect(result.deployment.id).toHaveProperty("owner", addresses[0]);
         expect(result.deployment.id).toHaveProperty("dseq", deployments![0].dseq);
         expect(result.deployment).toHaveProperty("state");
-        expect(result.deployment).toHaveProperty("version");
+        expect(result.deployment).toHaveProperty("hash");
         expect(result.deployment).toHaveProperty("created_at");
 
         // Check groups structure
