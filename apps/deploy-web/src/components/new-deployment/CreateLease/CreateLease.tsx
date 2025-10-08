@@ -451,13 +451,19 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
           </div>
         )}
 
-        {!isLoadingBids && allClosed && (
+        {settings.isBlockchainDown && (
+          <div className="pt-4">
+            <d.Alert variant="warning">Blockchain is down. Please try to refresh the page or try again later.</d.Alert>
+          </div>
+        )}
+
+        {!settings.isBlockchainDown && !isLoadingBids && allClosed && (
           <d.Button variant="default" color="secondary" onClick={handleCloseDeployment} size="sm" disabled={settings.isBlockchainDown}>
             Close Deployment
           </d.Button>
         )}
 
-        {!zeroBidsForTrialWarningDisplayed && warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
+        {!settings.isBlockchainDown && !zeroBidsForTrialWarningDisplayed && warningRequestsReached && !maxRequestsReached && (bids?.length || 0) === 0 && (
           <div className="pt-4">
             <d.Alert variant="warning">
               There should be bids by now... You can wait longer in case a bid shows up or close the deployment and try again with a different configuration.
@@ -465,14 +471,18 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
           </div>
         )}
 
-        {(isLoadingBids || (bids?.length || 0) === 0) && !maxRequestsReached && !isSendingManifest && !zeroBidsForTrialWarningDisplayed && (
-          <div className="flex flex-col items-center justify-center pt-4 text-center">
-            <d.Spinner size="large" />
-            <div className="pt-4">Waiting for bids...</div>
-          </div>
-        )}
+        {!settings.isBlockchainDown &&
+          (isLoadingBids || (bids?.length || 0) === 0) &&
+          !maxRequestsReached &&
+          !isSendingManifest &&
+          !zeroBidsForTrialWarningDisplayed && (
+            <div className="flex flex-col items-center justify-center pt-4 text-center">
+              <d.Spinner size="large" />
+              <div className="pt-4">Waiting for bids...</div>
+            </div>
+          )}
 
-        {!zeroBidsForTrialWarningDisplayed && maxRequestsReached && (bids?.length || 0) === 0 && (
+        {!settings.isBlockchainDown && !zeroBidsForTrialWarningDisplayed && maxRequestsReached && (bids?.length || 0) === 0 && (
           <div className="pt-4">
             <d.Alert variant="warning">
               There's no bid for the current deployment. You can close the deployment and try again with a different configuration.

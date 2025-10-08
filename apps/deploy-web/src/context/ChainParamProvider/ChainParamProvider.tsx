@@ -21,7 +21,7 @@ type ContextType = {
 const ChainParamContext = React.createContext<ContextType>({} as ContextType);
 
 export const ChainParamProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isSettingsInit } = useSettings();
+  const { isSettingsInit, settings } = useSettings();
   const { data: depositParams, refetch: getDepositParams } = useDepositParams({ enabled: false });
   const usdcDenom = useUsdcDenom();
   const aktMinDeposit = depositParams ? uaktToAKT(parseFloat(depositParams.find(x => x.denom === UAKT_DENOM)?.amount || "") || 0) : 0;
@@ -29,10 +29,10 @@ export const ChainParamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const minDeposit = { akt: aktMinDeposit, usdc: usdcMinDeposit };
 
   useEffect(() => {
-    if (isSettingsInit && !depositParams) {
+    if (isSettingsInit && !depositParams && !settings.isBlockchainDown) {
       getDepositParams();
     }
-  }, [isSettingsInit, depositParams]);
+  }, [isSettingsInit, depositParams, settings.isBlockchainDown]);
 
   return <ChainParamContext.Provider value={{ minDeposit }}>{children}</ChainParamContext.Provider>;
 };
