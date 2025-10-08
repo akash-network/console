@@ -45,6 +45,7 @@ export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ cla
       className={cn("border-primary bg-primary/10 dark:bg-primary", className)}
       {...rest}
       disabled={settings.isBlockchainDown || isWalletLoading}
+      aria-label="Start Trial"
     >
       {isWalletLoading ? <Spinner size="small" className="mr-2" variant="dark" /> : <Rocket className="rotate-45 text-xs" />}
       <span className="m-2 whitespace-nowrap">{hasManagedWallet ? "Switch to USD Payments" : "Start Trial"}</span>

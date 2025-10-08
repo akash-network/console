@@ -249,7 +249,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
         props.actions
           .filter(x => x.side === "left")
           .map(({ isLoading, side, label, ...rest }, idx) => (
-            <Button key={`dialog-action-button-${idx}`} {...rest}>
+            <Button key={`dialog-action-button-${idx}`} {...rest} aria-label={`${label}`}>
               {isLoading ? <Spinner size="small" /> : label}
             </Button>
           ));
@@ -258,7 +258,7 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
         props.actions
           .filter(x => x.side === "right")
           .map(({ isLoading, side, label, ...rest }, idx) => (
-            <Button key={`dialog-action-button-${idx}`} {...rest}>
+            <Button key={`dialog-action-button-${idx}`} {...rest} aria-label={`${label}`}>
               {isLoading ? <Spinner size="small" /> : label}
             </Button>
           ));

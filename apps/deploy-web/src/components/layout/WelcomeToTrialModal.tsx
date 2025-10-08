@@ -54,6 +54,7 @@ export const WelcomeToTrialModal: React.FunctionComponent = () => {
           maxWidth="sm"
           enableCloseOnBackdropClick
           title="Welcome to Your Free Trial!"
+          testId="welcome-to-trial-modal"
         >
           <>
             <p className="mb-4">
