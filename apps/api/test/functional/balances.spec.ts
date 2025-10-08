@@ -57,7 +57,7 @@ describe("Balances", () => {
 
     expect(result.data.total).toBe(result.data.balance + result.data.deployments);
 
-    expect(result.data.deployments).toBe(2000000);
+    expect(result.data.deployments).toBe(1000000);
   });
 
   it("should get balances for a specific address", async () => {
@@ -86,7 +86,7 @@ describe("Balances", () => {
 
     expect(result.data.total).toBe(result.data.balance + result.data.deployments);
 
-    expect(result.data.deployments).toBe(2000000);
+    expect(result.data.deployments).toBe(1000000);
   });
 
   it("should return 404 when user wallet is not found", async () => {
