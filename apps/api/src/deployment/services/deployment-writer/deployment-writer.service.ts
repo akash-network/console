@@ -142,7 +142,7 @@ export class DeploymentWriterService {
     leases: GetDeploymentResponse["data"]["leases"];
     auth: { certificate: Omit<ProviderMtlsAuth, "type"> } | { walletId: number };
   }): Promise<void> {
-    const leaseProviders = leases.map(lease => lease.lease_id.provider).filter((v, i, s) => s.indexOf(v) === i);
+    const leaseProviders = leases.map(lease => lease.id.provider).filter((v, i, s) => s.indexOf(v) === i);
     for (const provider of leaseProviders) {
       await this.providerService.sendManifest({
         provider,

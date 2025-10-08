@@ -7,7 +7,8 @@ type Attribute = {
   value: string;
 };
 
-export type DeploymentResource_V3 = {
+export type DeploymentResource = {
+  id: number;
   cpu: {
     units: {
       val: string;
@@ -55,7 +56,7 @@ export type Bid = {
       amount: string;
     };
     resources_offer: {
-      resources: DeploymentResource_V3;
+      resources: DeploymentResource;
       count: number;
     }[];
     created_at: string;

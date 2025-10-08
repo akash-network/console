@@ -64,11 +64,11 @@ export class DeploymentReaderService {
       leases.map(async ({ lease }) => {
         try {
           const leaseStatus = await this.providerService.getLeaseStatus(
-            lease.lease_id.provider,
-            lease.lease_id.dseq,
-            lease.lease_id.gseq,
-            lease.lease_id.oseq,
-            await this.providerService.toProviderAuth(options?.certificate || { walletId: wallet.id, provider: lease.lease_id.provider })
+            lease.id.provider,
+            lease.id.dseq,
+            lease.id.gseq,
+            lease.id.oseq,
+            await this.providerService.toProviderAuth(options?.certificate || { walletId: wallet.id, provider: lease.id.provider })
           );
           return {
             lease,
@@ -82,6 +82,8 @@ export class DeploymentReaderService {
         }
       })
     );
+
+    console.log("LEASES WITH STATUS", leasesWithStatus, leases);
 
     return {
       deployment: deploymentResponse.deployment,
@@ -179,21 +181,21 @@ export class DeploymentReaderService {
           )
           .reduce((a, b) => a + b, 0),
         leases: leaseResponse.leases
-          .filter(l => l.lease.lease_id.dseq === x.deployment.id.dseq)
+          .filter(l => l.lease.id.dseq === x.deployment.id.dseq)
           .map(lease => {
-            const provider = providers.find(p => p.owner === lease.lease.lease_id.provider);
+            const provider = providers.find(p => p.owner === lease.lease.id.provider);
             return {
-              id: lease.lease.lease_id.dseq + lease.lease.lease_id.gseq + lease.lease.lease_id.oseq,
-              owner: lease.lease.lease_id.owner,
+              id: lease.lease.id.dseq + lease.lease.id.gseq + lease.lease.id.oseq,
+              owner: lease.lease.id.owner,
               provider: provider
                 ? {
                     ...provider,
                     address: provider.owner
                   }
                 : undefined,
-              dseq: lease.lease.lease_id.dseq,
-              gseq: lease.lease.lease_id.gseq,
-              oseq: lease.lease.lease_id.oseq,
+              dseq: lease.lease.id.dseq,
+              gseq: lease.lease.id.gseq,
+              oseq: lease.lease.id.oseq,
               state: lease.lease.state,
               price: lease.lease.price
             };
@@ -244,7 +246,7 @@ export class DeploymentReaderService {
 
     const [leasesData, relatedMessages, dbDeployment] = await Promise.all([leasesQuery, relatedMessagesQuery, dbDeploymentQuery]);
 
-    const providerAddresses = leasesData.leases.map(x => x.lease.lease_id.provider);
+    const providerAddresses = leasesData.leases.map(x => x.lease.id.provider);
     const providers = await Provider.findAll({
       where: {
         owner: {
@@ -256,13 +258,13 @@ export class DeploymentReaderService {
     const deploymentDenom = deploymentData.escrow_account.state.funds[0]?.denom || deploymentData.escrow_account.state.transferred[0]?.denom;
 
     const leases = leasesData.leases.map(x => {
-      const provider = providers.find(p => p.owner === x.lease.lease_id.provider);
-      const group = (deploymentData as DeploymentInfo).groups.find(g => g.id.gseq === x.lease.lease_id.gseq);
-      const dbLease = dbDeployment?.leases.find(l => l.gseq === x.lease.lease_id.gseq && l.oseq === x.lease.lease_id.oseq);
+      const provider = providers.find(p => p.owner === x.lease.id.provider);
+      const group = (deploymentData as DeploymentInfo).groups.find(g => g.id.gseq === x.lease.id.gseq);
+      const dbLease = dbDeployment?.leases.find(l => l.gseq === x.lease.id.gseq && l.oseq === x.lease.id.oseq);
 
       return {
-        gseq: x.lease.lease_id.gseq,
-        oseq: x.lease.lease_id.oseq,
+        gseq: x.lease.id.gseq,
+        oseq: x.lease.id.oseq,
         createdHeight: dbLease?.createdHeight,
         createdDate: dbLease?.createdBlock?.datetime,
         closedHeight: dbLease?.closedHeight,

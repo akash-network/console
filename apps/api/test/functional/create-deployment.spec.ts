@@ -41,7 +41,7 @@ describe("Tx Sign", () => {
             total: 1
           }
         })
-        .get("/blocks/latest")
+        .get("/cosmos/base/tendermint/v1beta1/blocks/latest")
         .reply(200, {
           block: {
             header: {
@@ -100,7 +100,7 @@ describe("Tx Sign", () => {
   }
 
   async function getCurrentHeight() {
-    const response = await axios.get(`${apiNodeUrl}/blocks/latest`);
+    const response = await axios.get(`${apiNodeUrl}/cosmos/base/tendermint/v1beta1/blocks/latest`);
     const height = parseInt(response.data.block.header.height);
 
     if (isNaN(height)) throw new Error("Failed to get current height");
