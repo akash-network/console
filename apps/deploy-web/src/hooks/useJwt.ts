@@ -6,7 +6,6 @@ import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { getStorageWallets, updateWallet } from "@src/utils/walletUtils";
 
 export type LocalToken = {
@@ -30,7 +29,7 @@ export const useJwt = ({ dependencies: d = DEPENDENCIES } = {}) => {
 
   const [isCreatingToken, setIsCreatingToken] = useState(false);
   const [localToken, setLocalToken] = useState<LocalToken | null>(null);
-  const { address, signAndBroadcastTx } = d.useWallet();
+  const { address } = d.useWallet();
   const { isSettingsInit } = d.useSettings();
 
   useEffect(() => {
@@ -53,7 +52,7 @@ export const useJwt = ({ dependencies: d = DEPENDENCIES } = {}) => {
     } catch (error) {
       return null;
     }
-  }, [localToken]);
+  }, [d.JwtToken, localToken]);
 
   const loadLocalToken = useCallback(async () => {
     const wallets = d.getStorageWallets();
@@ -65,7 +64,7 @@ export const useJwt = ({ dependencies: d = DEPENDENCIES } = {}) => {
         return true;
       }
     });
-  }, [address]);
+  }, [address, d]);
 
   const createToken = useCallback(async () => {
     setIsCreatingToken(true);
@@ -86,26 +85,22 @@ export const useJwt = ({ dependencies: d = DEPENDENCIES } = {}) => {
     });
 
     try {
-      const message = TransactionMessageData.getCreateJwtMsg(address, token);
-      const response = await signAndBroadcastTx([message]);
-      if (response) {
-        d.updateWallet(address, wallet => {
-          return {
-            ...wallet,
-            token
-          };
-        });
-        loadLocalToken();
+      d.updateWallet(address, wallet => {
+        return {
+          ...wallet,
+          token
+        };
+      });
+      loadLocalToken();
 
-        analyticsService.track("create_jwt", {
-          category: "certificates",
-          label: "Created jwt"
-        });
-      }
+      analyticsService.track("create_jwt", {
+        category: "certificates",
+        label: "Created jwt"
+      });
     } finally {
       setIsCreatingToken(false);
     }
-  }, [getAccount, signArbitrary, address, signAndBroadcastTx, d, loadLocalToken, analyticsService]);
+  }, [getAccount, signArbitrary, address, d, loadLocalToken, analyticsService]);
 
   return useMemo(() => {
     return {
