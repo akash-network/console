@@ -1,5 +1,12 @@
 
 
+## [0.39.0](https://github.com/akash-network/console/compare/stats-web/v0.38.0...stats-web/v0.39.0) (2025-10-08)
+
+
+### Features
+
+* **network:** maps sandbox to sandbox-2 ([e1d32ef](https://github.com/akash-network/console/commit/e1d32ef3e699b9c7fcb95f203b02cdc81752b1fb))
+
 ## [0.38.0](https://github.com/akash-network/console/compare/stats-web/v0.37.1...stats-web/v0.38.0) (2025-10-06)
 
 

@@ -1,5 +1,12 @@
 
 
+## [1.18.0](https://github.com/akash-network/console/compare/indexer/v1.17.0...indexer/v1.18.0) (2025-10-08)
+
+
+### Features
+
+* **network:** maps sandbox to sandbox-2 ([e1d32ef](https://github.com/akash-network/console/commit/e1d32ef3e699b9c7fcb95f203b02cdc81752b1fb))
+
 ## [1.17.0](https://github.com/akash-network/console/compare/indexer/v1.16.0...indexer/v1.17.0) (2025-10-06)
 
 
