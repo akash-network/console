@@ -1,5 +1,6 @@
 import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { SDL } from "@akashnetwork/akashjs/build/sdl";
+import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { Registry } from "@cosmjs/proto-signing";
 import axios from "axios";
 import nock from "nock";
@@ -9,8 +10,6 @@ import { container } from "tsyringe";
 
 import { config } from "@src/billing/config";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
-import { MANAGED_MASTER_WALLET } from "@src/billing/providers/wallet.provider";
-import type { Wallet } from "@src/billing/services";
 import { app } from "@src/rest-app";
 import { apiNodeUrl, certVersion, deploymentVersion } from "@src/utils/constants";
 
@@ -24,7 +23,6 @@ const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.ym
 describe("Tx Sign", () => {
   const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const walletService = new WalletTestingService(app);
-  const masterWallet = container.resolve<Wallet>(MANAGED_MASTER_WALLET);
 
   afterEach(async () => {
     nock.cleanAll();
@@ -41,6 +39,14 @@ describe("Tx Sign", () => {
           deployments: [],
           pagination: {
             total: 1
+          }
+        })
+        .get("/blocks/latest")
+        .reply(200, {
+          block: {
+            header: {
+              height: Math.floor(Math.random() * 1000000).toString()
+            }
           }
         });
 
@@ -60,40 +66,45 @@ describe("Tx Sign", () => {
     const { cert, publicKey } = certificateManager.generatePEM(address);
 
     const sdl = SDL.fromString(yml, "beta3", "sandbox");
+    const currentHeight = await getCurrentHeight();
+
+    const messages = [
+      {
+        typeUrl: `/akash.cert.${certVersion}.MsgCreateCertificate`,
+        value: {
+          owner: address,
+          cert: Buffer.from(cert),
+          pubkey: Buffer.from(publicKey)
+        }
+      },
+      {
+        typeUrl: `/akash.deployment.${deploymentVersion}.MsgCreateDeployment`,
+        value: {
+          id: {
+            owner: address,
+            dseq: currentHeight
+          },
+          groups: sdl.groups(),
+          hash: await sdl.manifestVersion(),
+          deposit: { amount: { denom: config.DEPLOYMENT_GRANT_DENOM, amount: "5000000" }, sources: [Source.grant] }
+        }
+      }
+    ];
 
     return JSON.stringify({
       data: {
         userId: userId,
-        messages: [
-          {
-            typeUrl: `/akash.cert.${certVersion}.MsgCreateCertificate`,
-            value: {
-              owner: address,
-              cert: Buffer.from(cert).toString("base64"),
-              pubkey: Buffer.from(publicKey).toString("base64")
-            }
-          },
-          {
-            typeUrl: `/akash.deployment.${deploymentVersion}.MsgCreateDeployment`,
-            value: {
-              id: {
-                owner: address,
-                dseq: await getCurrentHeight()
-              },
-              groups: sdl.groups(),
-              version: await sdl.manifestVersion(),
-              deposit: { denom: config.DEPLOYMENT_GRANT_DENOM, amount: "5000000" },
-              depositor: await masterWallet.getFirstAddress()
-            }
-          }
-        ].map(message => ({ typeUrl: message.typeUrl, value: Buffer.from(registry.encode(message)).toString("base64") }))
+        messages: messages.map(message => ({ typeUrl: message.typeUrl, value: Buffer.from(registry.encode(message)).toString("base64") }))
       }
     });
   }
 
   async function getCurrentHeight() {
-    // TODO: extract this base url to env var
-    const response = await axios.get(`https://api.sandbox-2.aksh.pw/blocks/latest`);
-    return response.data.block.header.height;
+    const response = await axios.get(`${apiNodeUrl}/blocks/latest`);
+    const height = parseInt(response.data.block.header.height);
+
+    if (isNaN(height)) throw new Error("Failed to get current height");
+
+    return height;
   }
 });
