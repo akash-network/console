@@ -39,7 +39,7 @@ describe("Deployment Info Fallback API", () => {
         expect(result.groups.length).toBeGreaterThan(0);
 
         const group = result.groups[0];
-        expect(group).toHaveProperty("group_id");
+        expect(group).toHaveProperty("id");
         expect(group).toHaveProperty("state");
         expect(group).toHaveProperty("group_spec");
         expect(group.group_spec).toHaveProperty("name");
@@ -48,10 +48,10 @@ describe("Deployment Info Fallback API", () => {
 
         // Check escrow account structure
         expect(result.escrow_account).toHaveProperty("id");
-        expect(result.escrow_account).toHaveProperty("owner");
         expect(result.escrow_account).toHaveProperty("state");
-        expect(result.escrow_account).toHaveProperty("balance");
-        expect(result.escrow_account).toHaveProperty("transferred");
+        expect(result.escrow_account.state).toHaveProperty("owner");
+        expect(result.escrow_account.state).toHaveProperty("funds");
+        expect(result.escrow_account.state).toHaveProperty("transferred");
       }
     });
 
