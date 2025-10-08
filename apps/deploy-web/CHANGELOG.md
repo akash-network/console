@@ -1,5 +1,13 @@
 
 
+## [2.114.0](https://github.com/akash-network/console/compare/console-web/v2.113.0...console-web/v2.114.0) (2025-10-08)
+
+
+### Features
+
+* adds fallbackChainApiClient ([#2009](https://github.com/akash-network/console/issues/2009)) ([e9237fc](https://github.com/akash-network/console/commit/e9237fcbf8a31f2f17241bcdeb6d7dc7422f6423))
+* **network:** maps sandbox to sandbox-2 ([e1d32ef](https://github.com/akash-network/console/commit/e1d32ef3e699b9c7fcb95f203b02cdc81752b1fb))
+
 ## [2.113.0](https://github.com/akash-network/console/compare/console-web/v2.112.2...console-web/v2.113.0) (2025-10-06)
 
 
