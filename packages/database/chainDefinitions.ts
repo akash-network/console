@@ -118,10 +118,10 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
   },
   akashSandbox: {
     code: "akash-sandbox",
-    rpcNodes: ["https://rpc.sandbox-01.aksh.pw"],
+    rpcNodes: ["https://rpc.sandbox-2.aksh.pw"],
     cosmosDirectoryId: "akash",
     connectionString: process.env.AKASH_SANDBOX_DATABASE_CS,
-    genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/sandbox/genesis.json",
+    genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/sandbox-2/genesis.json",
     coinGeckoId: "akash-network",
     logoUrlSVG: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
     logoUrlPNG: "https://console.akash.network/images/chains/akash.png",

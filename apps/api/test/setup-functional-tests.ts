@@ -33,12 +33,12 @@ export function clearCache(keyOrPrefix?: string) {
 beforeAll(async () => {
   cacheEngine.clearAllKeyInCache();
   await dbService.setup();
-}, 10000);
+}, 20000);
 
 afterAll(async () => {
   await dbService.teardown();
   cacheEngine.clearAllKeyInCache();
-}, 10000);
+}, 20000);
 
 beforeEach(() => {
   cacheEngine.clearAllKeyInCache();

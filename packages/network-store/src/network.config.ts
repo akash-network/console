@@ -41,7 +41,7 @@ export const getInitialNetworksConfig = ({ apiBaseUrl }: { apiBaseUrl: string })
     title: "Sandbox",
     description: "Sandbox of the mainnet version.",
     nodesUrl: `${apiBaseUrl}/v1/nodes/sandbox`,
-    chainId: "sandbox-01",
+    chainId: "sandbox-2",
     chainRegistryName: "akash-sandbox",
     versionUrl: `${apiBaseUrl}/v1/version/sandbox`,
     rpcEndpoint: netConfig.getBaseRpcUrl(SANDBOX_ID),
