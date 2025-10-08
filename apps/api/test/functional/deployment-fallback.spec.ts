@@ -35,7 +35,7 @@ describe("Deployment Fallback API", () => {
       // Check deployment details
       expect(deployment.deployment).toHaveProperty("id");
       expect(deployment.deployment).toHaveProperty("state");
-      expect(deployment.deployment).toHaveProperty("version");
+      expect(deployment.deployment).toHaveProperty("hash");
       expect(deployment.deployment).toHaveProperty("created_at");
 
       // Check groups structure

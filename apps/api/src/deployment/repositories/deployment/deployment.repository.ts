@@ -123,7 +123,7 @@ export class DeploymentRepository {
           ]
         },
         {
-          attributes: ["height", "data"],
+          attributes: ["height", "data", "type"],
           model: AkashMessage,
           as: "relatedMessages",
           where: {

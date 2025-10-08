@@ -1,3 +1,4 @@
+import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCreateBid } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
@@ -601,110 +602,128 @@ describe("GPU API", () => {
         type: `/${MsgCreateBid.$type}`,
         txId: testData.transactions[0].id,
         height: block.height,
-        data: MsgCreateBid.encode(
-          MsgCreateBid.create({
-            id: {
-              owner: testData.providers[0].owner,
-              dseq: Long.fromNumber(1),
-              oseq: 1,
-              gseq: 1,
-              provider: testData.providers[0].owner
-            },
-            price: {
-              amount: "1000",
-              denom: "uakt"
-            },
-            resourcesOffer: [
-              {
-                resources: {
-                  cpu: {
-                    units: {
-                      val: Buffer.from("1000000")
-                    }
-                  },
-                  memory: {
-                    quantity: {
-                      val: Buffer.from("1024")
-                    }
-                  },
-                  storage: [
-                    {
+        data: Buffer.from(
+          MsgCreateBid.encode(
+            MsgCreateBid.create({
+              id: {
+                owner: testData.providers[0].owner,
+                dseq: Long.fromNumber(1),
+                oseq: 1,
+                gseq: 1,
+                provider: testData.providers[0].owner
+              },
+              price: {
+                amount: "1000",
+                denom: "uakt"
+              },
+              resourcesOffer: [
+                {
+                  resources: {
+                    cpu: {
+                      units: {
+                        val: Buffer.from("1000000")
+                      }
+                    },
+                    memory: {
                       quantity: {
                         val: Buffer.from("1024")
                       }
-                    }
-                  ],
-                  gpu: {
-                    attributes: [
+                    },
+                    storage: [
                       {
-                        key: `vendor/nvidia/model/gpu0/ram/1024/interface/pcie`,
-                        value: "true"
+                        quantity: {
+                          val: Buffer.from("1024")
+                        }
                       }
                     ],
-                    units: {
-                      val: Buffer.from("2")
+                    gpu: {
+                      attributes: [
+                        {
+                          key: `vendor/nvidia/model/gpu0/ram/1024/interface/pcie`,
+                          value: "true"
+                        }
+                      ],
+                      units: {
+                        val: Buffer.from("2")
+                      }
                     }
                   }
                 }
+              ],
+              deposit: {
+                amount: {
+                  amount: "1000",
+                  denom: "uakt"
+                },
+                sources: [Source.balance]
               }
-            ]
-          })
-        ).finish(),
+            })
+          ).finish()
+        ),
         relatedDeploymentId: deployments[0].id
       }),
       createAkashMessage({
         type: `/${MsgCreateBid.$type}`,
         txId: testData.transactions[1].id,
         height: block.height,
-        data: MsgCreateBid.encode(
-          MsgCreateBid.create({
-            id: {
-              owner: testData.providers[1].owner,
-              dseq: Long.fromNumber(2),
-              oseq: 1,
-              gseq: 1,
-              provider: testData.providers[1].owner
-            },
-            price: {
-              amount: "2000",
-              denom: "uakt"
-            },
-            resourcesOffer: [
-              {
-                resources: {
-                  cpu: {
-                    units: {
-                      val: Buffer.from("1000000")
-                    }
-                  },
-                  memory: {
-                    quantity: {
-                      val: Buffer.from("1024")
-                    }
-                  },
-                  storage: [
-                    {
+        data: Buffer.from(
+          MsgCreateBid.encode(
+            MsgCreateBid.create({
+              id: {
+                owner: testData.providers[1].owner,
+                dseq: Long.fromNumber(2),
+                oseq: 1,
+                gseq: 1,
+                provider: testData.providers[1].owner
+              },
+              price: {
+                amount: "2000",
+                denom: "uakt"
+              },
+              resourcesOffer: [
+                {
+                  resources: {
+                    cpu: {
+                      units: {
+                        val: Buffer.from("1000000")
+                      }
+                    },
+                    memory: {
                       quantity: {
                         val: Buffer.from("1024")
                       }
-                    }
-                  ],
-                  gpu: {
-                    attributes: [
+                    },
+                    storage: [
                       {
-                        key: "vendor/amd/model/gpu3/ram/8192/interface/sxm",
-                        value: "true"
+                        quantity: {
+                          val: Buffer.from("1024")
+                        }
                       }
                     ],
-                    units: {
-                      val: Buffer.from("2")
+                    gpu: {
+                      attributes: [
+                        {
+                          key: "vendor/amd/model/gpu3/ram/8192/interface/sxm",
+                          value: "true"
+                        }
+                      ],
+                      units: {
+                        val: Buffer.from("2")
+                      }
                     }
                   }
                 }
+              ],
+              deposit: {
+                amount: {
+                  amount: "1000",
+                  denom: "uakt"
+                },
+                sources: [Source.balance]
               }
-            ]
-          })
-        ).finish(),
+            })
+          ).finish()
+        ),
         relatedDeploymentId: deployments[1].id
       })
     ]);

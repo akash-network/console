@@ -151,7 +151,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
                 input: expect.objectContaining({
                   amount: sufficientAmount,
                   denom: DEPLOYMENT_GRANT_DENOM,
-                  depositor: MANAGED_MASTER_WALLET_ADDRESS,
+                  signer: MANAGED_MASTER_WALLET_ADDRESS,
                   dseq: Number(deployment.dseq),
                   owner: deployment.address
                 })
