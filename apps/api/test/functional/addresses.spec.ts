@@ -385,23 +385,46 @@ describe("Addresses API", () => {
         deployments: [
           {
             deployment: {
-              deployment_id: {
+              id: {
                 owner: address,
                 dseq: "111"
               },
               state: "active",
-              version: "1.0.0",
+              hash: "1.0.0",
               created_at: "2021-01-01T00:00:00Z"
             },
             escrow_account: {
               id: {
                 scope: "deployment",
                 xid: deployments[0].id
+              },
+              state: {
+                owner: address,
+                state: "open",
+                transferred: [],
+                settled_at: "0",
+                funds: [],
+                deposits: []
               }
             },
             groups: [
               {
+                id: {
+                  owner: address,
+                  dseq: "111",
+                  gseq: 1
+                },
+                state: "open",
+                created_at: "2021-01-01T00:00:00Z",
                 group_spec: {
+                  name: "main",
+                  requirements: {
+                    signed_by: {
+                      all_of: [],
+                      any_of: []
+                    },
+                    attributes: []
+                  },
                   resources: []
                 }
               }
@@ -409,23 +432,46 @@ describe("Addresses API", () => {
           },
           {
             deployment: {
-              deployment_id: {
+              id: {
                 owner: address,
                 dseq: "222"
               },
               state: "active",
-              version: "1.0.0",
+              hash: "1.0.0",
               created_at: "2021-01-01T00:00:00Z"
             },
             escrow_account: {
               id: {
                 scope: "deployment",
                 xid: deployments[1].id
+              },
+              state: {
+                owner: address,
+                state: "open",
+                transferred: [],
+                settled_at: "0",
+                funds: [],
+                deposits: []
               }
             },
             groups: [
               {
+                id: {
+                  owner: address,
+                  dseq: "222",
+                  gseq: 1
+                },
+                state: "open",
+                created_at: "2021-01-01T00:00:00Z",
                 group_spec: {
+                  name: "main",
+                  requirements: {
+                    signed_by: {
+                      all_of: [],
+                      any_of: []
+                    },
+                    attributes: []
+                  },
                   resources: []
                 }
               }
@@ -433,7 +479,8 @@ describe("Addresses API", () => {
           }
         ],
         pagination: {
-          total: 2
+          next_key: null,
+          total: "2"
         }
       });
 
