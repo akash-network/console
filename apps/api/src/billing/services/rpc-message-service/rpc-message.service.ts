@@ -229,18 +229,18 @@ export class RpcMessageService {
 
   getCreateCertificateMsg(address: string, crtpem: string, pubpem: string) {
     return {
-      typeUrl: `${MsgCreateCertificate.$type}`,
+      typeUrl: `/${MsgCreateCertificate.$type}`,
       value: MsgCreateCertificate.fromPartial({
         owner: address,
-        cert: Buffer.from(crtpem, "base64"),
-        pubkey: Buffer.from(pubpem, "base64")
+        cert: Buffer.from(crtpem),
+        pubkey: Buffer.from(pubpem)
       })
     };
   }
 
   getUpdateDeploymentMsg({ owner, dseq, hash }: UpdateDeploymentMsgOptions) {
     return {
-      typeUrl: `${MsgUpdateDeployment.$type}`,
+      typeUrl: `/${MsgUpdateDeployment.$type}`,
       value: MsgUpdateDeployment.fromPartial({
         id: {
           owner,
