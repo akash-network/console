@@ -1,0 +1,3 @@
+chain: testnet
+hostNames:
+  - console-api-testnet-staging.akash.network
