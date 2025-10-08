@@ -81,14 +81,14 @@ describe("Managed Wallet API Deployment Flow", () => {
       const lease = await createLease(apiKey, deployment, bid, walletAddress, certificate);
       expect(lease).toMatchObject({
         deployment: expect.objectContaining({
-          deployment_id: expect.objectContaining({
+          id: expect.objectContaining({
             dseq: deployment.dseq
           }),
           state: expect.any(String)
         }),
         leases: expect.arrayContaining([
           expect.objectContaining({
-            lease_id: expect.objectContaining({
+            id: expect.objectContaining({
               dseq: deployment.dseq,
               gseq: bid.bid.id.gseq,
               oseq: bid.bid.id.oseq,
@@ -127,7 +127,7 @@ describe("Managed Wallet API Deployment Flow", () => {
       const updatedDeployment = await updateDeployment(apiKey, deployment.dseq, certificate);
       expect(updatedDeployment).toMatchObject({
         deployment: expect.objectContaining({
-          deployment_id: expect.objectContaining({
+          id: expect.objectContaining({
             dseq: deployment.dseq
           })
         })
@@ -137,14 +137,14 @@ describe("Managed Wallet API Deployment Flow", () => {
       const deploymentDetails = await getDeploymentDetails(apiKey, deployment.dseq);
       expect(deploymentDetails).toMatchObject({
         deployment: expect.objectContaining({
-          deployment_id: expect.objectContaining({
+          id: expect.objectContaining({
             dseq: deployment.dseq
           }),
           state: expect.any(String)
         }),
         leases: expect.arrayContaining([
           expect.objectContaining({
-            lease_id: expect.objectContaining({
+            id: expect.objectContaining({
               dseq: deployment.dseq
             })
           })
@@ -192,14 +192,14 @@ describe("Managed Wallet API Deployment Flow", () => {
       const lease = await createLease(apiKey, deployment, bid, walletAddress);
       expect(lease).toMatchObject({
         deployment: expect.objectContaining({
-          deployment_id: expect.objectContaining({
+          id: expect.objectContaining({
             dseq: deployment.dseq
           }),
           state: expect.any(String)
         }),
         leases: expect.arrayContaining([
           expect.objectContaining({
-            lease_id: expect.objectContaining({
+            id: expect.objectContaining({
               dseq: deployment.dseq,
               gseq: bid.bid.id.gseq,
               oseq: bid.bid.id.oseq,
@@ -244,14 +244,14 @@ describe("Managed Wallet API Deployment Flow", () => {
       const deploymentDetails = await getDeploymentDetails(apiKey, deployment.dseq);
       expect(deploymentDetails).toMatchObject({
         deployment: expect.objectContaining({
-          deployment_id: expect.objectContaining({
+          id: expect.objectContaining({
             dseq: deployment.dseq
           }),
           state: expect.any(String)
         }),
         leases: expect.arrayContaining([
           expect.objectContaining({
-            lease_id: expect.objectContaining({
+            id: expect.objectContaining({
               dseq: deployment.dseq
             })
           })
@@ -264,7 +264,7 @@ describe("Managed Wallet API Deployment Flow", () => {
         deployments: expect.arrayContaining([
           expect.objectContaining({
             deployment: expect.objectContaining({
-              deployment_id: expect.objectContaining({
+              id: expect.objectContaining({
                 dseq: deployment.dseq
               }),
               state: expect.any(String)
@@ -367,17 +367,33 @@ describe("Managed Wallet API Deployment Flow", () => {
        * These are actual providers running on the Akash sandbox with their current versions
        * as of the time this test was implemented.
        */
-      const AKASH_SANDBOX_PROVIDER = {
-        owner: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
+      // const AKASH_SANDBOX_PROVIDER = {
+      //   owner: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
+      //   akashVersion: "0.8.3-rc10",
+      //   hostUri: "https://provider.provider-02.sandbox-01.aksh.pw:8443"
+      // };
+      // const AKASH_EUROPLOTS_PROVIDER = {
+      //   owner: "akash1d4fletej4cwn9x8jzpzmnk6zkqeh90ejjskpmu",
+      //   akashVersion: "0.6.11-rc1",
+      //   hostUri: "https://provider.europlots-sandbox.com:8443"
+      // };
+      // TODO: Remove this once the testnet branch is merged
+      const AKASH_MULTI_PROVIDER = {
+        owner: "akash18rcjwx8x8cqmfr6fr4wu6pm83ngfyz8feq5pju",
+        akashVersion: "v0.10.0-rc12",
+        hostUri: "https://provider.multi.test.akashgpu.com:8443"
+      };
+      const AKASH_T4_PROVIDER = {
+        owner: "akash1g0f8qsqhxq4sfrnmcxhkg9gqd25atc4hhv5p85",
         akashVersion: "0.8.3-rc10",
-        hostUri: "https://provider.provider-02.sandbox-01.aksh.pw:8443"
+        hostUri: "https://provider.t4.akashgpu.com:8443"
       };
-      const AKASH_EUROPLOTS_PROVIDER = {
-        owner: "akash1d4fletej4cwn9x8jzpzmnk6zkqeh90ejjskpmu",
-        akashVersion: "0.6.11-rc1",
-        hostUri: "https://provider.europlots-sandbox.com:8443"
+      const AKASH_TEST_PROVIDER = {
+        owner: "akash1atnytt5gvsk4gh9tupcy4dv45gcy00kjrujmxe",
+        akashVersion: "0.8.3-rc10",
+        hostUri: "https://provider.test.akashgpu.com:8443"
       };
-      await Promise.all([AKASH_EUROPLOTS_PROVIDER, AKASH_SANDBOX_PROVIDER].map(async provider => createProvider(provider)));
+      await Promise.all([AKASH_T4_PROVIDER, AKASH_MULTI_PROVIDER, AKASH_TEST_PROVIDER].map(async provider => createProvider(provider)));
     } catch (e) {
       if (!(e instanceof Error && e.name === "SequelizeUniqueConstraintError")) {
         throw e;
@@ -441,6 +457,8 @@ describe("Managed Wallet API Deployment Flow", () => {
       })
     });
 
+    console.log("DEPLOYMENT", data.data);
+
     const deploymentDbId = faker.string.uuid();
     await createDeploymentSeed({
       id: deploymentDbId,
@@ -459,8 +477,8 @@ describe("Managed Wallet API Deployment Flow", () => {
       owner: walletAddress
     });
 
-    (data.data as any)._dbId = deploymentDbId;
-    (data.data as any)._deploymentGroupId = deploymentGroup.id;
+    (data.data as unknown as { _dbId: string; _deploymentGroupId: string })._dbId = deploymentDbId;
+    (data.data as unknown as { _dbId: string; _deploymentGroupId: string })._deploymentGroupId = deploymentGroup.id;
 
     return data.data;
   }
@@ -485,6 +503,8 @@ describe("Managed Wallet API Deployment Flow", () => {
           "x-api-key": apiKey
         }
       });
+
+      console.log("BIDS", data.data);
 
       return data.data.find(bid => targetAuthType === "mTLS" || !bid.isCertificateRequired);
     });
@@ -559,15 +579,15 @@ describe("Managed Wallet API Deployment Flow", () => {
     for (const lease of data.data.leases) {
       await createLeaseSeed({
         id: faker.string.uuid(),
-        dseq: lease.lease_id.dseq,
-        gseq: lease.lease_id.gseq,
-        oseq: lease.lease_id.oseq,
-        providerAddress: lease.lease_id.provider,
+        dseq: lease.id.dseq,
+        gseq: lease.id.gseq,
+        oseq: lease.id.oseq,
+        providerAddress: lease.id.provider,
         owner: walletAddress,
         price: parseFloat(lease.price.amount),
         denom: lease.price.denom,
-        deploymentId: (deployment as any)._dbId,
-        deploymentGroupId: (deployment as any)._deploymentGroupId,
+        deploymentId: (deployment as unknown as { _dbId: string })._dbId,
+        deploymentGroupId: (deployment as unknown as { _deploymentGroupId: string })._deploymentGroupId,
         createdHeight: faker.number.int({ min: 1, max: 10000000 })
       });
     }

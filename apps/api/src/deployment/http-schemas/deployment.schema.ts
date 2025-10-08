@@ -18,12 +18,13 @@ export const DeploymentResponseSchema = z.object({
   }),
   leases: z.array(
     z.object({
-      lease_id: z.object({
+      id: z.object({
         owner: z.string(),
         dseq: z.string(),
         gseq: z.number(),
         oseq: z.number(),
-        provider: z.string()
+        provider: z.string(),
+        bseq: z.number()
       }),
       state: z.string(),
       price: z.object({
@@ -32,6 +33,7 @@ export const DeploymentResponseSchema = z.object({
       }),
       created_at: z.string(),
       closed_on: z.string(),
+      reason: z.string().optional(),
       status: z.nullable(LeaseStatusResponseSchema)
     })
   ),

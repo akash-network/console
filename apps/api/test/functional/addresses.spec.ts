@@ -491,7 +491,7 @@ describe("Addresses API", () => {
         leases: [
           {
             lease: {
-              lease_id: {
+              id: {
                 owner: address,
                 dseq: "111"
               }
@@ -499,7 +499,7 @@ describe("Addresses API", () => {
           },
           {
             lease: {
-              lease_id: {
+              id: {
                 owner: address,
                 dseq: "222"
               }

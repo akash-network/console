@@ -181,7 +181,7 @@ export class GpuBidsCreatorService {
   }
 
   private async getCurrentHeight() {
-    const response = await axios.get(`${apiNodeUrl}/blocks/latest`);
+    const response = await axios.get(`${apiNodeUrl}/cosmos/base/tendermint/v1beta1/blocks/latest`);
 
     const height = parseInt(response.data.block.header.height);
 

@@ -53,43 +53,44 @@ describe("Lease Fallback API", () => {
       expect(lease).toHaveProperty("escrow_payment");
 
       // Check lease details
-      expect(lease.lease).toHaveProperty("lease_id");
+      expect(lease.lease).toHaveProperty("id");
       expect(lease.lease).toHaveProperty("state");
       expect(lease.lease).toHaveProperty("price");
       expect(lease.lease).toHaveProperty("created_at");
       expect(lease.lease).toHaveProperty("closed_on");
 
-      // Check lease_id structure
-      expect(lease.lease.lease_id).toHaveProperty("owner");
-      expect(lease.lease.lease_id).toHaveProperty("dseq");
-      expect(lease.lease.lease_id).toHaveProperty("gseq");
-      expect(lease.lease.lease_id).toHaveProperty("oseq");
-      expect(lease.lease.lease_id).toHaveProperty("provider");
+      // Check lease id structure
+      expect(lease.lease.id).toHaveProperty("owner");
+      expect(lease.lease.id).toHaveProperty("dseq");
+      expect(lease.lease.id).toHaveProperty("gseq");
+      expect(lease.lease.id).toHaveProperty("oseq");
+      expect(lease.lease.id).toHaveProperty("provider");
 
       // Check price structure
       expect(lease.lease.price).toHaveProperty("denom");
       expect(lease.lease.price).toHaveProperty("amount");
 
       // Check escrow_payment structure
-      expect(lease.escrow_payment).toHaveProperty("account_id");
-      expect(lease.escrow_payment).toHaveProperty("payment_id");
+      expect(lease.escrow_payment).toHaveProperty("id");
+      expect(lease.escrow_payment.id).toHaveProperty("xid");
+      expect(lease.escrow_payment.id).toHaveProperty("aid");
       expect(lease.escrow_payment).toHaveProperty("owner");
       expect(lease.escrow_payment).toHaveProperty("state");
-      expect(lease.escrow_payment).toHaveProperty("rate");
-      expect(lease.escrow_payment).toHaveProperty("balance");
-      expect(lease.escrow_payment).toHaveProperty("withdrawn");
+      expect(lease.escrow_payment.state).toHaveProperty("rate");
+      expect(lease.escrow_payment.state).toHaveProperty("balance");
+      expect(lease.escrow_payment.state).toHaveProperty("withdrawn");
 
       // Check account_id structure
-      expect(lease.escrow_payment.account_id).toHaveProperty("scope");
-      expect(lease.escrow_payment.account_id).toHaveProperty("xid");
+      expect(lease.escrow_payment.id.aid).toHaveProperty("scope");
+      expect(lease.escrow_payment.id.aid).toHaveProperty("xid");
 
       // Check rate, balance, and withdrawn structures
-      expect(lease.escrow_payment.rate).toHaveProperty("denom");
-      expect(lease.escrow_payment.rate).toHaveProperty("amount");
-      expect(lease.escrow_payment.balance).toHaveProperty("denom");
-      expect(lease.escrow_payment.balance).toHaveProperty("amount");
-      expect(lease.escrow_payment.withdrawn).toHaveProperty("denom");
-      expect(lease.escrow_payment.withdrawn).toHaveProperty("amount");
+      expect(lease.escrow_payment.state.rate).toHaveProperty("denom");
+      expect(lease.escrow_payment.state.rate).toHaveProperty("amount");
+      expect(lease.escrow_payment.state.balance).toHaveProperty("denom");
+      expect(lease.escrow_payment.state.balance).toHaveProperty("amount");
+      expect(lease.escrow_payment.state.withdrawn).toHaveProperty("denom");
+      expect(lease.escrow_payment.state.withdrawn).toHaveProperty("amount");
     });
 
     it("should filter by owner", async () => {
@@ -101,7 +102,7 @@ describe("Lease Fallback API", () => {
 
       expect(result.leases.length).toBeGreaterThan(0);
       result.leases.forEach(lease => {
-        expect(lease.lease.lease_id.owner).toBe(owners[0]);
+        expect(lease.lease.id.owner).toBe(owners[0]);
       });
     });
 
@@ -115,7 +116,7 @@ describe("Lease Fallback API", () => {
 
       expect(result.leases.length).toBeGreaterThan(0);
       result.leases.forEach(lease => {
-        expect(lease.lease.lease_id.dseq).toBe("1001");
+        expect(lease.lease.id.dseq).toBe("1001");
       });
     });
 
@@ -156,7 +157,7 @@ describe("Lease Fallback API", () => {
       });
 
       result.leases.forEach(lease => {
-        expect(lease.lease.lease_id.provider).toBe(providers[0].owner);
+        expect(lease.lease.id.provider).toBe(providers[0].owner);
       });
     });
 
@@ -169,7 +170,7 @@ describe("Lease Fallback API", () => {
       });
 
       result.leases.forEach(lease => {
-        expect(lease.lease.lease_id.gseq).toBe(1);
+        expect(lease.lease.id.gseq).toBe(1);
       });
     });
 
@@ -182,7 +183,7 @@ describe("Lease Fallback API", () => {
       });
 
       result.leases.forEach(lease => {
-        expect(lease.lease.lease_id.oseq).toBe(1);
+        expect(lease.lease.id.oseq).toBe(1);
       });
     });
 
@@ -276,8 +277,8 @@ describe("Lease Fallback API", () => {
       });
 
       result.leases.forEach(lease => {
-        expect(lease.lease.lease_id.owner).toBe(owners[0]);
-        expect(lease.lease.lease_id.provider).toBe(providers[0].owner);
+        expect(lease.lease.id.owner).toBe(owners[0]);
+        expect(lease.lease.id.provider).toBe(providers[0].owner);
         expect(lease.lease.state).toBe("closed");
       });
     });
@@ -293,25 +294,25 @@ describe("Lease Fallback API", () => {
       const lease = result.leases[0];
 
       // Check data types
-      expect(typeof lease.lease.lease_id.owner).toBe("string");
-      expect(typeof lease.lease.lease_id.dseq).toBe("string");
-      expect(typeof lease.lease.lease_id.gseq).toBe("number");
-      expect(typeof lease.lease.lease_id.oseq).toBe("number");
-      expect(typeof lease.lease.lease_id.provider).toBe("string");
+      expect(typeof lease.lease.id.owner).toBe("string");
+      expect(typeof lease.lease.id.dseq).toBe("string");
+      expect(typeof lease.lease.id.gseq).toBe("number");
+      expect(typeof lease.lease.id.oseq).toBe("number");
+      expect(typeof lease.lease.id.provider).toBe("string");
       expect(typeof lease.lease.state).toBe("string");
       expect(typeof lease.lease.price.denom).toBe("string");
       expect(typeof lease.lease.price.amount).toBe("string");
       expect(typeof lease.lease.created_at).toBe("string");
       expect(typeof lease.lease.closed_on).toBe("string");
-      expect(typeof lease.escrow_payment.payment_id).toBe("string");
-      expect(typeof lease.escrow_payment.owner).toBe("string");
+      expect(typeof lease.escrow_payment.id.xid).toBe("string");
+      expect(typeof lease.escrow_payment.state.owner).toBe("string");
       expect(typeof lease.escrow_payment.state).toBe("string");
-      expect(typeof lease.escrow_payment.rate.denom).toBe("string");
-      expect(typeof lease.escrow_payment.rate.amount).toBe("string");
-      expect(typeof lease.escrow_payment.balance.denom).toBe("string");
-      expect(typeof lease.escrow_payment.balance.amount).toBe("string");
-      expect(typeof lease.escrow_payment.withdrawn.denom).toBe("string");
-      expect(typeof lease.escrow_payment.withdrawn.amount).toBe("string");
+      expect(typeof lease.escrow_payment.state.rate.denom).toBe("string");
+      expect(typeof lease.escrow_payment.state.rate.amount).toBe("string");
+      expect(typeof lease.escrow_payment.state.balance.denom).toBe("string");
+      expect(typeof lease.escrow_payment.state.balance.amount).toBe("string");
+      expect(typeof lease.escrow_payment.state.withdrawn.denom).toBe("string");
+      expect(typeof lease.escrow_payment.state.withdrawn.amount).toBe("string");
     });
   });
 

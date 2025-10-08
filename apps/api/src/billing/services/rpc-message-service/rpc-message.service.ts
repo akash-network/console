@@ -124,7 +124,7 @@ export class RpcMessageService {
       value: MsgRevoke.fromPartial({
         granter: granter,
         grantee: grantee,
-        msgTypeUrl: `/${DepositAuthorization.$type}`
+        msgTypeUrl: `/${MsgAccountDeposit.$type}`
       })
     };
   }
