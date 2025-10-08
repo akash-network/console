@@ -1,4 +1,4 @@
-name: Release INDEXER sdk-next
+name: Deploy API sdk-next
 
 on:
   push:
@@ -11,29 +11,29 @@ jobs:
     name: Decide Whether to Deploy
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
-      path: apps/indexer
+      path: apps/console-api
 
   build:
     needs: should-deploy
-    if: github.event_name == 'workflow_dispatch' || needs.should-deploy.outputs.enabled == 'true'
     name: Build Docker image
+    if: github.event_name == 'workflow_dispatch' || needs.should-deploy.outputs.enabled == 'true'
     uses: ./.github/workflows/reusable-build-image.yml
     secrets: inherit
     permissions:
       contents: write
       packages: write
     with:
-      tag: indexer/sdk53
+      tag: console-api/sdk53
       tag-latest: false
       force-build: true
 
   deploy-beta-testnet:
     needs: build
-    name: Deploy testnet to beta
+    name: Deploy to beta sandbox
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
-      app: indexer
+      app: console-api
       appVersion: ${{ needs.build.outputs.image_tag }}
       environment: staging
       chain: testnet
