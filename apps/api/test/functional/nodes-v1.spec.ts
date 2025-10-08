@@ -1,3 +1,4 @@
+import { netConfig } from "@akashnetwork/net";
 import { faker } from "@faker-js/faker";
 import mcache from "memory-cache";
 import nock from "nock";
@@ -27,7 +28,10 @@ describe("Nodes API", () => {
   describe("GET /nodes/{network}", () => {
     it.each(["mainnet", "sandbox", "testnet"])("should return %s node", async network => {
       const node = NodeSeeder.create();
-      interceptor.get(`/console/main/config/${network}-nodes.json`).times(1).reply(200, node);
+      interceptor
+        .get(`/console/main/config/${netConfig.mapped(network)}-nodes.json`)
+        .times(1)
+        .reply(200, node);
 
       const resInit = await app.request(`/v1/nodes/${network}`);
       expect(resInit.status).toBe(200);
@@ -46,13 +50,10 @@ describe("Nodes API", () => {
   });
 
   describe("GET /version/{network}", () => {
-    const PATH_REWRITE: Record<string, string> = {
-      testnet: "testnet-02"
-    };
     it.each(["mainnet", "sandbox", "testnet"])("should return %s node version", async network => {
       const version = `v${faker.number.int()}.${faker.number.int()}.${faker.number.int()}`;
       interceptor
-        .get(`/net/master/${PATH_REWRITE[network] || network}/version.txt`)
+        .get(`/net/master/${netConfig.mapped(network)}/version.txt`)
         .times(1)
         .reply(200, version, {
           "Content-Type": "text/plain"
