@@ -39,7 +39,7 @@ export function WalletStatus() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onDisconnectClick}>
+            <DropdownMenuItem onClick={onDisconnectClick} aria-label="Disconnect Wallet">
               <LogOut />
               &nbsp;Disconnect Wallet
             </DropdownMenuItem>
