@@ -32,8 +32,12 @@ const GranularAccessPermissionSchema = BaseLeasePermissionSchema.extend({
 const LeasePermissionSchema = z.discriminatedUnion("access", [FullAccessPermissionSchema, ScopedAccessPermissionSchema, GranularAccessPermissionSchema]);
 
 const FullAccessSchema = z.object({
-  access: z.literal("full"),
-  scope: z.array(AccessScopeSchema).optional()
+  access: z.literal("full")
+});
+
+const ScopedAccessSchema = z.object({
+  access: z.literal("scoped"),
+  scope: z.array(AccessScopeSchema)
 });
 
 const GranularAccessSchema = z.object({
@@ -41,7 +45,9 @@ const GranularAccessSchema = z.object({
   permissions: z.array(LeasePermissionSchema)
 });
 
-const LeasesSchema = z.discriminatedUnion("access", [FullAccessSchema, GranularAccessSchema]) satisfies z.ZodType<JwtTokenPayload["leases"]>;
+const LeasesSchema = z.discriminatedUnion("access", [FullAccessSchema, ScopedAccessSchema, GranularAccessSchema]) satisfies z.ZodType<
+  JwtTokenPayload["leases"]
+>;
 
 export const CreateJwtTokenRequestSchema = z.object({
   ttl: z.number().int().positive(),

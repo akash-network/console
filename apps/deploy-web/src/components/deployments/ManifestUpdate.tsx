@@ -9,9 +9,9 @@ import { DynamicMonacoEditor } from "@src/components/shared/DynamicMonacoEditor"
 import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkeleton";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import ViewPanel from "@src/components/shared/ViewPanel";
-import { useCertificate } from "@src/context/CertificateProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import networkStore from "@src/store/networkStore";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
@@ -22,7 +22,7 @@ import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import RemoteDeployUpdate from "../remote-deploy/update/RemoteDeployUpdate";
 import { ManifestErrorSnackbar } from "../shared/ManifestErrorSnackbar";
 import { Title } from "../shared/Title";
-import { CreateCertificateButton } from "./CreateCertificateButton/CreateCertificateButton";
+import { CreateCredentialsButton } from "./CreateCredentialsButton/CreateCredentialsButton";
 
 type Props = {
   deployment: DeploymentDto;
@@ -48,7 +48,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const [isSendingManifest, setIsSendingManifest] = useState(false);
   const { address, signAndBroadcastTx, isManaged: isManagedWallet } = useWallet();
   const { data: providers } = useProviderList();
-  const { localCert, isLocalCertMatching } = useCertificate();
+  const providerCredentials = useProviderCredentials();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   useEffect(() => {
@@ -125,7 +125,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
     try {
       return await providerProxy.sendManifest(providerInfo, manifest, {
         dseq: deployment.dseq,
-        localCert,
+        credentials: providerCredentials.details,
         chainNetwork
       });
     } catch (err) {
@@ -242,8 +242,8 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
               </div>
 
               <div>
-                {!localCert || !isLocalCertMatching ? (
-                  <CreateCertificateButton containerClassName="flex items-center space-x-4 text-sm" className="" size="sm" />
+                {!providerCredentials.details.usable ? (
+                  <CreateCredentialsButton containerClassName="flex items-center space-x-4 text-sm" className="" size="sm" />
                 ) : (
                   <Button
                     disabled={!!parsingError || !editedManifest || !providers || isSendingManifest || deployment.state !== "active"}

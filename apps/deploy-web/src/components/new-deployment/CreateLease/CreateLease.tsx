@@ -43,12 +43,12 @@ import { useBidList } from "@src/queries/useBidQuery";
 import { useBlock } from "@src/queries/useBlocksQuery";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
+import type { SendManifestToProviderOptions } from "@src/services/provider-proxy/provider-proxy.service";
 import type { BidDto } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
 import { TRIAL_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
 import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
-import type { SendManifestToProviderOptions } from "@src/utils/deploymentUtils";
 import { addScriptToHead } from "@src/utils/domUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -206,7 +206,17 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
       try {
         const yamlJson = yaml.load(localDeploymentData.manifest);
         const mani = deploymentData.getManifest(yamlJson, true);
-        const options: SendManifestToProviderOptions = { dseq, localCert: cert, chainNetwork };
+        const options: SendManifestToProviderOptions = {
+          dseq,
+          credentials: {
+            type: "mtls",
+            value: {
+              cert: cert.certPem,
+              key: cert.keyPem
+            }
+          },
+          chainNetwork
+        };
 
         for (let i = 0; i < bidKeys.length; i++) {
           const currentBid = selectedBids[bidKeys[i]];

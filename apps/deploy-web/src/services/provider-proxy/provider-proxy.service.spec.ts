@@ -2,6 +2,7 @@ import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { LoggerService } from "@akashnetwork/logging";
 import { mock } from "jest-mock-extended";
 
+import type { ProviderCredentials } from "./provider-proxy.service";
 import { ProviderProxyService } from "./provider-proxy.service";
 
 import { buildProvider } from "@tests/seeders";
@@ -50,8 +51,8 @@ describe(ProviderProxyService.name, () => {
           }
         }
       ];
-      const localCert = { certPem: "certPem", keyPem: "keyPem", address: "address" };
-      const promise = service.sendManifest(provider, manifest, { dseq, chainNetwork: "mainnet", localCert });
+      const credentials: ProviderCredentials = { type: "mtls", value: { cert: "certPem", key: "keyPem" } };
+      const promise = service.sendManifest(provider, manifest, { dseq, chainNetwork: "mainnet", credentials });
 
       const [result] = await Promise.all([promise, jest.runAllTimersAsync()]);
 
@@ -62,8 +63,11 @@ describe(ProviderProxyService.name, () => {
           url: `${provider.hostUri}/deployment/${dseq}/manifest`,
           providerAddress: provider.owner,
           network: "mainnet",
-          certPem: localCert.certPem,
-          keyPem: localCert.keyPem,
+          auth: {
+            type: "mtls",
+            certPem: credentials.value?.cert,
+            keyPem: credentials.value?.key
+          },
           body: JSON.stringify([
             {
               profiles: {

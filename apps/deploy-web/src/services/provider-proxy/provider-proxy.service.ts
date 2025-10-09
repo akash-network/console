@@ -3,7 +3,6 @@ import type { LoggerService } from "@akashnetwork/logging";
 import type { AxiosResponse } from "axios";
 
 import type { ApiProviderList } from "@src/types/provider";
-import type { SendManifestToProviderOptions } from "@src/utils/deploymentUtils";
 import { wait } from "@src/utils/timer";
 
 export class ProviderProxyService {
@@ -15,7 +14,7 @@ export class ProviderProxyService {
   ) {}
 
   fetchProviderUrl<T>(url: string, options: ProviderProxyPayload): Promise<AxiosResponse<T>> {
-    const { chainNetwork, providerIdentity, timeout, ...params } = options;
+    const { chainNetwork, providerIdentity, timeout, credentials, ...params } = options;
     return this.axios.post(
       "/",
       {
@@ -23,7 +22,8 @@ export class ProviderProxyService {
         method: options.method || "GET",
         url: providerIdentity.hostUri + url,
         providerAddress: providerIdentity.owner,
-        network: options.chainNetwork
+        network: options.chainNetwork,
+        auth: credentials ? providerCredentialsToApiCredentials(credentials) : undefined
       },
       { timeout }
     );
@@ -52,8 +52,7 @@ export class ProviderProxyService {
         if (!response) {
           response = await this.fetchProviderUrl(`/deployment/${options.dseq}/manifest`, {
             method: "PUT",
-            certPem: options.localCert?.certPem,
-            keyPem: options.localCert?.keyPem,
+            credentials: options.credentials,
             body: jsonStr,
             timeout: 60_000,
             providerIdentity: providerInfo,
@@ -79,8 +78,7 @@ export class ProviderProxyService {
 
 export interface ProviderProxyPayload {
   method?: "GET" | "POST" | "PUT" | "DELETE";
-  certPem?: string;
-  keyPem?: string;
+  credentials?: ProviderCredentials | null;
   body?: string;
   timeout?: number;
   chainNetwork: string;
@@ -90,4 +88,50 @@ export interface ProviderProxyPayload {
 export interface ProviderIdentity {
   owner: string;
   hostUri: string;
+}
+
+export interface SendManifestToProviderOptions {
+  dseq: string;
+  credentials?: ProviderCredentials | null;
+  chainNetwork: string;
+}
+
+export type ProviderCredentials =
+  | {
+      type: "mtls";
+      value:
+        | {
+            cert: string;
+            key: string;
+          }
+        | null
+        | undefined;
+    }
+  | {
+      type: "jwt";
+      value: string | undefined | null;
+    };
+
+export type ProviderApiCredentials =
+  | {
+      type: "mtls";
+      certPem: string;
+      keyPem: string;
+    }
+  | {
+      type: "jwt";
+      token: string;
+    };
+export function providerCredentialsToApiCredentials(credentials: ProviderCredentials | null | undefined): ProviderApiCredentials | undefined {
+  if (!credentials?.value) return;
+  if (credentials.type === "mtls")
+    return {
+      type: credentials.type,
+      certPem: credentials.value.cert,
+      keyPem: credentials.value.key
+    };
+  return {
+    type: credentials.type,
+    token: credentials.value
+  };
 }

@@ -207,7 +207,13 @@ describe(CreateLease.name, () => {
         expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
           dseq,
           chainNetwork: "mainnet",
-          localCert
+          credentials: {
+            type: "mtls",
+            value: {
+              cert: localCert.certPem,
+              key: localCert.keyPem
+            }
+          }
         });
       });
     });
@@ -258,7 +264,13 @@ describe(CreateLease.name, () => {
         expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
           dseq,
           chainNetwork: "mainnet",
-          localCert
+          credentials: {
+            type: "mtls",
+            value: {
+              cert: localCert.certPem,
+              key: localCert.keyPem
+            }
+          }
         });
       });
     });
@@ -315,7 +327,13 @@ describe(CreateLease.name, () => {
         expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
           dseq,
           chainNetwork: "mainnet",
-          localCert
+          credentials: {
+            type: "mtls",
+            value: {
+              cert: localCert.certPem,
+              key: localCert.keyPem
+            }
+          }
         });
       });
     });
