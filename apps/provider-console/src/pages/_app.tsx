@@ -9,6 +9,9 @@ import type { AppProps } from "next/app";
 import { ThemeProvider } from "next-themes";
 
 import GoogleAnalytics from "@src/components/layout/CustomGoogleAnalytics";
+import { AkashAtHomeProvider } from "@src/context/AkashAtHomeProvider";
+import { Auth0Provider } from "@src/context/Auth0Provider";
+import { AuthProvider } from "@src/context/AuthProvider";
 import { ControlMachineProvider } from "@src/context/ControlMachineProvider";
 import { CustomChainProvider } from "@src/context/CustomChainProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
@@ -29,15 +32,21 @@ export default function App({ Component, pageProps }: AppProps) {
               <GoogleAnalytics />
               <PricingProvider>
                 <TooltipProvider>
-                  <CustomChainProvider>
-                    <WalletProvider>
-                      <ProviderContextProvider>
-                        <ControlMachineProvider>
-                          <Component {...pageProps} />
-                        </ControlMachineProvider>
-                      </ProviderContextProvider>
-                    </WalletProvider>
-                  </CustomChainProvider>
+                  <Auth0Provider>
+                    <AuthProvider>
+                      <AkashAtHomeProvider>
+                        <CustomChainProvider>
+                          <WalletProvider>
+                            <ProviderContextProvider>
+                              <ControlMachineProvider>
+                                <Component {...pageProps} />
+                              </ControlMachineProvider>
+                            </ProviderContextProvider>
+                          </WalletProvider>
+                        </CustomChainProvider>
+                      </AkashAtHomeProvider>
+                    </AuthProvider>
+                  </Auth0Provider>
                 </TooltipProvider>
               </PricingProvider>
             </ColorModeProvider>
