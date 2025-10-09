@@ -10,6 +10,8 @@ import { container } from "tsyringe";
 
 import { config } from "@src/billing/config";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { app } from "@src/rest-app";
 import { apiNodeUrl, certVersion, deploymentVersion } from "@src/utils/constants";
 
@@ -30,7 +32,9 @@ describe("Tx Sign", () => {
 
   describe("POST /v1/tx", () => {
     it("should create a deployment for a user", async () => {
-      const { user, token, wallet } = await walletService.createAnonymousUserAndWallet();
+      jest.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ANONYMOUS_FREE_TRIAL);
+
+      const { user, token, wallet } = await walletService.createUserAndWallet();
       nock(apiNodeUrl, { allowUnmocked: true })
         .get(
           `/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${wallet.address}&pagination.offset=0&pagination.limit=1&pagination.count_total=true&pagination.reverse=false`

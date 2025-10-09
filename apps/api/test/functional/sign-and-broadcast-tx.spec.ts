@@ -1,4 +1,4 @@
-import { certificateManager } from "@akashnetwork/chain-sdk";
+import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
 import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { Registry } from "@cosmjs/proto-signing";
 import { container } from "tsyringe";
@@ -64,8 +64,8 @@ describe("Tx Sign", () => {
       typeUrl: `/${MsgCreateCertificate.$type}`,
       value: MsgCreateCertificate.fromPartial({
         owner: address,
-        cert: Buffer.from(cert, "base64"),
-        pubkey: Buffer.from(publicKey, "base64")
+        cert: Buffer.from(cert),
+        pubkey: Buffer.from(publicKey)
       })
     };
 
