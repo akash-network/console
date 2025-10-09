@@ -147,7 +147,7 @@ export abstract class BaseRepository<
       .where(inArray(this.table.id, ids));
   }
 
-  async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: MutationOptions): Promise<Output>;
+  async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: MutationOptions): Promise<undefined | Output>;
   async updateBy(query: Partial<Output>, payload: Partial<Input>): Promise<void>;
   async updateBy(query: Partial<Output>, payload: Partial<Input>, options?: MutationOptions): Promise<void | Output> {
     const cursor = this.cursor

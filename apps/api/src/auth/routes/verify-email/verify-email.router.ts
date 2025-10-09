@@ -37,9 +37,7 @@ const route = createRoute({
   }
 });
 
-verifyEmailRouter.post(route.path, async function verifyEmail(c) {
-  const data = VerifyEmailRequestSchema.parse(await c.req.json());
-
-  const result = await container.resolve(AuthController).syncEmailVerified(data);
+verifyEmailRouter.openapi(route, async function verifyEmail(c) {
+  const result = await container.resolve(AuthController).syncEmailVerified(c.req.valid("json"));
   return c.json(result, 200);
 });
