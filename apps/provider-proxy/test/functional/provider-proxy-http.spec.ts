@@ -1,4 +1,4 @@
-import { createSignArbitraryAkashWallet, JwtToken } from "@akashnetwork/jwt";
+import { createSignArbitraryAkashWallet, JwtTokenManager } from "@akashnetwork/chain-sdk";
 import type { SupportedChainNetworks } from "@akashnetwork/net";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { setTimeout as wait } from "timers/promises";
@@ -682,8 +682,8 @@ describe("Provider HTTP proxy", () => {
     const testMnemonic =
       "monkey power feature blast stem fabric fiber lens spring crisp kingdom memory put differ wise jar same illegal elbow kiss pill hamster moment spare";
     const wallet = await DirectSecp256k1HdWallet.fromMnemonic(testMnemonic, { prefix: "akash" });
-    const tokenManager = new JwtToken(await createSignArbitraryAkashWallet(wallet));
-    const token = await tokenManager.createToken({
+    const tokenManager = new JwtTokenManager(await createSignArbitraryAkashWallet(wallet));
+    const token = await tokenManager.generateToken({
       iss: (await wallet.getAccounts())[0].address,
       exp: Math.floor(Date.now() / 1000) + 3600,
       iat: Math.floor(Date.now() / 1000),

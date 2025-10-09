@@ -1,4 +1,4 @@
-import { AccessScope, JwtToken, JwtTokenPayload } from "@akashnetwork/jwt";
+import { JwtTokenManager, JwtTokenPayload } from "@akashnetwork/chain-sdk";
 import { minutesToSeconds } from "date-fns";
 import { inject, singleton } from "tsyringe";
 import * as uuid from "uuid";
@@ -12,7 +12,7 @@ import { JWT_MODULE, JWTModule } from "@src/provider/providers/jwt.provider";
 const JWT_TOKEN_TTL_IN_SECONDS = 30;
 
 type JwtTokenWithAddress = {
-  jwtToken: JwtToken;
+  jwtTokenManager: JwtTokenManager;
   address: string;
 };
 
@@ -21,6 +21,8 @@ type GenerateJwtTokenParams = {
   leases: JwtTokenPayload["leases"];
   ttl?: number;
 };
+
+type AccessScope = Extract<Extract<JwtTokenPayload["leases"], { access: "granular" }>["permissions"][number], { access: "scoped" }>["scope"][number];
 
 @singleton()
 export class ProviderJwtTokenService {
@@ -31,10 +33,10 @@ export class ProviderJwtTokenService {
   ) {}
 
   async generateJwtToken({ walletId, leases, ttl = JWT_TOKEN_TTL_IN_SECONDS }: GenerateJwtTokenParams) {
-    const { jwtToken, address } = await this.getJwtToken(walletId);
+    const { jwtTokenManager, address } = await this.getJwtToken(walletId);
     const now = Math.floor(Date.now() / 1000);
 
-    return await jwtToken.createToken({
+    return await jwtTokenManager.generateToken({
       version: "v1",
       exp: now + ttl,
       nbf: now,
@@ -48,10 +50,10 @@ export class ProviderJwtTokenService {
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   private async getJwtToken(walletId: number): Promise<JwtTokenWithAddress> {
     const wallet = this.walletFactory(this.billingConfigService.get("MASTER_WALLET_MNEMONIC"), walletId);
-    const akashWallet = await this.jwtModule.createSignArbitraryAkashWallet(await wallet.getInstance(), walletId);
-    const jwtToken = new this.jwtModule.JwtToken(akashWallet);
+    const akashWallet = await this.jwtModule.createSignArbitraryAkashWallet((await wallet.getInstance()) as any, walletId);
+    const jwtTokenManager = new this.jwtModule.JwtTokenManager(akashWallet);
 
-    return { jwtToken, address: akashWallet.address };
+    return { jwtTokenManager, address: akashWallet.address };
   }
 
   getGranularLeases({ provider, scope }: { provider: string; scope: AccessScope[] }): JwtTokenPayload["leases"] {
