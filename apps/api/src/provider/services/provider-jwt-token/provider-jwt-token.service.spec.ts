@@ -1,4 +1,4 @@
-import type { JwtToken, JwtTokenPayload } from "@akashnetwork/jwt";
+import type { JwtTokenManager, JwtTokenPayload } from "@akashnetwork/chain-sdk";
 import type { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
@@ -21,8 +21,8 @@ describe(ProviderJwtTokenService.name, () => {
 
       expect(result).toEqual(jwtTokenValue);
       expect(walletFactory).toHaveBeenCalledWith(masterWalletMnemonic, walletId);
-      expect(jwtModule.JwtToken).toHaveBeenCalledWith(akashWallet);
-      expect(jwtToken.createToken).toHaveBeenCalledWith({
+      expect(jwtModule.JwtTokenManager).toHaveBeenCalledWith(akashWallet);
+      expect(jwtToken.generateToken).toHaveBeenCalledWith({
         version: "v1",
         exp: expect.any(Number),
         nbf: expect.any(Number),
@@ -41,7 +41,7 @@ describe(ProviderJwtTokenService.name, () => {
 
       expect(walletFactory).toHaveBeenCalledTimes(1);
       expect(jwtModule.createSignArbitraryAkashWallet).toHaveBeenCalledTimes(1);
-      expect(jwtModule.JwtToken).toHaveBeenCalledTimes(1);
+      expect(jwtModule.JwtTokenManager).toHaveBeenCalledTimes(1);
     });
 
     describe("getGranularLeases", () => {
@@ -83,12 +83,12 @@ describe(ProviderJwtTokenService.name, () => {
       signArbitrary: jest.fn().mockResolvedValue({ signature: "test-signature" })
     };
 
-    const jwtToken = mock<JwtToken>();
-    jwtToken.createToken.mockImplementation(() => Promise.resolve(jwtTokenValue));
+    const jwtToken = mock<JwtTokenManager>();
+    jwtToken.generateToken.mockImplementation(() => Promise.resolve(jwtTokenValue));
 
     const jwtModule = mock<JWTModule>({
       createSignArbitraryAkashWallet: jest.fn(async () => akashWallet),
-      JwtToken: jest.fn(() => jwtToken)
+      JwtTokenManager: jest.fn(() => jwtToken)
     });
 
     const billingConfigService = mockConfigService<BillingConfigService>({

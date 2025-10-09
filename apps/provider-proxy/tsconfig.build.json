@@ -3,7 +3,8 @@
     "strict": true,
     "isolatedModules": true,
     "target": "es2022",
-    "lib": ["ESNext", "ES2024"]
+    "lib": ["ESNext", "ES2024"],
+    "module": "NodeNext",
   },
   "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
 }

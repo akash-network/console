@@ -3707,6 +3707,244 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/create-jwt-token": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "leases": {
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "access": {
+                                "enum": [
+                                  "full",
+                                ],
+                                "type": "string",
+                              },
+                              "scope": {
+                                "items": {
+                                  "enum": [
+                                    "send-manifest",
+                                    "get-manifest",
+                                    "logs",
+                                    "shell",
+                                    "events",
+                                    "status",
+                                    "restart",
+                                    "hostname-migrate",
+                                    "ip-migrate",
+                                  ],
+                                  "type": "string",
+                                },
+                                "type": "array",
+                              },
+                            },
+                            "required": [
+                              "access",
+                            ],
+                            "type": "object",
+                          },
+                          {
+                            "properties": {
+                              "access": {
+                                "enum": [
+                                  "granular",
+                                ],
+                                "type": "string",
+                              },
+                              "permissions": {
+                                "items": {
+                                  "oneOf": [
+                                    {
+                                      "properties": {
+                                        "access": {
+                                          "enum": [
+                                            "full",
+                                          ],
+                                          "type": "string",
+                                        },
+                                        "provider": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "provider",
+                                        "access",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    {
+                                      "properties": {
+                                        "access": {
+                                          "enum": [
+                                            "scoped",
+                                          ],
+                                          "type": "string",
+                                        },
+                                        "provider": {
+                                          "type": "string",
+                                        },
+                                        "scope": {
+                                          "items": {
+                                            "enum": [
+                                              "send-manifest",
+                                              "get-manifest",
+                                              "logs",
+                                              "shell",
+                                              "events",
+                                              "status",
+                                              "restart",
+                                              "hostname-migrate",
+                                              "ip-migrate",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "type": "array",
+                                        },
+                                      },
+                                      "required": [
+                                        "provider",
+                                        "access",
+                                        "scope",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    {
+                                      "properties": {
+                                        "access": {
+                                          "enum": [
+                                            "granular",
+                                          ],
+                                          "type": "string",
+                                        },
+                                        "deployments": {
+                                          "items": {
+                                            "properties": {
+                                              "dseq": {
+                                                "type": "number",
+                                              },
+                                              "gseq": {
+                                                "type": "number",
+                                              },
+                                              "oseq": {
+                                                "type": "number",
+                                              },
+                                              "scope": {
+                                                "items": {
+                                                  "enum": [
+                                                    "send-manifest",
+                                                    "get-manifest",
+                                                    "logs",
+                                                    "shell",
+                                                    "events",
+                                                    "status",
+                                                    "restart",
+                                                    "hostname-migrate",
+                                                    "ip-migrate",
+                                                  ],
+                                                  "type": "string",
+                                                },
+                                                "type": "array",
+                                              },
+                                              "services": {
+                                                "items": {
+                                                  "type": "string",
+                                                },
+                                                "type": "array",
+                                              },
+                                            },
+                                            "required": [
+                                              "dseq",
+                                              "scope",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "type": "array",
+                                        },
+                                        "provider": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "provider",
+                                        "access",
+                                        "deployments",
+                                      ],
+                                      "type": "object",
+                                    },
+                                  ],
+                                },
+                                "type": "array",
+                              },
+                            },
+                            "required": [
+                              "access",
+                              "permissions",
+                            ],
+                            "type": "object",
+                          },
+                        ],
+                      },
+                      "ttl": {
+                        "exclusiveMinimum": true,
+                        "minimum": 0,
+                        "type": "integer",
+                      },
+                    },
+                    "required": [
+                      "ttl",
+                      "leases",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "token": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "token",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "JWT token created successfully",
+          },
+        },
+        "summary": "Create new JWT token for managed wallet",
+        "tags": [
+          "JWT Token",
+        ],
+      },
+    },
     "/v1/dashboard-data": {
       "get": {
         "responses": {
