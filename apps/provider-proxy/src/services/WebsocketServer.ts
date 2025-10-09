@@ -262,6 +262,7 @@ export class WebsocketServer {
     const pws = this.connectWebSocket(url, options);
 
     this.openProviderSockets[options.wsId] = { ws: pws, verification: "in-progress" };
+    const wsDetails = this.openProviderSockets[options.wsId];
 
     pws.on(
       "upgrade",
@@ -270,7 +271,7 @@ export class WebsocketServer {
         const socket = response.socket && response.socket instanceof TLSSocket ? response.socket : undefined;
         if (socket?.authorized) {
           // CA validation is successful, so certificate is not self-signed
-          this.openProviderSockets[options.wsId].verification = "finished";
+          wsDetails.verification = "finished";
           pws.emit("verified");
           return;
         }
@@ -307,7 +308,7 @@ export class WebsocketServer {
               pws.removeAllListeners("message");
               pws.removeAllListeners("verified");
 
-              this.openProviderSockets[options.wsId].verification = "failed";
+              wsDetails.verification = "failed";
               pws.close(WS_ERRORS.VIOLATED_POLICY, `invalidCertificate.${result.code}`);
               this.logger?.warn({
                 event: "PROVIDER_INVALID_CERTIFICATE",
@@ -317,9 +318,8 @@ export class WebsocketServer {
                 providerAddress: options.providerAddress
               });
             } else {
-              // ensure that socket was not closed while its certificate was validating
-              if (pws.readyState === WebSocket.OPEN && this.openProviderSockets[options.wsId]) {
-                this.openProviderSockets[options.wsId].verification = "finished";
+              if (pws.readyState === WebSocket.OPEN && Object.hasOwn(this.openProviderSockets, options.wsId)) {
+                wsDetails.verification = "finished";
                 pws.emit("verified");
                 this.logger?.debug({
                   event: "PROVIDER_CERTIFICATE_VERIFIED",
@@ -344,7 +344,7 @@ export class WebsocketServer {
       })
     );
 
-    return this.openProviderSockets[options.wsId];
+    return wsDetails;
   }
 
   private connectWebSocket(url: string, options: CreateProviderSocketOptions) {
