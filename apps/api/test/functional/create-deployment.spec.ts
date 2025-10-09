@@ -93,7 +93,7 @@ describe("Tx Sign", () => {
 
   async function getCurrentHeight() {
     // TODO: extract this base url to env var
-    const response = await axios.get(`https://api.sandbox-01.aksh.pw/blocks/latest`);
+    const response = await axios.get(`https://api.sandbox-2.aksh.pw/blocks/latest`);
     return response.data.block.header.height;
   }
 });

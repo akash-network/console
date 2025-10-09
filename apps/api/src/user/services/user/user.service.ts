@@ -128,11 +128,11 @@ export class UserService {
     }
   }
 
-  async syncEmailVerified({ email }: { email: string }) {
+  async syncEmailVerified({ email }: { email: string }): Promise<UserOutput> {
     const auth0User = await this.auth0.getUserByEmail(email);
     assert(auth0User, 404);
 
-    return await this.userRepository.updateBy(
+    const user = await this.userRepository.updateBy(
       {
         email
       },
@@ -143,6 +143,10 @@ export class UserService {
         returning: true
       }
     );
+
+    assert(user, 404);
+
+    return user;
   }
 }
 

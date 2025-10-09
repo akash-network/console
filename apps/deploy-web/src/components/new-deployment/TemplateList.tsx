@@ -162,7 +162,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
+            <section className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-3" aria-label="Template list">
               {previewTemplates.map(template => (
                 <TemplateBox
                   key={template.id}
@@ -170,7 +170,7 @@ export const TemplateList: React.FunctionComponent<Props> = ({ onChangeGitProvid
                   linkHref={UrlService.newDeployment({ step: RouteStep.editDeployment, templateId: template?.id })}
                 />
               ))}
-            </div>
+            </section>
           </CardContent>
         </Card>
       </div>

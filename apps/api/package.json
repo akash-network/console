@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/console-api",
-  "version": "2.123.0",
+  "version": "2.124.0",
   "description": "Api providing data to the deploy tool",
   "repository": {
     "type": "git",
@@ -24,7 +24,7 @@
     "release": "release-it",
     "start": "webpack --config webpack.dev.js --watch",
     "test": "jest --selectProjects unit functional",
-    "test:ci-setup": "dc up:dev -d db mock-oauth2-server",
+    "test:ci-setup": "dc up:dev -d db mock-oauth2-server provider-proxy",
     "test:ci-teardown": "dc down",
     "test:cov": "jest --selectProjects unit functional --coverage --reporters=default --reporters=jest-junit",
     "test:functional": "jest --selectProjects functional",
@@ -39,10 +39,10 @@
   "dependencies": {
     "@akashnetwork/akash-api": "^1.3.0",
     "@akashnetwork/akashjs": "^0.11.1",
+    "@akashnetwork/chain-sdk": "^1.0.0-alpha.3",
     "@akashnetwork/database": "*",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/http-sdk": "*",
-    "@akashnetwork/jwt": "*",
     "@akashnetwork/logging": "*",
     "@akashnetwork/net": "*",
     "@akashnetwork/react-query-sdk": "*",

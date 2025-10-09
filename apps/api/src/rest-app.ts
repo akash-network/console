@@ -65,6 +65,7 @@ import {
   providerDeploymentsRouter,
   providerEarningsRouter,
   providerGraphDataRouter,
+  providerJwtTokenRouter,
   providerRegionsRouter,
   providersRouter,
   providerVersionsRouter
@@ -140,6 +141,7 @@ const openApiHonoHandlers: OpenApiHonoHandler[] = [
   providerVersionsRouter,
   providerGraphDataRouter,
   providerDeploymentsRouter,
+  providerJwtTokenRouter,
   graphDataRouter,
   dashboardDataRouter,
   networkCapacityRouter,

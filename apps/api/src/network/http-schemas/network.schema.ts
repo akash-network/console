@@ -13,5 +13,4 @@ export const NodeSchema = z.object({
 export const GetNodesResponseSchema = z.array(NodeSchema);
 
 export type GetNodesParams = z.infer<typeof GetNodesParamsSchema>;
-export type NetworkNode = z.infer<typeof NodeSchema>;
 export type GetNodesResponse = z.infer<typeof GetNodesResponseSchema>;
