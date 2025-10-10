@@ -1,4 +1,4 @@
-import type { Attribute } from "@akashnetwork/akash-api/akash/base/v1beta3";
+import type { Attribute } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import yaml from "js-yaml";
 

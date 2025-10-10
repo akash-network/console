@@ -64,11 +64,11 @@ export type ContextType = {
 export const WalletProviderContext = React.createContext<ContextType>({} as ContextType);
 
 const MESSAGE_STATES: Record<string, LoadingState> = {
-  "/akash.deployment.v1beta3.MsgCloseDeployment": "closingDeployment",
-  "/akash.deployment.v1beta3.MsgCreateDeployment": "searchingProviders",
-  "/akash.market.v1beta4.MsgCreateLease": "creatingDeployment",
-  "/akash.deployment.v1beta3.MsgUpdateDeployment": "updatingDeployment",
-  "/akash.deployment.v1beta3.MsgDepositDeployment": "depositingDeployment"
+  "/akash.deployment.v1beta4.MsgCloseDeployment": "closingDeployment",
+  "/akash.deployment.v1beta4.MsgCreateDeployment": "searchingProviders",
+  "/akash.market.v1beta5.MsgCreateLease": "creatingDeployment",
+  "/akash.deployment.v1beta4.MsgUpdateDeployment": "updatingDeployment",
+  "/akash.deployment.v1beta4.MsgDepositDeployment": "depositingDeployment"
 };
 
 /**

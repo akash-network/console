@@ -1,9 +1,15 @@
-import { MsgCloseDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { MsgCloseDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { netConfig } from "@akashnetwork/net";
+import type { GeneratedType } from "@cosmjs/proto-signing";
 import { DirectSecp256k1HdWallet, Registry } from "@cosmjs/proto-signing";
 import { SigningStargateClient } from "@cosmjs/stargate";
 
 const mnemonic = process.env.TEST_WALLET_MNEMONIC;
+
+const newAkashTypes: ReadonlyArray<[string, GeneratedType]> = [MsgCloseDeployment]
+  .filter(x => "$type" in x)
+  .map(x => ["/" + x.$type, x as unknown as GeneratedType]);
+const registry = new Registry([...newAkashTypes]);
 
 async function main() {
   if (!mnemonic) {
@@ -17,7 +23,7 @@ async function main() {
   const account = (await signer.getAccounts())[0];
   console.log("Fetching deployments...");
   const deploymentsResponse = await fetch(
-    `${netConfig.getBaseAPIUrl("sandbox")}/akash/deployment/v1beta3/deployments/list?filters.owner=${account.address}&filters.state=active&pagination.limit=100`
+    `${netConfig.getBaseAPIUrl("sandbox")}/akash/deployment/v1beta4/deployments/list?filters.owner=${account.address}&filters.state=active&pagination.limit=100`
   );
   const { deployments } = await deploymentsResponse.json();
 
@@ -38,7 +44,7 @@ async function main() {
   });
 
   const txClient = await SigningStargateClient.connectWithSigner(netConfig.getBaseRpcUrl("sandbox"), signer, {
-    registry: new Registry([[`/${MsgCloseDeployment.$type}`, MsgCloseDeployment]])
+    registry
   });
 
   console.log("Closing deployments...");

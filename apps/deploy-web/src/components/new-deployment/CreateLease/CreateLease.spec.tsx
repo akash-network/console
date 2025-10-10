@@ -1,4 +1,6 @@
 import type { CertificatePem } from "@akashnetwork/akashjs/build/certificates/certificate-manager/CertificateManager";
+import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { mock } from "jest-mock-extended";
 
 import type { ContextType as CertificateContextType, LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
@@ -8,8 +10,6 @@ import { mapToBidDto } from "@src/queries/useBidQuery";
 import type { RpcBid } from "@src/types/deployment";
 import type { ApiProviderDetail } from "@src/types/provider";
 import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
-import { initAkashTypes } from "@src/utils/init";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { updateStorageWallets } from "@src/utils/walletUtils";
 import { CreateLease, DEPENDENCIES as CREATE_LEASE_DEPENDENCIES } from "./CreateLease";
 
@@ -201,7 +201,7 @@ describe(CreateLease.name, () => {
       await waitFor(() => {
         expect(signAndBroadcastTx).toHaveBeenCalledWith([
           expect.objectContaining({
-            typeUrl: TransactionMessageData.Types.MSG_CREATE_LEASE
+            typeUrl: `/${MsgCreateLease.$type}`
           })
         ]);
         expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
@@ -254,10 +254,10 @@ describe(CreateLease.name, () => {
         expect(signAndBroadcastTx).toHaveBeenCalledWith(
           expect.arrayContaining([
             expect.objectContaining({
-              typeUrl: TransactionMessageData.Types.MSG_CREATE_CERTIFICATE
+              typeUrl: `/${MsgCreateCertificate.$type}`
             }),
             expect.objectContaining({
-              typeUrl: TransactionMessageData.Types.MSG_CREATE_LEASE
+              typeUrl: `/${MsgCreateLease.$type}`
             })
           ])
         );
@@ -321,7 +321,7 @@ describe(CreateLease.name, () => {
       await waitFor(() => {
         expect(signAndBroadcastTx).toHaveBeenCalledWith([
           expect.objectContaining({
-            typeUrl: TransactionMessageData.Types.MSG_CREATE_CERTIFICATE
+            typeUrl: `/${MsgCreateCertificate.$type}`
           })
         ]);
         expect(sendManifest).toHaveBeenCalledWith(selectedProvider, expect.any(Array), {
@@ -425,11 +425,14 @@ describe(CreateLease.name, () => {
       return false;
     }) as unknown as ReturnType<typeof useFlag>;
 
-    initAkashTypes({
-      networkApiVersion: "v1beta3",
-      marketApiVersion: "v1beta3",
-      networkId: "mainnet"
-    });
+    // initAkashTypes({
+    //   deploymentVersion: "v1beta4",
+    //   marketVersion: "v1beta5",
+    //   escrowVersion: "v1",
+    //   certVersion: "v1",
+    //   providerVersion: "v1beta4",
+    //   networkId: "mainnet"
+    // });
 
     return render(
       <TestContainerProvider
