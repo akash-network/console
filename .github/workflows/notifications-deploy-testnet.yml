@@ -1,4 +1,4 @@
-name: Deploy Indexer testnet
+name: Deploy Notifications testnet
 
 on:
   push:
@@ -11,31 +11,29 @@ jobs:
     name: Decide Whether to Deploy
     uses: ./.github/workflows/reusable-should-validate.yml
     with:
-      path: apps/indexer
+      path: apps/notifications
 
   build:
     needs: should-deploy
-    if: github.event_name == 'workflow_dispatch' || needs.should-deploy.outputs.enabled == 'true'
     name: Build Docker image
+    if: github.event_name == 'workflow_dispatch' || needs.should-deploy.outputs.enabled == 'true'
     uses: ./.github/workflows/reusable-build-image.yml
     secrets: inherit
     permissions:
       contents: write
       packages: write
     with:
-      tag: indexer/sdk53
+      tag: notifications/sdk53
       tag-latest: false
+      deployment-env: staging-testnet
       force-build: true
 
-  deploy-beta-testnet:
+  deploy-beta:
     needs: build
-    name: Deploy testnet to beta
+    name: Deploy to beta sandbox
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
-      app: indexer
+      app: notifications-testnet
       appVersion: ${{ needs.build.outputs.image_tag }}
       environment: staging
-      chain: testnet
-      skip_beta_deployment_check: true
-      force-rollout: true
