@@ -16,6 +16,7 @@ on:
         type: choice
         options:
           - console-web
+          - console-web-testnet
           - console-api
           - indexer
           - notifications
