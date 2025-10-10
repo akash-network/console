@@ -105,7 +105,7 @@ export class ManagedUserWalletService {
     return await this.managedSignerService.executeRootTx(messages);
   }
 
-  private async authorizeDeploymentSpending(options: any) {
+  private async authorizeDeploymentSpending(options: SpendingAuthorizationMsgOptions) {
     const deploymentAllowanceMsg = this.rpcMessageService.getDepositDeploymentGrantMsg(options);
     return await this.managedSignerService.executeRootTx([deploymentAllowanceMsg]);
   }

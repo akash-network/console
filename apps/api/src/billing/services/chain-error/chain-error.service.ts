@@ -53,9 +53,9 @@ export class ChainErrorService {
   };
 
   private MESSAGE_ERROR_TITLES: Record<string, string> = {
-    "/akash.deployment.v1beta3.MsgCreateDeployment": "Failed to create deployment",
-    "/akash.market.v1beta4.MsgCreateLease": "Failed to create lease",
-    "/akash.cert.v1beta3.MsgCreateCertificate": "Failed to create certificate"
+    "/akash.deployment.v1beta4.MsgCreateDeployment": "Failed to create deployment",
+    "/akash.market.v1beta5.MsgCreateLease": "Failed to create lease",
+    "/akash.cert.v1.MsgCreateCertificate": "Failed to create certificate"
   };
 
   constructor(
