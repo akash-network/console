@@ -1,0 +1,1 @@
+(function(){var c=window,e="___grecaptcha_cfg",a=c[e]=c[e]||{},r="grecaptcha",t=c[r]=c[r]||{};t.ready=t.ready||function(n){(a.fns=a.fns||[]).push(n)},c.__recaptcha_api="https://www.google.com/recaptcha/api2/",(a.render=a.render||[]).push("explicit"),(a.action=a.action||[]).push("faucet"),c.__google_recaptcha_client=!0})();
