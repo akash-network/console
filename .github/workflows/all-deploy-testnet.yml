@@ -1,0 +1,51 @@
+name: Release next-sdk to sandbox
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-indexer:
+    name: Deploy indexer to sandbox
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: indexer
+      appVersion: sdk53
+      environment: staging
+      chain: sandbox
+      skip_beta_deployment_check: true
+      force-rollout: true
+
+  deploy-console-api:
+    needs: deploy-indexer
+    name: Deploy to console-api sandbox
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: console-api
+      appVersion: sdk53
+      environment: staging
+      chain: sandbox
+      skip_beta_deployment_check: true
+      force-rollout: true
+
+  deploy-notifications:
+    name: Deploy to beta sandbox
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: notifications
+      appVersion: sdk53
+      environment: staging
+
+  deploy-console-web:
+    needs: [deploy-indexer, deploy-console-api, deploy-notifications]
+    name: Deploy to beta sandbox
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: console-web-testnet
+      appVersion: sdk53-sandbox
+      environment: staging
+      skip_beta_deployment_check: true
+      force-rollout: true
