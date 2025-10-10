@@ -13,7 +13,8 @@ jobs:
     with:
       path: apps/console-web
 
-  build:
+  # needed for the in-place release to console-beta-testnet.akash.network
+  build-testnet:
     needs: should-deploy
     name: Build Beta Docker image
     if: github.event_name == 'workflow_dispatch' || needs.should-deploy.outputs.enabled == 'true'
@@ -23,20 +24,36 @@ jobs:
       contents: write
       packages: write
     with:
-      tag: console-web/sdk53-beta
+      tag: console-web/sdk53-testnet-beta
       tag-latest: false
       deployment-env: staging-testnet
       force-build: true
 
+  # needed for the eventual release to console-beta.akash.network during upgrade simulation
+  build-beta:
+    needs: should-deploy
+    name: Build Beta Docker image
+    if: github.event_name == 'workflow_dispatch' || needs.should-deploy.outputs.enabled == 'true'
+    uses: ./.github/workflows/reusable-build-image.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+    with:
+      tag: console-web/sdk53-sandbox-beta
+      tag-latest: false
+      deployment-env: staging
+      force-build: true
+
   deploy-beta:
-    needs: build
+    needs: [build-testnet, build-beta]
     name: Deploy to beta sandbox
-    if: needs.build.outputs.base_image_tag != ''
+    if: needs.build-testnet.outputs.base_image_tag != ''
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
       app: console-web-testnet
-      appVersion: ${{ needs.build.outputs.base_image_tag }}
+      appVersion: ${{ needs.build-testnet.outputs.base_image_tag }}
       environment: staging
       skip_beta_deployment_check: true
       force-rollout: true
