@@ -147,7 +147,8 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
       const grant = data.grants?.find(
         (x: any) =>
           x.authorization["@type"] === "/akash.deployment.v1beta2.DepositDeploymentAuthorization" ||
-          x.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
+          x.authorization["@type"] === "/akash.deployment.v1beta3.DepositDeploymentAuthorization" ||
+          x.authorization["@type"] === "/akash.escrow.v1.DepositAuthorization"
       );
 
       if (!grant) {

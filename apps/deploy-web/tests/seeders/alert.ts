@@ -1,3 +1,4 @@
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { components } from "@akashnetwork/react-query-sdk/notifications";
 import { faker } from "@faker-js/faker";
 
@@ -37,7 +38,7 @@ function buildChainMessageAlert(overrides?: Partial<ChainMessageAlert>): ChainMe
     updatedAt: faker.date.recent(),
     params: {
       dseq: faker.number.int({ min: 1000, max: 999999 }).toString(),
-      type: faker.helpers.arrayElement(["akash.deployment.v1beta3.MsgCreateDeployment", "akash.deployment.v1beta3.MsgCloseDeployment"])
+      type: faker.helpers.arrayElement([MsgCreateDeployment.$type, MsgCloseDeployment.$type])
     },
     ...overrides,
     type: "CHAIN_MESSAGE"

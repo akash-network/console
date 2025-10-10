@@ -1,77 +1,74 @@
+import { DepositAuthorization, DepositAuthorization_Scope, MsgAccountDeposit, Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgCreateCertificate, MsgRevokeCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { MsgUpdateProvider } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
+import { MsgSend } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import { BasicAllowance, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import Long from "long";
 
 import type { BidDto } from "@src/types/deployment";
-import { BasicAllowance, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "./proto/grant";
-import type { AppConfig } from "./init";
-import { protoTypes } from "./proto";
+// import { BasicAllowance, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "./proto/grant";
+// import type { AppConfig } from "./init";
+// import { protoTypes } from "./proto";
 
-export function setMessageTypes(config: AppConfig) {
-  TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT = `/akash.deployment.${config.networkApiVersion}.MsgCloseDeployment`;
-  TransactionMessageData.Types.MSG_CREATE_DEPLOYMENT = `/akash.deployment.${config.networkApiVersion}.MsgCreateDeployment`;
-  TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT = `/akash.deployment.${config.networkApiVersion}.MsgDepositDeployment`;
-  TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT_AUTHZ = `/akash.deployment.${config.networkApiVersion}.DepositDeploymentAuthorization`;
-  TransactionMessageData.Types.MSG_UPDATE_DEPLOYMENT = `/akash.deployment.${config.networkApiVersion}.MsgUpdateDeployment`;
-  TransactionMessageData.Types.MSG_CREATE_LEASE = `/akash.market.${config.marketApiVersion}.MsgCreateLease`;
-  TransactionMessageData.Types.MSG_REVOKE_CERTIFICATE = `/akash.cert.${config.networkApiVersion}.MsgRevokeCertificate`;
-  TransactionMessageData.Types.MSG_CREATE_CERTIFICATE = `/akash.cert.${config.networkApiVersion}.MsgCreateCertificate`;
-
-  TransactionMessageData.Types.MSG_UPDATE_PROVIDER = `/akash.provider.${config.networkApiVersion}.MsgUpdateProvider`;
-}
+// export function setMessageTypes(config: AppConfig) {
+//   TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT = `/akash.deployment.${config.deploymentVersion}.MsgCloseDeployment`;
+//   TransactionMessageData.Types.MSG_CREATE_DEPLOYMENT = `/akash.deployment.${config.deploymentVersion}.MsgCreateDeployment`;
+//   TransactionMessageData.Types.MSG_UPDATE_DEPLOYMENT = `/akash.deployment.${config.deploymentVersion}.MsgUpdateDeployment`;
+//   TransactionMessageData.Types.MSG_CREATE_LEASE = `/akash.market.${config.marketVersion}.MsgCreateLease`;
+//   TransactionMessageData.Types.MSG_REVOKE_CERTIFICATE = `/akash.cert.${config.certVersion}.MsgRevokeCertificate`;
+//   TransactionMessageData.Types.MSG_CREATE_CERTIFICATE = `/akash.cert.${config.certVersion}.MsgCreateCertificate`;
+//   TransactionMessageData.Types.MSG_ACCOUNT_DEPOSIT = `/akash.escrow.${config.escrowVersion}.MsgAccountDeposit`;
+//   TransactionMessageData.Types.MSG_UPDATE_PROVIDER = `/akash.provider.${config.providerVersion}.MsgUpdateProvider`;
+// }
 
 export class TransactionMessageData {
-  static Types = {
-    MSG_CLOSE_DEPLOYMENT: "",
-    MSG_CREATE_DEPLOYMENT: "",
-    MSG_DEPOSIT_DEPLOYMENT: "",
-    MSG_DEPOSIT_DEPLOYMENT_AUTHZ: "",
-    MSG_UPDATE_DEPLOYMENT: "",
-    // TODO MsgCloseGroup
-    // TODO MsgPauseGroup
-    // TODO MsgStartGroup
-    MSG_CREATE_LEASE: "",
-    MSG_REVOKE_CERTIFICATE: "",
-    MSG_CREATE_CERTIFICATE: "",
-    MSG_UPDATE_PROVIDER: "",
+  // static Types = {
+  //   MSG_CLOSE_DEPLOYMENT: "",
+  //   MSG_CREATE_DEPLOYMENT: "",
+  //   MSG_UPDATE_DEPLOYMENT: "",
+  //   MSG_CREATE_LEASE: "",
+  //   MSG_REVOKE_CERTIFICATE: "",
+  //   MSG_CREATE_CERTIFICATE: "",
+  //   MSG_UPDATE_PROVIDER: "",
+  //   MSG_ACCOUNT_DEPOSIT: "",
 
-    // Cosmos
-    MSG_SEND_TOKENS: "/cosmos.bank.v1beta1.MsgSend",
-    MSG_GRANT: "/cosmos.authz.v1beta1.MsgGrant",
-    MSG_REVOKE: "/cosmos.authz.v1beta1.MsgRevoke",
-    MSG_GRANT_ALLOWANCE: "/cosmos.feegrant.v1beta1.MsgGrantAllowance",
-    MSG_REVOKE_ALLOWANCE: "/cosmos.feegrant.v1beta1.MsgRevokeAllowance"
-  };
+  //   // Cosmos
+  //   MSG_SEND_TOKENS: "/cosmos.bank.v1beta1.MsgSend",
+  //   MSG_GRANT: "/cosmos.authz.v1beta1.MsgGrant",
+  //   MSG_REVOKE: "/cosmos.authz.v1beta1.MsgRevoke",
+  //   MSG_GRANT_ALLOWANCE: "/cosmos.feegrant.v1beta1.MsgGrantAllowance",
+  //   MSG_REVOKE_ALLOWANCE: "/cosmos.feegrant.v1beta1.MsgRevokeAllowance"
+  // };
 
   static getRevokeCertificateMsg(address: string, serial: string) {
-    const message = {
-      typeUrl: TransactionMessageData.Types.MSG_REVOKE_CERTIFICATE,
-      value: {
+    return {
+      typeUrl: `/${MsgRevokeCertificate.$type}`,
+      value: MsgRevokeCertificate.fromPartial({
         id: {
           owner: address,
           serial
         }
-      }
+      })
     };
-
-    return message;
   }
 
   static getCreateCertificateMsg(address: string, crtpem: string, pubpem: string) {
-    const message = {
-      typeUrl: TransactionMessageData.Types.MSG_CREATE_CERTIFICATE,
-      value: {
+    return {
+      typeUrl: `/${MsgCreateCertificate.$type}`,
+      value: MsgCreateCertificate.fromPartial({
         owner: address,
-        cert: Buffer.from(crtpem).toString("base64"),
-        pubkey: Buffer.from(pubpem).toString("base64")
-      }
+        cert: Buffer.from(crtpem),
+        pubkey: Buffer.from(pubpem)
+      })
     };
-
-    return message;
   }
 
   static getCreateLeaseMsg(bid: BidDto) {
-    const message = {
-      typeUrl: TransactionMessageData.Types.MSG_CREATE_LEASE,
-      value: {
+    return {
+      typeUrl: `/${MsgCreateLease.$type}`,
+      value: MsgCreateLease.fromPartial({
         bidId: {
           owner: bid.owner,
           dseq: Long.fromString(bid.dseq, true),
@@ -79,76 +76,68 @@ export class TransactionMessageData {
           oseq: bid.oseq,
           provider: bid.provider
         }
-      }
+      })
     };
-
-    return message;
   }
 
   static getCreateDeploymentMsg(deploymentData: Record<string, any>) {
-    const message = {
-      typeUrl: TransactionMessageData.Types.MSG_CREATE_DEPLOYMENT,
-      value: {
+    return {
+      typeUrl: `/${MsgCreateDeployment.$type}`,
+      value: MsgCreateDeployment.fromPartial({
         id: deploymentData.deploymentId,
         groups: deploymentData.groups,
-        version: deploymentData.version,
-        deposit: deploymentData.deposit,
-        depositor: deploymentData.depositor
-      }
+        hash: deploymentData.hash,
+        deposit: deploymentData.deposit
+      })
     };
-
-    return message;
   }
 
   static getUpdateDeploymentMsg(deploymentData: Record<string, any>) {
-    const message = {
-      typeUrl: TransactionMessageData.Types.MSG_UPDATE_DEPLOYMENT,
-      value: {
+    return {
+      typeUrl: `/${MsgUpdateDeployment.$type}`,
+      value: MsgUpdateDeployment.fromPartial({
         id: deploymentData.deploymentId,
-        version: deploymentData.version
-      }
+        hash: deploymentData.hash
+      })
     };
-
-    return message;
   }
 
-  static getDepositDeploymentMsg(address: string, dseq: string, depositAmount: number, denom: string, depositorAddress: string | null = null) {
-    const message = {
-      typeUrl: TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT,
-      value: {
+  static getDepositDeploymentMsg(signer: string, owner: string, dseq: string, amount: number, denom: string) {
+    return {
+      typeUrl: `/${MsgAccountDeposit.$type}`,
+      value: MsgAccountDeposit.fromPartial({
+        signer,
         id: {
-          owner: address,
-          dseq: Long.fromString(dseq, true)
+          scope: Scope.deployment,
+          xid: `${owner}/${dseq}`
         },
-        amount: {
-          denom,
-          amount: depositAmount.toString()
-        },
-        depositor: depositorAddress || address
-      }
+        deposit: {
+          amount: {
+            denom,
+            amount: amount.toString()
+          },
+          sources: [Source.grant]
+        }
+      })
     };
-
-    return message;
   }
 
   static getCloseDeploymentMsg(address: string, dseq: string) {
-    const message = {
-      typeUrl: TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT,
-      value: {
+    return {
+      typeUrl: `/${MsgCloseDeployment.$type}`,
+      value: MsgCloseDeployment.fromPartial({
         id: {
           owner: address,
           dseq: Long.fromString(dseq, true)
         }
-      }
+      })
     };
-
-    return message;
   }
 
   static getSendTokensMsg(address: string, recipient: string, amount: number) {
-    const message = {
-      typeUrl: TransactionMessageData.Types.MSG_SEND_TOKENS,
-      value: {
+    return {
+      typeUrl: `/${MsgSend.$type}`,
+      value: MsgSend.fromPartial({
         fromAddress: address,
         toAddress: recipient,
         amount: [
@@ -157,60 +146,52 @@ export class TransactionMessageData {
             amount: amount.toString()
           }
         ]
-      }
+      })
     };
-
-    return message;
   }
 
   static getGrantMsg(granter: string, grantee: string, spendLimit: number, expiration: Date, denom: string) {
-    const grantMsg = {
-      typeUrl: TransactionMessageData.Types.MSG_GRANT,
-      value: {
-        granter: granter,
-        grantee: grantee,
+    return {
+      typeUrl: `/${MsgGrant.$type}`,
+      value: MsgGrant.fromPartial({
+        granter,
+        grantee,
         grant: {
           authorization: {
-            typeUrl: TransactionMessageData.Types.MSG_DEPOSIT_DEPLOYMENT_AUTHZ,
-            value: protoTypes.DepositDeploymentAuthorization.encode(
-              protoTypes.DepositDeploymentAuthorization.fromPartial({
+            typeUrl: `/${DepositAuthorization.$type}`,
+            value: DepositAuthorization.encode(
+              DepositAuthorization.fromPartial({
                 spendLimit: {
-                  denom: denom,
+                  denom,
                   amount: spendLimit.toString()
-                }
+                },
+                scopes: [DepositAuthorization_Scope.deployment]
               })
             ).finish()
           },
-          expiration: {
-            seconds: Math.floor(expiration.getTime() / 1_000), // Convert milliseconds to seconds
-            nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000) // Convert reminder into nanoseconds
-          }
+          expiration
         }
-      }
+      })
     };
-
-    return grantMsg;
   }
 
   static getRevokeMsg(granter: string, grantee: string, grantType: string) {
     const version = grantType.split(".")[2];
     const msgTypeUrl = `/akash.deployment.${version}.MsgDepositDeployment`;
 
-    const message = {
-      typeUrl: TransactionMessageData.Types.MSG_REVOKE,
+    return {
+      typeUrl: `/${MsgRevoke.$type}`,
       value: MsgRevoke.fromPartial({
         granter: granter,
         grantee: grantee,
         msgTypeUrl: msgTypeUrl
       })
     };
-
-    return message;
   }
 
   static getGrantBasicAllowanceMsg(granter: string, grantee: string, spendLimit: number, denom: string, expiration?: Date) {
     const allowance = {
-      typeUrl: "/cosmos.feegrant.v1beta1.BasicAllowance",
+      typeUrl: `/${BasicAllowance.$type}`,
       value: Uint8Array.from(
         BasicAllowance.encode({
           spendLimit: [
@@ -219,26 +200,19 @@ export class TransactionMessageData {
               amount: spendLimit.toString()
             }
           ],
-          expiration: expiration
-            ? {
-                seconds: BigInt(Math.floor(expiration.getTime() / 1_000)),
-                nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000)
-              }
-            : undefined
+          expiration
         }).finish()
       )
     };
 
-    const message = {
-      typeUrl: TransactionMessageData.Types.MSG_GRANT_ALLOWANCE,
+    return {
+      typeUrl: `/${MsgGrantAllowance.$type}`,
       value: MsgGrantAllowance.fromPartial({
         granter: granter,
         grantee: grantee,
         allowance: allowance
       })
     };
-
-    return message;
   }
 
   // static getGrantPeriodicAllowanceMsg(granter: string, grantee: string, spendLimit: number, denom: string, expiration?: Date) {
@@ -269,28 +243,24 @@ export class TransactionMessageData {
   // }
 
   static getRevokeAllowanceMsg(granter: string, grantee: string) {
-    const message = {
-      typeUrl: TransactionMessageData.Types.MSG_REVOKE_ALLOWANCE,
+    return {
+      typeUrl: `/${MsgRevokeAllowance.$type}`,
       value: MsgRevokeAllowance.fromPartial({
         granter: granter,
         grantee: grantee
       })
     };
-
-    return message;
   }
 
   static getUpdateProviderMsg(owner: string, hostUri: string, attributes: { key: string; value: string }[], info?: { email: string; website: string }) {
-    const message = {
-      typeUrl: TransactionMessageData.Types.MSG_UPDATE_PROVIDER,
-      value: {
+    return {
+      typeUrl: `/${MsgUpdateProvider.$type}`,
+      value: MsgUpdateProvider.fromPartial({
         owner: owner,
         hostUri: hostUri,
         attributes: attributes,
         info: info
-      }
+      })
     };
-
-    return message;
   }
 }
