@@ -1,4 +1,4 @@
-name: Deploy API sdk-next
+name: Deploy API testnet
 
 on:
   push:
