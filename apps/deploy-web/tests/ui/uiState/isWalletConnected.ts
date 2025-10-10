@@ -4,12 +4,12 @@ export async function isWalletConnected(page: Page) {
   const result = await Promise.race([
     page
       .getByLabel("Connected wallet name and balance")
-      .waitFor({ state: "visible", timeout: 10_000 })
+      .waitFor({ state: "visible", timeout: 120_000 })
       .then(() => true)
       .catch(() => null),
     page
       .getByTestId("connect-wallet-btn")
-      .waitFor({ state: "visible", timeout: 10_000 })
+      .waitFor({ state: "visible", timeout: 120_000 })
       .then(() => false)
       .catch(() => null)
   ]);

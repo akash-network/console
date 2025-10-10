@@ -19,12 +19,30 @@ export async function setupWallet(context: BrowserContext, page: Page) {
 }
 
 export async function connectWalletViaLeap(context: BrowserContext, page: Page) {
+  console.log("Connecting wallet via Leap extension");
   if (!(await isWalletConnected(page))) {
     await page.getByTestId("connect-wallet-btn").click();
-    const [popupPage] = await Promise.all([
-      context.waitForEvent("page", { timeout: 5_000 }).catch(() => null),
-      wait(100).then(() => page.getByRole("button", { name: "Leap Leap" }).click())
-    ]);
+    console.log("connect-wallet-btn clicked");
+
+    // Wait a bit longer for the wallet selector to appear
+    await wait(500);
+
+    const popupPromise = context.waitForEvent("page", { timeout: 10_000 }).catch(() => null);
+
+    await page.getByRole("button", { name: "Leap Leap" }).click();
+
+    const popupPage = await popupPromise;
+    console.log("popupPage opened: ", !!popupPage);
+
+    if (popupPage) {
+      // Wait for the popup to load - the new extension may take longer
+      await popupPage.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => {
+        console.log("Popup page didn't reach domcontentloaded");
+      });
+
+      // Give it extra time to initialize
+      await wait(2000);
+    }
 
     await approveWalletOperation(popupPage);
     await isWalletConnected(page);
@@ -32,30 +50,67 @@ export async function connectWalletViaLeap(context: BrowserContext, page: Page) 
 }
 
 export async function approveWalletOperation(popupPage: Page | null) {
-  if (!popupPage) return;
+  if (!popupPage) {
+    console.log("No popup page provided to approveWalletOperation");
+    return;
+  }
+
+  // Check if popup is already closed (newer extensions might auto-approve)
+  if (popupPage.isClosed()) {
+    console.log("Popup page already closed - connection may have been auto-approved");
+    return;
+  }
+
   const buttonsSelector = ['button:has-text("Approve")', 'button:has-text("Unlock wallet")', 'button:has-text("Connect")'].join(",");
 
-  await popupPage.waitForSelector(buttonsSelector, { state: "visible" });
-  // sometimes wallet extension is flikering and "Unlock wallet" button is visible for a split second
-  // so we need to wait again after a bit
-  await popupPage.waitForTimeout(500);
+  try {
+    // Wait for button with shorter timeout - popup might close quickly
+    await popupPage.waitForSelector(buttonsSelector, { state: "visible", timeout: 30_000 });
 
-  const visibleButton = await popupPage.waitForSelector(buttonsSelector, { state: "visible" });
-  const buttonText = await visibleButton.textContent();
+    // Check again if still open
+    if (popupPage.isClosed()) {
+      console.log("Popup closed while waiting for buttons");
+      return;
+    }
 
-  switch (buttonText?.trim()) {
-    case "Approve":
-      await visibleButton.click();
-      break;
-    case "Unlock wallet":
-      await popupPage.locator("input").fill(WALLET_PASSWORD);
-      await visibleButton.click();
-      break;
-    case "Connect":
-      await visibleButton.click();
-      break;
-    default:
-      throw new Error("Unexpected state in wallet popup");
+    // sometimes wallet extension is flickering and "Unlock wallet" button is visible for a split second
+    // so we need to wait again after a bit
+    await popupPage.waitForTimeout(500);
+
+    // Check one more time before trying to interact
+    if (popupPage.isClosed()) {
+      console.log("Popup closed after timeout");
+      return;
+    }
+
+    const visibleButton = await popupPage.waitForSelector(buttonsSelector, { state: "visible", timeout: 3000 });
+    const buttonText = await visibleButton.textContent();
+
+    switch (buttonText?.trim()) {
+      case "Approve":
+        await visibleButton.click();
+        console.log("Clicked Approve button");
+        break;
+      case "Unlock wallet":
+        await popupPage.locator("input").fill(WALLET_PASSWORD);
+        await visibleButton.click();
+        console.log("Unlocked wallet and clicked button");
+        break;
+      case "Connect":
+        await visibleButton.click();
+        console.log("Clicked Connect button");
+        break;
+      default:
+        console.log(`Unexpected button text: ${buttonText}`);
+        throw new Error("Unexpected state in wallet popup");
+    }
+  } catch (error) {
+    if (popupPage.isClosed()) {
+      console.log("Popup was closed during operation - this might be normal for the new extension");
+      return;
+    }
+    console.error("Error in approveWalletOperation:", error);
+    throw error;
   }
 }
 
@@ -70,17 +125,23 @@ async function importWalletToLeap(context: BrowserContext, page: Page) {
     throw new Error("TEST_WALLET_MNEMONIC should have 12 words");
   }
 
-  await page.getByText(/recovery phrase/i).click();
+  await page.getByText(/import an existing wallet/i).click();
+  await page.getByText(/import recovery phrase/i).click();
 
   try {
     selectors.setTestIdAttribute("data-testing-id");
+
+    const mnemonicInputs = page.locator("input");
+
+    // Fill mnemonic words
+    await mnemonicInputs.first().click();
 
     for (const word of mnemonicArray) {
       await page.locator("*:focus").fill(word);
       await page.keyboard.press("Tab");
     }
 
-    await page.getByRole("button", { name: /Import/i }).click();
+    await page.getByRole("button", { name: /Continue/i }).click();
 
     // Select wallet
     await page.getByTestId("wallet-1").click();

@@ -22,12 +22,19 @@ export const test = baseTest.extend<{
     const args = [
       // keep new line
       `--disable-extensions-except=${pathToExtension}`,
-      `--load-extension=${pathToExtension}`
+      `--load-extension=${pathToExtension}`,
+      // Allow extension to make external API calls
+      `--disable-web-security`,
+      `--disable-features=IsolateOrigins,site-per-process`
     ];
 
     const context = await chromium.launchPersistentContext(userDataDir, {
       channel: "chromium",
-      args
+      args,
+      // Grant permissions needed by the extension
+      permissions: ["clipboard-read", "clipboard-write"],
+      // Bypass CSP to allow API calls
+      bypassCSP: true
     });
 
     await use(context);
@@ -54,8 +61,39 @@ export const test = baseTest.extend<{
 
     if (!extPage) {
       extPage = await context.newPage();
+
+      // Add route handler to mock failing Leap API calls if needed
+      await extPage.route("**/api.leapwallet.io/**", async route => {
+        const url = route.request().url();
+        console.log(`Leap API call intercepted: ${url}`);
+
+        // Try to fulfill the real request first
+        try {
+          await route.continue();
+        } catch (error) {
+          // If it fails, return empty but valid responses
+          console.log(`Leap API call failed, returning mock: ${url}`);
+          if (url.includes("/validators")) {
+            await route.fulfill({
+              status: 200,
+              contentType: "application/json",
+              body: JSON.stringify({ validators: [] })
+            });
+          } else {
+            await route.fulfill({
+              status: 200,
+              contentType: "application/json",
+              body: JSON.stringify({})
+            });
+          }
+        }
+      });
+
       await extPage.goto(extUrl);
       await extPage.waitForLoadState("domcontentloaded");
+
+      // Wait a bit for the extension to stabilize after initial load
+      await extPage.waitForTimeout(2000);
     }
 
     await setupWallet(context, extPage);
