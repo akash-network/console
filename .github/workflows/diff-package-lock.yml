@@ -5,6 +5,7 @@ on:
   pull_request_target:
     branches:
       - main
+      - main-sdk-next
     paths:
       - "package-lock.json"
 
