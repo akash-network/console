@@ -1,5 +1,18 @@
 
 
+## [1.21.0](https://github.com/akash-network/console/compare/provider-proxy/v1.20.0...provider-proxy/v1.21.0) (2025-10-10)
+
+
+### Features
+
+* **config:** uses correct sdk53 testnet config ([4ce80e5](https://github.com/akash-network/console/commit/4ce80e5fd7a5dc7dc6fb0d4f8b3ae34b7b7eef13))
+* expose jwt generation for managed wallets ([#2019](https://github.com/akash-network/console/issues/2019)) ([b905f3b](https://github.com/akash-network/console/commit/b905f3b7bc9a5c8952265383958153edd8017119))
+
+
+### Bug Fixes
+
+* ensure provider-proxy does not crash when socket is closed during cert verification ([#2033](https://github.com/akash-network/console/issues/2033)) ([5332fee](https://github.com/akash-network/console/commit/5332feeb9ef10598be818ec5d94b9e9463988633))
+
 ## [1.20.0](https://github.com/akash-network/console/compare/provider-proxy/v1.19.0...provider-proxy/v1.20.0) (2025-10-08)
 
 

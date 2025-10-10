@@ -1,5 +1,18 @@
 
 
+## [2.125.0](https://github.com/akash-network/console/compare/console-api/v2.124.0...console-api/v2.125.0) (2025-10-10)
+
+
+### Features
+
+* **config:** uses correct sdk53 testnet config ([4ce80e5](https://github.com/akash-network/console/commit/4ce80e5fd7a5dc7dc6fb0d4f8b3ae34b7b7eef13))
+* expose jwt generation for managed wallets ([#2019](https://github.com/akash-network/console/issues/2019)) ([b905f3b](https://github.com/akash-network/console/commit/b905f3b7bc9a5c8952265383958153edd8017119))
+
+
+### Bug Fixes
+
+* **onboarding:** properly handles a non-registered user during email validation ([81a7979](https://github.com/akash-network/console/commit/81a797944ca0b373229cb948411b6828a2798c74)), closes [#1972](https://github.com/akash-network/console/issues/1972)
+
 ## [2.124.0](https://github.com/akash-network/console/compare/console-api/v2.123.0...console-api/v2.124.0) (2025-10-08)
 
 
