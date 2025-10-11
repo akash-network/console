@@ -21,7 +21,7 @@ export function getCurrentNetworkConfig(): Network {
     chainId: config.chainId,
     chainRegistryName: config.chainRegistryName,
     enabled: true,
-    version: config.version || null,
+    version: null,
     rpcEndpoint: config.rpcEndpoint,
     nodesUrl: config.apiEndpoint,
     versionUrl: config.apiEndpoint
@@ -40,8 +40,6 @@ function getNetworkConfig() {
     networkType: browserEnvConfig.NEXT_PUBLIC_NETWORK_TYPE,
     rpcEndpoint: browserEnvConfig.NEXT_PUBLIC_RPC_ENDPOINT,
     apiEndpoint: browserEnvConfig.NEXT_PUBLIC_API_ENDPOINT,
-    version: browserEnvConfig.NEXT_PUBLIC_NETWORK_VERSION,
-    versionMarket: browserEnvConfig.NEXT_PUBLIC_NETWORK_VERSION_MARKET,
     consoleApiUrl: browserEnvConfig.NEXT_PUBLIC_CONSOLE_API_URL,
     securityUrl: browserEnvConfig.NEXT_PUBLIC_SECURITY_URL,
     apiBaseUrl: browserEnvConfig.NEXT_PUBLIC_API_BASE_URL
@@ -75,11 +73,8 @@ export function createDynamicChain(): Chain {
  */
 export function getNetworkVersionInfo() {
   const selectedNetwork = browserEnvConfig.NEXT_PUBLIC_SELECTED_NETWORK ?? "mainnet";
-  const config = getNetworkConfig();
 
   return {
-    networkVersion: (config.version || "v1beta3") as "v1beta2" | "v1beta3" | "v1beta4",
-    networkVersionMarket: (config.versionMarket || "v1beta4") as "v1beta2" | "v1beta3" | "v1beta4",
     selectedNetworkId: selectedNetwork
   };
 }
