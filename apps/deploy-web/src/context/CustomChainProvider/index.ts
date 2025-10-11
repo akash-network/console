@@ -1,1 +1,1 @@
-export { CustomChainProvider, useSelectedChain } from "./CustomChainProvider";
+export { CustomChainProvider, useSelectedChain, type ChainContext } from "./CustomChainProvider";

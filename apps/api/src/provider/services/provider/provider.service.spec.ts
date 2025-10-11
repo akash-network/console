@@ -4,6 +4,7 @@ import { netConfig } from "@akashnetwork/net";
 import { faker } from "@faker-js/faker";
 import { AxiosError } from "axios";
 import { mock } from "jest-mock-extended";
+import { Ok } from "ts-results";
 
 import { mockConfigService } from "../../../../test/mocks/config-service.mock";
 import { LeaseStatusSeeder } from "../../../../test/seeders/lease-status.seeder";
@@ -34,7 +35,7 @@ describe(ProviderService.name, () => {
       };
 
       providerRepository.findActiveByAddress.mockResolvedValue(provider);
-      jwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
+      jwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
       jwtTokenService.getGranularLeases.mockReturnValue(leases);
       providerProxyService.request.mockResolvedValue({ success: true });
 
@@ -74,7 +75,7 @@ describe(ProviderService.name, () => {
       const jwtToken = faker.string.alphanumeric(32);
 
       providerRepository.findActiveByAddress.mockResolvedValue(provider);
-      jwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
+      jwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
 
       const axiosError = new AxiosError("no lease for deployment");
       axiosError.response = { data: "no lease for deployment" } as any;
@@ -122,7 +123,7 @@ describe(ProviderService.name, () => {
       const jwtToken = faker.string.alphanumeric(32);
 
       providerRepository.findActiveByAddress.mockResolvedValue(provider);
-      jwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
+      jwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
 
       const axiosError = new AxiosError("no lease for deployment");
       axiosError.response = { data: "no lease for deployment" } as any;
@@ -150,7 +151,7 @@ describe(ProviderService.name, () => {
       const jwtToken = faker.string.alphanumeric(32);
 
       providerRepository.findActiveByAddress.mockResolvedValue(provider);
-      jwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
+      jwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
 
       const axiosError = new AxiosError("network error");
       axiosError.response = { data: "network error" } as any;
@@ -188,7 +189,7 @@ describe(ProviderService.name, () => {
       };
 
       providerRepository.findActiveByAddress.mockResolvedValue(provider);
-      jwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
+      jwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
       jwtTokenService.getGranularLeases.mockReturnValue(leases);
       providerProxyService.request.mockResolvedValue(leaseStatus);
 
@@ -240,7 +241,9 @@ describe(ProviderService.name, () => {
     const providerRepository = mock<ProviderRepository>();
     const providerAttributesSchemaService = mock<ProviderAttributesSchemaService>();
     const auditorsService = mock<AuditorService>();
-    const jwtTokenService = mock<ProviderJwtTokenService>();
+    const jwtTokenService = mock<ProviderJwtTokenService>({
+      generateJwtToken: jest.fn().mockResolvedValue(Ok("mock-jwt-token"))
+    });
     const config = mockConfigService<BillingConfigService>({
       NETWORK: "sandbox"
     });

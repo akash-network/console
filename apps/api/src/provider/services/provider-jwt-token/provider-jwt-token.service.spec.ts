@@ -19,7 +19,7 @@ describe(ProviderJwtTokenService.name, () => {
 
       const result = await providerJwtTokenService.generateJwtToken({ walletId, leases: accessRules });
 
-      expect(result).toEqual(jwtTokenValue);
+      expect(result.unwrap()).toEqual(jwtTokenValue);
       expect(walletFactory).toHaveBeenCalledWith(masterWalletMnemonic, walletId);
       expect(jwtModule.JwtTokenManager).toHaveBeenCalledWith(akashWallet);
       expect(jwtToken.generateToken).toHaveBeenCalledWith({
@@ -83,8 +83,10 @@ describe(ProviderJwtTokenService.name, () => {
       signArbitrary: jest.fn().mockResolvedValue({ signature: "test-signature" })
     };
 
-    const jwtToken = mock<JwtTokenManager>();
-    jwtToken.generateToken.mockImplementation(() => Promise.resolve(jwtTokenValue));
+    const jwtToken = mock<JwtTokenManager>({
+      validatePayload: jest.fn().mockReturnValue({ errors: undefined }),
+      generateToken: jest.fn().mockResolvedValue(jwtTokenValue)
+    });
 
     const jwtModule = mock<JWTModule>({
       createSignArbitraryAkashWallet: jest.fn(async () => akashWallet),

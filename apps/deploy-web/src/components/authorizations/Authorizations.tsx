@@ -212,7 +212,7 @@ export const Authorizations: React.FunctionComponent = () => {
       {settings.isBlockchainDown ? (
         <SettingsLayout title="" page={SettingsTabs.AUTHORIZATIONS}>
           <>
-            <h3 className="mb-4 text-muted-foreground">The blockchain is down. Unable to create, list, or update authorizations.</h3>
+            <h3 className="mb-4 text-muted-foreground">The blockchain is unavailable. Unable to create, list, or update authorizations.</h3>
           </>
         </SettingsLayout>
       ) : (

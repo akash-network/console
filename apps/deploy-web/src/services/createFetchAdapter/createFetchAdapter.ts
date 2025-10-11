@@ -11,7 +11,7 @@ export interface FetchAdapterOptions {
     halfOpenAfter?: ICircuitBreakerOptions["halfOpenAfter"];
   };
   adapter?: AxiosAdapter;
-  onFailure?: (error: unknown, config: InternalAxiosRequestConfig) => AxiosResponse | Promise<AxiosResponse> | undefined | null | void;
+  onFailure?: (error: unknown, requestConfig: InternalAxiosRequestConfig) => AxiosResponse | Promise<AxiosResponse> | undefined | null | void;
   onSuccess?: () => void;
 }
 

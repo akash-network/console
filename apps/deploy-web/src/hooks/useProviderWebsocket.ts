@@ -4,9 +4,10 @@ import useWebSocket from "react-use-websocket";
 import type { WebSocketHook as LibWebSocketHook } from "react-use-websocket/dist/lib/types";
 
 import { providerProxyUrlWs } from "@src/config/ws.config";
-import { useCertificate } from "@src/context/CertificateProvider";
+import { providerCredentialsToApiCredentials } from "@src/services/provider-proxy/provider-proxy.service";
 import networkStore from "@src/store/networkStore";
 import type { ApiProviderList } from "@src/types/provider";
+import { useProviderCredentials } from "./useProviderCredentials/useProviderCredentials";
 
 // @see https://www.rfc-editor.org/rfc/rfc6455.html#page-46
 const WS_ERRORS = {
@@ -15,8 +16,8 @@ const WS_ERRORS = {
 
 export function useProviderWebsocket(provider: ProviderInfo | undefined, options: ProviderWebsocketOptions): WebSocketHook {
   const chainNetwork = networkStore.useSelectedNetworkId();
-  const { localCert } = useCertificate();
   const providerRef = useRef<{ owner: string | undefined; hostUri: string | undefined }>({ owner: provider?.owner, hostUri: provider?.hostUri });
+  const providerCredentials = useProviderCredentials();
 
   useEffect(() => {
     providerRef.current = { owner: provider?.owner, hostUri: provider?.hostUri };
@@ -56,8 +57,7 @@ export function useProviderWebsocket(provider: ProviderInfo | undefined, options
           providerAddress: owner,
           url: `${hostUri}${message.url}`,
           chainNetwork,
-          certPem: localCert?.certPem,
-          keyPem: localCert?.keyPem
+          auth: providerCredentialsToApiCredentials(providerCredentials.details)
         },
         keep
       );

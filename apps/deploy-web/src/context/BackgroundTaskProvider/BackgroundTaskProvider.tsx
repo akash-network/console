@@ -5,9 +5,9 @@ import FileSaver from "file-saver";
 import { useSnackbar } from "notistack";
 
 import { providerProxyUrlWs } from "@src/config/ws.config";
+import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import type { ProviderInfo } from "@src/hooks/useProviderWebsocket";
 import networkStore from "@src/store/networkStore";
-import { useCertificate } from "../CertificateProvider";
 
 const getPrintCommand = (os: string) => {
   switch (os) {
@@ -31,7 +31,7 @@ type ContextType = {
 const BackgroundTaskContext = React.createContext<ContextType>({} as ContextType);
 
 export const BackgroundTaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { localCert } = useCertificate();
+  const providerCredentials = useProviderCredentials();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const chainNetwork = networkStore.useSelectedNetworkId();
 
@@ -84,8 +84,17 @@ export const BackgroundTaskProvider: React.FC<{ children: React.ReactNode }> = (
           JSON.stringify({
             type: "websocket",
             url: options.url,
-            certPem: localCert?.certPem,
-            keyPem: localCert?.keyPem,
+            auth:
+              providerCredentials.details.type === "mtls"
+                ? {
+                    type: providerCredentials.details.type,
+                    certPem: providerCredentials.details.value?.cert,
+                    keyPem: providerCredentials.details.value?.key
+                  }
+                : {
+                    type: providerCredentials.details.type,
+                    token: providerCredentials.details.value
+                  },
             chainNetwork,
             providerAddress: options.providerAddress
           })

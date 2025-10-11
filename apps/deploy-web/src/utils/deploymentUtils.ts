@@ -1,11 +1,4 @@
-import type { LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";
 import type { ExposeType, TemplateCreation } from "@src/types";
-
-export interface SendManifestToProviderOptions {
-  dseq: string;
-  localCert?: LocalCert | null;
-  chainNetwork: string;
-}
 
 /**
  * Validate values to change in the template

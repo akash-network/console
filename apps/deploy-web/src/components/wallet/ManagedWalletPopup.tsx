@@ -57,7 +57,7 @@ export const ManagedWalletPopup: React.FC<ManagedWalletPopupProps> = ({ walletBa
               </span>
             </div>
           </>
-        )) || <div className="space-x-2 text-xs text-white">Wallet Balance is unknown because the blockchain is down</div>}
+        )) || <div className="space-x-2 text-xs text-white">Wallet Balance is unknown because the blockchain is unavailable</div>}
       </div>
       <div className="mb-2 mt-1 flex items-center justify-end">
         <LinkTo className="text-xs text-foreground no-underline" onClick={() => showManagedEscrowFaqModal()}>

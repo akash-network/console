@@ -330,6 +330,6 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
   );
 };
 
-export const useSettings = () => {
+export const useSettings = (): SettingsContextType => {
   return { ...React.useContext(SettingsProviderContext) };
 };

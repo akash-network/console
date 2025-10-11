@@ -6,7 +6,7 @@ import { OpenInWindow } from "iconoir-react";
 import Link from "next/link";
 
 import ViewPanel from "@src/components/shared/ViewPanel";
-import { useCertificate } from "@src/context/CertificateProvider";
+import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useProviderWebsocket } from "@src/hooks/useProviderWebsocket";
 import { XTerm } from "@src/lib/XTerm";
 import type { XTermRefType } from "@src/lib/XTerm/XTerm";
@@ -15,7 +15,7 @@ import { useProviderList } from "@src/queries/useProvidersQuery";
 import type { LeaseDto } from "@src/types/deployment";
 import { LeaseShellCode } from "@src/types/shell";
 import { UrlService } from "@src/utils/urlUtils";
-import { CreateCertificateButton } from "./CreateCertificateButton/CreateCertificateButton";
+import { CreateCredentialsButton } from "./CreateCredentialsButton/CreateCredentialsButton";
 import { LeaseSelect } from "./LeaseSelect";
 import { ServiceSelect } from "./ServiceSelect";
 import { ShellDownloadModal } from "./ShellDownloadModal";
@@ -36,7 +36,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   const [isChangingSocket, setIsChangingSocket] = useState(false);
   const [showArrowAndTabWarning, setShowArrowAndTabWarning] = useState(false);
   const { data: providers } = useProviderList();
-  const { localCert, isLocalCertMatching } = useCertificate();
+  const providerCredentials = useProviderCredentials();
   const providerInfo = providers?.find(p => p.owner === selectedLease?.provider);
   const {
     data: leaseStatus,
@@ -81,7 +81,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
   }, [selectedLease, providerInfo, getLeaseStatus]);
 
   useEffect(() => {
-    if (!canSetConnection || !providerInfo || !isLocalCertMatching || !selectedLease || !selectedService || isConnectionEstablished) return;
+    if (!canSetConnection || !providerInfo || !providerCredentials.details.usable || !selectedLease || !selectedService || isConnectionEstablished) return;
 
     const url = `/lease/${selectedLease.dseq}/${selectedLease.gseq}/${
       selectedLease.oseq
@@ -95,7 +95,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
       url: url
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [providerInfo, isLocalCertMatching, selectedLease, selectedService, localCert?.certPem, localCert?.keyPem, isConnectionEstablished]);
+  }, [providerInfo, providerCredentials.details, selectedLease, selectedService, isConnectionEstablished]);
 
   function onCommandResponseReceived(event: MessageEvent<any>) {
     const jsonData = JSON.parse(event.data);
@@ -237,7 +237,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
         <ShellDownloadModal onCloseClick={onCloseDownloadClick} selectedLease={selectedLease} providerInfo={providerInfo} selectedService={selectedService} />
       )}
 
-      {isLocalCertMatching && localCert ? (
+      {providerCredentials.details.usable ? (
         <>
           {selectedLease && (
             <>
@@ -252,13 +252,11 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
                   )}
                 </div>
 
-                {localCert && (
-                  <div className="flex items-center">
-                    <Button onClick={onDownloadFileClick} variant="default" size="sm" disabled={!isConnectionEstablished}>
-                      Download file
-                    </Button>
-                  </div>
-                )}
+                <div className="flex items-center">
+                  <Button onClick={onDownloadFileClick} variant="default" size="sm" disabled={!isConnectionEstablished}>
+                    Download file
+                  </Button>
+                </div>
 
                 {(isLoadingStatus || isLoadingData) && (
                   <div>
@@ -288,7 +286,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases })
           )}
         </>
       ) : (
-        <CreateCertificateButton containerClassName="py-4" />
+        <CreateCredentialsButton containerClassName="py-4" />
       )}
     </div>
   );

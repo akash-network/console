@@ -1,1 +1,1 @@
-export { useSettings, SettingsProvider } from "./SettingsProviderContext";
+export { useSettings, SettingsProvider, type SettingsContextType } from "./SettingsProviderContext";

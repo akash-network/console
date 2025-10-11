@@ -28,10 +28,10 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
       onContinue();
     }
 
-    if (address && minDeposit.akt && minDeposit.usdc && !!walletBalance) {
+    if (address && (minDeposit.akt || minDeposit.usdc) && !!walletBalance) {
       setIsLoadingPrerequisites(true);
 
-      const isBalanceValidated = walletBalance?.balanceUAKT >= aktToUakt(minDeposit.akt) || walletBalance?.balanceUUSDC >= denomToUdenom(minDeposit.usdc);
+      const isBalanceValidated = walletBalance.balanceUAKT >= aktToUakt(minDeposit.akt) || walletBalance.balanceUUSDC >= denomToUdenom(minDeposit.usdc);
 
       setIsBalanceValidated(isBalanceValidated);
       setIsLoadingPrerequisites(false);

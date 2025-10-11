@@ -41,6 +41,6 @@ providerJwtTokenRouter.openapi(
   async function routeCreateJwtToken(c) {
     const body = c.req.valid("json");
     const result = await container.resolve(JwtTokenController).createJwtToken(body.data);
-    return c.json({ data: result }, 201);
+    return c.json({ data: result.unwrap() }, 201);
   }
 );

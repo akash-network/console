@@ -53,7 +53,7 @@ export class ProviderService {
 
   async toProviderAuth(auth: Omit<ProviderMtlsAuth, "type"> | { walletId: number; provider: string }): Promise<ProviderAuth> {
     if ("walletId" in auth) {
-      const jwtToken = await this.jwtTokenService.generateJwtToken({
+      const result = await this.jwtTokenService.generateJwtToken({
         walletId: auth.walletId,
         leases: this.jwtTokenService.getGranularLeases({
           provider: auth.provider,
@@ -63,7 +63,7 @@ export class ProviderService {
 
       return {
         type: "jwt",
-        token: jwtToken
+        token: result.unwrap()
       };
     }
     return {

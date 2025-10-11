@@ -16,9 +16,9 @@ import { PriceEstimateTooltip } from "@src/components/shared/PriceEstimateToolti
 import { PricePerMonth } from "@src/components/shared/PricePerMonth";
 import { SpecDetail } from "@src/components/shared/SpecDetail";
 import { StatusPill } from "@src/components/shared/StatusPill";
-import { useCertificate } from "@src/context/CertificateProvider";
 import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useServices } from "@src/context/ServicesProvider";
+import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useBidInfo } from "@src/queries/useBidQuery";
 import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
@@ -54,7 +54,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
   ({ index, lease, deploymentManifest, dseq, providers, loadDeploymentDetail, isRemoteDeploy, repo }, ref) => {
     const { providerProxy } = useServices();
     const provider = providers?.find(p => p.owner === lease?.provider);
-    const { localCert } = useCertificate();
+    const providerCredentials = useProviderCredentials();
     const isLeaseActive = lease.state === "active";
     const [isServicesAvailable, setIsServicesAvailable] = useState(false);
     const { favoriteProviders, updateFavoriteProviders } = useLocalNotes();
@@ -67,7 +67,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
     } = useLeaseStatus({
       provider,
       lease,
-      enabled: isLeaseActive && !isServicesAvailable && !!provider?.hostUri && !!localCert,
+      enabled: isLeaseActive && !isServicesAvailable && !!provider?.hostUri && providerCredentials.details.usable,
       refetchInterval: 10_000
     });
     useEffect(() => {
@@ -91,11 +91,11 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
     }));
 
     const loadLeaseStatus = useCallback(() => {
-      if (isLeaseActive && provider && localCert) {
+      if (isLeaseActive && provider && providerCredentials.details.usable) {
         getLeaseStatus();
         getProviderStatus();
       }
-    }, [isLeaseActive, provider, localCert, getLeaseStatus, getProviderStatus]);
+    }, [isLeaseActive, provider, providerCredentials.details, getLeaseStatus, getProviderStatus]);
 
     const parsedManifest = useMemo(() => yaml.load(deploymentManifest), [deploymentManifest]);
 
@@ -114,7 +114,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
 
     useEffect(() => {
       loadLeaseStatus();
-    }, [lease, provider, localCert, loadLeaseStatus]);
+    }, [lease, provider, providerCredentials.details, loadLeaseStatus]);
 
     const chainNetwork = networkStore.useSelectedNetworkId();
     async function sendManifest() {
@@ -122,7 +122,7 @@ export const LeaseRow = React.forwardRef<AcceptRefType, Props>(
       try {
         const manifest = deploymentData.getManifest(parsedManifest, true);
 
-        await providerProxy.sendManifest(provider, manifest, { dseq, localCert, chainNetwork });
+        await providerProxy.sendManifest(provider, manifest, { dseq, credentials: providerCredentials.details, chainNetwork });
 
         enqueueSnackbar(<Snackbar title="Manifest sent!" iconVariant="success" />, { variant: "success", autoHideDuration: 10_000 });
 
