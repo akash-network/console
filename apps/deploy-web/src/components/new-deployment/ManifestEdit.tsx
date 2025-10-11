@@ -156,16 +156,11 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     setEditedManifest(value || "");
   }
 
-  async function createAndValidateDeploymentData(
-    yamlStr: string,
-    dseq: string | null = null,
-    deposit = defaultDeposit,
-    depositorAddress: string | null = null
-  ) {
+  async function createAndValidateDeploymentData(yamlStr: string, dseq: string | null = null, deposit = defaultDeposit) {
     try {
       if (!yamlStr) return null;
 
-      const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, yamlStr, dseq, address, deposit, depositorAddress);
+      const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, yamlStr, dseq, address, deposit);
       validateDeploymentData(dd, selectedTemplate);
 
       setSdlDenom(dd.deposit.denom);
@@ -216,18 +211,18 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
     setIsCheckingPrerequisites(false);
 
     if (isManaged) {
-      handleCreateClick(defaultDeposit, appConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+      handleCreateClick(defaultDeposit);
     } else {
       setIsDepositingDeployment(true);
     }
   };
 
-  const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {
+  const onDeploymentDeposit = async (deposit: number) => {
     setIsDepositingDeployment(false);
-    await handleCreateClick(deposit, depositorAddress);
+    await handleCreateClick(deposit);
   };
 
-  async function handleCreateClick(deposit: number | DepositParams[], depositorAddress: string) {
+  async function handleCreateClick(deposit: number | DepositParams[]) {
     try {
       setIsCreatingDeployment(true);
 
@@ -245,7 +240,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         }
       }
 
-      const [dd, newCert] = await Promise.all([createAndValidateDeploymentData(sdl, null, deposit, depositorAddress), genNewCertificateIfLocalIsInvalid()]);
+      const [dd, newCert] = await Promise.all([createAndValidateDeploymentData(sdl, null, deposit), genNewCertificateIfLocalIsInvalid()]);
 
       if (!dd) return;
 
@@ -268,7 +263,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
         setDeploySdl(null);
 
         // Save the manifest
-        saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.version, address, deploymentName);
+        saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.hash, address, deploymentName);
         router.replace(UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
 
         analyticsService.track("create_deployment", {

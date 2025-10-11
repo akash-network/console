@@ -7,7 +7,7 @@ import { MsgSend } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { BasicAllowance, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import Long from "long";
 
-import type { BidDto } from "@src/types/deployment";
+import type { BidDto, NewDeploymentData } from "@src/types/deployment";
 // import { BasicAllowance, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "./proto/grant";
 // import type { AppConfig } from "./init";
 // import { protoTypes } from "./proto";
@@ -80,19 +80,23 @@ export class TransactionMessageData {
     };
   }
 
-  static getCreateDeploymentMsg(deploymentData: Record<string, any>) {
+  static getCreateDeploymentMsg(deploymentData: NewDeploymentData) {
+    console.log("deploymentData", deploymentData);
     return {
       typeUrl: `/${MsgCreateDeployment.$type}`,
       value: MsgCreateDeployment.fromPartial({
         id: deploymentData.deploymentId,
         groups: deploymentData.groups,
         hash: deploymentData.hash,
-        deposit: deploymentData.deposit
+        deposit: {
+          amount: deploymentData.deposit,
+          sources: [Source.grant, Source.balance]
+        }
       })
     };
   }
 
-  static getUpdateDeploymentMsg(deploymentData: Record<string, any>) {
+  static getUpdateDeploymentMsg(deploymentData: NewDeploymentData) {
     return {
       typeUrl: `/${MsgUpdateDeployment.$type}`,
       value: MsgUpdateDeployment.fromPartial({

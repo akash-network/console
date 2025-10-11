@@ -98,9 +98,15 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
     router.push(url);
   };
 
-  const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {
+  const onDeploymentDeposit = async (deposit: number) => {
     setIsDepositingDeployment(false);
-    const message = TransactionMessageData.getDepositDeploymentMsg(address, deployment.dseq, deposit, deployment.escrowAccount.balance.denom, depositorAddress);
+    const message = TransactionMessageData.getDepositDeploymentMsg(
+      address,
+      address,
+      deployment.dseq,
+      deposit,
+      deployment.escrowAccount.state.funds[0]?.denom || ""
+    );
     const response = await signAndBroadcastTx([message]);
     if (response) {
       loadDeploymentDetail();
@@ -126,14 +132,14 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
 
           const isConfirmed = await confirm({
             title: "Deposit required",
-            message: `To enable auto top-up, please deposit $${udenomToUsd(deposit, deployment.escrowAccount.balance.denom)}. This ensures your deployment remains active until the next scheduled check.`
+            message: `To enable auto top-up, please deposit $${udenomToUsd(deposit, deployment.escrowAccount.state.funds[0]?.denom || "")}. This ensures your deployment remains active until the next scheduled check.`
           });
 
           if (!isConfirmed) {
             return;
           }
 
-          const isSuccess = await onDeploymentDeposit(deposit, browserEnvConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS);
+          const isSuccess = await onDeploymentDeposit(deposit);
 
           if (!isSuccess) {
             return;
@@ -143,7 +149,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
 
       deploymentSetting.setAutoTopUpEnabled(autoTopUpEnabled);
     },
-    [confirm, deployment.escrowAccount.balance.denom, deploymentCost, deploymentSetting, onDeploymentDeposit, realTimeLeft?.timeLeft, udenomToUsd]
+    [confirm, deployment.escrowAccount.state.funds[0]?.denom, deploymentCost, deploymentSetting, onDeploymentDeposit, realTimeLeft?.timeLeft, udenomToUsd]
   );
 
   return (
@@ -276,7 +282,7 @@ export const DeploymentDetailTopBar: React.FunctionComponent<Props> = ({
 
       {isDepositingDeployment && (
         <DeploymentDepositModal
-          denom={deployment.escrowAccount.balance.denom}
+          denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
           disableMin
           handleCancel={() => setIsDepositingDeployment(false)}
           onDeploymentDeposit={onDeploymentDeposit}
