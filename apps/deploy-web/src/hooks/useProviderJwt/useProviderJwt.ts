@@ -6,19 +6,20 @@ import { useSelectedChain } from "@src/context/CustomChainProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 
-const jwtTokenAtom = atom<string | null>(null);
+const JWT_TOKEN_ATOM = atom<string | null>(null);
 
 export const DEPENDENCIES = {
   useSelectedChain,
-  useWallet
+  useWallet,
+  useServices
 };
 
-export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}) {
-  const { storedWalletsService, networkStore, consoleApiHttpClient } = useServices();
+export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): UseProviderJwtResult {
+  const { storedWalletsService, networkStore, consoleApiHttpClient } = d.useServices();
   const { isManaged, address, isWalletConnected } = d.useWallet();
   const custodialWallet = d.useSelectedChain();
   const selectedNetworkId = networkStore.useSelectedNetworkId();
-  const [accessToken, setAccessToken] = useAtom(jwtTokenAtom);
+  const [accessToken, setAccessToken] = useAtom(JWT_TOKEN_ATOM);
 
   useEffect(() => {
     const token = storedWalletsService.getStorageWallets(selectedNetworkId).find(w => w.address === address)?.token;
@@ -83,4 +84,10 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
     }),
     [accessToken, generateToken]
   );
+}
+
+export interface UseProviderJwtResult {
+  isTokenExpired: boolean;
+  accessToken: string | null;
+  generateToken: () => Promise<void>;
 }

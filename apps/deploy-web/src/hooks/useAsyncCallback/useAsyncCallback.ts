@@ -3,24 +3,25 @@ import { useCallback, useState } from "react";
 export function useAsyncCallback<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, deps: unknown[] = []): UseAsyncCallbackResult<T> {
   const [data, setData] = useState<ReturnType<T> | null>(null);
   const [error, setError] = useState<Error | null>(null);
-  const [isPending, setIsPending] = useState(false);
+  const [inflightPromise, setInflightPromise] = useState<Promise<unknown> | null>(null);
 
   const invoke = useCallback(
     (...args: Parameters<T>) => {
-      if (isPending) return;
-      setIsPending(true);
-      return fn(...args)
+      if (inflightPromise) return inflightPromise;
+      const promise = fn(...args)
         .then(result => {
           setData(result as ReturnType<T>);
           return result;
         })
         .catch(setError)
-        .finally(() => setIsPending(false));
+        .finally(() => setInflightPromise(null));
+      setInflightPromise(promise);
+      return promise;
     },
-    [fn, isPending, ...deps]
+    [fn, inflightPromise, ...deps]
   ) as T;
 
-  return [invoke, { data, error, isPending }];
+  return [invoke, { data, error, isPending: !!inflightPromise }];
 }
 
 export type UseAsyncCallbackResult<T extends (...args: unknown[]) => Promise<unknown>> = [

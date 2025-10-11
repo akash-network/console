@@ -25,8 +25,8 @@ export type UseProviderCredentialsDependencies = {
 
 export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UseProviderCredentialsDependencies = {}): UseProviderCredentialsResult {
   const { settings } = d.useSettings();
-  const { createCertificate, isLocalCertExpired, isLocalCertMatching, localCert } = useCertificate();
-  const { accessToken, generateToken, isTokenExpired } = useProviderJwt();
+  const { createCertificate, isLocalCertExpired, isLocalCertMatching, localCert } = d.useCertificate();
+  const { accessToken, generateToken, isTokenExpired } = d.useProviderJwt();
 
   const generate = useCallback(() => {
     return settings.isBlockchainDown ? generateToken() : createCertificate();

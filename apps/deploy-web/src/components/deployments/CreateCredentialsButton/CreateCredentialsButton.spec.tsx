@@ -54,7 +54,7 @@ describe(CreateCredentialsButton.name, () => {
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
-    it("shows spinner when generating credentials for mtls", () => {
+    it("shows spinner when generating credentials for `mtls`", () => {
       const generate = jest.fn(() => new Promise<void>(() => {}));
       setup({
         providerCredentials: {
@@ -126,7 +126,7 @@ describe(CreateCredentialsButton.name, () => {
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
-    it("shows spinner when generating credentials for ", () => {
+    it("shows spinner when generating credentials for `jwt`", () => {
       const generate = jest.fn(() => new Promise<void>(() => {}));
       setup({
         providerCredentials: {
