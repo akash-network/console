@@ -2,9 +2,7 @@ import type { DeploymentDto, DeploymentGroup, DeploymentResource_V2, DeploymentR
 import { coinToUDenom } from "./priceUtils";
 
 export function deploymentResourceSum(deployment: RpcDeployment, resourceMapper: (resource: DeploymentResource_V2 | DeploymentResource_V3) => number): number {
-  return deployment.groups
-    .map(g => g.group_spec.resources.map(r => r.count * resourceMapper("resources" in r ? r.resources : r.resource)).reduce((a, b) => a + b))
-    .reduce((a, b) => a + b);
+  return deployment.groups.map(g => g.group_spec.resources.map(r => r.count * resourceMapper(r.resource)).reduce((a, b) => a + b)).reduce((a, b) => a + b);
 }
 
 export function deploymentGroupResourceSum(
@@ -13,23 +11,35 @@ export function deploymentGroupResourceSum(
 ): number {
   if (!group || !group.group_spec || !group.group_spec) return 0;
 
-  return group.group_spec.resources.map(r => r.count * resourceMapper("resources" in r ? r.resources : r.resource)).reduce((a, b) => a + b);
+  return group.group_spec.resources.map(r => r.count * resourceMapper(r.resource)).reduce((a, b) => a + b);
 }
 
 export function deploymentToDto(d: RpcDeployment): DeploymentDto {
-  let escrowBalanceUAkt = coinToUDenom(d.escrow_account.balance);
-  if (d.escrow_account.funds) {
-    escrowBalanceUAkt += coinToUDenom(d.escrow_account.funds);
+  let escrowBalanceUAkt = 0;
+  if (d.escrow_account.state.funds.length > 0) {
+    escrowBalanceUAkt = d.escrow_account.state.funds.reduce((sum, fund) => sum + coinToUDenom(fund), 0);
+  }
+
+  // Sum all transferred amounts
+  let totalTransferred = { denom: "", amount: "0" };
+  if (d.escrow_account.state.transferred.length > 0) {
+    const totalAmount = d.escrow_account.state.transferred.reduce((sum, transfer) => {
+      return sum + coinToUDenom(transfer);
+    }, 0);
+    totalTransferred = {
+      denom: d.escrow_account.state.transferred[0].denom,
+      amount: totalAmount.toString()
+    };
   }
 
   return {
-    dseq: d.deployment.deployment_id.dseq,
+    dseq: d.deployment.id.dseq,
     state: d.deployment.state,
-    version: d.deployment.version,
-    denom: d.escrow_account.balance.denom,
+    hash: d.deployment.hash,
+    denom: d.escrow_account.state.funds.length > 0 ? d.escrow_account.state.funds[0].denom : "",
     createdAt: parseInt(d.deployment.created_at),
     escrowBalance: escrowBalanceUAkt,
-    transferred: d.escrow_account.transferred,
+    transferred: totalTransferred,
     cpuAmount: deploymentResourceSum(d, r => parseInt(r.cpu.units.val) / 1000),
     gpuAmount: deploymentResourceSum(d, r => parseInt(r.gpu?.units?.val || "0")),
     memoryAmount: deploymentResourceSum(d, r => parseInt(r.memory.quantity.val)),
@@ -53,14 +63,14 @@ export const getStorageAmount = (resource: DeploymentResource_V2 | DeploymentRes
   if (Array.isArray(resource.storage)) {
     storage = resource.storage.map(x => parseInt(x.quantity.val)).reduce((a, b) => a + b, 0);
   } else {
-    storage = parseInt((resource.storage as any)?.quantity?.val || "0");
+    storage = parseInt((resource.storage as { quantity: { val: string } })?.quantity?.val || "0");
   }
 
   return storage;
 };
 
 export function leaseToDto(lease: RpcLease, deployment: Pick<RpcDeployment, "groups">): LeaseDto {
-  const group = deployment ? deployment.groups.filter(g => g.group_id.gseq === lease.lease.lease_id.gseq)[0] : ({} as any);
+  const group = deployment ? deployment.groups.filter(g => g.id.gseq === lease.lease.lease_id.gseq)[0] : ({} as DeploymentGroup);
   return {
     id: lease.lease.lease_id.dseq + lease.lease.lease_id.gseq + lease.lease.lease_id.oseq,
     owner: lease.lease.lease_id.owner,

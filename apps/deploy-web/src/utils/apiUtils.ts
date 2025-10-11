@@ -39,7 +39,7 @@ export class ApiUrlService {
     return `${this.baseApiUrl}/v1/provider-regions`;
   }
   static block(apiEndpoint: string, id: string) {
-    return `${apiEndpoint}/blocks/${id}`;
+    return `${apiEndpoint}/cosmos/base/tendermint/v1beta1/blocks/${id}`;
   }
   static balance(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/cosmos/bank/v1beta1/balances/${address}`;

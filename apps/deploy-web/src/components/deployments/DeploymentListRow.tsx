@@ -71,7 +71,12 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const isAllLeasesClosed = hasLeases && !filteredLeases?.some(l => l.state === "active");
   const deploymentCost = hasLeases ? filteredLeases?.reduce((prev, current) => prev + parseFloat(current.price.amount), 0) : 0;
   const timeLeft = getTimeLeft(deploymentCost || 0, deployment.escrowBalance);
-  const realTimeLeft = useRealTimeLeft(deploymentCost || 0, deployment.escrowBalance, parseFloat(deployment.escrowAccount.settled_at), deployment.createdAt);
+  const realTimeLeft = useRealTimeLeft(
+    deploymentCost || 0,
+    deployment.escrowBalance,
+    parseFloat(deployment.escrowAccount.state.settled_at),
+    deployment.createdAt
+  );
   const showTimeLeftWarning = differenceInCalendarDays(timeLeft, new Date()) < 7;
   const escrowBalance = isActive && hasActiveLeases ? realTimeLeft?.escrow : deployment.escrowBalance;
   const isRunningOutOfFunds = escrowBalance && escrowBalance <= 0;
@@ -79,7 +84,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const isValidTimeLeft = isActive && hasActiveLeases && isValid(realTimeLeft?.timeLeft);
   const avgCost = udenomToDenom(getAvgCostPerMonth(deploymentCost || 0));
   const storageDeploymentData = getDeploymentData(deployment?.dseq);
-  const denomData = useDenomData(deployment.escrowAccount.balance.denom);
+  const denomData = useDenomData(deployment.escrowAccount.state.funds[0]?.denom || "");
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
   const providersByOwner = useMemo(() => keyBy(providers, p => p.owner), [providers]);
   const lease = filteredLeases?.find(lease => !!(lease?.provider && providersByOwner[lease.provider]));
@@ -104,10 +109,16 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     setOpen(false);
   };
 
-  const onDeploymentDeposit: DeploymentDepositModalProps["onDeploymentDeposit"] = async (deposit, depositorAddress) => {
+  const onDeploymentDeposit: DeploymentDepositModalProps["onDeploymentDeposit"] = async deposit => {
     setIsDepositingDeployment(false);
 
-    const message = TransactionMessageData.getDepositDeploymentMsg(address, deployment.dseq, deposit, deployment.escrowAccount.balance.denom, depositorAddress);
+    const message = TransactionMessageData.getDepositDeploymentMsg(
+      address,
+      address,
+      deployment.dseq,
+      deposit,
+      deployment.escrowAccount.state.funds[0]?.denom || ""
+    );
     const response = await signAndBroadcastTx([message]);
     if (response) {
       refreshDeployments();
@@ -209,7 +220,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                 <div className={`flex items-center ${isManagedWallet ? "" : "cursor-help"}`}>
                   <CalendarArrowDown className="mr-2 text-xs" />
                   <PricePerMonth
-                    denom={deployment.escrowAccount.balance.denom}
+                    denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
                     perBlockValue={udenomToDenom(deploymentCost, 10)}
                     className="whitespace-nowrap"
                   />
@@ -224,7 +235,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                       <span>Balance:</span>
                       <strong>
                         {isManagedWallet ? (
-                          <PriceValue denom={deployment.escrowAccount.balance.denom} value={escrowBalanceInDenom} />
+                          <PriceValue denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={escrowBalanceInDenom} />
                         ) : (
                           `${escrowBalanceInDenom} ${denomData?.label}`
                         )}
@@ -234,7 +245,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                       <span>Spent:</span>
                       <strong>
                         {isManagedWallet ? (
-                          <PriceValue denom={deployment.escrowAccount.balance.denom} value={udenomToDenom(amountSpent || 0, 2)} />
+                          <PriceValue denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={udenomToDenom(amountSpent || 0, 2)} />
                         ) : (
                           `${udenomToDenom(amountSpent || 0, 2)} ${denomData?.label}`
                         )}
@@ -249,7 +260,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
               >
                 <div className="inline-flex cursor-help">
                   <Coins className="mr-2 text-xs" />
-                  <PriceValue denom={deployment.escrowAccount.balance.denom} value={escrowBalanceInDenom} />
+                  <PriceValue denom={deployment.escrowAccount.state.funds[0]?.denom || ""} value={escrowBalanceInDenom} />
                 </div>
               </CustomTooltip>
             )}
@@ -352,7 +363,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
 
       {isActive && isDepositingDeployment && (
         <DeploymentDepositModal
-          denom={deployment.escrowAccount.balance.denom}
+          denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
           disableMin
           handleCancel={() => setIsDepositingDeployment(false)}
           onDeploymentDeposit={onDeploymentDeposit}

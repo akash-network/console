@@ -29,7 +29,7 @@ describe(CreateLease.name, () => {
     const bids = [
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 1
           },
           state: "open"
@@ -37,7 +37,7 @@ describe(CreateLease.name, () => {
       }),
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 1
           },
           state: "open"
@@ -66,7 +66,7 @@ describe(CreateLease.name, () => {
     const bids = [
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 1
           },
           state: "open"
@@ -74,7 +74,7 @@ describe(CreateLease.name, () => {
       }),
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 2
           },
           state: "open"
@@ -90,14 +90,14 @@ describe(CreateLease.name, () => {
       expect(BidGroup).toHaveBeenCalledWith(
         expect.objectContaining({
           gseq: 1,
-          bids: bids.filter(b => b.bid.bid_id.gseq === 1).map(mapToBidDto)
+          bids: bids.filter(b => b.bid.id.gseq === 1).map(mapToBidDto)
         }),
         {}
       );
       expect(BidGroup).toHaveBeenCalledWith(
         expect.objectContaining({
           gseq: 2,
-          bids: bids.filter(b => b.bid.bid_id.gseq === 2).map(mapToBidDto)
+          bids: bids.filter(b => b.bid.id.gseq === 2).map(mapToBidDto)
         }),
         {}
       );
@@ -109,7 +109,7 @@ describe(CreateLease.name, () => {
     const bids = [
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 1
           },
           state: "closed"
@@ -117,7 +117,7 @@ describe(CreateLease.name, () => {
       }),
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 1
           },
           state: "closed"
@@ -154,7 +154,7 @@ describe(CreateLease.name, () => {
     const bids = [
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 1
           },
           state: "open"
@@ -162,7 +162,7 @@ describe(CreateLease.name, () => {
       }),
       buildRpcBid({
         bid: {
-          bid_id: {
+          id: {
             gseq: 1
           },
           state: "open"
@@ -295,7 +295,7 @@ describe(CreateLease.name, () => {
       const bids = [
         buildRpcBid({
           bid: {
-            bid_id: {
+            id: {
               gseq: 1,
               provider: selectedProvider.owner
             },
@@ -352,7 +352,7 @@ describe(CreateLease.name, () => {
       const bids = input?.bids ?? [
         buildRpcBid({
           bid: {
-            bid_id: {
+            id: {
               gseq: 1,
               provider: providers[0].owner
             },
@@ -361,7 +361,7 @@ describe(CreateLease.name, () => {
         }),
         buildRpcBid({
           bid: {
-            bid_id: {
+            id: {
               gseq: 1,
               provider: providers[1].owner
             },

@@ -70,7 +70,7 @@ const mockLeaseStatus = {
 };
 
 const mockGroup: DeploymentGroup = {
-  group_id: {
+  id: {
     owner: "test-owner",
     dseq: "123",
     gseq: 1

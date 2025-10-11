@@ -86,8 +86,7 @@ export async function NewDeploymentData(
   yamlStr: string,
   dseq: string | null,
   fromAddress: string,
-  deposit: number | DepositParams[] = browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT,
-  depositorAddress: string | null = null
+  deposit: number | DepositParams[] = browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT
 ) {
   try {
     const networkId = networkStore.selectedNetworkId;
@@ -100,7 +99,7 @@ export async function NewDeploymentData(
 
     let finalDseq: string = dseq || "";
     if (!finalDseq) {
-      const response = await chainApiHttpClient.get("/blocks/latest");
+      const response = await chainApiHttpClient.get("/cosmos/base/tendermint/v1beta1/blocks/latest");
       finalDseq = response.data.block.header.height;
     }
 
@@ -114,9 +113,8 @@ export async function NewDeploymentData(
       },
       orderId: [],
       leaseId: [],
-      version,
-      deposit: _deposit,
-      depositor: depositorAddress || fromAddress
+      hash: version,
+      deposit: _deposit
     };
   } catch (e: any) {
     const error = new CustomValidationError(e.message);

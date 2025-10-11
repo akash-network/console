@@ -89,8 +89,7 @@ export const PrerequisiteList: React.FunctionComponent<Props> = ({ onClose, onCo
                     Wallet Balance
                   </Title>
                   <p className="text-sm text-muted-foreground">
-                    The balance of the wallet needs to be of at least {minDeposit.akt} AKT or {minDeposit.usdc} USDC. If you do not have {minDeposit.akt} AKT or{" "}
-                    {minDeposit.usdc} USDC, you will need to specify an authorized depositor.
+                    The balance of the wallet needs to be of at least {minDeposit.akt} AKT or {minDeposit.usdc} USDC to create a deployment.
                   </p>
                 </div>
               </li>

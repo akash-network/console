@@ -124,16 +124,11 @@ export const RentGpusForm: React.FunctionComponent = () => {
     }
   }, [searchParams, gpuModels, isQueryInit]);
 
-  async function createAndValidateDeploymentData(
-    yamlStr: string,
-    dseq: string | null = null,
-    deposit = defaultDeposit,
-    depositorAddress: string | null = null
-  ) {
+  async function createAndValidateDeploymentData(yamlStr: string, dseq: string | null = null, deposit = defaultDeposit) {
     try {
       if (!yamlStr) return null;
 
-      const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, yamlStr, dseq, address, deposit, depositorAddress);
+      const dd = await deploymentData.NewDeploymentData(chainApiHttpClient, yamlStr, dseq, address, deposit);
       validateDeploymentData(dd);
 
       setSdlDenom(dd.deposit.denom);
@@ -193,9 +188,9 @@ export const RentGpusForm: React.FunctionComponent = () => {
     setIsDepositingDeployment(true);
   };
 
-  const onDeploymentDeposit = async (deposit: number, depositorAddress: string) => {
+  const onDeploymentDeposit = async (deposit: number) => {
     setIsDepositingDeployment(false);
-    await handleCreateClick(deposit, depositorAddress);
+    await handleCreateClick(deposit);
   };
 
   const onSubmit = async (data: RentGpusFormValuesType) => {
@@ -208,7 +203,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
     }
   };
 
-  async function handleCreateClick(deposit: number | DepositParams[], depositorAddress: string) {
+  async function handleCreateClick(deposit: number | DepositParams[]) {
     setError(null);
 
     try {
@@ -218,7 +213,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
 
       setIsCreatingDeployment(true);
 
-      const dd = await createAndValidateDeploymentData(sdl, null, deposit, depositorAddress);
+      const dd = await createAndValidateDeploymentData(sdl, null, deposit);
       const validCertificates = await loadValidCertificates();
       const currentCert = validCertificates.find(x => x.parsed === localCert?.certPem);
       const isCertificateValidated = currentCert?.certificate?.state === "valid";
@@ -261,7 +256,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
         setDeploySdl(null);
 
         // Save the manifest
-        saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.version, address, currentService.image);
+        saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.hash, address, currentService.image);
         router.push(UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
 
         analyticsService.track("create_gpu_deployment", {
