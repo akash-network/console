@@ -10,6 +10,7 @@ import { LinearLoadingSkeleton } from "@src/components/shared/LinearLoadingSkele
 import { LinkTo } from "@src/components/shared/LinkTo";
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
+import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useProviderList } from "@src/queries/useProvidersQuery";
@@ -50,6 +51,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
   const { data: providers } = useProviderList();
   const providerCredentials = useProviderCredentials();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+  const { settings } = useSettings();
 
   useEffect(() => {
     const init = async () => {
@@ -246,7 +248,9 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
                   <CreateCredentialsButton containerClassName="flex items-center space-x-4 text-sm" className="" size="sm" />
                 ) : (
                   <Button
-                    disabled={!!parsingError || !editedManifest || !providers || isSendingManifest || deployment.state !== "active"}
+                    disabled={
+                      !!parsingError || !editedManifest || !providers || isSendingManifest || deployment.state !== "active" || settings.isBlockchainDown
+                    }
                     onClick={() => handleUpdateClick()}
                     size="sm"
                     type="button"

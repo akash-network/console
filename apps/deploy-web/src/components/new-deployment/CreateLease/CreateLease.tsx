@@ -463,7 +463,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
 
         {settings.isBlockchainDown && (
           <div className="pt-4">
-            <d.Alert variant="warning">Blockchain is down. Please try to refresh the page or try again later.</d.Alert>
+            <d.Alert variant="warning">Blockchain is unavailable. Please try to refresh the page or try again later.</d.Alert>
           </div>
         )}
 

@@ -149,7 +149,7 @@ describe(CreateLease.name, () => {
     jest.useRealTimers();
   });
 
-  it("disables Accept Bid button when blockchain is down", async () => {
+  it("disables Accept Bid button when blockchain is unavailable", async () => {
     const BidGroup = jest.fn(ComponentMock);
     const bids = [
       buildRpcBid({
@@ -176,7 +176,7 @@ describe(CreateLease.name, () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Blockchain is down/i)).toBeInTheDocument();
+      expect(screen.getByText(/Blockchain is unavailable/i)).toBeInTheDocument();
     });
   });
 

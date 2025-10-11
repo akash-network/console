@@ -77,7 +77,7 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
   return useMemo(
     () => ({
       get isTokenExpired() {
-        return !!parsedToken && parsedToken.exp < Math.floor(Date.now() / 1000);
+        return !!parsedToken && parsedToken.exp <= Math.floor(Date.now() / 1000);
       },
       accessToken,
       generateToken

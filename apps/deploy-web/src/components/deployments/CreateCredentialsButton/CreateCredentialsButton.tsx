@@ -26,7 +26,7 @@ const MESSAGES = {
     missing: "You need to create a certificate to view deployment details.",
     regenerateButton: "Regenerate Certificate",
     createButton: "Create Certificate",
-    unableToCreate: "You cannot view deployment lease details because the blockchain is down and you don't have a local certificate."
+    unableToCreate: "You cannot view deployment lease details because the blockchain is unavailable and you don't have a local certificate."
   },
   jwt: {
     expired: "Your token has expired. Please generate a new one.",
@@ -38,7 +38,10 @@ const MESSAGES = {
 
 export const CreateCredentialsButton: FC<Props> = ({ afterCreate, containerClassName, dependencies: d = DEPENDENCIES, ...buttonProps }) => {
   const credentials = d.useProviderCredentials();
-  const [createCredentials, createCredentialsState] = useAsyncCallback(credentials.generate, []);
+  const [createCredentials, createCredentialsState] = useAsyncCallback(async () => {
+    await credentials.generate();
+    afterCreate?.();
+  }, [credentials.generate, afterCreate]);
   const warningText = useMemo(() => {
     if (credentials.details.isExpired) return MESSAGES[credentials.details.type].expired;
     if (!credentials.details.value) return MESSAGES[credentials.details.type].missing;

@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { AuthzHttpService, CertificatesService } from "@akashnetwork/http-sdk";
+import { AuthzHttpService, CertificatesService, isHttpError } from "@akashnetwork/http-sdk";
 
 import { withInterceptors } from "@src/services/app-di-container/app-di-container";
 import { services as rootContainer } from "@src/services/app-di-container/browser-di-container";
@@ -36,14 +36,38 @@ function createAppContainer<T extends Factories>(settingsState: SettingsContextT
     authzHttpService: () => new AuthzHttpService(di.chainApiHttpClient),
     walletBalancesService: () => new WalletBalancesService(di.authzHttpService, di.chainApiHttpClient, di.appConfig.NEXT_PUBLIC_MASTER_WALLET_ADDRESS),
     certificatesService: () => new CertificatesService(di.chainApiHttpClient),
-    chainApiHttpClient: () =>
-      withInterceptors(
+    chainApiHttpClient: () => {
+      let inflightPingRequest: Promise<unknown> | undefined;
+      const chainApiHttpClient = withInterceptors(
         createFallbackableHttpClient(rootContainer.createAxios, rootContainer.fallbackChainApiHttpClient, {
           baseURL: settingsState.settings?.apiEndpoint,
-          shouldFallback: () => settingsState.settings?.isBlockchainDown,
-          onUnavailableError: () => {
+          shouldFallback: () => !!settingsState.settings?.isBlockchainDown,
+          onUnavailableError: error => {
             if (settingsState.settings?.isBlockchainDown) return;
-            settingsState.setSettings(prev => ({ ...prev, isBlockchainDown: true }));
+
+            const BLOCKCHAIN_PING_URL = "/cosmos/base/tendermint/v1beta1/node_info";
+            // ensure blockchain is really unavailable and it's not an issue with some endpoint
+            inflightPingRequest ??= chainApiHttpClient
+              .get(BLOCKCHAIN_PING_URL, { adapter: "fetch", timeout: 5000 })
+              .then(() => {
+                // if blockchain is available, we want original request to fail and NOT fallback to fallbackChainApiHttpClient
+                return Promise.reject(error);
+              })
+              .catch(error => {
+                if (isHttpError(error) && error.config?.url?.includes(BLOCKCHAIN_PING_URL)) {
+                  if (settingsState.settings?.isBlockchainDown) return;
+                  settingsState.setSettings(prev => ({ ...prev, isBlockchainDown: true }));
+                  return;
+                }
+
+                return Promise.reject(error);
+              })
+              .finally(() => {
+                setTimeout(() => {
+                  inflightPingRequest = undefined;
+                }, 3000); // keep ping result in cache for few seconds to handle delayed requests
+              });
+            return inflightPingRequest;
           },
           onSuccess: () => {
             settingsState.refreshNodeStatuses();
@@ -52,7 +76,9 @@ function createAppContainer<T extends Factories>(settingsState: SettingsContextT
         {
           request: [config => (config.baseURL ? config : neverResolvedPromise)]
         }
-      ),
+      );
+      return chainApiHttpClient;
+    },
     ...services
   });
 

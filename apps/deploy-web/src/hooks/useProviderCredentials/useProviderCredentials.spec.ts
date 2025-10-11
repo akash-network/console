@@ -8,7 +8,7 @@ import { DEPENDENCIES, useProviderCredentials } from "./useProviderCredentials";
 import { setupQuery } from "@tests/unit/query-client";
 
 describe(useProviderCredentials.name, () => {
-  it("returns JWT credentials when blockchain is down", () => {
+  it("returns JWT credentials when blockchain is unavailable", () => {
     const accessToken = "jwt-token-123";
     const isTokenExpired = false;
 
@@ -143,7 +143,7 @@ describe(useProviderCredentials.name, () => {
     expect(result.current.details.value).toBeNull();
   });
 
-  it("calls generateToken when blockchain is down", async () => {
+  it("calls generateToken when blockchain is unavailable", async () => {
     const generateToken = jest.fn().mockResolvedValue(undefined);
 
     const { result } = setup({
