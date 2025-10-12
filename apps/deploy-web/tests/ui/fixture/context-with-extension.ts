@@ -2,6 +2,7 @@ import type { BrowserContext, Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { nanoid } from "nanoid";
 import path from "path";
+import { setTimeout as wait } from "timers/promises";
 
 import { selectChainNetwork } from "../actions/selectChainNetwork";
 import { injectUIConfig, test as baseTest } from "./base-test";
@@ -22,10 +23,7 @@ export const test = baseTest.extend<{
     const args = [
       // keep new line
       `--disable-extensions-except=${pathToExtension}`,
-      `--load-extension=${pathToExtension}`,
-      // Allow extension to make external API calls
-      `--disable-web-security`,
-      `--disable-features=IsolateOrigins,site-per-process`
+      `--load-extension=${pathToExtension}`
     ];
 
     const context = await chromium.launchPersistentContext(userDataDir, {
@@ -62,41 +60,30 @@ export const test = baseTest.extend<{
     if (!extPage) {
       extPage = await context.newPage();
 
-      // Add route handler to mock failing Leap API calls if needed
-      await extPage.route("**/api.leapwallet.io/**", async route => {
-        const url = route.request().url();
-        console.log(`Leap API call intercepted: ${url}`);
-
-        // Try to fulfill the real request first
-        try {
-          await route.continue();
-        } catch (error) {
-          // If it fails, return empty but valid responses
-          console.log(`Leap API call failed, returning mock: ${url}`);
-          if (url.includes("/validators")) {
-            await route.fulfill({
-              status: 200,
-              contentType: "application/json",
-              body: JSON.stringify({ validators: [] })
-            });
-          } else {
-            await route.fulfill({
-              status: 200,
-              contentType: "application/json",
-              body: JSON.stringify({})
-            });
-          }
-        }
-      });
-
-      await extPage.goto(extUrl);
-      await extPage.waitForLoadState("domcontentloaded");
-
-      // Wait a bit for the extension to stabilize after initial load
-      await extPage.waitForTimeout(2000);
+      await extPage.goto(extUrl, { waitUntil: "domcontentloaded" });
+      await wait(2000);
     }
 
     await setupWallet(context, extPage);
+
+    // Check if we're on the success screen and need to close/reopen
+    const getStartedButton = extPage.getByRole("button", { name: /get started/i });
+    if (await getStartedButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      console.log("Found 'Get started' button - closing and reopening extension");
+      await extPage.close();
+      await wait(2000);
+
+      // Reopen the extension
+      extPage = await context.newPage();
+      await extPage.goto(extUrl, { waitUntil: "domcontentloaded" });
+      await wait(2000);
+    }
+
+    await extPage.locator("input").fill("12345678");
+    await wait(2000);
+    await extPage.locator('button:has-text("Unlock wallet")').click();
+    await wait(2000);
+
     await extPage.close();
     const page = await context.newPage();
     await injectUIConfig(page);
