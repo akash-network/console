@@ -35,44 +35,44 @@ export function WalletStatus() {
             <div className="w-full py-2">
               <DropdownMenu modal={false} open={open}>
                 <DropdownMenuTrigger asChild>
-                  {!!walletBalance && (
-                    <div
-                      className={cn("flex items-center justify-center rounded-md border px-4 py-2 text-sm", {
-                        "border-primary bg-primary/10 text-primary dark:bg-primary dark:text-primary-foreground": isManaged,
-                        "bg-background text-foreground": !isManaged
-                      })}
-                      onMouseOver={() => setOpen(true)}
-                    >
-                      <div className="flex items-center space-x-2" aria-label="Connected wallet name and balance">
-                        {isManaged && isTrialing && <span className="text-xs">Trial</span>}
-                        {!isManaged && (
-                          <>
-                            <Wallet className="text-xs" />
-                            {walletName?.length > 20 ? (
-                              <span className="text-xs">{getSplitText(walletName, 4, 4)}</span>
-                            ) : (
-                              <span className="text-xs">{walletName}</span>
-                            )}
-                          </>
-                        )}
-                      </div>
+                  <div
+                    className={cn("flex items-center justify-center rounded-md border px-4 py-2 text-sm", {
+                      "border-primary bg-primary/10 text-primary dark:bg-primary dark:text-primary-foreground": isManaged,
+                      "bg-background text-foreground": !isManaged
+                    })}
+                    onMouseOver={() => setOpen(true)}
+                  >
+                    <div className="flex items-center space-x-2" aria-label="Connected wallet name and balance">
+                      {isManaged && isTrialing && <span className="text-xs">Trial</span>}
+                      {!isManaged && (
+                        <>
+                          <Wallet className="text-xs" />
+                          {walletName?.length > 20 ? (
+                            <span className="text-xs">{getSplitText(walletName, 4, 4)}</span>
+                          ) : (
+                            <span className="text-xs">{walletName}</span>
+                          )}
+                        </>
+                      )}
+                    </div>
 
-                      {((isManaged && isTrialing) || !isManaged) && <div className="px-2">|</div>}
+                    {walletBalance && ((isManaged && isTrialing) || !isManaged) && <div className="px-2">|</div>}
 
-                      <div className="text-xs">
+                    <div className="text-xs">
+                      {walletBalance && (
                         <FormattedNumber
                           value={isManaged ? walletBalance.totalDeploymentGrantsUSD : walletBalance.totalUsd}
                           // eslint-disable-next-line react/style-prop-object
                           style="currency"
                           currency="USD"
                         />
-                      </div>
-
-                      <div>
-                        <NavArrowDown className="ml-2 text-xs" />
-                      </div>
+                      )}
                     </div>
-                  )}
+
+                    <div>
+                      <NavArrowDown className="ml-2 text-xs" />
+                    </div>
+                  </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
@@ -86,8 +86,8 @@ export function WalletStatus() {
                     }}
                   >
                     <div>
-                      {!isManaged && walletBalance && <CustodialWalletPopup walletBalance={walletBalance} />}
-                      {withBilling && isManaged && walletBalance && <ManagedWalletPopup walletBalance={walletBalance} />}
+                      {!isManaged && <CustodialWalletPopup walletBalance={walletBalance} />}
+                      {withBilling && isManaged && <ManagedWalletPopup walletBalance={walletBalance} />}
                     </div>
                   </ClickAwayListener>
                 </DropdownMenuContent>

@@ -1,6 +1,6 @@
 import { Provider, ProviderSnapshotNode, ProviderSnapshotNodeGPU } from "@akashnetwork/database/dbSchemas/akash";
 import { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash/providerSnapshot";
-import { SupportedChainNetworks } from "@akashnetwork/net";
+import { NetConfig, SupportedChainNetworks } from "@akashnetwork/net";
 import { AxiosError } from "axios";
 import { add } from "date-fns";
 import assert from "http-assert";
@@ -31,9 +31,10 @@ export class ProviderService {
     private readonly providerAttributesSchemaService: ProviderAttributesSchemaService,
     private readonly auditorsService: AuditorService,
     private readonly jwtTokenService: ProviderJwtTokenService,
-    private readonly config: BillingConfigService
+    private readonly config: BillingConfigService,
+    private readonly netConfig: NetConfig
   ) {
-    this.chainNetwork = this.config.get("NETWORK") as SupportedChainNetworks;
+    this.chainNetwork = netConfig.mapped(this.config.get("NETWORK"));
   }
 
   async sendManifest(options: { provider: string; dseq: string; manifest: string; auth: ProviderAuth }) {

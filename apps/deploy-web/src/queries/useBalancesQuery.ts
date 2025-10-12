@@ -10,7 +10,7 @@ export function useBalances(address?: string, options?: Omit<UseQueryOptions<Bal
   return useQuery({
     queryKey: QueryKeys.getBalancesKey(address) as QueryKey,
     queryFn: () => (address ? di.walletBalancesService.getBalances(address) : null),
-    enabled: !!address && di.authzHttpService.isReady,
-    ...options
+    ...options,
+    enabled: options?.enabled !== false && !!address && di.authzHttpService.isReady && !di.chainApiHttpClient.isFallbackEnabled
   });
 }

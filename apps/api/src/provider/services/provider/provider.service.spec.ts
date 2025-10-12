@@ -1,5 +1,6 @@
+import type { JwtTokenPayload } from "@akashnetwork/chain-sdk";
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import type { JwtTokenPayload } from "@akashnetwork/jwt";
+import { netConfig } from "@akashnetwork/net";
 import { faker } from "@faker-js/faker";
 import { AxiosError } from "axios";
 import { mock } from "jest-mock-extended";
@@ -53,7 +54,7 @@ describe(ProviderService.name, () => {
         method: "PUT",
         body: '{"size":{"val":"1"}}',
         auth: { type: "jwt", token: jwtToken },
-        chainNetwork: "sandbox",
+        chainNetwork: "sandbox-2",
         providerIdentity: {
           owner: provider.owner,
           hostUri: provider.hostUri
@@ -207,7 +208,7 @@ describe(ProviderService.name, () => {
       expect(providerProxyService.request).toHaveBeenCalledWith(`/lease/${dseq}/${gseq}/${oseq}/status`, {
         method: "GET",
         auth: { type: "jwt", token: jwtToken },
-        chainNetwork: "sandbox",
+        chainNetwork: "sandbox-2",
         providerIdentity: {
           owner: provider.owner,
           hostUri: provider.hostUri
@@ -244,7 +245,15 @@ describe(ProviderService.name, () => {
       NETWORK: "sandbox"
     });
 
-    const service = new ProviderService(providerProxyService, providerRepository, providerAttributesSchemaService, auditorsService, jwtTokenService, config);
+    const service = new ProviderService(
+      providerProxyService,
+      providerRepository,
+      providerAttributesSchemaService,
+      auditorsService,
+      jwtTokenService,
+      config,
+      netConfig
+    );
 
     return {
       service,

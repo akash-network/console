@@ -3,12 +3,29 @@ import { netConfigData } from "../generated/netConfigData";
 export type SupportedChainNetworks = keyof typeof netConfigData;
 
 export class NetConfig {
+  readonly networkMap: Partial<Record<string, SupportedChainNetworks>> = {
+    sandbox: "sandbox-2",
+    testnet: "testnet-7"
+  };
+
+  mapped(network: string): SupportedChainNetworks {
+    if (this.networkMap[network]) {
+      return this.networkMap[network];
+    }
+
+    if (network in netConfigData) {
+      return network as SupportedChainNetworks;
+    }
+
+    throw new Error(`Network ${network} not supported`);
+  }
+
   getVersion(network: SupportedChainNetworks): string | null {
-    return netConfigData[network].version;
+    return netConfigData[this.mapped(network)].version;
   }
 
   getBaseAPIUrl(network: SupportedChainNetworks): string {
-    const apiUrls = netConfigData[network].apiUrls;
+    const apiUrls = netConfigData[this.mapped(network)].apiUrls;
     return apiUrls[0];
   }
 
@@ -17,11 +34,11 @@ export class NetConfig {
   }
 
   getFaucetUrl(network: SupportedChainNetworks): string | null {
-    return netConfigData[network].faucetUrl;
+    return netConfigData[this.mapped(network)].faucetUrl;
   }
 
   getBaseRpcUrl(network: SupportedChainNetworks): string {
-    const rpcUrls = netConfigData[network].rpcUrls;
+    const rpcUrls = netConfigData[this.mapped(network)].rpcUrls;
     return rpcUrls[0];
   }
 }
