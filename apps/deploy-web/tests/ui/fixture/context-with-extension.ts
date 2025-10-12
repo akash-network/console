@@ -7,7 +7,7 @@ import { setTimeout as wait } from "timers/promises";
 import { selectChainNetwork } from "../actions/selectChainNetwork";
 import { injectUIConfig, test as baseTest } from "./base-test";
 import { testEnvConfig } from "./test-env.config";
-import { connectWalletViaLeap, setupWallet } from "./wallet-setup";
+import { connectWalletViaLeap, fillWalletPassword, setupWallet } from "./wallet-setup";
 
 // @see https://playwright.dev/docs/chrome-extensions
 export const test = baseTest.extend<{
@@ -29,9 +29,7 @@ export const test = baseTest.extend<{
     const context = await chromium.launchPersistentContext(userDataDir, {
       channel: "chromium",
       args,
-      // Grant permissions needed by the extension
       permissions: ["clipboard-read", "clipboard-write"],
-      // Bypass CSP to allow API calls
       bypassCSP: true
     });
 
@@ -61,7 +59,6 @@ export const test = baseTest.extend<{
       extPage = await context.newPage();
 
       await extPage.goto(extUrl, { waitUntil: "domcontentloaded" });
-      await wait(2000);
     }
 
     await setupWallet(context, extPage);
@@ -79,10 +76,7 @@ export const test = baseTest.extend<{
       await wait(2000);
     }
 
-    await extPage.locator("input").fill("12345678");
-    await wait(2000);
-    await extPage.locator('button:has-text("Unlock wallet")').click();
-    await wait(2000);
+    await fillWalletPassword(extPage);
 
     await extPage.close();
     const page = await context.newPage();
