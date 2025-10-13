@@ -8,14 +8,46 @@ import { setTimeout as wait } from "timers/promises";
 
 import { isWalletConnected } from "../uiState/isWalletConnected";
 import { testEnvConfig } from "./test-env.config";
+import { clickConnectWalletButton, clickCreateNewWalletButton, clickCreateWalletButton, clickWalletSelectorDropdown, fillWalletName } from "./testing-helpers";
 
 const WALLET_PASSWORD = "12345678";
+
+export async function getExtensionPage(context: BrowserContext, extensionId: string) {
+  const extUrl = `chrome-extension://${extensionId}/index.html`;
+  let extPage = context.pages().find(page => page.url().startsWith(extUrl));
+
+  if (!extPage) {
+    extPage = await context.newPage();
+    await extPage.goto(extUrl);
+    await extPage.waitForLoadState("domcontentloaded");
+    await context.waitForEvent("page", { timeout: 5_000 }).catch(() => null);
+  }
+
+  return extPage;
+}
 
 export async function setupWallet(context: BrowserContext, page: Page) {
   const wallet = await importWalletToLeap(context, page);
   await restoreExtensionStorage(page);
   await page.reload({ waitUntil: "domcontentloaded" });
   await topUpWallet(wallet);
+}
+
+export async function createWallet(context: BrowserContext, extensionId: string, walletName: string) {
+  const extPage = await getExtensionPage(context, extensionId);
+
+  await clickWalletSelectorDropdown(extPage);
+  await clickCreateNewWalletButton(extPage);
+  await fillWalletName(extPage, walletName);
+
+  const pageHandler = async (page: Page) => {
+    await page.waitForLoadState("domcontentloaded");
+    await clickConnectWalletButton(page);
+    context.off("page", pageHandler);
+  };
+  context.on("page", pageHandler);
+
+  await clickCreateWalletButton(extPage);
 }
 
 export async function connectWalletViaLeap(context: BrowserContext, page: Page) {
