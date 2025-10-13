@@ -32,7 +32,7 @@ export class SdlService {
   public getManifest(yamlJson: string | v2Sdl, networkType: NetworkType, asString?: false): v2Manifest | v3Manifest;
   public getManifest(yamlJson: string | v2Sdl, networkType: NetworkType, asString = false): string | v2Manifest | v3Manifest {
     const sdl = this.getSdl(yamlJson, networkType);
-    const manifest = sdl.manifest(false) as v2Manifest | v3Manifest;
+    const manifest = sdl.manifest(asString) as v2Manifest | v3Manifest | string;
     if (asString) {
       return JSON.stringify(manifest);
     }
