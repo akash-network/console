@@ -117,6 +117,7 @@ async function importWalletToLeap(context: BrowserContext, page: Page) {
     for (let i = 0; i < mnemonicArray.length; i++) {
       const word = mnemonicArray[i];
       const focusedInput = page.locator("*:focus");
+
       if (await focusedInput.isVisible({ timeout: 1000 }).catch(() => false)) {
         await focusedInput.fill(word);
         await page.keyboard.press("Tab");
@@ -157,14 +158,7 @@ async function importWalletToLeap(context: BrowserContext, page: Page) {
     await fillWalletPassword(page);
 
     // Wait for wallet creation
-    console.log("Waiting for wallet creation to complete...");
     await wait(5000);
-
-    // Check if we're on the success screen
-    const getStartedButton = page.getByRole("button", { name: /get started/i });
-    if (await getStartedButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      console.log("Found 'Get started' button - wallet setup complete");
-    }
 
     await page.waitForLoadState("domcontentloaded");
 
@@ -222,6 +216,6 @@ async function getBalance(address: string) {
 
 // @see https://github.com/microsoft/playwright/issues/14949
 export async function restoreExtensionStorage(page: Page): Promise<void> {
-  const extensionStorage = JSON.parse(fs.readFileSync(path.join(__dirname, "leapExtensionLocalStorage.json"), "utf8"));
+  const extensionStorage = JSON.parse(fs.readFileSync(path.join(__dirname, "leap-extension-local-storage.json"), "utf8"));
   await page.evaluate(data => chrome.storage.local.set(data), extensionStorage);
 }

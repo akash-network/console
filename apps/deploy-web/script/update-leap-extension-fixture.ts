@@ -149,17 +149,23 @@ async function getLatestVersion(chromeExtDir: string): Promise<string> {
       throw new Error(`No version found in ${chromeExtDir}`);
     }
 
-    const [latestVersion] = versions
-      .map(v => ({
-        name: v,
-        path: join(chromeExtDir, v)
-      }))
-      .filter(v => existsSync(v.path))
-      .sort((a, b) => {
-        const statA = statSync(a.path);
-        const statB = statSync(b.path);
-        return statB.mtimeMs - statA.mtimeMs;
-      });
+    const entries = versions
+      .map(name => {
+        const entryPath = join(chromeExtDir, name);
+
+        return {
+          name,
+          path: entryPath,
+          stats: existsSync(entryPath) ? statSync(entryPath) : null
+        };
+      })
+      .filter(entry => entry.stats?.isDirectory());
+
+    if (entries.length === 0) {
+      throw new Error(`No version directories found in ${chromeExtDir}`);
+    }
+
+    const [latestVersion] = entries.sort((a, b) => b.stats!.mtimeMs - a.stats!.mtimeMs);
 
     return latestVersion.name;
   } catch (error) {

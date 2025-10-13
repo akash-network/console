@@ -63,8 +63,8 @@ export const test = baseTest.extend<{
 
     // Check if we're on the success screen and need to close/reopen
     const getStartedButton = extPage.getByRole("button", { name: /get started/i });
+
     if (await getStartedButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      console.log("Found 'Get started' button - closing and reopening extension");
       await extPage.close();
       await wait(2000);
 
@@ -72,9 +72,8 @@ export const test = baseTest.extend<{
       extPage = await context.newPage();
       await extPage.goto(extUrl, { waitUntil: "domcontentloaded" });
       await wait(2000);
+      await fillWalletPassword(extPage);
     }
-
-    await fillWalletPassword(extPage);
 
     await extPage.close();
     const page = await context.newPage();
