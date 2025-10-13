@@ -1,4 +1,3 @@
-// TODO: replace this import with @akashnetwork/chain-sdk when it exports those types
 import type { v2Manifest, v2Sdl, v3Manifest } from "@akashnetwork/akashjs/build/sdl/types";
 import type { NetworkId } from "@akashnetwork/chain-sdk";
 import { SDL } from "@akashnetwork/chain-sdk";
@@ -29,10 +28,15 @@ export class SdlService {
     return sdl.groups();
   }
 
+  public getManifest(yamlJson: string | v2Sdl, networkType: NetworkType, asString: true): string;
+  public getManifest(yamlJson: string | v2Sdl, networkType: NetworkType, asString?: false): v2Manifest | v3Manifest;
   public getManifest(yamlJson: string | v2Sdl, networkType: NetworkType, asString = false): string | v2Manifest | v3Manifest {
     const sdl = this.getSdl(yamlJson, networkType);
-    const manifest = sdl.manifest(asString);
-    return asString ? (JSON.stringify(manifest) as string) : manifest;
+    const manifest = sdl.manifest(false) as v2Manifest | v3Manifest;
+    if (asString) {
+      return JSON.stringify(manifest);
+    }
+    return manifest;
   }
 
   public async getManifestVersion(yamlJson: string | v2Sdl, networkType: NetworkType) {
