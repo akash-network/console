@@ -12,12 +12,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 
 import { DeploymentAlerts } from "@src/components/deployments/DeploymentAlerts/DeploymentAlerts";
-import { useCertificate } from "@src/context/CertificateProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useNavigationGuard } from "@src/hooks/useNavigationGuard/useNavigationGuard";
+import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
 import { useDeploymentDetail } from "@src/queries/useDeploymentQuery";
@@ -29,7 +29,7 @@ import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
-import { CreateCertificateButton } from "./CreateCertificateButton/CreateCertificateButton";
+import { CreateCredentialsButton } from "./CreateCredentialsButton/CreateCredentialsButton";
 import { DeploymentDetailTopBar } from "./DeploymentDetailTopBar";
 import { DeploymentLeaseShell } from "./DeploymentLeaseShell";
 import { DeploymentLogs } from "./DeploymentLogs";
@@ -92,7 +92,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
 
   const isDeploymentNotFound = deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
   const hasLeases = leases && leases.length > 0;
-  const { isLocalCertMatching, localCert } = useCertificate();
+  const providerCredentials = useProviderCredentials();
   const { data: providers, isFetching: isLoadingProviders, refetch: getProviders } = useProviderList();
   useEffect(() => {
     if (deployment) {
@@ -283,7 +283,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
             )}
             {activeTab === "LEASES" && (
               <div className="py-4">
-                {leases && (!localCert || !isLocalCertMatching) && <CreateCertificateButton containerClassName="mb-4" afterCreate={loadDeploymentDetail} />}
+                {leases && !providerCredentials.details.usable && <CreateCredentialsButton containerClassName="mb-4" afterCreate={loadDeploymentDetail} />}
 
                 {leases &&
                   leases.map((lease, i) => (

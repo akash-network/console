@@ -185,7 +185,12 @@ export const DeploymentList: React.FunctionComponent = () => {
             )}
 
             {(filteredDeployments?.length || 0) > 0 && (
-              <Link href={UrlService.newDeployment()} className={cn("ml-auto", buttonVariants({ variant: "default", size: "sm" }))} onClick={onDeployClick}>
+              <Link
+                href={UrlService.newDeployment()}
+                className={cn("ml-auto", buttonVariants({ variant: "default", size: "sm" }))}
+                aria-disabled={settings.isBlockchainDown}
+                onClick={onDeployClick}
+              >
                 Deploy
                 <Rocket className="ml-4 rotate-45 text-sm" />
               </Link>
