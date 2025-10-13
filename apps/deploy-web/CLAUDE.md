@@ -10,7 +10,7 @@ The deploy-web app is the main Akash Console UI - a Next.js 14 application that 
 
 ## Project Structure
 
-```
+```text
 apps/deploy-web/
 ├── src/
 │   ├── components/      # React components (Material-UI based)
@@ -41,6 +41,7 @@ apps/deploy-web/
 ## Commands
 
 ### Development
+
 ```bash
 npm run dev                 # Start Next.js dev server (requires DB + API)
 npm run console:dev         # From root: starts console + API + provider-proxy
@@ -48,6 +49,7 @@ npm run console:dev:no-db   # From root: starts without Docker DB
 ```
 
 ### Testing
+
 ```bash
 # Unit Tests (Jest + React Testing Library)
 npm run test:unit           # Run all unit tests
@@ -61,6 +63,7 @@ npx playwright show-report  # View HTML report after test run
 ```
 
 ### Build & Lint
+
 ```bash
 npm run build              # Build for production
 npm run build-env-schemas  # Compile env config schema
@@ -85,6 +88,7 @@ npm run format             # Format with Prettier
 **MUST follow these patterns** (enforced by `.cursor/rules/`):
 
 1. **Use `setup()` function instead of `beforeEach`**:
+
 ```typescript
 describe("UserProfile", () => {
   it("renders user name when provided", () => {
@@ -101,6 +105,7 @@ describe("UserProfile", () => {
 ```
 
 2. **Use `queryBy*` instead of `getBy*` in assertions**:
+
 ```typescript
 // Good
 expect(screen.queryByText("John Doe")).toBeInTheDocument();
@@ -111,6 +116,7 @@ expect(screen.getByText("John Doe")).toBeInTheDocument();
 ```
 
 3. **Use `jest-mock-extended` for mocking, never `jest.mock()`**:
+
 ```typescript
 import { mock } from "jest-mock-extended";
 
@@ -140,6 +146,7 @@ describe("UserService", () => {
 #### E2E Test Architecture
 
 **Fixtures** (`tests/ui/fixture/`):
+
 - `context-with-extension.ts`: Creates browser context with Leap wallet extension loaded
   - Automatically imports test wallet from mnemonic
   - Auto-connects wallet and selects network (sandbox by default)
@@ -149,6 +156,7 @@ describe("UserService", () => {
 - `base-test.ts`: Base Playwright test fixture
 
 **Page Object Models** (`tests/ui/pages/`):
+
 - `DeployBasePage.tsx`: Base class with common deployment actions
   - `goto()`, `gotoInteractive()`: Navigation
   - `createDeployment()`: Click deploy + continue past deposit modal
@@ -160,14 +168,17 @@ describe("UserService", () => {
 - `BuildTemplatePage.tsx`, `PlainLinuxPage.tsx`, etc.: Specific template pages
 
 **Actions** (`tests/ui/actions/`):
+
 - `selectChainNetwork.ts`: Switch networks in app settings
 
 **UI State Helpers** (`tests/ui/uiState/`):
+
 - `isWalletConnected.ts`: Check if wallet is connected
 
 #### E2E Test Environment Setup
 
 Required environment variables in `env/.env.test`:
+
 ```bash
 BASE_URL=http://localhost:3000
 TEST_WALLET_MNEMONIC="twelve word mnemonic phrase here..."
@@ -178,18 +189,19 @@ UI_CONFIG_SIGNATURE_PRIVATE_KEY=optional_for_signed_config
 #### Writing E2E Tests
 
 Example test structure:
+
 ```typescript
 import { test } from "./fixture/context-with-extension";
 import { DeployHelloWorldPage } from "./pages/DeployHelloWorldPage";
 
 test("deploy hello world", async ({ context, page }) => {
-  test.setTimeout(5 * 60 * 1000);  // 5 minutes for full deployment flow
+  test.setTimeout(5 * 60 * 1000); // 5 minutes for full deployment flow
 
   const helloWorldPage = new DeployHelloWorldPage(
     context,
     page,
-    "new-deployment",      // path
-    "hello-world-card"     // card test id
+    "new-deployment", // path
+    "hello-world-card" // card test id
   );
 
   await helloWorldPage.gotoInteractive();
@@ -204,6 +216,7 @@ test("deploy hello world", async ({ context, page }) => {
 The Leap wallet extension is pre-packaged in `tests/ui/fixture/Leap/` directory. This is a full Chrome extension that gets loaded into the browser context for testing wallet interactions.
 
 **Wallet Setup Flow**:
+
 1. Browser launches with Leap extension loaded
 2. Extension service worker extracts extension ID
 3. Test navigates to extension page and imports wallet via mnemonic
@@ -213,6 +226,7 @@ The Leap wallet extension is pre-packaged in `tests/ui/fixture/Leap/` directory.
 7. Connects wallet to app and selects network
 
 **Provider Whitelists** (`test-env.config.ts`):
+
 - Mainnet: `provider.hurricane.akash.pub`, `provider.europlots.com`
 - Sandbox: `provider.europlots-sandbox.com`
 - Used to select reliable providers for test lease creation
@@ -240,6 +254,7 @@ npx playwright show-report
 ```
 
 **Important**: E2E tests require:
+
 1. Local dev server running (`npm run dev` or `npm run dc:up:dev -- deploy-web`)
 2. Valid test wallet mnemonic in `env/.env.test`
 3. Network connectivity to Akash RPC/API and faucet
@@ -249,6 +264,7 @@ npx playwright show-report
 Uses **Unleash** for feature flagging.
 
 **Local Development**: Bypass remote flags by setting in `.env.local`:
+
 ```bash
 NEXT_PUBLIC_UNLEASH_ENABLE_ALL=true
 ```
@@ -266,17 +282,20 @@ NEXT_PUBLIC_UNLEASH_ENABLE_ALL=true
 ## Key Features & Concepts
 
 ### Wallet Integration
+
 - **Cosmos Wallets**: Keplr, Leap, Cosmostation (via cosmos-kit)
 - **Auth0 Users**: Can create managed wallets for deployments without browser extension
 - **Wallet Context**: `src/context/WalletProvider/` handles wallet state
 
 ### SDL Templates
+
 - **SDL**: Stack Definition Language (YAML) for Akash deployments
 - **Monaco Editor**: `@monaco-editor/react` for SDL editing with syntax highlighting
 - **Templates**: Pre-built templates for common apps (Hello World, Linux, databases, etc.)
 - **Template Repository**: Fetched from GitHub, cached in API
 
 ### Deployment Flow
+
 1. User selects template or creates custom SDL
 2. Creates deployment (broadcasts `MsgCreateDeployment` tx)
 3. Waits for bids from providers
@@ -285,11 +304,13 @@ NEXT_PUBLIC_UNLEASH_ENABLE_ALL=true
 6. User can manage (update, close) deployment
 
 ### Billing
+
 - **Stripe Integration**: Credit card payments for managed wallets
 - **Trial Mode**: Free trial for new users
 - **Payment Polling**: Background polling to check payment status
 
 ### State Management
+
 - **React Query**: Server state (API calls, blockchain queries)
 - **Jotai**: Client state (UI state, settings)
 - **Context**: User session, wallet, feature flags, theme
@@ -297,6 +318,7 @@ NEXT_PUBLIC_UNLEASH_ENABLE_ALL=true
 ## Environment Variables
 
 Key environment variables (see `env/.env.sample`):
+
 - `NEXT_PUBLIC_API_BASE_URL`: API endpoint
 - `NEXT_PUBLIC_PROVIDER_PROXY_URL`: Provider proxy endpoint
 - `NEXT_PUBLIC_BILLING_ENABLED`: Enable Stripe billing
@@ -311,6 +333,7 @@ Uses **@openapi-qraft/react** for type-safe API client generated from OpenAPI sp
 **API Client**: `src/queries/` contains React Query hooks wrapping the OpenAPI client.
 
 Example:
+
 ```typescript
 import { useApiQuery } from "@akashnetwork/react-query-sdk";
 
@@ -322,17 +345,20 @@ const { data, isLoading } = useApiQuery("/v1/deployments", {
 ## Common Development Tasks
 
 ### Adding a New Page
+
 1. Create page in `src/pages/`
 2. Add navigation link in sidebar component
 3. Update routing if needed
 
 ### Adding a New Component
+
 1. Create in appropriate `src/components/` subdirectory
 2. Follow Material-UI patterns
 3. Write unit tests with `setup()` pattern
 4. Use `queryBy*` for test assertions
 
 ### Adding E2E Test
+
 1. Create `.spec.ts` in `tests/ui/`
 2. Import `test` from `fixture/context-with-extension`
 3. Create or reuse Page Object Model in `tests/ui/pages/`
@@ -340,6 +366,7 @@ const { data, isLoading } = useApiQuery("/v1/deployments", {
 5. Handle wallet popups with `signTransaction()` or `approveWalletOperation()`
 
 ### Updating API Integration
+
 1. API changes should auto-generate new types from OpenAPI spec
 2. Update queries in `src/queries/` if needed
 3. Test with unit tests (mock API responses with `jest-mock-extended`)
@@ -363,6 +390,7 @@ const { data, isLoading } = useApiQuery("/v1/deployments", {
 ## Debugging
 
 ### Unit Tests
+
 ```bash
 # Run specific test file
 npm run test:unit -- src/queries/useTemplateQuery.spec.tsx
@@ -375,6 +403,7 @@ npm run test:unit -- --watch
 ```
 
 ### E2E Tests
+
 ```bash
 # Debug mode (pauses on each action)
 npx playwright test --debug
@@ -387,6 +416,7 @@ npx playwright show-trace trace.zip
 ```
 
 ### Next.js
+
 - Check `.next/` build output for errors
 - Use React DevTools for component debugging
 - Check browser console for client-side errors
