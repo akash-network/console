@@ -28,9 +28,7 @@ export const test = baseTest.extend<{
 
     const context = await chromium.launchPersistentContext(userDataDir, {
       channel: "chromium",
-      args,
-      permissions: ["clipboard-read", "clipboard-write"],
-      bypassCSP: true
+      args
     });
 
     await use(context);
