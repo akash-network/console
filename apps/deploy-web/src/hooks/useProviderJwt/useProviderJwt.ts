@@ -17,7 +17,7 @@ export const DEPENDENCIES = {
 export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): UseProviderJwtResult {
   const { storedWalletsService, networkStore, consoleApiHttpClient } = d.useServices();
   const { isManaged, address, isWalletConnected } = d.useWallet();
-  const custodialWallet = d.useSelectedChain();
+  const selectedChain = d.useSelectedChain();
   const selectedNetworkId = networkStore.useSelectedNetworkId();
   const [accessToken, setAccessToken] = useAtom(JWT_TOKEN_ATOM);
 
@@ -25,17 +25,17 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
     const token = storedWalletsService.getStorageWallets(selectedNetworkId).find(w => w.address === address)?.token;
     setAccessToken(token || null);
   }, [storedWalletsService, selectedNetworkId, address]);
+
   const jwtTokenManager = useMemo(
     () =>
       new JwtTokenManager({
-        address,
-        signArbitrary: custodialWallet
-          ? custodialWallet.signArbitrary.bind(custodialWallet)
+        signArbitrary: selectedChain
+          ? selectedChain.signArbitrary
           : () => {
               throw new Error("Cannot sign jwt token: custodial wallet not found");
             }
       }),
-    [custodialWallet]
+    [selectedChain]
   );
   const parsedToken = useMemo(() => {
     if (!accessToken) return null;
@@ -72,7 +72,7 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
 
     storedWalletsService.updateWallet(address, w => ({ ...w, token }));
     setAccessToken(token);
-  }, [isWalletConnected, isManaged, custodialWallet, jwtTokenManager, address, consoleApiHttpClient]);
+  }, [isWalletConnected, isManaged, selectedChain, jwtTokenManager, address, consoleApiHttpClient]);
 
   return useMemo(
     () => ({

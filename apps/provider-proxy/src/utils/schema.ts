@@ -31,10 +31,6 @@ export const providerRequestSchema = z.object({
   keyPem: z.string().describe('Deprecated key. Use mtls auth type  with "auth.keyPem" instead.').optional()
 });
 
-// we need just validation and decoding that's why signer is not provided
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const jwtTokenManager = new JwtTokenManager({} as any);
-
 export type ProviderRequestSchema = Omit<z.infer<typeof providerRequestSchema>, "chainNetwork" | "certPem" | "keyPem">;
 
 /** this can be attached as .superRefine in zod v4 */
@@ -81,6 +77,11 @@ export function addProviderAuthValidation<T extends z.ZodType<any>>(schema: T): 
     }) as unknown as z.ZodEffects<T>;
 }
 
+const jwtTokenManager = new JwtTokenManager({
+  signArbitrary: () => {
+    throw new Error("Cannot generate token: it was created for payload validation only");
+  }
+});
 function validateJwtPayload(token: string): { isValid: boolean; errors?: string[] } {
   try {
     return jwtTokenManager.validatePayload(jwtTokenManager.decodeToken(token));
