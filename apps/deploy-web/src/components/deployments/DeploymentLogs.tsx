@@ -14,14 +14,14 @@ import { MemoMonaco } from "@src/components/shared/MemoMonaco";
 import { SelectCheckbox } from "@src/components/shared/SelectCheckbox";
 import ViewPanel from "@src/components/shared/ViewPanel";
 import { useBackgroundTask } from "@src/context/BackgroundTaskProvider";
-import { useCertificate } from "@src/context/CertificateProvider";
+import { useServices } from "@src/context/ServicesProvider";
+import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useProviderWebsocket } from "@src/hooks/useProviderWebsocket";
 import { useThrottledCallback } from "@src/hooks/useThrottle";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
-import { analyticsService } from "@src/services/analytics/analytics.service";
 import type { LeaseDto } from "@src/types/deployment";
-import { CreateCertificateButton } from "./CreateCertificateButton/CreateCertificateButton";
+import { CreateCredentialsButton } from "./CreateCredentialsButton/CreateCredentialsButton";
 import { LeaseSelect } from "./LeaseSelect";
 
 export type LOGS_MODE = "logs" | "events";
@@ -32,6 +32,7 @@ type Props = {
 };
 
 export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selectedLogsMode }) => {
+  const { analyticsService } = useServices();
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [canSetConnection, setCanSetConnection] = useState(false);
   const [isConnectionEstablished, setIsConnectionEstablished] = useState(false);
@@ -44,7 +45,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   const [stickToBottom, setStickToBottom] = useState(true);
   const [selectedLease, setSelectedLease] = useState<LeaseDto | null>(null);
   const { data: providers } = useProviderList();
-  const { localCert, isLocalCertMatching } = useCertificate();
+  const providerCredentials = useProviderCredentials();
   const { downloadLogs } = useBackgroundTask();
   const monacoEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
@@ -119,7 +120,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
   }, [selectedLease, providerInfo, getLeaseStatus]);
 
   useEffect(() => {
-    if (!canSetConnection || !providerInfo || !isLocalCertMatching || !selectedLease || isConnectionEstablished) return;
+    if (!canSetConnection || !providerInfo || !providerCredentials.details.usable || !selectedLease || isConnectionEstablished) return;
 
     logs.current = [];
 
@@ -141,12 +142,10 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
       url
     });
   }, [
-    isLocalCertMatching,
+    providerCredentials,
     selectedLogsMode,
     selectedLease,
     selectedServices,
-    localCert?.certPem,
-    localCert?.keyPem,
     services?.length,
     updateLogText,
     canSetConnection,
@@ -235,7 +234,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
 
   return (
     <div>
-      {isLocalCertMatching && localCert ? (
+      {providerCredentials.details.usable ? (
         <>
           {selectedLease && (
             <>
@@ -276,34 +275,30 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
                             </label>
                           </div>
                         </CustomDropdownLinkItem>
-                        {localCert && (
-                          <CustomDropdownLinkItem
-                            onClick={onDownloadLogsClick}
-                            icon={isDownloadingLogs ? <Spinner /> : <Download />}
-                            disabled={isDownloadingLogs}
-                          >
-                            {selectedLogsMode === "logs" ? "Download logs" : "Download events"}
-                          </CustomDropdownLinkItem>
-                        )}
+                        <CustomDropdownLinkItem
+                          onClick={onDownloadLogsClick}
+                          icon={isDownloadingLogs ? <Spinner /> : <Download />}
+                          disabled={isDownloadingLogs}
+                        >
+                          {selectedLogsMode === "logs" ? "Download logs" : "Download events"}
+                        </CustomDropdownLinkItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                 ) : (
                   <div className="flex items-center">
                     <CheckboxWithLabel label="Stick to bottom" checked={stickToBottom} onCheckedChange={checked => setStickToBottom(checked as boolean)} />
-                    {localCert && (
-                      <div className="ml-4">
-                        <Button
-                          onClick={onDownloadLogsClick}
-                          variant="default"
-                          size="sm"
-                          color="secondary"
-                          disabled={isDownloadingLogs || !isConnectionEstablished}
-                        >
-                          {isDownloadingLogs ? <Spinner size="small" /> : selectedLogsMode === "logs" ? "Download logs" : "Download events"}
-                        </Button>
-                      </div>
-                    )}
+                    <div className="ml-4">
+                      <Button
+                        onClick={onDownloadLogsClick}
+                        variant="default"
+                        size="sm"
+                        color="secondary"
+                        disabled={isDownloadingLogs || !isConnectionEstablished}
+                      >
+                        {isDownloadingLogs ? <Spinner size="small" /> : selectedLogsMode === "logs" ? "Download logs" : "Download events"}
+                      </Button>
+                    </div>
                   </div>
                 )}
 
@@ -329,7 +324,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
           )}
         </>
       ) : (
-        <CreateCertificateButton containerClassName="py-4" />
+        <CreateCredentialsButton containerClassName="py-4" />
       )}
     </div>
   );
