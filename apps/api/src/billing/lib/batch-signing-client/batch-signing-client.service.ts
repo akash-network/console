@@ -285,7 +285,7 @@ export class BatchSigningClientService {
     }
 
     const gasEstimation = await this.simulate(messages, "");
-    const estimatedGas = Math.round(gasEstimation * this.config.get("GAS_SAFETY_MULTIPLIER"));
+    const estimatedGas = Math.ceil(gasEstimation * this.config.get("GAS_SAFETY_MULTIPLIER"));
 
     const fee = calculateFee(estimatedGas, GasPrice.fromString(`${this.config.get("AVERAGE_GAS_PRICE")}${denom}`));
 

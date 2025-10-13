@@ -67,7 +67,7 @@ describe("Tx Sign", () => {
   });
 
   async function createMessagePayload(userId: string, address: string) {
-    const { cert, publicKey } = certificateManager.generatePEM(address);
+    const { cert, publicKey } = await certificateManager.generatePEM(address);
 
     const sdl = SDL.fromString(yml, "beta3", "sandbox");
     const currentHeight = await getCurrentHeight();

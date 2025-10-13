@@ -83,8 +83,6 @@ export class DeploymentReaderService {
       })
     );
 
-    console.log("LEASES WITH STATUS", leasesWithStatus, leases);
-
     return {
       deployment: deploymentResponse.deployment,
       leases: leasesWithStatus.map(({ lease, status }) => ({

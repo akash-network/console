@@ -83,14 +83,13 @@ export class DeploymentWriterService {
     const wallet = await this.walletReaderService.getWalletByUserId(options.userId);
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, options.dseq);
     const deploymentGrantDenom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
-    const depositor = await this.masterWallet.getFirstAddress();
 
     const message = this.rpcMessageService.getDepositDeploymentMsg({
       owner: wallet.address,
       dseq: deployment.deployment.id.dseq,
       amount: denomToUdenom(options.amount),
       denom: deploymentGrantDenom,
-      signer: depositor
+      signer: wallet.address
     });
 
     await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);

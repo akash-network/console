@@ -69,7 +69,7 @@ export class RpcMessageService {
                   amount: limit.toString()
                 }
               ],
-              expiration: expiration
+              expiration
             }).finish()
           )
         }
@@ -96,12 +96,7 @@ export class RpcMessageService {
               })
             ).finish()
           },
-          expiration: expiration
-            ? {
-                seconds: Math.floor(expiration.getTime() / 1_000),
-                nanos: Math.floor((expiration.getTime() % 1_000) * 1_000_000)
-              }
-            : undefined
+          expiration
         }
       }
     };

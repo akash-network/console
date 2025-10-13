@@ -32,6 +32,7 @@ export class BidSeeder {
         resources_offer: [
           {
             resources: {
+              id: 1,
               cpu: {
                 units: {
                   val: faker.number.int({ min: 100, max: 1000 }).toString()

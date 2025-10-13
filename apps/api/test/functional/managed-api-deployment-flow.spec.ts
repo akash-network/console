@@ -104,9 +104,13 @@ describe("Managed Wallet API Deployment Flow", () => {
         ]),
         escrow_account: expect.objectContaining({
           id: expect.any(Object),
-          balance: expect.objectContaining({
-            denom: "uakt",
-            amount: expect.any(String)
+          state: expect.objectContaining({
+            funds: expect.arrayContaining([
+              expect.objectContaining({
+                denom: "uakt",
+                amount: expect.any(String)
+              })
+            ])
           })
         })
       });
@@ -116,9 +120,13 @@ describe("Managed Wallet API Deployment Flow", () => {
       expect(deposit).toMatchObject({
         escrow_account: expect.objectContaining({
           id: expect.any(Object),
-          balance: expect.objectContaining({
-            denom: "uakt",
-            amount: expect.any(String)
+          state: expect.objectContaining({
+            funds: expect.arrayContaining([
+              expect.objectContaining({
+                denom: "uakt",
+                amount: expect.any(String)
+              })
+            ])
           })
         })
       });
@@ -215,9 +223,13 @@ describe("Managed Wallet API Deployment Flow", () => {
         ]),
         escrow_account: expect.objectContaining({
           id: expect.any(Object),
-          balance: expect.objectContaining({
-            denom: "uakt",
-            amount: expect.any(String)
+          state: expect.objectContaining({
+            funds: expect.arrayContaining([
+              expect.objectContaining({
+                denom: "uakt",
+                amount: expect.any(String)
+              })
+            ])
           })
         })
       });
@@ -227,9 +239,13 @@ describe("Managed Wallet API Deployment Flow", () => {
       expect(deposit).toMatchObject({
         escrow_account: expect.objectContaining({
           id: expect.any(Object),
-          balance: expect.objectContaining({
-            denom: "uakt",
-            amount: expect.any(String)
+          state: expect.objectContaining({
+            funds: expect.arrayContaining([
+              expect.objectContaining({
+                denom: "uakt",
+                amount: expect.any(String)
+              })
+            ])
           })
         })
       });
@@ -457,8 +473,6 @@ describe("Managed Wallet API Deployment Flow", () => {
       })
     });
 
-    console.log("DEPLOYMENT", data.data);
-
     const deploymentDbId = faker.string.uuid();
     await createDeploymentSeed({
       id: deploymentDbId,
@@ -503,8 +517,6 @@ describe("Managed Wallet API Deployment Flow", () => {
           "x-api-key": apiKey
         }
       });
-
-      console.log("BIDS", data.data);
 
       return data.data.find(bid => targetAuthType === "mTLS" || !bid.isCertificateRequired);
     });
