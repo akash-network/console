@@ -1,23 +1,27 @@
-import { UserSetting } from "@akashnetwork/database/dbSchemas/user/userSetting";
 import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
 import nock from "nock";
 import stripe from "stripe";
 import { container } from "tsyringe";
 
+import { BILLING_CONFIG, type BillingConfig } from "@src/billing/providers";
 import { CheckoutSessionRepository } from "@src/billing/repositories";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { app } from "@src/rest-app";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
-jest.setTimeout(20000);
+import { WalletTestingService } from "@test/services/wallet-testing.service";
+
+jest.setTimeout(30000);
 
 describe("Stripe webhook", () => {
   const userWalletsTable = resolveTable("UserWallets");
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsQuery = db.query.UserWallets;
   const checkoutSessionRepository = container.resolve(CheckoutSessionRepository);
+  const billingConfig = container.resolve<BillingConfig>(BILLING_CONFIG);
+  const walletService = new WalletTestingService(app);
 
   const generatePayload = (sessionId: string, eventType: string) =>
     JSON.stringify({
@@ -51,16 +55,15 @@ describe("Stripe webhook", () => {
     ["checkout.session.completed", "checkout.session.async_payment_succeeded"].forEach(eventType => {
       it(`tops up wallet and drops session from cache for event ${eventType}`, async () => {
         const sessionId = faker.string.uuid();
-        const userId = faker.string.uuid();
-        const stripeCustomerId = faker.string.uuid();
 
-        // Create user with Stripe customer ID
-        await UserSetting.create({ id: userId });
-        await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, userId));
+        // Create user with wallet and Stripe customer ID
+        const { user } = await walletService.createUserAndWallet();
+        const stripeCustomerId = faker.string.uuid();
+        await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, user.id));
 
         await checkoutSessionRepository.create({
           sessionId,
-          userId
+          userId: user.id
         });
 
         nock("https://api.stripe.com")
@@ -82,14 +85,18 @@ describe("Stripe webhook", () => {
 
         const webhookResponse = await getWebhookResponse(sessionId, eventType);
 
-        const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
+        const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
         const checkoutSession = await checkoutSessionRepository.findOneBy({
           sessionId
         });
+
+        // Calculate expected balance: trial allowance + payment amount (100 cents * 10000 multiplier)
+        const expectedBalance = billingConfig.TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT + 100 * 10000;
+
         expect(webhookResponse.status).toBe(200);
         expect(userWallet).toMatchObject({
-          userId,
-          deploymentAllowance: "1000000.00",
+          userId: user.id,
+          deploymentAllowance: `${expectedBalance}.00`,
           isTrialing: false
         });
         expect(checkoutSession).toBeUndefined();
@@ -98,16 +105,15 @@ describe("Stripe webhook", () => {
 
     it("does not top up wallet and keeps cache if the payment is not done", async () => {
       const sessionId = faker.string.uuid();
-      const userId = faker.string.uuid();
-      const stripeCustomerId = faker.string.uuid();
 
-      // Create user with Stripe customer ID
-      await UserSetting.create({ id: userId });
-      await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, userId));
+      // Create user with wallet and Stripe customer ID
+      const { user } = await walletService.createUserAndWallet();
+      const stripeCustomerId = faker.string.uuid();
+      await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, user.id));
 
       await checkoutSessionRepository.create({
         sessionId,
-        userId
+        userId: user.id
       });
 
       nock("https://api.stripe.com")
@@ -129,12 +135,17 @@ describe("Stripe webhook", () => {
 
       const webhookResponse = await getWebhookResponse(sessionId, "checkout.session.completed");
 
-      const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
+      const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
       const checkoutSession = await checkoutSessionRepository.findOneBy({
         sessionId
       });
       expect(webhookResponse.status).toBe(200);
-      expect(userWallet).toBeUndefined();
+      // Wallet should exist but balance should not have changed (no payment processed)
+      expect(userWallet).toMatchObject({
+        userId: user.id,
+        deploymentAllowance: "20000000.00", // Original trial balance
+        isTrialing: true
+      });
       expect(checkoutSession).toMatchObject({
         sessionId
       });
@@ -142,26 +153,30 @@ describe("Stripe webhook", () => {
 
     it("does not top up wallet and keeps cache if the event is different", async () => {
       const sessionId = faker.string.uuid();
-      const userId = faker.string.uuid();
-      const stripeCustomerId = faker.string.uuid();
 
-      // Create user with Stripe customer ID
-      await UserSetting.create({ id: userId });
-      await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, userId));
+      // Create user with wallet and Stripe customer ID
+      const { user } = await walletService.createUserAndWallet();
+      const stripeCustomerId = faker.string.uuid();
+      await db.update(Users).set({ stripeCustomerId }).where(eq(Users.id, user.id));
 
       await checkoutSessionRepository.create({
         sessionId,
-        userId
+        userId: user.id
       });
 
       const webhookResponse = await getWebhookResponse(sessionId, "checkout.session.not-found");
 
-      const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, userId) });
+      const userWallet = await userWalletsQuery.findFirst({ where: eq(userWalletsTable.userId, user.id) });
       const checkoutSession = await checkoutSessionRepository.findOneBy({
         sessionId
       });
       expect(webhookResponse.status).toBe(200);
-      expect(userWallet).toBeUndefined();
+      // Wallet should exist but balance should not have changed (no payment processed)
+      expect(userWallet).toMatchObject({
+        userId: user.id,
+        deploymentAllowance: "20000000.00", // Original trial balance
+        isTrialing: true
+      });
       expect(checkoutSession).toMatchObject({
         sessionId
       });

@@ -57,8 +57,7 @@ export class DeploymentWriterService {
       groups,
       denom: deploymentGrantDenom,
       amount: denomToUdenom(input.deposit),
-      manifestVersion,
-      depositor: await this.masterWallet.getFirstAddress()
+      hash: manifestVersion
     });
 
     const result = await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
@@ -76,7 +75,7 @@ export class DeploymentWriterService {
 
   public async close(wallet: WalletInitialized, dseq: string): Promise<void> {
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, dseq);
-    const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.deployment_id.dseq);
+    const message = this.rpcMessageService.getCloseDeploymentMsg(wallet.address, deployment.deployment.id.dseq);
     await this.signerService.executeDecodedTxByUserWallet(wallet, [message]);
   }
 
@@ -84,14 +83,13 @@ export class DeploymentWriterService {
     const wallet = await this.walletReaderService.getWalletByUserId(options.userId);
     const deployment = await this.deploymentReaderService.findByWalletAndDseq(wallet, options.dseq);
     const deploymentGrantDenom = this.billingConfig.get("DEPLOYMENT_GRANT_DENOM");
-    const depositor = await this.masterWallet.getFirstAddress();
 
     const message = this.rpcMessageService.getDepositDeploymentMsg({
       owner: wallet.address,
-      dseq: deployment.deployment.deployment_id.dseq,
+      dseq: deployment.deployment.id.dseq,
       amount: denomToUdenom(options.amount),
       denom: deploymentGrantDenom,
-      depositor
+      signer: wallet.address
     });
 
     await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
@@ -122,11 +120,11 @@ export class DeploymentWriterService {
     manifestVersion: Uint8Array,
     deployment: GetDeploymentResponse["data"]
   ): Promise<void> {
-    if (Buffer.from(manifestVersion).toString("base64") !== deployment.deployment.version) {
+    if (Buffer.from(manifestVersion).toString("base64") !== deployment.deployment.hash) {
       const message = this.rpcMessageService.getUpdateDeploymentMsg({
         owner: wallet.address!,
         dseq,
-        version: manifestVersion
+        hash: manifestVersion
       });
 
       await this.signerService.executeDecodedTxByUserId(wallet.userId, [message]);
@@ -143,7 +141,7 @@ export class DeploymentWriterService {
     leases: GetDeploymentResponse["data"]["leases"];
     auth: { certificate: Omit<ProviderMtlsAuth, "type"> } | { walletId: number };
   }): Promise<void> {
-    const leaseProviders = leases.map(lease => lease.lease_id.provider).filter((v, i, s) => s.indexOf(v) === i);
+    const leaseProviders = leases.map(lease => lease.id.provider).filter((v, i, s) => s.indexOf(v) === i);
     for (const provider of leaseProviders) {
       await this.providerService.sendManifest({
         provider,
