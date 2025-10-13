@@ -1,5 +1,12 @@
 
 
+## [2.115.0](https://github.com/akash-network/console/compare/console-web/v2.114.0...console-web/v2.115.0) (2025-10-10)
+
+
+### Features
+
+* **config:** uses correct sdk53 testnet config ([4ce80e5](https://github.com/akash-network/console/commit/4ce80e5fd7a5dc7dc6fb0d4f8b3ae34b7b7eef13))
+
 ## [2.114.0](https://github.com/akash-network/console/compare/console-web/v2.113.0...console-web/v2.114.0) (2025-10-08)
 
 

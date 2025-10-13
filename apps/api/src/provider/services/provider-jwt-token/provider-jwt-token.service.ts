@@ -1,5 +1,6 @@
 import { JwtTokenManager, JwtTokenPayload } from "@akashnetwork/chain-sdk";
 import { minutesToSeconds } from "date-fns";
+import { Err, Ok, Result } from "ts-results";
 import { inject, singleton } from "tsyringe";
 import * as uuid from "uuid";
 
@@ -32,11 +33,10 @@ export class ProviderJwtTokenService {
     @inject(WALLET_FACTORY) private readonly walletFactory: WalletFactory
   ) {}
 
-  async generateJwtToken({ walletId, leases, ttl = JWT_TOKEN_TTL_IN_SECONDS }: GenerateJwtTokenParams) {
+  async generateJwtToken({ walletId, leases, ttl = JWT_TOKEN_TTL_IN_SECONDS }: GenerateJwtTokenParams): Promise<Result<string, string[]>> {
     const { jwtTokenManager, address } = await this.getJwtToken(walletId);
     const now = Math.floor(Date.now() / 1000);
-
-    return await jwtTokenManager.generateToken({
+    const payload: JwtTokenPayload = {
       version: "v1",
       exp: now + ttl,
       nbf: now,
@@ -44,7 +44,12 @@ export class ProviderJwtTokenService {
       iss: address,
       jti: uuid.v4(),
       leases
-    });
+    };
+
+    const validationResult = jwtTokenManager.validatePayload(payload);
+    if (validationResult.errors) return Err(validationResult.errors);
+
+    return Ok(await jwtTokenManager.generateToken(payload));
   }
 
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })

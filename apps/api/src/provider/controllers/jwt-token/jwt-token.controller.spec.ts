@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { mock } from "jest-mock-extended";
+import { Ok } from "ts-results";
 
 import { UserSeeder } from "../../../../test/seeders/user.seeder";
 import { UserWalletSeeder } from "../../../../test/seeders/user-wallet.seeder";
@@ -19,12 +20,12 @@ describe(JwtTokenController.name, () => {
       authService.currentUser = user;
       userWalletRepository.accessibleBy.mockReturnThis();
       userWalletRepository.findOneByUserId.mockResolvedValue(wallet);
-      providerJwtTokenService.generateJwtToken.mockResolvedValue(jwtToken);
+      providerJwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
 
       const payload = createPayload();
       const result = await controller.createJwtToken(payload);
 
-      expect(result).toEqual({ token: jwtToken });
+      expect(result.unwrap()).toEqual({ token: jwtToken });
       expect(userWalletRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "sign");
       expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(user.id);
       expect(providerJwtTokenService.generateJwtToken).toHaveBeenCalledWith({
@@ -34,15 +35,16 @@ describe(JwtTokenController.name, () => {
       });
     });
 
-    it("throws 401 when user is not authenticated", async () => {
+    it("returns UnauthorizedError when user is not authenticated", async () => {
       const { controller, authService } = setup();
 
       authService.currentUser = undefined as any;
+      const result = await controller.createJwtToken(createPayload());
 
-      await expect(controller.createJwtToken(createPayload())).rejects.toThrow("Unauthorized");
+      expect(() => result.unwrap()).toThrow(/UnauthorizedError/);
     });
 
-    it("throws 400 when user has no wallet", async () => {
+    it("returns BadRequestError when user has no wallet", async () => {
       const user = UserSeeder.create();
       const { controller, authService, userWalletRepository } = setup({ user });
 
@@ -50,7 +52,8 @@ describe(JwtTokenController.name, () => {
       userWalletRepository.accessibleBy.mockReturnThis();
       userWalletRepository.findOneByUserId.mockResolvedValue(undefined);
 
-      await expect(controller.createJwtToken(createPayload())).rejects.toThrow("User does not have a wallet");
+      const result = await controller.createJwtToken(createPayload());
+      expect(() => result.unwrap()).toThrow(/BadRequestError/);
     });
   });
 
