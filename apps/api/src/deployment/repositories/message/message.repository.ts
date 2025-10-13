@@ -1,5 +1,8 @@
-import type * as v2beta2 from "@akashnetwork/akash-api/akash/market/v1beta2";
+import type * as v1beta2 from "@akashnetwork/akash-api/akash/market/v1beta2";
+import type * as v1beta3 from "@akashnetwork/akash-api/akash/market/v1beta3";
+import type * as v1beta4 from "@akashnetwork/akash-api/akash/market/v1beta4";
 import type * as v1beta1 from "@akashnetwork/akash-api/deprecated/akash/market/v1beta1";
+import type * as v1beta5 from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { Block, Message } from "@akashnetwork/database/dbSchemas";
 import { Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { Op } from "sequelize";
@@ -32,21 +35,34 @@ export class MessageRepository {
     const createBidMsgs = relatedMessages
       .filter(msg => msg.type.endsWith("MsgCreateBid"))
       .map(msg => ({
-        decoded: decodeMsg(msg.type, msg.data) as v1beta1.MsgCreateBid | v2beta2.MsgCreateBid,
+        decoded: decodeMsg(msg.type, msg.data) as
+          | v1beta1.MsgCreateBid
+          | v1beta2.MsgCreateBid
+          | v1beta3.MsgCreateBid
+          | v1beta4.MsgCreateBid
+          | v1beta5.MsgCreateBid,
         msg: msg
       }));
 
     const createLeaseMsgs = relatedMessages
       .filter(x => x.type.endsWith("MsgCreateLease"))
-      .map(msg => decodeMsg(msg.type, msg.data) as v1beta1.MsgCreateLease | v2beta2.MsgCreateLease);
+      .map(
+        msg =>
+          decodeMsg(msg.type, msg.data) as
+            | v1beta1.MsgCreateLease
+            | v1beta2.MsgCreateLease
+            | v1beta3.MsgCreateLease
+            | v1beta4.MsgCreateLease
+            | v1beta5.MsgCreateLease
+      );
 
     const acceptedBids = createBidMsgs.filter(createBidMsg =>
-      createLeaseMsgs.some(
-        l =>
-          l.bidId?.gseq === createBidMsg.decoded.order?.gseq &&
-          l.bidId?.oseq === createBidMsg.decoded.order?.oseq &&
-          l.bidId?.provider === createBidMsg.decoded.provider
-      )
+      createLeaseMsgs.some(l => {
+        const bidGseq = "gseq" in createBidMsg.decoded ? createBidMsg.decoded.gseq : (createBidMsg.decoded as v1beta5.MsgCreateBid).id?.gseq;
+        const bidOseq = "oseq" in createBidMsg.decoded ? createBidMsg.decoded.oseq : (createBidMsg.decoded as v1beta5.MsgCreateBid).id?.oseq;
+        const bidProvider = "provider" in createBidMsg.decoded ? createBidMsg.decoded.provider : (createBidMsg.decoded as v1beta5.MsgCreateBid).id?.provider;
+        return l.bidId?.gseq === bidGseq && l.bidId?.oseq === bidOseq && l.bidId?.provider === bidProvider;
+      })
     );
 
     const filteredMessages = relatedMessages
