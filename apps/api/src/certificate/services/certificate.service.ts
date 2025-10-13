@@ -1,4 +1,4 @@
-import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
+import { certificateManager } from "@akashnetwork/chain-sdk";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
@@ -27,7 +27,7 @@ export class CertificateService {
 
     assert(userWallet?.address, 404, "UserWallet not found");
 
-    const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = certificateManager.generatePEM(userWallet.address);
+    const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = await certificateManager.generatePEM(userWallet.address);
     const createCertificateMsg = this.rpcMessageService.getCreateCertificateMsg(userWallet.address, crtpem, pubpem);
     const messages = [createCertificateMsg];
 

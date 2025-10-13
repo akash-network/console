@@ -32,7 +32,7 @@ export class CertificatesService {
     if (params["pagination.key"]) queryParams["pagination.key"] = params["pagination.key"];
     if (params["pagination.count_total"]) queryParams["pagination.count_total"] = params["pagination.count_total"];
 
-    const response = await this.axios.get<RestApiCertificatesResponseType>("/akash/cert/v1beta3/certificates/list", { params: queryParams });
+    const response = await this.axios.get<RestApiCertificatesResponseType>("/akash/cert/v1/certificates/list", { params: queryParams });
     return response.data;
   }
 

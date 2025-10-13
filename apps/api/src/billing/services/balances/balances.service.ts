@@ -88,20 +88,11 @@ export class BalancesService {
       const escrowAccount = deployment.escrow_account;
       if (!escrowAccount) return total;
 
-      if (escrowAccount.balance && escrowAccount.balance.amount) {
-        total += parseFloat(escrowAccount.balance.amount);
-      }
-
-      if (escrowAccount.funds && escrowAccount.funds.amount) {
-        total += parseFloat(escrowAccount.funds.amount);
-      }
-
-      return total;
+      return total + parseFloat(escrowAccount.state.funds.reduce((sum, { amount }) => sum + parseFloat(amount), 0).toFixed(18));
     }, 0);
 
     return deploymentEscrowBalance;
   }
-
   @Memoize({ ttlInSeconds: averageBlockTime })
   async getFullBalance(address: string): Promise<GetBalancesResponseOutput> {
     const [balanceData, deploymentEscrowBalance] = await Promise.all([this.getFreshLimits({ address }), this.calculateDeploymentEscrowBalance(address)]);

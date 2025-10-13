@@ -1,5 +1,5 @@
-import { MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
-import { MsgCreateLease } from "@akashnetwork/akash-api/v1beta4";
+import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
