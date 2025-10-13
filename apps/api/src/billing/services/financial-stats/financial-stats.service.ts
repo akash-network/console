@@ -64,7 +64,7 @@ export class FinancialStatsService {
       SELECT DISTINCT m."relatedDeploymentId" AS "deployment_id"
       FROM "transaction" t
       INNER JOIN message m ON m."txId"=t.id
-      WHERE t."memo"='managed wallet tx' AND m.type='/akash.market.v1beta4.MsgCreateLease' AND t.height > 18515430 AND m.height > 18515430 -- 18515430 is height on trial launch (2024-10-17)
+      WHERE t."memo"='managed wallet tx' AND (m.type='/akash.market.v1beta4.MsgCreateLease' OR m.type='/akash.market.v1beta5.MsgCreateLease') AND t.height > 18515430 AND m.height > 18515430 -- 18515430 is height on trial launch (2024-10-17)
   ),
   trial_leases AS (
       SELECT

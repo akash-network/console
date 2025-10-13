@@ -123,11 +123,13 @@ export class DeploymentRepository {
           ]
         },
         {
-          attributes: ["height", "data"],
+          attributes: ["height", "data", "type"],
           model: AkashMessage,
           as: "relatedMessages",
           where: {
-            type: "/akash.market.v1beta4.MsgCreateBid",
+            type: {
+              [Op.or]: ["/akash.market.v1beta4.MsgCreateBid", "/akash.market.v1beta5.MsgCreateBid"]
+            },
             height: { [Op.gte]: minHeight }
           },
           include: [
