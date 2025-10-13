@@ -1,4 +1,4 @@
-import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
+import { certificateManager } from "@akashnetwork/chain-sdk";
 import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 
@@ -92,7 +92,7 @@ describe("Certificate API", () => {
         pubkeyPem: expect.any(String),
         encryptedKey: expect.any(String)
       });
-      const cert = certificateManager.parsePem(result.data!.certPem!);
+      const cert = await certificateManager.parsePem(result.data!.certPem!);
       expect(cert.sSubject).toContain(wallet.address);
     });
 

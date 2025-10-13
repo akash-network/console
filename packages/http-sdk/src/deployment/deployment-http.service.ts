@@ -20,17 +20,17 @@ const DenominatedValueSchema = z.object({
 
 export const DeploymentInfoSchema = z.object({
   deployment: z.object({
-    deployment_id: z.object({
+    id: z.object({
       owner: z.string(),
       dseq: z.string()
     }),
     state: z.string(),
-    version: z.string(),
+    hash: z.string(),
     created_at: z.string()
   }),
   groups: z.array(
     z.object({
-      group_id: z.object({
+      id: z.object({
         owner: z.string(),
         dseq: z.string(),
         gseq: z.number()
@@ -83,16 +83,21 @@ export const DeploymentInfoSchema = z.object({
       scope: z.string(),
       xid: z.string()
     }),
-    owner: z.string(),
-    state: z.string(),
-    balance: DenominatedValueSchema,
-    transferred: z.object({
-      denom: z.string(),
-      amount: z.string()
-    }),
-    settled_at: z.string(),
-    depositor: z.string(),
-    funds: DenominatedValueSchema
+    state: z.object({
+      owner: z.string(),
+      state: z.string(),
+      transferred: z.array(DenominatedValueSchema),
+      settled_at: z.string(),
+      funds: z.array(DenominatedValueSchema),
+      deposits: z.array(
+        z.object({
+          owner: z.string(),
+          height: z.string(),
+          source: z.string(),
+          balance: DenominatedValueSchema
+        })
+      )
+    })
   })
 });
 export type DeploymentInfo = z.infer<typeof DeploymentInfoSchema>;
@@ -136,7 +141,7 @@ export class DeploymentHttpService {
 
   public async findByOwnerAndDseq(owner: string, dseq: string): Promise<RestAkashDeploymentInfoResponse> {
     return extractData(
-      await this.httpClient.get<RestAkashDeploymentInfoResponse>("/akash/deployment/v1beta3/deployments/info", {
+      await this.httpClient.get<RestAkashDeploymentInfoResponse>("/akash/deployment/v1beta4/deployments/info", {
         params: {
           "id.owner": owner,
           "id.dseq": dseq
@@ -156,7 +161,7 @@ export class DeploymentHttpService {
   public async findAll(input: { owner: string; state?: "active" | "closed"; pagination?: PaginationParams }): Promise<DeploymentListResponse> {
     const { owner, state, pagination } = input;
     const baseUrl = this.httpClient.getUri({
-      url: `/akash/deployment/v1beta3/deployments/list?filters.owner=${owner}${state ? `&filters.state=${state}` : ""}`
+      url: `/akash/deployment/v1beta4/deployments/list?filters.owner=${owner}${state ? `&filters.state=${state}` : ""}`
     });
     const defaultLimit = 1000;
 
@@ -188,7 +193,7 @@ export class DeploymentHttpService {
     }
 
     return extractData(
-      await this.httpClient.get<DeploymentListResponse>("/akash/deployment/v1beta3/deployments/list", {
+      await this.httpClient.get<DeploymentListResponse>("/akash/deployment/v1beta4/deployments/list", {
         params
       })
     );

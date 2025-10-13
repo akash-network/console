@@ -31,19 +31,20 @@ export class FallbackLeaseReaderService {
     };
   }
 
-  private transformLease(lease: Lease) {
+  private transformLease(lease: Lease): FallbackLeaseListResponse["leases"][number] {
     const isActive = !lease.closedHeight;
     const state = isActive ? "active" : "closed";
     const mappedDenom = this.mapDenom(lease.denom);
 
     return {
       lease: {
-        lease_id: {
+        id: {
           owner: lease.owner,
           dseq: lease.dseq,
           gseq: lease.gseq,
           oseq: lease.oseq,
-          provider: lease.providerAddress
+          provider: lease.providerAddress,
+          bseq: 0 // Default value since bseq is not available in the database lease
         },
         state,
         price: {
@@ -51,27 +52,36 @@ export class FallbackLeaseReaderService {
           amount: lease.price.toFixed(18)
         },
         created_at: lease.createdHeight.toString(),
-        closed_on: lease.closedHeight?.toString() || "0"
+        closed_on: lease.closedHeight?.toString() || "0",
+        reason: undefined // Optional field, not available in database lease
       },
       escrow_payment: {
-        account_id: {
-          scope: "deployment",
-          xid: `${lease.owner}/${lease.dseq}`
+        id: {
+          aid: {
+            scope: "deployment",
+            xid: `${lease.owner}/${lease.dseq}`
+          },
+          xid: `${lease.gseq}/${lease.oseq}/${lease.providerAddress}`
         },
-        payment_id: `${lease.gseq}/${lease.oseq}/${lease.providerAddress}`,
-        owner: lease.providerAddress,
-        state: isActive ? "open" : "closed",
-        rate: {
-          denom: mappedDenom,
-          amount: lease.price.toFixed(18)
-        },
-        balance: {
-          denom: mappedDenom,
-          amount: "0.000000000000000000"
-        },
-        withdrawn: {
-          denom: mappedDenom,
-          amount: lease.withdrawnAmount.toFixed(18)
+        state: {
+          owner: lease.providerAddress,
+          state: isActive ? "open" : "closed",
+          rate: {
+            denom: mappedDenom,
+            amount: lease.price.toFixed(18)
+          },
+          balance: {
+            denom: mappedDenom,
+            amount: "0.000000000000000000"
+          },
+          unsettled: {
+            denom: mappedDenom,
+            amount: "0.000000000000000000"
+          },
+          withdrawn: {
+            denom: mappedDenom,
+            amount: lease.withdrawnAmount.toFixed(18)
+          }
         }
       }
     };
