@@ -8,7 +8,7 @@ import type { GetAddressTransactionsResponse } from "@src/address/http-schemas/a
 import { closeConnections, connectUsingSequelize } from "@src/db/dbConnection";
 import type { ListWithResourcesResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { app } from "@src/rest-app";
-import { apiNodeUrl } from "@src/utils/constants";
+import { apiNodeUrl, deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { createAddressReferenceInDatabase } from "@test/seeders/address-reference.seeder";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -379,29 +379,52 @@ describe("Addresses API", () => {
     nock(apiNodeUrl)
       .persist()
       .get(
-        `/akash/deployment/v1beta3/deployments/list?filters.owner=${address}&pagination.limit=10&pagination.offset=0&pagination.count_total=true&pagination.reverse=false`
+        `/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${address}&pagination.limit=10&pagination.offset=0&pagination.count_total=true&pagination.reverse=false`
       )
       .reply(200, {
         deployments: [
           {
             deployment: {
-              deployment_id: {
+              id: {
                 owner: address,
                 dseq: "111"
               },
               state: "active",
-              version: "1.0.0",
+              hash: "1.0.0",
               created_at: "2021-01-01T00:00:00Z"
             },
             escrow_account: {
               id: {
                 scope: "deployment",
                 xid: deployments[0].id
+              },
+              state: {
+                owner: address,
+                state: "open",
+                transferred: [],
+                settled_at: "0",
+                funds: [],
+                deposits: []
               }
             },
             groups: [
               {
+                id: {
+                  owner: address,
+                  dseq: "111",
+                  gseq: 1
+                },
+                state: "open",
+                created_at: "2021-01-01T00:00:00Z",
                 group_spec: {
+                  name: "main",
+                  requirements: {
+                    signed_by: {
+                      all_of: [],
+                      any_of: []
+                    },
+                    attributes: []
+                  },
                   resources: []
                 }
               }
@@ -409,23 +432,46 @@ describe("Addresses API", () => {
           },
           {
             deployment: {
-              deployment_id: {
+              id: {
                 owner: address,
                 dseq: "222"
               },
               state: "active",
-              version: "1.0.0",
+              hash: "1.0.0",
               created_at: "2021-01-01T00:00:00Z"
             },
             escrow_account: {
               id: {
                 scope: "deployment",
                 xid: deployments[1].id
+              },
+              state: {
+                owner: address,
+                state: "open",
+                transferred: [],
+                settled_at: "0",
+                funds: [],
+                deposits: []
               }
             },
             groups: [
               {
+                id: {
+                  owner: address,
+                  dseq: "222",
+                  gseq: 1
+                },
+                state: "open",
+                created_at: "2021-01-01T00:00:00Z",
                 group_spec: {
+                  name: "main",
+                  requirements: {
+                    signed_by: {
+                      all_of: [],
+                      any_of: []
+                    },
+                    attributes: []
+                  },
                   resources: []
                 }
               }
@@ -433,18 +479,19 @@ describe("Addresses API", () => {
           }
         ],
         pagination: {
-          total: 2
+          next_key: null,
+          total: "2"
         }
       });
 
     nock(apiNodeUrl)
       .persist()
-      .get(`/akash/market/v1beta4/leases/list?filters.owner=${address}&filters.state=active`)
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`)
       .reply(200, {
         leases: [
           {
             lease: {
-              lease_id: {
+              id: {
                 owner: address,
                 dseq: "111"
               }
@@ -452,7 +499,7 @@ describe("Addresses API", () => {
           },
           {
             lease: {
-              lease_id: {
+              id: {
                 owner: address,
                 dseq: "222"
               }
