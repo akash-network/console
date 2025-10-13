@@ -1,4 +1,4 @@
-import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
+import { certificateManager } from "@akashnetwork/chain-sdk";
 import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 

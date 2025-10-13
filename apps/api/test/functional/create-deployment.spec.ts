@@ -1,5 +1,5 @@
-import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
-import { SDL } from "@akashnetwork/akashjs/build/sdl";
+import { certificateManager } from "@akashnetwork/chain-sdk";
+import { SDL } from "@akashnetwork/chain-sdk";
 import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { Registry } from "@cosmjs/proto-signing";
 import axios from "axios";

@@ -1,5 +1,4 @@
-import { SDL } from "@akashnetwork/akashjs/build/sdl";
-import { getAkashTypeRegistry } from "@akashnetwork/akashjs/build/stargate";
+import { SDL } from "@akashnetwork/chain-sdk";
 import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { BidHttpService } from "@akashnetwork/http-sdk";
@@ -12,6 +11,7 @@ import pick from "lodash/pick";
 import { setTimeout as sleep } from "timers/promises";
 import { singleton } from "tsyringe";
 
+import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { GpuService } from "@src/gpu/services/gpu.service";
 import { apiNodeUrl } from "@src/utils/constants";
@@ -25,7 +25,8 @@ export class GpuBidsCreatorService {
   constructor(
     private readonly config: BillingConfigService,
     private readonly bidHttpService: BidHttpService,
-    private readonly gpuService: GpuService
+    private readonly gpuService: GpuService,
+    @InjectTypeRegistry() private readonly typeRegistry: Registry
   ) {}
 
   async createGpuBids() {
@@ -37,10 +38,8 @@ export class GpuBidsCreatorService {
 
     this.logger.info({ event: "CREATING_GPU_BIDS", address: account.address });
 
-    const myRegistry = new Registry([...getAkashTypeRegistry()]);
-
     const client = await SigningStargateClient.connectWithSigner(this.config.get("RPC_NODE_ENDPOINT"), wallet, {
-      registry: myRegistry,
+      registry: this.typeRegistry,
       broadcastTimeoutMs: 30_000
     });
     const balanceBefore = await client.getBalance(account.address, "uakt");

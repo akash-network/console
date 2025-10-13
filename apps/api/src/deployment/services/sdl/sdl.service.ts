@@ -1,6 +1,7 @@
-import { SDL } from "@akashnetwork/akashjs/build/sdl";
-import { v2Manifest, v2Sdl, v3Manifest } from "@akashnetwork/akashjs/build/sdl/types";
-import { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+// TODO: replace this import with @akashnetwork/chain-sdk when it exports those types
+import type { v2Manifest, v2Sdl, v3Manifest } from "@akashnetwork/akashjs/build/sdl/types";
+import type { NetworkId } from "@akashnetwork/chain-sdk";
+import { SDL } from "@akashnetwork/chain-sdk";
 import { singleton } from "tsyringe";
 
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
