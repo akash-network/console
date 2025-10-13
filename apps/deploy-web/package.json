@@ -21,6 +21,8 @@
     "start": "next start",
     "test:cov": "NODE_ENV=test DEPLOYMENT_ENV=staging jest --coverage --reporters=default --reporters=jest-junit",
     "test:e2e": "playwright test",
+    "test:e2e:extract-leap-local-storage": "npx tsx script/extract-leap-local-storage.ts",
+    "test:e2e:update-leap-extension-fixture": "npx tsx script/update-leap-extension-fixture.ts",
     "test:unit": "NODE_ENV=test DEPLOYMENT_ENV=staging jest",
     "type-check": "tsc"
   },
