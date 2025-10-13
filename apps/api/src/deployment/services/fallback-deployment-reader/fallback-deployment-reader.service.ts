@@ -23,12 +23,12 @@ export class FallbackDeploymentReaderService {
 
         return {
           deployment: {
-            deployment_id: {
+            id: {
               owner: deployment.owner || "",
               dseq: deployment.dseq || ""
             },
             state: deployment.closedHeight ? "closed" : "active",
-            version: UNKNOWN_DB_PLACEHOLDER,
+            hash: UNKNOWN_DB_PLACEHOLDER,
             created_at: (deployment.createdHeight ?? 0).toString()
           },
           groups,
@@ -37,21 +37,33 @@ export class FallbackDeploymentReaderService {
               scope: "deployment",
               xid: `${deployment.owner || ""}/${deployment.dseq || ""}`
             },
-            owner: deployment.owner || "",
-            state: deployment.closedHeight ? "closed" : "open",
-            balance: {
-              denom: deployment.denom || "uakt",
-              amount: (deployment.balance ?? 0).toFixed(18)
-            },
-            transferred: {
-              denom: deployment.denom || "uakt",
-              amount: (deployment.withdrawnAmount ?? 0).toFixed(18)
-            },
-            settled_at: (deployment.lastWithdrawHeight ?? deployment.createdHeight ?? 0).toString(),
-            depositor: deployment.owner || "",
-            funds: {
-              denom: deployment.denom || "uakt",
-              amount: "0.000000000000000000"
+            state: {
+              owner: deployment.owner || "",
+              state: deployment.closedHeight ? "closed" : "open",
+              transferred: [
+                {
+                  denom: deployment.denom || "uakt",
+                  amount: (deployment.withdrawnAmount ?? 0).toFixed(18)
+                }
+              ],
+              settled_at: (deployment.lastWithdrawHeight ?? deployment.createdHeight ?? 0).toString(),
+              funds: [
+                {
+                  denom: deployment.denom || "uakt",
+                  amount: (deployment.balance ?? 0).toFixed(18)
+                }
+              ],
+              deposits: [
+                {
+                  owner: deployment.owner || "",
+                  height: (deployment.createdHeight ?? 0).toString(),
+                  source: "balance",
+                  balance: {
+                    denom: deployment.denom || "uakt",
+                    amount: (deployment.balance ?? 0).toFixed(18)
+                  }
+                }
+              ]
             }
           }
         };
@@ -83,12 +95,12 @@ export class FallbackDeploymentReaderService {
 
     return {
       deployment: {
-        deployment_id: {
+        id: {
           owner: deployment.owner || "",
           dseq: deployment.dseq || ""
         },
         state: deployment.closedHeight ? "closed" : "active",
-        version: UNKNOWN_DB_PLACEHOLDER,
+        hash: UNKNOWN_DB_PLACEHOLDER,
         created_at: (deployment.createdHeight ?? 0).toString()
       },
       groups,
@@ -97,21 +109,33 @@ export class FallbackDeploymentReaderService {
           scope: "deployment",
           xid: `${deployment.owner || ""}/${deployment.dseq || ""}`
         },
-        owner: deployment.owner || "",
-        state: deployment.closedHeight ? "closed" : "open",
-        balance: {
-          denom: deployment.denom || "uakt",
-          amount: (deployment.balance ?? 0).toFixed(18)
-        },
-        transferred: {
-          denom: deployment.denom || "uakt",
-          amount: (deployment.withdrawnAmount ?? 0).toFixed(18)
-        },
-        settled_at: (deployment.lastWithdrawHeight ?? deployment.createdHeight ?? 0).toString(),
-        depositor: deployment.owner || "",
-        funds: {
-          denom: deployment.denom || "uakt",
-          amount: "0.000000000000000000"
+        state: {
+          owner: deployment.owner || "",
+          state: deployment.closedHeight ? "closed" : "open",
+          transferred: [
+            {
+              denom: deployment.denom || "uakt",
+              amount: (deployment.withdrawnAmount ?? 0).toFixed(18)
+            }
+          ],
+          settled_at: (deployment.lastWithdrawHeight ?? deployment.createdHeight ?? 0).toString(),
+          funds: [
+            {
+              denom: deployment.denom || "uakt",
+              amount: (deployment.balance ?? 0).toFixed(18)
+            }
+          ],
+          deposits: [
+            {
+              owner: deployment.owner || "",
+              height: (deployment.createdHeight ?? 0).toString(),
+              source: "balance",
+              balance: {
+                denom: deployment.denom || "uakt",
+                amount: (deployment.balance ?? 0).toFixed(18)
+              }
+            }
+          ]
         }
       }
     };
@@ -120,7 +144,7 @@ export class FallbackDeploymentReaderService {
   private transformDeploymentGroups(deployment: Deployment) {
     return (
       deployment.deploymentGroups?.map((group: DeploymentGroup) => ({
-        group_id: {
+        id: {
           owner: group.owner || "",
           dseq: group.dseq || "",
           gseq: group.gseq || 0

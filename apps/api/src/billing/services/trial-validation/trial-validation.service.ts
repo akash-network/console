@@ -1,5 +1,4 @@
-import { GroupSpec } from "@akashnetwork/akash-api/akash/deployment/v1beta3";
-import * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
+import { GroupSpec, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import assert from "http-assert";
 import { singleton } from "tsyringe";
@@ -16,7 +15,7 @@ export class TrialValidationService {
   constructor(private readonly deploymentReaderService: DeploymentReaderService) {}
 
   async validateTrialLimit(decoded: EncodeObject, userWallet: UserWalletOutput) {
-    if (userWallet.isTrialing && decoded.typeUrl === "/akash.deployment.v1beta3.MsgCreateDeployment") {
+    if (userWallet.isTrialing && decoded.typeUrl === `/${MsgCreateDeployment.$type}`) {
       const deployments = await this.deploymentReaderService.listWithResources({
         address: userWallet.address!,
         limit: 1
@@ -26,8 +25,8 @@ export class TrialValidationService {
   }
 
   async validateLeaseProviders(decoded: EncodeObject, userWallet: UserWalletOutput, user: UserOutput) {
-    if (decoded.typeUrl === "/akash.deployment.v1beta3.MsgCreateDeployment") {
-      const value = decoded.value as v1beta3.MsgCreateDeployment;
+    if (decoded.typeUrl === `/${MsgCreateDeployment.$type}`) {
+      const value = decoded.value as MsgCreateDeployment;
 
       if (!userWallet.isTrialing) {
         return true;

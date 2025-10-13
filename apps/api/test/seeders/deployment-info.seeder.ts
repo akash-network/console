@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
-import { betaTypeVersion } from "@src/utils/constants";
+import { deploymentVersion } from "@src/utils/constants";
 import { createAkashAddress } from "./akash-address.seeder";
 import { DenomSeeder } from "./denom.seeder";
 
@@ -27,7 +27,7 @@ export class DeploymentInfoSeeder {
       owner = createAkashAddress(),
       dseq = faker.string.numeric(),
       state = "active",
-      version = betaTypeVersion,
+      version = deploymentVersion,
       createdAt = "2021-01-01T00:00:00Z",
       amount = "5000000",
       denom = DenomSeeder.create()
@@ -35,12 +35,12 @@ export class DeploymentInfoSeeder {
 
     return {
       deployment: {
-        deployment_id: {
+        id: {
           owner,
           dseq
         },
         state,
-        version,
+        hash: version,
         created_at: createdAt
       },
       groups: [],
@@ -49,21 +49,33 @@ export class DeploymentInfoSeeder {
           scope: "deployment",
           xid: dseq
         },
-        owner,
-        state: "open",
-        balance: {
-          denom,
-          amount
-        },
-        transferred: {
-          denom,
-          amount: "0"
-        },
-        settled_at: new Date().toISOString(),
-        depositor: owner,
-        funds: {
-          denom,
-          amount
+        state: {
+          owner,
+          state: "open",
+          transferred: [
+            {
+              denom,
+              amount: "0"
+            }
+          ],
+          settled_at: new Date().toISOString(),
+          funds: [
+            {
+              denom,
+              amount
+            }
+          ],
+          deposits: [
+            {
+              owner,
+              height: "1",
+              source: "balance",
+              balance: {
+                denom,
+                amount
+              }
+            }
+          ]
         }
       }
     };

@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import nock from "nock";
 
 import { app } from "@src/rest-app";
-import { apiNodeUrl } from "@src/utils/constants";
+import { apiNodeUrl, marketVersion } from "@src/utils/constants";
 
 import { createAkashAddress, createProvider } from "@test/seeders";
 import { BidSeeder } from "@test/seeders/bid.seeder";
@@ -46,7 +46,7 @@ describe("Bids API", () => {
     await Promise.all(providers.map(async provider => createProvider(provider)));
 
     nock(apiNodeUrl, { allowUnmocked: true })
-      .get("/akash/market/v1beta4/bids/list")
+      .get(`/akash/market/${marketVersion}/bids/list`)
       .query({
         "filters.owner": user.wallet.address,
         "filters.dseq": dseq
@@ -68,7 +68,7 @@ describe("Bids API", () => {
   function expectBid(params: { owner: string; dseq: string; provider: string; isCertificateRequired: boolean }) {
     return expect.objectContaining({
       bid: expect.objectContaining({
-        bid_id: expect.objectContaining({
+        id: expect.objectContaining({
           owner: params.owner,
           dseq: params.dseq,
           provider: params.provider
