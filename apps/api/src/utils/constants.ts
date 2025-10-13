@@ -17,6 +17,7 @@ export const openApiExampleTransactionHash = "A19F1950D97E576F0D7B591D71A8D0366A
 export const openApiExampleValidatorAddress = "akashvaloper14mt78hz73d9tdwpdvkd59ne9509kxw8yj7qy8f";
 
 export const apiNodeUrl = env.REST_API_NODE_URL ?? netConfig.getBaseAPIUrl(env.NETWORK as SupportedChainNetworks) ?? netConfig.getBaseAPIUrl("mainnet");
-export const betaTypeVersion = "v1beta3";
-export const betaTypeVersionMarket = "v1beta4";
+export const certVersion = "v1";
+export const deploymentVersion = "v1beta4";
+export const marketVersion = "v1beta5";
 export const nodeApiBasePath = env.NODE_API_BASE_PATH;

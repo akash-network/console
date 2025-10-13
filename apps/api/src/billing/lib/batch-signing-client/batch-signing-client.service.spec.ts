@@ -1,8 +1,8 @@
+import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import { Registry } from "@cosmjs/proto-signing";
 import type { Account } from "@cosmjs/stargate";
-import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { mock } from "jest-mock-extended";
 
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
