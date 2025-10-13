@@ -1,16 +1,16 @@
 export type RestAkashDeploymentListResponse = {
   deployments: {
     deployment: {
-      deployment_id: {
+      id: {
         owner: string;
         dseq: string;
       };
       state: string;
-      version: string;
+      hash: string;
       created_at: string;
     };
     groups: {
-      group_id: {
+      id: {
         owner: string;
         dseq: string;
         gseq: number;
@@ -69,21 +69,27 @@ export type RestAkashDeploymentListResponse = {
         scope: string;
         xid: string;
       };
-      owner: string;
-      state: string;
-      balance: {
-        denom: string;
-        amount: string;
-      };
-      transferred: {
-        denom: string;
-        amount: string;
-      };
-      settled_at: string;
-      depositor: string;
-      funds: {
-        denom: string;
-        amount: string;
+      state: {
+        owner: string;
+        state: string;
+        transferred: {
+          denom: string;
+          amount: string;
+        }[];
+        settled_at: string;
+        funds: {
+          denom: string;
+          amount: string;
+        }[];
+        deposits: {
+          owner: string;
+          height: string;
+          source: string;
+          balance: {
+            denom: string;
+            amount: string;
+          };
+        }[];
       };
     };
   }[];

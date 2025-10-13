@@ -1,4 +1,5 @@
-import { Attribute, SignedBy } from "@akashnetwork/akashjs/build/sdl/types";
+// TODO: replace this import with @akashnetwork/chain-sdk when it exports those types
+import type { Attribute, SignedBy } from "@akashnetwork/akashjs/build/sdl/types";
 import {
   Provider,
   ProviderAttribute,

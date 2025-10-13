@@ -103,10 +103,10 @@ export class ProviderGraphDataService {
 
   private removeLastAroundMidnight(stats: ProviderStats[]) {
     const now = new Date();
-    const isFirstFifteenMinuesOfDay = now.getHours() === 0 && now.getMinutes() <= 15;
+    const isFirstFifteenMinuesOfDay = now.getUTCHours() === 0 && now.getUTCMinutes() <= 15;
     const lastItem = stats.length > 0 ? stats[stats.length - 1] : null;
 
-    const lastItemIsForToday = lastItem && isSameDay(lastItem.date, now);
+    const lastItemIsForToday = lastItem && isSameDay(new Date(lastItem.date.toISOString()), new Date(now.toISOString()));
     if (isFirstFifteenMinuesOfDay && lastItemIsForToday) {
       return stats.slice(0, stats.length - 1);
     }

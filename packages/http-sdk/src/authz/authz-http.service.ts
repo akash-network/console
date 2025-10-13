@@ -22,7 +22,7 @@ export interface FeeAllowance {
 
 export interface ExactDepositDeploymentGrant {
   authorization: {
-    "@type": "/akash.deployment.v1beta3.DepositDeploymentAuthorization";
+    "@type": "/akash.escrow.v1.DepositAuthorization";
     spend_limit: SpendLimit;
   };
   expiration: string;
@@ -54,8 +54,7 @@ interface DepositDeploymentGrantResponse<T extends ExactDepositDeploymentGrant =
 }
 
 export class AuthzHttpService {
-  private readonly DEPOSIT_DEPLOYMENT_GRANT_TYPE: ExactDepositDeploymentGrant["authorization"]["@type"] =
-    "/akash.deployment.v1beta3.DepositDeploymentAuthorization";
+  private readonly DEPOSIT_DEPLOYMENT_GRANT_TYPE: ExactDepositDeploymentGrant["authorization"]["@type"] = "/akash.escrow.v1.DepositAuthorization";
 
   private readonly FEE_ALLOWANCE_TYPE: FeeAllowance["allowance"]["@type"] = "/cosmos.feegrant.v1beta1.BasicAllowance";
 

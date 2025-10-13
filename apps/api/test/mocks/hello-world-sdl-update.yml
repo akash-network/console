@@ -22,8 +22,6 @@ profiles:
           - size: 512Mi
   placement:
     dcloud:
-      attributes:
-        console/trials: "true"
       pricing:
         web:
           denom: uakt

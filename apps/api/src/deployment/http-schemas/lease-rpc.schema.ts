@@ -5,7 +5,8 @@ const LeaseIdSchema = z.object({
   dseq: z.string(),
   gseq: z.number(),
   oseq: z.number(),
-  provider: z.string()
+  provider: z.string(),
+  bseq: z.number()
 });
 
 const PriceSchema = z.object({
@@ -14,11 +15,12 @@ const PriceSchema = z.object({
 });
 
 const LeaseSchema = z.object({
-  lease_id: LeaseIdSchema,
+  id: LeaseIdSchema,
   state: z.string(),
   price: PriceSchema,
   created_at: z.string(),
-  closed_on: z.string()
+  closed_on: z.string(),
+  reason: z.string().optional()
 });
 
 const EscrowAccountIdSchema = z.object({
@@ -26,14 +28,23 @@ const EscrowAccountIdSchema = z.object({
   xid: z.string()
 });
 
-const EscrowPaymentSchema = z.object({
-  account_id: EscrowAccountIdSchema,
-  payment_id: z.string(),
+const EscrowPaymentIdSchema = z.object({
+  aid: EscrowAccountIdSchema,
+  xid: z.string()
+});
+
+const EscrowPaymentStateSchema = z.object({
   owner: z.string(),
   state: z.string(),
   rate: PriceSchema,
   balance: PriceSchema,
+  unsettled: PriceSchema,
   withdrawn: PriceSchema
+});
+
+const EscrowPaymentSchema = z.object({
+  id: EscrowPaymentIdSchema,
+  state: EscrowPaymentStateSchema
 });
 
 const LeaseWithEscrowSchema = z.object({

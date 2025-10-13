@@ -16,7 +16,7 @@ export class BlockHttpService extends HttpService {
   }
 
   async getCurrentHeight() {
-    const response = this.extractData(await this.get<BlockResponse>("blocks/latest"));
+    const response = this.extractData(await this.get<BlockResponse>("cosmos/base/tendermint/v1beta1/blocks/latest"));
 
     return parseInt(response.block.header.height);
   }
