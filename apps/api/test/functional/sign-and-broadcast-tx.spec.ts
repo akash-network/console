@@ -1,4 +1,5 @@
-import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
+import { certificateManager } from "@akashnetwork/chain-sdk";
+import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { Registry } from "@cosmjs/proto-signing";
 import { container } from "tsyringe";
 
@@ -57,15 +58,15 @@ describe("Tx Sign", () => {
   });
 
   async function createMessagePayload(userId: string, address: string) {
-    const { cert, publicKey } = certificateManager.generatePEM(address);
+    const { cert, publicKey } = await certificateManager.generatePEM(address);
 
     const message = {
-      typeUrl: "/akash.cert.v1beta3.MsgCreateCertificate",
-      value: {
+      typeUrl: `/${MsgCreateCertificate.$type}`,
+      value: MsgCreateCertificate.fromPartial({
         owner: address,
-        cert: Buffer.from(cert).toString("base64"),
-        pubkey: Buffer.from(publicKey).toString("base64")
-      }
+        cert: Buffer.from(cert),
+        pubkey: Buffer.from(publicKey)
+      })
     };
 
     return JSON.stringify({

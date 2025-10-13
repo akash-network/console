@@ -1,6 +1,6 @@
-import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
-import { SDL } from "@akashnetwork/akashjs/build/sdl";
-import { getAkashTypeRegistry } from "@akashnetwork/akashjs/build/stargate";
+import { SDL } from "@akashnetwork/chain-sdk";
+import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { BidHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
@@ -11,6 +11,7 @@ import pick from "lodash/pick";
 import { setTimeout as sleep } from "timers/promises";
 import { singleton } from "tsyringe";
 
+import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { GpuService } from "@src/gpu/services/gpu.service";
 import { apiNodeUrl } from "@src/utils/constants";
@@ -24,7 +25,8 @@ export class GpuBidsCreatorService {
   constructor(
     private readonly config: BillingConfigService,
     private readonly bidHttpService: BidHttpService,
-    private readonly gpuService: GpuService
+    private readonly gpuService: GpuService,
+    @InjectTypeRegistry() private readonly typeRegistry: Registry
   ) {}
 
   async createGpuBids() {
@@ -36,10 +38,8 @@ export class GpuBidsCreatorService {
 
     this.logger.info({ event: "CREATING_GPU_BIDS", address: account.address });
 
-    const myRegistry = new Registry([...getAkashTypeRegistry()]);
-
     const client = await SigningStargateClient.connectWithSigner(this.config.get("RPC_NODE_ENDPOINT"), wallet, {
-      registry: myRegistry,
+      registry: this.typeRegistry,
       broadcastTimeoutMs: 30_000
     });
     const balanceBefore = await client.getBalance(account.address, "uakt");
@@ -131,19 +131,21 @@ export class GpuBidsCreatorService {
 
     const manifestVersion = await sdl.manifestVersion();
     const message = {
-      typeUrl: `/akash.deployment.v1beta3.MsgCreateDeployment`,
+      typeUrl: `${MsgCreateDeployment.$type}`,
       value: MsgCreateDeployment.fromPartial({
         id: {
           owner: owner,
           dseq: dseq
         },
         groups: sdl.groups(),
-        version: manifestVersion,
+        hash: manifestVersion,
         deposit: {
-          denom: "uakt",
-          amount: "500000" // 0.5 AKT
-        },
-        depositor: owner
+          amount: {
+            denom: "uakt",
+            amount: "500000" // 0.5 AKT
+          },
+          sources: [Source.balance]
+        }
       })
     };
 
@@ -152,7 +154,7 @@ export class GpuBidsCreatorService {
 
   private async closeDeployment(client: SigningStargateClient, owner: string, dseq: string) {
     const message = {
-      typeUrl: `/akash.deployment.v1beta3.MsgCloseDeployment`,
+      typeUrl: `${MsgCloseDeployment.$type}`,
       value: MsgCloseDeployment.fromPartial({
         id: {
           owner: owner,
@@ -178,7 +180,7 @@ export class GpuBidsCreatorService {
   }
 
   private async getCurrentHeight() {
-    const response = await axios.get(`${apiNodeUrl}/blocks/latest`);
+    const response = await axios.get(`${apiNodeUrl}/cosmos/base/tendermint/v1beta1/blocks/latest`);
 
     const height = parseInt(response.data.block.header.height);
 

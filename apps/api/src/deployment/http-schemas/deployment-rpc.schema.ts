@@ -87,16 +87,16 @@ const GroupSpecSchema = z.object({
 });
 
 const GroupSchema = z.object({
-  group_id: GroupIdSchema,
+  id: GroupIdSchema,
   state: z.string(),
   group_spec: GroupSpecSchema,
   created_at: z.string()
 });
 
 const DeploymentSchema = z.object({
-  deployment_id: DeploymentIdSchema,
+  id: DeploymentIdSchema,
   state: z.string(),
-  version: z.string(),
+  hash: z.string(),
   created_at: z.string()
 });
 
@@ -112,13 +112,21 @@ const BalanceSchema = z.object({
 
 const EscrowAccountSchema = z.object({
   id: EscrowIdSchema,
-  owner: z.string(),
-  state: z.string(),
-  balance: BalanceSchema,
-  transferred: BalanceSchema,
-  settled_at: z.string(),
-  depositor: z.string(),
-  funds: BalanceSchema
+  state: z.object({
+    owner: z.string(),
+    state: z.string(),
+    transferred: z.array(BalanceSchema),
+    settled_at: z.string(),
+    funds: z.array(BalanceSchema),
+    deposits: z.array(
+      z.object({
+        owner: z.string(),
+        height: z.string(),
+        source: z.string(),
+        balance: BalanceSchema
+      })
+    )
+  })
 });
 
 const DeploymentWithGroupsSchema = z.object({

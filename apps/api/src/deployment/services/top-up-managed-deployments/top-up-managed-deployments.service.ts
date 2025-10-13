@@ -1,10 +1,11 @@
+import { MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { LoggerService } from "@akashnetwork/logging";
 import groupBy from "lodash/groupBy";
 import { Err, Ok, Result } from "ts-results";
 import { singleton } from "tsyringe";
 
 import { InjectWallet } from "@src/billing/providers/wallet.provider";
-import { DepositDeploymentMsg, DepositDeploymentMsgOptions, RpcMessageService, Wallet } from "@src/billing/services";
+import { DepositDeploymentMsgOptions, RpcMessageService, Wallet } from "@src/billing/services";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
@@ -16,7 +17,7 @@ import { DeploymentsRefiller, TopUpDeploymentsOptions } from "@src/deployment/ty
 import { CachedBalanceService } from "../cached-balance/cached-balance.service";
 
 type CollectedMessage = {
-  message: DepositDeploymentMsg;
+  message: { typeUrl: string; value: MsgAccountDeposit };
   input: DepositDeploymentMsgOptions;
   deployment: DrainingDeployment;
 };
@@ -104,7 +105,7 @@ export class TopUpManagedDeploymentsService implements DeploymentsRefiller {
             amount: sufficientAmount,
             denom,
             owner: deployment.address,
-            depositor
+            signer: depositor
           };
 
           const message = this.rpcClientService.getDepositDeploymentMsg(messageInput);

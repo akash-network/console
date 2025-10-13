@@ -2,12 +2,13 @@ import Long from "long";
 
 import { app, initDb } from "@src/rest-app";
 import type { RestAkashDeploymentListResponse } from "@src/types/rest/akashDeploymentListResponse";
+import { deploymentVersion } from "@src/utils/constants";
 
 import { createDeployment, createDeploymentGroup, createDeploymentGroupResource } from "@test/seeders";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 describe("Deployment Fallback API", () => {
-  describe("GET /akash/deployment/v1beta3/deployments/list", () => {
+  describe("GET /akash/deployment/v1beta4/deployments/list", () => {
     it("should return correct response structure with seeded data", async () => {
       const { addresses } = await setup({ createTestData: true });
 
@@ -32,16 +33,16 @@ describe("Deployment Fallback API", () => {
       expect(deployment).toHaveProperty("escrow_account");
 
       // Check deployment details
-      expect(deployment.deployment).toHaveProperty("deployment_id");
+      expect(deployment.deployment).toHaveProperty("id");
       expect(deployment.deployment).toHaveProperty("state");
-      expect(deployment.deployment).toHaveProperty("version");
+      expect(deployment.deployment).toHaveProperty("hash");
       expect(deployment.deployment).toHaveProperty("created_at");
 
       // Check groups structure
       expect(Array.isArray(deployment.groups)).toBe(true);
       if (deployment.groups.length > 0) {
         const group = deployment.groups[0];
-        expect(group).toHaveProperty("group_id");
+        expect(group).toHaveProperty("id");
         expect(group).toHaveProperty("state");
         expect(group).toHaveProperty("group_spec");
         expect(group).toHaveProperty("created_at");
@@ -121,7 +122,7 @@ describe("Deployment Fallback API", () => {
 
       // All deployments should belong to the specified owner
       result.deployments.forEach((deployment: any) => {
-        expect(deployment.deployment.deployment_id.owner).toBe(addresses![0]);
+        expect(deployment.deployment.id.owner).toBe(addresses![0]);
       });
     });
 
@@ -144,7 +145,7 @@ describe("Deployment Fallback API", () => {
     it("should return 200 status for valid requests", async () => {
       await setup();
 
-      const response = await app.request("/akash/deployment/v1beta3/deployments/list");
+      const response = await app.request(`/akash/deployment/${deploymentVersion}/deployments/list`);
       expect(response.status).toBe(200);
     });
 
@@ -282,7 +283,7 @@ describe("Deployment Fallback API", () => {
     if (input.reverse !== undefined) queryParams.append("pagination.reverse", input.reverse.toString());
 
     const queryString = queryParams.toString();
-    const url = `/akash/deployment/v1beta3/deployments/list${queryString ? `?${queryString}` : ""}`;
+    const url = `/akash/deployment/${deploymentVersion}/deployments/list${queryString ? `?${queryString}` : ""}`;
 
     const response = await app.request(url);
     expect(response.status).toBe(200);
