@@ -74,8 +74,16 @@ describe("balance alerts", () => {
       await db.insert(schema.Alert).values([matchingAlert, throttlingAlert]);
 
       const balanceResponse = generateDeploymentBalanceResponse({
-        fundsAmount: 400000,
-        escrowAmount: 400000,
+        funds: [
+          {
+            denom: "uakt",
+            amount: 400000
+          },
+          {
+            denom: "uakt",
+            amount: 400000
+          }
+        ],
         state: "active",
         settledAt: 900
       });
@@ -95,7 +103,7 @@ describe("balance alerts", () => {
       let alertsProcessed = 0;
 
       chainApi
-        .get("/akash/deployment/v1beta3/deployments/info")
+        .get("/akash/deployment/v1beta4/deployments/info")
         .query({
           "id.owner": owner,
           "id.dseq": String(matchingDseq)
@@ -106,7 +114,7 @@ describe("balance alerts", () => {
         });
 
       chainApi
-        .get("/akash/market/v1beta4/leases/list")
+        .get("/akash/market/v1beta5/leases/list")
         .query({
           "filters.owner": owner,
           "filters.dseq": String(matchingDseq)
