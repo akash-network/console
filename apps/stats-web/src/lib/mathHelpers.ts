@@ -45,7 +45,7 @@ export function ceilDecimal(value: number) {
 export function coinsToAmount(coins: Coin[] | Coin, denom: string) {
   const currentCoin = (coins as any).length !== undefined ? (coins as Coin[]).find(c => c.denom === denom) : (coins as Coin);
   if (!currentCoin) return 0;
-  else return currentCoin.amount;
+  return currentCoin.amount;
 }
 
 export function percIncrease(a: number, b: number) {
