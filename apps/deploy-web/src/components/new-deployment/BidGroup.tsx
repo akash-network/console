@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { MAINNET_ID } from "@akashnetwork/network-store";
+import { MAINNET_ID } from "@akashnetwork/chain-sdk/web";
 import { Alert, Table, TableBody, TableCell, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Check } from "iconoir-react";
 

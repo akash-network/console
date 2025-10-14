@@ -1,4 +1,3 @@
-import { netConfig, type SupportedChainNetworks } from "@akashnetwork/net";
 import type { GetServerSidePropsResult } from "next";
 import { z } from "zod";
 
@@ -24,7 +23,7 @@ export const getServerSideProps = defineServerSideProps({
       owner: z.string()
     }),
     query: z.object({
-      network: z.enum(netConfig.getSupportedNetworks() as [SupportedChainNetworks, ...SupportedChainNetworks[]]).optional()
+      network: z.enum(["mainnet", "sandbox", "testnet"]).optional()
     })
   }),
   async handler({ params, query, services }): Promise<GetServerSidePropsResult<Props>> {
