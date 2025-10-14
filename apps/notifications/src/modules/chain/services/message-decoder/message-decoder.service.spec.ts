@@ -1,4 +1,4 @@
-import { MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { faker } from "@faker-js/faker";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
@@ -32,7 +32,6 @@ describe(MessageDecoderService.name, () => {
       const result = service.decodeMsg(`/${MsgCreateDeployment.$type}`, encoded);
 
       expect(result).toMatchObject({
-        $type: MsgCreateDeployment.$type,
         id: {
           dseq: expect.any(Long),
           owner
