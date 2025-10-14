@@ -1,4 +1,4 @@
-import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+import { netConfig, type SupportedChainNetworks } from "@akashnetwork/net";
 import { SANDBOX_ID, TESTNET_ID } from "@akashnetwork/network-store";
 
 import type { BrowserEnvConfig, ServerEnvConfig } from "@src/config/env-config.schema";
@@ -10,9 +10,11 @@ export class ApiUrlService {
       | Pick<BrowserEnvConfig, "NEXT_PUBLIC_BASE_API_TESTNET_URL" | "NEXT_PUBLIC_BASE_API_SANDBOX_URL" | "NEXT_PUBLIC_BASE_API_MAINNET_URL">
   ) {}
 
-  getBaseApiUrlFor(network: NetworkId | undefined): string {
+  getBaseApiUrlFor(network: SupportedChainNetworks | undefined): string {
+    const mappedNetwork = netConfig.mapped(network ?? "mainnet");
+
     if ("BASE_API_MAINNET_URL" in this.config) {
-      switch (network) {
+      switch (mappedNetwork) {
         case TESTNET_ID:
           return this.config.BASE_API_TESTNET_URL;
         case SANDBOX_ID:
@@ -22,7 +24,7 @@ export class ApiUrlService {
       }
     }
 
-    switch (network) {
+    switch (mappedNetwork) {
       case TESTNET_ID:
         return this.config.NEXT_PUBLIC_BASE_API_TESTNET_URL;
       case SANDBOX_ID:

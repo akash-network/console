@@ -17,6 +17,7 @@ export function buildDeploymentBid(overrides?: Partial<BidDto>): BidDto {
     resourcesOffer: [
       {
         resources: {
+          id: 1,
           cpu: {
             units: {
               val: "0.1"
