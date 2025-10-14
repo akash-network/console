@@ -53,7 +53,7 @@ export default function CallbackPage() {
           }
 
           // Redirect to setup page
-          router.push("/akash-at-home/setup");
+          router.push("/akash-homenode/setup");
         } catch (backendError) {
           console.warn("Backend not available, using mock authentication for testing:", backendError);
 
@@ -75,7 +75,7 @@ export default function CallbackPage() {
 
           // Wait a bit to ensure state is set, then redirect
           setTimeout(() => {
-            router.push("/akash-at-home/setup");
+            router.push("/akash-homenode/setup");
           }, 100);
         }
       } catch (err) {

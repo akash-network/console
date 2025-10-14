@@ -46,7 +46,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const updateAuthState = () => {
       if (authState.authMode === "akash-at-home") {
-        // Akash at Home authentication
+        // Akash HomeNode authentication
         const isAuthenticated = !!auth0User;
         setAuthState(prev => ({
           ...prev,
@@ -54,8 +54,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           isLoading: auth0Loading
         }));
 
-        // Don't redirect automatically for Akash at Home - let the callback handle it
-        console.log("Akash at Home auth state:", { isAuthenticated, auth0User: !!auth0User, auth0Loading });
+        // Don't redirect automatically for Akash HomeNode - let the callback handle it
+        console.log("Akash HomeNode auth state:", { isAuthenticated, auth0User: !!auth0User, auth0Loading });
       } else {
         // Provider authentication (existing wallet-based)
         const isAuthenticated = isWalletConnected && !!providerDetails;

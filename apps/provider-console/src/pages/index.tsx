@@ -12,7 +12,7 @@ export default function Home() {
     // If user is already authenticated, redirect to appropriate dashboard
     if (isAuthenticated) {
       if (authMode === "akash-at-home") {
-        router.push("/akash-at-home/dashboard");
+        router.push("/akash-homenode/dashboard");
       } else {
         router.push("/provider-dashboard");
       }

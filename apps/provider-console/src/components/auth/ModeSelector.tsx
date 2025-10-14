@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@akashnetwork/ui/components";
 import { Button } from "@akashnetwork/ui/components";
-import { ArrowRight, Cloud, Home } from "iconoir-react";
+import { ArrowRight, Cloud, Dollar, Flash, Rocket } from "iconoir-react";
+import Image from "next/image";
 import { useRouter } from "next/router";
 
 import { useAuth } from "@src/context/AuthProvider";
@@ -28,99 +28,136 @@ export const ModeSelector: React.FC = () => {
         console.error("Wallet connection failed:", error);
       }
     } else {
-      // For Akash at Home, directly redirect to setup page (mock authentication)
-      router.push("/akash-at-home/setup");
+      // For Akash HomeNode, directly redirect to setup page (mock authentication)
+      router.push("/akash-homenode/setup");
     }
   };
 
   return (
-    <div className="from-background via-background to-muted/20 flex min-h-screen items-center justify-center bg-gradient-to-br p-4">
-      <div className="w-full max-w-4xl">
-        <div className="mb-8 text-center">
-          <h1 className="text-foreground mb-4 text-4xl font-bold">Welcome to Provider Console</h1>
-          <p className="text-muted-foreground text-xl">Choose your experience to get started</p>
+    <div className="flex min-h-screen">
+      {/* Left Half - Own Provider (50%) */}
+      <div className="flex w-1/2 flex-col items-center justify-center bg-black p-12">
+        <div className="w-full max-w-xl">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-500">
+              <Cloud className="h-8 w-8 text-white" />
+            </div>
+            <h2 className="mb-4 text-3xl font-bold text-white">Own Provider</h2>
+            <p className="text-white">Custom managed providers with your own multi server hardware</p>
+          </div>
+
+          {/* Features */}
+          <div className="mb-8 space-y-6">
+            <div className="flex items-start space-x-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white">
+                <Cloud className="h-6 w-6 text-black" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Full Control</h3>
+                <p className="text-sm text-gray-300">Complete control and maintenance responsibility for your infrastructure.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white">
+                <Dollar className="h-6 w-6 text-black" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Higher Earnings</h3>
+                <p className="text-sm text-gray-300">Higher earning potential with powerful machines and dedicated resources.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white">
+                <Rocket className="h-6 w-6 text-black" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">100% Revenue</h3>
+                <p className="text-sm text-gray-300">Keep 100% of revenue with no sharing or commission fees.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Wallet Connection Button */}
+          <div className="text-left">
+            <Button onClick={() => handleModeSelection("wallet")} className="w-full bg-red-600 text-white hover:bg-red-700" size="lg">
+              Continue as Provider
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Bottom Text */}
+          {/* <div className="mt-8 text-left">
+            <p className="text-sm text-white">
+              You can switch between experiences at any time
+            </p>
+          </div> */}
+        </div>
+      </div>
+
+      {/* Right Half - Akash HomeNode with Background (50%) */}
+      <div className="relative flex w-1/2 items-center justify-center overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <Image src="/images/akash-home-node-background.png" alt="Akash HomeNode Background" fill className="object-cover" priority style={{ opacity: 0.2 }} />
         </div>
 
-        <div className="grid gap-8 md:grid-cols-2">
-          {/* Provider Console Option */}
-          <Card className="hover:border-primary/20 hover:shadow-primary/5 group cursor-pointer border-2 transition-all duration-300 hover:shadow-lg">
-            <CardHeader className="text-center">
-              <div className="bg-primary/10 dark:bg-primary/20 group-hover:bg-primary/20 dark:group-hover:bg-primary/30 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full transition-colors">
-                <Cloud className="text-primary h-8 w-8" />
-              </div>
-              <CardTitle className="text-foreground text-2xl font-bold">Own Provider</CardTitle>
-              <p className="text-muted-foreground mt-2">Custom managed providers with your own multi server hardware</p>
-            </CardHeader>
-            <CardContent className="text-center">
-              <ul className="mb-6 space-y-2 text-left">
-                <li className="text-muted-foreground flex items-center text-sm">
-                  <span className="bg-primary mr-3 h-2 w-2 rounded-full"></span>
-                  Full control and maintenance responsibility
-                </li>
-                <li className="text-muted-foreground flex items-center text-sm">
-                  <span className="bg-primary mr-3 h-2 w-2 rounded-full"></span>
-                  Higher earning potential with powerful machines
-                </li>
-                <li className="text-muted-foreground flex items-center text-sm">
-                  <span className="bg-primary mr-3 h-2 w-2 rounded-full"></span>
-                  Keep 100% of revenue (no sharing)
-                </li>
-                <li className="text-muted-foreground flex items-center text-sm">
-                  <span className="bg-primary mr-3 h-2 w-2 rounded-full"></span>
-                  Requires port forwarding and domain setup
-                </li>
-              </ul>
-              <Button
-                onClick={() => handleModeSelection("wallet")}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground group-hover:bg-primary/90 w-full shadow-lg transition-all duration-300 hover:shadow-xl"
-              >
-                Continue as Provider
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </CardContent>
-          </Card>
+        {/* Content Overlay - Centered */}
+        <div className="relative z-10 w-full max-w-xl p-12">
+          {/* Logo */}
+          <div className="mb-8">
+            <Image src="/images/akash-home-node.svg" alt="Akash HomeNode" width={405} height={60} className="w-auto" />
+          </div>
 
-          {/* Akash at Home Option */}
-          <Card className="group cursor-pointer border-2 transition-all duration-300 hover:border-green-500/20 hover:shadow-lg hover:shadow-green-500/5">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10 transition-colors group-hover:bg-green-500/20 dark:bg-green-500/20 dark:group-hover:bg-green-500/30">
-                <Home className="h-8 w-8 text-green-600 dark:text-green-400" />
-              </div>
-              <CardTitle className="text-foreground text-2xl font-bold">Akash HomeNode</CardTitle>
-              <p className="text-muted-foreground mt-2">1-click ISO install solution for easy participation in the Akash network</p>
-            </CardHeader>
-            <CardContent className="text-center">
-              <ul className="mb-6 space-y-2 text-left">
-                <li className="text-muted-foreground flex items-center text-sm">
-                  <span className="mr-3 h-2 w-2 rounded-full bg-green-500"></span>
-                  No port forwarding required
-                </li>
-                <li className="text-muted-foreground flex items-center text-sm">
-                  <span className="mr-3 h-2 w-2 rounded-full bg-green-500"></span>
-                  Participate in existing provider network
-                </li>
-                <li className="text-muted-foreground flex items-center text-sm">
-                  <span className="mr-3 h-2 w-2 rounded-full bg-green-500"></span>
-                  Easy setup with minimal technical knowledge
-                </li>
-                <li className="text-muted-foreground flex items-center text-sm">
-                  <span className="mr-3 h-2 w-2 rounded-full bg-green-500"></span>
-                  Shared revenue model
-                </li>
-              </ul>
-              <Button
-                onClick={() => handleModeSelection("akash-at-home")}
-                className="w-full bg-green-600 text-white shadow-lg transition-all duration-300 hover:bg-green-700 hover:shadow-xl group-hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 dark:group-hover:bg-green-700"
-              >
-                Start with Akash at Home
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+          {/* Main Message */}
+          <div className="mb-12">
+            <h2 className="mb-6 text-left text-2xl font-semibold text-white">
+              Start earning money with your unused compute power by joining our Akash Network
+            </h2>
+          </div>
 
-        <div className="mt-8 text-center">
-          <p className="text-muted-foreground text-sm">You can switch between experiences at any time</p>
+          {/* Features */}
+          <div className="mb-8 space-y-6">
+            <div className="flex items-start space-x-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white">
+                <Flash className="h-6 w-6 text-black" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Easy setup</h3>
+                <p className="text-sm text-gray-300">A simple 2 step process and we&apos;ll set up your device automatically.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white">
+                <Dollar className="h-6 w-6 text-black" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Earn money</h3>
+                <p className="text-sm text-gray-300">Join our network and get paid for your compute resources.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white">
+                <Rocket className="h-6 w-6 text-black" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">3rd value prop</h3>
+                <p className="text-sm text-gray-300">Short description goes here.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Login Button */}
+          <div className="text-left">
+            <Button onClick={() => handleModeSelection("akash-at-home")} className="w-full bg-white text-black hover:bg-gray-100" size="lg">
+              Start with Akash HomeNode
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
