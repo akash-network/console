@@ -1,56 +1,58 @@
 import { extractData } from "../http/http.service";
 import type { HttpClient } from "../utils/httpClient";
 
-export type RestAkashLeaseListResponse = {
-  leases: {
-    lease: {
-      id: {
-        owner: string;
-        dseq: string;
-        gseq: number;
-        oseq: number;
-        provider: string;
-        bseq: number;
+export interface RpcLease {
+  lease: {
+    id: {
+      owner: string;
+      dseq: string;
+      gseq: number;
+      oseq: number;
+      provider: string;
+      bseq: number;
+    };
+    state: string;
+    price: {
+      denom: string;
+      amount: string;
+    };
+    created_at: string;
+    closed_on: string;
+    reason?: string;
+  };
+  escrow_payment: {
+    id: {
+      aid: {
+        scope: string;
+        xid: string;
       };
+      xid: string;
+    };
+    state: {
+      owner: string;
       state: string;
-      price: {
+      rate: {
         denom: string;
         amount: string;
       };
-      created_at: string;
-      closed_on: string;
-      reason?: string;
-    };
-    escrow_payment: {
-      id: {
-        aid: {
-          scope: string;
-          xid: string;
-        };
-        xid: string;
+      balance: {
+        denom: string;
+        amount: string;
       };
-      state: {
-        owner: string;
-        state: string;
-        rate: {
-          denom: string;
-          amount: string;
-        };
-        balance: {
-          denom: string;
-          amount: string;
-        };
-        unsettled: {
-          denom: string;
-          amount: string;
-        };
-        withdrawn: {
-          denom: string;
-          amount: string;
-        };
+      unsettled: {
+        denom: string;
+        amount: string;
+      };
+      withdrawn: {
+        denom: string;
+        amount: string;
       };
     };
-  }[];
+  };
+}
+
+export type RestAkashLeaseListResponse = {
+  leases: RpcLease[];
   pagination: {
     next_key: string | null;
     total: string;

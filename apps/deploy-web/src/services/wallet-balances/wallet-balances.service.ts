@@ -25,10 +25,10 @@ export class WalletBalancesService {
     ]);
 
     const deploymentGrantsUAKT = parseFloat(
-      deploymentGrant?.authorization.spend_limit.denom === UAKT_DENOM ? deploymentGrant.authorization.spend_limit.amount : "0"
+      deploymentGrant?.authorization?.spend_limit?.denom === UAKT_DENOM ? deploymentGrant?.authorization?.spend_limit?.amount || "0" : "0"
     );
     const deploymentGrantsUUSDC = parseFloat(
-      deploymentGrant?.authorization.spend_limit.denom === usdcIbcDenom ? deploymentGrant.authorization.spend_limit.amount : "0"
+      deploymentGrant?.authorization?.spend_limit?.denom === usdcIbcDenom ? deploymentGrant?.authorization?.spend_limit?.amount || "0" : "0"
     );
 
     const balanceData = balanceResponse.data;

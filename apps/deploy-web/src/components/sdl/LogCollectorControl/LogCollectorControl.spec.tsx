@@ -91,9 +91,12 @@ describe(LogCollectorControl.name, () => {
       form.setValue("services.0.placement", newPlacement);
     });
 
-    await waitFor(() => {
-      expect(form.getValues("services.1.placement.name")).toBe(newPlacement.name);
-    });
+    await waitFor(
+      () => {
+        expect(form.getValues("services.1.placement.name")).toBe(newPlacement.name);
+      },
+      { timeout: 1000 }
+    );
   });
 
   async function setup() {
