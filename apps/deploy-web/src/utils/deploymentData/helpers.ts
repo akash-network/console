@@ -1,6 +1,5 @@
-import { SDL } from "@akashnetwork/akashjs/build/sdl";
-import type { v2Sdl } from "@akashnetwork/akashjs/build/sdl/types";
-import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+import type { NetworkId } from "@akashnetwork/chain-sdk/web";
+import { SDL } from "@akashnetwork/chain-sdk/web";
 
 export class CustomValidationError extends Error {
   constructor(message: string) {
@@ -53,26 +52,26 @@ function isValidString(value: unknown): value is string {
   return typeof value === "string" && !!value;
 }
 
-export function getSdl(yamlJson: string | v2Sdl, networkType: NetworkType, networkId: NetworkId) {
+export function getSdl(yamlJson: string, networkType: NetworkType, networkId: NetworkId) {
   return isValidString(yamlJson) ? SDL.fromString(yamlJson, networkType, networkId) : new SDL(yamlJson, networkType, networkId);
 }
 
-export function DeploymentGroups(yamlJson: string | v2Sdl, networkType: NetworkType, networkId: NetworkId) {
+export function DeploymentGroups(yamlJson: string, networkType: NetworkType, networkId: NetworkId) {
   const sdl = getSdl(yamlJson, networkType, networkId);
   return sdl.groups();
 }
 
-export function Manifest(yamlJson: string | v2Sdl, networkType: NetworkType, networkId: NetworkId, asString = false) {
+export function Manifest(yamlJson: string, networkType: NetworkType, networkId: NetworkId, asString = false) {
   const sdl = getSdl(yamlJson, networkType, networkId);
   return sdl.manifest(asString);
 }
 
-export async function ManifestVersion(yamlJson: string | v2Sdl, networkType: NetworkType, networkId: NetworkId) {
+export async function ManifestVersion(yamlJson: string, networkType: NetworkType, networkId: NetworkId) {
   const sdl = getSdl(yamlJson, networkType, networkId);
   return sdl.manifestVersion();
 }
 
-export function ManifestYaml(sdlConfig: v2Sdl, networkType: NetworkType, networkId: NetworkId) {
+export function ManifestYaml(sdlConfig: string, networkType: NetworkType, networkId: NetworkId) {
   const sdl = getSdl(sdlConfig, networkType, networkId);
   return sdl.manifestSortedJSON();
 }

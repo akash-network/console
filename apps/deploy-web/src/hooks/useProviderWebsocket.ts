@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { Options as WebsocketOptions } from "react-use-websocket";
 import useWebSocket from "react-use-websocket";
 import type { WebSocketHook as LibWebSocketHook } from "react-use-websocket/dist/lib/types";
+import { netConfig } from "@akashnetwork/net";
 
 import { providerProxyUrlWs } from "@src/config/ws.config";
 import { providerCredentialsToApiCredentials } from "@src/services/provider-proxy/provider-proxy.service";
@@ -56,7 +57,7 @@ export function useProviderWebsocket(provider: ProviderInfo | undefined, options
           ...message,
           providerAddress: owner,
           url: `${hostUri}${message.url}`,
-          chainNetwork,
+          chainNetwork: netConfig.mapped(chainNetwork),
           auth: providerCredentialsToApiCredentials(providerCredentials.details)
         },
         keep

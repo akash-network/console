@@ -16,7 +16,7 @@ type Props = {
 export const useDeploymentMetrics = ({ deployment, leases }: Props): DeploymentTimeMetrics => {
   const hasLeases = !!leases && leases.length > 0;
   const deploymentCost = hasLeases ? leases.reduce((prev, current) => prev + parseFloat(current.price.amount), 0) : 0;
-  const realTimeLeft = useRealTimeLeft(deploymentCost, deployment.escrowBalance, parseFloat(deployment.escrowAccount.settled_at), deployment.createdAt);
+  const realTimeLeft = useRealTimeLeft(deploymentCost, deployment.escrowBalance, parseFloat(deployment.escrowAccount.state.settled_at), deployment.createdAt);
 
   return {
     realTimeLeft,
