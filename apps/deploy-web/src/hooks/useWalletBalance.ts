@@ -95,7 +95,7 @@ export const useDenomData = (denom?: string) => {
   const txFeeBuffer = isManaged ? 0 : TX_FEE_BUFFER;
 
   useEffect(() => {
-    if (isLoaded && walletBalance && minDeposit?.akt && minDeposit?.usdc && price) {
+    if (isLoaded && walletBalance && (minDeposit?.akt || minDeposit?.usdc) && price) {
       let depositData: DenomData | null = null;
       switch (denom) {
         case UAKT_DENOM:

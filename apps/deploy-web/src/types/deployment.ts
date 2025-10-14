@@ -3,6 +3,7 @@ import type { Bid, DeploymentResource } from "@akashnetwork/http-sdk";
 
 export type RpcBid = Bid;
 export type { DeploymentResource };
+export type { RpcLease } from "@akashnetwork/http-sdk";
 
 export interface DeploymentDetail {
   owner: string;
@@ -265,46 +266,6 @@ export interface DeploymentDto {
 
 export interface NamedDeploymentDto extends DeploymentDto {
   name: string;
-}
-
-export interface RpcLease {
-  lease: {
-    lease_id: {
-      owner: string;
-      dseq: string;
-      gseq: number;
-      oseq: number;
-      provider: string;
-    };
-    state: string;
-    price: {
-      denom: string;
-      amount: string;
-    };
-    created_at: string;
-    closed_on: string;
-  };
-  escrow_payment: {
-    account_id: {
-      scope: string;
-      xid: string;
-    };
-    payment_id: string;
-    owner: string;
-    state: string;
-    rate: {
-      denom: string;
-      amount: string;
-    };
-    balance: {
-      denom: string;
-      amount: string;
-    };
-    withdrawn: {
-      denom: string;
-      amount: string;
-    };
-  };
 }
 
 export interface LeaseDto {

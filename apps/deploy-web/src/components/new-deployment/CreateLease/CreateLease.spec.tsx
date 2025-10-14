@@ -1,6 +1,6 @@
-import type { CertificatePem } from "@akashnetwork/akashjs/build/certificates/certificate-manager/CertificateManager";
 import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
+import type { CertificatePem } from "@akashnetwork/chain-sdk/web";
 import { mock } from "jest-mock-extended";
 
 import type { ContextType as CertificateContextType, LocalCert } from "@src/context/CertificateProvider/CertificateProviderContext";

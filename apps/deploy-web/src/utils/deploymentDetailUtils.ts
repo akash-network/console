@@ -70,14 +70,14 @@ export const getStorageAmount = (resource: DeploymentResource_V2 | DeploymentRes
 };
 
 export function leaseToDto(lease: RpcLease, deployment: Pick<RpcDeployment, "groups">): LeaseDto {
-  const group = deployment ? deployment.groups.filter(g => g.id.gseq === lease.lease.lease_id.gseq)[0] : ({} as DeploymentGroup);
+  const group = deployment ? deployment.groups.filter(g => g.id.gseq === lease.lease.id.gseq)[0] : ({} as DeploymentGroup);
   return {
-    id: lease.lease.lease_id.dseq + lease.lease.lease_id.gseq + lease.lease.lease_id.oseq,
-    owner: lease.lease.lease_id.owner,
-    provider: lease.lease.lease_id.provider,
-    dseq: lease.lease.lease_id.dseq,
-    gseq: lease.lease.lease_id.gseq,
-    oseq: lease.lease.lease_id.oseq,
+    id: lease.lease.id.dseq + lease.lease.id.gseq + lease.lease.id.oseq,
+    owner: lease.lease.id.owner,
+    provider: lease.lease.id.provider,
+    dseq: lease.lease.id.dseq,
+    gseq: lease.lease.id.gseq,
+    oseq: lease.lease.id.oseq,
     state: lease.lease.state,
     price: lease.lease.price,
     cpuAmount: deployment ? deploymentGroupResourceSum(group, r => parseInt(r.cpu.units.val) / 1000) : undefined,

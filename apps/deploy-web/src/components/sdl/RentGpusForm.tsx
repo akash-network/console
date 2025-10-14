@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
+import { certificateManager } from "@akashnetwork/chain-sdk/web";
 import { Alert, Button, Form, Spinner } from "@akashnetwork/ui/components";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -228,7 +228,7 @@ export const RentGpusForm: React.FunctionComponent = () => {
 
       // Create a cert if the user doesn't have one
       if (!hasValidCert) {
-        const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = certificateManager.generatePEM(address);
+        const { cert: crtpem, publicKey: pubpem, privateKey: encryptedKey } = await certificateManager.generatePEM(address);
         _crtpem = crtpem;
         _encryptedKey = encryptedKey;
         messages.push(TransactionMessageData.getCreateCertificateMsg(address, crtpem, pubpem));

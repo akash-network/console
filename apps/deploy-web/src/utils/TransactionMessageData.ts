@@ -81,7 +81,6 @@ export class TransactionMessageData {
   }
 
   static getCreateDeploymentMsg(deploymentData: NewDeploymentData) {
-    console.log("deploymentData", deploymentData);
     return {
       typeUrl: `/${MsgCreateDeployment.$type}`,
       value: MsgCreateDeployment.fromPartial({
@@ -120,7 +119,7 @@ export class TransactionMessageData {
             denom,
             amount: amount.toString()
           },
-          sources: [Source.grant]
+          sources: [Source.grant, Source.balance]
         }
       })
     };

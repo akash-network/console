@@ -54,7 +54,6 @@ export const DeploymentDepositModal: React.FunctionComponent<DeploymentDepositMo
   const { balance: walletBalance } = useWalletBalance();
   const pricing = usePricing();
   const depositData = useDenomData(denom);
-  // console.log("depositData", depositData, denom);
   const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
       amount: 0
