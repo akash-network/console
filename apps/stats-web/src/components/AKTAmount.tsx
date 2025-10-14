@@ -8,7 +8,7 @@ import { usePricing } from "@/context/PricingProvider";
 import { udenomToDenom } from "@/lib/mathHelpers";
 
 type Props = {
-  uakt: number;
+  uakt: number | string;
   showAKTLabel?: boolean;
   showUSD?: boolean;
   digits?: number;
