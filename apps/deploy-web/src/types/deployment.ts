@@ -1,3 +1,10 @@
+import type { GroupSpec } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import type { Bid, DeploymentResource } from "@akashnetwork/http-sdk";
+
+export type RpcBid = Bid;
+export type { DeploymentResource };
+export type { RpcLease } from "@akashnetwork/http-sdk";
+
 export interface DeploymentDetail {
   owner: string;
   dseq: string;
@@ -44,12 +51,12 @@ export interface DeploymentSummary {
 
 export interface RpcDeployment {
   deployment: {
-    deployment_id: {
+    id: {
       owner: string;
       dseq: string;
     };
     state: string;
-    version: string;
+    hash: string;
     created_at: string;
   };
   groups: Array<DeploymentGroup>;
@@ -58,41 +65,11 @@ export interface RpcDeployment {
 
 export type DeploymentGroup = DeploymentGroup_v2 | DeploymentGroup_v3;
 
-export interface DeploymentResource_V2 {
-  cpu: {
-    units: {
-      val: string;
-    };
-    attributes: { key: string; value: string }[];
-  };
-  gpu: {
-    units: {
-      val: string;
-    };
-    attributes: { key: string; value: string }[];
-  };
-  memory: {
-    quantity: {
-      val: string;
-    };
-    attributes: { key: string; value: string }[];
-  };
-  storage: Array<{
-    name: string;
-    quantity: {
-      val: string;
-    };
-    attributes: { key: string; value: string }[];
-  }>;
-  endpoints: Array<{
-    kind: string;
-    sequence_number: number;
-  }>;
-}
-export interface DeploymentResource_V3 extends DeploymentResource_V2 {}
+export type DeploymentResource_V2 = DeploymentResource;
+export type DeploymentResource_V3 = DeploymentResource;
 
 interface DeploymentGroup_v2 {
-  group_id: {
+  id: {
     owner: string;
     dseq: string;
     gseq: number;
@@ -111,7 +88,50 @@ interface DeploymentGroup_v2 {
       }>;
     };
     resources: Array<{
-      resources: DeploymentResource_V2;
+      resource: {
+        id: number;
+        cpu: {
+          units: {
+            val: string;
+          };
+          attributes: Array<{
+            key: string;
+            value: string;
+          }>;
+        };
+        memory: {
+          quantity: {
+            val: string;
+          };
+          attributes: Array<{
+            key: string;
+            value: string;
+          }>;
+        };
+        storage: Array<{
+          name: string;
+          quantity: {
+            val: string;
+          };
+          attributes: Array<{
+            key: string;
+            value: string;
+          }>;
+        }>;
+        gpu: {
+          units: {
+            val: string;
+          };
+          attributes: Array<{
+            key: string;
+            value: string;
+          }>;
+        };
+        endpoints: Array<{
+          kind: string;
+          sequence_number: number;
+        }>;
+      };
       count: number;
       price: {
         denom: string;
@@ -123,7 +143,7 @@ interface DeploymentGroup_v2 {
 }
 
 interface DeploymentGroup_v3 {
-  group_id: {
+  id: {
     owner: string;
     dseq: string;
     gseq: number;
@@ -142,7 +162,50 @@ interface DeploymentGroup_v3 {
       }>;
     };
     resources: Array<{
-      resource: DeploymentResource_V3;
+      resource: {
+        id: number;
+        cpu: {
+          units: {
+            val: string;
+          };
+          attributes: Array<{
+            key: string;
+            value: string;
+          }>;
+        };
+        memory: {
+          quantity: {
+            val: string;
+          };
+          attributes: Array<{
+            key: string;
+            value: string;
+          }>;
+        };
+        storage: Array<{
+          name: string;
+          quantity: {
+            val: string;
+          };
+          attributes: Array<{
+            key: string;
+            value: string;
+          }>;
+        }>;
+        gpu: {
+          units: {
+            val: string;
+          };
+          attributes: Array<{
+            key: string;
+            value: string;
+          }>;
+        };
+        endpoints: Array<{
+          kind: string;
+          sequence_number: number;
+        }>;
+      };
       count: number;
       price: {
         denom: string;
@@ -158,28 +221,34 @@ interface EscrowAccount {
     scope: string;
     xid: string;
   };
-  owner: string;
-  state: string;
-  balance: {
-    denom: string;
-    amount: string;
-  };
-  transferred: {
-    denom: string;
-    amount: string;
-  };
-  settled_at: string;
-  depositor: string;
-  funds: {
-    denom: string;
-    amount: string;
+  state: {
+    owner: string;
+    state: string;
+    transferred: Array<{
+      denom: string;
+      amount: string;
+    }>;
+    settled_at: string;
+    funds: Array<{
+      denom: string;
+      amount: string;
+    }>;
+    deposits: Array<{
+      owner: string;
+      height: string;
+      source: string;
+      balance: {
+        denom: string;
+        amount: string;
+      };
+    }>;
   };
 }
 
 export interface DeploymentDto {
   dseq: string;
   state: string;
-  version: string;
+  hash: string;
   denom: string;
   createdAt: number;
   escrowBalance: number;
@@ -199,46 +268,6 @@ export interface NamedDeploymentDto extends DeploymentDto {
   name: string;
 }
 
-export interface RpcLease {
-  lease: {
-    lease_id: {
-      owner: string;
-      dseq: string;
-      gseq: number;
-      oseq: number;
-      provider: string;
-    };
-    state: string;
-    price: {
-      denom: string;
-      amount: string;
-    };
-    created_at: string;
-    closed_on: string;
-  };
-  escrow_payment: {
-    account_id: {
-      scope: string;
-      xid: string;
-    };
-    payment_id: string;
-    owner: string;
-    state: string;
-    rate: {
-      denom: string;
-      amount: string;
-    };
-    balance: {
-      denom: string;
-      amount: string;
-    };
-    withdrawn: {
-      denom: string;
-      amount: string;
-    };
-  };
-}
-
 export interface LeaseDto {
   id: string;
   owner: string;
@@ -256,50 +285,6 @@ export interface LeaseDto {
   memoryAmount: number;
   storageAmount: number;
   group: DeploymentGroup;
-}
-
-export interface RpcBid {
-  bid: {
-    bid_id: {
-      owner: string;
-      dseq: string;
-      gseq: number;
-      oseq: number;
-      provider: string;
-    };
-    state: string;
-    price: {
-      denom: string;
-      amount: string;
-    };
-    created_at: string;
-    resources_offer: Array<{
-      resources: DeploymentResource_V3;
-      count: number;
-    }>;
-  };
-  escrow_account: {
-    id: {
-      scope: string;
-      xid: string;
-    };
-    owner: string;
-    state: string;
-    balance: {
-      denom: string;
-      amount: string;
-    };
-    transferred: {
-      denom: string;
-      amount: string;
-    };
-    settled_at: string;
-    depositor: string;
-    funds: {
-      denom: string;
-      amount: string;
-    };
-  };
 }
 
 export interface BidDto {
@@ -332,4 +317,18 @@ export interface RpcDepositParams {
 export interface DepositParams {
   denom: string;
   amount: string;
+}
+
+export interface NewDeploymentData {
+  sdl: unknown;
+  manifest: unknown;
+  groups: GroupSpec[];
+  deploymentId: {
+    owner: string;
+    dseq: string;
+  };
+  orderId: unknown[];
+  leaseId: unknown[];
+  deposit: DepositParams;
+  hash: Uint8Array;
 }

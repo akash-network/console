@@ -6,7 +6,6 @@ import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { createFetchAdapter } from "@src/services/createFetchAdapter/createFetchAdapter";
 import type { FCWithChildren } from "@src/types/component";
 import type { NodeStatus } from "@src/types/node";
-import { initAkashTypes } from "@src/utils/init";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 import { useRootContainer } from "../ServicesProvider/RootContainerProvider";
 
@@ -83,12 +82,6 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
       // Apply local storage migrations
       migrateLocalStorage();
 
-      initAkashTypes({
-        networkApiVersion: selectedNetwork.apiVersion,
-        marketApiVersion: selectedNetwork.marketApiVersion,
-        networkId: selectedNetwork.id
-      });
-
       const settingsStr = getLocalStorageItem("settings");
       const settings = { ...defaultSettings, ...JSON.parse(settingsStr || "{}") } as Settings;
 
@@ -140,16 +133,16 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
       // If the user has no settings or the selected node is inactive, use the fastest available active node
       if (!selectedNodeInSettings || (selectedNodeInSettings && settings.selectedNode?.status === "inactive")) {
         const randomNode = getFastestNode(nodesWithStatuses);
-        // Use cosmos.directory as a backup if there's no active nodes in the list
-        defaultApiNode = randomNode?.api || "https://rest.cosmos.directory/akash";
-        defaultRpcNode = randomNode?.rpc || "https://rpc.cosmos.directory/akash";
+        // Use rpc proxy as a backup if there's no active nodes in the list
+        defaultApiNode = randomNode?.api || "https://rpc.akt.dev/rest";
+        defaultRpcNode = randomNode?.rpc || "https://rpc.akt.dev/rpc";
         selectedNode = randomNode || {
           api: defaultApiNode,
           rpc: defaultRpcNode,
           status: "active",
           latency: 0,
           nodeInfo: null,
-          id: "https://rest.cosmos.directory/akash"
+          id: "https://rpc.akt.dev/rest"
         };
         if ((selectedNode as BlockchainNode).nodeInfo === null) {
           Object.assign(selectedNode, await loadNodeStatus(selectedNode.api));

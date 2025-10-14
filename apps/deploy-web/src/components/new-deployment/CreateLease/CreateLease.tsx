@@ -299,7 +299,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
   const { data: block } = d.useBlock(dseq);
 
   useEffect(() => {
-    if (!isTrialing || numberOfRequests === 0 || (bids && bids.length > 0)) {
+    if (!isAnonymousFreeTrialEnabled || !isTrialing || numberOfRequests === 0 || (bids && bids.length > 0)) {
       setZeroBidsForTrialWarningDisplayed(false);
       return;
     }
@@ -312,7 +312,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
     }, 1000);
 
     return () => clearTimeout(timerId);
-  }, [block, bids, isTrialing, numberOfRequests]);
+  }, [block, bids, isTrialing, numberOfRequests, isAnonymousFreeTrialEnabled]);
 
   const selectBid = (bid: BidDto) => {
     setSelectedBids(prev => ({ ...prev, [bid.gseq]: bid }));
@@ -477,6 +477,11 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
           <div className="pt-4">
             <d.Alert variant="warning">
               There should be bids by now... You can wait longer in case a bid shows up or close the deployment and try again with a different configuration.
+              <div className="pt-4">
+                <d.Button variant="default" color="secondary" onClick={handleCloseDeployment} size="sm" disabled={settings.isBlockchainDown}>
+                  Close Deployment
+                </d.Button>
+              </div>
             </d.Alert>
           </div>
         )}

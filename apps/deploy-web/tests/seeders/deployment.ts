@@ -11,22 +11,22 @@ export function buildRpcDeployment({
   denom = UAKT_DENOM,
   ...overrides
 }: DeepPartial<RpcDeployment> & { denom?: typeof UAKT_DENOM | (typeof USDC_IBC_DENOMS)["mainnet"] | (typeof USDC_IBC_DENOMS)["sandbox"] } = {}): RpcDeployment {
-  const walletAddress = overrides?.deployment?.deployment_id?.owner || genWalletAddress();
-  const dseq = overrides?.deployment?.deployment_id?.dseq || faker.string.numeric({ length: 6 }).toString();
+  const walletAddress = overrides?.deployment?.id?.owner || genWalletAddress();
+  const dseq = overrides?.deployment?.id?.dseq || faker.string.numeric({ length: 6 }).toString();
   return merge(
     {
       deployment: {
-        deployment_id: {
+        id: {
           owner: walletAddress,
           dseq: dseq
         },
         state: "closed",
-        version: "bLTCo5xFV2obtovLJ/rUZDHLkzAbB8vlXpF2iJGKpaY=",
+        hash: "bLTCo5xFV2obtovLJ/rUZDHLkzAbB8vlXpF2iJGKpaY=",
         created_at: "666924"
       },
       groups: [
         {
-          group_id: {
+          id: {
             owner: walletAddress,
             dseq: dseq,
             gseq: 1
@@ -44,6 +44,7 @@ export function buildRpcDeployment({
             resources: [
               {
                 resource: {
+                  id: 1,
                   cpu: {
                     units: {
                       val: "500"
@@ -94,21 +95,23 @@ export function buildRpcDeployment({
           scope: "deployment",
           xid: `${walletAddress}/${dseq}`
         },
-        owner: walletAddress,
-        state: "closed",
-        balance: {
-          denom,
-          amount: "0.438400000000000000"
-        },
-        transferred: {
-          denom,
-          amount: "159.561600000000000000"
-        },
-        settled_at: "667969",
-        depositor: walletAddress,
-        funds: {
-          denom,
-          amount: "0.000000000000000000"
+        state: {
+          owner: walletAddress,
+          state: "closed",
+          transferred: [
+            {
+              denom,
+              amount: "159.561600000000000000"
+            }
+          ],
+          settled_at: "667969",
+          funds: [
+            {
+              denom,
+              amount: "0.438400000000000000"
+            }
+          ],
+          deposits: []
         }
       }
     },
