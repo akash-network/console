@@ -6,7 +6,6 @@ import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
 import { createFetchAdapter } from "@src/services/createFetchAdapter/createFetchAdapter";
 import type { FCWithChildren } from "@src/types/component";
 import type { NodeStatus } from "@src/types/node";
-// import { initAkashTypes } from "@src/utils/init";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 import { useRootContainer } from "../ServicesProvider/RootContainerProvider";
 
@@ -83,12 +82,6 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
       // Apply local storage migrations
       migrateLocalStorage();
 
-      // initAkashTypes({
-      //   deploymentVersion: selectedNetwork.apiVersion,
-      //   marketVersion: selectedNetwork.marketApiVersion,
-      //   networkId: selectedNetwork.id
-      // });
-
       const settingsStr = getLocalStorageItem("settings");
       const settings = { ...defaultSettings, ...JSON.parse(settingsStr || "{}") } as Settings;
 
@@ -141,10 +134,10 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
       if (!selectedNodeInSettings || (selectedNodeInSettings && settings.selectedNode?.status === "inactive")) {
         const randomNode = getFastestNode(nodesWithStatuses);
         // Use rpc proxy as a backup if there's no active nodes in the list
-        // defaultApiNode = randomNode?.api || "https://rpc.akt.dev/rest";
-        // defaultRpcNode = randomNode?.rpc || "https://rpc.akt.dev/rpc";
-        defaultApiNode = randomNode?.api || "https://testnetapi.akashnet.net";
-        defaultRpcNode = randomNode?.rpc || "https://testnetrpc.akashnet.net";
+        defaultApiNode = randomNode?.api || "https://rpc.akt.dev/rest";
+        defaultRpcNode = randomNode?.rpc || "https://rpc.akt.dev/rpc";
+        // defaultApiNode = randomNode?.api || "https://testnetapi.akashnet.net";
+        // defaultRpcNode = randomNode?.rpc || "https://testnetrpc.akashnet.net";
         selectedNode = randomNode || {
           api: defaultApiNode,
           rpc: defaultRpcNode,

@@ -68,7 +68,7 @@ const MESSAGE_STATES: Record<string, LoadingState> = {
   "/akash.deployment.v1beta4.MsgCreateDeployment": "searchingProviders",
   "/akash.market.v1beta5.MsgCreateLease": "creatingDeployment",
   "/akash.deployment.v1beta4.MsgUpdateDeployment": "updatingDeployment",
-  "/akash.deployment.v1beta4.MsgDepositDeployment": "depositingDeployment"
+  "/akash.escrow.v1.MsgAccountDeposit": "depositingDeployment"
 };
 
 /**

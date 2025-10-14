@@ -44,10 +44,7 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
       const aktUsdValue = uaktToAKT(balances.balanceUAKT, 6) * price;
       const totalUsdcValue = udenomToDenom(balances.balanceUUSDC, 6);
       const totalDeploymentEscrowUSD = balances.activeDeployments.reduce(
-        (acc, d) =>
-          acc +
-          d.escrowAccount.state.funds.reduce((fundAcc, fund) => fundAcc + udenomToUsd(fund.amount, fund.denom), 0) +
-          d.escrowAccount.state.transferred.reduce((transAcc, trans) => transAcc + udenomToUsd(trans.amount, trans.denom), 0),
+        (acc, d) => acc + d.escrowAccount.state.funds.reduce((fundAcc, fund) => fundAcc + udenomToUsd(fund.amount, fund.denom), 0),
         0
       );
       const { deploymentGrant } = balances;

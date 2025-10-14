@@ -25,7 +25,6 @@
     "type-check": "tsc"
   },
   "dependencies": {
-    "@akashnetwork/akash-api": "^1.3.0",
     "@akashnetwork/chain-sdk": "1.0.0-alpha.8",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/http-sdk": "*",

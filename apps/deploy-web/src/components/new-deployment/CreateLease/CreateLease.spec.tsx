@@ -425,15 +425,6 @@ describe(CreateLease.name, () => {
       return false;
     }) as unknown as ReturnType<typeof useFlag>;
 
-    // initAkashTypes({
-    //   deploymentVersion: "v1beta4",
-    //   marketVersion: "v1beta5",
-    //   escrowVersion: "v1",
-    //   certVersion: "v1",
-    //   providerVersion: "v1beta4",
-    //   networkId: "mainnet"
-    // });
-
     return render(
       <TestContainerProvider
         services={{

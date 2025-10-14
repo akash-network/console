@@ -8,40 +8,8 @@ import { BasicAllowance, MsgGrant, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowa
 import Long from "long";
 
 import type { BidDto, NewDeploymentData } from "@src/types/deployment";
-// import { BasicAllowance, MsgGrantAllowance, MsgRevoke, MsgRevokeAllowance } from "./proto/grant";
-// import type { AppConfig } from "./init";
-// import { protoTypes } from "./proto";
-
-// export function setMessageTypes(config: AppConfig) {
-//   TransactionMessageData.Types.MSG_CLOSE_DEPLOYMENT = `/akash.deployment.${config.deploymentVersion}.MsgCloseDeployment`;
-//   TransactionMessageData.Types.MSG_CREATE_DEPLOYMENT = `/akash.deployment.${config.deploymentVersion}.MsgCreateDeployment`;
-//   TransactionMessageData.Types.MSG_UPDATE_DEPLOYMENT = `/akash.deployment.${config.deploymentVersion}.MsgUpdateDeployment`;
-//   TransactionMessageData.Types.MSG_CREATE_LEASE = `/akash.market.${config.marketVersion}.MsgCreateLease`;
-//   TransactionMessageData.Types.MSG_REVOKE_CERTIFICATE = `/akash.cert.${config.certVersion}.MsgRevokeCertificate`;
-//   TransactionMessageData.Types.MSG_CREATE_CERTIFICATE = `/akash.cert.${config.certVersion}.MsgCreateCertificate`;
-//   TransactionMessageData.Types.MSG_ACCOUNT_DEPOSIT = `/akash.escrow.${config.escrowVersion}.MsgAccountDeposit`;
-//   TransactionMessageData.Types.MSG_UPDATE_PROVIDER = `/akash.provider.${config.providerVersion}.MsgUpdateProvider`;
-// }
 
 export class TransactionMessageData {
-  // static Types = {
-  //   MSG_CLOSE_DEPLOYMENT: "",
-  //   MSG_CREATE_DEPLOYMENT: "",
-  //   MSG_UPDATE_DEPLOYMENT: "",
-  //   MSG_CREATE_LEASE: "",
-  //   MSG_REVOKE_CERTIFICATE: "",
-  //   MSG_CREATE_CERTIFICATE: "",
-  //   MSG_UPDATE_PROVIDER: "",
-  //   MSG_ACCOUNT_DEPOSIT: "",
-
-  //   // Cosmos
-  //   MSG_SEND_TOKENS: "/cosmos.bank.v1beta1.MsgSend",
-  //   MSG_GRANT: "/cosmos.authz.v1beta1.MsgGrant",
-  //   MSG_REVOKE: "/cosmos.authz.v1beta1.MsgRevoke",
-  //   MSG_GRANT_ALLOWANCE: "/cosmos.feegrant.v1beta1.MsgGrantAllowance",
-  //   MSG_REVOKE_ALLOWANCE: "/cosmos.feegrant.v1beta1.MsgRevokeAllowance"
-  // };
-
   static getRevokeCertificateMsg(address: string, serial: string) {
     return {
       typeUrl: `/${MsgRevokeCertificate.$type}`,
