@@ -1,6 +1,5 @@
-import type { DeploymentInfo, RestAkashLeaseListResponse } from "@akashnetwork/http-sdk";
-import { LeaseHttpService } from "@akashnetwork/http-sdk";
-import { DeploymentHttpService } from "@akashnetwork/http-sdk";
+import type { RestAkashLeaseListResponse } from "@akashnetwork/http-sdk";
+import { DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { Test } from "@nestjs/testing";
 import type { MockProxy } from "jest-mock-extended";
@@ -11,28 +10,28 @@ import { DeploymentService } from "./deployment.service";
 
 import { MockProvider } from "@test/mocks/provider.mock";
 import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
+import { generateDeploymentBalanceResponse } from "@test/seeders/deployment-balance-response.seeder";
 
 describe(DeploymentService.name, () => {
   describe("getDeploymentBalance", () => {
     it("should return the deployment calculated escrow balance", async () => {
       const { service, deploymentHttpService, CURRENT_HEIGHT, leaseHttpService } = await setup();
-      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({
-        deployment: {
-          state: "active"
-        },
-        escrow_account: {
-          state: "overdrawn",
-          balance: {
-            denom: "uakt",
-            amount: "400000"
-          },
-          funds: {
-            denom: "uakt",
-            amount: "400000"
-          },
-          settled_at: "900"
-        }
-      } as DeploymentInfo);
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue(
+        generateDeploymentBalanceResponse({
+          state: "active",
+          funds: [
+            {
+              denom: "uakt",
+              amount: 400000
+            },
+            {
+              denom: "uakt",
+              amount: 400000
+            }
+          ],
+          settledAt: 900
+        })
+      );
       const owner = mockAkashAddress();
       const dseq = faker.string.alphanumeric(6);
       leaseHttpService.list.mockResolvedValue({
@@ -55,22 +54,22 @@ describe(DeploymentService.name, () => {
 
     it("should return null if deployment is closed", async () => {
       const { service, deploymentHttpService, leaseHttpService, CURRENT_HEIGHT } = await setup();
-      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({
-        deployment: {
-          state: "closed"
-        },
-        escrow_account: {
-          state: "overdrawn",
-          balance: {
-            denom: "uakt",
-            amount: "1000"
-          },
-          funds: {
-            denom: "uakt",
-            amount: "1000"
-          }
-        }
-      } as DeploymentInfo);
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue(
+        generateDeploymentBalanceResponse({
+          state: "closed",
+          funds: [
+            {
+              denom: "uakt",
+              amount: 1000
+            },
+            {
+              denom: "uakt",
+              amount: 1000
+            }
+          ]
+        })
+      );
+
       const owner = mockAkashAddress();
       const dseq = faker.string.alphanumeric(6);
       leaseHttpService.list.mockResolvedValue({ leases: [] } as unknown as RestAkashLeaseListResponse);
