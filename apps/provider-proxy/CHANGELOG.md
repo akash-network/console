@@ -1,5 +1,13 @@
 
 
+## [1.22.0](https://github.com/akash-network/console/compare/provider-proxy/v1.21.0...provider-proxy/v1.22.0) (2025-10-14)
+
+
+### Features
+
+* adds support for jwt token in offline mode ([#2036](https://github.com/akash-network/console/issues/2036)) ([3c9b8f3](https://github.com/akash-network/console/commit/3c9b8f3c09610b666bd556ee1714d3b83db30c39))
+* **provider:** ensures compatibility with both versions of sdk ([6395508](https://github.com/akash-network/console/commit/6395508145c38a438e6e04b548d638fa57db64cf))
+
 ## [1.21.0](https://github.com/akash-network/console/compare/provider-proxy/v1.20.0...provider-proxy/v1.21.0) (2025-10-10)
 
 
