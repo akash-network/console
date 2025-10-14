@@ -3,16 +3,16 @@ import { createX509CertPair } from "../../../test/seeders/createX509CertPair";
 import { ProviderService } from "./ProviderService";
 
 describe(ProviderService.name, () => {
-  describe("hasCertificate", () => {
-    it("returns true if there is exactly 1 certificate for provided certificate", async () => {
+  describe("getCertificate", () => {
+    it("returns cert if there is exactly 1 certificate for provided certificate", async () => {
       const httpFetch = jest.fn();
       const service = setup({ httpFetch });
 
       httpFetch.mockReturnValueOnce(new Response(JSON.stringify({ certificates: [] }), { status: 200 }));
       expect(await service.getCertificate("sandbox", "provider", "177831BE7F249E66")).toBe(null);
-      expect(httpFetch).toHaveBeenCalledWith(expect.stringContaining("pagination.limit=1"));
-      expect(httpFetch).toHaveBeenCalledWith(expect.stringContaining("filter.owner=provider"));
-      expect(httpFetch).toHaveBeenCalledWith(expect.stringContaining("filter.serial=1691156354324274790"));
+      expect(httpFetch).toHaveBeenCalledWith(expect.stringContaining("pagination.limit=1"), { signal: expect.any(AbortSignal) });
+      expect(httpFetch).toHaveBeenCalledWith(expect.stringContaining("filter.owner=provider"), { signal: expect.any(AbortSignal) });
+      expect(httpFetch).toHaveBeenCalledWith(expect.stringContaining("filter.serial=1691156354324274790"), { signal: expect.any(AbortSignal) });
 
       httpFetch.mockReturnValueOnce(
         new Response(
@@ -52,13 +52,13 @@ describe(ProviderService.name, () => {
       expect(httpFetch).toHaveBeenCalledTimes(1 + 3);
     }, 7_000);
 
-    it("returns false if certificates request fails with 500 and do not retry", async () => {
+    it("returns null if certificates request fails with 500", async () => {
       const httpFetch = jest.fn();
       const service = setup({ httpFetch });
 
-      httpFetch.mockReturnValueOnce(new Response(JSON.stringify("Server error"), { status: 500 }));
+      httpFetch.mockReturnValue(new Response(JSON.stringify("Server error"), { status: 500 }));
       expect(await service.getCertificate("sandbox", "provider", "17B85C634EF9EB05")).toBe(null);
-      expect(httpFetch).toHaveBeenCalledTimes(1);
+      expect(httpFetch).toHaveBeenCalledTimes(4);
     });
   });
 
