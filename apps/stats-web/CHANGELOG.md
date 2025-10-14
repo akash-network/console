@@ -1,5 +1,12 @@
 
 
+## [0.39.1](https://github.com/akash-network/console/compare/stats-web/v0.39.0...stats-web/v0.39.1) (2025-10-14)
+
+
+### Code Refactoring
+
+* simplifies multiple trx version support ([#2052](https://github.com/akash-network/console/issues/2052)) ([ebe8897](https://github.com/akash-network/console/commit/ebe88970a986aa3a692cce4cd78fda78c475934e))
+
 ## [0.39.0](https://github.com/akash-network/console/compare/stats-web/v0.38.0...stats-web/v0.39.0) (2025-10-08)
 
 

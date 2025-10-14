@@ -1,5 +1,13 @@
 
 
+## [2.126.0](https://github.com/akash-network/console/compare/console-api/v2.125.0...console-api/v2.126.0) (2025-10-14)
+
+
+### Features
+
+* adds support for jwt token in offline mode ([#2036](https://github.com/akash-network/console/issues/2036)) ([3c9b8f3](https://github.com/akash-network/console/commit/3c9b8f3c09610b666bd556ee1714d3b83db30c39))
+* **billing:** searches existing payment methods only if provided fingerprints ([66bc9cf](https://github.com/akash-network/console/commit/66bc9cf1a5f7e79adfea4d3d2edd25ab48edaf8d))
+
 ## [2.125.0](https://github.com/akash-network/console/compare/console-api/v2.124.0...console-api/v2.125.0) (2025-10-10)
 
 

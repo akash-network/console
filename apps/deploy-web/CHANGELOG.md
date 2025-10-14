@@ -1,5 +1,17 @@
 
 
+## [2.116.0](https://github.com/akash-network/console/compare/console-web/v2.115.0...console-web/v2.116.0) (2025-10-14)
+
+
+### Features
+
+* adds support for jwt token in offline mode ([#2036](https://github.com/akash-network/console/issues/2036)) ([3c9b8f3](https://github.com/akash-network/console/commit/3c9b8f3c09610b666bd556ee1714d3b83db30c39))
+
+
+### Code Refactoring
+
+* simplifies multiple trx version support ([#2052](https://github.com/akash-network/console/issues/2052)) ([ebe8897](https://github.com/akash-network/console/commit/ebe88970a986aa3a692cce4cd78fda78c475934e))
+
 ## [2.115.0](https://github.com/akash-network/console/compare/console-web/v2.114.0...console-web/v2.115.0) (2025-10-10)
 
 
