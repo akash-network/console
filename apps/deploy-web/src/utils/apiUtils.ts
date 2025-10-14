@@ -9,25 +9,25 @@ export class ApiUrlService {
     return `${apiEndpoint}/cosmos/params/v1beta1/params?subspace=deployment&key=MinDeposits`;
   }
   static certificatesList(apiEndpoint: string, address: string) {
-    return `${apiEndpoint}/akash/cert/${networkStore.apiVersion}/certificates/list?filter.state=valid&filter.owner=${address}`;
+    return `${apiEndpoint}/akash/cert/${networkStore.certVersion}/certificates/list?filter.state=valid&filter.owner=${address}`;
   }
   static deploymentList(apiEndpoint: string, address: string, isActive?: boolean) {
-    return `${apiEndpoint}/akash/deployment/${networkStore.apiVersion}/deployments/list?filters.owner=${address}${isActive ? "&filters.state=active" : ""}`;
+    return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${address}${isActive ? "&filters.state=active" : ""}`;
   }
   static deploymentDetail(apiEndpoint: string, address: string, dseq: string) {
-    return `${apiEndpoint}/akash/deployment/${networkStore.apiVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`;
+    return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`;
   }
   static bidList(apiEndpoint: string, address: string, dseq: string) {
-    return `${apiEndpoint}/akash/market/${networkStore.marketApiVersion}/bids/list?filters.owner=${address}&filters.dseq=${dseq}`;
+    return `${apiEndpoint}/akash/market/${networkStore.marketVersion}/bids/list?filters.owner=${address}&filters.dseq=${dseq}`;
   }
   static bidInfo(apiEndpoint: string, address: string, dseq: string, gseq: number, oseq: number, provider: string) {
-    return `${apiEndpoint}/akash/market/${networkStore.marketApiVersion}/bids/info?id.owner=${address}&id.dseq=${dseq}&id.gseq=${gseq}&id.oseq=${oseq}&id.provider=${provider}`;
+    return `${apiEndpoint}/akash/market/${networkStore.marketVersion}/bids/info?id.owner=${address}&id.dseq=${dseq}&id.gseq=${gseq}&id.oseq=${oseq}&id.provider=${provider}`;
   }
   static leaseList(apiEndpoint: string, address: string, dseq: string) {
-    return `${apiEndpoint}/akash/market/${networkStore.marketApiVersion}/leases/list?filters.owner=${address}${dseq ? "&filters.dseq=" + dseq : ""}`;
+    return `${apiEndpoint}/akash/market/${networkStore.marketVersion}/leases/list?filters.owner=${address}${dseq ? "&filters.dseq=" + dseq : ""}`;
   }
   static providers(apiEndpoint: string) {
-    return `${apiEndpoint}/akash/provider/${networkStore.apiVersion}/providers`;
+    return `${apiEndpoint}/akash/provider/${networkStore.providerVersion}/providers`;
   }
   static providerList() {
     return `${this.baseApiUrl}/v1/providers`;
@@ -39,7 +39,7 @@ export class ApiUrlService {
     return `${this.baseApiUrl}/v1/provider-regions`;
   }
   static block(apiEndpoint: string, id: string) {
-    return `${apiEndpoint}/blocks/${id}`;
+    return `${apiEndpoint}/cosmos/base/tendermint/v1beta1/blocks/${id}`;
   }
   static balance(apiEndpoint: string, address: string) {
     return `${apiEndpoint}/cosmos/bank/v1beta1/balances/${address}`;

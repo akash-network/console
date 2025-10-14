@@ -1,5 +1,6 @@
-import type { Attribute } from "@akashnetwork/akash-api/akash/base/v1beta3";
+import type { Attribute } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { HttpClient } from "@akashnetwork/http-sdk";
+import { netConfig } from "@akashnetwork/net";
 import yaml from "js-yaml";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -13,11 +14,11 @@ export const TRIAL_REGISTERED_ATTRIBUTE = "console/trials-registered";
 const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
 export function getManifest(yamlJson: any, asString: boolean) {
-  return Manifest(yamlJson, "beta3", networkStore.selectedNetworkId, asString);
+  return Manifest(yamlJson, "beta3", netConfig.mappedReverse(networkStore.selectedNetworkId), asString);
 }
 
 export async function getManifestVersion(yamlJson: any) {
-  const version = await ManifestVersion(yamlJson, "beta3", networkStore.selectedNetworkId);
+  const version = await ManifestVersion(yamlJson, "beta3", netConfig.mappedReverse(networkStore.selectedNetworkId));
 
   return Buffer.from(version).toString("base64");
 }
@@ -30,7 +31,7 @@ const getDenomFromSdl = (groups: any[]): string => {
 };
 
 export function appendTrialAttribute(yamlStr: string, attributeKey: string) {
-  const sdl = getSdl(yamlStr, "beta3", networkStore.selectedNetworkId);
+  const sdl = getSdl(yamlStr, "beta3", netConfig.mappedReverse(networkStore.selectedNetworkId));
   const placementData = sdl.data?.profiles?.placement || {};
 
   for (const [, value] of Object.entries(placementData)) {
@@ -86,12 +87,11 @@ export async function NewDeploymentData(
   yamlStr: string,
   dseq: string | null,
   fromAddress: string,
-  deposit: number | DepositParams[] = browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT,
-  depositorAddress: string | null = null
+  deposit: number | DepositParams[] = browserEnvConfig.NEXT_PUBLIC_DEFAULT_INITIAL_DEPOSIT
 ) {
   try {
     const networkId = networkStore.selectedNetworkId;
-    const sdl = getSdl(yamlStr, "beta3", networkId);
+    const sdl = getSdl(yamlStr, "beta3", netConfig.mappedReverse(networkId));
     const groups = sdl.groups();
     const mani = sdl.manifest();
     const denom = getDenomFromSdl(groups);
@@ -100,7 +100,7 @@ export async function NewDeploymentData(
 
     let finalDseq: string = dseq || "";
     if (!finalDseq) {
-      const response = await chainApiHttpClient.get("/blocks/latest");
+      const response = await chainApiHttpClient.get("/cosmos/base/tendermint/v1beta1/blocks/latest");
       finalDseq = response.data.block.header.height;
     }
 
@@ -114,9 +114,8 @@ export async function NewDeploymentData(
       },
       orderId: [],
       leaseId: [],
-      version,
-      deposit: _deposit,
-      depositor: depositorAddress || fromAddress
+      hash: version,
+      deposit: _deposit
     };
   } catch (e: any) {
     const error = new CustomValidationError(e.message);

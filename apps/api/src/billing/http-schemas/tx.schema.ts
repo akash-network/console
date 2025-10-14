@@ -12,7 +12,7 @@ export const SignTxRequestInputSchema = z.object({
             "/akash.market.v1beta5.MsgCreateLease",
             "/akash.deployment.v1beta4.MsgUpdateDeployment",
             "/akash.deployment.v1beta4.MsgCloseDeployment",
-            "/akash.deployment.v1beta4.MsgDepositDeployment"
+            "/akash.escrow.v1.MsgAccountDeposit"
           ]),
           value: z.string()
         })
