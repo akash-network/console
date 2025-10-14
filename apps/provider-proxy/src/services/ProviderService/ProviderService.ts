@@ -5,6 +5,8 @@ import { X509Certificate } from "crypto";
 import { httpRetry } from "../../utils/retry";
 
 export class ProviderService {
+  private certApiModuleVersion = "v1";
+
   constructor(
     private readonly getChainBaseUrl: (network: SupportedChainNetworks) => string,
     private readonly fetch: typeof global.fetch,
@@ -24,10 +26,7 @@ export class ProviderService {
       throw new Error(`No API URL provided for network ${network}`);
     }
 
-    const response = await httpRetry(() => this.fetch(`${baseUrl}/akash/cert/v1/certificates/list?${queryParams}`, { signal: AbortSignal.timeout(5_000) }), {
-      retryIf: response => response.status >= 500,
-      logger: this.logger
-    });
+    const response = await this.fetchCertificate(baseUrl, queryParams);
 
     if (response.status >= 200 && response.status < 300) {
       const body = (await response.json()) as KnownCertificatesResponseBody;
@@ -35,6 +34,23 @@ export class ProviderService {
     }
 
     return null;
+  }
+
+  private async fetchCertificate(baseUrl: string, queryParams: URLSearchParams): Promise<Response> {
+    const response = await httpRetry(
+      () => this.fetch(`${baseUrl}/akash/cert/${this.certApiModuleVersion}/certificates/list?${queryParams}`, { signal: AbortSignal.timeout(5_000) }),
+      {
+        retryIf: response => response.status !== 501 && response.status >= 500,
+        logger: this.logger
+      }
+    );
+
+    if (response.status === 501) {
+      this.certApiModuleVersion = this.certApiModuleVersion === "v1" ? "v1beta3" : "v1";
+      return this.fetchCertificate(baseUrl, queryParams);
+    }
+
+    return response;
   }
 
   isValidationServerError(rawBody: unknown): boolean {

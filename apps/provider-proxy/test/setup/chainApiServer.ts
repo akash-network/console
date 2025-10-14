@@ -15,7 +15,7 @@ export function startChainApiServer(certificates: X509Certificate[], options?: C
     const server = http.createServer((req, res) => {
       if (options?.interceptRequest?.(req, res)) return;
 
-      if (!req.url?.includes("/akash/cert/v1/certificates/list")) {
+      if (!/\/akash\/cert\/(v1|v1beta3)\/certificates\/list/.test(req.url || "")) {
         res.writeHead(404, "Not Found");
         res.end("");
         return;
