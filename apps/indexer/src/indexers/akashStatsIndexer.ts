@@ -116,8 +116,8 @@ export class AkashStatsIndexer extends Indexer {
       "/akash.provider.v1beta4.MsgDeleteProvider": this.handleDeleteProvider,
       "/akash.provider.v1beta4.MsgUpdateProvider": this.handleUpdateProvider,
       // Akash v1beta5 types
-      "/akash.market.v1beta5.MsgCreateLease": this.handleCreateLease,
-      "/akash.market.v1beta5.MsgCloseLease": this.handleCloseV5,
+      "/akash.market.v1beta5.MsgCreateLease": this.handleCreateLeaseV5,
+      "/akash.market.v1beta5.MsgCloseLease": this.handleCloseLeaseV5,
       "/akash.market.v1beta5.MsgCreateBid": this.handleCreateBidV5,
       "/akash.market.v1beta5.MsgCloseBid": this.handleCloseBidV5,
       "/akash.market.v1beta5.MsgWithdrawLease": this.handleWithdrawLeaseV5,
@@ -588,6 +588,94 @@ export class AkashStatsIndexer extends Indexer {
         dseq: decodedMessage.bidId.dseq.toString(),
         oseq: decodedMessage.bidId.oseq,
         gseq: decodedMessage.bidId.gseq,
+        bseq: 0,
+        providerAddress: decodedMessage.bidId.provider,
+        createdHeight: height,
+        predictedClosedHeight: predictedClosedHeight.toString(),
+        price: bid.price,
+        denom: deployment.denom,
+
+        // Stats
+        cpuUnits: deploymentGroup.deploymentGroupResources.map(x => x.cpuUnits * x.count).reduce((a, b) => a + b, 0),
+        gpuUnits: deploymentGroup.deploymentGroupResources.map(x => x.gpuUnits * x.count).reduce((a, b) => a + b, 0),
+        memoryQuantity: deploymentGroup.deploymentGroupResources.map(x => x.memoryQuantity * x.count).reduce((a, b) => a + b, 0),
+        ephemeralStorageQuantity: deploymentGroup.deploymentGroupResources.map(x => x.ephemeralStorageQuantity * x.count).reduce((a, b) => a + b, 0),
+        persistentStorageQuantity: deploymentGroup.deploymentGroupResources.map(x => x.persistentStorageQuantity * x.count).reduce((a, b) => a + b, 0)
+      },
+      { transaction: blockGroupTransaction }
+    );
+
+    await Lease.update(
+      { predictedClosedHeight: predictedClosedHeight.toString() },
+      { where: { deploymentId: deployment.id }, transaction: blockGroupTransaction }
+    );
+
+    msg.relatedDeploymentId = deployment.id;
+
+    this.totalLeaseCount++;
+  }
+
+  private async handleCreateLeaseV5(decodedMessage: v1beta5.MsgCreateLease, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    const bid = await Bid.findOne({
+      where: {
+        owner: decodedMessage.bidId.owner,
+        dseq: decodedMessage.bidId.dseq.toString(),
+        gseq: decodedMessage.bidId.gseq,
+        oseq: decodedMessage.bidId.oseq,
+        bseq: decodedMessage.bidId.bseq,
+        provider: decodedMessage.bidId.provider
+      },
+      transaction: blockGroupTransaction
+    });
+
+    const deploymentGroup = await DeploymentGroup.findOne({
+      attributes: ["id"],
+      where: {
+        owner: decodedMessage.bidId.owner,
+        dseq: decodedMessage.bidId.dseq.toString(),
+        gseq: decodedMessage.bidId.gseq
+      },
+      include: [
+        {
+          model: DeploymentGroupResource,
+          attributes: ["count", "cpuUnits", "gpuUnits", "memoryQuantity", "ephemeralStorageQuantity", "persistentStorageQuantity"],
+          required: false
+        }
+      ],
+      transaction: blockGroupTransaction
+    });
+
+    if (!deploymentGroup) {
+      throw new Error(`Deployment group for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()}/${decodedMessage.bidId.gseq} not found.`);
+    }
+
+    const deployment = await Deployment.findOne({
+      where: {
+        owner: decodedMessage.bidId.owner,
+        dseq: decodedMessage.bidId.dseq.toString()
+      },
+      include: [{ model: Lease }],
+      transaction: blockGroupTransaction
+    });
+
+    if (!deployment) {
+      throw new Error(`Deployment for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()} not found.`);
+    }
+
+    const { blockRate } = await accountSettle(deployment, height, blockGroupTransaction);
+
+    const predictedClosedHeight = Math.ceil(height + deployment.balance / (blockRate + bid.price));
+
+    await Lease.create(
+      {
+        id: uuid.v4(),
+        deploymentId: deployment.id,
+        deploymentGroupId: deploymentGroup.id,
+        owner: decodedMessage.bidId.owner,
+        dseq: decodedMessage.bidId.dseq.toString(),
+        oseq: decodedMessage.bidId.oseq,
+        gseq: decodedMessage.bidId.gseq,
+        bseq: decodedMessage.bidId.bseq,
         providerAddress: decodedMessage.bidId.provider,
         createdHeight: height,
         predictedClosedHeight: predictedClosedHeight.toString(),
@@ -661,7 +749,7 @@ export class AkashStatsIndexer extends Indexer {
     }
   }
 
-  private async handleCloseV5(decodedMessage: v1beta5.MsgCloseLease, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+  private async handleCloseLeaseV5(decodedMessage: v1beta5.MsgCloseLease, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
     const deployment = await Deployment.findOne({
       where: {
         owner: decodedMessage.id.owner,
@@ -713,6 +801,7 @@ export class AkashStatsIndexer extends Indexer {
         dseq: decodedMessage.order.dseq.toString(),
         gseq: decodedMessage.order.gseq,
         oseq: decodedMessage.order.oseq,
+        bseq: 0,
         provider: decodedMessage.provider,
         price: parseFloat(decodedMessage.price.amount),
         createdHeight: height
@@ -739,6 +828,7 @@ export class AkashStatsIndexer extends Indexer {
         dseq: decodedMessage.id.dseq.toString(),
         gseq: decodedMessage.id.gseq,
         oseq: decodedMessage.id.oseq,
+        bseq: decodedMessage.id.bseq,
         provider: decodedMessage.id.provider,
         price: parseFloat(decodedMessage.price.amount),
         createdHeight: height
@@ -857,6 +947,7 @@ export class AkashStatsIndexer extends Indexer {
         dseq: decodedMessage.id.dseq.toString(),
         gseq: decodedMessage.id.gseq,
         oseq: decodedMessage.id.oseq,
+        bseq: decodedMessage.id.bseq,
         provider: decodedMessage.id.provider
       },
       transaction: blockGroupTransaction
