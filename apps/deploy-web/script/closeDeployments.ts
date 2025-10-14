@@ -38,7 +38,7 @@ async function main() {
     return {
       typeUrl: `/${MsgCloseDeployment.$type}`,
       value: MsgCloseDeployment.fromPartial({
-        id: deployment.deployment.deployment_id
+        id: deployment.deployment.id
       })
     };
   });

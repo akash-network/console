@@ -136,15 +136,13 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
         // Use rpc proxy as a backup if there's no active nodes in the list
         defaultApiNode = randomNode?.api || "https://rpc.akt.dev/rest";
         defaultRpcNode = randomNode?.rpc || "https://rpc.akt.dev/rpc";
-        // defaultApiNode = randomNode?.api || "https://testnetapi.akashnet.net";
-        // defaultRpcNode = randomNode?.rpc || "https://testnetrpc.akashnet.net";
         selectedNode = randomNode || {
           api: defaultApiNode,
           rpc: defaultRpcNode,
           status: "active",
           latency: 0,
           nodeInfo: null,
-          id: "https://testnetapi.akashnet.net"
+          id: "https://rpc.akt.dev/rest"
         };
         if ((selectedNode as BlockchainNode).nodeInfo === null) {
           Object.assign(selectedNode, await loadNodeStatus(selectedNode.api));
