@@ -1,10 +1,10 @@
 import type { CertificatesService } from "@akashnetwork/http-sdk";
 import { useQueryClient } from "@tanstack/react-query";
-import type { AxiosInstance } from "axios";
 import { mock } from "jest-mock-extended";
 
-import type { ContextType as CertificateProviderContextType } from "@src/context/CertificateProvider/CertificateProviderContext";
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
+import type { UseProviderCredentialsResult } from "@src/hooks/useProviderCredentials/useProviderCredentials";
+import type { FallbackableHttpClient } from "@src/services/createFallbackableHttpClient/createFallbackableHttpClient";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
@@ -114,7 +114,7 @@ describe("useLeaseQuery", () => {
     it("should return null when deployment is not provided", async () => {
       const { result } = setupQuery(() => useDeploymentLeaseList("test-address", null), {
         services: {
-          chainApiHttpClient: () => mock<AxiosInstance>()
+          chainApiHttpClient: () => mock<FallbackableHttpClient>()
         }
       });
 
@@ -124,15 +124,14 @@ describe("useLeaseQuery", () => {
     });
 
     it("should fetch leases when deployment is provided", async () => {
-      const chainApiHttpClient = mock<AxiosInstance>({
-        defaults: { baseURL: "http://localhost" },
+      const chainApiHttpClient = mock<FallbackableHttpClient>({
         get: jest.fn().mockResolvedValue({
           data: {
             leases: mockLeases,
             pagination: { next_key: null, total: mockLeases.length }
           }
         })
-      } as unknown as AxiosInstance);
+      } as unknown as FallbackableHttpClient);
       const { result } = setupQuery(() => useDeploymentLeaseList("test-address", mockDeployment), {
         services: {
           chainApiHttpClient: () => chainApiHttpClient
@@ -148,15 +147,14 @@ describe("useLeaseQuery", () => {
     });
 
     it("should provide a remove function that clears the query", async () => {
-      const chainApiHttpClient = mock<AxiosInstance>({
-        defaults: { baseURL: "http://localhost" },
+      const chainApiHttpClient = mock<FallbackableHttpClient>({
         get: jest.fn().mockResolvedValue({
           data: {
             leases: mockLeases,
             pagination: { next_key: null, total: mockLeases.length }
           }
         })
-      } as unknown as AxiosInstance);
+      } as unknown as FallbackableHttpClient);
       const { result } = setupQuery(
         () => {
           const deploymentList = useDeploymentLeaseList("test-address", mockDeployment);
@@ -192,7 +190,7 @@ describe("useLeaseQuery", () => {
     it("should return null when address is not provided", async () => {
       const { result } = setupQuery(() => useAllLeases(""), {
         services: {
-          chainApiHttpClient: () => mock<AxiosInstance>()
+          chainApiHttpClient: () => mock<FallbackableHttpClient>()
         }
       });
 
@@ -202,14 +200,14 @@ describe("useLeaseQuery", () => {
     });
 
     it("should fetch all leases when address is provided", async () => {
-      const chainApiHttpClient = mock<AxiosInstance>({
+      const chainApiHttpClient = mock<FallbackableHttpClient>({
         get: jest.fn().mockResolvedValue({
           data: {
             leases: mockLeases,
             pagination: { next_key: null, total: mockLeases.length }
           }
         })
-      } as unknown as AxiosInstance);
+      } as unknown as FallbackableHttpClient);
       const { result } = setupQuery(() => useAllLeases("test-address"), {
         services: {
           chainApiHttpClient: () => chainApiHttpClient
@@ -224,14 +222,14 @@ describe("useLeaseQuery", () => {
     });
 
     it("should use the correct query key", async () => {
-      const chainApiHttpClient = mock<AxiosInstance>({
+      const chainApiHttpClient = mock<FallbackableHttpClient>({
         get: jest.fn().mockResolvedValue({
           data: {
             leases: mockLeases,
             pagination: { next_key: null, total: mockLeases.length }
           }
         })
-      } as unknown as AxiosInstance);
+      } as unknown as FallbackableHttpClient);
       const { result } = setupQuery(
         () => {
           const leases = useAllLeases("test-address");
@@ -267,7 +265,12 @@ describe("useLeaseQuery", () => {
     it("returns null when local cert is not provided", async () => {
       const { result } = setupLeaseStatus({
         lease: mockLease,
-        localCert: undefined,
+        providerCredentials: {
+          type: "mtls",
+          value: null,
+          isExpired: false,
+          usable: false
+        },
         services: {
           providerProxy: () => mock<ProviderProxyService>()
         }
@@ -278,7 +281,7 @@ describe("useLeaseQuery", () => {
       });
     });
 
-    it("fetches lease status when lease is provided", async () => {
+    it("fetches lease status when certificate is provided", async () => {
       const provider = buildProvider();
       const providerProxy = mock<ProviderProxyService>({
         fetchProviderUrl: jest.fn().mockResolvedValue({ data: mockLeaseStatus })
@@ -286,10 +289,14 @@ describe("useLeaseQuery", () => {
       const { result } = setupLeaseStatus({
         provider,
         lease: mockLease,
-        localCert: {
-          certPem: "certPem",
-          keyPem: "keyPem",
-          address: "address"
+        providerCredentials: {
+          type: "mtls",
+          value: {
+            cert: "certPem",
+            key: "keyPem"
+          },
+          isExpired: false,
+          usable: true
         },
         services: {
           providerProxy: () => providerProxy
@@ -313,22 +320,23 @@ describe("useLeaseQuery", () => {
     function setupLeaseStatus(input?: {
       provider?: ApiProviderList;
       lease?: LeaseDto;
-      localCert?: CertificateProviderContextType["localCert"];
+      providerCredentials?: UseProviderCredentialsResult["details"];
       services?: ServicesProviderProps["services"];
     }) {
       const dependencies: typeof USE_LEASE_STATUS_DEPENDENCIES = {
         ...USE_LEASE_STATUS_DEPENDENCIES,
-        useCertificate: () =>
-          mock<CertificateProviderContextType>({
-            localCert:
-              input && "localCert" in input
-                ? input.localCert
-                : {
-                    certPem: "certPem",
-                    keyPem: "keyPem",
-                    address: "address"
-                  }
-          })
+        useProviderCredentials: () => ({
+          details: input?.providerCredentials ?? {
+            type: "mtls",
+            value: {
+              cert: "certPem",
+              key: "keyPem"
+            },
+            isExpired: false,
+            usable: true
+          },
+          generate: jest.fn(async () => {})
+        })
       };
       return setupQuery(() => useLeaseStatus({ provider: input?.provider || buildProvider(), lease: input?.lease, dependencies }), {
         services: {

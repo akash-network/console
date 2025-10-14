@@ -1,5 +1,12 @@
 
 
+## [1.32.0](https://github.com/akash-network/console/compare/notifications/v1.31.0...notifications/v1.32.0) (2025-10-10)
+
+
+### Features
+
+* **config:** uses correct sdk53 testnet config ([4ce80e5](https://github.com/akash-network/console/commit/4ce80e5fd7a5dc7dc6fb0d4f8b3ae34b7b7eef13))
+
 ## [1.31.0](https://github.com/akash-network/console/compare/notifications/v1.30.0...notifications/v1.31.0) (2025-10-08)
 
 

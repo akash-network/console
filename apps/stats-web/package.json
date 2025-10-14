@@ -13,6 +13,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.8",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/logging": "*",
     "@akashnetwork/network-store": "*",
@@ -50,7 +51,6 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@akashnetwork/akashjs": "^0.11.1",
     "@akashnetwork/dev-config": "*",
     "@akashnetwork/docker": "*",
     "@akashnetwork/releaser": "*",

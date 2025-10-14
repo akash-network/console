@@ -3,12 +3,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useScopedFetchProviderUrl } from "@src/hooks/useScopedFetchProviderUrl";
 import type { DeploymentDto, LeaseDto, RpcLease } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
-import { useCertificate } from "../context/CertificateProvider";
 import { QueryKeys } from "./queryKeys";
 
 // Leases
@@ -76,18 +76,17 @@ export function useLeaseStatus(
   } & Omit<UseQueryOptions<LeaseStatusDto | null>, "queryKey" | "queryFn"> = {}
 ) {
   const { provider, lease, dependencies: d = USE_LEASE_STATUS_DEPENDENCIES, ...options } = params;
-  const { localCert } = d.useCertificate();
+  const providerCredentials = d.useProviderCredentials();
   const fetchProviderUrl = d.useScopedFetchProviderUrl(provider);
 
   return useQuery({
     queryKey: QueryKeys.getLeaseStatusKey(lease?.dseq || "", lease?.gseq || NaN, lease?.oseq || NaN),
     queryFn: async () => {
-      if (!lease || !localCert) return null;
+      if (!lease || !providerCredentials.details.usable) return null;
 
       const response = await fetchProviderUrl<LeaseStatusDto>(`/lease/${lease.dseq}/${lease.gseq}/${lease.oseq}/status`, {
         method: "GET",
-        certPem: localCert?.certPem,
-        keyPem: localCert?.keyPem
+        credentials: providerCredentials.details
       });
 
       return response.data;
@@ -97,7 +96,7 @@ export function useLeaseStatus(
 }
 export const USE_LEASE_STATUS_DEPENDENCIES = {
   useScopedFetchProviderUrl,
-  useCertificate
+  useProviderCredentials
 };
 
 export interface LeaseStatusDto {

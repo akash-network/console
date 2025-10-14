@@ -393,5 +393,5 @@ export const useCertificate = (): ContextType => {
 };
 
 function isExpired(parsedLocalCert: CertificateInfo) {
-  return parsedLocalCert.expiresOn.getTime() < Date.now();
+  return parsedLocalCert.expiresOn.getTime() <= Date.now();
 }
