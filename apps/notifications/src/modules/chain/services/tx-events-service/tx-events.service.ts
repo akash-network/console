@@ -1,10 +1,13 @@
-import type { BlockResultsResponse } from "@cosmjs/tendermint-rpc";
-import { Tendermint34Client, TxData } from "@cosmjs/tendermint-rpc";
+import { Comet38Client } from "@cosmjs/tendermint-rpc";
+import { BlockResultsResponse, Event } from "@cosmjs/tendermint-rpc/build/comet38";
 import { Injectable } from "@nestjs/common";
 import { backOff } from "exponential-backoff";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 
+/**
+ * Represents a processed blockchain event with standardized structure
+ */
 interface ProcessedEvent {
   type: string;
   module: string;
@@ -12,34 +15,46 @@ interface ProcessedEvent {
   [key: string]: string;
 }
 
+/**
+ * Supported blockchain event actions
+ */
+type Action = "deployment-closed" | "deployment-created";
+
+/**
+ * Filter criteria for blockchain events
+ */
 interface EventFilter {
-  type?: string;
-  action?: string | string[];
+  source?: "akash";
+  action?: Action | Action[];
+  module?: "deployment";
+  version?: "v1";
 }
 
-interface LogEvent {
-  type: string;
-  attributes: Array<{
-    key: string;
-    value: string;
-  }>;
-}
-
-interface LogEntry {
-  events: LogEvent[];
-}
-
-interface ModuleActionGroup {
-  type: string;
-  module: string;
-  action: string;
-  attributes: Record<string, string>;
-}
-
+/**
+ * Service for fetching and processing blockchain transaction events from Tendermint/Comet38.
+ * Handles event filtering, parsing, and transformation to a standardized format.
+ *
+ * Features:
+ * - Fetches block results using Comet38Client with exponential backoff retry
+ * - Filters events by source, module, version, and action
+ * - Transforms raw blockchain events to standardized v1 format
+ * - Handles both new Comet38 event format and legacy format
+ * - Robust error handling with detailed logging
+ * - Graceful handling of malformed JSON in event attributes
+ */
 @Injectable()
 export class TxEventsService {
+  private readonly EVENT_ACTIONS: Record<string, string> = {
+    EventDeploymentClosed: "deployment-closed",
+    EventDeploymentCreated: "deployment-created"
+  };
+
+  private readonly ACTION_EVENTS: Record<string, string> = Object.fromEntries(Object.entries(this.EVENT_ACTIONS).map(([k, v]) => [v, k]));
+
+  private readonly EXCLUDE_PROPS = new Set(["msg_index"]);
+
   constructor(
-    private readonly tendermint34Client: Tendermint34Client,
+    private readonly comet38Client: Comet38Client,
     private readonly loggerService: LoggerService
   ) {
     this.loggerService.setContext(TxEventsService.name);
@@ -78,7 +93,7 @@ export class TxEventsService {
    * @returns Block results response from Tendermint
    */
   private async fetchBlockResultsWithRetry(blockHeight: number): Promise<BlockResultsResponse> {
-    return await backOff(() => this.tendermint34Client.blockResults(blockHeight), {
+    return await backOff(() => this.comet38Client.blockResults(blockHeight), {
       maxDelay: 7_000,
       startingDelay: 500,
       timeMultiple: 2,
@@ -88,217 +103,111 @@ export class TxEventsService {
   }
 
   /**
-   * Extracts and filters events from block results
-   * @param blockResults - The block results containing transaction logs
-   * @param filter - Optional filter to apply to events
+   * Extracts and filters events from block results, processing all transaction results
+   * @param blockResults - The block results containing transaction events
+   * @param filter - Optional filter to apply to events (source, module, version, action)
    * @returns Array of processed events matching the filter criteria
    */
   private extractFilteredEventsFromBlockResults(blockResults: BlockResultsResponse, filter?: EventFilter): ProcessedEvent[] {
-    const allProcessedEvents: ProcessedEvent[] = [];
+    return blockResults.results
+      .map(result => {
+        let events: Event[] = [];
 
-    for (const transactionResult of blockResults.results) {
-      if (!transactionResult.log) {
-        continue;
-      }
-
-      const parsedTransactionLog = this.parseTransactionLog(transactionResult);
-      if (!parsedTransactionLog || !Array.isArray(parsedTransactionLog)) {
-        continue;
-      }
-
-      const eventsFromTransaction = this.processAllEventsInTransaction(parsedTransactionLog, filter);
-      allProcessedEvents.push(...eventsFromTransaction);
-    }
-
-    return allProcessedEvents;
-  }
-
-  /**
-   * Parses a transaction log from JSON string to object
-   * @param transaction - The transaction data containing the log
-   * @returns Parsed log object or undefined if parsing fails
-   */
-  private parseTransactionLog(transaction: TxData): LogEntry | undefined {
-    try {
-      return transaction.log && JSON.parse(transaction.log);
-    } catch (error) {
-      this.loggerService.error({
-        event: "TRANSACTION_LOG_PARSING_FAILED",
-        error,
-        log: transaction.log
-      });
-      return undefined;
-    }
-  }
-
-  /**
-   * Processes all events within a single transaction log entry
-   * @param transactionLogEntries - Array of log entries from a transaction
-   * @param filter - Optional filter to apply to events
-   * @returns Array of processed events from this transaction
-   */
-  private processAllEventsInTransaction(transactionLogEntries: LogEntry[], filter?: EventFilter): ProcessedEvent[] {
-    const moduleActionEventsFromTransaction: ProcessedEvent[] = [];
-
-    for (const logEntry of transactionLogEntries) {
-      if (!logEntry.events || !Array.isArray(logEntry.events)) {
-        continue;
-      }
-
-      const filteredEvents = this.filterEventsByType(logEntry.events, filter);
-      const events = this.extractModuleActionEventsFromTxEvents(filteredEvents, filter);
-      moduleActionEventsFromTransaction.push(...events);
-    }
-
-    return moduleActionEventsFromTransaction;
-  }
-
-  /**
-   * Filters events by type if a filter is specified
-   * @param events - Array of events to filter
-   * @param filter - Optional filter containing type criteria
-   * @returns Filtered array of events
-   */
-  private filterEventsByType(events: LogEvent[], filter?: EventFilter): LogEvent[] {
-    if (!filter?.type) {
-      return events;
-    }
-
-    return events.filter((event: LogEvent) => event.type === filter.type);
-  }
-
-  /**
-   * Extracts module-action events from a collection of filtered events
-   * @param events - Array of events to process
-   * @param filter - Optional filter to apply during processing
-   * @returns Array of processed events
-   */
-  private extractModuleActionEventsFromTxEvents(events: LogEvent[], filter?: EventFilter): ProcessedEvent[] {
-    const processedEvents: ProcessedEvent[] = [];
-
-    for (const event of events) {
-      const eventsFromSingleEvent = this.extractModuleActionEventsFromSingleEvent(event, filter);
-      processedEvents.push(...eventsFromSingleEvent);
-    }
-
-    return processedEvents;
-  }
-
-  /**
-   * Extracts module-action events from a single event by grouping attributes
-   * @param event - The event to process
-   * @param filter - Optional filter to apply during processing
-   * @returns Array of processed events from this single event
-   */
-  private extractModuleActionEventsFromSingleEvent(event: LogEvent, filter?: EventFilter): ProcessedEvent[] {
-    if (filter?.type && event.type !== filter.type) {
-      return [];
-    }
-
-    const moduleActionGroups = this.groupAttributesByModuleAndAction(event.attributes, event.type);
-    return this.convertGroupsToProcessedEvents(moduleActionGroups, filter);
-  }
-
-  /**
-   * Groups event attributes by unique (module, action) pairs
-   * @param attributes - Array of event attributes
-   * @param eventType - The type of the event being processed
-   * @returns Record of module-action groups with their attributes
-   */
-  private groupAttributesByModuleAndAction(attributes: Array<{ key: string; value: string }>, eventType: string): Record<string, ModuleActionGroup> {
-    const moduleActionGroups: Record<string, ModuleActionGroup> = {};
-    let currentModule = "";
-    let currentAction = "";
-
-    for (const attribute of attributes) {
-      if (attribute.key === "module") {
-        currentModule = attribute.value;
-        currentAction = "";
-      }
-      if (attribute.key === "action") {
-        currentAction = attribute.value;
-      }
-
-      if (currentModule && currentAction) {
-        const groupKey = this.createModuleActionGroupKey(currentModule, currentAction);
-
-        if (!moduleActionGroups[groupKey]) {
-          moduleActionGroups[groupKey] = {
-            type: eventType,
-            module: currentModule,
-            action: currentAction,
-            attributes: {}
-          };
+        if (filter) {
+          const regexp = this.toFilterRegexp(filter);
+          events = result.events.filter(event => regexp.test(event.type));
+        } else {
+          events = [...result.events];
         }
 
-        moduleActionGroups[groupKey].attributes[attribute.key] = attribute.value;
-      }
-    }
-
-    return moduleActionGroups;
+        return this.transformEventsToV1Format(events);
+      })
+      .flat();
   }
 
   /**
-   * Creates a unique key for a module-action group
-   * @param module - The module name
-   * @param action - The action name
-   * @returns Unique key string
+   * Creates a regular expression pattern for filtering events based on filter criteria
+   * @param filter - The filter criteria (source, module, version, action)
+   * @param flags - Optional regex flags
+   * @returns Regular expression for matching event types
    */
-  private createModuleActionGroupKey(module: string, action: string): string {
-    return `${module}::${action}`;
+  private toFilterRegexp(filter: EventFilter, flags: string = ""): RegExp {
+    const source = filter.source ? this.escape(filter.source) : ".*";
+    const module = filter.module ? this.escape(filter.module) : ".*";
+    const version = filter.version ? this.escape(filter.version) : ".*";
+    const action = filter.action ? this.buildAction(filter.action) : ".*";
+
+    const pattern = `^${source}\\.${module}\\.${version}\\.${action}$`;
+    return new RegExp(pattern, flags);
   }
 
   /**
-   * Converts module-action groups to processed events, applying filters
-   * @param moduleActionGroups - Record of module-action groups
-   * @param filter - Optional filter to apply
-   * @returns Array of processed events
+   * Escapes special regex characters in a string
+   * @param str - The string to escape
+   * @returns Escaped string safe for use in regex patterns
    */
-  private convertGroupsToProcessedEvents(moduleActionGroups: Record<string, ModuleActionGroup>, filter?: EventFilter): ProcessedEvent[] {
-    const processedEvents: ProcessedEvent[] = [];
-
-    for (const group of Object.values(moduleActionGroups)) {
-      if (this.shouldIncludeGroupInResults(group, filter)) {
-        const processedEvent = this.createProcessedEventFromGroup(group);
-        processedEvents.push(processedEvent);
-      }
-    }
-
-    return processedEvents;
+  private escape(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
   /**
-   * Determines if a module-action group should be included in results based on filter criteria
-   * @param group - The module-action group to evaluate
-   * @param filter - Optional filter criteria
-   * @returns True if the group should be included, false otherwise
+   * Builds a regex pattern for matching action names
+   * @param action - Single action or array of actions to match
+   * @returns Regex pattern string for matching actions
    */
-  private shouldIncludeGroupInResults(group: ModuleActionGroup, filter?: EventFilter): boolean {
-    if (group.module !== "deployment") {
-      return false;
-    }
-
-    if (filter?.action) {
-      const allowedActions = Array.isArray(filter.action) ? filter.action : [filter.action];
-      if (!allowedActions.includes(group.action)) {
-        return false;
-      }
-    }
-
-    return true;
+  private buildAction(action: Action | Action[]): string {
+    const chainEvents = this.resolveEventNames(action);
+    return `(?:${chainEvents.map(a => this.escape(a)).join("|")})`;
   }
 
   /**
-   * Creates a processed event object from a module-action group
-   * @param group - The module-action group to convert
-   * @returns Processed event object
+   * Resolves action names to their corresponding blockchain event names
+   * @param action - Single action or array of actions
+   * @returns Array of resolved event names
    */
-  private createProcessedEventFromGroup(group: ModuleActionGroup): ProcessedEvent {
-    return {
-      type: group.type,
-      module: group.module,
-      action: group.action,
-      ...group.attributes
-    };
+  private resolveEventNames(action: Action | Action[]): string[] {
+    const list = Array.isArray(action) ? action : [action];
+    return list.map(a => this.ACTION_EVENTS[a] ?? a);
+  }
+
+  /**
+   * Transforms raw blockchain events to standardized v1 format.
+   * Handles both new Comet38 format (akash.deployment.v1.EventDeploymentCreated)
+   * and legacy format (akash.v1) events.
+   *
+   * @param events - Array of raw blockchain events
+   * @returns Array of processed events in standardized format
+   */
+  private transformEventsToV1Format(events: Event[]): ProcessedEvent[] {
+    return events.map(event => {
+      const [source, module, version, chainEvent] = event.type.split(".");
+      const processedEvent: ProcessedEvent = {
+        type: `${source}.${version}`,
+        action: this.EVENT_ACTIONS[chainEvent] || chainEvent,
+        module
+      };
+      return event.attributes.reduce((acc, attribute) => {
+        try {
+          const value = JSON.parse(attribute.value);
+          if (this.EXCLUDE_PROPS.has(attribute.key)) {
+            return acc;
+          }
+
+          if (attribute.key === "id") {
+            Object.assign(acc, value);
+          } else {
+            acc[attribute.key] = value;
+          }
+          return acc;
+        } catch (error) {
+          this.loggerService.error({
+            event: "EVENT_PROPERTY_PARSING_FAILED",
+            error,
+            payload: event
+          });
+          return acc;
+        }
+      }, processedEvent);
+    });
   }
 }

@@ -1,4 +1,4 @@
-import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { StargateClient } from "@cosmjs/stargate";
 import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -87,7 +87,12 @@ export class ChainEventsPollerService implements OnModuleInit, OnModuleDestroy {
 
       const block = await this.blockMessageService.getMessages(nextBlockHeight, [MsgCloseDeployment["$type"], MsgCreateDeployment["$type"]]);
 
-      const txEvents = await this.txEventsService.getBlockEvents(nextBlockHeight, { type: "akash.v1", action: ["deployment-closed"] });
+      const txEvents = await this.txEventsService.getBlockEvents(nextBlockHeight, {
+        module: "deployment",
+        version: "v1",
+        source: "akash",
+        action: ["deployment-closed"]
+      });
 
       await this.brokerService.publishAll([
         {
