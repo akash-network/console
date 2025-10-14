@@ -52,6 +52,7 @@ export const bid = pgTable(
     dseq: varchar({ length: 255 }).notNull(),
     gseq: integer().notNull(),
     oseq: integer().notNull(),
+    bseq: integer().default(0).notNull(),
     provider: varchar({ length: 255 }).notNull(),
     price: doublePrecision().notNull(),
     createdHeight: integer().notNull()
@@ -117,6 +118,7 @@ export const lease = pgTable(
     dseq: varchar({ length: 255 }).notNull(),
     oseq: integer().notNull(),
     gseq: integer().notNull(),
+    bseq: integer().default(0).notNull(),
     providerAddress: varchar({ length: 255 }).notNull(),
     createdHeight: integer().notNull(),
     closedHeight: integer(),
@@ -223,9 +225,9 @@ export const provider = pgTable(
     ipCountryCode: varchar({ length: 255 }),
     ipLat: varchar({ length: 255 }),
     ipLon: varchar({ length: 255 }),
-    uptime1D: doublePrecision(),
-    uptime7D: doublePrecision(),
-    uptime30D: doublePrecision(),
+    uptime1d: doublePrecision(),
+    uptime7d: doublePrecision(),
+    uptime30d: doublePrecision(),
     updatedHeight: integer(),
     lastSnapshotId: uuid(),
     nextCheckDate: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull(),
@@ -248,12 +250,12 @@ export const block = pgTable(
     isProcessed: boolean().default(false).notNull(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     totalTxCount: bigint({ mode: "number" }).notNull(),
-    totalUaktSpent: doublePrecision(),
-    totalUusdcSpent: doublePrecision(),
+    totalUAktSpent: doublePrecision(),
+    totalUUsdcSpent: doublePrecision(),
     activeLeaseCount: integer(),
     totalLeaseCount: integer(),
-    activeCpu: integer(),
-    activeGpu: integer(),
+    activeCPU: integer(),
+    activeGPU: integer(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     activeMemory: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
@@ -261,7 +263,7 @@ export const block = pgTable(
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     activePersistentStorage: bigint({ mode: "number" }),
     activeProviderCount: integer(),
-    totalUusdSpent: doublePrecision()
+    totalUUsdSpent: doublePrecision()
   },
   table => [
     index("block_datetime").using("btree", table.datetime.asc().nullsLast().op("timestamptz_ops")),
@@ -355,9 +357,9 @@ export const providerSnapshotNode = pgTable(
     ephemeralStorageAllocatable: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     ephemeralStorageAllocated: bigint({ mode: "number" }),
-    capabilitiesStorageHdd: boolean(),
-    capabilitiesStorageSsd: boolean(),
-    capabilitiesStorageNvme: boolean(),
+    capabilitiesStorageHDD: boolean(),
+    capabilitiesStorageSSD: boolean(),
+    capabilitiesStorageNVME: boolean(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     gpuAllocatable: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
@@ -429,25 +431,25 @@ export const providerSnapshot = pgTable(
     deploymentCount: integer(),
     leaseCount: integer(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    activeCpu: bigint({ mode: "number" }),
+    activeCPU: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    activeGpu: bigint({ mode: "number" }),
+    activeGPU: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     activeMemory: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     activeEphemeralStorage: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    pendingCpu: bigint({ mode: "number" }),
+    pendingCPU: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    pendingGpu: bigint({ mode: "number" }),
+    pendingGPU: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     pendingMemory: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     pendingEphemeralStorage: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    availableCpu: bigint({ mode: "number" }),
+    availableCPU: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    availableGpu: bigint({ mode: "number" }),
+    availableGPU: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     availableMemory: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
