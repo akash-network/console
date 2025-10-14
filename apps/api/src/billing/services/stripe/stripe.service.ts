@@ -28,13 +28,16 @@ interface StripePrices {
 }
 @singleton()
 export class StripeService extends Stripe {
+  readonly isProduction = this.billingConfig.get("STRIPE_SECRET_KEY").startsWith("sk_live");
+
   constructor(
     private readonly billingConfig: BillingConfigService,
     private readonly userRepository: UserRepository,
     private readonly refillService: RefillService,
     private readonly paymentMethodRepository: PaymentMethodRepository
   ) {
-    super(billingConfig.get("STRIPE_SECRET_KEY"), {
+    const secretKey = billingConfig.get("STRIPE_SECRET_KEY");
+    super(secretKey, {
       apiVersion: "2024-06-20"
     });
   }
@@ -501,6 +504,11 @@ export class StripeService extends Stripe {
     });
 
     const fingerprints = paymentMethods.map(paymentMethod => paymentMethod.card?.fingerprint).filter(Boolean) as string[];
+
+    if (!fingerprints.length) {
+      return false;
+    }
+
     const otherPaymentMethods = await this.paymentMethodRepository.findOthersTrialingByFingerprint(fingerprints, currentUserId);
 
     return !!otherPaymentMethods;

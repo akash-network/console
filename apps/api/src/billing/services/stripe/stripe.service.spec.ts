@@ -901,17 +901,26 @@ describe(StripeService.name, () => {
       expect(paymentMethodRepository.findOthersTrialingByFingerprint).toHaveBeenCalledWith(expectedFingerprints, currentUserId);
     });
 
-    it("should handle empty payment methods array in trialing wallets", async () => {
+    it("should resolve with false provided empty payment methods array", async () => {
       const { service, paymentMethodRepository } = setup();
       const currentUserId = TEST_CONSTANTS.USER_ID;
       const paymentMethods: Stripe.PaymentMethod[] = [];
 
-      paymentMethodRepository.findOthersTrialingByFingerprint.mockResolvedValue(undefined);
+      const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
+
+      expect(result).toBe(false);
+      expect(paymentMethodRepository.findOthersTrialingByFingerprint).not.toHaveBeenCalled();
+    });
+
+    it("should resolve with false provided payment methods without fingerprints", async () => {
+      const { service, paymentMethodRepository } = setup();
+      const currentUserId = TEST_CONSTANTS.USER_ID;
+      const paymentMethods: Stripe.PaymentMethod[] = [{ card: { fingerprint: null } } as Stripe.PaymentMethod];
 
       const result = await service.hasDuplicateTrialAccount(paymentMethods, currentUserId);
 
       expect(result).toBe(false);
-      expect(paymentMethodRepository.findOthersTrialingByFingerprint).toHaveBeenCalledWith([], currentUserId);
+      expect(paymentMethodRepository.findOthersTrialingByFingerprint).not.toHaveBeenCalled();
     });
   });
 
@@ -1333,7 +1342,7 @@ function setup(
     paymentMethodValidation?: any[];
   } = {}
 ) {
-  const billingConfig = mock<BillingConfigService>({ get: jest.fn().mockReturnValue("test_key") });
+  const billingConfig = mock<BillingConfigService>({ get: jest.fn().mockReturnValue("sk_live_key") });
   const userRepository = mock<UserRepository>();
   const refillService = mock<RefillService>();
   const paymentMethodRepository = mock<PaymentMethodRepository>();

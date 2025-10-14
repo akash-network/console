@@ -244,6 +244,7 @@ describe("WalletController", () => {
     });
     rootContainer.register(StripeService, {
       useValue: mock<StripeService>({
+        isProduction: true,
         getPaymentMethods: jest.fn(async () => {
           if (!input?.hasPaymentMethods) return [];
           return [{ ...generatePaymentMethod(), validated: true }];
