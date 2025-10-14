@@ -24,12 +24,13 @@ const mockDeployment = {
 const mockLeases = [
   {
     lease: {
-      lease_id: {
+      id: {
         owner: "test-owner",
         dseq: "123",
         gseq: 1,
         oseq: 1,
-        provider: "provider1"
+        provider: "provider1",
+        bseq: 1
       },
       state: "active",
       price: {
@@ -40,24 +41,32 @@ const mockLeases = [
       closed_on: ""
     },
     escrow_payment: {
-      account_id: {
-        scope: "test-scope",
-        xid: "test-xid"
+      id: {
+        aid: {
+          scope: "test-scope",
+          xid: "test-xid"
+        },
+        xid: "test-payment-id"
       },
-      payment_id: "test-payment-id",
-      owner: "test-owner",
-      state: "active",
-      rate: {
-        denom: "uakt",
-        amount: "1000"
-      },
-      balance: {
-        denom: "uakt",
-        amount: "1000"
-      },
-      withdrawn: {
-        denom: "uakt",
-        amount: "0"
+      state: {
+        owner: "test-owner",
+        state: "active",
+        rate: {
+          denom: "uakt",
+          amount: "1000"
+        },
+        balance: {
+          denom: "uakt",
+          amount: "1000"
+        },
+        unsettled: {
+          denom: "uakt",
+          amount: "0"
+        },
+        withdrawn: {
+          denom: "uakt",
+          amount: "0"
+        }
       }
     }
   }
@@ -70,7 +79,7 @@ const mockLeaseStatus = {
 };
 
 const mockGroup: DeploymentGroup = {
-  group_id: {
+  id: {
     owner: "test-owner",
     dseq: "123",
     gseq: 1
