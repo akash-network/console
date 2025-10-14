@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
-import { FormattedDate, FormattedRelativeTime } from "react-intl";
 import { Alert, AlertDescription, AlertTitle, Card, CardContent } from "@akashnetwork/ui/components";
 import { WarningCircle } from "iconoir-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 
 import { AddressLink } from "@/components/AddressLink";
@@ -14,6 +14,9 @@ import type { TransactionDetail } from "@/types";
 interface IProps {
   transaction: TransactionDetail;
 }
+
+const FormattedRelativeTime = dynamic(() => import("react-intl").then(mod => mod.FormattedRelativeTime), { ssr: false });
+const FormattedDate = dynamic(() => import("react-intl").then(mod => mod.FormattedDate), { ssr: false });
 
 export function TransactionInfo({ transaction }: IProps) {
   return (
