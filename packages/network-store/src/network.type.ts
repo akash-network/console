@@ -1,9 +1,9 @@
-import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+import type { SupportedChainNetworks } from "@akashnetwork/net";
 
-type ApiVersion = "v1beta2" | "v1beta3" | "v1beta4";
+type ApiVersion = "v1beta2" | "v1beta3" | "v1beta4" | "v1beta5" | "v1";
 
 export type Network = {
-  id: NetworkId;
+  id: SupportedChainNetworks;
   title: string;
   description: string;
   nodesUrl: string;
@@ -13,6 +13,9 @@ export type Network = {
   rpcEndpoint?: string;
   version: string | null;
   enabled: boolean;
-  apiVersion: ApiVersion;
-  marketApiVersion: ApiVersion;
+  deploymentVersion: ApiVersion;
+  marketVersion: ApiVersion;
+  escrowVersion: ApiVersion;
+  certVersion: ApiVersion;
+  providerVersion: ApiVersion;
 };

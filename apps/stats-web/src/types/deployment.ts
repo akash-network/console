@@ -228,12 +228,13 @@ export interface NamedDeploymentDto extends DeploymentDto {
 
 export interface RpcLease {
   lease: {
-    lease_id: {
+    id: {
       owner: string;
       dseq: string;
       gseq: number;
       oseq: number;
       provider: string;
+      bseq: number;
     };
     state: string;
     price: {
@@ -242,26 +243,35 @@ export interface RpcLease {
     };
     created_at: string;
     closed_on: string;
+    reason?: string;
   };
   escrow_payment: {
-    account_id: {
-      scope: string;
+    id: {
+      aid: {
+        scope: string;
+        xid: string;
+      };
       xid: string;
     };
-    payment_id: string;
-    owner: string;
-    state: string;
-    rate: {
-      denom: string;
-      amount: string;
-    };
-    balance: {
-      denom: string;
-      amount: string;
-    };
-    withdrawn: {
-      denom: string;
-      amount: string;
+    state: {
+      owner: string;
+      state: string;
+      rate: {
+        denom: string;
+        amount: string;
+      };
+      balance: {
+        denom: string;
+        amount: string;
+      };
+      unsettled: {
+        denom: string;
+        amount: string;
+      };
+      withdrawn: {
+        denom: string;
+        amount: string;
+      };
     };
   };
 }

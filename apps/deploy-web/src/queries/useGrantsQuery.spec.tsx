@@ -41,16 +41,11 @@ describe("useGrantsQuery", () => {
         grants: [
           {
             authorization: {
-              "@type": "/akash.deployment.v1beta2.DepositDeploymentAuthorization"
-            }
-          },
-          {
-            authorization: {
-              "@type": "/akash.deployment.v1beta3.DepositDeploymentAuthorization"
+              "@type": "/akash.escrow.v1.DepositAuthorization"
             }
           }
         ],
-        pagination: { total: 2 }
+        pagination: { total: 1 }
       };
 
       const authzHttpService = mock<AuthzHttpService>({
@@ -92,7 +87,7 @@ describe("useGrantsQuery", () => {
       const mockData = [
         {
           authorization: {
-            "@type": "/akash.deployment.v1beta2.DepositDeploymentAuthorization"
+            "@type": "/akash.escrow.v1.DepositAuthorization"
           }
         }
       ];
