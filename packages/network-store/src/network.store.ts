@@ -57,12 +57,24 @@ export class NetworkStore {
     return this.store.get(this.selectedNetworkIdStore) as Network["id"];
   }
 
-  get apiVersion() {
-    return this.selectedNetwork.apiVersion;
+  get deploymentVersion() {
+    return this.selectedNetwork.deploymentVersion;
   }
 
-  get marketApiVersion() {
-    return this.selectedNetwork.marketApiVersion;
+  get marketVersion() {
+    return this.selectedNetwork.marketVersion;
+  }
+
+  get escrowVersion() {
+    return this.selectedNetwork.escrowVersion;
+  }
+
+  get certVersion() {
+    return this.selectedNetwork.certVersion;
+  }
+
+  get providerVersion() {
+    return this.selectedNetwork.providerVersion;
   }
 
   constructor(private readonly options: NetworkStoreOptions) {

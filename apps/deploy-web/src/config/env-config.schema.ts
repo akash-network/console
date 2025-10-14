@@ -1,6 +1,7 @@
+import { netConfig, type SupportedChainNetworks } from "@akashnetwork/net";
 import { z } from "zod";
 
-const networkId = z.enum(["mainnet", "sandbox", "testnet"]);
+const networkId = z.enum(netConfig.getSupportedNetworks() as [SupportedChainNetworks, ...SupportedChainNetworks[]]);
 const coercedBoolean = () => z.enum(["true", "false"]).transform(val => val === "true");
 
 export const browserEnvSchema = z.object({
