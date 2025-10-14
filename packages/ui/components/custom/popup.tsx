@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import type { DialogProps } from "@radix-ui/react-dialog";
 
@@ -116,6 +116,23 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
     open: !!props.open,
     ...props.dialogProps
   };
+
+  const buttonsForSide = useCallback(
+    (side: "left" | "right") => {
+      return (
+        props.variant === "custom" &&
+        Array.isArray(props.actions) &&
+        props.actions
+          .filter(x => x.side === side)
+          .map(({ isLoading, side, label, ...rest }, idx) => (
+            <Button key={`dialog-action-button-${side}-${idx}`} {...rest} aria-label={typeof label === "string" ? label : undefined}>
+              {isLoading ? <Spinner size="small" /> : label}
+            </Button>
+          ))
+      );
+    },
+    [props]
+  );
 
   if (props.title) {
     component.push(<DialogTitle key="dialog-title">{props.title}</DialogTitle>);
@@ -244,29 +261,11 @@ export function Popup(props: React.PropsWithChildren<PopupProps>) {
       );
       break;
     case "custom": {
-      const leftButtons =
-        Array.isArray(props.actions) &&
-        props.actions
-          .filter(x => x.side === "left")
-          .map(({ isLoading, side, label, ...rest }, idx) => (
-            <Button key={`dialog-action-button-${idx}`} {...rest} aria-label={`${label}`}>
-              {isLoading ? <Spinner size="small" /> : label}
-            </Button>
-          ));
-      const rightButtons =
-        Array.isArray(props.actions) &&
-        props.actions
-          .filter(x => x.side === "right")
-          .map(({ isLoading, side, label, ...rest }, idx) => (
-            <Button key={`dialog-action-button-${idx}`} {...rest} aria-label={`${label}`}>
-              {isLoading ? <Spinner size="small" /> : label}
-            </Button>
-          ));
       props.actions?.length > 0 &&
         component.push(
           <DialogFooter className="flex flex-row justify-between space-x-2 sm:justify-between" key="DialogCustomActions">
-            <div className="space-x-2">{leftButtons}</div>
-            <div className="space-x-2">{rightButtons}</div>
+            <div className="space-x-2">{buttonsForSide("left")}</div>
+            <div className="space-x-2">{buttonsForSide("right")}</div>
           </DialogFooter>
         );
       break;
