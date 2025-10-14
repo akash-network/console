@@ -33,6 +33,10 @@ print_message() {
 }
 
 npm ci --ignore-scripts "${@}"
+if [ $? -ne 0 ]; then
+  print_message "error" "npm ci failed"
+  exit 1
+fi
 
 echo "\n"
 print_message "important" "Triggering install npm script for trusted packages"
