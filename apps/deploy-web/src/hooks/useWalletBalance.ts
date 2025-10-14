@@ -44,10 +44,7 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
       const aktUsdValue = uaktToAKT(balances.balanceUAKT, 6) * price;
       const totalUsdcValue = udenomToDenom(balances.balanceUUSDC, 6);
       const totalDeploymentEscrowUSD = balances.activeDeployments.reduce(
-        (acc, d) =>
-          acc +
-          udenomToUsd(d.escrowAccount.funds.amount, d.escrowAccount.funds.denom) +
-          udenomToUsd(d.escrowAccount.balance.amount, d.escrowAccount.balance.denom),
+        (acc, d) => acc + d.escrowAccount.state.funds.reduce((fundAcc, fund) => fundAcc + udenomToUsd(fund.amount, fund.denom), 0),
         0
       );
       const { deploymentGrant } = balances;
@@ -95,7 +92,7 @@ export const useDenomData = (denom?: string) => {
   const txFeeBuffer = isManaged ? 0 : TX_FEE_BUFFER;
 
   useEffect(() => {
-    if (isLoaded && walletBalance && minDeposit?.akt && minDeposit?.usdc && price) {
+    if (isLoaded && walletBalance && (minDeposit?.akt || minDeposit?.usdc) && price) {
       let depositData: DenomData | null = null;
       switch (denom) {
         case UAKT_DENOM:

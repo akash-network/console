@@ -18,12 +18,12 @@ async function getBidList(apiClient: AxiosInstance, address: string, dseq: strin
 
 export function mapToBidDto(b: RpcBid): BidDto {
   return {
-    id: b.bid.bid_id.provider + b.bid.bid_id.dseq + b.bid.bid_id.gseq + b.bid.bid_id.oseq,
-    owner: b.bid.bid_id.owner,
-    provider: b.bid.bid_id.provider,
-    dseq: b.bid.bid_id.dseq,
-    gseq: b.bid.bid_id.gseq,
-    oseq: b.bid.bid_id.oseq,
+    id: b.bid.id.provider + b.bid.id.dseq + b.bid.id.gseq + b.bid.id.oseq,
+    owner: b.bid.id.owner,
+    provider: b.bid.id.provider,
+    dseq: b.bid.id.dseq,
+    gseq: b.bid.id.gseq,
+    oseq: b.bid.id.oseq,
     price: b.bid.price,
     state: b.bid.state,
     resourcesOffer: b.bid.resources_offer
