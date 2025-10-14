@@ -28,7 +28,7 @@ describe("Deployment Alerts CRUD", () => {
     const dseq = String(faker.number.int());
     const owner = mockAkashAddress();
     chainApi
-      .get("/akash/deployment/v1beta3/deployments/info")
+      .get("/akash/deployment/v1beta4/deployments/info")
       .query({
         "id.owner": owner,
         "id.dseq": String(dseq)
