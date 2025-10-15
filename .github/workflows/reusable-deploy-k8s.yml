@@ -243,6 +243,8 @@ jobs:
             values_file_path="${values_file_path}-${{ inputs.chain }}"
           fi
 
+          echo "release_name=$release_name" >> "$GITHUB_ENV"
+
           values_file_path="${values_file_path}-values.yaml"
 
           if [ -f "$values_file_path" ]; then
