@@ -223,7 +223,7 @@ const getByOwnerAndDseqRoute = createRoute({
 
 const fallbackListRoute = createRoute({
   method: "get",
-  path: "/akash/deployment/v1beta4/deployments/list",
+  path: "/akash/deployment/:version/deployments/list",
   summary: "List deployments (database fallback)",
   tags: ["Deployments"],
   request: {
