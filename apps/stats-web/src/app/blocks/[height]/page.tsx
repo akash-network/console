@@ -31,7 +31,6 @@ export async function generateMetadata({ params: { height } }: BlockDetailPagePr
 
 async function fetchBlockData(height: string, network: Network["id"]): Promise<BlockDetail> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
-  console.log("------->", apiUrl);
   const response = await fetch(`${apiUrl}/v1/blocks/${height}`);
 
   if (!response.ok) {

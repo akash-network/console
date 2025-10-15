@@ -1,37 +1,28 @@
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { Spinner } from "@akashnetwork/ui/components";
 import { FlagProvider as FlagProviderOriginal, useUnleashClient } from "@unleash/nextjs";
 
-import { Loading } from "@src/components/layout/Layout";
-import { browserEnvConfig } from "@src/config/browser-env.config";
-import { useUser } from "@src/hooks/useUser";
-import type { FCWithChildren } from "@src/types/component";
+import { browserEnvConfig } from "../../config/browser-env.config";
 
 const DummyFlagProvider: typeof FlagProviderOriginal = props => <>{props.children}</>;
 
 const COMPONENTS = {
   FlagProvider: FlagProviderOriginal,
-  useUser,
   WaitForFeatureFlags
 };
 
 export type Props = { components?: typeof COMPONENTS };
 
-export const UserAwareFlagProvider: FCWithChildren<Props> = ({ children, components: c = COMPONENTS }) => {
-  const { user } = c.useUser();
-
+const UnleashFlagProvider: FC<Props & { children: React.ReactNode }> = ({ children, components: c = COMPONENTS }) => {
   return (
-    <c.FlagProvider
-      config={{
-        context: { userId: user?.id }
-      }}
-    >
+    <c.FlagProvider>
       <c.WaitForFeatureFlags>{children}</c.WaitForFeatureFlags>
     </c.FlagProvider>
   );
 };
 
-export const FlagProvider = browserEnvConfig.NEXT_PUBLIC_UNLEASH_ENABLE_ALL ? DummyFlagProvider : UserAwareFlagProvider;
+export const FlagProvider = browserEnvConfig.NEXT_PUBLIC_UNLEASH_ENABLE_ALL ? DummyFlagProvider : UnleashFlagProvider;
 
 function WaitForFeatureFlags({ children }: { children: ReactNode }) {
   const client = useUnleashClient();
@@ -63,7 +54,11 @@ function WaitForFeatureFlags({ children }: { children: ReactNode }) {
   }, [client]);
 
   if (!isReady) {
-    return <Loading text="Loading application..." />;
+    return (
+      <div className="flex items-center justify-center p-4">
+        <Spinner size="large" />
+      </div>
+    );
   }
   return <>{children}</>;
 }
