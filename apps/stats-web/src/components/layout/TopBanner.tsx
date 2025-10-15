@@ -3,21 +3,7 @@ import { useIntl } from "react-intl";
 import { Button } from "@akashnetwork/ui/components";
 import { Xmark } from "iconoir-react";
 
-import { useWallet } from "@src/context/WalletProvider/WalletProvider";
-import { useMaintenanceMessage, useTopBanner } from "@src/hooks/useTopBanner";
-import { ConnectManagedWalletButton } from "../wallet/ConnectManagedWalletButton";
-
-function CreditCardBanner() {
-  const { hasManagedWallet } = useWallet();
-
-  return (
-    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
-      <span className="text-xs font-semibold text-white md:text-sm">Credit Card payments are now available!</span>
-
-      {!hasManagedWallet && <ConnectManagedWalletButton className="flex-shrink-0 text-white hover:text-white" size="sm" variant="text" />}
-    </div>
-  );
-}
+import { useMaintenanceMessage, useTopBanner } from "@/hooks/useTopBanner";
 
 function NetworkDownBanner() {
   const { date } = useMaintenanceMessage();
@@ -42,11 +28,9 @@ function NetworkDownBanner() {
   }, [date]);
 
   return (
-    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
+    <div className="flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
       <span className="text-xs font-semibold text-white md:text-sm">
-        {isUpgrading
-          ? "We are upgrading the blockchain. Console operations are temporarily restricted to read-only."
-          : "Blockchain unavailable — console in read-only mode until service is restored."}
+        {isUpgrading ? "We are upgrading the blockchain. Stats are temporarily stale." : "Blockchain unavailable — stats are stale until service is restored."}
       </span>
     </div>
   );
@@ -63,7 +47,7 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
   const formattedMessage = useMemo(() => message.replace("{date}", upgradeAt), [message, upgradeAt]);
 
   return (
-    <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
+    <div className="flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
       <span className="text-xs font-semibold text-white md:text-sm">{formattedMessage}</span>
       <Button variant="text" className="rounded-full text-white hover:text-white" size="icon" onClick={onClose}>
         <Xmark />
@@ -73,12 +57,7 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
 }
 
 export function TopBanner() {
-  const {
-    isMaintenanceBannerOpen: isMaintananceBannerOpen,
-    setIsMaintenanceBannerOpen: setIsMaintananceBannerOpen,
-    isBlockchainDown,
-    hasCreditCardBanner
-  } = useTopBanner();
+  const { isMaintenanceBannerOpen: isMaintananceBannerOpen, setIsMaintenanceBannerOpen: setIsMaintananceBannerOpen, isBlockchainDown } = useTopBanner();
 
   if (isBlockchainDown) {
     return <NetworkDownBanner />;
@@ -86,10 +65,6 @@ export function TopBanner() {
 
   if (isMaintananceBannerOpen) {
     return <MaintenanceBanner onClose={() => setIsMaintananceBannerOpen(false)} />;
-  }
-
-  if (hasCreditCardBanner) {
-    return <CreditCardBanner />;
   }
 
   return null;

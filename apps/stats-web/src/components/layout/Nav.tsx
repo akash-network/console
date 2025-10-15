@@ -13,13 +13,23 @@ const NetworkSelect = dynamic(() => import("./NetworkSelect"), {
 
 import dynamic from "next/dynamic";
 
+import { TopBanner } from "./TopBanner";
+
 import useCookieTheme from "@/hooks/useTheme";
+import { useTopBanner } from "@/hooks/useTopBanner";
 
 export const Nav = () => {
   const theme = useCookieTheme();
+  const { hasBanner } = useTopBanner();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background backdrop-blur supports-[backdrop-filter]:bg-background">
+      {hasBanner && (
+        <div className="mb-4">
+          <TopBanner />
+        </div>
+      )}
+
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex">
           {!!theme && (
