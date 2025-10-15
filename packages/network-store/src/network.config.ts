@@ -1,10 +1,7 @@
-import { netConfig, type SupportedChainNetworks } from "@akashnetwork/net";
+import { MAINNET_ID, SANDBOX_ID, TESTNET_ID } from "@akashnetwork/chain-sdk/web";
+import { netConfig } from "@akashnetwork/net";
 
 import type { Network } from "./network.type";
-
-export const MAINNET_ID: SupportedChainNetworks = "mainnet";
-export const SANDBOX_ID: SupportedChainNetworks = "sandbox-2";
-export const TESTNET_ID: SupportedChainNetworks = "testnet-7";
 
 export const getInitialNetworksConfig = ({ apiBaseUrl }: { apiBaseUrl: string }): Network[] => [
   {

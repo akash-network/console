@@ -1,4 +1,4 @@
-import { certificateManager } from "@akashnetwork/chain-sdk/web";
+import { certificateManager, type NetworkId } from "@akashnetwork/chain-sdk/web";
 import {
   ApiKeyHttpService,
   AuthHttpService,
@@ -11,7 +11,6 @@ import {
 } from "@akashnetwork/http-sdk";
 import { StripeService as HttpStripeService } from "@akashnetwork/http-sdk/src/stripe/stripe.service";
 import { LoggerService } from "@akashnetwork/logging";
-import { type SupportedChainNetworks } from "@akashnetwork/net";
 import { getTraceData } from "@sentry/nextjs";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { Axios, AxiosInstance, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
@@ -142,7 +141,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
 export interface ServicesConfig {
   BASE_API_MAINNET_URL: string;
   BASE_PROVIDER_PROXY_URL: string;
-  MANAGED_WALLET_NETWORK_ID: SupportedChainNetworks;
+  MANAGED_WALLET_NETWORK_ID: NetworkId;
   globalRequestMiddleware?: (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig;
   runtimeEnv: "nodejs" | "browser";
   apiUrlService: () => ApiUrlService;
