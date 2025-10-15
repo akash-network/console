@@ -1,4 +1,4 @@
-import type { SupportedChainNetworks } from "@akashnetwork/net";
+import type { NetworkId } from "@akashnetwork/chain-sdk/web";
 import { isEqual } from "lodash";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -32,7 +32,7 @@ export function getSelectedStorageWallet() {
   return wallets.find(w => w.selected) ?? wallets[0] ?? null;
 }
 
-export function getStorageManagedWallet(networkId?: SupportedChainNetworks): ManagedLocalWallet | undefined {
+export function getStorageManagedWallet(networkId?: NetworkId): ManagedLocalWallet | undefined {
   return getStorageWallets(networkId).find(wallet => wallet.isManaged) as ManagedLocalWallet | undefined;
 }
 
@@ -76,25 +76,25 @@ export function updateStorageManagedWallet(
   return next;
 }
 
-export function deleteManagedWalletFromStorage(networkId?: SupportedChainNetworks) {
+export function deleteManagedWalletFromStorage(networkId?: NetworkId) {
   const wallet = getStorageManagedWallet(networkId);
   if (wallet) {
     deleteWalletFromStorage(wallet.address, true, networkId);
   }
 }
 
-export function getStorageWallets(networkId?: SupportedChainNetworks) {
+export function getStorageWallets(networkId?: NetworkId) {
   if (typeof window === "undefined") {
     return [];
   }
 
-  const selectedNetworkId: SupportedChainNetworks = networkId || networkStore.selectedNetworkId;
+  const selectedNetworkId: NetworkId = networkId || networkStore.selectedNetworkId;
   const wallets = JSON.parse(localStorage.getItem(`${selectedNetworkId}/wallets`) || "[]") as LocalWallet[];
 
   return wallets || [];
 }
 
-export function updateWallet(address: string, func: (w: LocalWallet) => LocalWallet, networkId?: SupportedChainNetworks) {
+export function updateWallet(address: string, func: (w: LocalWallet) => LocalWallet, networkId?: NetworkId) {
   const wallets = getStorageWallets(networkId);
   let wallet = wallets.find(w => w.address === address);
 
@@ -111,7 +111,7 @@ export function updateStorageWallets(wallets: LocalWallet[], networkId?: string)
   localStorage.setItem(`${selectedNetworkId}/wallets`, JSON.stringify(wallets));
 }
 
-export function deleteWalletFromStorage(address: string, deleteDeployments: boolean, networkId?: SupportedChainNetworks) {
+export function deleteWalletFromStorage(address: string, deleteDeployments: boolean, networkId?: NetworkId) {
   const selectedNetworkId = networkId || networkStore.selectedNetworkId;
   const wallets = getStorageWallets();
   const newWallets = wallets.filter(w => w.address !== address).map((w, i) => ({ ...w, selected: i === 0 }));
