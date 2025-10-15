@@ -1,5 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
+import { netConfig } from "@akashnetwork/net";
 
 import { useLocalStorage } from "@src/hooks/useLocalStorage";
 import { usePreviousRoute } from "@src/hooks/usePreviousRoute";
@@ -134,15 +135,15 @@ export const SettingsProvider: FCWithChildren = ({ children }) => {
       if (!selectedNodeInSettings || (selectedNodeInSettings && settings.selectedNode?.status === "inactive")) {
         const randomNode = getFastestNode(nodesWithStatuses);
         // Use rpc proxy as a backup if there's no active nodes in the list
-        defaultApiNode = randomNode?.api || "https://rpc.akt.dev/rest";
-        defaultRpcNode = randomNode?.rpc || "https://rpc.akt.dev/rpc";
+        defaultApiNode = randomNode?.api || netConfig.getBaseAPIUrl(netConfig.mapped(selectedNetwork.id));
+        defaultRpcNode = randomNode?.rpc || netConfig.getBaseRpcUrl(netConfig.mapped(selectedNetwork.id));
         selectedNode = randomNode || {
           api: defaultApiNode,
           rpc: defaultRpcNode,
           status: "active",
           latency: 0,
           nodeInfo: null,
-          id: "https://rpc.akt.dev/rest"
+          id: netConfig.mapped(selectedNetwork.id)
         };
         if ((selectedNode as BlockchainNode).nodeInfo === null) {
           Object.assign(selectedNode, await loadNodeStatus(selectedNode.api));
