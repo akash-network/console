@@ -1,5 +1,5 @@
+import { MAINNET_ID, SANDBOX_ID } from "@akashnetwork/chain-sdk/web";
 import type { SupportedChainNetworks } from "@akashnetwork/net";
-import { MAINNET_ID, SANDBOX_ID } from "@akashnetwork/network-store";
 
 export const UAKT_DENOM = "uakt";
 export const USDC_IBC_DENOMS: Partial<Record<SupportedChainNetworks, string>> = {
