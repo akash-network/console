@@ -39,19 +39,23 @@ function createAppContainer<T extends Factories>(settingsState: SettingsContextT
     certificatesService: () => new CertificatesService(di.chainApiHttpClient),
     chainApiHttpClient: () => {
       let inflightPingRequest: Promise<{ isBlockchainDown: boolean }> | undefined;
+      // keep track of the blockchain down status to make it instant
+      // settings from useSettings hook is reactive and updated with a delay, according to react rendering cycle
+      let isBlockchainDown = settingsState.settings?.isBlockchainDown;
       const chainApiHttpClient: FallbackableHttpClient = withInterceptors(
         createFallbackableHttpClient(rootContainer.createAxios, rootContainer.fallbackChainApiHttpClient, {
           baseURL: settingsState.settings?.apiEndpoint,
-          shouldFallback: () => !!settingsState.settings?.isBlockchainDown,
+          shouldFallback: () => isBlockchainDown || !!settingsState.settings?.isBlockchainDown,
           onUnavailableError: (error): Promise<void> | void => {
-            if (settingsState.settings?.isBlockchainDown) return;
+            if (isBlockchainDown) return;
 
             // ensure blockchain is really unavailable and it's not an issue with some endpoint
             inflightPingRequest ??= chainApiHttpClient
               .get("/cosmos/base/tendermint/v1beta1/node_info", { adapter: "fetch", timeout: 5000 })
               .then(() => ({ isBlockchainDown: false }))
               .catch(() => {
-                if (settingsState.settings?.isBlockchainDown) return { isBlockchainDown: true };
+                if (isBlockchainDown) return { isBlockchainDown: true };
+                isBlockchainDown = true;
                 settingsState.setSettings(prev => ({ ...prev, isBlockchainDown: true }));
                 return { isBlockchainDown: true };
               })
@@ -69,7 +73,9 @@ function createAppContainer<T extends Factories>(settingsState: SettingsContextT
             });
           },
           onSuccess: () => {
-            settingsState.refreshNodeStatuses();
+            if (isBlockchainDown) {
+              settingsState.refreshNodeStatuses();
+            }
           }
         }),
         {

@@ -55,10 +55,10 @@ export class ProviderJwtTokenService {
   @Memoize({ ttlInSeconds: minutesToSeconds(5) })
   private async getJwtToken(walletId: number): Promise<JwtTokenWithAddress> {
     const wallet = this.walletFactory(this.billingConfigService.get("MASTER_WALLET_MNEMONIC"), walletId);
-    const akashWallet = await this.jwtModule.createSignArbitraryAkashWallet((await wallet.getInstance()) as any, walletId);
-    const jwtTokenManager = new this.jwtModule.JwtTokenManager(akashWallet);
+    const jwtTokenManager = new this.jwtModule.JwtTokenManager(wallet);
+    const address = await wallet.getFirstAddress();
 
-    return { jwtTokenManager, address: akashWallet.address };
+    return { jwtTokenManager, address };
   }
 
   getGranularLeases({ provider, scope }: { provider: string; scope: AccessScope[] }): JwtTokenPayload["leases"] {
