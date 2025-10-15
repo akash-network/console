@@ -10,8 +10,8 @@ import { millisecondsInMinute } from "date-fns/constants";
 
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useSettings } from "@src/context/SettingsProvider";
-import { TopBannerProvider, useTopBanner } from "@src/context/TopBannerProvider/TopBannerProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useTopBanner } from "@src/hooks/useTopBanner";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { Nav } from "./Nav";
 import { Sidebar } from "./Sidebar";
@@ -39,17 +39,15 @@ const Layout: React.FunctionComponent<Props> = ({ children, isLoading, isUsingSe
 
   return (
     <IntlProvider locale={locale} defaultLocale="en-US">
-      <TopBannerProvider>
-        <LayoutApp
-          isLoading={isLoading}
-          isUsingSettings={isUsingSettings}
-          isUsingWallet={isUsingWallet}
-          disableContainer={disableContainer}
-          containerClassName={containerClassName}
-        >
-          {children}
-        </LayoutApp>
-      </TopBannerProvider>
+      <LayoutApp
+        isLoading={isLoading}
+        isUsingSettings={isUsingSettings}
+        isUsingWallet={isUsingWallet}
+        disableContainer={disableContainer}
+        containerClassName={containerClassName}
+      >
+        {children}
+      </LayoutApp>
     </IntlProvider>
   );
 };
