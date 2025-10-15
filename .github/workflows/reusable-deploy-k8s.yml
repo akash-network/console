@@ -16,6 +16,7 @@ on:
         type: choice
         options:
           - console-web
+          - console-web-testnet
           - console-api
           - indexer
           - notifications
@@ -35,6 +36,7 @@ on:
           - NA
           - mainnet
           - sandbox
+          - testnet
       skip_beta_deployment_check:
         type: boolean
         required: false
@@ -43,6 +45,12 @@ on:
           Bypass beta deployment check.
           Use with caution — this will deploy directly to production without verifying the beta environment.
           Skipping this check may result in deploying an unstable version with potential bugs.
+      force-rollout:
+        type: boolean
+        required: false
+        default: false
+        description: >-
+          Force a Kubernetes rollout restart even if the Deployment spec is unchanged.
 
   workflow_call:
     inputs:
@@ -62,6 +70,20 @@ on:
         description: "The chain to deploy to"
         required: false
         type: string
+      skip_beta_deployment_check:
+        type: boolean
+        required: false
+        default: false
+        description: >-
+          Bypass beta deployment check.
+          Use with caution — this will deploy directly to production without verifying the beta environment.
+          Skipping this check may result in deploying an unstable version with potential bugs.
+      force-rollout:
+        type: boolean
+        required: false
+        default: false
+        description: >-
+          Force a Kubernetes rollout restart even if the Deployment spec is unchanged.
 
 jobs:
   beta-deployment-status:
@@ -234,3 +256,8 @@ jobs:
           echo "executing: helm upgrade $release_name $chart_name --install --atomic -n ${{ inputs.environment }} --set appVersion=${{ inputs.appVersion }} --debug --kubeconfig kubeconfig $values_file_arg"
           # shellcheck disable=SC2086
           helm upgrade "$release_name" "$chart_name" --install --atomic -n "${{ inputs.environment }}" --set "appVersion=${{ inputs.appVersion }}" --debug --kubeconfig kubeconfig $values_file_arg
+
+      - name: Force rollout (restart pods even if spec unchanged)
+        if: success() && inputs.force-rollout
+        run: |
+          kubectl --kubeconfig kubeconfig -n "${{ inputs.environment }}" rollout restart deploy "${{ env.release_name }}"
