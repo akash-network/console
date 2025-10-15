@@ -1,0 +1,133 @@
+name: Release next-sdk to sandbox
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scale-down-services:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load kubeconfig
+        id: op-load-secret
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          KUBECONFIG: ${{ vars.OP_KUBECONFIG_URI }}
+          TS_OAUTH_CLIENT_ID: ${{ vars.OP_TS_OAUTH_CLIENT_ID_URI }}
+          TS_OAUTH_SECRET: ${{ vars.OP_TS_OAUTH_CLIENT_SECRET_URI }}
+
+      - name: Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ env.TS_OAUTH_SECRET }}
+          tags: tag:ci
+          timeout: 5m
+          use-cache: true
+
+      - name: Check tailscale connection
+        run: |
+          tlrunning=$(tailscale status --json | jq -r '.BackendState')
+          if [[ $tlrunning != "Running" ]]; then
+              exit 1
+          fi
+
+          tlstatus=$(tailscale status --json | jq -r '.CurrentTailnet.Name')
+
+          if [[ $tlstatus != "${{ vars.TAILSCALE_ORG }}" ]]; then
+              exit 1
+          fi
+
+      - name: Wait for node1-console-akash-network node to be online
+        run: |
+          echo "Waiting for node1-console-akash-network to be online..."
+          for i in {1..30}; do
+            ONLINE=$(tailscale status --json | jq -e '.Peer[] | select(.DNSName | contains("node1-console-akash-network")) | .Online')
+            if [[ "$ONLINE" == "true" ]]; then
+              echo "✅ Peer is online."
+              exit 0
+            fi
+            echo "⏳ Still waiting... ($i)"
+            sleep 5
+          done
+
+          echo "❌ Timed out waiting for peer node to be online."
+          tailscale status
+          exit 1
+
+      - name: Scale down services
+        run: |
+          echo "$KUBECONFIG" > kubeconfig
+
+          # Scale down all specified services to 0 replicas
+          services=(
+            "console-api-mainnet"
+            "console-api-mainnet-bg-jobs"
+            "console-api-sandbox"
+            "console-api-sandbox-bg-jobs"
+            "console-web"
+            "notifications-alert-events"
+            "notifications-chain-events"
+            "notifications-notifications-events"
+            "notifications-rest"
+          )
+
+          for service in "${services[@]}"; do
+            echo "Scaling down $service to 0 replicas..."
+            kubectl --kubeconfig kubeconfig -n staging scale deployment "$service" --replicas=0 || echo "Failed to scale $service (may not exist)"
+          done
+
+          echo "All services scaled down successfully"
+
+  deploy-indexer:
+    needs: scale-down-services
+    name: Deploy indexer to sandbox
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: indexer
+      appVersion: sdk53
+      environment: staging
+      chain: sandbox
+      skip_beta_deployment_check: true
+      force-rollout: true
+
+  deploy-console-api:
+    needs: deploy-indexer
+    name: Deploy to console-api sandbox
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: console-api
+      appVersion: sdk53
+      environment: staging
+      chain: sandbox
+      skip_beta_deployment_check: true
+      force-rollout: true
+
+  deploy-notifications:
+    needs: scale-down-services
+    name: Deploy to beta sandbox
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: notifications
+      appVersion: sdk53
+      environment: staging
+
+  deploy-console-web:
+    needs: [deploy-indexer, deploy-console-api, deploy-notifications]
+    name: Deploy to beta sandbox
+    uses: ./.github/workflows/reusable-deploy-k8s.yml
+    secrets: inherit
+    with:
+      app: console-web-testnet
+      appVersion: sdk53-sandbox
+      environment: staging
+      skip_beta_deployment_check: true
+      force-rollout: true
