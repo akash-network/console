@@ -10,12 +10,6 @@ export class NetConfig {
     mainnet: "mainnet"
   };
 
-  readonly networkMapReverse: Partial<Record<SupportedChainNetworks, NetworkMapReverse>> = {
-    "sandbox-2": "sandbox",
-    "testnet-7": "testnet",
-    mainnet: "mainnet"
-  };
-
   mapped(network: NetworkMapReverse | SupportedChainNetworks | string): SupportedChainNetworks {
     if (this.networkMap[network as NetworkMapReverse]) {
       return this.networkMap[network as NetworkMapReverse] as SupportedChainNetworks;
@@ -23,18 +17,6 @@ export class NetConfig {
 
     if (network in netConfigData) {
       return network as SupportedChainNetworks;
-    }
-
-    throw new Error(`Network ${network} not supported`);
-  }
-
-  mappedReverse(network: SupportedChainNetworks): NetworkMapReverse {
-    if (this.networkMapReverse[network]) {
-      return this.networkMapReverse[network];
-    }
-
-    if (network in this.networkMapReverse) {
-      return network as NetworkMapReverse;
     }
 
     throw new Error(`Network ${network} not supported`);
