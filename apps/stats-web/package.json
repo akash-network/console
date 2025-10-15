@@ -13,7 +13,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.8",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.9",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/logging": "*",
     "@akashnetwork/network-store": "*",
