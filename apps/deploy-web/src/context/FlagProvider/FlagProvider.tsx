@@ -38,20 +38,29 @@ function WaitForFeatureFlags({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (isReady !== client.isReady()) {
-      setIsReady(client.isReady());
+    if (client.isReady()) {
+      setIsReady(true);
+      return;
     }
 
     let callback: (() => void) | undefined;
     if (!client.isReady()) {
-      callback = () => setIsReady(true);
+      callback = () => {
+        if (timerId) clearTimeout(timerId);
+        setIsReady(true);
+      };
+      const timerId = setTimeout(callback, 10_000);
       client.once("ready", callback);
+      client.once("error", callback);
     }
 
     return () => {
-      if (callback) client.off("ready", callback);
+      if (callback) {
+        client.off("ready", callback);
+        client.off("error", callback);
+      }
     };
-  }, [client, isReady]);
+  }, [client]);
 
   if (!isReady) {
     return <Loading text="Loading application..." />;
