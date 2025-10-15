@@ -9,10 +9,6 @@ export const clickWalletSelectorDropdown = async (page: Page) => {
   return (await getWalletSelectorDropdown(page))?.click();
 };
 
-export const getCopyAddressButton = async (page: Page) => {
-  return await page.$("#popup-layout button[1]");
-};
-
 export const clickCreateNewWalletButton = async (page: Page) => {
   const createNewWalletButton = page.getByText(/create new wallet/i);
   await createNewWalletButton.waitFor({ state: "visible", timeout: 10_000 });
