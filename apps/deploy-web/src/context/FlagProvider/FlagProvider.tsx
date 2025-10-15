@@ -36,11 +36,22 @@ export const FlagProvider = browserEnvConfig.NEXT_PUBLIC_UNLEASH_ENABLE_ALL ? Du
 function WaitForFeatureFlags({ children }: { children: ReactNode }) {
   const client = useUnleashClient();
   const [isReady, setIsReady] = useState(false);
+
   useEffect(() => {
-    client.once("ready", () => {
-      setIsReady(true);
-    });
-  }, [client]);
+    if (isReady !== client.isReady()) {
+      setIsReady(client.isReady());
+    }
+
+    let callback: (() => void) | undefined;
+    if (!client.isReady()) {
+      callback = () => setIsReady(true);
+      client.once("ready", callback);
+    }
+
+    return () => {
+      if (callback) client.off("ready", callback);
+    };
+  }, [client, isReady]);
 
   if (!isReady) {
     return <Loading text="Loading application..." />;

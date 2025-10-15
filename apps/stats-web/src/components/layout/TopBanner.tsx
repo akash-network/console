@@ -3,10 +3,10 @@ import { useIntl } from "react-intl";
 import { Button } from "@akashnetwork/ui/components";
 import { Xmark } from "iconoir-react";
 
-import { useMaintananceMessage, useTopBanner } from "@/hooks/useTopBanner";
+import { useMaintenanceMessage, useTopBanner } from "@/hooks/useTopBanner";
 
 function NetworkDownBanner() {
-  const { date } = useMaintananceMessage();
+  const { date } = useMaintenanceMessage();
   const [isUpgrading, setIsUpgrading] = useState(false);
 
   useEffect(() => {
@@ -37,11 +37,14 @@ function NetworkDownBanner() {
 }
 
 function MaintenanceBanner({ onClose }: { onClose: () => void }) {
-  const { message, date } = useMaintananceMessage();
+  const { message, date } = useMaintenanceMessage();
   const intl = useIntl();
 
-  const upgradeAt = useMemo(() => intl.formatDate(date, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }), [date]);
-  const formattedMessage = useMemo(() => message.replace("{date}", upgradeAt), [upgradeAt]);
+  const upgradeAt = useMemo(
+    () => intl.formatDate(date, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }),
+    [date, intl]
+  );
+  const formattedMessage = useMemo(() => message.replace("{date}", upgradeAt), [message, upgradeAt]);
 
   return (
     <div className="flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
@@ -54,7 +57,7 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
 }
 
 export function TopBanner() {
-  const { isMaintananceBannerOpen, setIsMaintananceBannerOpen, isBlockchainDown } = useTopBanner();
+  const { isMaintenanceBannerOpen: isMaintananceBannerOpen, setIsMaintenanceBannerOpen: setIsMaintananceBannerOpen, isBlockchainDown } = useTopBanner();
 
   if (isBlockchainDown) {
     return <NetworkDownBanner />;

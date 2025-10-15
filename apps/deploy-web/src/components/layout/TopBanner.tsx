@@ -4,7 +4,7 @@ import { Button } from "@akashnetwork/ui/components";
 import { Xmark } from "iconoir-react";
 
 import { useWallet } from "@src/context/WalletProvider/WalletProvider";
-import { useMaintananceMessage, useTopBanner } from "@src/hooks/useTopBanner";
+import { useMaintenanceMessage, useTopBanner } from "@src/hooks/useTopBanner";
 import { ConnectManagedWalletButton } from "../wallet/ConnectManagedWalletButton";
 
 function CreditCardBanner() {
@@ -20,7 +20,7 @@ function CreditCardBanner() {
 }
 
 function NetworkDownBanner() {
-  const { date } = useMaintananceMessage();
+  const { date } = useMaintenanceMessage();
   const [isUpgrading, setIsUpgrading] = useState(false);
 
   useEffect(() => {
@@ -29,7 +29,6 @@ function NetworkDownBanner() {
     let timerId: NodeJS.Timeout | undefined;
     function checkIsUpgrading() {
       const isUpgrading = Date.now() >= new Date(date).getTime();
-      console.log("isUpgrading", isUpgrading);
       setIsUpgrading(isUpgrading);
       if (!isUpgrading) {
         timerId = setTimeout(checkIsUpgrading, 60_000);
@@ -54,11 +53,14 @@ function NetworkDownBanner() {
 }
 
 function MaintenanceBanner({ onClose }: { onClose: () => void }) {
-  const { message, date } = useMaintananceMessage();
+  const { message, date } = useMaintenanceMessage();
   const intl = useIntl();
 
-  const upgradeAt = useMemo(() => intl.formatDate(date, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }), [date]);
-  const formattedMessage = useMemo(() => message.replace("{date}", upgradeAt), [upgradeAt]);
+  const upgradeAt = useMemo(
+    () => intl.formatDate(date, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }),
+    [date, intl]
+  );
+  const formattedMessage = useMemo(() => message.replace("{date}", upgradeAt), [message, upgradeAt]);
 
   return (
     <div className="fixed top-0 z-10 flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
@@ -71,7 +73,12 @@ function MaintenanceBanner({ onClose }: { onClose: () => void }) {
 }
 
 export function TopBanner() {
-  const { isMaintananceBannerOpen, setIsMaintananceBannerOpen, isBlockchainDown, hasCreditCardBanner } = useTopBanner();
+  const {
+    isMaintenanceBannerOpen: isMaintananceBannerOpen,
+    setIsMaintenanceBannerOpen: setIsMaintananceBannerOpen,
+    isBlockchainDown,
+    hasCreditCardBanner
+  } = useTopBanner();
 
   if (isBlockchainDown) {
     return <NetworkDownBanner />;

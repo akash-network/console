@@ -1,4 +1,4 @@
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Spinner } from "@akashnetwork/ui/components";
 import { FlagProvider as FlagProviderOriginal, useUnleashClient } from "@unleash/nextjs";
@@ -8,7 +8,8 @@ import { browserEnvConfig } from "../../config/browser-env.config";
 const DummyFlagProvider: typeof FlagProviderOriginal = props => <>{props.children}</>;
 
 const COMPONENTS = {
-  FlagProvider: FlagProviderOriginal
+  FlagProvider: FlagProviderOriginal,
+  WaitForFeatureFlags
 };
 
 export type Props = { components?: typeof COMPONENTS };
@@ -16,21 +17,32 @@ export type Props = { components?: typeof COMPONENTS };
 const UnleashFlagProvider: FC<Props & { children: React.ReactNode }> = ({ children, components: c = COMPONENTS }) => {
   return (
     <c.FlagProvider>
-      <WaitForFeatureFlags>{children}</WaitForFeatureFlags>
+      <c.WaitForFeatureFlags>{children}</c.WaitForFeatureFlags>
     </c.FlagProvider>
   );
 };
 
 export const FlagProvider = browserEnvConfig.NEXT_PUBLIC_UNLEASH_ENABLE_ALL ? DummyFlagProvider : UnleashFlagProvider;
 
-const WaitForFeatureFlags: FC<Props & { children: React.ReactNode }> = ({ children }) => {
+function WaitForFeatureFlags({ children }: { children: ReactNode }) {
   const client = useUnleashClient();
   const [isReady, setIsReady] = useState(false);
+
   useEffect(() => {
-    client.once("ready", () => {
-      setIsReady(true);
-    });
-  }, [client]);
+    if (isReady !== client.isReady()) {
+      setIsReady(client.isReady());
+    }
+
+    let callback: (() => void) | undefined;
+    if (!client.isReady()) {
+      callback = () => setIsReady(true);
+      client.once("ready", callback);
+    }
+
+    return () => {
+      if (callback) client.off("ready", callback);
+    };
+  }, [client, isReady]);
 
   if (!isReady) {
     return (
@@ -40,4 +52,4 @@ const WaitForFeatureFlags: FC<Props & { children: React.ReactNode }> = ({ childr
     );
   }
   return <>{children}</>;
-};
+}

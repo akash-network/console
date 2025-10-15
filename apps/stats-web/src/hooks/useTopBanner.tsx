@@ -8,8 +8,8 @@ import { networkStore } from "@/store/network.store";
 
 interface ITopBannerContext {
   hasBanner: boolean;
-  setIsMaintananceBannerOpen: (isMaintenanceBannerOpen: boolean) => void;
-  isMaintananceBannerOpen: boolean;
+  setIsMaintenanceBannerOpen: (isMaintenanceBannerOpen: boolean) => void;
+  isMaintenanceBannerOpen: boolean;
   isBlockchainDown: boolean;
 }
 
@@ -20,12 +20,12 @@ export function useTopBanner(): ITopBannerContext {
   const maintenanceBannerFlag = useVariant("maintenance_banner");
   const networkId = networkStore.useSelectedNetworkId();
 
-  const [isMaintananceBannerOpen, setIsMaintananceBannerOpen] = useAtom(IS_MAINTENANCE_ATOM);
+  const [isMaintenanceBannerOpen, setIsMaintenanceBannerOpen] = useAtom(IS_MAINTENANCE_ATOM);
   const [isBlockchainDown, setIsBlockchainDown] = useAtom(IS_BLOCKCHAIN_DOWN_ATOM);
 
   useEffect(() => {
     if (maintenanceBannerFlag.enabled) {
-      setIsMaintananceBannerOpen(true);
+      setIsMaintenanceBannerOpen(true);
     }
   }, [maintenanceBannerFlag.enabled]);
 
@@ -51,24 +51,24 @@ export function useTopBanner(): ITopBannerContext {
     };
   }, [networkId]);
 
-  const hasBanner = useMemo(() => isMaintananceBannerOpen || isBlockchainDown, [isMaintananceBannerOpen, isBlockchainDown]);
+  const hasBanner = useMemo(() => isMaintenanceBannerOpen || isBlockchainDown, [isMaintenanceBannerOpen, isBlockchainDown]);
 
   return useMemo(
     () => ({
       hasBanner,
-      isMaintananceBannerOpen,
-      setIsMaintananceBannerOpen,
+      isMaintenanceBannerOpen,
+      setIsMaintenanceBannerOpen,
       isBlockchainDown
     }),
-    [hasBanner, isMaintananceBannerOpen, isBlockchainDown]
+    [hasBanner, isMaintenanceBannerOpen, isBlockchainDown]
   );
 }
 
-export type MaintananceMessage = { message: string; date: string };
-export function useMaintananceMessage(): MaintananceMessage {
+export type MaintenanceMessage = { message: string; date: string };
+export function useMaintenanceMessage(): MaintenanceMessage {
   const maintenanceBannerFlag = useVariant("maintenance_banner");
 
-  const data = maintenanceBannerFlag?.enabled ? (JSON.parse(maintenanceBannerFlag.payload?.value as string) as MaintananceMessage) : { message: "", date: "" };
+  const data = maintenanceBannerFlag?.enabled ? (JSON.parse(maintenanceBannerFlag.payload?.value as string) as MaintenanceMessage) : { message: "", date: "" };
 
   return data;
 }
