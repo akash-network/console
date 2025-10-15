@@ -93,7 +93,7 @@ jobs:
       app: indexer
       appVersion: sdk53
       environment: staging
-      chain: sandbox
+      chain: prod
       skip_beta_deployment_check: true
       force-rollout: true
 
