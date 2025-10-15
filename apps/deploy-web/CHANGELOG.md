@@ -1,5 +1,12 @@
 
 
+## [2.116.1](https://github.com/akash-network/console/compare/console-web/v2.116.0...console-web/v2.116.1) (2025-10-15)
+
+
+### Code Refactoring
+
+* migrates jwt signing in accordance to chain-sdk ([#2049](https://github.com/akash-network/console/issues/2049)) ([9b950c4](https://github.com/akash-network/console/commit/9b950c4609ef3757d6aa8e2e6741da2e950ff1e0))
+
 ## [2.116.0](https://github.com/akash-network/console/compare/console-web/v2.115.0...console-web/v2.116.0) (2025-10-14)
 
 
