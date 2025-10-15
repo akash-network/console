@@ -1,6 +1,5 @@
 import type { Attribute } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import type { HttpClient } from "@akashnetwork/http-sdk";
-import { netConfig } from "@akashnetwork/net";
 import yaml from "js-yaml";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";
@@ -14,11 +13,11 @@ export const TRIAL_REGISTERED_ATTRIBUTE = "console/trials-registered";
 const AUDITOR = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
 
 export function getManifest(yamlJson: any, asString: boolean) {
-  return Manifest(yamlJson, "beta3", netConfig.mappedReverse(networkStore.selectedNetworkId), asString);
+  return Manifest(yamlJson, "beta3", networkStore.selectedNetworkId, asString);
 }
 
 export async function getManifestVersion(yamlJson: any) {
-  const version = await ManifestVersion(yamlJson, "beta3", netConfig.mappedReverse(networkStore.selectedNetworkId));
+  const version = await ManifestVersion(yamlJson, "beta3", networkStore.selectedNetworkId);
 
   return Buffer.from(version).toString("base64");
 }
@@ -31,7 +30,7 @@ const getDenomFromSdl = (groups: any[]): string => {
 };
 
 export function appendTrialAttribute(yamlStr: string, attributeKey: string) {
-  const sdl = getSdl(yamlStr, "beta3", netConfig.mappedReverse(networkStore.selectedNetworkId));
+  const sdl = getSdl(yamlStr, "beta3", networkStore.selectedNetworkId);
   const placementData = sdl.data?.profiles?.placement || {};
 
   for (const [, value] of Object.entries(placementData)) {
@@ -91,7 +90,7 @@ export async function NewDeploymentData(
 ) {
   try {
     const networkId = networkStore.selectedNetworkId;
-    const sdl = getSdl(yamlStr, "beta3", netConfig.mappedReverse(networkId));
+    const sdl = getSdl(yamlStr, "beta3", networkId);
     const groups = sdl.groups();
     const mani = sdl.manifest();
     const denom = getDenomFromSdl(groups);
