@@ -64,11 +64,17 @@ export function useTopBanner(): ITopBannerContext {
   );
 }
 
-export type MaintenanceMessage = { message: string; date: string };
-export function useMaintenanceMessage(): MaintenanceMessage {
+export type ChainMaintenanceDetails = { date: string };
+export function useChainMaintenanceDetails(): ChainMaintenanceDetails {
   const maintenanceBannerFlag = useVariant("maintenance_banner");
 
-  const data = maintenanceBannerFlag?.enabled ? (JSON.parse(maintenanceBannerFlag.payload?.value as string) as MaintenanceMessage) : { message: "", date: "" };
-
-  return data;
+  try {
+    const details = maintenanceBannerFlag?.enabled ? (JSON.parse(maintenanceBannerFlag.payload?.value as string) as ChainMaintenanceDetails) : { date: "" };
+    if (details.date && Number.isNaN(new Date(details.date).getTime())) {
+      throw new Error("Invalid chain maintenance date. Fallback to nothing.");
+    }
+    return details;
+  } catch {
+    return { date: "" };
+  }
 }

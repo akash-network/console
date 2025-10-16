@@ -5,8 +5,6 @@ import { FlagProvider as FlagProviderOriginal, useUnleashClient } from "@unleash
 
 import { browserEnvConfig } from "../../config/browser-env.config";
 
-const DummyFlagProvider: typeof FlagProviderOriginal = props => <>{props.children}</>;
-
 const COMPONENTS = {
   FlagProvider: FlagProviderOriginal,
   WaitForFeatureFlags
@@ -16,13 +14,17 @@ export type Props = { components?: typeof COMPONENTS };
 
 const UnleashFlagProvider: FC<Props & { children: React.ReactNode }> = ({ children, components: c = COMPONENTS }) => {
   return (
-    <c.FlagProvider>
+    <c.FlagProvider
+      config={{
+        fetch: browserEnvConfig.NEXT_PUBLIC_UNLEASH_ENABLE_ALL ? () => new Response(JSON.stringify({ toggles: [] })) : undefined
+      }}
+    >
       <c.WaitForFeatureFlags>{children}</c.WaitForFeatureFlags>
     </c.FlagProvider>
   );
 };
 
-export const FlagProvider = browserEnvConfig.NEXT_PUBLIC_UNLEASH_ENABLE_ALL ? DummyFlagProvider : UnleashFlagProvider;
+export const FlagProvider = UnleashFlagProvider;
 
 function WaitForFeatureFlags({ children }: { children: ReactNode }) {
   const client = useUnleashClient();
