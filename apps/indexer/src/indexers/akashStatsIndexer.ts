@@ -1335,7 +1335,7 @@ export class AkashStatsIndexer extends Indexer {
     const gseq = parseInt(event.attributes.find(attr => attr.key === "gseq").value);
     const provider = event.attributes.find(attr => attr.key === "provider").value;
 
-    await this.updateLeaseClosedHeight(owner, dseq, oseq, gseq, provider, 0, currentTransaction, dbTransaction);
+    await this.updateLeaseClosedHeight(owner, dseq, oseq, gseq, provider, currentTransaction, dbTransaction);
   }
 
   private async handleNewFormatLeaseClosedEvent(event: TransactionEvent, currentTransaction: Transaction, dbTransaction: DbTransaction) {
@@ -1349,9 +1349,9 @@ export class AkashStatsIndexer extends Indexer {
       const oseq = idData.oseq;
       const gseq = idData.gseq;
       const provider = idData.provider;
-      const bseq = idData.bseq ?? 0; // Handle backward compatibility for missing bseq
+      const bseq = idData.bseq;
 
-      await this.updateLeaseClosedHeight(owner, dseq, oseq, gseq, provider, bseq, currentTransaction, dbTransaction);
+      await this.updateLeaseClosedHeight(owner, dseq, oseq, gseq, provider, currentTransaction, dbTransaction, bseq);
     } catch (error) {
       console.warn(`Failed to parse lease closed event ID: ${idAttr.value}`, error);
     }
@@ -1363,9 +1363,9 @@ export class AkashStatsIndexer extends Indexer {
     oseq: number,
     gseq: number,
     provider: string,
-    bseq: number,
     currentTransaction: Transaction,
-    dbTransaction: DbTransaction
+    dbTransaction: DbTransaction,
+    bseq?: number
   ) {
     const whereClause: WhereOptions<Lease> = {
       owner,
@@ -1375,7 +1375,7 @@ export class AkashStatsIndexer extends Indexer {
       providerAddress: provider
     };
 
-    if (bseq !== 0) {
+    if (bseq !== undefined) {
       whereClause.bseq = bseq;
     }
 
