@@ -23,6 +23,14 @@ jobs:
         with:
           app: ${{ inputs.app }}
 
+      - name: Show Node + ESLint versions
+        run: |
+          which node
+          node -v
+          npm -v
+          npm list eslint --depth 0 || true
+          npm list eslint-plugin-import-x --depth 0 || true
+
       - name: Run static code analysis
         if: github.event_name == 'pull_request'
         run: npm run lint -w apps/${{ inputs.app }} -- --quiet
