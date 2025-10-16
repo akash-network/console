@@ -1332,6 +1332,10 @@ export class AkashStatsIndexer extends Indexer {
       transaction: dbTransaction
     });
 
+    if (!deployment) {
+      throw new Error(`Deployment not found for owner: ${owner}, dseq: ${dseq}`);
+    }
+
     if (deployment.closedHeight !== currentTransaction.height) {
       await Deployment.update(
         {
@@ -1412,6 +1416,10 @@ export class AkashStatsIndexer extends Indexer {
       where: whereClause,
       transaction: dbTransaction
     });
+
+    if (!lease) {
+      throw new Error(`Lease not found for owner: ${owner}, dseq: ${dseq}, gseq: ${gseq}, oseq: ${oseq}, provider: ${provider}, bseq: ${bseq}`);
+    }
 
     if (lease.closedHeight !== currentTransaction.height) {
       await Lease.update(
