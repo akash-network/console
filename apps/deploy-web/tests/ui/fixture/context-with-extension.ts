@@ -2,11 +2,12 @@ import type { BrowserContext, Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { nanoid } from "nanoid";
 import path from "path";
+import { setTimeout as wait } from "timers/promises";
 
 import { selectChainNetwork } from "../actions/selectChainNetwork";
 import { injectUIConfig, test as baseTest } from "./base-test";
 import { testEnvConfig } from "./test-env.config";
-import { connectWalletViaLeap, setupWallet } from "./wallet-setup";
+import { connectWalletViaLeap, fillWalletPassword, setupWallet } from "./wallet-setup";
 
 // @see https://playwright.dev/docs/chrome-extensions
 export const test = baseTest.extend<{
@@ -54,11 +55,26 @@ export const test = baseTest.extend<{
 
     if (!extPage) {
       extPage = await context.newPage();
-      await extPage.goto(extUrl);
-      await extPage.waitForLoadState("domcontentloaded");
+
+      await extPage.goto(extUrl, { waitUntil: "domcontentloaded" });
     }
 
     await setupWallet(context, extPage);
+
+    // Check if we're on the success screen and need to close/reopen
+    const getStartedButton = extPage.getByRole("button", { name: /get started/i });
+
+    if (await getStartedButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await extPage.close();
+      await wait(2000);
+
+      // Reopen the extension
+      extPage = await context.newPage();
+      await extPage.goto(extUrl, { waitUntil: "domcontentloaded" });
+      await wait(2000);
+      await fillWalletPassword(extPage);
+    }
+
     await extPage.close();
     const page = await context.newPage();
     await injectUIConfig(page);

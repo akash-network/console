@@ -11,6 +11,37 @@ import { testEnvConfig } from "./test-env.config";
 
 const WALLET_PASSWORD = "12345678";
 
+export async function fillWalletPassword(page: Page) {
+  selectors.setTestIdAttribute("data-testing-id");
+
+  const [passwordInput, confirmPasswordInput, proceedButton] = await Promise.all([
+    page.getByTestId("input-password").or(page.getByTestId("login-input-enter-password")).first(),
+    page.getByTestId("input-confirm-password"),
+    page.getByTestId("btn-password-proceed").or(page.getByTestId("btn-unlock-wallet")).first()
+  ]);
+
+  if (!(await passwordInput.isVisible({ timeout: 3_000 }).catch(() => false))) {
+    return;
+  }
+
+  await proceedButton.waitFor({ state: "visible", timeout: 10_000 });
+
+  await passwordInput.fill(WALLET_PASSWORD);
+
+  await wait(500);
+
+  if (await confirmPasswordInput.isVisible().catch(() => false)) {
+    await confirmPasswordInput.fill(WALLET_PASSWORD);
+    await wait(500);
+  }
+
+  selectors.setTestIdAttribute("data-testid");
+
+  await proceedButton.click();
+
+  return await wait(1_000);
+}
+
 export async function setupWallet(context: BrowserContext, page: Page) {
   const wallet = await importWalletToLeap(context, page);
   await restoreExtensionStorage(page);
@@ -48,8 +79,7 @@ export async function approveWalletOperation(popupPage: Page | null) {
       await visibleButton.click();
       break;
     case "Unlock wallet":
-      await popupPage.locator("input").fill(WALLET_PASSWORD);
-      await visibleButton.click();
+      await fillWalletPassword(popupPage);
       break;
     case "Connect":
       await visibleButton.click();
@@ -70,26 +100,65 @@ async function importWalletToLeap(context: BrowserContext, page: Page) {
     throw new Error("TEST_WALLET_MNEMONIC should have 12 words");
   }
 
-  await page.getByText(/recovery phrase/i).click();
+  await page.getByText("Import an existing wallet").click();
+
+  await wait(1000);
 
   try {
     selectors.setTestIdAttribute("data-testing-id");
 
-    for (const word of mnemonicArray) {
-      await page.locator("*:focus").fill(word);
-      await page.keyboard.press("Tab");
+    const recoveryPhraseButton = page.getByText(/recovery phrase|secret phrase/i);
+
+    if (await recoveryPhraseButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await recoveryPhraseButton.click();
+      await wait(500);
     }
 
-    await page.getByRole("button", { name: /Import/i }).click();
+    for (let i = 0; i < mnemonicArray.length; i++) {
+      const word = mnemonicArray[i];
+      const focusedInput = page.locator("*:focus");
 
-    // Select wallet
-    await page.getByTestId("wallet-1").click();
+      if (await focusedInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await focusedInput.fill(word);
+        await page.keyboard.press("Tab");
+      }
+    }
+
+    await wait(1000);
+    const importButton = page.getByRole("button", { name: /import|continue|next/i });
+    await importButton.click();
+    await wait(1000);
+
+    await page.waitForSelector('[data-testing-id^="wallet-"]', { state: "visible", timeout: 10000 });
+    await wait(1000);
+
+    const allWallets = await page.locator('[data-testing-id^="wallet-"]').all();
+
+    if (allWallets.length < 2) {
+      throw new Error(`Not enough wallets to select. Found: ${allWallets.length}, need at least 2`);
+    }
+
+    for (let i = 0; i < Math.min(2, allWallets.length); i++) {
+      const wallet = allWallets[i];
+      const isChecked = await wallet.getByRole("checkbox").getAttribute("aria-checked");
+
+      if (isChecked === "true") {
+        continue;
+      }
+
+      await wallet.click({ force: true });
+      await wait(500);
+    }
+
+    await wait(2000);
+
     await page.getByTestId("btn-select-wallet-proceed").click();
+    await wait(2000);
 
-    // Set password
-    await page.getByTestId("input-password").fill(WALLET_PASSWORD);
-    await page.getByTestId("input-confirm-password").fill(WALLET_PASSWORD);
-    await page.getByTestId("btn-password-proceed").click();
+    await fillWalletPassword(page);
+
+    // Wait for wallet creation
+    await wait(5000);
 
     await page.waitForLoadState("domcontentloaded");
 
@@ -147,6 +216,6 @@ async function getBalance(address: string) {
 
 // @see https://github.com/microsoft/playwright/issues/14949
 export async function restoreExtensionStorage(page: Page): Promise<void> {
-  const extensionStorage = JSON.parse(fs.readFileSync(path.join(__dirname, "leapExtensionLocalStorage.json"), "utf8"));
+  const extensionStorage = JSON.parse(fs.readFileSync(path.join(__dirname, "leap-extension-local-storage.json"), "utf8"));
   await page.evaluate(data => chrome.storage.local.set(data), extensionStorage);
 }
