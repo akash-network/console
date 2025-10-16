@@ -11,7 +11,7 @@ import { Required } from "../decorators/requiredDecorator";
  */
 @Table({
   modelName: "bid",
-  indexes: [{ unique: false, fields: ["owner", "dseq", "gseq", "oseq", "provider"] }]
+  indexes: [{ unique: false, fields: ["owner", "dseq", "gseq", "oseq", "provider", "bseq"] }]
 })
 export class Bid extends Model {
   /**

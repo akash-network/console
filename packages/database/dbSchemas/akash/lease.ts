@@ -20,7 +20,7 @@ import { Provider } from "./provider"; // eslint-disable-line import-x/no-cycle
     { unique: false, fields: ["closedHeight"] },
     { unique: false, fields: ["predictedClosedHeight"] },
     { unique: false, fields: ["deploymentId"] },
-    { unique: true, fields: ["owner", "dseq", "gseq", "oseq", "providerAddress"] },
+    { unique: true, fields: ["owner", "dseq", "gseq", "oseq", "bseq", "providerAddress"] },
     { unique: false, fields: ["providerAddress", "closedHeight", "createdHeight"] }
   ]
 })

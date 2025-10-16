@@ -30,7 +30,7 @@ export const deploymentGroup = pgTable(
   table => [
     index("deployment_group_owner_dseq_gseq").using(
       "btree",
-      table.owner.asc().nullsLast().op("int4_ops"),
+      table.owner.asc().nullsLast().op("text_ops"),
       table.dseq.asc().nullsLast().op("text_ops"),
       table.gseq.asc().nullsLast().op("int4_ops")
     ),
@@ -58,13 +58,14 @@ export const bid = pgTable(
     createdHeight: integer().notNull()
   },
   table => [
-    index("bid_owner_dseq_gseq_oseq_provider").using(
+    index("bid_owner_dseq_gseq_oseq_provider_bseq").using(
       "btree",
       table.owner.asc().nullsLast().op("text_ops"),
-      table.dseq.asc().nullsLast().op("int4_ops"),
-      table.gseq.asc().nullsLast().op("text_ops"),
+      table.dseq.asc().nullsLast().op("text_ops"),
+      table.gseq.asc().nullsLast().op("int4_ops"),
       table.oseq.asc().nullsLast().op("int4_ops"),
-      table.provider.asc().nullsLast().op("text_ops")
+      table.provider.asc().nullsLast().op("text_ops"),
+      table.bseq.asc().nullsLast().op("int4_ops")
     )
   ]
 );
@@ -141,19 +142,21 @@ export const lease = pgTable(
   table => [
     index("lease_closed_height").using("btree", table.closedHeight.asc().nullsLast().op("int4_ops")),
     index("lease_deployment_id").using("btree", table.deploymentId.asc().nullsLast().op("uuid_ops")),
-    index("lease_owner_dseq_gseq_oseq").using(
+    uniqueIndex("lease_owner_dseq_gseq_oseq_bseq_provider").using(
       "btree",
       table.owner.asc().nullsLast().op("text_ops"),
       table.dseq.asc().nullsLast().op("text_ops"),
-      table.gseq.asc().nullsLast().op("text_ops"),
-      table.oseq.asc().nullsLast().op("int4_ops")
+      table.gseq.asc().nullsLast().op("int4_ops"),
+      table.oseq.asc().nullsLast().op("int4_ops"),
+      table.bseq.asc().nullsLast().op("int4_ops"),
+      table.providerAddress.asc().nullsLast().op("text_ops")
     ),
     index("lease_predicted_closed_height").using("btree", table.predictedClosedHeight.asc().nullsLast().op("int8_ops")),
     index("lease_provider_address_closed_height_created_height")
       .using(
         "btree",
-        table.providerAddress.asc().nullsLast().op("int4_ops"),
-        table.closedHeight.asc().nullsLast().op("text_ops"),
+        table.providerAddress.asc().nullsLast().op("text_ops"),
+        table.closedHeight.asc().nullsLast().op("int4_ops"),
         table.createdHeight.asc().nullsLast().op("int4_ops")
       )
       .with({ deduplicate_items: "true" }),
@@ -474,7 +477,11 @@ export const providerSnapshot = pgTable(
       .using("btree", table.id.asc().nullsLast().op("uuid_ops"))
       .where(sql`(("isOnline" = true) AND ("isLastOfDay" = true))`),
     index("provider_snapshot_owner").using("btree", table.owner.asc().nullsLast().op("text_ops")),
-    index("provider_snapshot_owner_check_date").using("btree", table.owner.asc().nullsLast().op("text_ops"), table.checkDate.asc().nullsLast().op("text_ops")),
+    index("provider_snapshot_owner_check_date").using(
+      "btree",
+      table.owner.asc().nullsLast().op("text_ops"),
+      table.checkDate.asc().nullsLast().op("timestamptz_ops")
+    ),
     foreignKey({
       columns: [table.owner],
       foreignColumns: [provider.owner],
@@ -539,7 +546,7 @@ export const message = pgTable(
   table => [
     index("message_height").using("btree", table.height.asc().nullsLast().op("int4_ops")),
     index("message_height_is_notification_processed")
-      .using("btree", table.height.asc().nullsLast().op("bool_ops"), table.isNotificationProcessed.asc().nullsLast().op("int4_ops"))
+      .using("btree", table.height.asc().nullsLast().op("int4_ops"), table.isNotificationProcessed.asc().nullsLast().op("bool_ops"))
       .where(sql`("isNotificationProcessed" = false)`),
     index("message_height_is_notification_processed_false")
       .using("btree", table.height.asc().nullsLast().op("int4_ops"))
@@ -547,10 +554,10 @@ export const message = pgTable(
     index("message_height_is_notification_processed_true")
       .using("btree", table.height.asc().nullsLast().op("int4_ops"))
       .where(sql`("isNotificationProcessed" = true)`),
-    index("message_height_type").using("btree", table.height.asc().nullsLast().op("text_ops"), table.type.asc().nullsLast().op("int4_ops")),
+    index("message_height_type").using("btree", table.height.asc().nullsLast().op("int4_ops"), table.type.asc().nullsLast().op("text_ops")),
     index("message_related_deployment_id").using("btree", table.relatedDeploymentId.asc().nullsLast().op("uuid_ops")),
     index("message_tx_id").using("btree", table.txId.asc().nullsLast().op("uuid_ops")),
-    index("message_tx_id_is_processed").using("btree", table.txId.asc().nullsLast().op("bool_ops"), table.isProcessed.asc().nullsLast().op("bool_ops")),
+    index("message_tx_id_is_processed").using("btree", table.txId.asc().nullsLast().op("uuid_ops"), table.isProcessed.asc().nullsLast().op("bool_ops")),
     foreignKey({
       columns: [table.height],
       foreignColumns: [block.height],
