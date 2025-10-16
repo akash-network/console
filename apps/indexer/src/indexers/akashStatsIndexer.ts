@@ -525,7 +525,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCreateLease(
-    decodedMessage: v1beta1.MsgCreateLease | v1beta2.MsgCreateLease | v1beta3.MsgCreateLease | prevV1beta4.MsgCreateLease | v1beta5.MsgCreateLease,
+    decodedMessage: v1beta1.MsgCreateLease | v1beta2.MsgCreateLease | v1beta3.MsgCreateLease | prevV1beta4.MsgCreateLease,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -703,7 +703,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCloseLease(
-    decodedMessage: v1beta1.MsgCloseLease | v1beta2.MsgCloseLease | v1beta3.MsgCloseLease,
+    decodedMessage: v1beta1.MsgCloseLease | v1beta2.MsgCloseLease | v1beta3.MsgCloseLease | prevV1beta4.MsgCloseLease,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -764,11 +764,17 @@ export class AkashStatsIndexer extends Indexer {
     }
 
     const lease = deployment.leases.find(
-      x => x.oseq === decodedMessage.id.oseq && x.gseq === decodedMessage.id.gseq && x.providerAddress === decodedMessage.id.provider
+      x =>
+        x.oseq === decodedMessage.id.oseq &&
+        x.gseq === decodedMessage.id.gseq &&
+        x.bseq === decodedMessage.id.bseq &&
+        x.providerAddress === decodedMessage.id.provider
     );
 
     if (!lease)
-      throw new Error(`Lease for ${decodedMessage.id.owner}/${decodedMessage.id.dseq}/${decodedMessage.id.gseq}/${decodedMessage.id.provider} not found.`);
+      throw new Error(
+        `Lease for ${decodedMessage.id.owner}/${decodedMessage.id.dseq}/${decodedMessage.id.gseq}/${decodedMessage.id.bseq}/${decodedMessage.id.provider} not found.`
+      );
 
     msg.relatedDeploymentId = deployment.id;
 
@@ -790,7 +796,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCreateBid(
-    decodedMessage: v1beta1.MsgCreateBid | v1beta2.MsgCreateBid | v1beta3.MsgCreateBid,
+    decodedMessage: v1beta1.MsgCreateBid | v1beta2.MsgCreateBid | v1beta3.MsgCreateBid | prevV1beta4.MsgCreateBid,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -849,7 +855,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCloseBid(
-    decodedMessage: v1beta1.MsgCloseBid | v1beta2.MsgCloseBid | v1beta3.MsgCloseBid,
+    decodedMessage: v1beta1.MsgCloseBid | v1beta2.MsgCloseBid | v1beta3.MsgCloseBid | prevV1beta4.MsgCloseBid,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -920,7 +926,11 @@ export class AkashStatsIndexer extends Indexer {
     msg.relatedDeploymentId = deployment.id;
 
     const lease = deployment.leases.find(
-      x => x.oseq === decodedMessage.id.oseq && x.gseq === decodedMessage.id.gseq && x.providerAddress === decodedMessage.id.provider
+      x =>
+        x.oseq === decodedMessage.id.oseq &&
+        x.gseq === decodedMessage.id.gseq &&
+        x.bseq === decodedMessage.id.bseq &&
+        x.providerAddress === decodedMessage.id.provider
     );
 
     if (lease) {
@@ -1050,7 +1060,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleWithdrawLease(
-    decodedMessage: v1beta1.MsgWithdrawLease | v1beta2.MsgWithdrawLease | v1beta3.MsgWithdrawLease,
+    decodedMessage: v1beta1.MsgWithdrawLease | v1beta2.MsgWithdrawLease | v1beta3.MsgWithdrawLease | prevV1beta4.MsgWithdrawLease,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -1086,6 +1096,7 @@ export class AkashStatsIndexer extends Indexer {
     const dseq = decodedMessage.id.dseq.toString();
     const gseq = decodedMessage.id.gseq;
     const oseq = decodedMessage.id.oseq;
+    const bseq = decodedMessage.id.bseq;
     const provider = decodedMessage.id.provider;
 
     const deployment = await Deployment.findOne({
@@ -1099,9 +1110,9 @@ export class AkashStatsIndexer extends Indexer {
 
     if (!deployment) throw new Error(`Deployment not found for owner: ${owner} and dseq: ${dseq}`);
 
-    const lease = deployment.leases.find(x => x.gseq === gseq && x.oseq === oseq && x.providerAddress === provider);
+    const lease = deployment.leases.find(x => x.gseq === gseq && x.oseq === oseq && x.bseq === bseq && x.providerAddress === provider);
 
-    if (!lease) throw new Error(`Lease not found for gseq: ${gseq}, oseq: ${oseq} and provider: ${provider}`);
+    if (!lease) throw new Error(`Lease not found for gseq: ${gseq}, oseq: ${oseq}, bseq: ${bseq} and provider: ${provider}`);
 
     await accountSettle(deployment, height, blockGroupTransaction);
 
