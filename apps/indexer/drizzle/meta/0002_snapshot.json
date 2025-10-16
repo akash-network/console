@@ -1,5 +1,5 @@
 {
-  "id": "fe8888f6-3d10-43f2-ada7-f4732e469094",
+  "id": "f8f83b45-cfa9-475d-a77c-4e9aebf9be3d",
   "prevId": "67247958-626e-4fd8-8b11-90375fc863b4",
   "version": "7",
   "dialect": "postgresql",
@@ -690,7 +690,7 @@
               "isExpression": false,
               "asc": true,
               "nulls": "last",
-              "opclass": "int4_ops"
+              "opclass": "text_ops"
             },
             {
               "expression": "dseq",
@@ -1004,8 +1004,8 @@
           "method": "btree",
           "with": {}
         },
-        "lease_owner_dseq_gseq_oseq_bseq_provider": {
-          "name": "lease_owner_dseq_gseq_oseq_bseq_provider",
+        "lease_owner_dseq_gseq_oseq_provider_bseq": {
+          "name": "lease_owner_dseq_gseq_oseq_provider_bseq",
           "columns": [
             {
               "expression": "owner",
@@ -1036,18 +1036,18 @@
               "opclass": "int4_ops"
             },
             {
-              "expression": "bseq",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "int4_ops"
-            },
-            {
               "expression": "providerAddress",
               "isExpression": false,
               "asc": true,
               "nulls": "last",
               "opclass": "text_ops"
+            },
+            {
+              "expression": "bseq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops"
             }
           ],
           "isUnique": true,
@@ -1079,14 +1079,14 @@
               "isExpression": false,
               "asc": true,
               "nulls": "last",
-              "opclass": "int4_ops"
+              "opclass": "text_ops"
             },
             {
               "expression": "closedHeight",
               "isExpression": false,
               "asc": true,
               "nulls": "last",
-              "opclass": "text_ops"
+              "opclass": "int4_ops"
             },
             {
               "expression": "createdHeight",
@@ -1255,14 +1255,14 @@
               "isExpression": false,
               "asc": true,
               "nulls": "last",
-              "opclass": "bool_ops"
+              "opclass": "int4_ops"
             },
             {
               "expression": "isNotificationProcessed",
               "isExpression": false,
               "asc": true,
               "nulls": "last",
-              "opclass": "int4_ops"
+              "opclass": "bool_ops"
             }
           ],
           "isUnique": false,
@@ -1313,14 +1313,14 @@
               "isExpression": false,
               "asc": true,
               "nulls": "last",
-              "opclass": "text_ops"
+              "opclass": "int4_ops"
             },
             {
               "expression": "type",
               "isExpression": false,
               "asc": true,
               "nulls": "last",
-              "opclass": "int4_ops"
+              "opclass": "text_ops"
             }
           ],
           "isUnique": false,
@@ -1368,7 +1368,7 @@
               "isExpression": false,
               "asc": true,
               "nulls": "last",
-              "opclass": "bool_ops"
+              "opclass": "uuid_ops"
             },
             {
               "expression": "isProcessed",
@@ -2055,7 +2055,7 @@
               "isExpression": false,
               "asc": true,
               "nulls": "last",
-              "opclass": "text_ops"
+              "opclass": "timestamptz_ops"
             }
           ],
           "isUnique": false,

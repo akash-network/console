@@ -142,14 +142,14 @@ export const lease = pgTable(
   table => [
     index("lease_closed_height").using("btree", table.closedHeight.asc().nullsLast().op("int4_ops")),
     index("lease_deployment_id").using("btree", table.deploymentId.asc().nullsLast().op("uuid_ops")),
-    uniqueIndex("lease_owner_dseq_gseq_oseq_bseq_provider").using(
+    uniqueIndex("lease_owner_dseq_gseq_oseq_provider_bseq").using(
       "btree",
       table.owner.asc().nullsLast().op("text_ops"),
       table.dseq.asc().nullsLast().op("text_ops"),
       table.gseq.asc().nullsLast().op("int4_ops"),
       table.oseq.asc().nullsLast().op("int4_ops"),
-      table.bseq.asc().nullsLast().op("int4_ops"),
-      table.providerAddress.asc().nullsLast().op("text_ops")
+      table.providerAddress.asc().nullsLast().op("text_ops"),
+      table.bseq.asc().nullsLast().op("int4_ops")
     ),
     index("lease_predicted_closed_height").using("btree", table.predictedClosedHeight.asc().nullsLast().op("int8_ops")),
     index("lease_provider_address_closed_height_created_height")
