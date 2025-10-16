@@ -1,8 +1,9 @@
 import { useMemo } from "react";
+import { useVariant } from "@unleash/nextjs/client";
 import { atom, useAtom } from "jotai";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useHasCreditCardBanner } from "@src/hooks/useHasCreditCardBanner";
-import { useVariant } from "@src/hooks/useVariant";
 import { useWhen } from "@src/hooks/useWhen";
 import { useSettings } from "../context/SettingsProvider";
 
@@ -41,13 +42,23 @@ export function useTopBanner(): ITopBannerContext {
   );
 }
 
-export type MaintenanceMessage = { message: string; date: string };
-export function useMaintenanceMessage(): MaintenanceMessage {
+export type ChainMaintenanceDetails = { date: string };
+export function useChainMaintenanceDetails(): ChainMaintenanceDetails {
   const maintenanceBannerFlag = useVariant("maintenance_banner");
+  const { errorHandler } = useServices();
 
   try {
-    return maintenanceBannerFlag.enabled ? (JSON.parse(maintenanceBannerFlag.payload?.value as string) as MaintenanceMessage) : { message: "", date: "" };
+    const details = maintenanceBannerFlag?.enabled ? (JSON.parse(maintenanceBannerFlag.payload?.value as string) as ChainMaintenanceDetails) : { date: "" };
+    if (details.date && Number.isNaN(new Date(details.date).getTime())) {
+      throw new Error("Invalid chain maintenance date. Fallback to nothing.");
+    }
+    return details;
   } catch (error) {
-    return { message: "", date: "" };
+    errorHandler.reportError({
+      error,
+      message: "Failed to parse chain maintenance details from feature flag",
+      tags: { category: "chain-maintenance" }
+    });
+    return { date: "" };
   }
 }
