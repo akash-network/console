@@ -24,7 +24,7 @@ import {
 } from "@akashnetwork/database/dbSchemas/akash";
 import type { Transaction, TransactionEvent } from "@akashnetwork/database/dbSchemas/base";
 import type { DecodedTxRaw } from "@cosmjs/proto-signing";
-import type { Transaction as DbTransaction } from "sequelize";
+import type { Transaction as DbTransaction, WhereOptions } from "sequelize";
 import { Op } from "sequelize";
 import * as uuid from "uuid";
 
@@ -1319,47 +1319,83 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleMissedClosedLeases(currentTransaction: Transaction, dbTransaction: DbTransaction, txEvents: TransactionEvent[]) {
-    const leaseClosedEvents = txEvents.filter(
-      event => event.type === "akash.v1" && event.attributes.some(attr => attr.key === "action" && attr.value === "lease-closed")
-    );
-
-    for (const event of leaseClosedEvents) {
-      const dseq = event.attributes.find(attr => attr.key === "dseq").value;
-      const owner = event.attributes.find(attr => attr.key === "owner").value;
-      const oseq = event.attributes.find(attr => attr.key === "oseq").value;
-      const gseq = event.attributes.find(attr => attr.key === "gseq").value;
-      const provider = event.attributes.find(attr => attr.key === "provider").value;
-
-      const lease = await Lease.findOne({
-        raw: true,
-        attributes: ["closedHeight"],
-        where: {
-          owner,
-          dseq,
-          oseq,
-          gseq,
-          providerAddress: provider
-        },
-        transaction: dbTransaction
-      });
-
-      if (lease.closedHeight !== currentTransaction.height) {
-        await Lease.update(
-          {
-            closedHeight: currentTransaction.height
-          },
-          {
-            where: {
-              owner,
-              dseq,
-              oseq,
-              gseq,
-              providerAddress: provider
-            },
-            transaction: dbTransaction
-          }
-        );
+    for (const event of txEvents) {
+      if (event.type === "akash.v1" && event.attributes.some(attr => attr.key === "action" && attr.value === "lease-closed")) {
+        await this.handleOldFormatLeaseClosedEvent(event, currentTransaction, dbTransaction);
+      } else if (event.type === "akash.market.v1.EventLeaseClosed") {
+        await this.handleNewFormatLeaseClosedEvent(event, currentTransaction, dbTransaction);
       }
+    }
+  }
+
+  private async handleOldFormatLeaseClosedEvent(event: TransactionEvent, currentTransaction: Transaction, dbTransaction: DbTransaction) {
+    const dseq = event.attributes.find(attr => attr.key === "dseq").value;
+    const owner = event.attributes.find(attr => attr.key === "owner").value;
+    const oseq = parseInt(event.attributes.find(attr => attr.key === "oseq").value);
+    const gseq = parseInt(event.attributes.find(attr => attr.key === "gseq").value);
+    const provider = event.attributes.find(attr => attr.key === "provider").value;
+
+    await this.updateLeaseClosedHeight(owner, dseq, oseq, gseq, provider, 0, currentTransaction, dbTransaction);
+  }
+
+  private async handleNewFormatLeaseClosedEvent(event: TransactionEvent, currentTransaction: Transaction, dbTransaction: DbTransaction) {
+    const idAttr = event.attributes.find(attr => attr.key === "id");
+    if (!idAttr) return;
+
+    try {
+      const idData = JSON.parse(idAttr.value);
+      const dseq = idData.dseq;
+      const owner = idData.owner;
+      const oseq = idData.oseq;
+      const gseq = idData.gseq;
+      const provider = idData.provider;
+      const bseq = idData.bseq ?? 0; // Handle backward compatibility for missing bseq
+
+      await this.updateLeaseClosedHeight(owner, dseq, oseq, gseq, provider, bseq, currentTransaction, dbTransaction);
+    } catch (error) {
+      console.warn(`Failed to parse lease closed event ID: ${idAttr.value}`, error);
+    }
+  }
+
+  private async updateLeaseClosedHeight(
+    owner: string,
+    dseq: string,
+    oseq: number,
+    gseq: number,
+    provider: string,
+    bseq: number,
+    currentTransaction: Transaction,
+    dbTransaction: DbTransaction
+  ) {
+    const whereClause: WhereOptions<Lease> = {
+      owner,
+      dseq,
+      oseq,
+      gseq,
+      providerAddress: provider
+    };
+
+    if (bseq !== 0) {
+      whereClause.bseq = bseq;
+    }
+
+    const lease = await Lease.findOne({
+      raw: true,
+      attributes: ["closedHeight"],
+      where: whereClause,
+      transaction: dbTransaction
+    });
+
+    if (lease.closedHeight !== currentTransaction.height) {
+      await Lease.update(
+        {
+          closedHeight: currentTransaction.height
+        },
+        {
+          where: whereClause,
+          transaction: dbTransaction
+        }
+      );
     }
   }
 }
