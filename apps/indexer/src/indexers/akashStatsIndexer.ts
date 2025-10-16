@@ -256,13 +256,18 @@ export class AkashStatsIndexer extends Indexer {
       "/akash.market.v1beta3.MsgWithdrawLease",
       // v1beta4
       "/akash.deployment.v1beta4.MsgCreateDeployment",
+      "/akash.deployment.v1beta4.MsgCloseDeployment",
       "/akash.market.v1beta4.MsgCreateLease",
       "/akash.market.v1beta4.MsgCloseLease",
       "/akash.market.v1beta4.MsgCloseBid",
       "/akash.market.v1beta4.MsgWithdrawLease",
       // v1beta5
       "/akash.market.v1beta5.MsgCreateLease",
-      "/akash.market.v1beta5.MsgCloseLease"
+      "/akash.market.v1beta5.MsgCloseLease",
+      "/akash.market.v1beta5.MsgCloseBid",
+      "/akash.market.v1beta5.MsgWithdrawLease",
+      // v1
+      "/akash.escrow.v1.MsgAccountDeposit"
     ].includes(msg.type);
   }
 
