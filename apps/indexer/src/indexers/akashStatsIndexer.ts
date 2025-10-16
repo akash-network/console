@@ -1288,38 +1288,60 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleMissedClosedDeployments(currentTransaction: Transaction, dbTransaction: DbTransaction, txEvents: TransactionEvent[]) {
-    const deploymentClosedEvents = txEvents.filter(
-      event => event.type === "akash.v1" && event.attributes.some(attr => attr.key === "action" && attr.value === "deployment-closed")
-    );
-
-    for (const deploymentClosedEvent of deploymentClosedEvents) {
-      const dseq = deploymentClosedEvent.attributes.find(attr => attr.key === "dseq").value;
-      const owner = deploymentClosedEvent.attributes.find(attr => attr.key === "owner").value;
-
-      const deployment = await Deployment.findOne({
-        raw: true,
-        attributes: ["closedHeight"],
-        where: {
-          owner,
-          dseq
-        },
-        transaction: dbTransaction
-      });
-
-      if (deployment.closedHeight !== currentTransaction.height) {
-        await Deployment.update(
-          {
-            closedHeight: currentTransaction.height
-          },
-          {
-            where: {
-              owner,
-              dseq
-            },
-            transaction: dbTransaction
-          }
-        );
+    for (const event of txEvents) {
+      if (event.type === "akash.v1" && event.attributes.some(attr => attr.key === "action" && attr.value === "deployment-closed")) {
+        await this.handleOldFormatDeploymentClosedEvent(event, currentTransaction, dbTransaction);
+      } else if (event.type === "akash.deployment.v1.EventDeploymentClosed") {
+        await this.handleNewFormatDeploymentClosedEvent(event, currentTransaction, dbTransaction);
       }
+    }
+  }
+
+  private async handleOldFormatDeploymentClosedEvent(event: TransactionEvent, currentTransaction: Transaction, dbTransaction: DbTransaction) {
+    const dseq = event.attributes.find(attr => attr.key === "dseq").value;
+    const owner = event.attributes.find(attr => attr.key === "owner").value;
+
+    await this.updateDeploymentClosedHeight(owner, dseq, currentTransaction, dbTransaction);
+  }
+
+  private async handleNewFormatDeploymentClosedEvent(event: TransactionEvent, currentTransaction: Transaction, dbTransaction: DbTransaction) {
+    const idAttr = event.attributes.find(attr => attr.key === "id");
+    if (!idAttr) return;
+
+    try {
+      const idData = JSON.parse(idAttr.value);
+      const dseq = idData.dseq;
+      const owner = idData.owner;
+
+      await this.updateDeploymentClosedHeight(owner, dseq, currentTransaction, dbTransaction);
+    } catch (error) {
+      console.warn(`Failed to parse deployment closed event ID: ${idAttr.value}`, error);
+    }
+  }
+
+  private async updateDeploymentClosedHeight(owner: string, dseq: string, currentTransaction: Transaction, dbTransaction: DbTransaction) {
+    const whereClause: WhereOptions<Deployment> = {
+      owner,
+      dseq
+    };
+
+    const deployment = await Deployment.findOne({
+      raw: true,
+      attributes: ["closedHeight"],
+      where: whereClause,
+      transaction: dbTransaction
+    });
+
+    if (deployment.closedHeight !== currentTransaction.height) {
+      await Deployment.update(
+        {
+          closedHeight: currentTransaction.height
+        },
+        {
+          where: whereClause,
+          transaction: dbTransaction
+        }
+      );
     }
   }
 
