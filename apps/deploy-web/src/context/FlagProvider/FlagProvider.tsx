@@ -7,8 +7,6 @@ import { browserEnvConfig } from "@src/config/browser-env.config";
 import { useUser } from "@src/hooks/useUser";
 import type { FCWithChildren } from "@src/types/component";
 
-const DummyFlagProvider: typeof FlagProviderOriginal = props => <>{props.children}</>;
-
 const COMPONENTS = {
   FlagProvider: FlagProviderOriginal,
   useUser,
@@ -19,11 +17,13 @@ export type Props = { components?: typeof COMPONENTS };
 
 export const UserAwareFlagProvider: FCWithChildren<Props> = ({ children, components: c = COMPONENTS }) => {
   const { user } = c.useUser();
+  const isEnableAll = browserEnvConfig.NEXT_PUBLIC_UNLEASH_ENABLE_ALL;
 
   return (
     <c.FlagProvider
       config={{
-        context: { userId: user?.id }
+        context: { userId: user?.id },
+        fetch: isEnableAll ? () => new Response(JSON.stringify({ toggles: [] })) : undefined
       }}
     >
       <c.WaitForFeatureFlags>{children}</c.WaitForFeatureFlags>
@@ -31,7 +31,7 @@ export const UserAwareFlagProvider: FCWithChildren<Props> = ({ children, compone
   );
 };
 
-export const FlagProvider = browserEnvConfig.NEXT_PUBLIC_UNLEASH_ENABLE_ALL ? DummyFlagProvider : UserAwareFlagProvider;
+export const FlagProvider = UserAwareFlagProvider;
 
 function WaitForFeatureFlags({ children }: { children: ReactNode }) {
   const client = useUnleashClient();

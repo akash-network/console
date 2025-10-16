@@ -3,10 +3,10 @@ import { useIntl } from "react-intl";
 import { Button } from "@akashnetwork/ui/components";
 import { Xmark } from "iconoir-react";
 
-import { useMaintenanceMessage, useTopBanner } from "@/hooks/useTopBanner";
+import { useChainMaintenanceDetails, useTopBanner } from "@/hooks/useTopBanner";
 
 function NetworkDownBanner() {
-  const { date } = useMaintenanceMessage();
+  const { date } = useChainMaintenanceDetails();
   const [isUpgrading, setIsUpgrading] = useState(false);
 
   useEffect(() => {
@@ -37,18 +37,19 @@ function NetworkDownBanner() {
 }
 
 function MaintenanceBanner({ onClose }: { onClose: () => void }) {
-  const { message, date } = useMaintenanceMessage();
+  const { date } = useChainMaintenanceDetails();
   const intl = useIntl();
 
   const upgradeAt = useMemo(
-    () => intl.formatDate(date, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }),
+    () => (date ? intl.formatDate(date, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""),
     [date, intl]
   );
-  const formattedMessage = useMemo(() => message.replace("{date}", upgradeAt), [message, upgradeAt]);
 
   return (
     <div className="flex h-[40px] w-full items-center justify-center bg-primary px-3 py-2 md:space-x-4">
-      <span className="text-xs font-semibold text-white md:text-sm">{formattedMessage}</span>
+      <span className="text-xs font-semibold text-white md:text-sm">
+        Network upgrade scheduled{upgradeAt ? ` at ${upgradeAt}` : ""}. Stats will be stale until the upgrade is complete.
+      </span>
       <Button variant="text" className="rounded-full text-white hover:text-white" size="icon" onClick={onClose}>
         <Xmark />
       </Button>
