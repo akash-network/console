@@ -72,7 +72,7 @@ export const CustodialWalletPopup: React.FC<CustodialWalletPopupProps> = ({ wall
           <Bank />
           <span>Authorize Spending</span>
         </Button>
-        <Button onClick={logout} variant="outline" className="w-full space-x-2" aria-label="Disconnect Wallet">
+        <Button onClick={logout} variant="outline" className="w-full space-x-2">
           <LogOut />
           <span>Disconnect Wallet</span>
         </Button>

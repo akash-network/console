@@ -8,7 +8,7 @@ import { setTimeout as wait } from "timers/promises";
 
 import { isWalletConnected } from "../uiState/isWalletConnected";
 import { testEnvConfig } from "./test-env.config";
-import { clickConnectWalletButton, clickCreateNewWalletButton, clickCreateWalletButton, clickWalletSelectorDropdown, fillWalletName } from "./testing-helpers";
+import { clickCreateNewWalletButton, clickCreateWalletButton, clickWalletSelectorDropdown, fillWalletName } from "./testing-helpers";
 
 const WALLET_PASSWORD = "12345678";
 
@@ -40,14 +40,7 @@ export async function createWallet(context: BrowserContext, extensionId: string,
   await clickCreateNewWalletButton(extPage);
   await fillWalletName(extPage, walletName);
 
-  const pageHandler = async (page: Page) => {
-    await page.waitForLoadState("domcontentloaded");
-    await clickConnectWalletButton(page);
-    context.off("page", pageHandler);
-  };
-  context.on("page", pageHandler);
-
-  await clickCreateWalletButton(extPage);
+  return clickCreateWalletButton(extPage);
 }
 
 export async function connectWalletViaLeap(context: BrowserContext, page: Page) {

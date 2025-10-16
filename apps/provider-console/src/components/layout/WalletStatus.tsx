@@ -39,7 +39,7 @@ export function WalletStatus() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onDisconnectClick} aria-label="Disconnect Wallet">
+            <DropdownMenuItem onClick={onDisconnectClick}>
               <LogOut />
               &nbsp;Disconnect Wallet
             </DropdownMenuItem>
@@ -67,11 +67,7 @@ export function WalletStatus() {
             <Tooltip>
               <TooltipTrigger>
                 <Badge className="h-5 text-xs font-bold" variant="secondary">
-                  <FormattedNumber
-                    value={walletBalance}
-                    style="currency"
-                    currency="USD"
-                  />
+                  <FormattedNumber value={walletBalance} style="currency" currency="USD" />
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>

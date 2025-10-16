@@ -16,22 +16,18 @@ export const clickCreateNewWalletButton = async (page: Page) => {
 };
 
 export const fillWalletName = async (page: Page, name: string) => {
-  const input = await waitForSelector(page, 'input[placeholder="Enter wallet Name"]');
+  const input = await waitForLocator(page.getByPlaceholder("Enter wallet Name"));
   return await input.fill(name);
 };
 
 export const clickCreateWalletButton = async (page: Page) => {
-  const button = await waitForSelector(page, 'button:has-text("Create Wallet")');
+  const button = await waitForLocator(page.getByRole("button", { name: /Create Wallet/ }));
   return await button.click();
 };
 
 export const clickConnectWalletButton = async (page: Page) => {
-  const button = await waitForSelector(page, 'button:has-text("Connect")');
+  const button = await waitForLocator(page.getByRole("button", { name: /Connect/i }));
   return await button.click();
-};
-
-const waitForSelector = async (page: Page, selector: string) => {
-  return waitForLocator(page.locator(selector));
 };
 
 export const waitForLocator = async (locator: Locator) => {

@@ -1,14 +1,12 @@
 import { faker } from "@faker-js/faker";
 import type { BrowserContext as Context, Page } from "@playwright/test";
-import { expect } from "@playwright/test";
 
+import { wait } from "@src/utils/timer";
 import { testEnvConfig } from "../fixture/test-env.config";
+import { clickConnectWalletButton } from "../fixture/testing-helpers";
 import { createWallet } from "../fixture/wallet-setup";
 
-export type FeeType = "low" | "medium" | "high";
-export class FrontPage {
-  protected readonly feeType: FeeType = "low";
-
+export class LeapExt {
   constructor(
     readonly context: Context,
     readonly page: Page
@@ -21,19 +19,22 @@ export class FrontPage {
   async createWallet(extensionId: string) {
     const newWalletName = faker.word.adjective();
     await createWallet(this.context, extensionId, newWalletName);
-    await this.page.reload({ waitUntil: "domcontentloaded" });
 
-    const container = this.page.getByLabel("Connected wallet name and balance");
-    await container.waitFor({ state: "visible", timeout: 20_000 });
-    await expect(container).toHaveText(newWalletName);
+    const [popup] = await Promise.all([
+      this.context.waitForEvent("page"),
+      wait(100).then(() => {
+        this.page.reload({ waitUntil: "domcontentloaded" });
+      })
+    ]);
+    await clickConnectWalletButton(popup);
+
+    return newWalletName;
   }
 
   async disconnectWallet() {
     await this.page.getByLabel("Connected wallet name and balance").hover();
-    await this.page.getByLabel("Disconnect Wallet").click();
+    await this.page.getByRole("button", { name: "Disconnect Wallet" }).click();
 
     await this.page.reload({ waitUntil: "domcontentloaded" });
-
-    await expect(this.page.getByTestId("connect-wallet-btn")).toBeVisible();
   }
 }
