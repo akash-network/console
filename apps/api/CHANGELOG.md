@@ -1,5 +1,17 @@
 
 
+## [2.127.0](https://github.com/akash-network/console/compare/console-api/v2.126.1...console-api/v2.127.0) (2025-10-17)
+
+
+### Features
+
+* **network:** adjusts indexer for sdk53 network upgrade ([dfc7d05](https://github.com/akash-network/console/commit/dfc7d05123a52470fb527908c935c1ee12f66da5))
+
+
+### Bug Fixes
+
+* chain api fallback to indexer ([#2070](https://github.com/akash-network/console/issues/2070)) ([43186ae](https://github.com/akash-network/console/commit/43186ae7195d606ac1561d409f8b5d28ba65875b))
+
 ## [2.126.1](https://github.com/akash-network/console/compare/console-api/v2.126.0...console-api/v2.126.1) (2025-10-15)
 
 
