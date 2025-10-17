@@ -84,21 +84,7 @@ jobs:
 
           echo "All services scaled down successfully"
 
-  deploy-indexer:
-    needs: scale-down-services
-    name: Deploy indexer to sandbox
-    uses: ./.github/workflows/reusable-deploy-k8s.yml
-    secrets: inherit
-    with:
-      app: indexer
-      appVersion: sdk53
-      environment: prod
-      chain: sandbox
-      skip_beta_deployment_check: true
-      force-rollout: true
-
   deploy-console-api:
-    needs: deploy-indexer
     name: Deploy to console-api sandbox
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
@@ -121,7 +107,7 @@ jobs:
       environment: staging
 
   deploy-console-web:
-    needs: [deploy-indexer, deploy-console-api, deploy-notifications]
+    needs: [ deploy-console-api, deploy-notifications]
     name: Deploy to beta sandbox
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
