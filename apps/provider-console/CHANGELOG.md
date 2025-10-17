@@ -1,5 +1,12 @@
 
 
+## [1.27.0](https://github.com/akash-network/console/compare/provider-console/v1.26.0...provider-console/v1.27.0) (2025-10-17)
+
+
+### Features
+
+* **network:** adjusts indexer for sdk53 network upgrade ([dfc7d05](https://github.com/akash-network/console/commit/dfc7d05123a52470fb527908c935c1ee12f66da5))
+
 ## [1.26.0](https://github.com/akash-network/console/compare/provider-console/v1.25.0...provider-console/v1.26.0) (2025-10-06)
 
 
