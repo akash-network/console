@@ -64,7 +64,7 @@ export const DeploymentList: React.FunctionComponent = () => {
   const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const { user } = useCustomUser();
 
-  const { selectedItemIds, onSelectItem, clearSelection } = useListSelection<string>({
+  const { selectedItemIds, selectItem, clearSelection } = useListSelection<string>({
     ids: currentPageDeployments.map(deployment => deployment.dseq)
   });
 
@@ -290,7 +290,7 @@ export const DeploymentList: React.FunctionComponent = () => {
                   refreshDeployments={getDeployments}
                   providers={providers}
                   isSelectable
-                  onSelectDeployment={onSelectItem}
+                  onSelectDeployment={selectItem}
                   checked={selectedItemIds.includes(deployment.dseq)}
                 />
               ))}

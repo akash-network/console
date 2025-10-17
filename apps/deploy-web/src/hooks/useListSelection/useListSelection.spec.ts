@@ -7,24 +7,48 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 
 const expectSelectedItems = (actualIds: number[], expectedIds: number[]) => {
   expect(actualIds.length).toBe(expectedIds.length);
-  expect(expectedIds.every(id => actualIds.includes(id))).toBe(true);
+  expect(actualIds).toEqual(expect.arrayContaining(expectedIds));
+};
+
+type Click = {
+  id: number;
+  isShiftPressed: boolean;
+};
+
+type TestConfig = {
+  clicks: Click[];
+  expectedItems: number[];
+};
+
+const testSelection = async (config: TestConfig) => {
+  const result = setup();
+
+  config.clicks.forEach(({ id, isShiftPressed }) => {
+    act(() => {
+      result.current.selectItem({ id, isShiftPressed });
+    });
+  });
+
+  await waitFor(() => {
+    expectSelectedItems(result.current.selectedItemIds, config.expectedItems);
+  });
 };
 
 describe(useListSelection.name, () => {
   it("should not explode for an empty list", () => {
-    const hook = setup({ ids: [] });
-
-    expect(hook.selectedItemIds).toEqual([]);
+    const result = setup({ ids: [] });
+    expect(result.current.selectedItemIds).toEqual([]);
   });
 
-  [
-    {
-      name: "can set a single item as selected",
+  it("can set a single item as selected", async () => {
+    await testSelection({
       clicks: [{ id: 2, isShiftPressed: false }],
       expectedItems: [2]
-    },
-    {
-      name: "can select multiple items, toggling back and forth",
+    });
+  });
+
+  it("can select multiple items, toggling back and forth", async () => {
+    await testSelection({
       clicks: [
         { id: 2, isShiftPressed: false },
         { id: 3, isShiftPressed: false },
@@ -32,66 +56,82 @@ describe(useListSelection.name, () => {
         { id: 3, isShiftPressed: false }
       ],
       expectedItems: [2, 4]
-    },
-    {
-      name: "can shift-select first item",
+    });
+  });
+
+  it("can shift-select first item", async () => {
+    await testSelection({
       clicks: [{ id: 2, isShiftPressed: true }],
       expectedItems: [2]
-    },
-    {
-      name: "can shift-select items down",
+    });
+  });
+
+  it("can shift-select items down", async () => {
+    await testSelection({
       clicks: [
         { id: 2, isShiftPressed: false },
         { id: 4, isShiftPressed: true }
       ],
       expectedItems: [2, 3, 4]
-    },
-    {
-      name: "can shift-select items up",
+    });
+  });
+
+  it("can shift-select items up", async () => {
+    await testSelection({
       clicks: [
         { id: 4, isShiftPressed: false },
         { id: 2, isShiftPressed: true }
       ],
       expectedItems: [2, 3, 4]
-    },
-    {
-      name: "can shift-select down and then up",
+    });
+  });
+
+  it("can shift-select down and then up", async () => {
+    await testSelection({
       clicks: [
         { id: 2, isShiftPressed: false },
         { id: 4, isShiftPressed: true },
         { id: 0, isShiftPressed: true }
       ],
       expectedItems: [0, 1, 2, 3, 4]
-    },
-    {
-      name: "can shift-select up and then down",
+    });
+  });
+
+  it("can shift-select up and then down", async () => {
+    await testSelection({
       clicks: [
         { id: 2, isShiftPressed: false },
         { id: 0, isShiftPressed: true },
         { id: 4, isShiftPressed: true }
       ],
       expectedItems: [0, 1, 2, 3, 4]
-    },
-    {
-      name: "can deselect the whole range up",
+    });
+  });
+
+  it("can deselect the whole range up", async () => {
+    await testSelection({
       clicks: [
         { id: 2, isShiftPressed: false },
         { id: 4, isShiftPressed: true },
         { id: 2, isShiftPressed: true }
       ],
       expectedItems: []
-    },
-    {
-      name: "can deselect the whole range down",
+    });
+  });
+
+  it("can deselect the whole range down", async () => {
+    await testSelection({
       clicks: [
         { id: 4, isShiftPressed: false },
         { id: 2, isShiftPressed: true },
         { id: 4, isShiftPressed: true }
       ],
       expectedItems: []
-    },
-    {
-      name: "can mark even more items down",
+    });
+  });
+
+  it("can mark even more items down", async () => {
+    await testSelection({
       clicks: [
         { id: 2, isShiftPressed: false },
         { id: 4, isShiftPressed: true },
@@ -99,9 +139,11 @@ describe(useListSelection.name, () => {
         { id: 6, isShiftPressed: true }
       ],
       expectedItems: [0, 1, 2, 3, 4, 5, 6]
-    },
-    {
-      name: "can mark even more items up",
+    });
+  });
+
+  it("can mark even more items up", async () => {
+    await testSelection({
       clicks: [
         { id: 4, isShiftPressed: false },
         { id: 6, isShiftPressed: true },
@@ -109,26 +151,11 @@ describe(useListSelection.name, () => {
         { id: 0, isShiftPressed: true }
       ],
       expectedItems: [0, 1, 2, 3, 4, 5, 6]
-    }
-  ].forEach(({ name, clicks, expectedItems }) => {
-    it(name, async () => {
-      const { result } = renderHook(() => useListSelection({ ids: range(0, 10) }));
-
-      clicks.forEach(({ id, isShiftPressed }) => {
-        act(() => {
-          result.current.onSelectItem({ id, isShiftPressed });
-        });
-      });
-
-      await waitFor(() => {
-        expectSelectedItems(result.current.selectedItemIds, expectedItems);
-      });
     });
   });
-
-  function setup({ ids }: UseListSelectionProps<number> = { ids: range(0, 10) }) {
-    const res = renderHook(() => useListSelection({ ids }));
-
-    return res.result.current;
-  }
 });
+
+function setup({ ids }: UseListSelectionProps<number> = { ids: range(0, 10) }) {
+  const { result } = renderHook(() => useListSelection({ ids }));
+  return result;
+}

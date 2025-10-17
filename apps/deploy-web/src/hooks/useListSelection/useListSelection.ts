@@ -39,13 +39,16 @@ export const useListSelection = <T>({ ids }: UseListSelectionProps<T>) => {
 
   const toggleSingleSelection = useCallback(
     (id: T) => {
-      const isAdding = !selectedItemIds.includes(id);
-      setSelectedItemIds(prev => (isAdding ? [...prev, id] : prev.filter(x => x !== id)));
-      if (isAdding) {
-        setIntervalSelectionAnchor(id);
-      }
+      setSelectedItemIds(prev => {
+        const isAdding = !prev.includes(id);
+        if (isAdding) {
+          setIntervalSelectionAnchor(id);
+        }
+
+        return isAdding ? [...prev, id] : prev.filter(x => x !== id);
+      });
     },
-    [selectedItemIds]
+    []
   );
 
   const changeMultipleSelection = useCallback(
@@ -64,7 +67,7 @@ export const useListSelection = <T>({ ids }: UseListSelectionProps<T>) => {
     [intervalSelectionAnchor, itemsBetween, lastIntervalSelectionIds]
   );
 
-  const onSelectItem = useCallback(
+  const selectItem = useCallback(
     ({ id, isShiftPressed }: { id: T; isShiftPressed: boolean }) => {
       if (intervalSelectionAnchor && isShiftPressed) {
         changeMultipleSelection(id);
@@ -82,10 +85,10 @@ export const useListSelection = <T>({ ids }: UseListSelectionProps<T>) => {
   return useMemo(
     () => ({
       selectedItemIds,
-      onSelectItem,
+      selectItem,
       clearSelection,
       setSelectedItemIds
     }),
-    [selectedItemIds, onSelectItem, clearSelection]
+    [selectedItemIds, selectItem, clearSelection]
   );
 };
