@@ -7,7 +7,7 @@ import { LoggerService } from "./services/logger/logger.service";
  * Collects OpenTelemetry span context for logging
  * This mixin adds trace information to log entries
  */
-function collectOtel() {
+export function collectOtel() {
   const currentSpan = trace.getSpan(context.active());
   return { ...currentSpan?.spanContext() };
 }
