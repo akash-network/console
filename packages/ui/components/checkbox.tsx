@@ -5,31 +5,59 @@ import { Check } from "lucide-react";
 
 import { cn } from "../utils";
 
-const Checkbox = React.forwardRef<React.ElementRef<typeof CheckboxPrimitive.Root>, React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>>(
-  ({ className, ...props }, ref) => (
-    <CheckboxPrimitive.Root
-      ref={ref}
-      className={cn(
-        "border-primary ring-offset-background data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground focus-visible:ring-ring peer h-4 w-4 shrink-0 rounded-sm border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-        className
-      )}
-      {...props}
+interface CheckboxTouchTargetProps {
+  expandedTouchTarget?: boolean;
+}
+
+const Checkbox = React.forwardRef<
+  React.ElementRef<typeof CheckboxPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root> & CheckboxTouchTargetProps
+>(({ className, onClick, expandedTouchTarget = false, ...props }, ref) => {
+  const checkboxRef = React.useRef<HTMLButtonElement>(null);
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+
+  React.useImperativeHandle(ref, () => checkboxRef.current!);
+
+  const handleWrapperClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === wrapperRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      checkboxRef.current?.click();
+    }
+  };
+
+  return (
+    <div
+      ref={wrapperRef}
+      className={cn("inline-flex", expandedTouchTarget && "-m-3 cursor-pointer p-3")}
+      onClick={expandedTouchTarget ? handleWrapperClick : undefined}
     >
-      <CheckboxPrimitive.Indicator className={cn("flex items-center justify-center text-current")}>
-        <Check className="h-4 w-4" />
-      </CheckboxPrimitive.Indicator>
-    </CheckboxPrimitive.Root>
-  )
-);
+      <CheckboxPrimitive.Root
+        ref={checkboxRef}
+        className={cn(
+          "border-primary ring-offset-background data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground focus-visible:ring-ring peer h-4 w-4 shrink-0 rounded-sm border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        onClick={onClick}
+        {...props}
+      >
+        <CheckboxPrimitive.Indicator className={cn("flex items-center justify-center text-current")}>
+          <Check className="h-4 w-4" />
+        </CheckboxPrimitive.Indicator>
+      </CheckboxPrimitive.Root>
+    </div>
+  );
+});
 Checkbox.displayName = CheckboxPrimitive.Root.displayName;
 
 const CheckboxWithLabel = React.forwardRef<
   React.ElementRef<typeof CheckboxPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root> & {
-    label: string;
-    labelPosition?: "left" | "right";
-    labelClassName?: string;
-  }
+  React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root> &
+    CheckboxTouchTargetProps & {
+      label: string;
+      labelPosition?: "left" | "right";
+      labelClassName?: string;
+    }
 >(({ className, label, labelPosition = "right", labelClassName = "", ...props }, ref) => {
   const id = React.useId();
   const _label = (

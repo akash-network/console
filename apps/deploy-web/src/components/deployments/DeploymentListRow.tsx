@@ -294,6 +294,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
             {isSelectable && (
               <Checkbox
                 checked={checked}
+                expandedTouchTarget={true}
                 onClick={event => {
                   event.stopPropagation();
                   onSelectDeployment?.({ id: deployment.dseq, isShiftPressed: event.shiftKey });
