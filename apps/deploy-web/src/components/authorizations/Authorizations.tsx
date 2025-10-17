@@ -119,7 +119,7 @@ export const Authorizations: React.FunctionComponent = () => {
   async function onDeleteGrantsConfirmed() {
     if (!deletingGrants) return;
 
-    const messages = deletingGrants.map(grant => TransactionMessageData.getRevokeMsg(address, grant.grantee, grant.authorization["@type"]));
+    const messages = deletingGrants.map(grant => TransactionMessageData.getRevokeMsg(address, grant.grantee));
     const response = await signAndBroadcastTx(messages);
 
     if (response) {
