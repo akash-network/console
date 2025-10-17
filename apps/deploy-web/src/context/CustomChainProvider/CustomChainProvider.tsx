@@ -15,7 +15,7 @@ import { useAtom } from "jotai";
 import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
 import networkStore from "@src/store/networkStore";
 import walletStore from "@src/store/walletStore";
-import { customRegistry } from "@src/utils/customRegistry";
+import { registry } from "@src/utils/customRegistry";
 
 type Props = {
   children: React.ReactNode;
@@ -52,7 +52,7 @@ export function CustomChainProvider({ children }: Props) {
       signerOptions={{
         preferredSignType: () => "direct",
         signingStargate: () => ({
-          registry: customRegistry,
+          registry,
           gasPrice: GasPrice.fromString("0.025uakt")
         })
       }}

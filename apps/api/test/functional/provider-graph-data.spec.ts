@@ -241,10 +241,11 @@ describe("Provider Graph Data", () => {
 
     it("drops data from first 15 minutes of the day", async () => {
       const today = new Date();
-      today.setHours(0, 14, 59, 999);
+      today.setUTCHours(0, 14, 59, 999);
+      const testYesterday = subDays(today, 1);
 
       // Mock the current time to match the snapshot time
-      jest.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
       jest.setSystemTime(today);
 
       try {
@@ -271,7 +272,7 @@ describe("Provider Graph Data", () => {
         });
 
         await createDay({
-          date: format(today, "yyyy-MM-dd"),
+          date: today.toISOString().split("T")[0],
           firstBlockHeight: 301,
           lastBlockHeight: 400,
           lastBlockHeightYet: 400
@@ -287,7 +288,7 @@ describe("Provider Graph Data", () => {
 
         expect(response.status).toBe(200);
 
-        expect(data.snapshots[data.snapshots.length - 1].date).toBe(format(yesterday, "yyyy-MM-dd") + "T00:00:00.000Z");
+        expect(data.snapshots[data.snapshots.length - 1].date).toBe(testYesterday.toISOString().split("T")[0] + "T00:00:00.000Z");
       } finally {
         // Restore real timers
         jest.useRealTimers();

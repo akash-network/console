@@ -1,4 +1,4 @@
-import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { faker } from "@faker-js/faker";
 
 import type { DecodedMessageValue, MessageTypeFilter } from "@src/modules/chain/services/block-message-parser/block-message-parser.service";
@@ -26,10 +26,10 @@ export function generateTransactionMessage(type: "MsgCreateDeployment" | "MsgClo
 
   switch (type) {
     case "MsgCreateDeployment":
-      typeUrl = "/akash.deployment.v1beta3.MsgCreateDeployment";
+      typeUrl = `/${MsgCreateDeployment.$type}`;
       break;
     case "MsgCloseDeployment":
-      typeUrl = "/akash.deployment.v1beta3.MsgCloseDeployment";
+      typeUrl = `/${MsgCloseDeployment.$type}`;
       break;
     default:
       typeUrl = `/${type}`;
@@ -88,7 +88,7 @@ export function generateMsgCreateDeploymentMessage(
 
   return {
     type: "MsgCreateDeployment",
-    typeUrl: "/akash.deployment.v1beta3.MsgCreateDeployment",
+    typeUrl: `/${MsgCreateDeployment.$type}`,
     value: {
       id: deploymentId,
       groups: Array.from({ length: faker.number.int({ min: 1, max: 3 }) }, () => ({
@@ -254,7 +254,7 @@ export function generateMockMessages(
  * Gets a random message type filter
  */
 export function getRandomMessageTypeFilter(): MessageTypeFilter {
-  return faker.helpers.arrayElement(["/akash.deployment.v1beta3.MsgCreateDeployment", "/akash.deployment.v1beta3.MsgCloseDeployment"]) as MessageTypeFilter;
+  return faker.helpers.arrayElement([`/${MsgCreateDeployment.$type}`, "/${MsgCloseDeployment.$type}"]) as MessageTypeFilter;
 }
 
 /**
@@ -308,15 +308,15 @@ export function generateMsgCreateDeployment(
   const baseMessage = generateMsgCreateDeploymentMessage({ deploymentId });
 
   return {
-    type: "akash.deployment.v1beta3.MsgCreateDeployment",
-    typeUrl: "/akash.deployment.v1beta3.MsgCreateDeployment",
+    type: MsgCreateDeployment.$type,
+    typeUrl: `/${MsgCreateDeployment.$type}`,
     value: {
       ...baseMessage.value,
       id: {
         dseq: { low: parseInt(deploymentId.dseq, 10) },
         owner: deploymentId.owner
       },
-      $type: "akash.deployment.v1beta3.MsgCreateDeployment"
+      $type: MsgCreateDeployment.$type
     }
   };
 }

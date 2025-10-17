@@ -9,7 +9,8 @@
     },
     "strict": true,
     "target": "es2022",
-    "lib": ["ESNext"]
+    "lib": ["ESNext"],
+    "module": "nodeNext"
   },
   "extends": "@akashnetwork/dev-config/tsconfig.base-node.json"
 }

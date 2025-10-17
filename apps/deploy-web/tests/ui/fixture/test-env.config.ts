@@ -1,12 +1,11 @@
-import type { SupportedChainNetworks } from "@akashnetwork/net";
-import { netConfig } from "@akashnetwork/net";
+import { type NetworkId } from "@akashnetwork/chain-sdk/web";
 import { z } from "zod";
 
 export const testEnvSchema = z.object({
   BASE_URL: z.string().default("http://localhost:3000"),
   TEST_WALLET_MNEMONIC: z.string(),
   UI_CONFIG_SIGNATURE_PRIVATE_KEY: z.string().optional(),
-  NETWORK_ID: z.enum(netConfig.getSupportedNetworks() as [SupportedChainNetworks]).default("sandbox")
+  NETWORK_ID: z.enum(["mainnet", "sandbox", "testnet"]).default("sandbox")
 });
 
 export const testEnvConfig = testEnvSchema.parse({
@@ -18,6 +17,5 @@ export const testEnvConfig = testEnvSchema.parse({
 export const PROVIDERS_WHITELIST = {
   mainnet: ["provider.hurricane.akash.pub", "provider.europlots.com"],
   sandbox: ["provider.europlots-sandbox.com"],
-  "testnet-02": [],
-  "testnet-7": []
-} satisfies Record<SupportedChainNetworks, string[]>;
+  testnet: []
+} satisfies Record<NetworkId, string[]>;

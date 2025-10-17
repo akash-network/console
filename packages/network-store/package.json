@@ -12,7 +12,7 @@
     "validate:types": "tsc --noEmit && echo"
   },
   "dependencies": {
-    "@akashnetwork/akashjs": "^0.11.1",
+    "@akashnetwork/chain-sdk": "^1.0.0-alpha.8",
     "@akashnetwork/net": "*",
     "jotai": "^2.9.2"
   }

@@ -1,4 +1,4 @@
-import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { DecodedTxRaw } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import type { TestingModule } from "@nestjs/testing";
@@ -14,12 +14,6 @@ import { MockProvider } from "@test/mocks/provider.mock";
 import { generateDeploymentID, generateSimpleMockBlock } from "@test/seeders";
 
 describe(BlockMessageParserService.name, () => {
-  it("should be defined", async () => {
-    const { service } = await setup();
-
-    expect(service).toBeDefined();
-  });
-
   describe("parseBlockMessages", () => {
     it("should parse a block with no transactions", async () => {
       const { service, loggerService } = await setup();
@@ -66,11 +60,11 @@ describe(BlockMessageParserService.name, () => {
         hash: mockBlock.id,
         messages: [
           {
-            typeUrl: "/akash.deployment.v1beta3.MsgCreateDeployment",
+            typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment",
             value: createDeploymentValue
           },
           {
-            typeUrl: "/akash.deployment.v1beta3.MsgCloseDeployment",
+            typeUrl: "/akash.deployment.v1beta4.MsgCloseDeployment",
             value: closeDeploymentValue
           }
         ]
@@ -110,7 +104,7 @@ describe(BlockMessageParserService.name, () => {
         hash: mockBlock.id,
         messages: [
           {
-            typeUrl: "/akash.deployment.v1beta3.MsgCreateDeployment",
+            typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment",
             value: createDeploymentValue
           }
         ]
@@ -144,11 +138,11 @@ describe(BlockMessageParserService.name, () => {
         hash: mockBlock.id,
         messages: [
           {
-            typeUrl: "/akash.deployment.v1beta3.MsgCreateDeployment",
+            typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment",
             value: createDeploymentValue
           },
           {
-            typeUrl: "/akash.deployment.v1beta3.MsgCloseDeployment",
+            typeUrl: "/akash.deployment.v1beta4.MsgCloseDeployment",
             value: closeDeploymentValue
           }
         ]
@@ -219,7 +213,7 @@ describe(BlockMessageParserService.name, () => {
             body: {
               messages: [
                 {
-                  typeUrl: "akash.deployment.v1beta3.MsgCreateDeployment", // without leading slash
+                  typeUrl: "akash.deployment.v1beta4.MsgCreateDeployment", // without leading slash
                   value: new Uint8Array([1, 2, 3])
                 }
               ],
@@ -235,7 +229,7 @@ describe(BlockMessageParserService.name, () => {
       const result = service.parseBlockMessages(mockBlock, [MsgCreateDeployment.$type]);
 
       expect(result.messages).toHaveLength(1);
-      expect(result.messages[0].typeUrl).toBe("akash.deployment.v1beta3.MsgCreateDeployment");
+      expect(result.messages[0].typeUrl).toBe("akash.deployment.v1beta4.MsgCreateDeployment");
     });
   });
 
@@ -269,11 +263,11 @@ describe(BlockMessageParserService.name, () => {
           body: {
             messages: [
               {
-                typeUrl: "/akash.deployment.v1beta3.MsgCreateDeployment",
+                typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment",
                 value: new Uint8Array([1, 2, 3])
               },
               {
-                typeUrl: "/akash.deployment.v1beta3.MsgCloseDeployment",
+                typeUrl: "/akash.deployment.v1beta4.MsgCloseDeployment",
                 value: new Uint8Array([4, 5, 6])
               }
             ],

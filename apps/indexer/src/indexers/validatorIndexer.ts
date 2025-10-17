@@ -56,10 +56,12 @@ export class ValidatorIndexer extends Indexer {
     });
   }
   private async createValidatorFromGentx(validator: IGentxCreateValidator, dbTransaction: DbTransaction) {
+    const accountAddress = this.getAccountAddress(validator.delegator_address, validator.validator_address, true);
+
     await Validator.create(
       {
         operatorAddress: validator.validator_address,
-        accountAddress: toBech32(activeChain.bech32Prefix, fromBech32(validator.delegator_address).data),
+        accountAddress: accountAddress,
         hexAddress: toHex(pubkeyToRawAddress(validator.pubkey["@type"], fromBase64(validator.pubkey.key))).toUpperCase(),
         moniker: validator.description.moniker,
         identity: validator.description.identity,
@@ -96,9 +98,11 @@ export class ValidatorIndexer extends Indexer {
   }
 
   private async handleCreateValidator(decodedMessage: MsgCreateValidator, height: number, dbTransaction: DbTransaction, msg: Message) {
+    const accountAddress = this.getAccountAddress(decodedMessage.delegatorAddress, decodedMessage.validatorAddress);
+
     const validatorInfo = {
       operatorAddress: decodedMessage.validatorAddress,
-      accountAddress: decodedMessage.delegatorAddress,
+      accountAddress: accountAddress,
       hexAddress: toHex(pubkeyToRawAddress(decodedMessage.pubkey.typeUrl, decodedMessage.pubkey.value.slice(2))).toUpperCase(),
       createdMsgId: msg?.id,
       moniker: decodedMessage.description.moniker,
@@ -106,9 +110,9 @@ export class ValidatorIndexer extends Indexer {
       website: decodedMessage.description.website,
       description: decodedMessage.description.details,
       securityContact: decodedMessage.description.securityContact,
-      rate: parseFloat(decodedMessage.commission.rate),
-      maxRate: parseFloat(decodedMessage.commission.maxRate),
-      maxChangeRate: parseFloat(decodedMessage.commission.maxChangeRate),
+      rate: this.convertCommissionRate(decodedMessage.commission.rate),
+      maxRate: this.convertCommissionRate(decodedMessage.commission.maxRate),
+      maxChangeRate: this.convertCommissionRate(decodedMessage.commission.maxChangeRate),
       minSelfDelegation: parseInt(decodedMessage.minSelfDelegation)
     };
 
@@ -168,5 +172,43 @@ export class ValidatorIndexer extends Indexer {
 
   afterEveryBlock(): Promise<void> {
     return Promise.resolve(undefined);
+  }
+
+  /**
+   * Handles empty or invalid delegatorAddress by using validatorAddress as fallback
+   * Same logic as genesis validator creation
+   */
+  private getAccountAddress(delegatorAddress: string, validatorAddress: string, isGenesis: boolean = false): string {
+    if (!delegatorAddress || delegatorAddress.trim() === "") {
+      console.warn(`Empty delegatorAddress for validator ${validatorAddress}, using validatorAddress as accountAddress`);
+      return validatorAddress;
+    }
+
+    // For genesis validators, handle bech32 decoding
+    if (isGenesis) {
+      try {
+        // Try to decode the delegator address as bech32
+        return toBech32(activeChain.bech32Prefix, fromBech32(delegatorAddress).data);
+      } catch (error) {
+        // If bech32 decoding fails, the delegator_address might already be in the correct format
+        // or it might be a different type of address. Use it as-is.
+        console.warn(
+          `Failed to decode delegator_address "${delegatorAddress}" as bech32, using as-is:`,
+          error instanceof Error ? error.message : String(error)
+        );
+        return delegatorAddress;
+      }
+    }
+
+    return delegatorAddress;
+  }
+
+  /**
+   * Converts commission rate from Cosmos SDK format to decimal format
+   * Handles both integer format (18 decimal places) and decimal format
+   */
+  private convertCommissionRate(rate: string): number {
+    const parsedRate = parseFloat(rate);
+    return parsedRate > 1 ? parsedRate / 1e18 : parsedRate;
   }
 }

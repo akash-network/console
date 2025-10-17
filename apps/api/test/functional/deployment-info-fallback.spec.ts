@@ -5,12 +5,13 @@ import Long from "long";
 
 import { app, initDb } from "@src/rest-app";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest/akashDeploymentInfoResponse";
+import { deploymentVersion } from "@src/utils/constants";
 
 import { createDeployment, createDeploymentGroup, createDeploymentGroupResource } from "@test/seeders";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 describe("Deployment Info Fallback API", () => {
-  describe("GET /akash/deployment/v1beta3/deployments/info", () => {
+  describe("GET /akash/deployment/v1beta4/deployments/info", () => {
     it("should return correct response structure with seeded data", async () => {
       const { addresses, deployments } = await setup({ createTestData: true });
 
@@ -26,11 +27,11 @@ describe("Deployment Info Fallback API", () => {
         expect(result).toHaveProperty("escrow_account");
 
         // Check deployment structure
-        expect(result.deployment).toHaveProperty("deployment_id");
-        expect(result.deployment.deployment_id).toHaveProperty("owner", addresses[0]);
-        expect(result.deployment.deployment_id).toHaveProperty("dseq", deployments![0].dseq);
+        expect(result.deployment).toHaveProperty("id");
+        expect(result.deployment.id).toHaveProperty("owner", addresses[0]);
+        expect(result.deployment.id).toHaveProperty("dseq", deployments![0].dseq);
         expect(result.deployment).toHaveProperty("state");
-        expect(result.deployment).toHaveProperty("version");
+        expect(result.deployment).toHaveProperty("hash");
         expect(result.deployment).toHaveProperty("created_at");
 
         // Check groups structure
@@ -38,7 +39,7 @@ describe("Deployment Info Fallback API", () => {
         expect(result.groups.length).toBeGreaterThan(0);
 
         const group = result.groups[0];
-        expect(group).toHaveProperty("group_id");
+        expect(group).toHaveProperty("id");
         expect(group).toHaveProperty("state");
         expect(group).toHaveProperty("group_spec");
         expect(group.group_spec).toHaveProperty("name");
@@ -47,10 +48,10 @@ describe("Deployment Info Fallback API", () => {
 
         // Check escrow account structure
         expect(result.escrow_account).toHaveProperty("id");
-        expect(result.escrow_account).toHaveProperty("owner");
         expect(result.escrow_account).toHaveProperty("state");
-        expect(result.escrow_account).toHaveProperty("balance");
-        expect(result.escrow_account).toHaveProperty("transferred");
+        expect(result.escrow_account.state).toHaveProperty("owner");
+        expect(result.escrow_account.state).toHaveProperty("funds");
+        expect(result.escrow_account.state).toHaveProperty("transferred");
       }
     });
 
@@ -78,7 +79,7 @@ describe("Deployment Info Fallback API", () => {
       expect(isSuccessResponse(activeResult)).toBe(true);
       if (isSuccessResponse(activeResult)) {
         expect(activeResult.deployment.state).toBe("active");
-        expect(activeResult.escrow_account.state).toBe("open");
+        expect(activeResult.escrow_account.state.state).toBe("open");
       }
     });
 
@@ -219,7 +220,7 @@ describe("Deployment Info Fallback API", () => {
   async function makeRequest(input: { "id.owner": string; "id.dseq": string }): Promise<RestAkashDeploymentInfoResponse> {
     const params = new URLSearchParams(input);
 
-    const url = `/akash/deployment/v1beta3/deployments/info?${params.toString()}`;
+    const url = `/akash/deployment/${deploymentVersion}/deployments/info?${params.toString()}`;
     const response = await app.request(url);
 
     return (await response.json()) as RestAkashDeploymentInfoResponse;

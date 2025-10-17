@@ -2,15 +2,17 @@ import { netConfigData } from "../generated/netConfigData";
 
 export type SupportedChainNetworks = keyof typeof netConfigData;
 
+type NetworkMapReverse = "sandbox" | "testnet" | "mainnet";
 export class NetConfig {
-  readonly networkMap: Partial<Record<string, SupportedChainNetworks>> = {
+  readonly networkMap: Partial<Record<NetworkMapReverse, SupportedChainNetworks>> = {
     sandbox: "sandbox-2",
-    testnet: "testnet-7"
+    testnet: "testnet-7",
+    mainnet: "mainnet"
   };
 
-  mapped(network: string): SupportedChainNetworks {
-    if (this.networkMap[network]) {
-      return this.networkMap[network];
+  mapped(network: NetworkMapReverse | SupportedChainNetworks | string): SupportedChainNetworks {
+    if (this.networkMap[network as NetworkMapReverse]) {
+      return this.networkMap[network as NetworkMapReverse] as SupportedChainNetworks;
     }
 
     if (network in netConfigData) {

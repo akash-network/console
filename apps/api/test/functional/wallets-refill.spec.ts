@@ -12,15 +12,9 @@ import { WalletTestingService } from "@test/services/wallet-testing.service";
 jest.setTimeout(240000);
 
 describe("Wallets Refill", () => {
-  const managedUserWalletService = container.resolve(ManagedUserWalletService);
-  const config = container.resolve<BillingConfig>(BILLING_CONFIG);
-  const walletController = container.resolve(WalletController);
-  const walletService = new WalletTestingService(app);
-  const userWalletRepository = container.resolve(UserWalletRepository);
-
   describe("console refill-wallets", () => {
     it("should refill wallets low on fee allowance", async () => {
-      config.FEE_ALLOWANCE_REFILL_THRESHOLD = 2;
+      const { managedUserWalletService, config, walletController, walletService, userWalletRepository } = setup();
       const NUMBER_OF_WALLETS = 5;
       const prepareRecords = Array.from({ length: NUMBER_OF_WALLETS }).map(async (_, index) => {
         const records = await walletService.createUserAndWallet();
@@ -54,11 +48,16 @@ describe("Wallets Refill", () => {
       });
 
       const records = await Promise.all(prepareRecords);
+      const trialingWallet = records[NUMBER_OF_WALLETS - 1];
+      const nonTrialingWallets = records.slice(0, NUMBER_OF_WALLETS - 1);
+
       await walletController.refillWallets();
-      const trialingWallet = records.pop()!;
+
+      // Give the blockchain and database a moment to settle
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       await Promise.all([
-        ...records.map(async ({ wallet }) => {
+        ...nonTrialingWallets.map(async ({ wallet }) => {
           const walletRecord = await userWalletRepository.findById(wallet.id);
 
           expect(walletRecord?.feeAllowance).toBe(config.FEE_ALLOWANCE_REFILL_AMOUNT);
@@ -69,4 +68,20 @@ describe("Wallets Refill", () => {
       ]);
     });
   });
+
+  function setup() {
+    const managedUserWalletService = container.resolve(ManagedUserWalletService);
+    const config = container.resolve<BillingConfig>(BILLING_CONFIG);
+    const walletController = container.resolve(WalletController);
+    const walletService = new WalletTestingService(app);
+    const userWalletRepository = container.resolve(UserWalletRepository);
+
+    return {
+      managedUserWalletService,
+      config,
+      walletController,
+      walletService,
+      userWalletRepository
+    };
+  }
 });

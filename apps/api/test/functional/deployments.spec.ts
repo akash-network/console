@@ -17,7 +17,7 @@ import { app } from "@src/rest-app";
 import type { RestAkashDeploymentInfoResponse } from "@src/types/rest";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
-import { apiNodeUrl, betaTypeVersion, betaTypeVersionMarket } from "@src/utils/constants";
+import { apiNodeUrl, deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { ApiKeySeeder } from "@test/seeders/api-key.seeder";
 import { DeploymentInfoSeeder } from "@test/seeders/deployment-info.seeder";
@@ -135,17 +135,17 @@ describe("Deployments API", () => {
 
     nock(apiNodeUrl)
       .persist()
-      .get(`/akash/deployment/${betaTypeVersion}/deployments/list?filters.owner=${address}`)
+      .get(`/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${address}`)
       .reply(200, {
         deployments: [defaultDeploymentInfo]
       });
 
     nock(apiNodeUrl)
       .persist()
-      .get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`)
+      .get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`)
       .reply(200, defaultDeploymentInfo);
 
-    nock(apiNodeUrl).persist().get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${address}&id.dseq=9876`).reply(404, {
+    nock(apiNodeUrl).persist().get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=9876`).reply(404, {
       code: 404,
       message: "Deployment not found"
     });
@@ -153,7 +153,7 @@ describe("Deployments API", () => {
     nock(apiNodeUrl)
       .persist()
       .get(
-        `/akash/deployment/${betaTypeVersion}/deployments/list?filters.owner=${address}&pagination.offset=0&pagination.limit=1&pagination.count_total=true&pagination.reverse=false`
+        `/akash/deployment/${deploymentVersion}/deployments/list?filters.owner=${address}&pagination.offset=0&pagination.limit=1&pagination.count_total=true&pagination.reverse=false`
       )
       .reply(200, {
         deployments: [defaultDeploymentInfo],
@@ -169,20 +169,17 @@ describe("Deployments API", () => {
       state: "active"
     });
 
-    nock(apiNodeUrl).persist().get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });
+    nock(apiNodeUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });
     nock(apiNodeUrl)
       .persist()
-      .get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=${dseq}&pagination.limit=1000`)
+      .get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}&pagination.limit=1000`)
       .reply(200, { leases });
-    nock(apiNodeUrl)
-      .persist()
-      .get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=9876&pagination.limit=1000`)
-      .reply(404, {
-        code: 404,
-        message: "Leases not found"
-      });
-    nock(apiNodeUrl).persist().get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.state=active`).reply(200, { leases });
-    nock(apiNodeUrl).persist().get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.state=active`).reply(200, { leases });
+    nock(apiNodeUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=9876&pagination.limit=1000`).reply(404, {
+      code: 404,
+      message: "Leases not found"
+    });
+    nock(apiNodeUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`).reply(200, { leases });
+    nock(apiNodeUrl).persist().get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.state=active`).reply(200, { leases });
 
     return defaultDeploymentInfo;
   }
@@ -201,7 +198,7 @@ describe("Deployments API", () => {
 
       deployments.push(deploymentInfo);
 
-      nock(apiNodeUrl).get(`/akash/deployment/${betaTypeVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`).reply(200, deploymentInfo);
+      nock(apiNodeUrl).get(`/akash/deployment/${deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`).reply(200, deploymentInfo);
 
       const leases = LeaseApiResponseSeeder.createMany(2, {
         owner: address!,
@@ -209,7 +206,7 @@ describe("Deployments API", () => {
         state: "active"
       });
 
-      nock(apiNodeUrl).get(`/akash/market/${betaTypeVersionMarket}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });
+      nock(apiNodeUrl).get(`/akash/market/${marketVersion}/leases/list?filters.owner=${address}&filters.dseq=${dseq}`).reply(200, { leases });
     }
 
     return deployments;
@@ -277,7 +274,7 @@ describe("Deployments API", () => {
 
       nock(apiNodeUrl)
         .persist()
-        .get(/\/akash\/deployment\/v1beta3\/deployments\/list\?.*/)
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
         .reply(200, {
           deployments,
           pagination: {
@@ -316,7 +313,7 @@ describe("Deployments API", () => {
 
       nock(apiNodeUrl)
         .persist()
-        .get(/\/akash\/deployment\/v1beta3\/deployments\/list\?.*/)
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
         .reply(200, {
           deployments: deployments.slice(0, 1),
           pagination: {
@@ -377,7 +374,7 @@ describe("Deployments API", () => {
 
       nock(apiNodeUrl)
         .persist()
-        .get(/\/akash\/deployment\/v1beta3\/deployments\/list\?.*/)
+        .get(/\/akash\/deployment\/v1beta4\/deployments\/list\?.*/)
         .reply(200, {
           deployments,
           pagination: {

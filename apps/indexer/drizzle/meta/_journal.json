@@ -8,6 +8,13 @@
       "when": 1745392768401,
       "tag": "0000_chunky_rattler",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1760466772586,
+      "tag": "0001_add_bseq_to_bid_and_lease",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { StargateClient } from "@cosmjs/stargate";
 import { ConfigModule, registerAs } from "@nestjs/config";
 import type { TestingModule } from "@nestjs/testing";

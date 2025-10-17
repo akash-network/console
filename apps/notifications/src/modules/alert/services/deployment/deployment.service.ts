@@ -1,26 +1,9 @@
-import { DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
+import { DeploymentHttpService, DeploymentInfo, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Injectable } from "@nestjs/common";
 import { Err, Ok, Result } from "ts-results";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { RichError } from "@src/lib/rich-error/rich-error";
-
-export type DeploymentInfo = {
-  deployment: {
-    state: string;
-  };
-  escrow_account: {
-    balance: {
-      denom: string;
-      amount: string;
-    };
-    funds: {
-      denom: string;
-      amount: string;
-    };
-    settled_at: string;
-  };
-};
 
 @Injectable()
 export class DeploymentService {
@@ -56,10 +39,8 @@ export class DeploymentService {
         return Err(new RichError("Deployment has no price", "DEPLOYMENT_NO_PRICE"));
       }
 
-      const blocksPassed = Math.abs(parseInt(deploymentInfo.escrow_account.settled_at, 10) - block);
-      const balanceAmount = parseInt(deploymentInfo.escrow_account.balance.amount, 10);
-      const fundsAmount = parseInt(deploymentInfo.escrow_account.funds.amount, 10);
-      const balance = balanceAmount + fundsAmount;
+      const blocksPassed = Math.abs(parseInt(deploymentInfo.escrow_account.state.settled_at, 10) - block);
+      const balance = parseFloat(deploymentInfo.escrow_account.state.funds.reduce((sum, { amount }) => sum + parseFloat(amount), 0).toFixed(18));
       const blocksLeft = balance / pricePerBlock - blocksPassed;
       const escrow = Math.max(blocksLeft * pricePerBlock, 0);
 

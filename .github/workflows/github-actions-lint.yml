@@ -2,7 +2,7 @@ name: GitHub Actions Linting
 
 on:
   pull_request:
-    branches: [main]
+    branches: ["main", "main-sdk-next"]
     paths:
       - .github/actions/**
       - .github/workflows/**

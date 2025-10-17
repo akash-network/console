@@ -1,7 +1,7 @@
+import type { Coin } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { CosmosHttpService } from "@akashnetwork/http-sdk/src/cosmos/cosmos-http.service";
 import { LoggerService } from "@akashnetwork/logging";
 import { asset_lists } from "@chain-registry/assets";
-import type { Coin } from "cosmjs-types/cosmos/base/v1beta1/coin";
 import { singleton } from "tsyringe";
 
 import type { GetAddressResponse } from "@src/address/http-schemas/address.schema";

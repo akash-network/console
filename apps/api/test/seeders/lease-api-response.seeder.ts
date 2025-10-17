@@ -20,12 +20,13 @@ export interface LeaseInput {
 
 export interface LeaseOutput {
   lease: {
-    lease_id: {
+    id: {
       owner: string;
       dseq: string;
       gseq: number;
       oseq: number;
       provider: string;
+      bseq: number;
     };
     state: string;
     price: {
@@ -33,27 +34,36 @@ export interface LeaseOutput {
       amount: string;
     };
     created_at: string;
-    closed_on?: string;
+    closed_on: string;
+    reason?: string;
   };
   escrow_payment: {
-    account_id: {
-      scope: string;
+    id: {
+      aid: {
+        scope: string;
+        xid: string;
+      };
       xid: string;
     };
-    payment_id: string;
-    owner: string;
-    state: string;
-    rate: {
-      denom: string;
-      amount: string;
-    };
-    balance: {
-      denom: string;
-      amount: string;
-    };
-    withdrawn: {
-      denom: string;
-      amount: string;
+    state: {
+      owner: string;
+      state: string;
+      rate: {
+        denom: string;
+        amount: string;
+      };
+      balance: {
+        denom: string;
+        amount: string;
+      };
+      unsettled: {
+        denom: string;
+        amount: string;
+      };
+      withdrawn: {
+        denom: string;
+        amount: string;
+      };
     };
   };
 }
@@ -80,12 +90,13 @@ export class LeaseApiResponseSeeder {
 
     return {
       lease: {
-        lease_id: {
+        id: {
           owner,
           dseq,
           gseq,
           oseq,
-          provider
+          provider,
+          bseq: faker.number.int({ min: 0, max: 10 })
         },
         state,
         price: {
@@ -93,27 +104,36 @@ export class LeaseApiResponseSeeder {
           amount
         },
         created_at,
-        closed_on
+        closed_on: closed_on || "0",
+        reason: state === "closed" ? faker.helpers.arrayElement(["insufficient_funds", "provider_closed", "user_closed"]) : undefined
       },
       escrow_payment: {
-        account_id: {
-          scope: "lease",
-          xid: `${owner}/${dseq}/${gseq}/${oseq}/${provider}`
+        id: {
+          aid: {
+            scope: "deployment",
+            xid: `${owner}/${dseq}`
+          },
+          xid: `${gseq}/${oseq}/${provider}`
         },
-        payment_id: faker.string.uuid(),
-        owner,
-        state: state === "active" ? "open" : "closed",
-        rate: {
-          denom,
-          amount
-        },
-        balance: {
-          denom,
-          amount: faker.string.numeric(6)
-        },
-        withdrawn: {
-          denom,
-          amount: faker.string.numeric(6)
+        state: {
+          owner,
+          state: state === "active" ? "open" : "closed",
+          rate: {
+            denom,
+            amount
+          },
+          balance: {
+            denom,
+            amount: faker.string.numeric(6)
+          },
+          unsettled: {
+            denom,
+            amount: faker.string.numeric(6)
+          },
+          withdrawn: {
+            denom,
+            amount: faker.string.numeric(6)
+          }
         }
       }
     };

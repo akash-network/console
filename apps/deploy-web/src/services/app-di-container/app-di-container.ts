@@ -1,5 +1,4 @@
-import { certificateManager } from "@akashnetwork/akashjs/build/certificates/certificate-manager";
-import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+import { certificateManager, type NetworkId } from "@akashnetwork/chain-sdk/web";
 import {
   ApiKeyHttpService,
   AuthHttpService,
@@ -17,7 +16,7 @@ import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { Axios, AxiosInstance, AxiosResponse, CreateAxiosDefaults, InternalAxiosRequestConfig } from "axios";
 
 import { analyticsService } from "@src/services/analytics/analytics.service";
-import { customRegistry } from "@src/utils/customRegistry";
+import { registry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
 import type { ApiUrlService } from "../api-url/api-url.service";
 import { withUserToken } from "../auth/auth/interceptors";
@@ -63,7 +62,7 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       }),
     stripeService: () => new StripeService(),
     tx: () =>
-      container.applyAxiosInterceptors(new TxHttpService(customRegistry, apiConfig), {
+      container.applyAxiosInterceptors(new TxHttpService(registry, apiConfig), {
         request: [withUserToken]
       }),
     template: () => container.applyAxiosInterceptors(new TemplateHttpService(apiConfig)),

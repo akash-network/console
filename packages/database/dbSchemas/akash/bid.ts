@@ -1,5 +1,5 @@
 import { DataTypes } from "sequelize";
-import { Column, Model, Table } from "sequelize-typescript";
+import { Column, Default, Model, Table } from "sequelize-typescript";
 
 import { Required } from "../decorators/requiredDecorator";
 
@@ -30,6 +30,10 @@ export class Bid extends Model {
    * The oseq of the deployment that this bid is for
    */
   @Required @Column oseq!: number;
+  /**
+   * The bseq of the deployment that this bid is for (multiple bids per provider)
+   */
+  @Required @Default(0) @Column bseq!: number;
   /**
    * The provider address that made the bid
    */

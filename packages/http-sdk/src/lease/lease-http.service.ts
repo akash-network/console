@@ -1,30 +1,34 @@
 import { extractData } from "../http/http.service";
 import type { HttpClient } from "../utils/httpClient";
 
-export type RestAkashLeaseListResponse = {
-  leases: {
-    lease: {
-      lease_id: {
-        owner: string;
-        dseq: string;
-        gseq: number;
-        oseq: number;
-        provider: string;
-      };
-      state: string;
-      price: {
-        denom: string;
-        amount: string;
-      };
-      created_at: string;
-      closed_on: string;
+export interface RpcLease {
+  lease: {
+    id: {
+      owner: string;
+      dseq: string;
+      gseq: number;
+      oseq: number;
+      provider: string;
+      bseq: number;
     };
-    escrow_payment: {
-      account_id: {
+    state: string;
+    price: {
+      denom: string;
+      amount: string;
+    };
+    created_at: string;
+    closed_on: string;
+    reason?: string;
+  };
+  escrow_payment: {
+    id: {
+      aid: {
         scope: string;
         xid: string;
       };
-      payment_id: string;
+      xid: string;
+    };
+    state: {
       owner: string;
       state: string;
       rate: {
@@ -35,12 +39,20 @@ export type RestAkashLeaseListResponse = {
         denom: string;
         amount: string;
       };
+      unsettled: {
+        denom: string;
+        amount: string;
+      };
       withdrawn: {
         denom: string;
         amount: string;
       };
     };
-  }[];
+  };
+}
+
+export type RestAkashLeaseListResponse = {
+  leases: RpcLease[];
   pagination: {
     next_key: string | null;
     total: string;
@@ -62,7 +74,7 @@ export class LeaseHttpService {
 
   public async list({ owner, dseq, state, pagination }: LeaseListParams): Promise<RestAkashLeaseListResponse> {
     return extractData(
-      await this.httpClient.get<RestAkashLeaseListResponse>("/akash/market/v1beta4/leases/list", {
+      await this.httpClient.get<RestAkashLeaseListResponse>("/akash/market/v1beta5/leases/list", {
         params: {
           "filters.owner": owner,
           "filters.dseq": dseq,

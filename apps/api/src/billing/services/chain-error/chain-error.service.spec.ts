@@ -113,7 +113,7 @@ describe(ChainErrorService.name, () => {
     it("returns 400 for Invalid Owner Address error with message prefix", async () => {
       const { service } = setup();
       const err = new Error("Invalid Owner Address: invalid address message index: 0");
-      const messages: EncodeObject[] = [{ typeUrl: "/akash.cert.v1beta3.MsgCreateCertificate", value: {} }];
+      const messages: EncodeObject[] = [{ typeUrl: "/akash.cert.v1.MsgCreateCertificate", value: {} }];
 
       const appErr = await service.toAppError(err, messages);
       expect(appErr).toBeInstanceOf(BadRequest);

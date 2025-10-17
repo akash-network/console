@@ -31,7 +31,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
   const isActive = deployment.state === "active";
   const hasLeases = !!leases && leases.length > 0;
   const hasActiveLeases = hasLeases && leases.some(l => l.state === "active");
-  const denomData = useDenomData(deployment.escrowAccount.balance.denom);
+  const denomData = useDenomData(deployment.escrowAccount.state.funds[0]?.denom || "");
   const { isCustodial, isTrialing } = useWallet();
   const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
   return (
@@ -43,7 +43,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           value={
             <div className="flex items-center space-x-2">
               <PriceValue
-                denom={deployment.escrowAccount.balance.denom}
+                denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
                 value={udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.escrow : deployment.escrowBalance, 6)}
               />
               {isCustodial && (
@@ -77,7 +77,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           value={
             !!deploymentCost && (
               <div className="flex items-center space-x-2">
-                <PricePerMonth denom={deployment.escrowAccount.balance.denom} perBlockValue={udenomToDenom(deploymentCost, 10)} />
+                <PricePerMonth denom={deployment.escrowAccount.state.funds[0]?.denom || ""} perBlockValue={udenomToDenom(deploymentCost, 10)} />
 
                 {isCustodial && (
                   <CustomTooltip
@@ -100,7 +100,7 @@ export const DeploymentSubHeader: React.FunctionComponent<Props> = ({ deployment
           value={
             <div className="flex items-center space-x-2">
               <PriceValue
-                denom={deployment.escrowAccount.balance.denom}
+                denom={deployment.escrowAccount.state.funds[0]?.denom || ""}
                 value={udenomToDenom(isActive && hasActiveLeases && realTimeLeft ? realTimeLeft?.amountSpent : parseFloat(deployment.transferred.amount), 6)}
               />
 

@@ -59,6 +59,10 @@ export class Lease extends Model {
    */
   @Required @Column gseq!: number;
   /**
+   * The bseq of the deployment that this bid is for (multiple bids per provider)
+   */
+  @Required @Default(0) @Column bseq!: number;
+  /**
    * The provider address of the lease
    */
   @Required @Column providerAddress!: string;

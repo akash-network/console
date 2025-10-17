@@ -1,5 +1,6 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { LoggerService } from "@akashnetwork/logging";
+import { NetConfig } from "@akashnetwork/net";
 import type { AxiosResponse } from "axios";
 
 import type { ApiProviderList } from "@src/types/provider";
@@ -10,7 +11,8 @@ export class ProviderProxyService {
 
   constructor(
     private readonly axios: HttpClient,
-    private readonly logger: Pick<LoggerService, "info"> = console
+    private readonly logger: Pick<LoggerService, "info"> = console,
+    private readonly netConfig: NetConfig = new NetConfig()
   ) {}
 
   fetchProviderUrl<T>(url: string, options: ProviderProxyPayload): Promise<AxiosResponse<T>> {
@@ -22,7 +24,7 @@ export class ProviderProxyService {
         method: options.method || "GET",
         url: providerIdentity.hostUri + url,
         providerAddress: providerIdentity.owner,
-        network: options.chainNetwork,
+        network: this.netConfig.mapped(options.chainNetwork),
         auth: credentials ? providerCredentialsToApiCredentials(credentials) : undefined
       },
       { timeout }

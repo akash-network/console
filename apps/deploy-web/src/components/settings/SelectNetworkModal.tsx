@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { MAINNET_ID } from "@akashnetwork/network-store";
+import { MAINNET_ID } from "@akashnetwork/chain-sdk/web";
 import { Alert, AlertDescription, AlertTitle, Badge, buttonVariants, Popup, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 

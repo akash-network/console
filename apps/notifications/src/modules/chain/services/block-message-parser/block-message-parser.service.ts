@@ -1,4 +1,4 @@
-import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/akash-api/v1beta3";
+import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { Block } from "@cosmjs/stargate";
 import { Injectable } from "@nestjs/common";
 

@@ -1,4 +1,5 @@
-import type { MsgCreateBid } from "@akashnetwork/akash-api/akash/market/v1beta4";
+import { MsgCreateBid as MsgCreateBidV4 } from "@akashnetwork/akash-api/akash/market/v1beta4";
+import { MsgCreateBid as MsgCreateBidV5 } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { addDays, minutesToSeconds } from "date-fns";
 import { injectable } from "tsyringe";
 
@@ -51,7 +52,18 @@ export class GpuPriceService {
       .flatMap(d =>
         d.relatedMessages.map(x => {
           const day = days.find(day => day.id === x.block.dayId);
-          const decodedBid = decodeMsg("/akash.market.v1beta4.MsgCreateBid", x.data) as MsgCreateBid;
+
+          // Determine the message version and decode accordingly
+          let decodedBid: MsgCreateBidV4 | MsgCreateBidV5;
+          let provider: string;
+
+          if (x.type.includes("v1beta5")) {
+            decodedBid = decodeMsg(`/${MsgCreateBidV5.$type}`, x.data) as MsgCreateBidV5;
+            provider = decodedBid.id?.provider || "";
+          } else {
+            decodedBid = decodeMsg(`/${MsgCreateBidV4.$type}`, x.data) as MsgCreateBidV4;
+            provider = decodedBid.provider || "";
+          }
 
           if (!day || !day.aktPrice) return null; // Ignore bids for days where we don't have the AKT price
 
@@ -61,25 +73,25 @@ export class GpuPriceService {
             height: x.height,
             txHash: x.transaction.hash,
             datetime: x.block.datetime,
-            provider: decodedBid.provider,
+            provider: provider,
             aktTokenPrice: day.aktPrice,
             hourlyPrice: this.blockPriceToHourlyPrice(parseFloat(decodedBid.price.amount), day?.aktPrice),
             monthlyPrice: this.blockPriceToMonthlyPrice(parseFloat(decodedBid.price.amount), day?.aktPrice),
             deployment: {
               owner: d.owner,
               cpuUnits: decodedBid.resourcesOffer
-                .flatMap(r => (r.resources?.cpu?.units?.val ? parseInt(uint8arrayToString(r.resources.cpu.units.val)) : 0))
-                .reduce((a, b) => a + b, 0),
+                .flatMap((r: any) => (r.resources?.cpu?.units?.val ? parseInt(uint8arrayToString(r.resources.cpu.units.val)) : 0))
+                .reduce((a: number, b: number) => a + b, 0),
               memoryUnits: decodedBid.resourcesOffer
-                .flatMap(r => (r.resources?.memory?.quantity?.val ? parseInt(uint8arrayToString(r.resources.memory.quantity.val)) : 0))
-                .reduce((a, b) => a + b, 0),
+                .flatMap((r: any) => (r.resources?.memory?.quantity?.val ? parseInt(uint8arrayToString(r.resources.memory.quantity.val)) : 0))
+                .reduce((a: number, b: number) => a + b, 0),
               storageUnits: decodedBid.resourcesOffer
-                .flatMap(r => r.resources?.storage)
-                .map(s => (s?.quantity?.val ? parseInt(uint8arrayToString(s.quantity.val)) : 0))
-                .reduce((a, b) => a + b, 0),
+                .flatMap((r: any) => r.resources?.storage)
+                .map((s: any) => (s?.quantity?.val ? parseInt(uint8arrayToString(s.quantity.val)) : 0))
+                .reduce((a: number, b: number) => a + b, 0),
               gpus: decodedBid.resourcesOffer
-                .filter(x => (x.resources?.gpu?.units?.val ? parseInt(uint8arrayToString(x.resources.gpu.units.val)) : 0) > 0)
-                .flatMap(r => (r.resources?.gpu?.attributes ? this.getGpusFromAttributes(r.resources.gpu.attributes) : []))
+                .filter((x: any) => (x.resources?.gpu?.units?.val ? parseInt(uint8arrayToString(x.resources.gpu.units.val)) : 0) > 0)
+                .flatMap((r: any) => (r.resources?.gpu?.attributes ? this.getGpusFromAttributes(r.resources.gpu.attributes) : []))
             },
             data: decodedBid
           };

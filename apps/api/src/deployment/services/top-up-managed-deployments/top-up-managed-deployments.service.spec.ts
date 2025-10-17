@@ -1,5 +1,6 @@
 import "@test/mocks/logger-service.mock";
 
+import { Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { LoggerService } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
 import type { MockProxy } from "jest-mock-extended";
@@ -113,17 +114,20 @@ describe(TopUpManagedDeploymentsService.name, () => {
       deployments.forEach((deployment, index) => {
         expect(managedSignerService.executeManagedTx).toHaveBeenCalledWith(deployment.walletId, [
           {
-            typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
+            typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
             value: {
+              signer: MANAGED_MASTER_WALLET_ADDRESS,
               id: {
-                owner: deployment.address,
-                dseq: { high: 0, low: Number(deployment.dseq), unsigned: true }
+                scope: Scope.deployment,
+                xid: `${deployment.address}/${deployment.dseq}`
               },
-              amount: {
-                denom: DEPLOYMENT_GRANT_DENOM,
-                amount: sufficientAmount.toString()
-              },
-              depositor: MANAGED_MASTER_WALLET_ADDRESS
+              deposit: {
+                amount: {
+                  denom: DEPLOYMENT_GRANT_DENOM,
+                  amount: sufficientAmount.toString()
+                },
+                sources: [Source.grant]
+              }
             }
           }
         ]);
@@ -147,7 +151,7 @@ describe(TopUpManagedDeploymentsService.name, () => {
                 input: expect.objectContaining({
                   amount: sufficientAmount,
                   denom: DEPLOYMENT_GRANT_DENOM,
-                  depositor: MANAGED_MASTER_WALLET_ADDRESS,
+                  signer: MANAGED_MASTER_WALLET_ADDRESS,
                   dseq: Number(deployment.dseq),
                   owner: deployment.address
                 })
@@ -278,31 +282,37 @@ describe(TopUpManagedDeploymentsService.name, () => {
       expect(managedSignerService.executeManagedTx).toHaveBeenCalledTimes(1);
       expect(managedSignerService.executeManagedTx).toHaveBeenCalledWith(walletId, [
         {
-          typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
+          typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
           value: {
+            signer: MANAGED_MASTER_WALLET_ADDRESS,
             id: {
-              owner: owner,
-              dseq: { high: 0, low: Number(deployments[0].dseq), unsigned: true }
+              scope: Scope.deployment,
+              xid: `${owner}/${deployments[0].dseq}`
             },
-            amount: {
-              denom: DEPLOYMENT_GRANT_DENOM,
-              amount: sufficientAmount.toString()
-            },
-            depositor: MANAGED_MASTER_WALLET_ADDRESS
+            deposit: {
+              amount: {
+                denom: DEPLOYMENT_GRANT_DENOM,
+                amount: sufficientAmount.toString()
+              },
+              sources: [Source.grant]
+            }
           }
         },
         {
-          typeUrl: "/akash.deployment.v1beta3.MsgDepositDeployment",
+          typeUrl: "/akash.escrow.v1.MsgAccountDeposit",
           value: {
+            signer: MANAGED_MASTER_WALLET_ADDRESS,
             id: {
-              owner: owner,
-              dseq: { high: 0, low: Number(deployments[1].dseq), unsigned: true }
+              scope: Scope.deployment,
+              xid: `${owner}/${deployments[1].dseq}`
             },
-            amount: {
-              denom: DEPLOYMENT_GRANT_DENOM,
-              amount: sufficientAmount.toString()
-            },
-            depositor: MANAGED_MASTER_WALLET_ADDRESS
+            deposit: {
+              amount: {
+                denom: DEPLOYMENT_GRANT_DENOM,
+                amount: sufficientAmount.toString()
+              },
+              sources: [Source.grant]
+            }
           }
         }
       ]);

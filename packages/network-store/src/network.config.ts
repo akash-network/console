@@ -1,11 +1,7 @@
-import type { MainnetNetworkId, SandboxNetworkId, TestnetNetworkId } from "@akashnetwork/akashjs/build/types/network";
+import { MAINNET_ID, SANDBOX_ID, TESTNET_ID } from "@akashnetwork/chain-sdk/web";
 import { netConfig } from "@akashnetwork/net";
 
 import type { Network } from "./network.type";
-
-export const MAINNET_ID: MainnetNetworkId = "mainnet";
-export const SANDBOX_ID: SandboxNetworkId = "sandbox";
-export const TESTNET_ID: TestnetNetworkId = "testnet";
 
 export const getInitialNetworksConfig = ({ apiBaseUrl }: { apiBaseUrl: string }): Network[] => [
   {
@@ -18,23 +14,29 @@ export const getInitialNetworksConfig = ({ apiBaseUrl }: { apiBaseUrl: string })
     versionUrl: `${apiBaseUrl}/v1/version/mainnet`,
     rpcEndpoint: netConfig.getBaseRpcUrl(MAINNET_ID),
     enabled: true,
-    apiVersion: "v1beta3",
-    marketApiVersion: "v1beta4",
+    deploymentVersion: "v1beta4",
+    marketVersion: "v1beta5",
+    escrowVersion: "v1",
+    certVersion: "v1",
+    providerVersion: "v1beta4",
     version: netConfig.getVersion(MAINNET_ID)
   },
   {
     id: TESTNET_ID,
-    title: "GPU Testnet",
-    description: "Testnet of the new GPU features.",
+    title: "SDK53 Testnet",
+    description: "Testnet of the new SDK features.",
     nodesUrl: `${apiBaseUrl}/v1/nodes/testnet`,
-    chainId: "testnet-02",
+    chainId: "testnet-7",
     chainRegistryName: "akash-testnet",
     versionUrl: `${apiBaseUrl}/v1/version/testnet`,
-    rpcEndpoint: netConfig.getBaseRpcUrl("testnet-02"),
-    enabled: false,
-    apiVersion: "v1beta3",
-    marketApiVersion: "v1beta3",
-    version: netConfig.getVersion("testnet-02")
+    rpcEndpoint: netConfig.getBaseRpcUrl("testnet-7"),
+    enabled: true,
+    deploymentVersion: "v1beta4",
+    marketVersion: "v1beta5",
+    escrowVersion: "v1",
+    certVersion: "v1",
+    providerVersion: "v1beta4",
+    version: netConfig.getVersion("testnet-7")
   },
   {
     id: SANDBOX_ID,
@@ -47,7 +49,10 @@ export const getInitialNetworksConfig = ({ apiBaseUrl }: { apiBaseUrl: string })
     rpcEndpoint: netConfig.getBaseRpcUrl(SANDBOX_ID),
     version: netConfig.getVersion(SANDBOX_ID),
     enabled: true,
-    apiVersion: "v1beta3",
-    marketApiVersion: "v1beta4"
+    deploymentVersion: "v1beta4",
+    marketVersion: "v1beta5",
+    escrowVersion: "v1",
+    certVersion: "v1",
+    providerVersion: "v1beta4"
   }
 ];

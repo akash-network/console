@@ -8,22 +8,23 @@ import { LeaseStatusResponseSchema } from "./lease.schema";
 
 export const DeploymentResponseSchema = z.object({
   deployment: z.object({
-    deployment_id: z.object({
+    id: z.object({
       owner: z.string(),
       dseq: z.string()
     }),
     state: z.string(),
-    version: z.string(),
+    hash: z.string(),
     created_at: z.string()
   }),
   leases: z.array(
     z.object({
-      lease_id: z.object({
+      id: z.object({
         owner: z.string(),
         dseq: z.string(),
         gseq: z.number(),
         oseq: z.number(),
-        provider: z.string()
+        provider: z.string(),
+        bseq: z.number()
       }),
       state: z.string(),
       price: z.object({
@@ -32,6 +33,7 @@ export const DeploymentResponseSchema = z.object({
       }),
       created_at: z.string(),
       closed_on: z.string(),
+      reason: z.string().optional(),
       status: z.nullable(LeaseStatusResponseSchema)
     })
   ),
@@ -40,21 +42,33 @@ export const DeploymentResponseSchema = z.object({
       scope: z.string(),
       xid: z.string()
     }),
-    owner: z.string(),
-    state: z.string(),
-    balance: z.object({
-      denom: z.string(),
-      amount: z.string()
-    }),
-    transferred: z.object({
-      denom: z.string(),
-      amount: z.string()
-    }),
-    settled_at: z.string(),
-    depositor: z.string(),
-    funds: z.object({
-      denom: z.string(),
-      amount: z.string()
+    state: z.object({
+      owner: z.string(),
+      state: z.string(),
+      transferred: z.array(
+        z.object({
+          denom: z.string(),
+          amount: z.string()
+        })
+      ),
+      settled_at: z.string(),
+      funds: z.array(
+        z.object({
+          denom: z.string(),
+          amount: z.string()
+        })
+      ),
+      deposits: z.array(
+        z.object({
+          owner: z.string(),
+          height: z.string(),
+          source: z.string(),
+          balance: z.object({
+            denom: z.string(),
+            amount: z.string()
+          })
+        })
+      )
     })
   })
 });

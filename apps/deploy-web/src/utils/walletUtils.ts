@@ -1,4 +1,4 @@
-import type { NetworkId } from "@akashnetwork/akashjs/build/types/network";
+import type { NetworkId } from "@akashnetwork/chain-sdk/web";
 import { isEqual } from "lodash";
 
 import { browserEnvConfig } from "@src/config/browser-env.config";

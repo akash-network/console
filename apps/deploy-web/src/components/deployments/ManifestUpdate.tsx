@@ -146,7 +146,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
       const mani = deploymentData.getManifest(doc, true);
 
       // If it's actual update, send a transaction, else just send the manifest
-      if (Buffer.from(dd.version).toString("base64") !== deployment.version) {
+      if (Buffer.from(dd.hash).toString("base64") !== deployment.hash) {
         const message = TransactionMessageData.getUpdateDeploymentMsg(dd);
         response = await signAndBroadcastTx([message]);
       } else {
@@ -156,7 +156,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
       if (response) {
         setIsSendingManifest(true);
 
-        saveDeploymentManifest(dd.deploymentId.dseq, editedManifest, dd.version, address);
+        saveDeploymentManifest(dd.deploymentId.dseq, editedManifest, dd.hash, address);
 
         sendManifestKey =
           !isManagedWallet &&
@@ -230,7 +230,7 @@ export const ManifestUpdate: React.FunctionComponent<Props> = ({
                   <InfoCircle className="text-xs text-muted-foreground" />
                 </CustomTooltip>
 
-                {!!deploymentVersion && deploymentVersion !== deployment.version && (
+                {!!deploymentVersion && deploymentVersion !== deployment.hash && (
                   <CustomTooltip
                     title={
                       <Alert variant="warning">

@@ -18,7 +18,7 @@ describe(WalletBalancesService.name, () => {
       const deployments = [
         buildRpcDeployment({
           deployment: {
-            deployment_id: {
+            id: {
               dseq: "666922",
               owner: walletAddress
             },
@@ -27,7 +27,7 @@ describe(WalletBalancesService.name, () => {
         }),
         buildRpcDeployment({
           deployment: {
-            deployment_id: {
+            id: {
               dseq: "666923",
               owner: walletAddress
             },
@@ -72,7 +72,7 @@ describe(WalletBalancesService.name, () => {
                 deployments: input.getDeploymentList?.() || [
                   buildRpcDeployment({
                     deployment: {
-                      deployment_id: {
+                      id: {
                         dseq: "666922",
                         owner: walletAddress
                       },
@@ -81,7 +81,7 @@ describe(WalletBalancesService.name, () => {
                   }),
                   buildRpcDeployment({
                     deployment: {
-                      deployment_id: {
+                      id: {
                         dseq: "666923",
                         owner: walletAddress
                       },

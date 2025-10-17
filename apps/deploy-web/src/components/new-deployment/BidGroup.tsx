@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { MAINNET_ID } from "@akashnetwork/network-store";
+import { MAINNET_ID } from "@akashnetwork/chain-sdk/web";
 import { Alert, Table, TableBody, TableCell, TableHeader, TableRow } from "@akashnetwork/ui/components";
 import { Check } from "iconoir-react";
 
@@ -49,7 +49,7 @@ export const BidGroup: React.FunctionComponent<Props> = ({
   const selectedNetworkId = networkStore.useSelectedNetworkId();
 
   useEffect(() => {
-    const currentGroup = deploymentDetail?.groups.find(g => g.group_id.gseq === gseq);
+    const currentGroup = deploymentDetail?.groups.find(g => g.id.gseq === gseq);
     if (currentGroup) {
       const resourcesSum = {
         cpuAmount: deploymentGroupResourceSum(currentGroup, r => parseInt(r.cpu.units.val) / 1000),
