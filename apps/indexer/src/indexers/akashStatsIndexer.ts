@@ -1,7 +1,11 @@
 import type * as v1beta1 from "@akashnetwork/akash-api/v1beta1";
 import type * as v1beta2 from "@akashnetwork/akash-api/v1beta2";
 import type * as v1beta3 from "@akashnetwork/akash-api/v1beta3";
-import type * as v1beta4 from "@akashnetwork/akash-api/v1beta4";
+import type * as prevV1beta4 from "@akashnetwork/akash-api/v1beta4";
+import type * as v1 from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { Scope } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import type * as v1beta4 from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import type * as v1beta5 from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { AkashBlock as Block, AkashMessage as Message } from "@akashnetwork/database/dbSchemas/akash";
 import {
   Bid,
@@ -20,7 +24,7 @@ import {
 } from "@akashnetwork/database/dbSchemas/akash";
 import type { Transaction, TransactionEvent } from "@akashnetwork/database/dbSchemas/base";
 import type { DecodedTxRaw } from "@cosmjs/proto-signing";
-import type { Transaction as DbTransaction } from "sequelize";
+import type { Transaction as DbTransaction, WhereOptions } from "sequelize";
 import { Op } from "sequelize";
 import * as uuid from "uuid";
 
@@ -89,11 +93,11 @@ export class AkashStatsIndexer extends Indexer {
       // Akash v1beta3 types
       "/akash.deployment.v1beta3.MsgCreateDeployment": this.handleCreateDeploymentV3,
       "/akash.deployment.v1beta3.MsgCloseDeployment": this.handleCloseDeployment,
+      "/akash.deployment.v1beta3.MsgDepositDeployment": this.handleDepositDeployment,
       "/akash.market.v1beta3.MsgCreateLease": this.handleCreateLease,
       "/akash.market.v1beta3.MsgCloseLease": this.handleCloseLease,
       "/akash.market.v1beta3.MsgCreateBid": this.handleCreateBid,
       "/akash.market.v1beta3.MsgCloseBid": this.handleCloseBid,
-      "/akash.deployment.v1beta3.MsgDepositDeployment": this.handleDepositDeployment,
       "/akash.market.v1beta3.MsgWithdrawLease": this.handleWithdrawLease,
       "/akash.provider.v1beta3.MsgCreateProvider": this.handleCreateProvider,
       "/akash.provider.v1beta3.MsgUpdateProvider": this.handleUpdateProvider,
@@ -101,11 +105,26 @@ export class AkashStatsIndexer extends Indexer {
       "/akash.audit.v1beta3.MsgSignProviderAttributes": this.handleSignProviderAttributes,
       "/akash.audit.v1beta3.MsgDeleteProviderAttributes": this.handleDeleteSignProviderAttributes,
       // Akash v1beta4 types
+      "/akash.deployment.v1beta4.MsgCreateDeployment": this.handleCreateDeploymentV4,
+      "/akash.deployment.v1beta4.MsgCloseDeployment": this.handleCloseDeployment,
       "/akash.market.v1beta4.MsgCreateLease": this.handleCreateLease,
       "/akash.market.v1beta4.MsgCloseLease": this.handleCloseLease,
       "/akash.market.v1beta4.MsgCreateBid": this.handleCreateBid,
       "/akash.market.v1beta4.MsgCloseBid": this.handleCloseBid,
-      "/akash.market.v1beta4.MsgWithdrawLease": this.handleWithdrawLease
+      "/akash.market.v1beta4.MsgWithdrawLease": this.handleWithdrawLease,
+      "/akash.provider.v1beta4.MsgCreateProvider": this.handleCreateProvider,
+      "/akash.provider.v1beta4.MsgDeleteProvider": this.handleDeleteProvider,
+      "/akash.provider.v1beta4.MsgUpdateProvider": this.handleUpdateProvider,
+      // Akash v1beta5 types
+      "/akash.market.v1beta5.MsgCreateLease": this.handleCreateLeaseV5,
+      "/akash.market.v1beta5.MsgCloseLease": this.handleCloseLeaseV5,
+      "/akash.market.v1beta5.MsgCreateBid": this.handleCreateBidV5,
+      "/akash.market.v1beta5.MsgCloseBid": this.handleCloseBidV5,
+      "/akash.market.v1beta5.MsgWithdrawLease": this.handleWithdrawLeaseV5,
+      // Akash v1 types
+      "/akash.escrow.v1.MsgAccountDeposit": this.handleDepositDeploymentV1,
+      "/akash.audit.v1.MsgDeleteProviderAttributes": this.handleDeleteSignProviderAttributes,
+      "/akash.audit.v1.MsgSignProviderAttributes": this.handleSignProviderAttributes
     };
   }
 
@@ -134,10 +153,10 @@ export class AkashStatsIndexer extends Indexer {
     await ProviderAttribute.sync({ force: false });
     await ProviderAttributeSignature.sync({ force: false });
     await ProviderSnapshot.sync({ force: false });
-    await ProviderSnapshotStorage.sync({ force: false });
     await ProviderSnapshotNode.sync({ force: false });
     await ProviderSnapshotNodeCPU.sync({ force: false });
     await ProviderSnapshotNodeGPU.sync({ force: false });
+    await ProviderSnapshotStorage.sync({ force: false });
     await Lease.sync({ force: false });
     await Bid.sync({ force: false });
   }
@@ -236,10 +255,19 @@ export class AkashStatsIndexer extends Indexer {
       "/akash.deployment.v1beta3.MsgDepositDeployment",
       "/akash.market.v1beta3.MsgWithdrawLease",
       // v1beta4
+      "/akash.deployment.v1beta4.MsgCreateDeployment",
+      "/akash.deployment.v1beta4.MsgCloseDeployment",
       "/akash.market.v1beta4.MsgCreateLease",
       "/akash.market.v1beta4.MsgCloseLease",
       "/akash.market.v1beta4.MsgCloseBid",
-      "/akash.market.v1beta4.MsgWithdrawLease"
+      "/akash.market.v1beta4.MsgWithdrawLease",
+      // v1beta5
+      "/akash.market.v1beta5.MsgCreateLease",
+      "/akash.market.v1beta5.MsgCloseLease",
+      "/akash.market.v1beta5.MsgCloseBid",
+      "/akash.market.v1beta5.MsgWithdrawLease",
+      // v1
+      "/akash.escrow.v1.MsgAccountDeposit"
     ].includes(msg.type);
   }
 
@@ -407,8 +435,70 @@ export class AkashStatsIndexer extends Indexer {
     }
   }
 
+  private async handleCreateDeploymentV4(decodedMessage: v1beta4.MsgCreateDeployment, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    if (!(decodedMessage.deposit.amount.denom in denomMapping)) {
+      throw "Unknown denom: " + decodedMessage.deposit.amount.denom;
+    }
+
+    const created = await Deployment.create(
+      {
+        id: uuid.v4(),
+        owner: decodedMessage.id.owner,
+        dseq: decodedMessage.id.dseq.toString(),
+        deposit: parseInt(decodedMessage.deposit.amount.amount),
+        balance: parseInt(decodedMessage.deposit.amount.amount),
+        withdrawnAmount: 0,
+        denom: denomMapping[decodedMessage.deposit.amount.denom],
+        createdHeight: height,
+        closedHeight: null
+      },
+      { transaction: blockGroupTransaction }
+    );
+
+    msg.relatedDeploymentId = created.id;
+
+    for (const group of decodedMessage.groups) {
+      const createdGroup = await DeploymentGroup.create(
+        {
+          id: uuid.v4(),
+          deploymentId: created.id,
+          owner: created.owner,
+          dseq: created.dseq,
+          gseq: decodedMessage.groups.indexOf(group) + 1
+        },
+        { transaction: blockGroupTransaction }
+      );
+
+      for (const groupResource of group.resources) {
+        const { vendor: gpuVendor, model: gpuModel } = getGPUAttributes(groupResource.resource.gpu);
+
+        await DeploymentGroupResource.create(
+          {
+            deploymentGroupId: createdGroup.id,
+            cpuUnits: parseInt(uint8arrayToString(groupResource.resource.cpu.units.val)),
+            gpuUnits: parseInt(uint8arrayToString(groupResource.resource.gpu.units.val)),
+            gpuVendor: gpuVendor,
+            gpuModel: gpuModel,
+            memoryQuantity: parseInt(uint8arrayToString(groupResource.resource.memory.quantity.val)),
+            ephemeralStorageQuantity: groupResource.resource.storage
+              .filter(x => !isPersistentStorage(x))
+              .map(x => parseInt(uint8arrayToString(x.quantity.val)))
+              .reduce((a, b) => a + b, 0),
+            persistentStorageQuantity: groupResource.resource.storage
+              .filter(x => isPersistentStorage(x))
+              .map(x => parseInt(uint8arrayToString(x.quantity.val)))
+              .reduce((a, b) => a + b, 0),
+            count: groupResource.count,
+            price: parseFloat(groupResource.price.amount) // TODO: handle denom
+          },
+          { transaction: blockGroupTransaction }
+        );
+      }
+    }
+  }
+
   private async handleCloseDeployment(
-    decodedMessage: v1beta1.MsgCloseDeployment | v1beta2.MsgCloseDeployment | v1beta3.MsgCloseDeployment,
+    decodedMessage: v1beta1.MsgCloseDeployment | v1beta2.MsgCloseDeployment | v1beta3.MsgCloseDeployment | v1beta4.MsgCloseDeployment,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -440,7 +530,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCreateLease(
-    decodedMessage: v1beta1.MsgCreateLease | v1beta2.MsgCreateLease | v1beta3.MsgCreateLease,
+    decodedMessage: v1beta1.MsgCreateLease | v1beta2.MsgCreateLease | v1beta3.MsgCreateLease | prevV1beta4.MsgCreateLease,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -503,6 +593,94 @@ export class AkashStatsIndexer extends Indexer {
         dseq: decodedMessage.bidId.dseq.toString(),
         oseq: decodedMessage.bidId.oseq,
         gseq: decodedMessage.bidId.gseq,
+        bseq: 0,
+        providerAddress: decodedMessage.bidId.provider,
+        createdHeight: height,
+        predictedClosedHeight: predictedClosedHeight.toString(),
+        price: bid.price,
+        denom: deployment.denom,
+
+        // Stats
+        cpuUnits: deploymentGroup.deploymentGroupResources.map(x => x.cpuUnits * x.count).reduce((a, b) => a + b, 0),
+        gpuUnits: deploymentGroup.deploymentGroupResources.map(x => x.gpuUnits * x.count).reduce((a, b) => a + b, 0),
+        memoryQuantity: deploymentGroup.deploymentGroupResources.map(x => x.memoryQuantity * x.count).reduce((a, b) => a + b, 0),
+        ephemeralStorageQuantity: deploymentGroup.deploymentGroupResources.map(x => x.ephemeralStorageQuantity * x.count).reduce((a, b) => a + b, 0),
+        persistentStorageQuantity: deploymentGroup.deploymentGroupResources.map(x => x.persistentStorageQuantity * x.count).reduce((a, b) => a + b, 0)
+      },
+      { transaction: blockGroupTransaction }
+    );
+
+    await Lease.update(
+      { predictedClosedHeight: predictedClosedHeight.toString() },
+      { where: { deploymentId: deployment.id }, transaction: blockGroupTransaction }
+    );
+
+    msg.relatedDeploymentId = deployment.id;
+
+    this.totalLeaseCount++;
+  }
+
+  private async handleCreateLeaseV5(decodedMessage: v1beta5.MsgCreateLease, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    const bid = await Bid.findOne({
+      where: {
+        owner: decodedMessage.bidId.owner,
+        dseq: decodedMessage.bidId.dseq.toString(),
+        gseq: decodedMessage.bidId.gseq,
+        oseq: decodedMessage.bidId.oseq,
+        bseq: decodedMessage.bidId.bseq,
+        provider: decodedMessage.bidId.provider
+      },
+      transaction: blockGroupTransaction
+    });
+
+    const deploymentGroup = await DeploymentGroup.findOne({
+      attributes: ["id"],
+      where: {
+        owner: decodedMessage.bidId.owner,
+        dseq: decodedMessage.bidId.dseq.toString(),
+        gseq: decodedMessage.bidId.gseq
+      },
+      include: [
+        {
+          model: DeploymentGroupResource,
+          attributes: ["count", "cpuUnits", "gpuUnits", "memoryQuantity", "ephemeralStorageQuantity", "persistentStorageQuantity"],
+          required: false
+        }
+      ],
+      transaction: blockGroupTransaction
+    });
+
+    if (!deploymentGroup) {
+      throw new Error(`Deployment group for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()}/${decodedMessage.bidId.gseq} not found.`);
+    }
+
+    const deployment = await Deployment.findOne({
+      where: {
+        owner: decodedMessage.bidId.owner,
+        dseq: decodedMessage.bidId.dseq.toString()
+      },
+      include: [{ model: Lease }],
+      transaction: blockGroupTransaction
+    });
+
+    if (!deployment) {
+      throw new Error(`Deployment for ${decodedMessage.bidId.owner}/${decodedMessage.bidId.dseq.toString()} not found.`);
+    }
+
+    const { blockRate } = await accountSettle(deployment, height, blockGroupTransaction);
+
+    const predictedClosedHeight = Math.ceil(height + deployment.balance / (blockRate + bid.price));
+
+    await Lease.create(
+      {
+        id: uuid.v4(),
+        deploymentId: deployment.id,
+        deploymentGroupId: deploymentGroup.id,
+        owner: decodedMessage.bidId.owner,
+        dseq: decodedMessage.bidId.dseq.toString(),
+        oseq: decodedMessage.bidId.oseq,
+        gseq: decodedMessage.bidId.gseq,
+        bseq: decodedMessage.bidId.bseq,
         providerAddress: decodedMessage.bidId.provider,
         createdHeight: height,
         predictedClosedHeight: predictedClosedHeight.toString(),
@@ -530,7 +708,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleCloseLease(
-    decodedMessage: v1beta1.MsgCloseLease | v1beta1.MsgCloseLease,
+    decodedMessage: v1beta1.MsgCloseLease | v1beta2.MsgCloseLease | v1beta3.MsgCloseLease | prevV1beta4.MsgCloseLease,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -576,8 +754,54 @@ export class AkashStatsIndexer extends Indexer {
     }
   }
 
+  private async handleCloseLeaseV5(decodedMessage: v1beta5.MsgCloseLease, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    const deployment = await Deployment.findOne({
+      where: {
+        owner: decodedMessage.id.owner,
+        dseq: decodedMessage.id.dseq.toString()
+      },
+      include: [{ model: Lease }],
+      transaction: blockGroupTransaction
+    });
+
+    if (!deployment) {
+      throw new Error(`Deployment for ${decodedMessage.id.owner}/${decodedMessage.id.dseq.toString()} not found.`);
+    }
+
+    const lease = deployment.leases.find(
+      x =>
+        x.oseq === decodedMessage.id.oseq &&
+        x.gseq === decodedMessage.id.gseq &&
+        x.bseq === decodedMessage.id.bseq &&
+        x.providerAddress === decodedMessage.id.provider
+    );
+
+    if (!lease)
+      throw new Error(
+        `Lease for ${decodedMessage.id.owner}/${decodedMessage.id.dseq}/${decodedMessage.id.gseq}/${decodedMessage.id.bseq}/${decodedMessage.id.provider} not found.`
+      );
+
+    msg.relatedDeploymentId = deployment.id;
+
+    const { blockRate } = await accountSettle(deployment, height, blockGroupTransaction);
+
+    lease.closedHeight = height;
+    await lease.save({ transaction: blockGroupTransaction });
+
+    if (!deployment.leases.some(x => !x.closedHeight)) {
+      deployment.closedHeight = height;
+      await deployment.save({ transaction: blockGroupTransaction });
+    } else {
+      const predictedClosedHeight = Math.ceil((deployment.lastWithdrawHeight || lease.createdHeight) + deployment.balance / (blockRate - lease.price));
+      await Lease.update(
+        { predictedClosedHeight: predictedClosedHeight.toString() },
+        { where: { deploymentId: deployment.id }, transaction: blockGroupTransaction }
+      );
+    }
+  }
+
   private async handleCreateBid(
-    decodedMessage: v1beta1.MsgCreateBid | v1beta2.MsgCreateBid | v1beta3.MsgCreateBid | v1beta4.MsgCreateBid,
+    decodedMessage: v1beta1.MsgCreateBid | v1beta2.MsgCreateBid | v1beta3.MsgCreateBid | prevV1beta4.MsgCreateBid,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -588,6 +812,7 @@ export class AkashStatsIndexer extends Indexer {
         dseq: decodedMessage.order.dseq.toString(),
         gseq: decodedMessage.order.gseq,
         oseq: decodedMessage.order.oseq,
+        bseq: 0,
         provider: decodedMessage.provider,
         price: parseFloat(decodedMessage.price.amount),
         createdHeight: height
@@ -607,8 +832,35 @@ export class AkashStatsIndexer extends Indexer {
     msg.relatedDeploymentId = deployment.id;
   }
 
+  private async handleCreateBidV5(decodedMessage: v1beta5.MsgCreateBid, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    await Bid.create(
+      {
+        owner: decodedMessage.id.owner,
+        dseq: decodedMessage.id.dseq.toString(),
+        gseq: decodedMessage.id.gseq,
+        oseq: decodedMessage.id.oseq,
+        bseq: decodedMessage.id.bseq,
+        provider: decodedMessage.id.provider,
+        price: parseFloat(decodedMessage.price.amount),
+        createdHeight: height
+      },
+      { transaction: blockGroupTransaction }
+    );
+
+    const deployment = await Deployment.findOne({
+      attributes: ["id"],
+      where: {
+        owner: decodedMessage.id.owner,
+        dseq: decodedMessage.id.dseq.toString()
+      },
+      transaction: blockGroupTransaction
+    });
+
+    msg.relatedDeploymentId = deployment.id;
+  }
+
   private async handleCloseBid(
-    decodedMessage: v1beta1.MsgCloseBid | v1beta2.MsgCloseBid | v1beta3.MsgCloseBid,
+    decodedMessage: v1beta1.MsgCloseBid | v1beta2.MsgCloseBid | v1beta3.MsgCloseBid | prevV1beta4.MsgCloseBid,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -662,6 +914,61 @@ export class AkashStatsIndexer extends Indexer {
     });
   }
 
+  private async handleCloseBidV5(decodedMessage: v1beta5.MsgCloseBid, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    const deployment = await Deployment.findOne({
+      where: {
+        owner: decodedMessage.id.owner,
+        dseq: decodedMessage.id.dseq.toString()
+      },
+      include: [{ model: Lease }],
+      transaction: blockGroupTransaction
+    });
+
+    if (!deployment) {
+      throw new Error(`Deployment for ${decodedMessage.id.owner}/${decodedMessage.id.dseq.toString()} not found.`);
+    }
+
+    msg.relatedDeploymentId = deployment.id;
+
+    const lease = deployment.leases.find(
+      x =>
+        x.oseq === decodedMessage.id.oseq &&
+        x.gseq === decodedMessage.id.gseq &&
+        x.bseq === decodedMessage.id.bseq &&
+        x.providerAddress === decodedMessage.id.provider
+    );
+
+    if (lease) {
+      const { blockRate } = await accountSettle(deployment, height, blockGroupTransaction);
+
+      lease.closedHeight = height;
+      await lease.save({ transaction: blockGroupTransaction });
+
+      if (!deployment.leases.some(x => !x.closedHeight)) {
+        deployment.closedHeight = height;
+        await deployment.save({ transaction: blockGroupTransaction });
+      } else {
+        const predictedClosedHeight = Math.ceil((deployment.lastWithdrawHeight || lease.createdHeight) + deployment.balance / (blockRate - lease.price));
+        await Lease.update(
+          { predictedClosedHeight: predictedClosedHeight.toString() },
+          { where: { deploymentId: deployment.id }, transaction: blockGroupTransaction }
+        );
+      }
+    }
+
+    await Bid.destroy({
+      where: {
+        owner: decodedMessage.id.owner,
+        dseq: decodedMessage.id.dseq.toString(),
+        gseq: decodedMessage.id.gseq,
+        oseq: decodedMessage.id.oseq,
+        bseq: decodedMessage.id.bseq,
+        provider: decodedMessage.id.provider
+      },
+      transaction: blockGroupTransaction
+    });
+  }
+
   private async handleDepositDeployment(
     decodedMessage: v1beta1.MsgDepositDeployment | v1beta2.MsgDepositDeployment | v1beta3.MsgDepositDeployment,
     height: number,
@@ -704,8 +1011,61 @@ export class AkashStatsIndexer extends Indexer {
     msg.amount = getAmountFromCoin(decodedMessage.amount);
   }
 
+  private async handleDepositDeploymentV1(decodedMessage: v1.MsgAccountDeposit, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    // For v1 escrow, we need to extract the deployment info from the account ID
+    // The xid field contains the deployment identifier in the format "owner/dseq"
+    // The owner is provided directly in the message, and dseq is extracted from xid
+    const scope = decodedMessage.id.scope;
+
+    if (scope !== Scope.deployment) {
+      console.log(`Invalid scope: ${scope}`);
+      return;
+    }
+
+    const [owner, dseq] = decodedMessage.id.xid.split("/");
+
+    if (!owner || !dseq) {
+      throw new Error(`Invalid owner or dseq: ${owner}/${dseq}`);
+    }
+
+    const deployment = await Deployment.findOne({
+      where: {
+        owner: owner,
+        dseq: dseq
+      },
+      include: [
+        {
+          model: Lease
+        }
+      ],
+      transaction: blockGroupTransaction
+    });
+
+    if (!deployment) {
+      throw new Error(`Deployment for ${owner}/${dseq} not found.`);
+    }
+
+    msg.relatedDeploymentId = deployment.id;
+
+    deployment.deposit += parseFloat(decodedMessage.deposit.amount.amount);
+    deployment.balance += parseFloat(decodedMessage.deposit.amount.amount);
+    await deployment.save({ transaction: blockGroupTransaction });
+
+    const blockRate = deployment.leases
+      .filter(x => !x.closedHeight)
+      .map(x => x.price)
+      .reduce((a, b) => a + b, 0);
+
+    for (const lease of deployment.leases.filter(x => !x.closedHeight)) {
+      lease.predictedClosedHeight = Math.ceil((deployment.lastWithdrawHeight || lease.createdHeight) + deployment.balance / blockRate).toString();
+      await lease.save({ transaction: blockGroupTransaction });
+    }
+
+    msg.amount = getAmountFromCoin(decodedMessage.deposit.amount);
+  }
+
   private async handleWithdrawLease(
-    decodedMessage: v1beta1.MsgWithdrawLease | v1beta2.MsgWithdrawLease | v1beta3.MsgWithdrawLease | v1beta4.MsgWithdrawLease,
+    decodedMessage: v1beta1.MsgWithdrawLease | v1beta2.MsgWithdrawLease | v1beta3.MsgWithdrawLease | prevV1beta4.MsgWithdrawLease,
     height: number,
     blockGroupTransaction: DbTransaction,
     msg: Message
@@ -736,8 +1096,36 @@ export class AkashStatsIndexer extends Indexer {
     msg.relatedDeploymentId = deployment.id;
   }
 
+  private async handleWithdrawLeaseV5(decodedMessage: v1beta5.MsgWithdrawLease, height: number, blockGroupTransaction: DbTransaction, msg: Message) {
+    const owner = decodedMessage.id.owner;
+    const dseq = decodedMessage.id.dseq.toString();
+    const gseq = decodedMessage.id.gseq;
+    const oseq = decodedMessage.id.oseq;
+    const bseq = decodedMessage.id.bseq;
+    const provider = decodedMessage.id.provider;
+
+    const deployment = await Deployment.findOne({
+      where: {
+        owner: owner,
+        dseq: dseq
+      },
+      include: [{ model: Lease }],
+      transaction: blockGroupTransaction
+    });
+
+    if (!deployment) throw new Error(`Deployment not found for owner: ${owner} and dseq: ${dseq}`);
+
+    const lease = deployment.leases.find(x => x.gseq === gseq && x.oseq === oseq && x.bseq === bseq && x.providerAddress === provider);
+
+    if (!lease) throw new Error(`Lease not found for gseq: ${gseq}, oseq: ${oseq}, bseq: ${bseq} and provider: ${provider}`);
+
+    await accountSettle(deployment, height, blockGroupTransaction);
+
+    msg.relatedDeploymentId = deployment.id;
+  }
+
   private async handleCreateProvider(
-    decodedMessage: v1beta1.MsgCreateProvider | v1beta2.MsgCreateProvider | v1beta3.MsgCreateProvider,
+    decodedMessage: v1beta1.MsgCreateProvider | v1beta2.MsgCreateProvider | v1beta3.MsgCreateProvider | v1beta4.MsgCreateProvider,
     height: number,
     blockGroupTransaction: DbTransaction
   ) {
@@ -765,7 +1153,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleUpdateProvider(
-    decodedMessage: v1beta1.MsgUpdateProvider | v1beta2.MsgUpdateProvider | v1beta3.MsgUpdateProvider,
+    decodedMessage: v1beta1.MsgUpdateProvider | v1beta2.MsgUpdateProvider | v1beta3.MsgUpdateProvider | v1beta4.MsgUpdateProvider,
     height: number,
     blockGroupTransaction: DbTransaction
   ) {
@@ -801,7 +1189,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleDeleteProvider(
-    decodedMessage: v1beta1.MsgDeleteProvider | v1beta2.MsgDeleteProvider | v1beta3.MsgDeleteProvider,
+    decodedMessage: v1beta1.MsgDeleteProvider | v1beta2.MsgDeleteProvider | v1beta3.MsgDeleteProvider | v1beta4.MsgDeleteProvider,
     height: number,
     blockGroupTransaction: DbTransaction
   ) {
@@ -819,7 +1207,7 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleSignProviderAttributes(
-    decodedMessage: v1beta1.MsgSignProviderAttributes | v1beta2.MsgSignProviderAttributes | v1beta3.MsgSignProviderAttributes,
+    decodedMessage: v1beta1.MsgSignProviderAttributes | v1beta2.MsgSignProviderAttributes | v1beta3.MsgSignProviderAttributes | v1.MsgSignProviderAttributes,
     height: number,
     blockGroupTransaction: DbTransaction
   ) {
@@ -862,7 +1250,11 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleDeleteSignProviderAttributes(
-    decodedMessage: v1beta1.MsgDeleteProviderAttributes | v1beta2.MsgDeleteProviderAttributes | v1beta3.MsgDeleteProviderAttributes,
+    decodedMessage:
+      | v1beta1.MsgDeleteProviderAttributes
+      | v1beta2.MsgDeleteProviderAttributes
+      | v1beta3.MsgDeleteProviderAttributes
+      | v1.MsgDeleteProviderAttributes,
     height: number,
     blockGroupTransaction: DbTransaction
   ) {
@@ -896,92 +1288,158 @@ export class AkashStatsIndexer extends Indexer {
   }
 
   private async handleMissedClosedDeployments(currentTransaction: Transaction, dbTransaction: DbTransaction, txEvents: TransactionEvent[]) {
-    const deploymentClosedEvents = txEvents.filter(
-      event => event.type === "akash.v1" && event.attributes.some(attr => attr.key === "action" && attr.value === "deployment-closed")
-    );
-
-    for (const deploymentClosedEvent of deploymentClosedEvents) {
-      const dseq = deploymentClosedEvent.attributes.find(attr => attr.key === "dseq").value;
-      const owner = deploymentClosedEvent.attributes.find(attr => attr.key === "owner").value;
-
-      const deployment = await Deployment.findOne({
-        raw: true,
-        attributes: ["closedHeight"],
-        where: {
-          owner,
-          dseq
-        },
-        transaction: dbTransaction
-      });
-
-      if (deployment.closedHeight !== currentTransaction.height) {
-        await Deployment.update(
-          {
-            closedHeight: currentTransaction.height
-          },
-          {
-            where: {
-              owner,
-              dseq
-            },
-            transaction: dbTransaction
-          }
-        );
+    for (const event of txEvents) {
+      if (event.type === "akash.v1" && event.attributes.some(attr => attr.key === "action" && attr.value === "deployment-closed")) {
+        await this.handleOldFormatDeploymentClosedEvent(event, currentTransaction, dbTransaction);
+      } else if (event.type === "akash.deployment.v1.EventDeploymentClosed") {
+        await this.handleNewFormatDeploymentClosedEvent(event, currentTransaction, dbTransaction);
       }
+    }
+  }
+
+  private async handleOldFormatDeploymentClosedEvent(event: TransactionEvent, currentTransaction: Transaction, dbTransaction: DbTransaction) {
+    const dseq = event.attributes.find(attr => attr.key === "dseq").value;
+    const owner = event.attributes.find(attr => attr.key === "owner").value;
+
+    await this.updateDeploymentClosedHeight(owner, dseq, currentTransaction, dbTransaction);
+  }
+
+  private async handleNewFormatDeploymentClosedEvent(event: TransactionEvent, currentTransaction: Transaction, dbTransaction: DbTransaction) {
+    const idAttr = event.attributes.find(attr => attr.key === "id");
+    if (!idAttr) return;
+
+    try {
+      const idData = JSON.parse(idAttr.value);
+      const dseq = idData.dseq;
+      const owner = idData.owner;
+
+      await this.updateDeploymentClosedHeight(owner, dseq, currentTransaction, dbTransaction);
+    } catch (error) {
+      console.warn(`Failed to parse deployment closed event ID: ${idAttr.value}`, error);
+    }
+  }
+
+  private async updateDeploymentClosedHeight(owner: string, dseq: string, currentTransaction: Transaction, dbTransaction: DbTransaction) {
+    const whereClause: WhereOptions<Deployment> = {
+      owner,
+      dseq
+    };
+
+    const deployment = await Deployment.findOne({
+      raw: true,
+      attributes: ["closedHeight"],
+      where: whereClause,
+      transaction: dbTransaction
+    });
+
+    if (!deployment) {
+      throw new Error(`Deployment not found for owner: ${owner}, dseq: ${dseq}`);
+    }
+
+    if (deployment.closedHeight !== currentTransaction.height) {
+      await Deployment.update(
+        {
+          closedHeight: currentTransaction.height
+        },
+        {
+          where: whereClause,
+          transaction: dbTransaction
+        }
+      );
     }
   }
 
   private async handleMissedClosedLeases(currentTransaction: Transaction, dbTransaction: DbTransaction, txEvents: TransactionEvent[]) {
-    const leaseClosedEvents = txEvents.filter(
-      event => event.type === "akash.v1" && event.attributes.some(attr => attr.key === "action" && attr.value === "lease-closed")
-    );
-
-    for (const event of leaseClosedEvents) {
-      const dseq = event.attributes.find(attr => attr.key === "dseq").value;
-      const owner = event.attributes.find(attr => attr.key === "owner").value;
-      const oseq = event.attributes.find(attr => attr.key === "oseq").value;
-      const gseq = event.attributes.find(attr => attr.key === "gseq").value;
-      const provider = event.attributes.find(attr => attr.key === "provider").value;
-
-      const lease = await Lease.findOne({
-        raw: true,
-        attributes: ["closedHeight"],
-        where: {
-          owner,
-          dseq,
-          oseq,
-          gseq,
-          providerAddress: provider
-        },
-        transaction: dbTransaction
-      });
-
-      if (lease.closedHeight !== currentTransaction.height) {
-        await Lease.update(
-          {
-            closedHeight: currentTransaction.height
-          },
-          {
-            where: {
-              owner,
-              dseq,
-              oseq,
-              gseq,
-              providerAddress: provider
-            },
-            transaction: dbTransaction
-          }
-        );
+    for (const event of txEvents) {
+      if (event.type === "akash.v1" && event.attributes.some(attr => attr.key === "action" && attr.value === "lease-closed")) {
+        await this.handleOldFormatLeaseClosedEvent(event, currentTransaction, dbTransaction);
+      } else if (event.type === "akash.market.v1.EventLeaseClosed") {
+        await this.handleNewFormatLeaseClosedEvent(event, currentTransaction, dbTransaction);
       }
+    }
+  }
+
+  private async handleOldFormatLeaseClosedEvent(event: TransactionEvent, currentTransaction: Transaction, dbTransaction: DbTransaction) {
+    const dseq = event.attributes.find(attr => attr.key === "dseq").value;
+    const owner = event.attributes.find(attr => attr.key === "owner").value;
+    const oseq = parseInt(event.attributes.find(attr => attr.key === "oseq").value);
+    const gseq = parseInt(event.attributes.find(attr => attr.key === "gseq").value);
+    const provider = event.attributes.find(attr => attr.key === "provider").value;
+
+    await this.updateLeaseClosedHeight(owner, dseq, oseq, gseq, provider, currentTransaction, dbTransaction);
+  }
+
+  private async handleNewFormatLeaseClosedEvent(event: TransactionEvent, currentTransaction: Transaction, dbTransaction: DbTransaction) {
+    const idAttr = event.attributes.find(attr => attr.key === "id");
+    if (!idAttr) return;
+
+    try {
+      const idData = JSON.parse(idAttr.value);
+      const dseq = idData.dseq;
+      const owner = idData.owner;
+      const oseq = idData.oseq;
+      const gseq = idData.gseq;
+      const provider = idData.provider;
+      const bseq = idData.bseq;
+
+      await this.updateLeaseClosedHeight(owner, dseq, oseq, gseq, provider, currentTransaction, dbTransaction, bseq);
+    } catch (error) {
+      console.warn(`Failed to parse lease closed event ID: ${idAttr.value}`, error);
+    }
+  }
+
+  private async updateLeaseClosedHeight(
+    owner: string,
+    dseq: string,
+    oseq: number,
+    gseq: number,
+    provider: string,
+    currentTransaction: Transaction,
+    dbTransaction: DbTransaction,
+    bseq?: number
+  ) {
+    const whereClause: WhereOptions<Lease> = {
+      owner,
+      dseq,
+      oseq,
+      gseq,
+      providerAddress: provider
+    };
+
+    if (bseq !== undefined) {
+      whereClause.bseq = bseq;
+    }
+
+    const lease = await Lease.findOne({
+      raw: true,
+      attributes: ["closedHeight"],
+      where: whereClause,
+      transaction: dbTransaction
+    });
+
+    if (!lease) {
+      throw new Error(`Lease not found for owner: ${owner}, dseq: ${dseq}, gseq: ${gseq}, oseq: ${oseq}, provider: ${provider}, bseq: ${bseq}`);
+    }
+
+    if (lease.closedHeight !== currentTransaction.height) {
+      await Lease.update(
+        {
+          closedHeight: currentTransaction.height
+        },
+        {
+          where: whereClause,
+          transaction: dbTransaction
+        }
+      );
     }
   }
 }
 
-function isPersistentStorage(storage: v1beta2.Storage | v1beta3.Storage): boolean {
+function isPersistentStorage(storage: v1beta2.Storage | v1beta3.Storage | v1beta4.Storage): boolean {
   return (storage.attributes || []).some(a => a.key === "persistent" && a.value === "true");
 }
 
-function getGPUAttributes(gpu: v1beta3.GPU) {
+function getGPUAttributes(gpu: v1beta3.GPU | v1beta4.GPU) {
   if (!gpu.attributes || gpu.attributes.length !== 1) return { vendor: null, model: null };
 
   const attr = gpu.attributes[0];
