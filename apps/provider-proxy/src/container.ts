@@ -1,4 +1,3 @@
-import { LoggerService } from "@akashnetwork/logging";
 import { HttpLoggerIntercepter } from "@akashnetwork/logging/hono";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import type { SupportedChainNetworks } from "@akashnetwork/net";
