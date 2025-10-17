@@ -10,7 +10,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
   },
   "openapi": "3.0.0",
   "paths": {
-    "/akash/deployment/v1beta3/deployments/info": {
+    "/akash/deployment/{version}/deployments/info": {
       "get": {
         "parameters": [
           {
@@ -530,7 +530,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
-    "/akash/deployment/v1beta3/deployments/list": {
+    "/akash/deployment/{version}/deployments/list": {
       "get": {
         "parameters": [
           {
@@ -1096,7 +1096,7 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
-    "/akash/market/v1beta4/leases/list": {
+    "/akash/market/{version}/leases/list": {
       "get": {
         "parameters": [
           {
