@@ -1,11 +1,15 @@
 import type { Page } from "@playwright/test";
 import { setTimeout as wait } from "timers/promises";
 
+import { waitForLocator } from "../fixture/testing-helpers";
 import { approveWalletOperation } from "../fixture/wallet-setup";
 
 export async function selectChainNetwork(page: Page, networkId = "sandbox") {
   await page.getByRole("link", { name: "App Settings" }).click();
-  await page.getByLabel("Select Network").click();
+
+  const selectNetworkButton = await waitForLocator(page.getByLabel("Select Network"));
+  await selectNetworkButton.click();
+
   await page.getByLabel(new RegExp(networkId, "i")).click();
 
   const [popupPage] = await Promise.all([
