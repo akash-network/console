@@ -1,5 +1,12 @@
 
 
+## [1.33.0](https://github.com/akash-network/console/compare/notifications/v1.32.0...notifications/v1.33.0) (2025-10-17)
+
+
+### Features
+
+* **network:** adjusts indexer for sdk53 network upgrade ([dfc7d05](https://github.com/akash-network/console/commit/dfc7d05123a52470fb527908c935c1ee12f66da5))
+
 ## [1.32.0](https://github.com/akash-network/console/compare/notifications/v1.31.0...notifications/v1.32.0) (2025-10-10)
 
 
