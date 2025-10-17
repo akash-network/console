@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Button,
   buttonVariants,
@@ -18,7 +18,6 @@ import {
 import { cn } from "@akashnetwork/ui/utils";
 import { Refresh, Rocket, Xmark } from "iconoir-react";
 import { useAtom } from "jotai";
-import { uniq } from "lodash";
 import Link from "next/link";
 import { NextSeo } from "next-seo";
 
@@ -27,6 +26,7 @@ import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
@@ -40,8 +40,6 @@ import { Title } from "../shared/Title";
 import { ConnectWalletButton } from "../wallet/ConnectWalletButton";
 import { DeploymentListRow } from "./DeploymentListRow";
 
-const SHIFT_KEY = "Shift";
-
 export const DeploymentList: React.FunctionComponent = () => {
   const { address, signAndBroadcastTx, isWalletLoaded, isWalletConnected } = useWallet();
   const { data: providers, isFetching: isLoadingProviders } = useProviderList();
@@ -52,7 +50,6 @@ export const DeploymentList: React.FunctionComponent = () => {
   const { getDeploymentName } = useLocalNotes();
   const [filteredDeployments, setFilteredDeployments] = useState<NamedDeploymentDto[] | null>(null);
   const [isFilteringActive, setIsFilteringActive] = useState(true);
-  const [selectedDeploymentDseqs, setSelectedDeploymentDseqs] = useState<string[]>([]);
   const { apiEndpoint } = settings;
   const [pageSize, setPageSize] = useState<number>(10);
   const orderedDeployments = filteredDeployments
@@ -67,8 +64,9 @@ export const DeploymentList: React.FunctionComponent = () => {
   const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const { user } = useCustomUser();
 
-  const [intervalSelectionAnchor, setIntervalSelectionAnchor] = useState<string | null>(null);
-  const [lastIntervalSelectionDseqs, setLastIntervalSelectionDseqs] = useState<string[]>([]);
+  const { selectedItemIds, onSelectItem, clearSelection } = useListSelection<string>({
+    ids: currentPageDeployments.map(deployment => deployment.dseq)
+  });
 
   useEffect(() => {
     if (isWalletLoaded && isSettingsInit) {
@@ -116,86 +114,23 @@ export const DeploymentList: React.FunctionComponent = () => {
     setSearch(value);
   };
 
-  const indexOfDseq = useCallback(
-    (dseq: string) => {
-      return currentPageDeployments?.findIndex(d => d.dseq === dseq);
-    },
-    [currentPageDeployments]
-  );
-
-  const isBetweenDseqs = useCallback(
-    (dseq: string, dseqA: string, dseqB: string) => {
-      const dseqIndex = indexOfDseq(dseq);
-      const dseqAIndex = indexOfDseq(dseqA);
-      const dseqBIndex = indexOfDseq(dseqB);
-
-      return (
-        dseqIndex !== -1 &&
-        dseqAIndex !== -1 &&
-        dseqBIndex !== -1 &&
-        ((dseqAIndex <= dseqIndex && dseqIndex <= dseqBIndex) || (dseqAIndex >= dseqIndex && dseqIndex >= dseqBIndex))
-      );
-    },
-    [indexOfDseq]
-  );
-
-  const currentPageDeploymentsBetween = useCallback(
-    (dseqA: string, dseqB: string) => {
-      return currentPageDeployments.filter(deployment => isBetweenDseqs(deployment.dseq, dseqA, dseqB)).map(d => d.dseq);
-    },
-    [currentPageDeployments, isBetweenDseqs]
-  );
-
-  const toggleSingleSelection = (checked: boolean, dseq: string) => {
-    setSelectedDeploymentDseqs(prev => (checked ? [...prev, dseq] : prev.filter(x => x !== dseq)));
-    if (checked) {
-      setIntervalSelectionAnchor(dseq);
-    }
-  };
-
-  const changeMultipleSelection = (dseq: string) => {
-    if (!intervalSelectionAnchor) {
-      return;
-    }
-
-    const dseqsToCheck = currentPageDeploymentsBetween(dseq, intervalSelectionAnchor);
-    const dseqsToUncheck = lastIntervalSelectionDseqs;
-
-    setSelectedDeploymentDseqs(prev => {
-      return uniq(prev.filter(x => !dseqsToUncheck.includes(x)).concat(dseqsToCheck));
-    });
-    setLastIntervalSelectionDseqs(dseqsToCheck);
-  };
-
-  const onSelectDeployment = (checked: boolean, dseq: string, eventShiftPressed: boolean) => {
-    if (intervalSelectionAnchor && eventShiftPressed) {
-      changeMultipleSelection(dseq);
-    } else {
-      toggleSingleSelection(checked, dseq);
-    }
-  };
-
   const onCloseSelectedDeployments = async () => {
     try {
-      const isConfirmed = await closeDeploymentConfirm(selectedDeploymentDseqs);
+      const isConfirmed = await closeDeploymentConfirm(selectedItemIds);
 
       if (!isConfirmed) {
         return;
       }
 
-      const messages = selectedDeploymentDseqs.map(dseq => TransactionMessageData.getCloseDeploymentMsg(address, `${dseq}`));
+      const messages = selectedItemIds.map(dseq => TransactionMessageData.getCloseDeploymentMsg(address, `${dseq}`));
       const response = await signAndBroadcastTx(messages);
       if (response) {
         getDeployments();
-        setSelectedDeploymentDseqs([]);
+        clearSelection();
       }
     } catch (error) {
       console.log(error);
     }
-  };
-
-  const onClearSelection = () => {
-    setSelectedDeploymentDseqs([]);
   };
 
   const onDeployClick = () => {
@@ -206,20 +141,6 @@ export const DeploymentList: React.FunctionComponent = () => {
     setPageSize(value);
     setPageIndex(0);
   };
-
-  useEffect(() => {
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.key === SHIFT_KEY) {
-        setLastIntervalSelectionDseqs([]);
-      }
-    };
-
-    window.addEventListener("keyup", handleKeyUp);
-
-    return () => {
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, []);
 
   return (
     <Layout isLoading={isLoadingDeployments || isLoadingProviders} isUsingSettings isUsingWallet>
@@ -243,16 +164,16 @@ export const DeploymentList: React.FunctionComponent = () => {
               </div>
             </div>
 
-            {selectedDeploymentDseqs.length > 0 && (
+            {selectedItemIds.length > 0 && (
               <>
                 <div className="md:ml-4">
                   <Button onClick={onCloseSelectedDeployments} color="secondary">
-                    Close selected ({selectedDeploymentDseqs.length})
+                    Close selected ({selectedItemIds.length})
                   </Button>
                 </div>
 
                 <div className="ml-4">
-                  <LinkTo onClick={onClearSelection}>Clear</LinkTo>
+                  <LinkTo onClick={clearSelection}>Clear</LinkTo>
                 </div>
               </>
             )}
@@ -369,8 +290,8 @@ export const DeploymentList: React.FunctionComponent = () => {
                   refreshDeployments={getDeployments}
                   providers={providers}
                   isSelectable
-                  onSelectDeployment={onSelectDeployment}
-                  checked={selectedDeploymentDseqs.includes(deployment.dseq)}
+                  onSelectDeployment={onSelectItem}
+                  checked={selectedItemIds.includes(deployment.dseq)}
                 />
               ))}
             </TableBody>

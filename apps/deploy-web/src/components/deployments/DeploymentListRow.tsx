@@ -50,7 +50,7 @@ import { LeaseChip } from "./LeaseChip";
 type Props = {
   deployment: NamedDeploymentDto;
   isSelectable?: boolean;
-  onSelectDeployment?: (isChecked: boolean, dseq: string, eventShiftPressed: boolean) => void;
+  onSelectDeployment?: ({ id, isShiftPressed }: { id: string; isShiftPressed: boolean }) => void;
   checked?: boolean;
   providers: Array<ApiProviderList> | undefined;
   refreshDeployments: () => void;
@@ -132,7 +132,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     const response = await signAndBroadcastTx([message]);
     if (response) {
       if (onSelectDeployment) {
-        onSelectDeployment(false, deployment.dseq, false);
+        onSelectDeployment({ id: deployment.dseq, isShiftPressed: false });
       }
 
       refreshDeployments();
@@ -296,7 +296,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
                 checked={checked}
                 onClick={event => {
                   event.stopPropagation();
-                  onSelectDeployment?.(!checked, deployment.dseq, event.shiftKey);
+                  onSelectDeployment?.({ id: deployment.dseq, isShiftPressed: event.shiftKey });
                 }}
               />
             )}
