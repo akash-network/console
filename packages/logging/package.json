@@ -10,7 +10,8 @@
   "author": "Akash Network",
   "exports": {
     ".": "./src/index.ts",
-    "./hono": "./src/hono/index.ts"
+    "./hono": "./src/hono/index.ts",
+    "./otel": "./src/otel.ts"
   },
   "main": "src/index.ts",
   "scripts": {
@@ -33,10 +34,14 @@
     "ts-jest": "^29.4.0"
   },
   "peerDependencies": {
-    "hono": "4.6.12"
+    "hono": "4.6.12",
+    "@opentelemetry/api": "^1.9.0"
   },
   "peerDependenciesMeta": {
     "hono": {
+      "optional": true
+    },
+    "@opentelemetry/api": {
       "optional": true
     }
   }
