@@ -1,5 +1,12 @@
 
 
+## [2.118.0](https://github.com/akash-network/console/compare/console-web/v2.117.0...console-web/v2.118.0) (2025-10-17)
+
+
+### Features
+
+* can multi-select deployments when pressing shift ([4b3e777](https://github.com/akash-network/console/commit/4b3e77745dcd78c117cdefe16331cfae4b36845a))
+
 ## [2.117.0](https://github.com/akash-network/console/compare/console-web/v2.116.1...console-web/v2.117.0) (2025-10-17)
 
 
