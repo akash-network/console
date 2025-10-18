@@ -146,16 +146,13 @@ export class TransactionMessageData {
     };
   }
 
-  static getRevokeMsg(granter: string, grantee: string, grantType: string) {
-    const version = grantType.split(".")[2];
-    const msgTypeUrl = `/akash.deployment.${version}.MsgDepositDeployment`;
-
+  static getRevokeDepositMsg(granter: string, grantee: string) {
     return {
       typeUrl: `/${MsgRevoke.$type}`,
       value: MsgRevoke.fromPartial({
         granter: granter,
         grantee: grantee,
-        msgTypeUrl: msgTypeUrl
+        msgTypeUrl: `/${MsgAccountDeposit.$type}`
       })
     };
   }
