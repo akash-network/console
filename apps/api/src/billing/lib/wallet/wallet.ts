@@ -1,9 +1,8 @@
 import type { AminoSignResponse, OfflineAminoSigner, StdSignDoc } from "@cosmjs/amino";
 import { makeCosmoshubPath, Secp256k1HdWallet } from "@cosmjs/amino";
-import type { OfflineDirectSigner } from "@cosmjs/proto-signing";
+import type { DirectSignResponse, OfflineDirectSigner } from "@cosmjs/proto-signing";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import type { DirectSecp256k1HdWalletOptions } from "@cosmjs/proto-signing/build/directsecp256k1hdwallet";
-import type { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 
 export class Wallet implements OfflineDirectSigner {
   static create(mnemonic?: string, index?: number): Wallet {
@@ -40,8 +39,8 @@ export class Wallet implements OfflineDirectSigner {
     return (await this.instanceAsPromised).getAccounts();
   }
 
-  async signDirect(signerAddress: string, signDoc: SignDoc) {
-    return (await this.instanceAsPromised).signDirect(signerAddress, signDoc);
+  async signDirect(...args: Parameters<DirectSecp256k1HdWallet["signDirect"]>): Promise<DirectSignResponse> {
+    return (await this.instanceAsPromised).signDirect(...args);
   }
 
   async signAmino(address: string, data: StdSignDoc): Promise<AminoSignResponse> {

@@ -1,7 +1,9 @@
-import type { CommunityPoolSpendProposal } from "cosmjs-types/cosmos/distribution/v1beta1/distribution";
-import type { TextProposal } from "cosmjs-types/cosmos/gov/v1beta1/gov";
-import type { ParameterChangeProposal } from "cosmjs-types/cosmos/params/v1beta1/params";
-import type { SoftwareUpgradeProposal } from "cosmjs-types/cosmos/upgrade/v1beta1/upgrade";
+import type {
+  CommunityPoolSpendProposal,
+  ParameterChangeProposal,
+  SoftwareUpgradeProposal,
+  TextProposal
+} from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 
 export interface IGenesis {
   app_state: {
