@@ -22,10 +22,10 @@
     "test:unit": "jest --selectProjects unit"
   },
   "dependencies": {
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.9",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.11",
     "@akashnetwork/logging": "*",
     "@akashnetwork/net": "*",
-    "@cosmjs/encoding": "^0.32.4",
+    "@cosmjs/encoding": "~0.36.1",
     "@hono/node-server": "^1.19.0",
     "@hono/otel": "~0.4.0",
     "@hono/zod-openapi": "^0.18.4",
@@ -41,7 +41,7 @@
     "@akashnetwork/dev-config": "*",
     "@akashnetwork/docker": "*",
     "@akashnetwork/releaser": "*",
-    "@cosmjs/amino": "^0.33.1",
+    "@cosmjs/amino": "~0.36.1",
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.16",
     "@types/node": "^22.13.11",
