@@ -1,12 +1,12 @@
 import { SDL } from "@akashnetwork/chain-sdk";
 import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { BidHttpService } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, SigningStargateClient } from "@cosmjs/stargate";
 import axios from "axios";
-import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import pick from "lodash/pick";
 import { setTimeout as sleep } from "timers/promises";
 import { singleton } from "tsyringe";

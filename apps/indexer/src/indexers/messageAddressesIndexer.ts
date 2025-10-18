@@ -1,13 +1,18 @@
+import type {
+  MsgBeginRedelegate,
+  MsgDelegate,
+  MsgDeposit,
+  MsgFundCommunityPool,
+  MsgMultiSend,
+  MsgSend,
+  MsgUndelegate
+} from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { activeChain } from "@akashnetwork/database/chainDefinitions";
 import type { Message, Transaction } from "@akashnetwork/database/dbSchemas/base";
 import { AddressReference } from "@akashnetwork/database/dbSchemas/base";
 import { toBech32 } from "@cosmjs/encoding";
 import type { DecodedTxRaw } from "@cosmjs/proto-signing";
 import { decodePubkey } from "@cosmjs/proto-signing";
-import type { MsgMultiSend, MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
-import type { MsgFundCommunityPool } from "cosmjs-types/cosmos/distribution/v1beta1/tx";
-import type { MsgDeposit } from "cosmjs-types/cosmos/gov/v1beta1/tx";
-import type { MsgBeginRedelegate, MsgDelegate, MsgUndelegate } from "cosmjs-types/cosmos/staking/v1beta1/tx";
 import type { Transaction as DbTransaction } from "sequelize";
 
 import { rawSecp256k1PubkeyToRawAddress } from "@src/shared/utils/addresses";
