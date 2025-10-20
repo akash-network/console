@@ -8,7 +8,6 @@ import type { ProviderStatusInfo } from "./types";
 
 export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
   const data = await queryStatus(provider.hostUri, timeout);
-  console.log(data);
 
   const activeResources = parseResources(data.cluster.inventory.reservations.active.resources);
   const pendingResources = parseResources(data.cluster.inventory.reservations.pending.resources);
