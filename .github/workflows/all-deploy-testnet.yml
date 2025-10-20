@@ -112,7 +112,7 @@ jobs:
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
-      app: console-web-testnet
+      app: console-web
       appVersion: sdk53-sandbox
       environment: staging
       skip_beta_deployment_check: true
