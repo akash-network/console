@@ -66,8 +66,6 @@ jobs:
 
           # Scale down all specified services to 0 replicas
           services=(
-            "console-api-mainnet"
-            "console-api-mainnet-bg-jobs"
             "console-api-sandbox"
             "console-api-sandbox-bg-jobs"
             "console-web"
