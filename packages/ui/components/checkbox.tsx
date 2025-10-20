@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { useCallback } from "react";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import { Check } from "lucide-react";
 
@@ -18,19 +19,19 @@ const Checkbox = React.forwardRef<
 
   React.useImperativeHandle(ref, () => checkboxRef.current!);
 
-  const handleWrapperClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const triggerCheckboxClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === wrapperRef.current) {
       e.preventDefault();
       e.stopPropagation();
       checkboxRef.current?.click();
     }
-  };
+  }, []);
 
   return (
     <div
       ref={wrapperRef}
       className={cn("inline-flex", expandedTouchTarget && "-m-3 cursor-pointer p-3")}
-      onClick={expandedTouchTarget ? handleWrapperClick : undefined}
+      onClick={expandedTouchTarget ? triggerCheckboxClick : undefined}
     >
       <CheckboxPrimitive.Root
         ref={checkboxRef}
