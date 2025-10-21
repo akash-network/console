@@ -1,5 +1,13 @@
 
 
+## [0.40.1](https://github.com/akash-network/console/compare/stats-web/v0.40.0...stats-web/v0.40.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* checkbox can optionally have a larger clickable wrapper  ([e3c51dd](https://github.com/akash-network/console/commit/e3c51ddd7e1fa25d5933ad4dd5b8b58d9ac23a34)), closes [#1981](https://github.com/akash-network/console/issues/1981)
+* **observability:** adds fatal method to the logger ([d89872c](https://github.com/akash-network/console/commit/d89872cd2824310a7a332e41ee8a42657c196b6e)), closes [#2087](https://github.com/akash-network/console/issues/2087)
+
 ## [0.40.0](https://github.com/akash-network/console/compare/stats-web/v0.39.1...stats-web/v0.40.0) (2025-10-17)
 
 
