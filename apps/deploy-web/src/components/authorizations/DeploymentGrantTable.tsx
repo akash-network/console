@@ -130,10 +130,10 @@ export const DeploymentGrantTable: React.FC<Props> = ({
                 }}
               />
             </div>
-            <Button variant="ghost" size="icon" onClick={() => onEditGrant(grant)}>
+            <Button variant="ghost" size="icon" onClick={() => onEditGrant(grant)} aria-label="Edit Authorization">
               <Edit className="text-xs" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => setDeletingGrants([grant])}>
+            <Button variant="ghost" size="icon" onClick={() => setDeletingGrants([grant])} aria-label="Revoke Authorization">
               <Bin className="text-xs" />
             </Button>
           </div>
@@ -164,7 +164,7 @@ export const DeploymentGrantTable: React.FC<Props> = ({
 
   return (
     <div>
-      <Table>
+      <Table aria-label="Deployment Authorization List">
         <TableHeader>
           {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id}>
