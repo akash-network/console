@@ -95,8 +95,6 @@ export const Authorizations: React.FunctionComponent = () => {
     isLoadingGranterGrants ||
     isLoadingGranterGranteeGrants;
 
-  console.log("isLoadingAllowancesGranted", isLoadingAllowancesGranted);
-
   useEffect(() => {
     let timeout: NodeJS.Timeout;
     if (isRefreshing) {
