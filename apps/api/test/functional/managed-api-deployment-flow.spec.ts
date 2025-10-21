@@ -383,33 +383,33 @@ describe("Managed Wallet API Deployment Flow", () => {
        * These are actual providers running on the Akash sandbox with their current versions
        * as of the time this test was implemented.
        */
-      // const AKASH_SANDBOX_PROVIDER = {
-      //   owner: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
-      //   akashVersion: "0.8.3-rc10",
-      //   hostUri: "https://provider.provider-02.sandbox-01.aksh.pw:8443"
-      // };
-      // const AKASH_EUROPLOTS_PROVIDER = {
-      //   owner: "akash1d4fletej4cwn9x8jzpzmnk6zkqeh90ejjskpmu",
-      //   akashVersion: "0.6.11-rc1",
-      //   hostUri: "https://provider.europlots-sandbox.com:8443"
-      // };
+      const AKASH_SANDBOX_PROVIDER = {
+        owner: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
+        akashVersion: "0.8.3-rc10",
+        hostUri: "https://provider.provider-02.sandbox-01.aksh.pw:8443"
+      };
+      const AKASH_EUROPLOTS_PROVIDER = {
+        owner: "akash1d4fletej4cwn9x8jzpzmnk6zkqeh90ejjskpmu",
+        akashVersion: "0.6.11-rc1",
+        hostUri: "https://provider.europlots-sandbox.com:8443"
+      };
       // TODO: Remove this once the testnet branch is merged
-      const AKASH_MULTI_PROVIDER = {
-        owner: "akash18rcjwx8x8cqmfr6fr4wu6pm83ngfyz8feq5pju",
-        akashVersion: "v0.10.0-rc12",
-        hostUri: "https://provider.multi.test.akashgpu.com:8443"
-      };
-      const AKASH_T4_PROVIDER = {
-        owner: "akash1g0f8qsqhxq4sfrnmcxhkg9gqd25atc4hhv5p85",
-        akashVersion: "0.8.3-rc10",
-        hostUri: "https://provider.t4.akashgpu.com:8443"
-      };
-      const AKASH_TEST_PROVIDER = {
-        owner: "akash1atnytt5gvsk4gh9tupcy4dv45gcy00kjrujmxe",
-        akashVersion: "0.8.3-rc10",
-        hostUri: "https://provider.test.akashgpu.com:8443"
-      };
-      await Promise.all([AKASH_T4_PROVIDER, AKASH_MULTI_PROVIDER, AKASH_TEST_PROVIDER].map(async provider => createProvider(provider)));
+      // const AKASH_MULTI_PROVIDER = {
+      //   owner: "akash18rcjwx8x8cqmfr6fr4wu6pm83ngfyz8feq5pju",
+      //   akashVersion: "v0.10.0-rc12",
+      //   hostUri: "https://provider.multi.test.akashgpu.com:8443"
+      // };
+      // const AKASH_T4_PROVIDER = {
+      //   owner: "akash1g0f8qsqhxq4sfrnmcxhkg9gqd25atc4hhv5p85",
+      //   akashVersion: "0.8.3-rc10",
+      //   hostUri: "https://provider.t4.akashgpu.com:8443"
+      // };
+      // const AKASH_TEST_PROVIDER = {
+      //   owner: "akash1atnytt5gvsk4gh9tupcy4dv45gcy00kjrujmxe",
+      //   akashVersion: "0.8.3-rc10",
+      //   hostUri: "https://provider.test.akashgpu.com:8443"
+      // };
+      await Promise.all([AKASH_SANDBOX_PROVIDER, AKASH_EUROPLOTS_PROVIDER].map(async provider => createProvider(provider)));
     } catch (e) {
       if (!(e instanceof Error && e.name === "SequelizeUniqueConstraintError")) {
         throw e;
@@ -517,6 +517,8 @@ describe("Managed Wallet API Deployment Flow", () => {
           "x-api-key": apiKey
         }
       });
+
+      console.log(data.data);
 
       return data.data.find(bid => targetAuthType === "mTLS" || !bid.isCertificateRequired);
     });
