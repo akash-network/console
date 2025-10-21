@@ -66,8 +66,6 @@ jobs:
 
           # Scale down all specified services to 0 replicas
           services=(
-            "console-api-mainnet"
-            "console-api-mainnet-bg-jobs"
             "console-api-sandbox"
             "console-api-sandbox-bg-jobs"
             "console-web"
@@ -84,21 +82,7 @@ jobs:
 
           echo "All services scaled down successfully"
 
-  deploy-indexer:
-    needs: scale-down-services
-    name: Deploy indexer to sandbox
-    uses: ./.github/workflows/reusable-deploy-k8s.yml
-    secrets: inherit
-    with:
-      app: indexer
-      appVersion: sdk53
-      environment: prod
-      chain: sandbox
-      skip_beta_deployment_check: true
-      force-rollout: true
-
   deploy-console-api:
-    needs: deploy-indexer
     name: Deploy to console-api sandbox
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
@@ -121,12 +105,12 @@ jobs:
       environment: staging
 
   deploy-console-web:
-    needs: [deploy-indexer, deploy-console-api, deploy-notifications]
+    needs: [ deploy-console-api, deploy-notifications]
     name: Deploy to beta sandbox
     uses: ./.github/workflows/reusable-deploy-k8s.yml
     secrets: inherit
     with:
-      app: console-web-testnet
+      app: console-web
       appVersion: sdk53-sandbox
       environment: staging
       skip_beta_deployment_check: true
