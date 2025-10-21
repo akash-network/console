@@ -518,8 +518,6 @@ describe("Managed Wallet API Deployment Flow", () => {
         }
       });
 
-      console.log(data.data);
-
       return data.data.find(bid => targetAuthType === "mTLS" || !bid.isCertificateRequired);
     });
   }
