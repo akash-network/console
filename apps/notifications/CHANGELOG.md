@@ -1,5 +1,12 @@
 
 
+## [1.33.1](https://github.com/akash-network/console/compare/notifications/v1.33.0...notifications/v1.33.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* **observability:** adds fatal method to the logger ([d89872c](https://github.com/akash-network/console/commit/d89872cd2824310a7a332e41ee8a42657c196b6e)), closes [#2087](https://github.com/akash-network/console/issues/2087)
+
 ## [1.33.0](https://github.com/akash-network/console/compare/notifications/v1.32.0...notifications/v1.33.0) (2025-10-17)
 
 

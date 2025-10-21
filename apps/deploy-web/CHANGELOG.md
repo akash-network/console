@@ -1,5 +1,18 @@
 
 
+## [2.118.0](https://github.com/akash-network/console/compare/console-web/v2.117.0...console-web/v2.118.0) (2025-10-21)
+
+
+### Features
+
+* can multi-select deployments when pressing shift ([4b3e777](https://github.com/akash-network/console/commit/4b3e77745dcd78c117cdefe16331cfae4b36845a))
+
+
+### Bug Fixes
+
+* checkbox can optionally have a larger clickable wrapper  ([e3c51dd](https://github.com/akash-network/console/commit/e3c51ddd7e1fa25d5933ad4dd5b8b58d9ac23a34)), closes [#1981](https://github.com/akash-network/console/issues/1981)
+* **observability:** adds fatal method to the logger ([d89872c](https://github.com/akash-network/console/commit/d89872cd2824310a7a332e41ee8a42657c196b6e)), closes [#2087](https://github.com/akash-network/console/issues/2087)
+
 ## [2.117.0](https://github.com/akash-network/console/compare/console-web/v2.116.1...console-web/v2.117.0) (2025-10-17)
 
 
