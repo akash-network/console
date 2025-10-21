@@ -46,14 +46,22 @@ export const networkRouter = new OpenApiHonoHandler();
 
 networkRouter.openapi(getNodesRoute, async function routeGetNodes(c) {
   const { network } = c.req.valid("param");
-  const response = await container.resolve(NetworkController).getNodes(network);
+  const result = await container.resolve(NetworkController).getNodes(network);
 
-  return c.json(response);
+  if (result.ok) {
+    return c.json(result.val);
+  }
+
+  throw result.val;
 });
 
 networkRouter.openapi(getVersionRoute, async function routeGetVersion(c) {
   const { network } = c.req.valid("param");
-  const response = await container.resolve(NetworkController).getVersion(network);
+  const result = await container.resolve(NetworkController).getVersion(network);
 
-  return c.text(response);
+  if (result.ok) {
+    return c.text(result.val);
+  }
+
+  throw result.val;
 });

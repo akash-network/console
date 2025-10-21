@@ -1,5 +1,19 @@
 
 
+## [1.15.1](https://github.com/akash-network/console/compare/log-collector/v1.15.0...log-collector/v1.15.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* **observability:** adds fatal method to the logger ([d89872c](https://github.com/akash-network/console/commit/d89872cd2824310a7a332e41ee8a42657c196b6e)), closes [#2087](https://github.com/akash-network/console/issues/2087)
+
+## [1.15.0](https://github.com/akash-network/console/compare/log-collector/v1.14.0...log-collector/v1.15.0) (2025-10-17)
+
+
+### Features
+
+* **network:** adjusts indexer for sdk53 network upgrade ([dfc7d05](https://github.com/akash-network/console/commit/dfc7d05123a52470fb527908c935c1ee12f66da5))
+
 ## [1.14.0](https://github.com/akash-network/console/compare/log-collector/v1.13.0...log-collector/v1.14.0) (2025-10-08)
 
 

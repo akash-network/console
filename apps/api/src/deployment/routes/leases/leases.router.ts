@@ -35,7 +35,7 @@ const createLeaseRoute = createRoute({
 
 const fallbackListRoute = createRoute({
   method: "get",
-  path: "/akash/market/v1beta4/leases/list",
+  path: "/akash/market/{version}/leases/list",
   summary: "List leases (database fallback)",
   tags: ["Leases"],
   request: {

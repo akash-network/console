@@ -85,10 +85,10 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
   },
   akashTestnet: {
     code: "akash-testnet",
-    rpcNodes: ["https://rpc.testnet-02.aksh.pw:443", "https://akash-testnet-rpc.cosmonautstakes.com:443"],
+    rpcNodes: ["https://testnetrpc.akashnet.net"],
     cosmosDirectoryId: "akash",
     connectionString: process.env.AKASH_TESTNET_DATABASE_CS,
-    genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/testnet-02/genesis.json",
+    genesisFileUrl: "https://raw.githubusercontent.com/akash-network/net/master/testnet-7/genesis.json",
     coinGeckoId: "akash-network",
     logoUrlSVG: "https://raw.githubusercontent.com/cosmos/chain-registry/master/akash/images/akt.svg",
     logoUrlPNG: "https://console.akash.network/images/chains/akash.png",

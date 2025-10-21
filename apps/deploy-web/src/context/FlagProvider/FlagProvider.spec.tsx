@@ -3,6 +3,7 @@ import React from "react";
 import { UserAwareFlagProvider } from "./FlagProvider";
 
 import { render } from "@testing-library/react";
+import { ComponentMock } from "@tests/unit/mocks";
 
 describe(UserAwareFlagProvider.name, () => {
   it("passes userId from useUser to the custom FlagProvider", () => {
@@ -19,7 +20,7 @@ describe(UserAwareFlagProvider.name, () => {
     });
 
     const { getByTestId } = render(
-      <UserAwareFlagProvider components={{ FlagProvider: customFlagProvider, useUser: customUseUser }}>
+      <UserAwareFlagProvider components={{ FlagProvider: customFlagProvider, useUser: customUseUser, WaitForFeatureFlags: ComponentMock }}>
         <div data-testid="child" />
       </UserAwareFlagProvider>
     );

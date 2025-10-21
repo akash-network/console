@@ -44,8 +44,10 @@ export class WalletController {
       const paymentMethods = await this.stripeService.getPaymentMethods(currentUser.id, currentUser.stripeCustomerId);
       assert(paymentMethods.length > 0, 400, "You must have a payment method to start a trial.");
 
-      const hasDuplicateTrialAccount = await this.stripeService.hasDuplicateTrialAccount(paymentMethods, currentUser.id);
-      assert(!hasDuplicateTrialAccount, 400, "This payment method is already associated with another trial account. Please use a different payment method.");
+      if (this.stripeService.isProduction) {
+        const hasDuplicateTrialAccount = await this.stripeService.hasDuplicateTrialAccount(paymentMethods, currentUser.id);
+        assert(!hasDuplicateTrialAccount, 400, "This payment method is already associated with another trial account. Please use a different payment method.");
+      }
 
       const latestPaymentMethod = paymentMethods[0];
       try {

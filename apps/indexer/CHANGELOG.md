@@ -1,5 +1,12 @@
 
 
+## [1.19.0](https://github.com/akash-network/console/compare/indexer/v1.18.0...indexer/v1.19.0) (2025-10-17)
+
+
+### Features
+
+* **network:** adjusts indexer for sdk53 network upgrade ([dfc7d05](https://github.com/akash-network/console/commit/dfc7d05123a52470fb527908c935c1ee12f66da5))
+
 ## [1.18.0](https://github.com/akash-network/console/compare/indexer/v1.17.0...indexer/v1.18.0) (2025-10-08)
 
 
