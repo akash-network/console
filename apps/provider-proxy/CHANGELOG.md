@@ -1,5 +1,47 @@
 
 
+## [1.23.1](https://github.com/akash-network/console/compare/provider-proxy/v1.23.0...provider-proxy/v1.23.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* **observability:** adds fatal method to the logger ([d89872c](https://github.com/akash-network/console/commit/d89872cd2824310a7a332e41ee8a42657c196b6e)), closes [#2087](https://github.com/akash-network/console/issues/2087)
+
+## [1.23.0](https://github.com/akash-network/console/compare/provider-proxy/v1.22.1...provider-proxy/v1.23.0) (2025-10-17)
+
+
+### Features
+
+* **network:** adjusts indexer for sdk53 network upgrade ([dfc7d05](https://github.com/akash-network/console/commit/dfc7d05123a52470fb527908c935c1ee12f66da5))
+
+## [1.22.1](https://github.com/akash-network/console/compare/provider-proxy/v1.22.0...provider-proxy/v1.22.1) (2025-10-15)
+
+
+### Code Refactoring
+
+* migrates jwt signing in accordance to chain-sdk ([#2049](https://github.com/akash-network/console/issues/2049)) ([9b950c4](https://github.com/akash-network/console/commit/9b950c4609ef3757d6aa8e2e6741da2e950ff1e0))
+
+## [1.22.0](https://github.com/akash-network/console/compare/provider-proxy/v1.21.0...provider-proxy/v1.22.0) (2025-10-14)
+
+
+### Features
+
+* adds support for jwt token in offline mode ([#2036](https://github.com/akash-network/console/issues/2036)) ([3c9b8f3](https://github.com/akash-network/console/commit/3c9b8f3c09610b666bd556ee1714d3b83db30c39))
+* **provider:** ensures compatibility with both versions of sdk ([6395508](https://github.com/akash-network/console/commit/6395508145c38a438e6e04b548d638fa57db64cf))
+
+## [1.21.0](https://github.com/akash-network/console/compare/provider-proxy/v1.20.0...provider-proxy/v1.21.0) (2025-10-10)
+
+
+### Features
+
+* **config:** uses correct sdk53 testnet config ([4ce80e5](https://github.com/akash-network/console/commit/4ce80e5fd7a5dc7dc6fb0d4f8b3ae34b7b7eef13))
+* expose jwt generation for managed wallets ([#2019](https://github.com/akash-network/console/issues/2019)) ([b905f3b](https://github.com/akash-network/console/commit/b905f3b7bc9a5c8952265383958153edd8017119))
+
+
+### Bug Fixes
+
+* ensure provider-proxy does not crash when socket is closed during cert verification ([#2033](https://github.com/akash-network/console/issues/2033)) ([5332fee](https://github.com/akash-network/console/commit/5332feeb9ef10598be818ec5d94b9e9463988633))
+
 ## [1.20.0](https://github.com/akash-network/console/compare/provider-proxy/v1.19.0...provider-proxy/v1.20.0) (2025-10-08)
 
 

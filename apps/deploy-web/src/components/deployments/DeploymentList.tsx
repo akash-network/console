@@ -26,6 +26,7 @@ import { useLocalNotes } from "@src/context/LocalNoteProvider";
 import { useSettings } from "@src/context/SettingsProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { useListSelection } from "@src/hooks/useListSelection/useListSelection";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
 import { useDeploymentList } from "@src/queries/useDeploymentQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
@@ -49,7 +50,6 @@ export const DeploymentList: React.FunctionComponent = () => {
   const { getDeploymentName } = useLocalNotes();
   const [filteredDeployments, setFilteredDeployments] = useState<NamedDeploymentDto[] | null>(null);
   const [isFilteringActive, setIsFilteringActive] = useState(true);
-  const [selectedDeploymentDseqs, setSelectedDeploymentDseqs] = useState<string[]>([]);
   const { apiEndpoint } = settings;
   const [pageSize, setPageSize] = useState<number>(10);
   const orderedDeployments = filteredDeployments
@@ -63,6 +63,10 @@ export const DeploymentList: React.FunctionComponent = () => {
   const { closeDeploymentConfirm } = useManagedDeploymentConfirm();
   const [isSignedInWithTrial] = useAtom(walletStore.isSignedInWithTrial);
   const { user } = useCustomUser();
+
+  const { selectedItemIds, selectItem, clearSelection } = useListSelection<string>({
+    ids: currentPageDeployments.map(deployment => deployment.dseq)
+  });
 
   useEffect(() => {
     if (isWalletLoaded && isSettingsInit) {
@@ -110,33 +114,23 @@ export const DeploymentList: React.FunctionComponent = () => {
     setSearch(value);
   };
 
-  const onSelectDeployment = (checked: boolean, dseq: string) => {
-    setSelectedDeploymentDseqs(prev => {
-      return checked ? prev.concat([dseq]) : prev.filter(x => x !== dseq);
-    });
-  };
-
   const onCloseSelectedDeployments = async () => {
     try {
-      const isConfirmed = await closeDeploymentConfirm(selectedDeploymentDseqs);
+      const isConfirmed = await closeDeploymentConfirm(selectedItemIds);
 
       if (!isConfirmed) {
         return;
       }
 
-      const messages = selectedDeploymentDseqs.map(dseq => TransactionMessageData.getCloseDeploymentMsg(address, `${dseq}`));
+      const messages = selectedItemIds.map(dseq => TransactionMessageData.getCloseDeploymentMsg(address, `${dseq}`));
       const response = await signAndBroadcastTx(messages);
       if (response) {
         getDeployments();
-        setSelectedDeploymentDseqs([]);
+        clearSelection();
       }
     } catch (error) {
       console.log(error);
     }
-  };
-
-  const onClearSelection = () => {
-    setSelectedDeploymentDseqs([]);
   };
 
   const onDeployClick = () => {
@@ -170,22 +164,27 @@ export const DeploymentList: React.FunctionComponent = () => {
               </div>
             </div>
 
-            {selectedDeploymentDseqs.length > 0 && (
+            {selectedItemIds.length > 0 && (
               <>
                 <div className="md:ml-4">
                   <Button onClick={onCloseSelectedDeployments} color="secondary">
-                    Close selected ({selectedDeploymentDseqs.length})
+                    Close selected ({selectedItemIds.length})
                   </Button>
                 </div>
 
                 <div className="ml-4">
-                  <LinkTo onClick={onClearSelection}>Clear</LinkTo>
+                  <LinkTo onClick={clearSelection}>Clear</LinkTo>
                 </div>
               </>
             )}
 
             {(filteredDeployments?.length || 0) > 0 && (
-              <Link href={UrlService.newDeployment()} className={cn("ml-auto", buttonVariants({ variant: "default", size: "sm" }))} onClick={onDeployClick}>
+              <Link
+                href={UrlService.newDeployment()}
+                className={cn("ml-auto", buttonVariants({ variant: "default", size: "sm" }))}
+                aria-disabled={settings.isBlockchainDown}
+                onClick={onDeployClick}
+              >
                 Deploy
                 <Rocket className="ml-4 rotate-45 text-sm" />
               </Link>
@@ -291,8 +290,8 @@ export const DeploymentList: React.FunctionComponent = () => {
                   refreshDeployments={getDeployments}
                   providers={providers}
                   isSelectable
-                  onSelectDeployment={onSelectDeployment}
-                  checked={selectedDeploymentDseqs.includes(deployment.dseq)}
+                  onSelectDeployment={selectItem}
+                  checked={selectedItemIds.includes(deployment.dseq)}
                 />
               ))}
             </TableBody>

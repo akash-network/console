@@ -14,14 +14,14 @@ import { createAkashAddress } from "@test/seeders";
 describe(ProviderJwtTokenService.name, () => {
   describe("generateJwtToken", () => {
     it("should generate a JWT token successfully", async () => {
-      const { providerJwtTokenService, walletId, accessRules, jwtTokenValue, jwtToken, walletFactory, masterWalletMnemonic, jwtModule, akashWallet, address } =
+      const { providerJwtTokenService, walletId, accessRules, jwtTokenValue, jwtToken, walletFactory, masterWalletMnemonic, jwtModule, address, wallet } =
         setup();
 
       const result = await providerJwtTokenService.generateJwtToken({ walletId, leases: accessRules });
 
-      expect(result).toEqual(jwtTokenValue);
+      expect(result.unwrap()).toEqual(jwtTokenValue);
       expect(walletFactory).toHaveBeenCalledWith(masterWalletMnemonic, walletId);
-      expect(jwtModule.JwtTokenManager).toHaveBeenCalledWith(akashWallet);
+      expect(jwtModule.JwtTokenManager).toHaveBeenCalledWith(wallet);
       expect(jwtToken.generateToken).toHaveBeenCalledWith({
         version: "v1",
         exp: expect.any(Number),
@@ -40,7 +40,6 @@ describe(ProviderJwtTokenService.name, () => {
       await providerJwtTokenService.generateJwtToken({ walletId, leases: accessRules });
 
       expect(walletFactory).toHaveBeenCalledTimes(1);
-      expect(jwtModule.createSignArbitraryAkashWallet).toHaveBeenCalledTimes(1);
       expect(jwtModule.JwtTokenManager).toHaveBeenCalledTimes(1);
     });
 
@@ -74,20 +73,22 @@ describe(ProviderJwtTokenService.name, () => {
     const directSecp256k1HdWallet = mock<DirectSecp256k1HdWallet>();
     directSecp256k1HdWallet.getAccounts.mockResolvedValue([{ address, pubkey: new Uint8Array([1, 2, 3]), algo: "secp256k1" }]);
 
-    const wallet = mock<Wallet>();
-    wallet.getInstance.mockResolvedValue(directSecp256k1HdWallet);
+    const wallet = mock<Wallet>({
+      getInstance: jest.fn().mockResolvedValue(directSecp256k1HdWallet),
+      getFirstAddress: jest.fn().mockResolvedValue(address),
+      signAmino: jest.fn().mockResolvedValue({
+        signature: {
+          signature: "test-signature"
+        }
+      })
+    });
 
-    const akashWallet = {
-      address,
-      pubkey: new Uint8Array([1, 2, 3]),
-      signArbitrary: jest.fn().mockResolvedValue({ signature: "test-signature" })
-    };
-
-    const jwtToken = mock<JwtTokenManager>();
-    jwtToken.generateToken.mockImplementation(() => Promise.resolve(jwtTokenValue));
+    const jwtToken = mock<JwtTokenManager>({
+      validatePayload: jest.fn().mockReturnValue({ errors: undefined }),
+      generateToken: jest.fn().mockResolvedValue(jwtTokenValue)
+    });
 
     const jwtModule = mock<JWTModule>({
-      createSignArbitraryAkashWallet: jest.fn(async () => akashWallet),
       JwtTokenManager: jest.fn(() => jwtToken)
     });
 
@@ -116,7 +117,6 @@ describe(ProviderJwtTokenService.name, () => {
       jwtTokenValue,
       masterWalletMnemonic,
       jwtModule,
-      akashWallet,
       jwtToken,
       address,
       walletFactory,

@@ -12,7 +12,7 @@ describe(ConnectManagedWalletButton.name, () => {
     expect(getByText("Start Trial").parentElement).not.toHaveAttribute("disabled");
   });
 
-  it("renders button disabled when blockchain is down", () => {
+  it("renders button disabled when blockchain is unavailable", () => {
     const { getByText } = setup({ isBlockchainDown: true });
 
     expect(getByText("Start Trial").parentElement).toHaveAttribute("disabled");

@@ -21,10 +21,10 @@ import { CalendarArrowDown, Coins, Edit, MoreHoriz, NavArrowRight, Plus, Upload,
 import { keyBy } from "lodash";
 import { useRouter } from "next/navigation";
 
-import { useCertificate } from "@src/context/CertificateProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useManagedDeploymentConfirm } from "@src/hooks/useManagedDeploymentConfirm";
+import { useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { useRealTimeLeft } from "@src/hooks/useRealTimeLeft";
 import { useDenomData } from "@src/hooks/useWalletBalance";
 import { useAllLeases, useLeaseStatus } from "@src/queries/useLeaseQuery";
@@ -50,10 +50,10 @@ import { LeaseChip } from "./LeaseChip";
 type Props = {
   deployment: NamedDeploymentDto;
   isSelectable?: boolean;
-  onSelectDeployment?: (isChecked: boolean, dseq: string) => void;
+  onSelectDeployment?: ({ id, isShiftPressed }: { id: string; isShiftPressed: boolean }) => void;
   checked?: boolean;
   providers: Array<ApiProviderList> | undefined;
-  refreshDeployments: any;
+  refreshDeployments: () => void;
   children?: ReactNode;
 };
 
@@ -84,8 +84,8 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const providersByOwner = useMemo(() => keyBy(providers, p => p.owner), [providers]);
   const lease = filteredLeases?.find(lease => !!(lease?.provider && providersByOwner[lease.provider]));
   const provider = providersByOwner[lease?.provider || ""];
-  const { localCert } = useCertificate();
-  const { data: leaseStatus } = useLeaseStatus({ provider, lease, enabled: !!(provider && lease && localCert) });
+  const providerCredentials = useProviderCredentials();
+  const { data: leaseStatus } = useLeaseStatus({ provider, lease, enabled: !!(provider && lease && providerCredentials.details.usable) });
   const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
 
   const viewDeployment = useCallback(
@@ -132,7 +132,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     const response = await signAndBroadcastTx([message]);
     if (response) {
       if (onSelectDeployment) {
-        onSelectDeployment(false, deployment.dseq);
+        onSelectDeployment({ id: deployment.dseq, isShiftPressed: false });
       }
 
       refreshDeployments();
@@ -294,11 +294,10 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
             {isSelectable && (
               <Checkbox
                 checked={checked}
+                expandedTouchTarget={true}
                 onClick={event => {
                   event.stopPropagation();
-                }}
-                onCheckedChange={value => {
-                  onSelectDeployment && onSelectDeployment(value as boolean, deployment.dseq);
+                  onSelectDeployment?.({ id: deployment.dseq, isShiftPressed: event.shiftKey });
                 }}
               />
             )}

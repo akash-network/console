@@ -1,5 +1,26 @@
 
 
+## [1.33.1](https://github.com/akash-network/console/compare/notifications/v1.33.0...notifications/v1.33.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* **observability:** adds fatal method to the logger ([d89872c](https://github.com/akash-network/console/commit/d89872cd2824310a7a332e41ee8a42657c196b6e)), closes [#2087](https://github.com/akash-network/console/issues/2087)
+
+## [1.33.0](https://github.com/akash-network/console/compare/notifications/v1.32.0...notifications/v1.33.0) (2025-10-17)
+
+
+### Features
+
+* **network:** adjusts indexer for sdk53 network upgrade ([dfc7d05](https://github.com/akash-network/console/commit/dfc7d05123a52470fb527908c935c1ee12f66da5))
+
+## [1.32.0](https://github.com/akash-network/console/compare/notifications/v1.31.0...notifications/v1.32.0) (2025-10-10)
+
+
+### Features
+
+* **config:** uses correct sdk53 testnet config ([4ce80e5](https://github.com/akash-network/console/commit/4ce80e5fd7a5dc7dc6fb0d4f8b3ae34b7b7eef13))
+
 ## [1.31.0](https://github.com/akash-network/console/compare/notifications/v1.30.0...notifications/v1.31.0) (2025-10-08)
 
 

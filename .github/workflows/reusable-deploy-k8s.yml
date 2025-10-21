@@ -16,6 +16,7 @@ on:
         type: choice
         options:
           - console-web
+          - console-web-testnet
           - console-api
           - indexer
           - notifications
@@ -35,6 +36,7 @@ on:
           - NA
           - mainnet
           - sandbox
+          - testnet
       skip_beta_deployment_check:
         type: boolean
         required: false
@@ -43,6 +45,12 @@ on:
           Bypass beta deployment check.
           Use with caution — this will deploy directly to production without verifying the beta environment.
           Skipping this check may result in deploying an unstable version with potential bugs.
+      force-rollout:
+        type: boolean
+        required: false
+        default: false
+        description: >-
+          Force a Kubernetes rollout restart even if the Deployment spec is unchanged.
 
   workflow_call:
     inputs:
@@ -62,6 +70,20 @@ on:
         description: "The chain to deploy to"
         required: false
         type: string
+      skip_beta_deployment_check:
+        type: boolean
+        required: false
+        default: false
+        description: >-
+          Bypass beta deployment check.
+          Use with caution — this will deploy directly to production without verifying the beta environment.
+          Skipping this check may result in deploying an unstable version with potential bugs.
+      force-rollout:
+        type: boolean
+        required: false
+        default: false
+        description: >-
+          Force a Kubernetes rollout restart even if the Deployment spec is unchanged.
 
 jobs:
   beta-deployment-status:
@@ -105,7 +127,7 @@ jobs:
 
           echo "## Deployment status" >> "$GITHUB_STEP_SUMMARY"
 
-          if [[ "$environment" != "prod" || ! -f ".github/workflows/$workflow_name" ]]; then
+          if [[ "$environment" != "prod" || ! -f ".github/workflows/$workflow_name" || "$skip_beta_deployment_check" == "true" ]]; then
             echo "Beta deployment check skipped because the environment is not production or the workflow file does not exist." >> "$GITHUB_STEP_SUMMARY"
             echo "can_deploy=true" >> "$GITHUB_OUTPUT"
             exit 0
@@ -148,7 +170,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: beta-deployment-status
-    if: needs.beta-deployment-status.outputs.can_deploy == 'true'
+    if: needs.beta-deployment-status.outputs.can_deploy == 'true' || inputs.skip_beta_deployment_check == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -221,6 +243,8 @@ jobs:
             values_file_path="${values_file_path}-${{ inputs.chain }}"
           fi
 
+          echo "release_name=$release_name" >> "$GITHUB_ENV"
+
           values_file_path="${values_file_path}-values.yaml"
 
           if [ -f "$values_file_path" ]; then
@@ -234,3 +258,10 @@ jobs:
           echo "executing: helm upgrade $release_name $chart_name --install --atomic -n ${{ inputs.environment }} --set appVersion=${{ inputs.appVersion }} --debug --kubeconfig kubeconfig $values_file_arg"
           # shellcheck disable=SC2086
           helm upgrade "$release_name" "$chart_name" --install --atomic -n "${{ inputs.environment }}" --set "appVersion=${{ inputs.appVersion }}" --debug --kubeconfig kubeconfig $values_file_arg
+
+          echo "release_name=$release_name" >> "$GITHUB_ENV"
+
+      - name: Force rollout (restart pods even if spec unchanged)
+        if: success() && inputs.force-rollout
+        run: |
+          kubectl --kubeconfig kubeconfig -n "${{ inputs.environment }}" rollout restart deploy "${{ env.release_name }}"

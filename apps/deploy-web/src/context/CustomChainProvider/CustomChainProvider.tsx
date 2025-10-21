@@ -4,13 +4,12 @@ import "@interchain-ui/react/globalStyles";
 
 import { useEffect } from "react";
 import { GasPrice } from "@cosmjs/stargate";
-import type { WalletModalProps } from "@cosmos-kit/core";
+import type { ChainContext, WalletModalProps } from "@cosmos-kit/core";
 import { wallets as metamask } from "@cosmos-kit/cosmos-extension-metamask";
 import { wallets as cosmostation } from "@cosmos-kit/cosmostation-extension";
 import { wallets as keplr } from "@cosmos-kit/keplr";
 import { wallets as leap } from "@cosmos-kit/leap";
-import { ChainProvider, DefaultModal } from "@cosmos-kit/react";
-import { useChain } from "@cosmos-kit/react";
+import { ChainProvider, DefaultModal, useChain } from "@cosmos-kit/react";
 import { useAtom } from "jotai";
 
 import { akash, akashSandbox, akashTestnet, assetLists } from "@src/chains";
@@ -63,7 +62,8 @@ export function CustomChainProvider({ children }: Props) {
   );
 }
 
-export function useSelectedChain() {
+export type { ChainContext };
+export function useSelectedChain(): ChainContext {
   const { chainRegistryName } = networkStore.useSelectedNetwork();
   return useChain(chainRegistryName);
 }

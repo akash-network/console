@@ -20,7 +20,7 @@ export async function getGenesis(): Promise<IGenesis> {
 
   if (ext === ".gz") {
     console.log("Extracting genesis file...");
-    const decompressed = await ungzip(fs.readFileSync(genesisLocalPath).buffer);
+    const decompressed = await ungzip(fs.readFileSync(genesisLocalPath));
     genesisLocalPath = genesisLocalPath.replace(".gz", "");
     fs.writeFileSync(genesisLocalPath, decompressed);
   }

@@ -6,7 +6,7 @@ import type { Config } from "../../config";
 import { config as envConfig } from "../../config";
 import { collectFullErrorStack } from "../../utils/collect-full-error-stack/collect-full-error-stack";
 
-export interface Logger extends Pick<pino.Logger, "info" | "error" | "warn" | "debug"> {
+export interface Logger extends Pick<pino.Logger, "info" | "error" | "warn" | "debug" | "fatal"> {
   setContext(context: string): void;
   log: pino.Logger["info"];
 }
@@ -106,6 +106,10 @@ export class LoggerService implements Logger {
 
   error(message: any): void {
     this.pino.error(this.toLoggableInput(message));
+  }
+
+  fatal(message: any): void {
+    this.pino.fatal(this.toLoggableInput(message));
   }
 
   warn(message: any): void {

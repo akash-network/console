@@ -1,5 +1,52 @@
 
 
+## [2.127.1](https://github.com/akash-network/console/compare/console-api/v2.127.0...console-api/v2.127.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* **observability:** adds fatal method to the logger ([d89872c](https://github.com/akash-network/console/commit/d89872cd2824310a7a332e41ee8a42657c196b6e)), closes [#2087](https://github.com/akash-network/console/issues/2087)
+
+## [2.127.0](https://github.com/akash-network/console/compare/console-api/v2.126.1...console-api/v2.127.0) (2025-10-17)
+
+
+### Features
+
+* **network:** adjusts indexer for sdk53 network upgrade ([dfc7d05](https://github.com/akash-network/console/commit/dfc7d05123a52470fb527908c935c1ee12f66da5))
+
+
+### Bug Fixes
+
+* chain api fallback to indexer ([#2070](https://github.com/akash-network/console/issues/2070)) ([43186ae](https://github.com/akash-network/console/commit/43186ae7195d606ac1561d409f8b5d28ba65875b))
+
+## [2.126.1](https://github.com/akash-network/console/compare/console-api/v2.126.0...console-api/v2.126.1) (2025-10-15)
+
+
+### Code Refactoring
+
+* migrates jwt signing in accordance to chain-sdk ([#2049](https://github.com/akash-network/console/issues/2049)) ([9b950c4](https://github.com/akash-network/console/commit/9b950c4609ef3757d6aa8e2e6741da2e950ff1e0))
+
+## [2.126.0](https://github.com/akash-network/console/compare/console-api/v2.125.0...console-api/v2.126.0) (2025-10-14)
+
+
+### Features
+
+* adds support for jwt token in offline mode ([#2036](https://github.com/akash-network/console/issues/2036)) ([3c9b8f3](https://github.com/akash-network/console/commit/3c9b8f3c09610b666bd556ee1714d3b83db30c39))
+* **billing:** searches existing payment methods only if provided fingerprints ([66bc9cf](https://github.com/akash-network/console/commit/66bc9cf1a5f7e79adfea4d3d2edd25ab48edaf8d))
+
+## [2.125.0](https://github.com/akash-network/console/compare/console-api/v2.124.0...console-api/v2.125.0) (2025-10-10)
+
+
+### Features
+
+* **config:** uses correct sdk53 testnet config ([4ce80e5](https://github.com/akash-network/console/commit/4ce80e5fd7a5dc7dc6fb0d4f8b3ae34b7b7eef13))
+* expose jwt generation for managed wallets ([#2019](https://github.com/akash-network/console/issues/2019)) ([b905f3b](https://github.com/akash-network/console/commit/b905f3b7bc9a5c8952265383958153edd8017119))
+
+
+### Bug Fixes
+
+* **onboarding:** properly handles a non-registered user during email validation ([81a7979](https://github.com/akash-network/console/commit/81a797944ca0b373229cb948411b6828a2798c74)), closes [#1972](https://github.com/akash-network/console/issues/1972)
+
 ## [2.124.0](https://github.com/akash-network/console/compare/console-api/v2.123.0...console-api/v2.124.0) (2025-10-08)
 
 
