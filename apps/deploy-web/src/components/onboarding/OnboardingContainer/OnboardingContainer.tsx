@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
 import { usePaymentMethodsQuery } from "@src/queries/usePaymentQueries";
 import { ONBOARDING_STEP_KEY } from "@src/services/storage/keys";
@@ -34,7 +35,8 @@ const DEPENDENCIES = {
   useUser,
   usePaymentMethodsQuery,
   useServices,
-  useRouter
+  useRouter,
+  useWallet
 };
 
 export const OnboardingContainer: React.FunctionComponent<OnboardingContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
@@ -45,6 +47,14 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const { user } = d.useUser();
   const { data: paymentMethods = [] } = d.usePaymentMethodsQuery({ enabled: !!user?.stripeCustomerId });
   const { analyticsService, urlService, authService } = d.useServices();
+  const { hasManagedWallet, isWalletLoading, connectManagedWallet } = d.useWallet();
+
+  useEffect(() => {
+    const savedStep = localStorage.getItem(ONBOARDING_STEP_KEY);
+    if (!isWalletLoading && hasManagedWallet && !savedStep) {
+      router.replace("/");
+    }
+  }, [isWalletLoading, hasManagedWallet, router]);
 
   useEffect(() => {
     const savedStep = localStorage.getItem(ONBOARDING_STEP_KEY);
@@ -116,7 +126,8 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const handleComplete = useCallback(() => {
     localStorage.removeItem(ONBOARDING_STEP_KEY);
     router.push("/");
-  }, [router]);
+    connectManagedWallet();
+  }, [router, connectManagedWallet]);
 
   const handleStartTrial = useCallback(() => {
     analyticsService.track("onboarding_free_trial_started", {
@@ -125,8 +136,18 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
 
     handleStepComplete(OnboardingStepIndex.FREE_TRIAL);
 
-    authService.signup({ returnTo: `${window.location.origin}${urlService.onboarding(true)}` });
-  }, [analyticsService, handleStepComplete, urlService]);
+    if (user?.userId) {
+      if (user.emailVerified) {
+        setCompletedSteps(prev => new Set([...prev, OnboardingStepIndex.SIGNUP, OnboardingStepIndex.EMAIL_VERIFICATION]));
+        handleStepChange(OnboardingStepIndex.PAYMENT_METHOD);
+      } else {
+        setCompletedSteps(prev => new Set([...prev, OnboardingStepIndex.SIGNUP]));
+        handleStepChange(OnboardingStepIndex.EMAIL_VERIFICATION);
+      }
+    } else {
+      authService.signup({ returnTo: `${window.location.origin}${urlService.onboarding(true)}` });
+    }
+  }, [analyticsService, handleStepComplete, urlService, user, handleStepChange, authService]);
 
   const handlePaymentMethodComplete = useCallback(() => {
     if (paymentMethods.length > 0) {
