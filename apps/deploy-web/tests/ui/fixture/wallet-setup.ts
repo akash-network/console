@@ -61,7 +61,6 @@ export async function getExtensionPageAndUrl(context: BrowserContext, extensionI
 }
 
 export async function setupWallet(context: BrowserContext, page: Page) {
-  console.log("Setting up wallet");
   const wallet = await importWalletToLeap(context, page);
   await restoreExtensionStorage(page);
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -126,20 +125,15 @@ async function importWalletToLeap(context: BrowserContext, page: Page) {
   try {
     selectors.setTestIdAttribute("data-testing-id");
 
-    console.log("Clicking 'Import an existing wallet'");
     await page.getByText("Import an existing wallet").click();
     await wait(1000);
 
-    // Click "Use recovery phrase"
     const recoveryPhraseButton = page.getByText(/recovery phrase|secret phrase/i);
     if (await recoveryPhraseButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      console.log("Clicking recovery phrase option");
       await recoveryPhraseButton.click();
       await wait(500);
     }
 
-    // Fill in the mnemonic
-    console.log("Entering mnemonic");
     for (let i = 0; i < mnemonicWords.length; i++) {
       const word = mnemonicWords[i];
       const focusedInput = page.locator("*:focus");
@@ -151,66 +145,46 @@ async function importWalletToLeap(context: BrowserContext, page: Page) {
 
     await wait(500);
 
-    // Click Import button
     const importButton = page.getByRole("button", { name: /import|continue|next/i });
-    console.log("Clicking import button");
     await importButton.click();
     await wait(1000);
 
-    // Wait for the wallet selection screen to be fully loaded
-    console.log("Waiting for wallet selection screen");
     await page.waitForSelector('[data-testing-id^="wallet-"]', { state: "visible", timeout: 10000 });
-    await wait(1000); // Extra wait for any animations to complete
+    await wait(1000);
 
-    // Find all available wallets (they may have any number: wallet-1, wallet-2, wallet-3, wallet-4, etc.)
     const allWallets = await page.locator('[data-testing-id^="wallet-"]').all();
-    console.log(`Found ${allWallets.length} wallet options`);
 
     if (allWallets.length < 2) {
       throw new Error(`Not enough wallets to select. Found: ${allWallets.length}, need at least 2`);
     }
 
-    // Select the first two wallets by clicking their labels
-    // The data-testing-id is on the label element, which contains a button with role="checkbox"
     for (let i = 0; i < Math.min(2, allWallets.length); i++) {
       const wallet = allWallets[i];
-      const testId = await wallet.getAttribute("data-testing-id");
-      console.log(`Selecting wallet ${i + 1}: ${testId}`);
 
-      // Simply click the label to toggle the checkbox if not already selected
       const isChecked = await wallet.getByRole("checkbox").getAttribute("aria-checked");
-      console.log(`  Current checked state: ${isChecked}`);
+
       if (isChecked === "true") {
-        console.log("  Already selected, skipping click");
         continue;
       }
 
-      // Click the label to select the wallet
       await wallet.click({ force: true });
       await wait(500);
     }
 
     await wait(1000);
 
-    // Click proceed
     await page.getByTestId("btn-select-wallet-proceed").click();
     await wait(1000);
 
-    // Set password
-    console.log("Setting password");
     await page.getByTestId("input-password").fill(WALLET_PASSWORD);
     await page.getByTestId("input-confirm-password").fill(WALLET_PASSWORD);
     await page.getByTestId("btn-password-proceed").click();
 
-    // Wait for wallet creation
-    console.log("Waiting for wallet creation to complete...");
     await wait(5000);
 
-    // Check if we're on the success screen
     const getStartedButton = page.getByRole("button", { name: /get started/i });
-    if (await getStartedButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      console.log("Found 'Get started' button - wallet setup complete");
-    }
+
+    await getStartedButton.isVisible({ timeout: 3000 }).catch(() => false);
 
     await page.waitForLoadState("domcontentloaded");
 
