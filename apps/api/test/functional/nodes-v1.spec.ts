@@ -51,7 +51,7 @@ describe("Nodes API", () => {
 
   describe("GET /version/{network}", () => {
     it.each(["mainnet", "sandbox", "testnet"])("should return %s node version", async network => {
-      const version = `v${faker.number.int()}.${faker.number.int()}.${faker.number.int()}`;
+      const version = `v${faker.number.int({ min: 0, max: 10 })}.${faker.number.int({ min: 0, max: 10 })}.${faker.number.int({ min: 0, max: 10 })}`;
       interceptor
         .get(`/net/master/${netConfig.mapped(network)}/version.txt`)
         .times(1)
