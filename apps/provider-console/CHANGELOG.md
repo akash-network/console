@@ -1,5 +1,12 @@
 
 
+## [1.27.1](https://github.com/akash-network/console/compare/provider-console/v1.27.0...provider-console/v1.27.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* checkbox can optionally have a larger clickable wrapper  ([e3c51dd](https://github.com/akash-network/console/commit/e3c51ddd7e1fa25d5933ad4dd5b8b58d9ac23a34)), closes [#1981](https://github.com/akash-network/console/issues/1981)
+
 ## [1.27.0](https://github.com/akash-network/console/compare/provider-console/v1.26.0...provider-console/v1.27.0) (2025-10-17)
 
 
