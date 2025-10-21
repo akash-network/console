@@ -144,6 +144,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
                     step={0.000001}
                     max={denomData?.max}
                     startIcon={<span className="pl-2 text-xs">{denomData?.label}</span>}
+                    aria-label="Spending Limit"
                   />
                 );
               }}
@@ -155,7 +156,7 @@ export const AllowanceModal: React.FunctionComponent<Props> = ({ editingAllowanc
               control={control}
               name="granteeAddress"
               render={({ field }) => {
-                return <FormInput {...field} type="text" label="Grantee Address" disabled={!!editingAllowance} />;
+                return <FormInput {...field} type="text" label="Grantee Address" disabled={!!editingAllowance} aria-label="Grantee Address" />;
               }}
             />
           </div>

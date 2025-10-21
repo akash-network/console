@@ -223,7 +223,7 @@ export const Authorizations: React.FunctionComponent = () => {
             headerActions={
               address && (
                 <div className="md:ml-4">
-                  <Button onClick={onCreateNewGrant} color="secondary" variant="default" type="button" size="sm">
+                  <Button onClick={onCreateNewGrant} color="secondary" variant="default" type="button" size="sm" aria-label="Authorize Spend">
                     <Bank />
                     &nbsp;Authorize Spend
                   </Button>
@@ -335,7 +335,15 @@ export const Authorizations: React.FunctionComponent = () => {
             <div className="flex flex-wrap items-center py-4">
               <Title>Tx Fee Authorizations</Title>
               {address && (
-                <Button onClick={onCreateNewAllowance} color="secondary" variant="default" className="md:ml-4" type="button" size="sm">
+                <Button
+                  onClick={onCreateNewAllowance}
+                  color="secondary"
+                  variant="default"
+                  className="md:ml-4"
+                  type="button"
+                  size="sm"
+                  aria-label="Authorize Fee Spend"
+                >
                   <Bank />
                   &nbsp;Authorize Fee Spend
                 </Button>
