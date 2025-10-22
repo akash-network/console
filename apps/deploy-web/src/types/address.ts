@@ -46,5 +46,5 @@ export interface Balances {
   deploymentGrantsUAKT: number;
   deploymentGrantsUUSDC: number;
   activeDeployments: DeploymentDto[];
-  deploymentGrant?: ExactDepositDeploymentGrant;
+  deploymentGrants: ExactDepositDeploymentGrant[];
 }

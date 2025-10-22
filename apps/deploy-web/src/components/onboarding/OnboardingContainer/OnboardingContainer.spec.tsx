@@ -96,13 +96,41 @@ describe("OnboardingContainer", () => {
     });
   });
 
-  it("should redirect to home when onboarding is completed", () => {
-    const { child, mockRouter } = setup();
+  it("should redirect to home and connect managed wallet when onboarding is completed", () => {
+    const { child, mockRouter, mockConnectManagedWallet } = setup();
 
     const { onComplete } = child.mock.calls[0][0];
     onComplete();
 
     expect(mockRouter.push).toHaveBeenCalledWith("/");
+    expect(mockConnectManagedWallet).toHaveBeenCalled();
+  });
+
+  it("should redirect to home when user has managed wallet and no saved step", async () => {
+    const { mockRouter } = setup({
+      wallet: { hasManagedWallet: true, isWalletLoading: false }
+    });
+
+    // Wait for the useEffect to run
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(mockRouter.replace).toHaveBeenCalledWith("/");
+  });
+
+  it("should not redirect when user has managed wallet but has saved step", async () => {
+    const { mockRouter } = setup({
+      wallet: { hasManagedWallet: true, isWalletLoading: false },
+      savedStep: "2"
+    });
+
+    // Wait for the useEffect to run
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(mockRouter.replace).not.toHaveBeenCalled();
   });
 
   it("should handle fromSignup URL parameter", async () => {
@@ -135,13 +163,20 @@ describe("OnboardingContainer", () => {
 
   function setup(
     input: {
-      paymentMethods?: any[];
-      user?: any;
+      paymentMethods?: Array<{ id: string; type: string }>;
+      user?: { emailVerified?: boolean; userId?: string };
+      wallet?: { hasManagedWallet?: boolean; isWalletLoading?: boolean };
       windowLocation?: Partial<Location>;
       windowHistory?: Partial<History>;
+      savedStep?: string;
     } = {}
   ) {
     jest.clearAllMocks();
+
+    // Mock localStorage using jest-mock-extended
+    const mockLocalStorage = mock<Storage>({
+      getItem: jest.fn().mockReturnValue(input.savedStep || null)
+    });
 
     // Store original window objects
     const originalLocation = window.location;
@@ -175,6 +210,7 @@ describe("OnboardingContainer", () => {
     const mockAnalyticsService = mock<AnalyticsService>();
     const mockRouter = mock<Router>();
     const authService = mock<AuthService>();
+    const mockConnectManagedWallet = jest.fn();
 
     const mockUrlService = {
       ...UrlService,
@@ -190,13 +226,20 @@ describe("OnboardingContainer", () => {
       authService
     });
     const mockUseRouter = jest.fn().mockReturnValue(mockRouter);
+    const mockUseWallet = jest.fn().mockReturnValue({
+      hasManagedWallet: input.wallet?.hasManagedWallet || false,
+      isWalletLoading: input.wallet?.isWalletLoading || false,
+      connectManagedWallet: mockConnectManagedWallet
+    });
 
     // Create dependencies object
     const dependencies = {
       useUser: mockUseUser,
       usePaymentMethodsQuery: mockUsePaymentMethodsQuery,
       useServices: mockUseServices,
-      useRouter: mockUseRouter
+      useRouter: mockUseRouter,
+      useWallet: mockUseWallet,
+      localStorage: mockLocalStorage
     };
 
     const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);
@@ -225,6 +268,8 @@ describe("OnboardingContainer", () => {
       mockUsePaymentMethodsQuery,
       mockUseServices,
       mockUseRouter,
+      mockConnectManagedWallet,
+      mockLocalStorage,
       cleanup
     };
   }

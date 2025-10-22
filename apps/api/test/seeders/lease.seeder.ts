@@ -11,6 +11,7 @@ export const createLease = async (overrides: Partial<CreationAttributes<Lease>> 
     dseq: overrides.dseq || faker.string.numeric(20),
     oseq: overrides.oseq || faker.number.int({ min: 1, max: 100 }),
     gseq: overrides.gseq || faker.number.int({ min: 1, max: 100 }),
+    bseq: overrides.bseq || faker.number.int({ min: 0, max: 100 }),
     providerAddress: overrides.providerAddress || faker.string.alphanumeric(44),
     createdHeight: overrides.createdHeight || faker.number.int({ min: 1, max: 10000000 }),
     closedHeight: overrides.closedHeight,

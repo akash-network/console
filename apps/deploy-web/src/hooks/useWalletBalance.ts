@@ -47,10 +47,11 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
         (acc, d) => acc + d.escrowAccount.state.funds.reduce((fundAcc, fund) => fundAcc + udenomToUsd(fund.amount, fund.denom), 0),
         0
       );
-      const { deploymentGrant } = balances;
-      const totalDeploymentGrantsUSD = deploymentGrant
-        ? udenomToUsd(deploymentGrant.authorization.spend_limit.amount, deploymentGrant.authorization.spend_limit.denom)
-        : 0;
+      const { deploymentGrants } = balances;
+      const totalDeploymentGrantsUSD = deploymentGrants.reduce(
+        (sum, grant) => sum + udenomToUsd(grant.authorization.spend_limit.amount, grant.authorization.spend_limit.denom),
+        0
+      );
 
       setWalletBalance({
         totalUsd: aktUsdValue + totalUsdcValue + totalDeploymentEscrowUSD + totalDeploymentGrantsUSD,

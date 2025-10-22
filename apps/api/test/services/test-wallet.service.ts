@@ -143,9 +143,9 @@ export class TestWalletService {
       const response = await fetch(config!.FAUCET_URL, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/x-www-form-urlencoded"
         },
-        body: JSON.stringify({ address })
+        body: `address=${encodeURIComponent(address)}`
       });
       if (response.status >= 300 || response.status < 200) {
         this.log(`Unable to top up wallet with faucet. Response: ${response.status}`);
