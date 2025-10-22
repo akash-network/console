@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
-import { uniq } from "lodash";
+import intersection from "lodash/intersection";
+import uniq from "lodash/uniq";
 
 export type UseListSelectionProps<T> = {
   ids: T[];
@@ -37,19 +38,16 @@ export const useListSelection = <T>({ ids }: UseListSelectionProps<T>) => {
     [ids, isBetweenIds]
   );
 
-  const toggleSingleSelection = useCallback(
-    (id: T) => {
-      setSelectedItemIds(prev => {
-        const isAdding = !prev.includes(id);
-        if (isAdding) {
-          setIntervalSelectionAnchor(id);
-        }
+  const toggleSingleSelection = useCallback((id: T) => {
+    setSelectedItemIds(prev => {
+      const isAdding = !prev.includes(id);
+      if (isAdding) {
+        setIntervalSelectionAnchor(id);
+      }
 
-        return isAdding ? [...prev, id] : prev.filter(x => x !== id);
-      });
-    },
-    []
-  );
+      return isAdding ? [...prev, id] : prev.filter(x => x !== id);
+    });
+  }, []);
 
   const changeMultipleSelection = useCallback(
     (id: T) => {
@@ -82,13 +80,17 @@ export const useListSelection = <T>({ ids }: UseListSelectionProps<T>) => {
     setSelectedItemIds([]);
   }, []);
 
+  const validSelectedItemIds = useMemo(() => {
+    return intersection(ids, selectedItemIds);
+  }, [ids, selectedItemIds]);
+
   return useMemo(
     () => ({
-      selectedItemIds,
+      selectedItemIds: validSelectedItemIds,
       selectItem,
       clearSelection,
       setSelectedItemIds
     }),
-    [selectedItemIds, selectItem, clearSelection]
+    [validSelectedItemIds, selectItem, clearSelection]
   );
 };
