@@ -31,12 +31,12 @@ export const ConnectManagedWalletButton: React.FunctionComponent<Props> = ({ cla
   const router = d.useRouter();
 
   const startTrial: React.MouseEventHandler = useCallback(() => {
-    if (allowAnonymousUserTrial) {
+    if (allowAnonymousUserTrial || hasManagedWallet) {
       connectManagedWallet();
     } else {
       router.push(UrlService.onboarding());
     }
-  }, [connectManagedWallet, allowAnonymousUserTrial, router]);
+  }, [connectManagedWallet, allowAnonymousUserTrial, router, hasManagedWallet]);
 
   return (
     <Button
