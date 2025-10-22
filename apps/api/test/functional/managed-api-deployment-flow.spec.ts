@@ -393,22 +393,6 @@ describe("Managed Wallet API Deployment Flow", () => {
         akashVersion: "0.6.11-rc1",
         hostUri: "https://provider.europlots-sandbox.com:8443"
       };
-      // TODO: Remove this once the testnet branch is merged
-      // const AKASH_MULTI_PROVIDER = {
-      //   owner: "akash18rcjwx8x8cqmfr6fr4wu6pm83ngfyz8feq5pju",
-      //   akashVersion: "v0.10.0-rc12",
-      //   hostUri: "https://provider.multi.test.akashgpu.com:8443"
-      // };
-      // const AKASH_T4_PROVIDER = {
-      //   owner: "akash1g0f8qsqhxq4sfrnmcxhkg9gqd25atc4hhv5p85",
-      //   akashVersion: "0.8.3-rc10",
-      //   hostUri: "https://provider.t4.akashgpu.com:8443"
-      // };
-      // const AKASH_TEST_PROVIDER = {
-      //   owner: "akash1atnytt5gvsk4gh9tupcy4dv45gcy00kjrujmxe",
-      //   akashVersion: "0.8.3-rc10",
-      //   hostUri: "https://provider.test.akashgpu.com:8443"
-      // };
       await Promise.all([AKASH_SANDBOX_PROVIDER, AKASH_EUROPLOTS_PROVIDER].map(async provider => createProvider(provider)));
     } catch (e) {
       if (!(e instanceof Error && e.name === "SequelizeUniqueConstraintError")) {
