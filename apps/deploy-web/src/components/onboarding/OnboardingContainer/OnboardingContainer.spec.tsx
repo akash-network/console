@@ -173,15 +173,9 @@ describe("OnboardingContainer", () => {
   ) {
     jest.clearAllMocks();
 
-    // Mock localStorage
-    const mockLocalStorage = {
-      getItem: jest.fn().mockReturnValue(input.savedStep || null),
-      setItem: jest.fn(),
-      removeItem: jest.fn()
-    };
-    Object.defineProperty(window, "localStorage", {
-      value: mockLocalStorage,
-      writable: true
+    // Mock localStorage using jest-mock-extended
+    const mockLocalStorage = mock<Storage>({
+      getItem: jest.fn().mockReturnValue(input.savedStep || null)
     });
 
     // Store original window objects
@@ -244,7 +238,8 @@ describe("OnboardingContainer", () => {
       usePaymentMethodsQuery: mockUsePaymentMethodsQuery,
       useServices: mockUseServices,
       useRouter: mockUseRouter,
-      useWallet: mockUseWallet
+      useWallet: mockUseWallet,
+      localStorage: mockLocalStorage
     };
 
     const mockChildren = jest.fn().mockReturnValue(<div>Test</div>);
@@ -274,6 +269,7 @@ describe("OnboardingContainer", () => {
       mockUseServices,
       mockUseRouter,
       mockConnectManagedWallet,
+      mockLocalStorage,
       cleanup
     };
   }

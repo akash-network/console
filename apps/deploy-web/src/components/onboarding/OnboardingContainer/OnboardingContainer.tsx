@@ -36,7 +36,8 @@ const DEPENDENCIES = {
   usePaymentMethodsQuery,
   useServices,
   useRouter,
-  useWallet
+  useWallet,
+  localStorage: window.localStorage
 };
 
 export const OnboardingContainer: React.FunctionComponent<OnboardingContainerProps> = ({ children, dependencies: d = DEPENDENCIES }) => {
@@ -50,14 +51,14 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   const { hasManagedWallet, isWalletLoading, connectManagedWallet } = d.useWallet();
 
   useEffect(() => {
-    const savedStep = localStorage.getItem(ONBOARDING_STEP_KEY);
+    const savedStep = d.localStorage.getItem(ONBOARDING_STEP_KEY);
     if (!isWalletLoading && hasManagedWallet && !savedStep) {
       router.replace("/");
     }
-  }, [isWalletLoading, hasManagedWallet, router]);
+  }, [isWalletLoading, hasManagedWallet, router, d.localStorage]);
 
   useEffect(() => {
-    const savedStep = localStorage.getItem(ONBOARDING_STEP_KEY);
+    const savedStep = d.localStorage.getItem(ONBOARDING_STEP_KEY);
     if (savedStep) {
       const step = parseInt(savedStep, 10);
       if (step >= 0 && step < Object.keys(OnboardingStepIndex).length / 2) {
@@ -74,13 +75,13 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
 
       setCompletedSteps(prev => new Set([...prev, OnboardingStepIndex.SIGNUP]));
       setCurrentStep(OnboardingStepIndex.EMAIL_VERIFICATION);
-      localStorage.setItem(ONBOARDING_STEP_KEY, OnboardingStepIndex.EMAIL_VERIFICATION.toString());
+      d.localStorage.setItem(ONBOARDING_STEP_KEY, OnboardingStepIndex.EMAIL_VERIFICATION.toString());
 
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete("fromSignup");
       window.history.replaceState({}, "", newUrl.toString());
     }
-  }, [analyticsService]);
+  }, [analyticsService, d.localStorage]);
 
   const handleStepChange = useCallback(
     (step: number) => {
@@ -104,9 +105,9 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
       });
 
       setCurrentStep(step);
-      localStorage.setItem(ONBOARDING_STEP_KEY, step.toString());
+      d.localStorage.setItem(ONBOARDING_STEP_KEY, step.toString());
     },
-    [currentStep, user?.emailVerified, paymentMethods.length, analyticsService]
+    [currentStep, user?.emailVerified, paymentMethods.length, analyticsService, d.localStorage]
   );
 
   const handleStepComplete = useCallback(
@@ -124,10 +125,10 @@ export const OnboardingContainer: React.FunctionComponent<OnboardingContainerPro
   );
 
   const handleComplete = useCallback(() => {
-    localStorage.removeItem(ONBOARDING_STEP_KEY);
+    d.localStorage.removeItem(ONBOARDING_STEP_KEY);
     router.push("/");
     connectManagedWallet();
-  }, [router, connectManagedWallet]);
+  }, [router, connectManagedWallet, d.localStorage]);
 
   const handleStartTrial = useCallback(() => {
     analyticsService.track("onboarding_free_trial_started", {
