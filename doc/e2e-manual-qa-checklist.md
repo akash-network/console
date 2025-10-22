@@ -437,29 +437,46 @@ Most operations need to be tested for both wallet types:
 
 #### F2. **Notification Channels**
 
+- [ ] **Initial Notification Channel Creation Based On Account Email**
+  - [ ] User creates a deployment
+  - [ ] User navigates to Alerts tab on the deployment details page
+  - [ ] User sees two buttons: Add notification channel and Use my account email
+  - [ ] User clicks Use my account email
+  - [ ] Alert forms appear with Primary account email option pre-selected as Notification channel
+  - [ ] User navigates to Alerts from the sidebar
+  - [ ] User navigates to Notification Channels tab
+  - [ ] Primary account email notification channel should be present
+  - [ ] User clicks edit icon
+  - [ ] Emails value should be equal to user registration email
+
+- [ ] **Initial Custom Notification Channel Creation**
+  - [ ] User creates a deployment
+  - [ ] User navigates to Alerts tab on the deployment details page
+  - [ ] User sees two buttons: Add notification channel and Use my account email
+  - [ ] User clicks Add notification channel
+  - [ ] User is redirected to the Notification Channel form
+  - [ ] User fills the form, hits Save
+  - [ ] User is redirected back to the deployment with Alerts tab open and newly added channel pre-selected
+  - [ ] User navigates to Alerts from the sidebar
+  - [ ] User navigates to Notification Channels tab
+  - [ ] Newly added notification channel should be present
+
 - [ ] **Notification Channel Management Flow**
 
   - [ ] User navigates to "Alerts" page
   - [ ] User clicks "Notification Channels" tab
-  - [ ] User sees "Notification Channels" table with existing channels:
-    - [ ] Name (e.g., "Primary account email", "Default")
-    - [ ] Type (e.g., "email")
-    - [ ] Addresses (e.g., email addresses)
-    - [ ] Edit icon (pencil) and Delete icon (trash) for each channel
   - [ ] User clicks "+ Create" button to add new channel
   - [ ] User fills in channel name and email addresses
+  - [ ] User verifies validations
+    - [ ] Emails validity
+    - [ ] Empty strings should be removed
+    - [ ] At least one email is required
+  - [ ] User verifies it is possible
+    - [ ] To add a single email
+    - [ ] To add multiple emails
   - [ ] User clicks "Save" button
-  - [ ] User sees new channel added to table
-
-- [ ] **Notification Channel Edit Flow**
-  - [ ] User clicks edit icon (pencil) on existing channel
-  - [ ] User navigates to "Edit Notification Channel" page
-  - [ ] User sees pre-filled form with current channel details
-  - [ ] User modifies channel name in "Name" field
-  - [ ] User modifies email addresses in "Emails" field
-  - [ ] User clicks "Save" button to save changes
-  - [ ] User clicks "Cancel" button to discard changes
-  - [ ] User returns to Notification Channels table with updated information
+  - [ ] User sees new channel added/updated in the table view
+  - [ ] User verifies it is possible to remove the channel
 
 ### G. **Standalone SDL Builder** (Template Creation)
 
