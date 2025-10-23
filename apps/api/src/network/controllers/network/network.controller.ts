@@ -12,8 +12,4 @@ export class NetworkController {
   async getNodes(network: GetNodesParams["network"]): Promise<Result<GetNodesResponse, HttpError>> {
     return await this.networkService.getNodes(network);
   }
-
-  async getVersion(network: GetNodesParams["network"]): Promise<Result<string, HttpError>> {
-    return await this.networkService.getVersion(network);
-  }
 }
