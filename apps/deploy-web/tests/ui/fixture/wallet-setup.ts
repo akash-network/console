@@ -29,18 +29,13 @@ export async function fillWalletPassword(page: Page) {
 
   await passwordInput.fill(WALLET_PASSWORD);
 
-  await wait(500);
-
   if (await confirmPasswordInput.isVisible().catch(() => false)) {
     await confirmPasswordInput.fill(WALLET_PASSWORD);
-    await wait(500);
   }
 
   selectors.setTestIdAttribute("data-testid");
 
-  await proceedButton.click();
-
-  return await wait(1_000);
+  return await proceedButton.click();
 }
 
 export async function getExtensionPageAndUrl(context: BrowserContext, extensionId: string) {
@@ -131,26 +126,24 @@ async function importWalletToLeap(context: BrowserContext, page: Page) {
     const recoveryPhraseButton = page.getByText(/recovery phrase|secret phrase/i);
     if (await recoveryPhraseButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await recoveryPhraseButton.click();
-      await wait(500);
     }
 
     for (let i = 0; i < mnemonicWords.length; i++) {
       const word = mnemonicWords[i];
-      const focusedInput = page.locator("*:focus");
-      if (await focusedInput.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await focusedInput.fill(word);
+      const focusedInput = await page.$$("#popup-layout input");
+
+      // console.log("focusedInput:", await focusedInput.count());
+
+      if (await focusedInput[i].isVisible().catch(() => false)) {
+        await focusedInput[i].fill(word);
         await page.keyboard.press("Tab");
       }
     }
 
-    await wait(500);
-
-    const importButton = page.getByRole("button", { name: /import|continue|next/i });
+    const importButton = page.getByRole("button", { name: /continue/i });
     await importButton.click();
-    await wait(1000);
 
     await page.waitForSelector('[data-testing-id^="wallet-"]', { state: "visible", timeout: 10000 });
-    await wait(1000);
 
     const allWallets = await page.locator('[data-testing-id^="wallet-"]').all();
 
@@ -168,13 +161,9 @@ async function importWalletToLeap(context: BrowserContext, page: Page) {
       }
 
       await wallet.click({ force: true });
-      await wait(500);
     }
 
-    await wait(1000);
-
     await page.getByTestId("btn-select-wallet-proceed").click();
-    await wait(1000);
 
     await page.getByTestId("input-password").fill(WALLET_PASSWORD);
     await page.getByTestId("input-confirm-password").fill(WALLET_PASSWORD);

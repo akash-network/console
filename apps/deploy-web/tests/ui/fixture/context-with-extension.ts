@@ -2,7 +2,6 @@ import type { BrowserContext, Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { nanoid } from "nanoid";
 import path from "path";
-import { setTimeout as wait } from "timers/promises";
 
 import { selectChainNetwork } from "../actions/selectChainNetwork";
 import { injectUIConfig, test as baseTest } from "./base-test";
@@ -65,11 +64,9 @@ export const test = baseTest.extend<{
 
     if (await getStartedButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await extPage.close();
-      await wait(2000);
 
       extPage = await context.newPage();
       await extPage.goto(extUrl, { waitUntil: "domcontentloaded" });
-      await wait(2000);
       await fillWalletPassword(extPage);
     }
 

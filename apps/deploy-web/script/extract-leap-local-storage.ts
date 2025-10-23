@@ -3,6 +3,19 @@
 /**
  * Script to extract Leap extension's local storage from Chrome for E2E tests
  *
+ * WHY THIS SCRIPT IS NEEDED:
+ *
+ * When running E2E tests with Playwright that interact with browser extensions like Leap Wallet,
+ * we need to pre-populate the extension's local storage with authentication state and wallet data.
+ * This allows tests to bypass manual wallet setup and login flows.
+ *
+ * However, browser extension storage (chrome.storage.local) is isolated and can only be accessed
+ * from within the extension's own context - not from external scripts or Playwright automation.
+ *
+ * This script provides step-by-step instructions for manually extracting the storage data
+ * from a properly configured Leap Wallet extension, which can then be loaded into the test
+ * environment to simulate an authenticated wallet state.
+ *
  * This script provides instructions to manually extract the storage data
  * because chrome.storage API is only accessible from extension contexts.
  */
@@ -35,11 +48,13 @@ To extract Leap extension's local storage:
 4. In the DevTools console that opens, paste and run:
 
    chrome.storage.local.get(null, (data) => {
-     copy(JSON.stringify(data, null, 2));
-     console.log('✓ Storage copied to clipboard!');
+     console.log(JSON.stringify(data, null, 2));
+     console.log('\\n✓ Storage data printed above - select and copy it manually');
    });
 
-5. Paste the clipboard content into:
+5. Select the JSON output in the console, right-click and copy it
+   
+6. Paste the clipboard content into:
    ${outputPath}
 
 ${"=".repeat(70)}
