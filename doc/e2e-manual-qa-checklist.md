@@ -197,20 +197,14 @@ Most operations need to be tested for both wallet types:
   - [ ] User remains on current page
   - [ ] Previous session data is cleared
 
-#### B2. **Managed Wallet Flow**
-
-- [ ] **Managed Wallet Creation Flow**
-
-  - [ ] User completes onboarding with payment method
-  - [ ] System automatically creates managed wallet
-  - [ ] Managed wallet address is generated
-  - [ ] Initial balance is set to $100 (trial amount)
-  - [ ] User can add additional funds via payment methods
-
+#### B2. **Payments**
+ 
 - [ ] **Managed Wallet Top-Up Flow**
 
-  - [ ] User clicks "Add Funds" button (from home page or wallet popup)
-  - [ ] User navigates to "Payment Methods" page via Add Funds button
+  - [ ] User is able to navigate to Payment page via
+    - [ ] Add Funds button on the Home page
+    - [ ] Add Funds button in the payment dropdown in the header
+    - [ ] Add Funds button on Get Started page
   - [ ] User sees "Add credits" section with amount input field
   - [ ] User enters amount in "Amount (USD)" field
   - [ ] User can optionally enter coupon code
@@ -229,6 +223,7 @@ Most operations need to be tested for both wallet types:
   - [ ] User clicks "Add Card" button
   - [ ] Payment method is added successfully
   - [ ] User returns to Payment Methods page with new card listed
+  - [ ] User removes payment method successfully
 
 #### B3. **Wallet Type Switching Flow**
 
