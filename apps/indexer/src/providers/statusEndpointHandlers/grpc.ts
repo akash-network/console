@@ -1,15 +1,9 @@
-import type { NodeResources } from "@akashnetwork/akash-api/akash/inventory/v1";
-import type { ResourcesMetric, Status } from "@akashnetwork/akash-api/akash/provider/v1";
-import { ProviderRPCClient } from "@akashnetwork/akash-api/akash/provider/v1/grpc-js";
-import { Empty } from "@akashnetwork/akash-api/google/protobuf";
+import { createProviderSDK } from "@akashnetwork/chain-sdk";
+import type { NodeResources, ResourcesMetric, Status } from "@akashnetwork/chain-sdk/private-types/provider.akash.v1";
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
-import { Channel } from "@grpc/grpc-js";
-import minutesToMilliseconds from "date-fns/minutesToMilliseconds";
 import memoize from "lodash/memoize";
-import { promisify } from "util";
 
 import { parseDecimalKubernetesString, parseSizeStr } from "@src/shared/utils/files";
-import { FakeInsecureCredentials } from "./fake-insecure-credentials";
 import type { ProviderStatusInfo } from "./types";
 
 export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: number): Promise<ProviderStatusInfo> {
@@ -96,34 +90,24 @@ export async function fetchProviderStatusFromGRPC(provider: Provider, timeout: n
   };
 }
 
-async function queryStatus(hostUri: string, timeout: number): Promise<Status> {
+async function queryStatus(hostUri: string, timeoutMs: number): Promise<Status> {
   try {
-    return await createProviderClient(hostUri).getStatus(timeout);
+    return await getProviderSDK(hostUri).akash.provider.v1.getStatus({}, { timeoutMs });
   } catch (error) {
-    createProviderClient.cache.delete(hostUri);
+    getProviderSDK.cache.delete(hostUri);
     throw error;
   }
 }
 
-const createProviderClient = memoize((hostUri: string) => {
+const getProviderSDK = memoize((hostUri: string) => {
   // TODO: fetch port from chain
-  const url = hostUri.replace(":8443", ":8444").replace("https://", "dns:///");
-  const credentials = FakeInsecureCredentials.createInsecure();
-  const channel = new Channel(url, credentials, {
-    "grpc.keepalive_time_ms": minutesToMilliseconds(5),
-    "grpc.keepalive_permit_without_calls": 1
+  const url = hostUri.replace(":8443", ":8444");
+  return createProviderSDK({
+    // TODO: pass transport options
+    // "grpc.keepalive_time_ms": minutesToMilliseconds(5),
+    // "grpc.keepalive_permit_without_calls": 1
+    baseUrl: url
   });
-
-  // TODO: refactor to use on-change cert validation
-  //  Issue: https://github.com/akash-network/console/issues/170
-  const client = new ProviderRPCClient(url, credentials, {
-    channelOverride: channel
-  });
-  const getStatus = promisify(client.getStatus.bind(client));
-
-  return {
-    getStatus: (timeout: number) => getStatus(Empty, { deadline: Date.now() + timeout })
-  };
 });
 
 function parseResources(resources: ResourcesMetric) {
