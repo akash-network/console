@@ -8,7 +8,7 @@ test("switching to another wallet in the extension affects Console", async ({ pa
 
   const frontPage = new LeapExt(context, page);
 
-  const newWalletName = await frontPage.createWallet(extensionId);
+  const newWalletName = await frontPage.changeWallet(extensionId);
 
   const container = page.getByLabel("Connected wallet name and balance");
   await container.waitFor({ state: "visible", timeout: 20_000 });

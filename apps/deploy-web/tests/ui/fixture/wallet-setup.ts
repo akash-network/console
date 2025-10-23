@@ -8,11 +8,37 @@ import { setTimeout as wait } from "timers/promises";
 
 import { isWalletConnected } from "../uiState/isWalletConnected";
 import { testEnvConfig } from "./test-env.config";
-import { clickCreateNewWalletButton, clickCreateWalletButton, clickWalletSelectorDropdown, fillWalletName } from "./testing-helpers";
+import { getCurrentWalletName, selectDifferentWallet } from "./testing-helpers";
 
 const WALLET_PASSWORD = "12345678";
 
-export async function getExtensionPage(context: BrowserContext, extensionId: string) {
+export async function fillWalletPassword(page: Page) {
+  selectors.setTestIdAttribute("data-testing-id");
+
+  const [passwordInput, confirmPasswordInput, proceedButton] = await Promise.all([
+    page.getByTestId("input-password").or(page.getByTestId("login-input-enter-password")).first(),
+    page.getByTestId("input-confirm-password"),
+    page.getByTestId("btn-password-proceed").or(page.getByTestId("btn-unlock-wallet")).first()
+  ]);
+
+  if (!(await passwordInput.isVisible({ timeout: 3_000 }).catch(() => false))) {
+    return;
+  }
+
+  await proceedButton.waitFor({ state: "visible", timeout: 10_000 });
+
+  await passwordInput.fill(WALLET_PASSWORD);
+
+  if (await confirmPasswordInput.isVisible().catch(() => false)) {
+    await confirmPasswordInput.fill(WALLET_PASSWORD);
+  }
+
+  selectors.setTestIdAttribute("data-testid");
+
+  return await proceedButton.click();
+}
+
+export async function getExtensionPageAndUrl(context: BrowserContext, extensionId: string) {
   const extUrl = `chrome-extension://${extensionId}/index.html`;
   let extPage = context.pages().find(page => page.url().startsWith(extUrl));
 
@@ -23,7 +49,10 @@ export async function getExtensionPage(context: BrowserContext, extensionId: str
     await context.waitForEvent("page", { timeout: 5_000 }).catch(() => null);
   }
 
-  return extPage;
+  return {
+    page: extPage,
+    url: extUrl
+  };
 }
 
 export async function setupWallet(context: BrowserContext, page: Page) {
@@ -33,14 +62,11 @@ export async function setupWallet(context: BrowserContext, page: Page) {
   await topUpWallet(wallet);
 }
 
-export async function createWallet(context: BrowserContext, extensionId: string, walletName: string) {
-  const extPage = await getExtensionPage(context, extensionId);
-
-  await clickWalletSelectorDropdown(extPage);
-  await clickCreateNewWalletButton(extPage);
-  await fillWalletName(extPage, walletName);
-
-  return clickCreateWalletButton(extPage);
+export async function changeWallet(context: BrowserContext, extensionId: string) {
+  const { page: extPage } = await getExtensionPageAndUrl(context, extensionId);
+  const currentWalletName = await getCurrentWalletName(extPage);
+  await extPage.getByText(currentWalletName).click();
+  return await selectDifferentWallet(extPage, currentWalletName);
 }
 
 export async function connectWalletViaLeap(context: BrowserContext, page: Page) {
@@ -89,32 +115,65 @@ async function importWalletToLeap(context: BrowserContext, page: Page) {
   if (!mnemonic) {
     throw new Error("TEST_WALLET_MNEMONIC is not set");
   }
-  const mnemonicArray = mnemonic.trim().split(" ");
-
-  if (mnemonicArray.length !== 12) {
-    throw new Error("TEST_WALLET_MNEMONIC should have 12 words");
-  }
-
-  await page.getByText(/recovery phrase/i).click();
+  const mnemonicWords = mnemonic.trim().split(" ");
 
   try {
     selectors.setTestIdAttribute("data-testing-id");
 
-    for (const word of mnemonicArray) {
-      await page.locator("*:focus").fill(word);
-      await page.keyboard.press("Tab");
+    await page.getByText("Import an existing wallet").click();
+    await wait(1000);
+
+    const recoveryPhraseButton = page.getByText(/recovery phrase|secret phrase/i);
+    if (await recoveryPhraseButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await recoveryPhraseButton.click();
     }
 
-    await page.getByRole("button", { name: /Import/i }).click();
+    for (let i = 0; i < mnemonicWords.length; i++) {
+      const word = mnemonicWords[i];
+      const focusedInput = await page.$$("#popup-layout input");
 
-    // Select wallet
-    await page.getByTestId("wallet-1").click();
+      // console.log("focusedInput:", await focusedInput.count());
+
+      if (await focusedInput[i].isVisible().catch(() => false)) {
+        await focusedInput[i].fill(word);
+        await page.keyboard.press("Tab");
+      }
+    }
+
+    const importButton = page.getByRole("button", { name: /continue/i });
+    await importButton.click();
+
+    await page.waitForSelector('[data-testing-id^="wallet-"]', { state: "visible", timeout: 10000 });
+
+    const allWallets = await page.locator('[data-testing-id^="wallet-"]').all();
+
+    if (allWallets.length < 2) {
+      throw new Error(`Not enough wallets to select. Found: ${allWallets.length}, need at least 2`);
+    }
+
+    for (let i = 0; i < Math.min(2, allWallets.length); i++) {
+      const wallet = allWallets[i];
+
+      const isChecked = await wallet.getByRole("checkbox").getAttribute("aria-checked");
+
+      if (isChecked === "true") {
+        continue;
+      }
+
+      await wallet.click({ force: true });
+    }
+
     await page.getByTestId("btn-select-wallet-proceed").click();
 
-    // Set password
     await page.getByTestId("input-password").fill(WALLET_PASSWORD);
     await page.getByTestId("input-confirm-password").fill(WALLET_PASSWORD);
     await page.getByTestId("btn-password-proceed").click();
+
+    await wait(5000);
+
+    const getStartedButton = page.getByRole("button", { name: /get started/i });
+
+    await getStartedButton.isVisible({ timeout: 3000 }).catch(() => false);
 
     await page.waitForLoadState("domcontentloaded");
 
@@ -172,6 +231,6 @@ async function getBalance(address: string) {
 
 // @see https://github.com/microsoft/playwright/issues/14949
 export async function restoreExtensionStorage(page: Page): Promise<void> {
-  const extensionStorage = JSON.parse(fs.readFileSync(path.join(__dirname, "leapExtensionLocalStorage.json"), "utf8"));
+  const extensionStorage = JSON.parse(fs.readFileSync(path.join(__dirname, "leap-extension-local-storage.json"), "utf8"));
   await page.evaluate(data => chrome.storage.local.set(data), extensionStorage);
 }

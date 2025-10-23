@@ -6,7 +6,7 @@ import path from "path";
 import { selectChainNetwork } from "../actions/selectChainNetwork";
 import { injectUIConfig, test as baseTest } from "./base-test";
 import { testEnvConfig } from "./test-env.config";
-import { connectWalletViaLeap, getExtensionPage, setupWallet } from "./wallet-setup";
+import { connectWalletViaLeap, fillWalletPassword, setupWallet } from "./wallet-setup";
 
 // @see https://playwright.dev/docs/chrome-extensions
 export const test = baseTest.extend<{
@@ -49,9 +49,27 @@ export const test = baseTest.extend<{
       // ignore timeout error
     }
 
-    const extPage = await getExtensionPage(context, extensionId);
+    const extUrl = `chrome-extension://${extensionId}/index.html`;
+    let extPage = context.pages().find(page => page.url().startsWith(extUrl));
+
+    if (!extPage) {
+      extPage = await context.newPage();
+
+      await extPage.goto(extUrl, { waitUntil: "domcontentloaded" });
+    }
 
     await setupWallet(context, extPage);
+
+    const getStartedButton = extPage.getByRole("button", { name: /get started/i });
+
+    if (await getStartedButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await extPage.close();
+
+      extPage = await context.newPage();
+      await extPage.goto(extUrl, { waitUntil: "domcontentloaded" });
+      await fillWalletPassword(extPage);
+    }
+
     await extPage.close();
     const page = await context.newPage();
     await injectUIConfig(page);

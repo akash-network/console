@@ -1,4 +1,4 @@
-import { test } from "./fixture/context-with-extension";
+import { expect, test } from "./fixture/context-with-extension";
 import { LeapExt } from "./pages/LeapExt";
 
 test("wallet stays disconnected after disconnecting and reloading", async ({ page, context }) => {
