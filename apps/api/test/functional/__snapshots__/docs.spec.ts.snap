@@ -14104,35 +14104,6 @@ exports[`API Docs GET /v1/doc returns docs with all routes expected 1`] = `
         ],
       },
     },
-    "/v1/version/{network}": {
-      "get": {
-        "description": "Provide a cached version of one of these files: [https://raw.githubusercontent.com/akash-network/net/master/mainnet/version.txt](https://raw.githubusercontent.com/akash-network/net/master/mainnet/version.txt), [https://raw.githubusercontent.com/akash-network/net/master/sandbox/version.txt](https://raw.githubusercontent.com/akash-network/net/master/sandbox/version.txt), [https://raw.githubusercontent.com/akash-network/net/master/testnet-02/version.txt](https://raw.githubusercontent.com/akash-network/net/master/testnet-02/version.txt)",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "network",
-            "required": true,
-            "schema": {
-              "enum": [
-                "mainnet",
-                "testnet",
-                "sandbox",
-              ],
-              "type": "string",
-            },
-          },
-        ],
-        "responses": {
-          "200": {
-            "description": "Network version",
-          },
-        },
-        "summary": "Get network version.",
-        "tags": [
-          "Chain",
-        ],
-      },
-    },
     "/v1/wallets": {
       "get": {
         "parameters": [
