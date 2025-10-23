@@ -197,20 +197,14 @@ Most operations need to be tested for both wallet types:
   - [ ] User remains on current page
   - [ ] Previous session data is cleared
 
-#### B2. **Managed Wallet Flow**
-
-- [ ] **Managed Wallet Creation Flow**
-
-  - [ ] User completes onboarding with payment method
-  - [ ] System automatically creates managed wallet
-  - [ ] Managed wallet address is generated
-  - [ ] Initial balance is set to $100 (trial amount)
-  - [ ] User can add additional funds via payment methods
-
+#### B2. **Payments**
+ 
 - [ ] **Managed Wallet Top-Up Flow**
 
-  - [ ] User clicks "Add Funds" button (from home page or wallet popup)
-  - [ ] User navigates to "Payment Methods" page via Add Funds button
+  - [ ] User is able to navigate to Payment page via
+    - [ ] Add Funds button on the Home page
+    - [ ] Add Funds button in the payment dropdown in the header
+    - [ ] Add Funds button on Get Started page
   - [ ] User sees "Add credits" section with amount input field
   - [ ] User enters amount in "Amount (USD)" field
   - [ ] User can optionally enter coupon code
@@ -229,6 +223,7 @@ Most operations need to be tested for both wallet types:
   - [ ] User clicks "Add Card" button
   - [ ] Payment method is added successfully
   - [ ] User returns to Payment Methods page with new card listed
+  - [ ] User removes payment method successfully
 
 #### B3. **Wallet Type Switching Flow**
 
@@ -382,84 +377,74 @@ Most operations need to be tested for both wallet types:
 
 ### F. **Alerts & Notifications**
 
-#### F1. **Alert Management**
-
-- [ ] **Alert Creation Flow**
-
-  - [ ] User navigates to deployment detail page
-  - [ ] User clicks "Alerts" tab within deployment
-  - [ ] User sees "Configure Alerts" section
-  - [ ] User enables "Escrow Balance" alert checkbox
-  - [ ] User sets threshold amount in USD field
-  - [ ] User selects notification channel (Primary account email)
-  - [ ] User enables "Deployment Close" alert checkbox
-  - [ ] User selects notification channel for deployment close
-  - [ ] User clicks "Save Changes" button
-  - [ ] User sees alert configuration saved
-
-- [ ] **Alert Viewing Flow**
-
-  - [ ] User navigates to "Alerts" page
-  - [ ] User sees "Configured Alerts" table
-  - [ ] User can view all configured alerts with details:
-    - [ ] Enabled status (checkbox)
-    - [ ] Deployment name
-    - [ ] DSEQ number
-    - [ ] Alert type (Deployment Close, Escrow Threshold)
-    - [ ] Status (Ok)
-    - [ ] Notification channel (Primary account email)
-  - [ ] User can toggle between "Alerts" and "Notification Channels" tabs
-
-- [ ] **Escrow Balance Alert Flow**
-
-  - [ ] User creates "Escrow Balance" alert
-  - [ ] User sets balance threshold in USD
-  - [ ] User configures notification preferences
-  - [ ] User receives alert when balance drops below threshold
-
-- [ ] **Deployment Close Alert Flow**
-
-  - [ ] User creates "Deployment Close" alert
-  - [ ] User sets alert conditions
-  - [ ] User configures notification preferences
-  - [ ] User receives alert when deployment closes
+#### F1. **Deployment Alerts**
 
 - [ ] **Alert Management Flow**
-  - [ ] User navigates to "Alerts" page
-  - [ ] User sees "Configured Alerts" table
-  - [ ] User clicks on deployment name in alerts table
-  - [ ] User navigates to deployment detail page
-  - [ ] User clicks "Alerts" tab within deployment
-  - [ ] User sees "Configure Alerts" section with current settings
-  - [ ] User modifies alert settings (threshold, notification channels)
-  - [ ] User clicks "Save Changes" button
-  - [ ] User sees alert configuration updated
+  - [ ] User creates a deployment
+  - [ ] User navigates to Alerts tab on the deployment details page
+  - [ ] User enables both Escrow Balance and Deployment Close alerts, and configures Escrow Balance threshold
+  - [ ] User verifies there is a red badge marking unsaved changes on the Alerts tab
+  - [ ] User verifies it's not possible to leave the page without saving the changes
+  - [ ] User verifies the red badge is gone after saving alerts
+  - [ ] User navigates to Alerts from the sidebar
+  - [ ] User views 2 newly created alerts with Ok status
+  - [ ] User verifies it is possible to navigate to the Alerts tab of the relevant deployment by clicking the alerts' titles
+  - [ ] User verifies Escrow Threshold alert status changes from Ok to Triggered
+  - [ ] User receives a threshold email alert
+  - [ ] User navigates to the Alerts tab of the relevant deployment and adds funds to the deployment
+  - [ ] User navigates to Alerts from the sidebar
+  - [ ] User verifies Escrow Threshold alert status changes from Triggered to Ok
+  - [ ] User receives a threshold recovery email alert
+  - [ ] User navigates to the Alerts tab of the relevant deployment and closes it
+  - [ ] User verifies Deployment Close alert is not present anymore
+  - [ ] User receives a Deployment Close email alert
+  - [ ] User verifies after a moment Escrow Threshold alert is not present anymore
+  - [ ] User receives Escrow Threshold alert suspension notification email
 
 #### F2. **Notification Channels**
 
-- [ ] **Notification Channel Management Flow**
+- [ ] **Initial Account Email Channel Setup**
 
+  - [ ] User creates a deployment
+  - [ ] User navigates to Alerts tab on the deployment details page
+  - [ ] User sees two buttons: "Add notification channel" and "Use my account email"
+  - [ ] User clicks "Use my account email"
+  - [ ] Alert forms appear with "Primary account email" option pre-selected as Notification channel
+  - [ ] User navigates to Alerts from the sidebar
+  - [ ] User navigates to Notification Channels tab
+  - [ ] "Primary account email" notification channel should be present
+  - [ ] User clicks edit icon
+  - [ ] Email value should be equal to user registration email
+
+- [ ] **Initial Custom Notification Channel Creation**
+
+  - [ ] User creates a deployment
+  - [ ] User navigates to Alerts tab on the deployment details page
+  - [ ] User sees two buttons: "Add notification channel" and "Use my account email"
+  - [ ] User clicks "Add notification channel"
+  - [ ] User is redirected to the Notification Channel form
+  - [ ] User fills the form and clicks "Save"
+  - [ ] User is redirected back to the deployment with Alerts tab open and newly added channel pre-selected
+  - [ ] User navigates to Alerts from the sidebar
+  - [ ] User navigates to Notification Channels tab
+  - [ ] Newly added notification channel should be present
+
+- [ ] **Notification Channel Management Flow**
   - [ ] User navigates to "Alerts" page
   - [ ] User clicks "Notification Channels" tab
-  - [ ] User sees "Notification Channels" table with existing channels:
-    - [ ] Name (e.g., "Primary account email", "Default")
-    - [ ] Type (e.g., "email")
-    - [ ] Addresses (e.g., email addresses)
-    - [ ] Edit icon (pencil) and Delete icon (trash) for each channel
   - [ ] User clicks "+ Create" button to add new channel
   - [ ] User fills in channel name and email addresses
+  - [ ] User verifies validation rules:
+    - [ ] Email format validation
+    - [ ] Empty strings are removed
+    - [ ] At least one email is required
+  - [ ] User verifies functionality:
+    - [ ] To add a single email
+    - [ ] To add multiple emails
   - [ ] User clicks "Save" button
   - [ ] User sees new channel added to table
-
-- [ ] **Notification Channel Edit Flow**
-  - [ ] User clicks edit icon (pencil) on existing channel
-  - [ ] User navigates to "Edit Notification Channel" page
-  - [ ] User sees pre-filled form with current channel details
-  - [ ] User modifies channel name in "Name" field
-  - [ ] User modifies email addresses in "Emails" field
-  - [ ] User clicks "Save" button to save changes
-  - [ ] User clicks "Cancel" button to discard changes
-  - [ ] User returns to Notification Channels table with updated information
+  - [ ] User can edit existing channels
+  - [ ] User can delete channels
 
 ### G. **Standalone SDL Builder** (Template Creation)
 

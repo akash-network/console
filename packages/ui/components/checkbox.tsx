@@ -30,7 +30,7 @@ const Checkbox = React.forwardRef<
   return (
     <div
       ref={wrapperRef}
-      className={cn("inline-flex", expandedTouchTarget && "hover:bg-muted-foreground/10 -m-3 cursor-pointer rounded-full p-3")}
+      className={cn("inline-flex", expandedTouchTarget && "hover:bg-accent cursor-pointer rounded-full p-3")}
       onClick={expandedTouchTarget ? triggerCheckboxClick : undefined}
     >
       <CheckboxPrimitive.Root
