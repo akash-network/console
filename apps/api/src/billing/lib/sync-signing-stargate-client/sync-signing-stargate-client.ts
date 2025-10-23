@@ -17,11 +17,7 @@ export class SyncSigningStargateClient extends SigningStargateClient {
     return this.createWithSigner(cometClient, signer, options);
   }
 
-  public static async createWithSigner(
-    cometClient: CometClient,
-    signer: OfflineSigner,
-    options: SigningStargateClientOptions = {}
-  ): Promise<SyncSigningStargateClient> {
+  public static createWithSigner(cometClient: CometClient, signer: OfflineSigner, options: SigningStargateClientOptions = {}): SyncSigningStargateClient {
     return new SyncSigningStargateClient(cometClient, signer, options);
   }
 
