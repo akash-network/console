@@ -51,10 +51,11 @@ export function CustomChainProvider({ children }: Props) {
       }}
       signerOptions={{
         preferredSignType: () => "direct",
-        signingStargate: () => ({
-          registry,
-          gasPrice: GasPrice.fromString("0.025uakt")
-        })
+        signingStargate: () =>
+          ({
+            registry,
+            gasPrice: GasPrice.fromString("0.025uakt")
+          }) as any
       }}
     >
       {children}
