@@ -1,7 +1,6 @@
 import "reflect-metadata";
 import "@akashnetwork/env-loader";
 import "@src/utils/protobuf";
-import "./open-telemetry";
 import "./app";
 
 import { LoggerService } from "@akashnetwork/logging";
