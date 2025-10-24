@@ -24,7 +24,6 @@ import type { DepositParams } from "@src/types/deployment";
 import type { ProviderAttributeSchemaDetailValue } from "@src/types/providerAttributes";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
-import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { defaultAnyRegion, defaultRentGpuService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
@@ -47,7 +46,7 @@ import { RegionSelect } from "./RegionSelect";
 import { TokenFormControl } from "./TokenFormControl";
 
 export const RentGpusForm: React.FunctionComponent = () => {
-  const { chainApiHttpClient, analyticsService, appConfig } = useServices();
+  const { chainApiHttpClient, analyticsService, appConfig, deploymentLocalStorage } = useServices();
   const [error, setError] = useState<string | null>(null);
   // const [templateMetadata, setTemplateMetadata] = useState<ITemplate>(null);
   const [isQueryInit, setIsQuertInit] = useState(false);
@@ -255,8 +254,11 @@ export const RentGpusForm: React.FunctionComponent = () => {
 
         setDeploySdl(null);
 
-        // Save the manifest
-        saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.hash, address, currentService.image);
+        deploymentLocalStorage.update(address, dd.deploymentId.dseq, {
+          manifest: sdl,
+          manifestVersion: dd.hash,
+          name: currentService.image
+        });
         router.push(UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
 
         analyticsService.track("create_gpu_deployment", {
