@@ -109,8 +109,9 @@ export class NetworkStore {
       return [
         networkId,
         (networkId: Network["id"]) => {
-          setNetworkId(networkId);
-          location.reload();
+          const url = new URL(window.location.href);
+          url.searchParams.set("network", networkId);
+          window.location.href = url.toString();
         }
       ];
     } else {
