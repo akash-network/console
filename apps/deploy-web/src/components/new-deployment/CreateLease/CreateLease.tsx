@@ -48,7 +48,6 @@ import type { BidDto } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
 import { TRIAL_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
-import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { addScriptToHead } from "@src/utils/domUtils";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -119,7 +118,7 @@ const TRIAL_SIGNUP_WARNING_TIMEOUT = 33_000;
 
 export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies: d = DEPENDENCIES }) => {
   const { settings } = d.useSettings();
-  const { providerProxy, analyticsService, errorHandler, networkStore, urlService } = d.useServices();
+  const { providerProxy, analyticsService, errorHandler, networkStore, urlService, deploymentLocalStorage } = d.useServices();
 
   const [isSendingManifest, setIsSendingManifest] = useState(false);
   const [isFilteringFavorites, setIsFilteringFavorites] = useState(false);
@@ -185,7 +184,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
       setIsSendingManifest(true);
       const bidKeys = Object.keys(selectedBids);
 
-      const localDeploymentData = getDeploymentLocalData(dseq);
+      const localDeploymentData = deploymentLocalStorage.get(address, dseq);
 
       analyticsService.track("send_manifest", {
         category: "deployments",
@@ -264,7 +263,7 @@ export const CreateLease: React.FunctionComponent<Props> = ({ dseq, dependencies
         setIsSendingManifest(false);
       }
     },
-    [selectedBids, dseq, providers, isManaged, enqueueSnackbar, closeSnackbar, router, chainNetwork]
+    [selectedBids, dseq, providers, isManaged, enqueueSnackbar, closeSnackbar, router, chainNetwork, address, deploymentLocalStorage]
   );
 
   // Filter bids

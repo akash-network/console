@@ -25,7 +25,6 @@ import { useDeploymentLeaseList } from "@src/queries/useLeaseQuery";
 import { useProviderList } from "@src/queries/useProvidersQuery";
 import { extractRepositoryUrl, isCiCdImageInYaml } from "@src/services/remote-deploy/remote-deployment-controller.service";
 import { RouteStep } from "@src/types/route-steps.type";
-import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { Title } from "../shared/Title";
@@ -44,7 +43,7 @@ export interface DeploymentDetailProps {
 type Tab = "ALERTS" | "EVENTS" | "LOGS" | "SHELL" | "EDIT" | "LEASES";
 
 export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
-  const { analyticsService } = useServices();
+  const { analyticsService, deploymentLocalStorage } = useServices();
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<Tab>("LEASES");
@@ -98,10 +97,10 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq }) => {
     if (deployment) {
       getLeases();
       getProviders();
-      const deploymentData = getDeploymentLocalData(dseq);
+      const deploymentData = deploymentLocalStorage.get(address, dseq);
       setDeploymentManifest(deploymentData?.manifest || "");
     }
-  }, [deployment, dseq, getLeases, getProviders]);
+  }, [deployment, dseq, getLeases, getProviders, address, deploymentLocalStorage]);
 
   const isActive = deployment?.state === "active" && leases?.some(x => x.state === "active");
 
