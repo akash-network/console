@@ -8,6 +8,7 @@ import * as walletUtils from "@src/utils/walletUtils";
 import { AuthService } from "../auth/auth/auth.service";
 import { withAnonymousUserToken, withUserToken } from "../auth/auth/interceptors";
 import { createChildContainer } from "../container/createContainer";
+import { DeploymentStorageService } from "../deployment-storage/deployment-storage.service";
 import { BitbucketService } from "../remote-deploy/bitbucket-http.service";
 import { GitHubService } from "../remote-deploy/github-http.service";
 import { GitLabService } from "../remote-deploy/gitlab-http.service";
@@ -53,5 +54,6 @@ export const services = createChildContainer(rootContainer, {
   networkStore: () => networkStore,
   appConfig: () => browserEnvConfig,
   authService: () => new AuthService(services.urlService, services.internalApiHttpClient),
-  storedWalletsService: () => walletUtils
+  storedWalletsService: () => walletUtils,
+  deploymentLocalStorage: () => new DeploymentStorageService(localStorage, services.networkStore)
 });

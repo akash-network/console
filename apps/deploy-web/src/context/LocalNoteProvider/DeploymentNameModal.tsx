@@ -6,7 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useSnackbar } from "notistack";
 import { z } from "zod";
 
-import { updateDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
+import { useServices } from "../ServicesProvider";
+import { useWallet } from "../WalletProvider";
 
 const formSchema = z.object({
   name: z.string()
@@ -20,6 +21,8 @@ type Props = {
 };
 
 export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, getDeploymentName }) => {
+  const { deploymentLocalStorage } = useServices();
+  const { address } = useWallet();
   const formRef = useRef<HTMLFormElement | null>(null);
   const { enqueueSnackbar } = useSnackbar();
   const form = useForm<z.infer<typeof formSchema>>({
@@ -44,7 +47,7 @@ export const DeploymentNameModal: React.FC<Props> = ({ dseq, onClose, onSaved, g
   };
 
   function onSubmit({ name }: z.infer<typeof formSchema>) {
-    updateDeploymentLocalData(String(dseq), { name: name });
+    deploymentLocalStorage.update(address, dseq, { name: name });
 
     enqueueSnackbar(<Snackbar title="Success!" iconVariant="success" />, { variant: "success", autoHideDuration: 1000 });
 
