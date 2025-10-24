@@ -1,5 +1,12 @@
 
 
+## [1.27.2](https://github.com/akash-network/console/compare/provider-console/v1.27.1...provider-console/v1.27.2) (2025-10-24)
+
+
+### Bug Fixes
+
+* name and right button link to deployment page, not the whole line ([3ea1f04](https://github.com/akash-network/console/commit/3ea1f0433cac42d13ce80d5c8e092519da423963)), closes [#1981](https://github.com/akash-network/console/issues/1981)
+
 ## [1.27.1](https://github.com/akash-network/console/compare/provider-console/v1.27.0...provider-console/v1.27.1) (2025-10-21)
 
 
