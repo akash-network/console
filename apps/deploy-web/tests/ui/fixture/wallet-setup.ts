@@ -56,6 +56,12 @@ export async function connectWalletViaLeap(context: BrowserContext, page: Page) 
   }
 }
 
+export async function awaitWalletAndApprove(context: BrowserContext, page: Page) {
+  const popupPage = await context.waitForEvent("page", { timeout: 5_000 });
+  await approveWalletOperation(popupPage);
+  await isWalletConnected(page);
+}
+
 export async function approveWalletOperation(popupPage: Page | null) {
   if (!popupPage) return;
   const buttonsSelector = ['button:has-text("Approve")', 'button:has-text("Unlock wallet")', 'button:has-text("Connect")'].join(",");
@@ -75,6 +81,7 @@ export async function approveWalletOperation(popupPage: Page | null) {
     case "Unlock wallet":
       await popupPage.locator("input").fill(WALLET_PASSWORD);
       await visibleButton.click();
+      await popupPage.waitForSelector('button:has-text("Connect")', { state: "visible" }).then(button => button.click());
       break;
     case "Connect":
       await visibleButton.click();
@@ -95,20 +102,18 @@ async function importWalletToLeap(context: BrowserContext, page: Page) {
     throw new Error("TEST_WALLET_MNEMONIC should have 12 words");
   }
 
+  await page.getByText(/import an existing wallet/i).click();
   await page.getByText(/recovery phrase/i).click();
 
   try {
     selectors.setTestIdAttribute("data-testing-id");
 
     for (const word of mnemonicArray) {
-      await page.locator("*:focus").fill(word);
+      await page.locator("input:focus").fill(word);
       await page.keyboard.press("Tab");
     }
 
-    await page.getByRole("button", { name: /Import/i }).click();
-
-    // Select wallet
-    await page.getByTestId("wallet-1").click();
+    await page.getByRole("button", { name: /Continue/i }).click();
     await page.getByTestId("btn-select-wallet-proceed").click();
 
     // Set password
