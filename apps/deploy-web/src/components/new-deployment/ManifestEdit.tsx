@@ -28,7 +28,6 @@ import type { DepositParams } from "@src/types/deployment";
 import { RouteStep } from "@src/types/route-steps.type";
 import { deploymentData } from "@src/utils/deploymentData";
 import { appendTrialAttribute, TRIAL_ATTRIBUTE, TRIAL_REGISTERED_ATTRIBUTE } from "@src/utils/deploymentData/v1beta3";
-import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { validateDeploymentData } from "@src/utils/deploymentUtils";
 import { Timer } from "@src/utils/timer";
 import { TransactionMessageData } from "@src/utils/TransactionMessageData";
@@ -73,7 +72,7 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
   const [sdlDenom, setSdlDenom] = useState("uakt");
   const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
 
-  const { analyticsService, chainApiHttpClient, appConfig } = useServices();
+  const { analyticsService, chainApiHttpClient, appConfig, deploymentLocalStorage } = useServices();
   const { settings } = useSettings();
   const { address, signAndBroadcastTx, isManaged, isTrialing, isOnboarding } = useWallet();
   const router = useRouter();
@@ -262,8 +261,11 @@ export const ManifestEdit: React.FunctionComponent<Props> = ({
 
         setDeploySdl(null);
 
-        // Save the manifest
-        saveDeploymentManifestAndName(dd.deploymentId.dseq, sdl, dd.hash, address, deploymentName);
+        deploymentLocalStorage.update(address, dd.deploymentId.dseq, {
+          manifest: sdl,
+          manifestVersion: dd.hash,
+          name: deploymentName
+        });
         router.replace(UrlService.newDeployment({ step: RouteStep.createLeases, dseq: dd.deploymentId.dseq }));
 
         analyticsService.track("create_deployment", {

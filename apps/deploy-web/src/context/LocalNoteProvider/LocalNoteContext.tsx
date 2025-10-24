@@ -1,9 +1,11 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { useAtom } from "jotai";
 
-import type { LocalDeploymentData } from "@src/utils/deploymentLocalDataUtils";
-import { getDeploymentLocalData } from "@src/utils/deploymentLocalDataUtils";
+import type { LocalDeploymentData } from "@src/services/deployment-storage/deployment-storage.service";
 import { getProviderLocalData, updateProviderLocalData } from "@src/utils/providerUtils";
+import { useServices } from "../ServicesProvider";
+import { settingsIdAtom } from "../SettingsProvider/settingsStore";
 import { DeploymentNameModal } from "./DeploymentNameModal";
 
 type ContextType = {
@@ -17,8 +19,10 @@ type ContextType = {
 const LocalNoteProviderContext = React.createContext<ContextType>({} as ContextType);
 
 export const LocalNoteProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { deploymentLocalStorage } = useServices();
   const [dseq, setDseq] = useState<number | string | null>(null);
   const [favoriteProviders, setFavoriteProviders] = useState<string[]>([]);
+  const [settingsId] = useAtom(settingsIdAtom);
 
   useEffect(() => {
     const localProviderData = getProviderLocalData();
@@ -33,12 +37,12 @@ export const LocalNoteProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const getDeploymentName = (dseq: string | number | null) => {
-    const localData = getDeploymentLocalData(dseq);
+    const localData = deploymentLocalStorage.get(settingsId, dseq);
     return localData?.name ?? null;
   };
 
   const getDeploymentData = (dseq: string | number) => {
-    const localData = getDeploymentLocalData(dseq);
+    const localData = deploymentLocalStorage.get(settingsId, dseq);
 
     return localData ?? null;
   };
