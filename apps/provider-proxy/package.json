@@ -22,7 +22,7 @@
     "test:unit": "jest --selectProjects unit"
   },
   "dependencies": {
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.11",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.12",
     "@akashnetwork/logging": "*",
     "@akashnetwork/net": "*",
     "@cosmjs/encoding": "~0.36.1",

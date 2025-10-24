@@ -1,6 +1,7 @@
 import { createProviderSDK } from "@akashnetwork/chain-sdk";
 import type { NodeResources, ResourcesMetric, Status } from "@akashnetwork/chain-sdk/private-types/provider.akash.v1";
 import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import { minutesToMilliseconds } from "date-fns";
 import memoize from "lodash/memoize";
 
 import { parseDecimalKubernetesString, parseSizeStr } from "@src/shared/utils/files";
@@ -103,10 +104,11 @@ const getProviderSDK = memoize((hostUri: string) => {
   // TODO: fetch port from chain
   const url = hostUri.replace(":8443", ":8444");
   return createProviderSDK({
-    // TODO: pass transport options
-    // "grpc.keepalive_time_ms": minutesToMilliseconds(5),
-    // "grpc.keepalive_permit_without_calls": 1
-    baseUrl: url
+    baseUrl: url,
+    transportOptions: {
+      pingIdleConnection: true,
+      idleConnectionTimeoutMs: minutesToMilliseconds(5)
+    }
   });
 });
 
