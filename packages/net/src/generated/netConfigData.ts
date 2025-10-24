@@ -35,7 +35,7 @@ export const netConfigData = {
     rpcUrls: ["https://rpc.testnet-02.aksh.pw:443", "https://akash-testnet-rpc.cosmonautstakes.com:443"]
   },
   "testnet-7": {
-    version: null,
+    version: "1.0.0-rc55",
     faucetUrl: "https://faucet.dev.akash.pub/",
     apiUrls: ["https://testnetapi.akashnet.net"],
     rpcUrls: ["https://testnetrpc.akashnet.net:443"]

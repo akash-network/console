@@ -1,5 +1,26 @@
 
 
+## [0.40.1](https://github.com/akash-network/console/compare/stats-web/v0.40.0...stats-web/v0.40.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* checkbox can optionally have a larger clickable wrapper  ([e3c51dd](https://github.com/akash-network/console/commit/e3c51ddd7e1fa25d5933ad4dd5b8b58d9ac23a34)), closes [#1981](https://github.com/akash-network/console/issues/1981)
+* **observability:** adds fatal method to the logger ([d89872c](https://github.com/akash-network/console/commit/d89872cd2824310a7a332e41ee8a42657c196b6e)), closes [#2087](https://github.com/akash-network/console/issues/2087)
+
+## [0.40.0](https://github.com/akash-network/console/compare/stats-web/v0.39.1...stats-web/v0.40.0) (2025-10-17)
+
+
+### Features
+
+* displays blockchain upgrade/down banners in stats-web/deploy-web ([#2060](https://github.com/akash-network/console/issues/2060)) ([22312bf](https://github.com/akash-network/console/commit/22312bfba67626dbadd01a6e2db58c5074ab437c)), closes [#1924](https://github.com/akash-network/console/issues/1924)
+* **network:** adjusts indexer for sdk53 network upgrade ([dfc7d05](https://github.com/akash-network/console/commit/dfc7d05123a52470fb527908c935c1ee12f66da5))
+
+
+### Bug Fixes
+
+* adjusts maintenance message based on app ([#2072](https://github.com/akash-network/console/issues/2072)) ([a67be97](https://github.com/akash-network/console/commit/a67be979c9577271ca194481b3613476f7070b7c))
+
 ## [0.39.1](https://github.com/akash-network/console/compare/stats-web/v0.39.0...stats-web/v0.39.1) (2025-10-14)
 
 

@@ -30,7 +30,7 @@ export const deploymentGroup = pgTable(
   table => [
     index("deployment_group_owner_dseq_gseq").using(
       "btree",
-      table.owner.asc().nullsLast().op("int4_ops"),
+      table.owner.asc().nullsLast().op("text_ops"),
       table.dseq.asc().nullsLast().op("text_ops"),
       table.gseq.asc().nullsLast().op("int4_ops")
     ),
@@ -52,18 +52,20 @@ export const bid = pgTable(
     dseq: varchar({ length: 255 }).notNull(),
     gseq: integer().notNull(),
     oseq: integer().notNull(),
+    bseq: integer().default(0).notNull(),
     provider: varchar({ length: 255 }).notNull(),
     price: doublePrecision().notNull(),
     createdHeight: integer().notNull()
   },
   table => [
-    index("bid_owner_dseq_gseq_oseq_provider").using(
+    index("bid_owner_dseq_gseq_oseq_provider_bseq").using(
       "btree",
       table.owner.asc().nullsLast().op("text_ops"),
-      table.dseq.asc().nullsLast().op("int4_ops"),
-      table.gseq.asc().nullsLast().op("text_ops"),
+      table.dseq.asc().nullsLast().op("text_ops"),
+      table.gseq.asc().nullsLast().op("int4_ops"),
       table.oseq.asc().nullsLast().op("int4_ops"),
-      table.provider.asc().nullsLast().op("text_ops")
+      table.provider.asc().nullsLast().op("text_ops"),
+      table.bseq.asc().nullsLast().op("int4_ops")
     )
   ]
 );
@@ -117,6 +119,7 @@ export const lease = pgTable(
     dseq: varchar({ length: 255 }).notNull(),
     oseq: integer().notNull(),
     gseq: integer().notNull(),
+    bseq: integer().default(0).notNull(),
     providerAddress: varchar({ length: 255 }).notNull(),
     createdHeight: integer().notNull(),
     closedHeight: integer(),
@@ -139,19 +142,21 @@ export const lease = pgTable(
   table => [
     index("lease_closed_height").using("btree", table.closedHeight.asc().nullsLast().op("int4_ops")),
     index("lease_deployment_id").using("btree", table.deploymentId.asc().nullsLast().op("uuid_ops")),
-    index("lease_owner_dseq_gseq_oseq").using(
+    uniqueIndex("lease_owner_dseq_gseq_oseq_provider_bseq").using(
       "btree",
       table.owner.asc().nullsLast().op("text_ops"),
       table.dseq.asc().nullsLast().op("text_ops"),
-      table.gseq.asc().nullsLast().op("text_ops"),
-      table.oseq.asc().nullsLast().op("int4_ops")
+      table.gseq.asc().nullsLast().op("int4_ops"),
+      table.oseq.asc().nullsLast().op("int4_ops"),
+      table.providerAddress.asc().nullsLast().op("text_ops"),
+      table.bseq.asc().nullsLast().op("int4_ops")
     ),
     index("lease_predicted_closed_height").using("btree", table.predictedClosedHeight.asc().nullsLast().op("int8_ops")),
     index("lease_provider_address_closed_height_created_height")
       .using(
         "btree",
-        table.providerAddress.asc().nullsLast().op("int4_ops"),
-        table.closedHeight.asc().nullsLast().op("text_ops"),
+        table.providerAddress.asc().nullsLast().op("text_ops"),
+        table.closedHeight.asc().nullsLast().op("int4_ops"),
         table.createdHeight.asc().nullsLast().op("int4_ops")
       )
       .with({ deduplicate_items: "true" }),
@@ -223,9 +228,9 @@ export const provider = pgTable(
     ipCountryCode: varchar({ length: 255 }),
     ipLat: varchar({ length: 255 }),
     ipLon: varchar({ length: 255 }),
-    uptime1D: doublePrecision(),
-    uptime7D: doublePrecision(),
-    uptime30D: doublePrecision(),
+    uptime1d: doublePrecision(),
+    uptime7d: doublePrecision(),
+    uptime30d: doublePrecision(),
     updatedHeight: integer(),
     lastSnapshotId: uuid(),
     nextCheckDate: timestamp({ withTimezone: true, mode: "string" }).defaultNow().notNull(),
@@ -248,12 +253,12 @@ export const block = pgTable(
     isProcessed: boolean().default(false).notNull(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     totalTxCount: bigint({ mode: "number" }).notNull(),
-    totalUaktSpent: doublePrecision(),
-    totalUusdcSpent: doublePrecision(),
+    totalUAktSpent: doublePrecision(),
+    totalUUsdcSpent: doublePrecision(),
     activeLeaseCount: integer(),
     totalLeaseCount: integer(),
-    activeCpu: integer(),
-    activeGpu: integer(),
+    activeCPU: integer(),
+    activeGPU: integer(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     activeMemory: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
@@ -261,7 +266,7 @@ export const block = pgTable(
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     activePersistentStorage: bigint({ mode: "number" }),
     activeProviderCount: integer(),
-    totalUusdSpent: doublePrecision()
+    totalUUsdSpent: doublePrecision()
   },
   table => [
     index("block_datetime").using("btree", table.datetime.asc().nullsLast().op("timestamptz_ops")),
@@ -355,9 +360,9 @@ export const providerSnapshotNode = pgTable(
     ephemeralStorageAllocatable: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     ephemeralStorageAllocated: bigint({ mode: "number" }),
-    capabilitiesStorageHdd: boolean(),
-    capabilitiesStorageSsd: boolean(),
-    capabilitiesStorageNvme: boolean(),
+    capabilitiesStorageHDD: boolean(),
+    capabilitiesStorageSSD: boolean(),
+    capabilitiesStorageNVME: boolean(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     gpuAllocatable: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
@@ -429,25 +434,25 @@ export const providerSnapshot = pgTable(
     deploymentCount: integer(),
     leaseCount: integer(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    activeCpu: bigint({ mode: "number" }),
+    activeCPU: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    activeGpu: bigint({ mode: "number" }),
+    activeGPU: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     activeMemory: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     activeEphemeralStorage: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    pendingCpu: bigint({ mode: "number" }),
+    pendingCPU: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    pendingGpu: bigint({ mode: "number" }),
+    pendingGPU: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     pendingMemory: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     pendingEphemeralStorage: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    availableCpu: bigint({ mode: "number" }),
+    availableCPU: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
-    availableGpu: bigint({ mode: "number" }),
+    availableGPU: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     availableMemory: bigint({ mode: "number" }),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
@@ -472,7 +477,11 @@ export const providerSnapshot = pgTable(
       .using("btree", table.id.asc().nullsLast().op("uuid_ops"))
       .where(sql`(("isOnline" = true) AND ("isLastOfDay" = true))`),
     index("provider_snapshot_owner").using("btree", table.owner.asc().nullsLast().op("text_ops")),
-    index("provider_snapshot_owner_check_date").using("btree", table.owner.asc().nullsLast().op("text_ops"), table.checkDate.asc().nullsLast().op("text_ops")),
+    index("provider_snapshot_owner_check_date").using(
+      "btree",
+      table.owner.asc().nullsLast().op("text_ops"),
+      table.checkDate.asc().nullsLast().op("timestamptz_ops")
+    ),
     foreignKey({
       columns: [table.owner],
       foreignColumns: [provider.owner],
@@ -537,7 +546,7 @@ export const message = pgTable(
   table => [
     index("message_height").using("btree", table.height.asc().nullsLast().op("int4_ops")),
     index("message_height_is_notification_processed")
-      .using("btree", table.height.asc().nullsLast().op("bool_ops"), table.isNotificationProcessed.asc().nullsLast().op("int4_ops"))
+      .using("btree", table.height.asc().nullsLast().op("int4_ops"), table.isNotificationProcessed.asc().nullsLast().op("bool_ops"))
       .where(sql`("isNotificationProcessed" = false)`),
     index("message_height_is_notification_processed_false")
       .using("btree", table.height.asc().nullsLast().op("int4_ops"))
@@ -545,10 +554,10 @@ export const message = pgTable(
     index("message_height_is_notification_processed_true")
       .using("btree", table.height.asc().nullsLast().op("int4_ops"))
       .where(sql`("isNotificationProcessed" = true)`),
-    index("message_height_type").using("btree", table.height.asc().nullsLast().op("text_ops"), table.type.asc().nullsLast().op("int4_ops")),
+    index("message_height_type").using("btree", table.height.asc().nullsLast().op("int4_ops"), table.type.asc().nullsLast().op("text_ops")),
     index("message_related_deployment_id").using("btree", table.relatedDeploymentId.asc().nullsLast().op("uuid_ops")),
     index("message_tx_id").using("btree", table.txId.asc().nullsLast().op("uuid_ops")),
-    index("message_tx_id_is_processed").using("btree", table.txId.asc().nullsLast().op("bool_ops"), table.isProcessed.asc().nullsLast().op("bool_ops")),
+    index("message_tx_id_is_processed").using("btree", table.txId.asc().nullsLast().op("uuid_ops"), table.isProcessed.asc().nullsLast().op("bool_ops")),
     foreignKey({
       columns: [table.height],
       foreignColumns: [block.height],

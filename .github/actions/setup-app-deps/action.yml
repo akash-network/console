@@ -15,9 +15,7 @@ runs:
   using: "composite"
   steps:
     - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 22.14.0
+      uses: volta-cli/action@v4
 
     - name: Restore root node_modules cache
       if: inputs.setup-only-nodejs == 'false' && inputs.app != 'all'

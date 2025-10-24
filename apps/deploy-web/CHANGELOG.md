@@ -1,5 +1,39 @@
 
 
+## [2.118.0](https://github.com/akash-network/console/compare/console-web/v2.117.0...console-web/v2.118.0) (2025-10-21)
+
+
+### Features
+
+* can multi-select deployments when pressing shift ([4b3e777](https://github.com/akash-network/console/commit/4b3e77745dcd78c117cdefe16331cfae4b36845a))
+
+
+### Bug Fixes
+
+* checkbox can optionally have a larger clickable wrapper  ([e3c51dd](https://github.com/akash-network/console/commit/e3c51ddd7e1fa25d5933ad4dd5b8b58d9ac23a34)), closes [#1981](https://github.com/akash-network/console/issues/1981)
+* **observability:** adds fatal method to the logger ([d89872c](https://github.com/akash-network/console/commit/d89872cd2824310a7a332e41ee8a42657c196b6e)), closes [#2087](https://github.com/akash-network/console/issues/2087)
+
+## [2.117.0](https://github.com/akash-network/console/compare/console-web/v2.116.1...console-web/v2.117.0) (2025-10-17)
+
+
+### Features
+
+* displays blockchain upgrade/down banners in stats-web/deploy-web ([#2060](https://github.com/akash-network/console/issues/2060)) ([22312bf](https://github.com/akash-network/console/commit/22312bfba67626dbadd01a6e2db58c5074ab437c)), closes [#1924](https://github.com/akash-network/console/issues/1924)
+* **network:** adjusts indexer for sdk53 network upgrade ([dfc7d05](https://github.com/akash-network/console/commit/dfc7d05123a52470fb527908c935c1ee12f66da5))
+* **onboarding:** update "talk to an expert" URL to new HubSpot form ([6f0a134](https://github.com/akash-network/console/commit/6f0a1341e9dd4dd4c2772d2e8d6d06018754280d)), closes [#2056](https://github.com/akash-network/console/issues/2056)
+
+
+### Bug Fixes
+
+* adjusts maintenance message based on app ([#2072](https://github.com/akash-network/console/issues/2072)) ([a67be97](https://github.com/akash-network/console/commit/a67be979c9577271ca194481b3613476f7070b7c))
+
+## [2.116.1](https://github.com/akash-network/console/compare/console-web/v2.116.0...console-web/v2.116.1) (2025-10-15)
+
+
+### Code Refactoring
+
+* migrates jwt signing in accordance to chain-sdk ([#2049](https://github.com/akash-network/console/issues/2049)) ([9b950c4](https://github.com/akash-network/console/commit/9b950c4609ef3757d6aa8e2e6741da2e950ff1e0))
+
 ## [2.116.0](https://github.com/akash-network/console/compare/console-web/v2.115.0...console-web/v2.116.0) (2025-10-14)
 
 

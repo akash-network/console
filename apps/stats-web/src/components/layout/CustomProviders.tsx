@@ -9,6 +9,7 @@ import { ThemeProvider } from "next-themes";
 
 import { CustomIntlProvider } from "./CustomIntlProvider";
 
+import { FlagProvider } from "@/context/FlagProvider/FlagProvider";
 import { PricingProvider } from "@/context/PricingProvider";
 import { customColors } from "@/lib/colors";
 import { queryClient } from "@/queries";
@@ -24,8 +25,7 @@ function Providers({ children }: React.PropsWithChildren) {
               <PricingProvider>
                 <TooltipProvider>
                   <ProgressBar height="4px" color={customColors.akashRed} options={{ showSpinner: false }} shallowRouting />
-
-                  {children}
+                  <FlagProvider>{children}</FlagProvider>
                 </TooltipProvider>
               </PricingProvider>
             </CustomSnackbarProvider>

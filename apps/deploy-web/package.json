@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/console-web",
-  "version": "2.116.0",
+  "version": "2.118.0",
   "private": true,
   "description": "Web UI to deploy on the Akash Network and view statistic about network usage.",
   "repository": {
@@ -27,7 +27,7 @@
   "dependencies": {
     "@akashnetwork/akash-api": "^1.3.0",
     "@akashnetwork/akashjs": "^0.11.1",
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.8",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.9",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/http-sdk": "*",
     "@akashnetwork/logging": "*",

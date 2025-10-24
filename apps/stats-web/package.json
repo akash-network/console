@@ -1,6 +1,6 @@
 {
   "name": "@akashnetwork/stats-web",
-  "version": "0.39.1",
+  "version": "0.40.1",
   "private": true,
   "scripts": {
     "build": "npm run build-env-schemas && next build",
@@ -13,7 +13,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.8",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.9",
     "@akashnetwork/env-loader": "*",
     "@akashnetwork/logging": "*",
     "@akashnetwork/network-store": "*",
@@ -27,6 +27,7 @@
     "@tanstack/react-query": "^5.67.2",
     "@tanstack/react-table": "^8.11.2",
     "@textea/json-viewer": "^3.2.3",
+    "@unleash/nextjs": "^1.6.2",
     "axios": "^1.7.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
@@ -53,6 +54,7 @@
   "devDependencies": {
     "@akashnetwork/dev-config": "*",
     "@akashnetwork/docker": "*",
+    "@akashnetwork/net": "*",
     "@akashnetwork/releaser": "*",
     "@types/json2csv": "^5.0.7",
     "@types/node": "^22.13.11",

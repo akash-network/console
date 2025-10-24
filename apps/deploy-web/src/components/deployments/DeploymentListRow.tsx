@@ -50,10 +50,10 @@ import { LeaseChip } from "./LeaseChip";
 type Props = {
   deployment: NamedDeploymentDto;
   isSelectable?: boolean;
-  onSelectDeployment?: (isChecked: boolean, dseq: string) => void;
+  onSelectDeployment?: ({ id, isShiftPressed }: { id: string; isShiftPressed: boolean }) => void;
   checked?: boolean;
   providers: Array<ApiProviderList> | undefined;
-  refreshDeployments: any;
+  refreshDeployments: () => void;
   children?: ReactNode;
 };
 
@@ -88,13 +88,9 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
   const { data: leaseStatus } = useLeaseStatus({ provider, lease, enabled: !!(provider && lease && providerCredentials.details.usable) });
   const isAnonymousFreeTrialEnabled = useFlag("anonymous_free_trial");
 
-  const viewDeployment = useCallback(
-    (event: React.MouseEvent) => {
-      if ((event.target as Element).closest(`a, button, [role="button"]`)) return;
-      router.push(UrlService.deploymentDetails(deployment.dseq));
-    },
-    [router, deployment.dseq]
-  );
+  const viewDeployment = useCallback(() => {
+    router.push(UrlService.deploymentDetails(deployment.dseq));
+  }, [router, deployment.dseq]);
 
   function handleMenuClick() {
     setOpen(true);
@@ -132,7 +128,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
     const response = await signAndBroadcastTx([message]);
     if (response) {
       if (onSelectDeployment) {
-        onSelectDeployment(false, deployment.dseq);
+        onSelectDeployment({ id: deployment.dseq, isShiftPressed: false });
       }
 
       refreshDeployments();
@@ -168,7 +164,7 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
 
   return (
     <>
-      <TableRow className="cursor-pointer hover:bg-muted-foreground/10 [&>td]:p-2" role="link" onClick={viewDeployment}>
+      <TableRow className="hover:bg-muted-foreground/10 [&>td]:p-2">
         <TableCell>
           <div className="flex items-center justify-center">
             <SpecDetailList
@@ -181,7 +177,9 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
           </div>
         </TableCell>
         <TableCell className="max-w-[100px] text-center">
-          <DeploymentName deployment={deployment} deploymentServices={leaseStatus?.services} providerHostUri={provider?.hostUri} />
+          <a href={UrlService.deploymentDetails(deployment.dseq)} className="text-black">
+            <DeploymentName deployment={deployment} deploymentServices={leaseStatus?.services} providerHostUri={provider?.hostUri} />
+          </a>
 
           {!isAnonymousFreeTrialEnabled && isTrialing && (
             <div className="mt-2">
@@ -290,15 +288,14 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
         </TableCell>
 
         <TableCell>
-          <div className="flex items-center justify-end space-x-2">
+          <div className="flex items-center justify-end">
             {isSelectable && (
               <Checkbox
                 checked={checked}
+                expandedTouchTarget={true}
                 onClick={event => {
                   event.stopPropagation();
-                }}
-                onCheckedChange={value => {
-                  onSelectDeployment && onSelectDeployment(value as boolean, deployment.dseq);
+                  onSelectDeployment?.({ id: deployment.dseq, isShiftPressed: event.shiftKey });
                 }}
               />
             )}
@@ -344,7 +341,9 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
             </div>
 
             <div className="flex pr-2">
-              <NavArrowRight />
+              <Button onClick={viewDeployment} size="icon" variant="ghost" className="rounded-full">
+                <NavArrowRight />
+              </Button>
             </div>
           </div>
         </TableCell>

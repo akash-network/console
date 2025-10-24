@@ -1,9 +1,8 @@
-import { createSignArbitraryAkashWallet, JwtTokenManager } from "@akashnetwork/chain-sdk";
+import { JwtTokenManager } from "@akashnetwork/chain-sdk";
 import type { InjectionToken } from "tsyringe";
 import { container } from "tsyringe";
 
 const jwt = {
-  createSignArbitraryAkashWallet,
   JwtTokenManager
 };
 
