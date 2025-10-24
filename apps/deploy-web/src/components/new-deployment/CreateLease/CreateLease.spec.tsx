@@ -7,9 +7,9 @@ import type { ContextType as CertificateContextType, LocalCert } from "@src/cont
 import type { AppDIContainer } from "@src/context/ServicesProvider";
 import type { useFlag } from "@src/hooks/useFlag";
 import { mapToBidDto } from "@src/queries/useBidQuery";
+import type { LocalDeploymentData } from "@src/services/deployment-storage/deployment-storage.service";
 import type { RpcBid } from "@src/types/deployment";
 import type { ApiProviderDetail } from "@src/types/provider";
-import { saveDeploymentManifestAndName } from "@src/utils/deploymentLocalDataUtils";
 import { updateStorageWallets } from "@src/utils/walletUtils";
 import { CreateLease, DEPENDENCIES as CREATE_LEASE_DEPENDENCIES } from "./CreateLease";
 
@@ -371,7 +371,6 @@ describe(CreateLease.name, () => {
       ];
       const BidGroup = jest.fn(ComponentMock);
       const walletAddress = input?.localCert?.address ?? "akash123";
-      const dseq = input?.dseq ?? "123";
 
       setup({
         ...input,
@@ -379,7 +378,13 @@ describe(CreateLease.name, () => {
         BidGroup,
         walletAddress,
         localCert: input?.localCert,
-        providers
+        providers,
+        storedDeployment: {
+          manifest: helloWorldManifest,
+          manifestVersion: new Uint8Array([1, 2, 3]),
+          name: "test deployment",
+          owner: walletAddress
+        }
       });
 
       await waitFor(() => expect(BidGroup).toHaveBeenCalled());
@@ -392,7 +397,6 @@ describe(CreateLease.name, () => {
             selected: true
           }
         ]);
-        saveDeploymentManifestAndName(dseq, helloWorldManifest, new Uint8Array([1, 2, 3]), walletAddress, "test deployment");
         const bidGroupProps = BidGroup.mock.calls[0][0];
         bidGroupProps.handleBidSelected(mapToBidDto(bids[0]));
       });
@@ -413,6 +417,7 @@ describe(CreateLease.name, () => {
     isTrialWallet?: boolean;
     getBlock?: () => Promise<BlockDetail>;
     isBlockchainDown?: boolean;
+    storedDeployment?: LocalDeploymentData;
   }) {
     const favoriteProviders: string[] = [];
     const useLocalNotes = (() => ({
@@ -473,7 +478,21 @@ describe(CreateLease.name, () => {
                 }
                 throw new Error(`unexpected request: ${url}`);
               }
-            } as unknown as AppDIContainer["publicConsoleApiHttpClient"])
+            } as unknown as AppDIContainer["publicConsoleApiHttpClient"]),
+          deploymentLocalStorage: () =>
+            mock<AppDIContainer["deploymentLocalStorage"]>({
+              get: (walletAddress, dseq) => {
+                if (!walletAddress || !dseq) return null;
+                return (
+                  input?.storedDeployment ?? {
+                    manifest: helloWorldManifest,
+                    manifestVersion: new Uint8Array([1, 2, 3]),
+                    name: "test deployment",
+                    owner: walletAddress
+                  }
+                );
+              }
+            })
         }}
       >
         <CreateLease
