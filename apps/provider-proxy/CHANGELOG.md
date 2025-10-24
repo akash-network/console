@@ -1,5 +1,12 @@
 
 
+## [1.23.2](https://github.com/akash-network/console/compare/provider-proxy/v1.23.1...provider-proxy/v1.23.2) (2025-10-24)
+
+
+### Bug Fixes
+
+* **config:** handles absent nodes/versions files ([b41833f](https://github.com/akash-network/console/commit/b41833fa5267398700b02b0924fce42e4407ae88))
+
 ## [1.23.1](https://github.com/akash-network/console/compare/provider-proxy/v1.23.0...provider-proxy/v1.23.1) (2025-10-21)
 
 
