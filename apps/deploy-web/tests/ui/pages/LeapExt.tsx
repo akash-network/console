@@ -37,4 +37,10 @@ export class LeapExt {
 
     await this.page.reload({ waitUntil: "domcontentloaded" });
   }
+
+  async acceptTransaction() {
+    await this.page.waitForLoadState("domcontentloaded");
+    await this.page.getByTestId("btn-connect-wallet").click();
+    this.context.off("page", this.acceptTransaction.bind(this));
+  }
 }
