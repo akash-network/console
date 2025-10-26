@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import {
   Badge,
   Button,
+  buttonVariants,
   Checkbox,
   CustomTooltip,
   DropdownMenu,
@@ -13,12 +14,14 @@ import {
   TableCell,
   TableRow
 } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import differenceInCalendarDays from "date-fns/differenceInCalendarDays";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import isValid from "date-fns/isValid";
 import { CalendarArrowDown, Coins, Edit, MoreHoriz, NavArrowRight, Plus, Upload, WarningTriangle, XmarkSquare } from "iconoir-react";
 import { keyBy } from "lodash";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useWallet } from "@src/context/WalletProvider";
@@ -177,9 +180,9 @@ export const DeploymentListRow: React.FunctionComponent<Props> = ({ deployment, 
           </div>
         </TableCell>
         <TableCell className="max-w-[100px] text-center">
-          <a href={UrlService.deploymentDetails(deployment.dseq)} className="text-black">
+          <Link className={cn(buttonVariants({ variant: "text" }))} href={UrlService.deploymentDetails(deployment.dseq)}>
             <DeploymentName deployment={deployment} deploymentServices={leaseStatus?.services} providerHostUri={provider?.hostUri} />
-          </a>
+          </Link>
 
           {!isAnonymousFreeTrialEnabled && isTrialing && (
             <div className="mt-2">
