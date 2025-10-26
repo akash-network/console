@@ -9,7 +9,7 @@ import { CustomTooltip } from "../tooltip";
 import { Snackbar } from "./snackbar";
 
 export const shortenAddress = (address: string) => {
-  return [address?.slice(0, 8), "...", address?.slice(address?.length - 5)].join("");
+  return `${address.slice(0, 8)}...${address.slice(-5)}`;
 };
 
 type Props = {

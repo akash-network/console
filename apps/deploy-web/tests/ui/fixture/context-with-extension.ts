@@ -68,7 +68,7 @@ export const test = baseTest.extend<{
           // Fallback in case the default network is non-functional.
           //  E.g., during network upgrade when sandbox is already on a different version from mainnet
           await page.goto(`${testEnvConfig.BASE_URL}?network=${testEnvConfig.NETWORK_ID}`);
-          await awaitWalletAndApprove(context, page);
+          await awaitWalletAndApprove(context, page, extensionId);
         }
       }
 

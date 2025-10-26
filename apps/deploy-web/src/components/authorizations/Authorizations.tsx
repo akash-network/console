@@ -223,7 +223,7 @@ export const Authorizations: React.FunctionComponent = () => {
             headerActions={
               address && (
                 <div className="md:ml-4">
-                  <Button onClick={onCreateNewGrant} color="secondary" variant="default" type="button" size="sm" aria-label="Authorize Spend">
+                  <Button onClick={onCreateNewGrant} color="secondary" variant="default" type="button" size="sm">
                     <Bank />
                     &nbsp;Authorize Spend
                   </Button>
@@ -342,7 +342,6 @@ export const Authorizations: React.FunctionComponent = () => {
                   className="md:ml-4"
                   type="button"
                   size="sm"
-                  aria-label="Authorize Fee Spend"
                 >
                   <Bank />
                   &nbsp;Authorize Fee Spend

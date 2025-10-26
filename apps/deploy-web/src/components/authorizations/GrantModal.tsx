@@ -189,7 +189,6 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
                     max={denomData?.max}
                     startIcon={<span className="pl-2 text-xs">{denomData?.label}</span>}
                     className="ml-4 flex-grow"
-                    aria-label="Spending Limit"
                   />
                 );
               }}
@@ -201,7 +200,7 @@ export const GrantModal: React.FunctionComponent<Props> = ({ editingGrant, addre
               control={control}
               name="granteeAddress"
               render={({ field }) => {
-                return <FormInput {...field} type="text" label="Grantee Address" disabled={!!editingGrant} aria-label="Grantee Address" />;
+                return <FormInput {...field} type="text" label="Grantee Address" disabled={!!editingGrant} />;
               }}
             />
           </div>

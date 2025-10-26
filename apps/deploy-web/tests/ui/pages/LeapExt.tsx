@@ -1,14 +1,14 @@
 import { faker } from "@faker-js/faker";
-import type { BrowserContext as Context, Page } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 
 import { wait } from "@src/utils/timer";
 import { testEnvConfig } from "../fixture/test-env.config";
 import { clickConnectWalletButton } from "../fixture/testing-helpers";
-import { createWallet } from "../fixture/wallet-setup";
+import { approveWalletOperation, createWallet } from "../fixture/wallet-setup";
 
 export class LeapExt {
   constructor(
-    readonly context: Context,
+    readonly context: BrowserContext,
     readonly page: Page
   ) {}
 
@@ -38,9 +38,8 @@ export class LeapExt {
     await this.page.reload({ waitUntil: "domcontentloaded" });
   }
 
-  async acceptTransaction() {
-    await this.page.waitForLoadState("domcontentloaded");
-    await this.page.getByTestId("btn-connect-wallet").click();
-    this.context.off("page", this.acceptTransaction.bind(this));
+  async acceptTransaction(context: BrowserContext) {
+    const popupPage = await context.waitForEvent("page", { timeout: 5_000 });
+    await approveWalletOperation(popupPage);
   }
 }
