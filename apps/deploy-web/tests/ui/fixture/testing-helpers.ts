@@ -28,14 +28,8 @@ export const clickConnectWalletButton = async (page: Page) => {
   return await button.click();
 };
 
-export const getCopyAddressButton = async (page: Page) => {
-  const buttons = await page.$$("#popup-layout button");
-  return buttons.length ? buttons[1] : null;
-};
-
 export const clickCopyAddressButton = async (page: Page) => {
-  const button = await getCopyAddressButton(page);
-  await button?.click();
+  await page.getByRole("button", { name: /akash\.\.\.[a-z0-9]{5}/ }).click();
 
   const clipboardContents = await page.evaluate(async () => {
     return await navigator.clipboard.readText();

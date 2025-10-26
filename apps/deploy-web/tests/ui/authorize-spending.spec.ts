@@ -29,8 +29,9 @@ const runAuthorizationTest = ({ name, buttonLabel, listLabel }: TestProps) => {
     test("can edit spending", async ({ page, context, extensionId }) => {
       test.setTimeout(5 * 60 * 1000);
 
-      const { authorizationsPage, address } = await setup({ page, context, extensionId, buttonLabel });
+      const { authorizationsPage, address, extension } = await setup({ page, context, extensionId, buttonLabel });
       await authorizationsPage.editSpending(address, listLabel);
+      await extension.acceptTransaction(context);
 
       const grantList = authorizationsPage.page.getByLabel(listLabel);
       await expect(grantList.locator("tr", { hasText: "10.000000 AKT" })).toBeVisible();
@@ -39,8 +40,9 @@ const runAuthorizationTest = ({ name, buttonLabel, listLabel }: TestProps) => {
     test("can revoke spending", async ({ page, context, extensionId }) => {
       test.setTimeout(5 * 60 * 1000);
 
-      const { authorizationsPage, address } = await setup({ page, context, extensionId, buttonLabel });
+      const { authorizationsPage, address, extension } = await setup({ page, context, extensionId, buttonLabel });
       await authorizationsPage.revokeSpending(address, listLabel);
+      await extension.acceptTransaction(context);
 
       const shortenedAddress = shortenAddress(address);
       const grantList = authorizationsPage.page.getByLabel(listLabel);
@@ -68,6 +70,7 @@ const setup = async ({ page, context, extensionId, buttonLabel }: SetupProps) =>
   await authorizationsPage.goto();
 
   await authorizationsPage.authorizeSpending(address, buttonLabel);
+  await extension.acceptTransaction(context);
 
   return {
     authorizationsPage,
