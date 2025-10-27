@@ -126,4 +126,4 @@ jobs:
           fi
 
           # shellcheck disable=SC2086
-          ./packages/docker/script/build.sh -r ${{ env.registry }} -t ${{ env.tag }} -a ${{ env.app }} -l "${{ inputs.tag-latest }}" "$force_build"
+          ./packages/docker/script/build.sh -r ${{ env.registry }} -t ${{ env.tag }} -a ${{ env.app }} -l "${{ inputs.tag-latest }}" $force_build
