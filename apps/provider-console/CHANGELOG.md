@@ -1,5 +1,12 @@
 
 
+## [1.29.0](https://github.com/akash-network/console/compare/provider-console/v1.28.1...provider-console/v1.29.0) (2025-10-27)
+
+
+### Features
+
+* **provider:** sdk 53 upgrade and cleanup dead code ([#1989](https://github.com/akash-network/console/issues/1989)) ([f86e600](https://github.com/akash-network/console/commit/f86e6003899c07fff66b8196dec03c0ed74d8342))
+
 ## [1.28.1](https://github.com/akash-network/console/compare/provider-console/v1.28.0...provider-console/v1.28.1) (2025-10-27)
 
 
