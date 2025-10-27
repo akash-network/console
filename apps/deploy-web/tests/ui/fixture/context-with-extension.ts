@@ -6,7 +6,7 @@ import path from "path";
 import { selectChainNetwork } from "../actions/selectChainNetwork";
 import { injectUIConfig, test as baseTest } from "./base-test";
 import { testEnvConfig } from "./test-env.config";
-import { connectWalletViaLeap, getExtensionPage, setupWallet } from "./wallet-setup";
+import { awaitWalletAndApprove, connectWalletViaLeap, getExtensionPage, setupWallet } from "./wallet-setup";
 
 // @see https://playwright.dev/docs/chrome-extensions
 export const test = baseTest.extend<{
@@ -57,10 +57,17 @@ export const test = baseTest.extend<{
     await injectUIConfig(page);
 
     if (testEnvConfig.NETWORK_ID !== "mainnet") {
-      await page.goto(testEnvConfig.BASE_URL);
-      await connectWalletViaLeap(context, page);
-      await selectChainNetwork(page, testEnvConfig.NETWORK_ID);
-      await connectWalletViaLeap(context, page);
+      try {
+        await page.goto(testEnvConfig.BASE_URL);
+        await connectWalletViaLeap(context, page);
+        await selectChainNetwork(page, testEnvConfig.NETWORK_ID);
+        await connectWalletViaLeap(context, page);
+      } catch {
+        // Fallback in case the default network is non-functional.
+        //  E.g., during network upgrade when sandbox is already on a different version from mainnet
+        await page.goto(`${testEnvConfig.BASE_URL}?network=${testEnvConfig.NETWORK_ID}`);
+        await awaitWalletAndApprove(context, page);
+      }
     }
 
     await use(page);

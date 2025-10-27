@@ -1,0 +1,438 @@
+!(function () {
+  try {
+    var e = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {},
+      t = new e.Error().stack;
+    t &&
+      ((e._sentryDebugIds = e._sentryDebugIds || {}),
+      (e._sentryDebugIds[t] = "3745adfd-ae13-4828-912f-3f07acf8551a"),
+      (e._sentryDebugIdIdentifier = "sentry-dbid-3745adfd-ae13-4828-912f-3f07acf8551a"));
+  } catch (e) {}
+})();
+var _global = "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : {};
+_global.SENTRY_RELEASE = { id: "0.22.9" };
+("use strict");
+(self.webpackChunk_leap_cosmos_extension = self.webpackChunk_leap_cosmos_extension || []).push([
+  ["8727"],
+  {
+    32006: function (e, t, a) {
+      a.a(e, async function (e, n) {
+        try {
+          a.r(t), a.d(t, { default: () => S });
+          var s = a(52322),
+            l = a(56594),
+            r = a(41172),
+            i = a(75377),
+            o = a(30454),
+            c = a(3493),
+            d = a(26007),
+            m = a(6391),
+            u = a.n(m),
+            x = a(72779),
+            f = a.n(x),
+            h = a(78454),
+            g = a(19623),
+            p = a(30464),
+            b = a(65953),
+            y = a(75958),
+            v = a(2784),
+            k = a(10289),
+            w = a(85019),
+            j = a(84994),
+            N = a(46103),
+            T = a(53221),
+            A = e([w, h]);
+          [w, h] = A.then ? (await A)() : A;
+          let M = "pending-tx-mobile-qr-code-banner",
+            E = { loading: { title: "In Progress..." }, success: { title: "Complete" }, submitted: { title: "Submitted" }, failed: { title: "Failed" } };
+          function Z(e) {
+            let { setShowMobileQrCode: t, data: a } = e;
+            return (0, s.jsxs)("div", {
+              className: "mb-4 relative",
+              children: [
+                (0, s.jsx)("img", { src: a.img_src }),
+                (0, s.jsx)("button", {
+                  className: "absolute top-[20px] right-[20px] w-[8px]",
+                  onClick: () => {
+                    t(!1), sessionStorage.setItem(M, "true");
+                  },
+                  children: (0, s.jsx)("img", { src: b.Cross })
+                })
+              ]
+            });
+          }
+          let S = (0, y.Pi)(e => {
+            var t;
+            let { rootBalanceStore: a, rootStakeStore: n } = e,
+              m = (0, k.s0)(),
+              [x, b] = (0, v.useState)(""),
+              [y, A] = (0, v.useState)(!sessionStorage.getItem(M)),
+              { theme: S } = (0, i.useTheme)(),
+              C = (0, v.useRef)(null),
+              { pendingTx: D, setPendingTx: H } = (0, r.EEe)(),
+              _ = r.rNU.useOperateCosmosTx(),
+              {
+                txType: I,
+                title1: F,
+                subtitle1: O,
+                sentTokenInfo: B,
+                sentAmount: P,
+                receivedAmount: J,
+                sentUsdValue: L,
+                receivedTokenInfo: z,
+                txStatus: R,
+                txHash: U,
+                sourceChain: W,
+                sourceNetwork: Y,
+                toAddress: q,
+                toChain: G
+              } = D ?? {},
+              Q = (0, r.a74)(),
+              $ = (0, v.useMemo)(() => W || Q, [Q, W]),
+              K = (0, r.obn)(),
+              X = (0, v.useMemo)(() => Y || K, [K, Y]),
+              V = (0, r.xxU)($, X),
+              ee = (0, r.SFn)($),
+              et = (0, v.useCallback)(() => {
+                a.refetchBalances($, X), q && a.refetchBalances(G ?? $, X, { [G ?? $]: q });
+              }, [$, a, X, q, G]),
+              ea = (0, v.useCallback)(() => {
+                n.updateStake($, X, !0);
+              }, [$, n, X]);
+            (0, v.useEffect)(() => {
+              let e = () => {
+                et(), ea(), w.s.invalidateActivity($);
+              };
+              D &&
+                D.promise &&
+                D.promise
+                  .then(async t => {
+                    var a, n, s, i, o, c, d, m, x;
+                    if (
+                      ("code" in t
+                        ? t && "txType" in t
+                          ? H({ ...D, txStatus: 0 === t.code ? "success" : "failed" })
+                          : t && (0, l.isDeliverTxSuccess)(t)
+                            ? H({ ...D, txStatus: "success" })
+                            : H({ ...D, txStatus: "failed" })
+                        : "cw20TokenTransfer" === D.txType
+                          ? H({ ...D, txStatus: "success" })
+                          : "status" in t && H({ ...D, txStatus: "submitted" }),
+                      "secretTokenTransfer" === D.txType)
+                    ) {
+                      let e;
+                      b(t.transactionHash),
+                        (null == t
+                          ? void 0
+                          : null === (s = t.tx) || void 0 === s
+                            ? void 0
+                            : null === (n = s.auth_info) || void 0 === n
+                              ? void 0
+                              : null === (a = n.fee) || void 0 === a
+                                ? void 0
+                                : a.amount) &&
+                          (e =
+                            null == t
+                              ? void 0
+                              : null === (d = t.tx) || void 0 === d
+                                ? void 0
+                                : null === (c = d.auth_info) || void 0 === c
+                                  ? void 0
+                                  : null === (o = c.fee) || void 0 === o
+                                    ? void 0
+                                    : o.amount[0].amount),
+                        _({
+                          txHash: t.transactionHash,
+                          txType: r.pb0.SecretTokenTransaction,
+                          metadata: (0, r.F8j)((null === (i = D.sentTokenInfo) || void 0 === i ? void 0 : i.coinMinimalDenom) ?? ""),
+                          feeQuantity: e,
+                          feeDenomination: "uscrt",
+                          amount: D.txnLogAmount,
+                          forceChain: $,
+                          forceNetwork: X,
+                          forceWalletAddress: ee,
+                          chainId: V
+                        });
+                    }
+                    "cw20TokenTransfer" === D.txType &&
+                      (b(t.transactionHash),
+                      _({
+                        txHash: t.transactionHash,
+                        txType: r.pb0.Send,
+                        metadata: (0, r.dSc)((null == D ? void 0 : D.toAddress) ?? "", {
+                          amount: new (u())(D.sentAmount ?? "")
+                            .times(10 ** ((null === (m = D.sentTokenInfo) || void 0 === m ? void 0 : m.coinDecimals) ?? 6))
+                            .toString(),
+                          denom: (null === (x = D.sentTokenInfo) || void 0 === x ? void 0 : x.coinMinimalDenom) ?? ""
+                        }),
+                        feeQuantity: D.feeQuantity,
+                        feeDenomination: D.feeDenomination,
+                        amount: D.txnLogAmount,
+                        forceChain: $,
+                        forceNetwork: X,
+                        forceWalletAddress: ee,
+                        chainId: V
+                      })),
+                      e();
+                  })
+                  .catch(() => {
+                    "cw20TokenTransfer" === D.txType && H({ ...D, txStatus: "failed" }), e();
+                  });
+            }, [$, ee, X, V]),
+              (0, v.useEffect)(() => {
+                U && b(U);
+              }, [U]);
+            let { status: en, data: es } = (0, r.Ndh)(),
+              [el, er] = (0, v.useState)(!1),
+              ei = P && B ? (0, r.LHZ)(P, B.coinDenom) : void 0,
+              eo = J && z ? (0, r.LHZ)(J, z.coinDenom) : void 0,
+              ec = "delegate" === I || "send" === I || "liquidity/add" === I,
+              ed = "undelegate" === I || "receive" === I || "liquidity/remove" === I,
+              { explorerTxnUrl: em } = (0, r.xGX)({ forceTxHash: x, forceChain: $, forceNetwork: X }),
+              eu = !!I && ["ibc/transfer", "send", "secretTokenTransfer", "cw20TokenTransfer"].includes(I);
+            return (0, s.jsxs)(h.Z, {
+              children: [
+                (0, s.jsx)(i.Header, { title: `Transaction ${E[R ?? "loading"].title}` }),
+                (0, s.jsxs)("div", {
+                  className: "flex h-[calc(100%-72px)] p-6 flex-col items-center overflow-y-auto",
+                  children: [
+                    (0, s.jsxs)("div", {
+                      className: "bg-white-100 dark:bg-gray-950 rounded-2xl w-full flex flex-col items-center p-4 mb-4",
+                      children: [
+                        "loading" === R && (0, s.jsx)(g.T, { color: N.w.green600, className: "w-20 h-20" }),
+                        ("success" === R || "submitted" === R) && (0, s.jsx)("img", { src: p.r.Activity.SendDetails, className: "w-20 h-20" }),
+                        "failed" === R && (0, s.jsx)("img", { src: p.r.Activity.Error, className: "w-20 h-20" }),
+                        (0, s.jsx)("div", { className: "text-xl font-bold text-black-100 dark:text-white-100 text-left mt-1 break-all", children: F }),
+                        eu && "submitted" !== R
+                          ? (0, s.jsx)("div", {
+                              className: "text-sm font-medium text-black-100 dark:text-white-100 mt-1",
+                              children: "success" === R ? "sent successfully to" : "failed" === R ? "failed sending to" : "sending to"
+                            })
+                          : null,
+                        eu
+                          ? (0, s.jsxs)("div", {
+                              className:
+                                "flex rounded-full gap-[6px] py-[6px] pl-2 pr-3 bg-gray-50 dark:bg-gray-900 text-sm font-bold text-black-100 dark:text-white-100 mt-2 items-center",
+                              children: [(0, s.jsx)(o.Y, { size: 18, className: "text-gray-200 dark:text-gray-800" }), O]
+                            })
+                          : (0, s.jsx)("div", { className: "text-base text-gray-600 dark:text-gray-400 text-center break-all mt-1", children: O }),
+                        eu
+                          ? null
+                          : (0, s.jsx)("div", {
+                              className: "flex mt-2 space-x-2 text-sm items-center",
+                              children:
+                                "swap" === I
+                                  ? (0, s.jsxs)(s.Fragment, {
+                                      children: [
+                                        eo &&
+                                          (0, s.jsxs)("p", {
+                                            className: "text-right font-semibold text-green-600 dark:text-green-600",
+                                            children: ["+ ", j.J.formatHideBalance(eo)]
+                                          }),
+                                        ei &&
+                                          (0, s.jsxs)("p", {
+                                            className: "text-right text-gray-600 dark:text-gray-400",
+                                            children: ["- ", j.J.formatHideBalance(ei)]
+                                          })
+                                      ]
+                                    })
+                                  : (0, s.jsxs)(s.Fragment, {
+                                      children: [
+                                        L &&
+                                          (0, s.jsxs)("p", {
+                                            className: f()("text-right font-semibold", {
+                                              "text-black-100 dark:text-white-100": !ed && !ec,
+                                              "text-red-600 dark:text-red-300": ec,
+                                              "text-green-600 dark:text-green-600": ed
+                                            }),
+                                            children: ["(", ec && "-", " $", j.J.formatHideBalance(Number(L).toFixed(2)), ")"]
+                                          }),
+                                        ei &&
+                                          (0, s.jsxs)("p", {
+                                            className: f()("text-right text-gray-600 dark:text-gray-400"),
+                                            children: [ec && "-", " ", j.J.formatHideBalance(ei)]
+                                          })
+                                      ]
+                                    })
+                            })
+                      ]
+                    }),
+                    x &&
+                      (0, s.jsxs)("div", {
+                        className: "rounded-2xl w-full mb-4 px-6 py-4 bg-white-100 dark:bg-gray-950 cursor-pointer flex items-center",
+                        onClick: () => {
+                          var e;
+                          null === (e = C.current) || void 0 === e || e.click(), T.i.copyText(x), er(!0), setTimeout(() => er(!1), 2e3);
+                        },
+                        children: [
+                          (0, s.jsxs)("div", {
+                            className: "flex-1",
+                            children: [
+                              (0, s.jsx)("div", { className: "text-sm font-bold text-black-100 dark:text-white-100 mb-1", children: "Transaction ID" }),
+                              (0, s.jsx)("div", { className: "text-md font-medium text-gray-600 dark:text-gray-400", children: (0, r.Hnh)(x) })
+                            ]
+                          }),
+                          (0, s.jsx)(i.Buttons.CopyWalletAddress, { copyIcon: p.r.Activity.Copy, ref: C, color: N.w.green600, className: el ? "" : "hidden" }),
+                          !el &&
+                            (0, s.jsx)("span", {
+                              className: "text-black-100 dark:text-white-100 bg-gray-50 dark:bg-gray-900 rounded-full p-2 ml-2",
+                              onClick: () => {
+                                var e;
+                                null === (e = C.current) || void 0 === e || e.click(), T.i.copyText(x), er(!0), setTimeout(() => er(!1), 2e3);
+                              },
+                              children: (0, s.jsx)(c.K, { size: 20 })
+                            }),
+                          em && !el
+                            ? (0, s.jsx)("span", {
+                                className: "text-black-100 dark:text-white-100 bg-gray-50 dark:bg-gray-900 rounded-full p-2 ml-2",
+                                onClick: e => {
+                                  e.stopPropagation(), window.open(em, "_blank");
+                                },
+                                children: (0, s.jsx)(d.O, { size: 20, className: "text-black-100 dark:text-white-100" })
+                              })
+                            : null
+                        ]
+                      }),
+                    y && "success" === en && es && es.visible ? (0, s.jsx)(Z, { setShowMobileQrCode: A, data: es }) : null,
+                    (0, s.jsxs)("div", {
+                      className: "w-full flex gap-4 mt-auto",
+                      children: [
+                        (0, s.jsx)(i.Buttons.Generic, {
+                          color: S === i.ThemeName.DARK ? N.w.gray900 : N.w.gray300,
+                          size: "normal",
+                          className: "w-full",
+                          onClick: () => m("/home"),
+                          children: (0, s.jsx)("p", { className: "!text-black-100 dark:!text-white-100", children: "Home" })
+                        }),
+                        !eu || (null == F ? void 0 : null === (t = F.toLowerCase()) || void 0 === t ? void 0 : t.includes("nft"))
+                          ? null
+                          : (0, s.jsx)(i.Buttons.Generic, {
+                              color: N.w.green600,
+                              size: "normal",
+                              className: "w-full",
+                              onClick: () =>
+                                m(`/send?assetCoinDenom=${(null == B ? void 0 : B.ibcDenom) || (null == B ? void 0 : B.coinMinimalDenom)}`, { replace: !0 }),
+                              disabled: "success" !== R && "submitted" !== R,
+                              children: "Send Again"
+                            })
+                      ]
+                    })
+                  ]
+                })
+              ]
+            });
+          });
+          n();
+        } catch (e) {
+          n(e);
+        }
+      });
+    },
+    85019: function (e, t, a) {
+      a.a(e, async function (e, n) {
+        try {
+          a.d(t, { s: () => u });
+          var s = a(44658),
+            l = a(78344),
+            r = a(61100),
+            i = a(26245),
+            o = a(36321),
+            c = a(74713),
+            d = a(30809),
+            m = e([i]);
+          i = (m.then ? (await m)() : m)[0];
+          let u = new s.WJ(o.Ui, r.M, d.i, l.J, i.JY, i.w3, c.NH);
+          n();
+        } catch (e) {
+          n(e);
+        }
+      });
+    },
+    30454: function (e, t, a) {
+      a.d(t, { Y: () => h });
+      var n = a(2784),
+        s = a(6806);
+      let l = new Map([
+        [
+          "bold",
+          n.createElement(
+            n.Fragment,
+            null,
+            n.createElement("path", {
+              d: "M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20ZM79.57,196.57a60,60,0,0,1,96.86,0,83.72,83.72,0,0,1-96.86,0ZM100,120a28,28,0,1,1,28,28A28,28,0,0,1,100,120ZM194,179.94a83.48,83.48,0,0,0-29-23.42,52,52,0,1,0-74,0,83.48,83.48,0,0,0-29,23.42,84,84,0,1,1,131.9,0Z"
+            })
+          )
+        ],
+        [
+          "duotone",
+          n.createElement(
+            n.Fragment,
+            null,
+            n.createElement("path", {
+              d: "M224,128a95.76,95.76,0,0,1-31.8,71.37A72,72,0,0,0,128,160a40,40,0,1,0-40-40,40,40,0,0,0,40,40,72,72,0,0,0-64.2,39.37h0A96,96,0,1,1,224,128Z",
+              opacity: "0.2"
+            }),
+            n.createElement("path", {
+              d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM74.08,197.5a64,64,0,0,1,107.84,0,87.83,87.83,0,0,1-107.84,0ZM96,120a32,32,0,1,1,32,32A32,32,0,0,1,96,120Zm97.76,66.41a79.66,79.66,0,0,0-36.06-28.75,48,48,0,1,0-59.4,0,79.66,79.66,0,0,0-36.06,28.75,88,88,0,1,1,131.52,0Z"
+            })
+          )
+        ],
+        [
+          "fill",
+          n.createElement(
+            n.Fragment,
+            null,
+            n.createElement("path", {
+              d: "M172,120a44,44,0,1,1-44-44A44.05,44.05,0,0,1,172,120Zm60,8A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88.09,88.09,0,0,0-91.47-87.93C77.43,41.89,39.87,81.12,40,128.25a87.65,87.65,0,0,0,22.24,58.16A79.71,79.71,0,0,1,84,165.1a4,4,0,0,1,4.83.32,59.83,59.83,0,0,0,78.28,0,4,4,0,0,1,4.83-.32,79.71,79.71,0,0,1,21.79,21.31A87.62,87.62,0,0,0,216,128Z"
+            })
+          )
+        ],
+        [
+          "light",
+          n.createElement(
+            n.Fragment,
+            null,
+            n.createElement("path", {
+              d: "M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26ZM71.44,198a66,66,0,0,1,113.12,0,89.8,89.8,0,0,1-113.12,0ZM94,120a34,34,0,1,1,34,34A34,34,0,0,1,94,120Zm99.51,69.64a77.53,77.53,0,0,0-40-31.38,46,46,0,1,0-51,0,77.53,77.53,0,0,0-40,31.38,90,90,0,1,1,131,0Z"
+            })
+          )
+        ],
+        [
+          "regular",
+          n.createElement(
+            n.Fragment,
+            null,
+            n.createElement("path", {
+              d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM74.08,197.5a64,64,0,0,1,107.84,0,87.83,87.83,0,0,1-107.84,0ZM96,120a32,32,0,1,1,32,32A32,32,0,0,1,96,120Zm97.76,66.41a79.66,79.66,0,0,0-36.06-28.75,48,48,0,1,0-59.4,0,79.66,79.66,0,0,0-36.06,28.75,88,88,0,1,1,131.52,0Z"
+            })
+          )
+        ],
+        [
+          "thin",
+          n.createElement(
+            n.Fragment,
+            null,
+            n.createElement("path", {
+              d: "M128,28A100,100,0,1,0,228,128,100.11,100.11,0,0,0,128,28ZM68.87,198.42a68,68,0,0,1,118.26,0,91.8,91.8,0,0,1-118.26,0Zm124.3-5.55a75.61,75.61,0,0,0-44.51-34,44,44,0,1,0-41.32,0,75.61,75.61,0,0,0-44.51,34,92,92,0,1,1,130.34,0ZM128,156a36,36,0,1,1,36-36A36,36,0,0,1,128,156Z"
+            })
+          )
+        ]
+      ]);
+      var r = Object.defineProperty,
+        i = Object.defineProperties,
+        o = Object.getOwnPropertyDescriptors,
+        c = Object.getOwnPropertySymbols,
+        d = Object.prototype.hasOwnProperty,
+        m = Object.prototype.propertyIsEnumerable,
+        u = (e, t, a) => (t in e ? r(e, t, { enumerable: !0, configurable: !0, writable: !0, value: a }) : (e[t] = a)),
+        x = (e, t) => {
+          for (var a in t || (t = {})) d.call(t, a) && u(e, a, t[a]);
+          if (c) for (var a of c(t)) m.call(t, a) && u(e, a, t[a]);
+          return e;
+        },
+        f = (e, t) => i(e, o(t));
+      let h = (0, n.forwardRef)((e, t) => n.createElement(s.Z, f(x({ ref: t }, e), { weights: l })));
+      h.displayName = "UserCircle";
+    }
+  }
+]);
+//# sourceMappingURL=8727.js.map
