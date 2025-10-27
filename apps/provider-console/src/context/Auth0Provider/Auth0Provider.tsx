@@ -48,19 +48,35 @@ export const Auth0Provider: React.FC<Auth0ProviderProps> = ({ children }) => {
     const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID;
     const redirectUri = `${window.location.origin}/auth/callback`;
 
+    // Check if Auth0 is properly configured
+    if (!auth0Domain || !clientId) {
+      console.warn("Auth0 not configured, redirecting to callback for mock authentication");
+      // Redirect to callback page which will handle mock authentication
+      window.location.href = redirectUri;
+      return;
+    }
+
     // Generate a random state parameter for security
     const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     localStorage.setItem("auth0_state", state);
 
+    const audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE;
     const auth0Url =
       `https://${auth0Domain}/authorize?` +
       `response_type=code&` +
       `client_id=${clientId}&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
       `scope=openid profile email&` +
-      `state=${state}&` +
-      `audience=${process.env.NEXT_PUBLIC_AUTH0_AUDIENCE || ""}`;
+      `state=${state}` +
+      (audience ? `&audience=${encodeURIComponent(audience)}` : "");
 
+    console.log("Auth0 Configuration:");
+    console.log("- Domain:", auth0Domain);
+    console.log("- Client ID:", clientId);
+    console.log("- Audience:", audience || "none");
+    console.log("- Redirect URI:", redirectUri);
+    console.log("- State:", state);
+    console.log("Redirecting to Auth0:", auth0Url);
     window.location.href = auth0Url;
   };
 

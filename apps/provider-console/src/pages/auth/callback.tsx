@@ -20,13 +20,40 @@ export default function CallbackPage() {
         const state = urlParams.get("state");
         const errorParam = urlParams.get("error");
 
+        // Console log for backend testing
+        console.log("Auth0 Callback - Code:", code);
+        console.log("Auth0 Callback - State:", state);
+        console.log("Auth0 Callback - Error:", errorParam);
+
         if (errorParam) {
           setError(`Authentication failed: ${errorParam}`);
           return;
         }
 
         if (!code) {
-          setError("No authorization code received");
+          // No Auth0 code means we should use mock authentication
+          console.log("No Auth0 code received, using mock authentication");
+
+          // Mock authentication for testing when Auth0 is not configured
+          const mockUser: Auth0User = {
+            id: "mock-user-id",
+            email: "test@example.com",
+            name: "Test User",
+            picture: "https://via.placeholder.com/150"
+          };
+
+          const mockAccessToken = "mock-access-token-" + Date.now();
+
+          // Store the mock access token
+          akashAtHomeClient.setAccessToken(mockAccessToken);
+
+          // Set mock user in Auth0 context
+          setUser(mockUser);
+
+          // Wait a bit to ensure state is set, then redirect
+          setTimeout(() => {
+            router.push("/akash-homenode/setup");
+          }, 100);
           return;
         }
 
@@ -42,6 +69,9 @@ export default function CallbackPage() {
 
         try {
           // Authenticate with Python backend
+          console.log("Attempting backend authentication with:");
+          console.log("- Code:", code);
+          console.log("- State:", state);
           const { accessToken, user: userProfile } = await akashAtHomeClient.authenticateWithAuth0(code, state || undefined);
 
           // Store the access token

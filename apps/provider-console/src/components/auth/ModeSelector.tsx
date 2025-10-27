@@ -28,8 +28,8 @@ export const ModeSelector: React.FC = () => {
         console.error("Wallet connection failed:", error);
       }
     } else {
-      // For Akash HomeNode, directly redirect to setup page (mock authentication)
-      router.push("/akash-homenode/setup");
+      // For Akash HomeNode, use the proper authentication flow with Auth0
+      switchAuthMode(mode);
     }
   };
 
