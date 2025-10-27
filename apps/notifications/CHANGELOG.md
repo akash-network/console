@@ -1,5 +1,12 @@
 
 
+## [2.0.1](https://github.com/akash-network/console/compare/notifications/v2.0.0...notifications/v2.0.1) (2025-10-27)
+
+
+### Bug Fixes
+
+* **release:** triggers release  ([cd59471](https://github.com/akash-network/console/commit/cd594718d29ec1f7d1de13071fb2e999b5b8a088))
+
 ## [2.0.0](https://github.com/akash-network/console/compare/notifications/v1.33.1...notifications/v2.0.0) (2025-10-27)
 
 
