@@ -1,5 +1,18 @@
 
 
+## [1.20.0](https://github.com/akash-network/console/compare/indexer/v1.19.0...indexer/v1.20.0) (2025-10-27)
+
+
+### Features
+
+* **analytics:** chain sdk next indexer ([#1983](https://github.com/akash-network/console/issues/1983)) ([dd0600b](https://github.com/akash-network/console/commit/dd0600bee5262ea98304cffcd7e51fc5740ac791))
+
+
+### Bug Fixes
+
+* upgrade chain-sdk to latest version and adds its transport options in indexer ([#2103](https://github.com/akash-network/console/issues/2103)) ([07ba99a](https://github.com/akash-network/console/commit/07ba99a93bf6fb7a0e67eb1fbd554855e66d322b))
+* upgrades cosmjs dependencies and removes unused ones ([#2082](https://github.com/akash-network/console/issues/2082)) ([364f30e](https://github.com/akash-network/console/commit/364f30ee696c477caf7cd8ac6d080f8b933be062)), closes [#1679](https://github.com/akash-network/console/issues/1679)
+
 ## [1.19.0](https://github.com/akash-network/console/compare/indexer/v1.18.0...indexer/v1.19.0) (2025-10-17)
 
 
