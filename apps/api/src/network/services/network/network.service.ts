@@ -28,17 +28,4 @@ export class NetworkService {
       throw error;
     }
   }
-
-  @Memoize({ ttlInSeconds: minutesToSeconds(5) })
-  async getVersion(network: GetNodesParams["network"]): Promise<Result<string, HttpError>> {
-    try {
-      return Ok(await this.nodeHttpService.getVersion(this.netConfig.mapped(network)));
-    } catch (error) {
-      if (error instanceof AxiosError && error.status === 404) {
-        return Err(new NotFound("Network version not found"));
-      }
-
-      throw error;
-    }
-  }
 }
