@@ -1,5 +1,6 @@
 ### `dc.sh` - Docker Compose Helper Script
 
+
 This script is a wrapper around Docker Compose commands, specifically designed to manage the Akash Network Console Docker services.
 
 #### Description:
