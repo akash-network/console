@@ -83,3 +83,6 @@ describe('SomeService', () => {
 ## License
 
 This project is part of Akash Console and is licensed under the terms of its license agreement.
+
+### CosmosSDK
+Target version: 53
