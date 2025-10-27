@@ -1,5 +1,12 @@
 
 
+## [3.0.2](https://github.com/akash-network/console/compare/console-web/v3.0.1...console-web/v3.0.2) (2025-10-27)
+
+
+### Bug Fixes
+
+* stores partial deployment data in local storage ([#2119](https://github.com/akash-network/console/issues/2119)) ([6371677](https://github.com/akash-network/console/commit/6371677deb9c89c1be3786c06f3b33ac9c4caac2))
+
 ## [3.0.1](https://github.com/akash-network/console/compare/console-web/v3.0.0...console-web/v3.0.1) (2025-10-27)
 
 
